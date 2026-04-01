@@ -292,6 +292,15 @@
 - Implicit foreign key detection: warns when `_id String` should be `reference_to("Aggregate")`
 - Validator collects non-blocking warnings alongside blocking errors
 
+## Domain Interface Versioning
+- `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header
+- `hecks version_log` — list all tagged versions newest-first with date and one-line change summary
+- `hecks diff --v1 <v1> --v2 <v2>` — diff two tagged version snapshots with breaking change classification
+- `hecks diff --v1 <v1>` — diff a tagged version against the working domain file
+- `hecks diff` — diff working domain against latest tagged version (falls back to build snapshot)
+- Breaking change classification: removed commands, removed attributes, removed aggregates marked as BREAKING
+- Non-breaking changes: added commands, added attributes, added queries, added scopes
+
 ## Migrations & Schema Evolution
 - `DomainDiff` detects added/removed aggregates, attributes, VOs, entities, indexes, commands, policies, validations, invariants, queries, scopes, subscribers, specifications
 - SQL migration strategy generates Sequel-compatible files

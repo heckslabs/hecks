@@ -49,6 +49,7 @@ module Hecks
   autoload :LlmsGenerator,     "hecks/domain/llms_generator"
   autoload :DomainVisualizer,  "hecks/domain/visualizer"
   autoload :DslSerializer,     "hecks/domain/dsl_serializer"
+  autoload :DomainVersioning,  "hecks/domain_versioning"
   autoload :FlowGenerator,     "hecks/domain/flow_generator"
 
   # = Hecks::ValidationRules

@@ -207,7 +207,7 @@ RSpec.describe "CLI commands" do
     it "reports no snapshot when none exists" do
       Dir.chdir(tmpdir) do
         out = run_cli("diff", "--domain", tmpdir)
-        expect(out).to include("No snapshot found")
+        expect(out).to include("No snapshot or tagged version found")
       end
     end
 
@@ -223,7 +223,7 @@ RSpec.describe "CLI commands" do
         Hecks::Migrations::DomainSnapshot.save(old_domain)
 
         out = run_cli("diff", "--domain", tmpdir)
-        expect(out).to include("Added aggregate: Part")
+        expect(out).to include("+ aggregate: Part")
       end
     end
   end

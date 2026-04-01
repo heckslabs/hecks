@@ -45,9 +45,9 @@ RSpec.describe "hecks diff" do
         cli.diff
 
         text = messages.map(&:first).join("\n")
-        expect(text).to include("Added aggregate: Gadget")
+        expect(text).to include("+ aggregate: Gadget")
         # Added aggregate is not breaking
-        expect(text).not_to include("breaking")
+        expect(text).not_to include("BREAKING")
       end
     end
   end
@@ -86,8 +86,8 @@ RSpec.describe "hecks diff" do
         cli.diff
 
         text = messages.map(&:first).join("\n")
-        expect(text).to include("Removed attribute")
-        expect(text).to include("breaking")
+        expect(text).to include("- attribute:")
+        expect(text).to include("BREAKING")
       end
     end
   end
