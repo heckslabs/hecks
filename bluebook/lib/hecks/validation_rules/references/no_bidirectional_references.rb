@@ -30,8 +30,9 @@ module Hecks
           targets.each do |target|
             if refs[target]&.include?(agg_name)
               pair = [agg_name, target].sort
-              error = "Bidirectional reference between #{pair[0]} and #{pair[1]}. Remove the reference from one side — only one aggregate should reference the other. Use a policy to react to changes on the other side."
-              result << error unless result.include?(error)
+              msg = error("Bidirectional reference between #{pair[0]} and #{pair[1]}",
+                hint: "Remove the reference from one side. Use a policy to react to changes on the other side")
+              result << msg unless result.include?(msg)
             end
           end
         end

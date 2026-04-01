@@ -15,7 +15,10 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
   validator = Hecks::Validator.new(domain)
   unless validator.valid?
     say "Domain validation failed:", :red
-    validator.errors.each { |e| say "  - #{e}", :red }
+    validator.errors.each do |e|
+      say "  - #{e}", :red
+      say "    Fix: #{e.hint}", :cyan if e.respond_to?(:hint) && e.hint
+    end
     next
   end
 

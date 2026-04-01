@@ -61,7 +61,14 @@ module Hecks
     #
     #   Hecks::ValidationError.for_domain(["No fields", "Missing event"])
     def self.for_domain(errors)
-      new("Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}")
+      lines = errors.map do |e|
+        if e.respond_to?(:hint) && e.hint
+          "  - #{e}\n    Fix: #{e.hint}"
+        else
+          "  - #{e}"
+        end
+      end
+      new("Domain validation failed:\n#{lines.join("\n")}")
     end
 
     # @return [Symbol, String, nil] the field that failed validation

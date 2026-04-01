@@ -33,8 +33,8 @@ module Hecks
         def check_visible_pii(agg, issues)
           agg.attributes.each do |attr|
             if attr.pii? && attr.visible?
-              issues << "Privacy: #{agg.name}##{attr.name} is PII but visible. " \
-                        "Mark PII attributes visible: false."
+              issues << error("Privacy: #{agg.name}##{attr.name} is PII but visible",
+                hint: "Add visible: false to the attribute: attribute :#{attr.name}, String, pii: true, visible: false")
             end
           end
         end
@@ -44,8 +44,8 @@ module Hecks
 
           agg.commands.each do |cmd|
             if cmd.actors.empty?
-              issues << "Privacy: #{agg.name}##{cmd.name} touches PII aggregate " \
-                        "but has no actor. Declare who can access PII."
+              issues << error("Privacy: #{agg.name}##{cmd.name} touches PII aggregate but has no actor",
+                hint: "Declare who can access PII: actor 'Admin'")
             end
           end
         end

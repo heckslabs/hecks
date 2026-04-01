@@ -32,7 +32,8 @@ module Hecks
           agg.commands.each do |cmd|
             first_word = cmd.name.split(/(?=[A-Z])/).first
             unless verb?(first_word, custom)
-              result << "Command #{cmd.name} in #{agg.name} doesn't start with a verb. Try '#{suggest_verb(first_word, agg.name)}' or register '#{first_word}' as a custom verb in verbs.txt."
+              result << error("Command #{cmd.name} in #{agg.name} doesn't start with a verb",
+                hint: "Try '#{suggest_verb(first_word, agg.name)}' or register '#{first_word}' as a custom verb in verbs.txt")
             end
           end
         end

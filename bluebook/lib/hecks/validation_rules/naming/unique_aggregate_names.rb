@@ -20,7 +20,8 @@ module Hecks
         duplicates = names.select { |n| names.count(n) > 1 }.uniq
 
         duplicates.map do |name|
-          "Duplicate aggregate name: #{name}. Rename one of the #{name} aggregates to distinguish them."
+          error("Duplicate aggregate name: #{name}",
+            hint: "Rename one of the #{name} aggregates to distinguish them")
         end
       end
     end

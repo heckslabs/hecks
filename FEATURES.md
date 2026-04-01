@@ -328,7 +328,7 @@
 - Reactive policy events and triggers must reference existing elements
 - Name collision detection across aggregates/VOs/entities
 - Ruby keyword and reserved attribute name detection
-- Every validation error includes an actionable fix suggestion
+- Every validation error includes a structured `hint` field with a fix suggestion -- rendered as colored "Fix:" lines in the CLI, included in `ValidationError` exception messages, and accessible via `error.hint` / `error.to_h`
 - Implicit foreign key detection: warns when `_id String` should be `reference_to("Aggregate")`
 - Validator collects non-blocking warnings alongside blocking errors
 

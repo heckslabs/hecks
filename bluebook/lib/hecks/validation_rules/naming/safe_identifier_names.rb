@@ -47,7 +47,8 @@ module Hecks
       # @return [Array<String>] error messages (empty if valid)
       def check_domain_name
         return [] if @domain.name =~ DOMAIN_NAME_RE
-        ["Unsafe domain name '#{@domain.name}': must start with an uppercase letter and contain only alphanumeric characters"]
+        [error("Unsafe domain name '#{@domain.name}': must start with an uppercase letter and contain only alphanumeric characters",
+          hint: "Rename your domain to PascalCase, e.g. 'MyDomain'")]
       end
 
       # Validates all members of an aggregate: attributes, value objects,
@@ -95,7 +96,8 @@ module Hecks
       # @return [Array<String>] error messages (empty if valid)
       def check_type_name(name, kind)
         return [] if name =~ TYPE_NAME_RE
-        ["Unsafe #{kind} name '#{name}': must start with an uppercase letter and contain only alphanumeric characters"]
+        [error("Unsafe #{kind} name '#{name}': must start with an uppercase letter and contain only alphanumeric characters",
+          hint: "Rename to PascalCase with only letters and digits")]
       end
 
       # Validates an attribute or lifecycle field name (snake_case).
@@ -105,7 +107,8 @@ module Hecks
       # @return [Array<String>] error messages (empty if valid)
       def check_attr_name(name, context)
         return [] if name =~ ATTR_NAME_RE
-        ["Unsafe attribute name '#{name}' in #{context}: must start with a lowercase letter and contain only lowercase letters, digits, and underscores"]
+        [error("Unsafe attribute name '#{name}' in #{context}: must start with a lowercase letter and contain only lowercase letters, digits, and underscores",
+          hint: "Rename to snake_case, e.g. 'my_attribute'")]
       end
 
       # Validates enum values on an attribute.
@@ -117,7 +120,8 @@ module Hecks
         return [] unless attr.enum
         attr.enum.flat_map do |val|
           next [] if val.to_s =~ ENUM_VALUE_RE
-          ["Unsafe enum value '#{val}' on attribute '#{attr.name}' in #{context}: must contain only alphanumeric characters and underscores"]
+          [error("Unsafe enum value '#{val}' on attribute '#{attr.name}' in #{context}: must contain only alphanumeric characters and underscores",
+            hint: "Use only letters, digits, and underscores in enum values")]
         end
       end
 
@@ -149,7 +153,8 @@ module Hecks
       # @return [Array<String>] error messages (empty if valid)
       def check_state_value(value, agg_name, label)
         return [] if value =~ ATTR_NAME_RE
-        ["Unsafe lifecycle state '#{value}' (#{label}) in #{agg_name}: must start with a lowercase letter and contain only lowercase letters, digits, and underscores"]
+        [error("Unsafe lifecycle state '#{value}' (#{label}) in #{agg_name}: must start with a lowercase letter and contain only lowercase letters, digits, and underscores",
+          hint: "Rename to snake_case, e.g. 'my_state'")]
       end
 
       # Validates an invariant message for dangerous characters.
@@ -164,8 +169,14 @@ module Hecks
       # @return [Array<String>] error messages (empty if safe)
       def check_invariant_message(message, agg_name)
         errs = []
-        errs << "Unsafe invariant message in #{agg_name}: backtick not allowed in '#{message}'" if message.include?("`")
-        errs << "Unsafe invariant message in #{agg_name}: unbalanced double quotes in '#{message}'" if message.count('"').odd?
+        if message.include?("`")
+          errs << error("Unsafe invariant message in #{agg_name}: backtick not allowed in '#{message}'",
+            hint: "Remove backticks from the invariant message")
+        end
+        if message.count('"').odd?
+          errs << error("Unsafe invariant message in #{agg_name}: unbalanced double quotes in '#{message}'",
+            hint: "Balance the double quotes or remove them from the message")
+        end
         errs
       end
     end

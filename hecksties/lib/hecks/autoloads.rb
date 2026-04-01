@@ -60,6 +60,7 @@ module Hecks
   # or error messages. Rules are run by {Hecks::Validator} to lint a
   # domain definition.
   module ValidationRules
+    autoload :ValidationMessage, "hecks/validation_rules/validation_message"
     autoload :BaseRule,    "hecks/validation_rules/base_rule"
     autoload :Naming,      "hecks/validation_rules/naming"
     autoload :References,  "hecks/validation_rules/references"

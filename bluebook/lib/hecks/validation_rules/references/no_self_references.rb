@@ -21,7 +21,8 @@ module Hecks
         @domain.aggregates.each do |agg|
           (agg.references || []).each do |ref|
             if ref.type.to_s == agg.name
-              result << "#{agg.name} references itself. Use a value object or entity inside the aggregate instead of referencing the aggregate itself."
+              result << error("#{agg.name} references itself",
+                hint: "Use a value object or entity inside the aggregate instead of a self-reference")
             end
           end
         end

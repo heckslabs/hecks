@@ -35,8 +35,8 @@ module Hecks
 
             agg.commands.each do |cmd|
               if cmd.actors.empty?
-                issues << "Consent: #{agg.name}##{cmd.name} has no actor. " \
-                          "Commands on user-like aggregates must declare who initiates them."
+                issues << error("Consent: #{agg.name}##{cmd.name} has no actor",
+                  hint: "Add an actor declaration: actor 'Admin' or actor 'User'")
               end
             end
           end

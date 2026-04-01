@@ -54,13 +54,19 @@ Hecks::CLI.register_command(:validate, "Validate the domain definition",
     end
   else
     say "Domain validation failed:", :red
-    validator.errors.each { |e| say "  - #{e}", :red }
+    validator.errors.each do |e|
+      say "  - #{e}", :red
+      say "    Fix: #{e.hint}", :cyan if e.respond_to?(:hint) && e.hint
+    end
   end
 
   unless validator.warnings.empty?
     say ""
     say "Warnings:", :yellow
-    validator.warnings.each { |w| say "  - #{w}", :yellow }
+    validator.warnings.each do |w|
+      say "  - #{w}", :yellow
+      say "    Fix: #{w.hint}", :cyan if w.respond_to?(:hint) && w.hint
+    end
   end
 
   print_mother_earth_report(validator)

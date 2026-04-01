@@ -54,7 +54,8 @@ module Hecks
       def check_aggregate_name(agg)
         errs = []
         unless agg.name =~ /\A[A-Z][a-zA-Z0-9]*\z/
-          errs << "Invalid aggregate name '#{agg.name}': must start with uppercase letter and contain only alphanumeric characters"
+          errs << error("Invalid aggregate name '#{agg.name}': must start with uppercase letter and contain only alphanumeric characters",
+            hint: "Rename to PascalCase, e.g. '#{agg.name.capitalize.gsub(/[^a-zA-Z0-9]/, '')}'")
         end
         errs
       end
@@ -69,7 +70,8 @@ module Hecks
         errs = []
         agg.attributes.each do |attr|
           if Hecks::Utils.ruby_keyword?(attr.name.to_s)
-            errs << "#{agg.name} attribute '#{attr.name}' is a Ruby keyword — use a different name"
+            errs << error("#{agg.name} attribute '#{attr.name}' is a Ruby keyword",
+              hint: "Rename to a non-keyword name, e.g. '#{attr.name}_value' or '#{agg.name.downcase}_#{attr.name}'")
           end
         end
         errs

@@ -24,8 +24,8 @@ module Hecks
           @domain.aggregates.each do |agg|
             agg.commands.each do |cmd|
               if cmd.emits.is_a?(Array) && cmd.emits.empty?
-                issues << "Transparency: #{agg.name}##{cmd.name} emits no events. " \
-                          "Commands must emit events so changes are observable."
+                issues << error("Transparency: #{agg.name}##{cmd.name} emits no events",
+                  hint: "Add emits 'EventName' or remove emits [] to use auto-inferred events")
               end
             end
           end

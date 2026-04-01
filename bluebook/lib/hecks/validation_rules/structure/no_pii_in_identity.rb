@@ -15,8 +15,8 @@ module Hecks
             agg.identity_fields.each do |field|
               attr = agg.attributes.find { |a| a.name == field }
               next unless attr&.pii?
-              issues << "#{agg.name} uses PII attribute :#{field} in identity. " \
-                        "PII must not be part of composed identity keys."
+              issues << error("#{agg.name} uses PII attribute :#{field} in identity",
+                hint: "Remove :#{field} from identity_fields. PII must not leak into foreign keys, logs, or URLs")
             end
           end
           issues

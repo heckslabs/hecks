@@ -20,7 +20,8 @@ module Hecks
         result = []
         @domain.aggregates.each do |agg|
           if agg.commands.empty?
-            result << "#{agg.name} has no commands. Add at least one: command 'Create#{agg.name}' do attribute :name, String end"
+            result << error("#{agg.name} has no commands",
+              hint: "Add at least one command: command 'Create#{agg.name}' do attribute :name, String end")
           end
         end
         result

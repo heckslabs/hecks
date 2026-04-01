@@ -32,8 +32,8 @@ module Hecks
               cmd.actors.each do |actor|
                 actor_name = actor.respond_to?(:name) ? actor.name : actor.to_s
                 unless domain_actor_names.include?(actor_name)
-                  issues << "Security: #{agg.name}##{cmd.name} declares actor '#{actor_name}' " \
-                            "which is not a domain-level actor. Add: actor '#{actor_name}'"
+                  issues << error("Security: #{agg.name}##{cmd.name} declares actor '#{actor_name}' which is not a domain-level actor",
+                    hint: "Add a domain-level actor declaration: actor '#{actor_name}'")
                 end
               end
             end

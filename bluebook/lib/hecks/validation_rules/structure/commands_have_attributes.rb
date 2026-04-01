@@ -20,7 +20,8 @@ module Hecks
         @domain.aggregates.each do |agg|
           agg.commands.each do |cmd|
             if cmd.attributes.empty? && (cmd.references || []).empty?
-              result << "Command #{cmd.name} in #{agg.name} has no attributes. Add at least one: attribute :name, String"
+              result << error("Command #{cmd.name} in #{agg.name} has no attributes",
+                hint: "Add at least one attribute: attribute :name, String")
             end
           end
         end

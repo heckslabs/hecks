@@ -27,16 +27,18 @@ module Hecks
         @domain.aggregates.each do |agg|
           agg.policies.select(&:reactive?).each do |policy|
             unless command_known?(policy.trigger_command, all_commands)
-              hint = all_commands.any? ? " Available commands: #{all_commands.join(', ')}." : ""
-              result << "Policy #{policy.name} in #{agg.name} triggers unknown command: #{policy.trigger_command}.#{hint}"
+              fix = all_commands.any? ? "Available commands: #{all_commands.join(', ')}" : "Define the target command first"
+              result << error("Policy #{policy.name} in #{agg.name} triggers unknown command: #{policy.trigger_command}",
+                hint: fix)
             end
           end
         end
 
         @domain.policies.select(&:reactive?).each do |policy|
           unless command_known?(policy.trigger_command, all_commands)
-            hint = all_commands.any? ? " Available commands: #{all_commands.join(', ')}." : ""
-            result << "Domain policy #{policy.name} triggers unknown command: #{policy.trigger_command}.#{hint}"
+            fix = all_commands.any? ? "Available commands: #{all_commands.join(', ')}" : "Define the target command first"
+            result << error("Domain policy #{policy.name} triggers unknown command: #{policy.trigger_command}",
+              hint: fix)
           end
         end
 

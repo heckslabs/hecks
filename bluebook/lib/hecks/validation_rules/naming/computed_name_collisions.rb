@@ -23,7 +23,8 @@ module Hecks
           attr_names = agg.attributes.map(&:name).map(&:to_sym)
           (agg.computed_attributes || []).each do |ca|
             if attr_names.include?(ca.name.to_sym)
-              result << "#{agg.name}: computed attribute '#{ca.name}' collides with a regular attribute"
+              result << error("#{agg.name}: computed attribute '#{ca.name}' collides with a regular attribute",
+                hint: "Rename either the computed or regular attribute to avoid the collision")
             end
           end
         end

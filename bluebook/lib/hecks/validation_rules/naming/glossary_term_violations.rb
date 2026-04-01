@@ -95,7 +95,8 @@ module Hecks
         words.filter_map do |word|
           preferred = banned_lookup[word]
           next unless preferred
-          "#{kind} '#{name}' contains avoided term '#{word}' — prefer '#{preferred}'"
+          error("#{kind} '#{name}' contains avoided term '#{word}' — prefer '#{preferred}'",
+            hint: "Replace '#{word}' with '#{preferred}' in the name")
         end
       end
 
