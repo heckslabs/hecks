@@ -11,6 +11,41 @@ RSpec.describe "CLI domain resolution" do
     end
   end
 
+  describe "resolve_domain_option auto-selection" do
+    let(:cli) { Hecks::CLI.new }
+
+    before { allow(cli).to receive(:find_domain_file).and_return(nil) }
+
+    context "when no installed domains" do
+      it "aborts with a helpful message" do
+        allow(cli).to receive(:find_installed_domains).and_return([])
+        expect { cli.send(:resolve_domain_option) }.to raise_error(SystemExit)
+      end
+    end
+
+    context "when exactly one installed domain" do
+      it "auto-selects and prints a message" do
+        allow(cli).to receive(:find_installed_domains).and_return([["pizzas_domain", ["1.0.0"]]])
+        allow(cli).to receive(:say)
+        expect(cli).to receive(:resolve_domain).with("pizzas_domain")
+        cli.send(:resolve_domain_option)
+      end
+    end
+
+    context "when multiple installed domains" do
+      it "shows a numbered list and resolves the selection" do
+        allow(cli).to receive(:find_installed_domains).and_return([
+          ["pizzas_domain", ["1.0.0"]],
+          ["banking_domain", ["2.0.0"]]
+        ])
+        allow(cli).to receive(:say)
+        allow(cli).to receive(:ask).and_return("1")
+        expect(cli).to receive(:resolve_domain).with("pizzas_domain")
+        cli.send(:resolve_domain_option)
+      end
+    end
+  end
+
   describe "resolve_domain" do
     let(:cli) { Hecks::CLI.new }
 

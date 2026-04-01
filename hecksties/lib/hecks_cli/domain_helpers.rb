@@ -21,14 +21,24 @@ module Hecks
         if file
           load_domain_file(file)
         else
-          domains = find_installed_domains
-          if domains.empty?
-            say "No Bluebook found and no --domain specified.", :red
+          installed = find_installed_domains
+          case installed.size
+          when 0
+            abort "No domain found. Create a Bluebook file or install a domain gem."
+          when 1
+            name, _ = installed.first
+            say "Auto-selected domain: #{name}", :green
+            resolve_domain(name)
           else
-            say "No Bluebook found. Use --domain to specify one:", :red
-            domains.each { |name, versions| say "  --domain #{name} (#{versions.map { |v| "v#{v}" }.join(", ")})", :yellow }
+            say "Multiple domains found:", :yellow
+            installed.each_with_index do |(name, versions), i|
+              say "  #{i + 1}. #{name} (#{versions.map { |v| "v#{v}" }.join(", ")})"
+            end
+            choice = ask("Select domain [1-#{installed.size}]:").to_i
+            abort "Invalid selection" unless choice.between?(1, installed.size)
+            name, _ = installed[choice - 1]
+            resolve_domain(name)
           end
-          nil
         end
       end
     end
