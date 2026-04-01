@@ -141,10 +141,12 @@ module Hecks
         end
         policies = @entries.flat_map { |e| e[:ir].policy_labels }
         roles = @entries.flat_map { |e| e[:ir].available_roles }.uniq
+        diagrams = merge_diagrams
         html = @renderer.render(:config,
           title: "Config — #{@brand}", brand: @brand, nav_items: @nav,
           aggregates: summaries, policies: policies, roles: roles,
-          current_role: "admin", adapter: "memory", events: [])
+          current_role: "admin", adapter: "memory", events: [],
+          **diagrams)
         res["Content-Type"] = "text/html"
         res.body = html
       end
@@ -159,6 +161,17 @@ module Hecks
           return
         end
         serve_ui_route(req, res, entry, sub_path)
+      end
+
+      def merge_diagrams
+        combined = { structure_diagram: "", behavior_diagram: "", flows_diagram: "" }
+        @entries.each do |e|
+          d = e[:ir].diagram_data
+          combined[:structure_diagram] += d[:structure_diagram] + "\n"
+          combined[:behavior_diagram]  += d[:behavior_diagram] + "\n"
+          combined[:flows_diagram]     += d[:flows_diagram] + "\n"
+        end
+        combined.transform_values(&:strip)
       end
 
       def plural(agg)

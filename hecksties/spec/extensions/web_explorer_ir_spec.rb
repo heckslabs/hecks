@@ -114,6 +114,14 @@ RSpec.describe "Web Explorer IR introspection" do
       expect(data[:command_names]).to include("Create Pizza")
       expect(data[:attributes]).to be_a(Integer)
     end
+
+    it "returns diagram_data with structure, behavior, and flows" do
+      data = ir.diagram_data
+      expect(data[:structure_diagram]).to include("classDiagram")
+      expect(data[:structure_diagram]).to include("Pizza")
+      expect(data[:behavior_diagram]).to include("flowchart LR")
+      expect(data[:flows_diagram]).to include("sequenceDiagram")
+    end
   end
 
   describe Hecks::WebExplorer::Renderer do

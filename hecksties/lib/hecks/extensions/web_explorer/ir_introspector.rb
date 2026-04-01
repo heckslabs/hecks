@@ -102,6 +102,16 @@ module Hecks
         HecksTemplating::DisplayContract.available_roles(@domain)
       end
 
+      def diagram_data
+        viz = Hecks::DomainVisualizer.new(@domain)
+        flow = Hecks::FlowGenerator.new(@domain)
+        {
+          structure_diagram: viz.generate_structure,
+          behavior_diagram:  viz.generate_behavior,
+          flows_diagram:     flow.generate_mermaid
+        }
+      end
+
       private
 
       def humanize(name)
