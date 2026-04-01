@@ -22,3 +22,4 @@
 #
 require_relative "hecks_cli/cli"
 require_relative "hecks_cli/import"
+require_relative "hecks_cli/architecture_tour"

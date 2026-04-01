@@ -268,6 +268,11 @@
 - Also available inside the console: `tour`
 - CI-friendly: skips Enter pauses when stdin is not a TTY
 
+### Architecture Tour
+- Contributor walkthrough via `hecks tour --architecture` — 10-step tour of framework internals
+- Covers monorepo layout, Bluebook DSL, Hecksagon IR, compiler pipeline, generators, workshop, AI tools, CLI registration, and spec conventions
+- Each step displays relevant file paths for exploration
+
 ### Web Console
 - Browser-based REPL via `hecks web_console [NAME]` — terminal-like interface at localhost:4567
 - Safe command parser: no eval, only whitelisted Grammar commands execute
