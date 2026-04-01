@@ -114,7 +114,7 @@ module Hecks
           return
         end
 
-        route = @routes.find { |r| r[:method] == req.request_method && match?(r[:path], req.path) }
+        route = @routes.find { |r| r[:method] == req.request_method && route_matches_request_path?(r[:path], req.path) }
         unless route
           res.status = 404
           res["Content-Type"] = "application/json"
@@ -181,7 +181,7 @@ module Hecks
       # @param pattern [String] the route pattern (e.g. "/pizzas/:id")
       # @param path [String] the actual request path (e.g. "/pizzas/abc123")
       # @return [Boolean] true if the path matches the pattern
-      def match?(pattern, path)
+      def route_matches_request_path?(pattern, path)
         pp = pattern.split("/"); ap = path.split("/")
         pp.size == ap.size && pp.zip(ap).all? { |p, a| p.start_with?(":") || p == a }
       end

@@ -157,7 +157,7 @@ module Hecks
       end
 
       def serve_domain_route(req, res, entry, sub_path)
-        route = entry[:routes].find { |r| r[:method] == req.request_method && match?(r[:path], sub_path) }
+        route = entry[:routes].find { |r| r[:method] == req.request_method && route_matches_request_path?(r[:path], sub_path) }
         if route && req["Accept"]&.include?("application/json")
           if csrf_required?(req) && !valid_csrf_json?(req)
             res.status = 403
@@ -189,7 +189,7 @@ module Hecks
         domain_aggregate_slug(agg.name)
       end
 
-      def match?(pattern, path)
+      def route_matches_request_path?(pattern, path)
         pp = pattern.split("/"); ap = path.split("/")
         pp.size == ap.size && pp.zip(ap).all? { |p, a| p.start_with?(":") || p == a }
       end
