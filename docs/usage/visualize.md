@@ -20,6 +20,9 @@ hecks visualize --type flows
 # Print the vertical slice flowchart
 hecks visualize --type slices
 
+# Print the hexagonal port diagram (driving/driven adapters)
+hecks visualize --type ports
+
 # Open a self-contained HTML page with Mermaid rendering in the browser
 hecks visualize --browser
 
@@ -65,6 +68,7 @@ flowchart LR
 | `behavior` | `flowchart LR` | Command-to-event flows, policy links |
 | `flows` | `sequenceDiagram` | Reactive chains traced from entry commands |
 | `slices` | `flowchart LR` | Vertical slices as labeled subgraphs |
+| `ports` | `flowchart LR` | Hexagonal port diagram: driving/driven adapters around domain |
 | (default) | both | `structure` + `behavior` diagrams |
 
 ## Browser Mode

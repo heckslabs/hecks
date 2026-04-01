@@ -8,13 +8,14 @@
 #   hecks visualize --type behavior      # flowchart only
 #   hecks visualize --type flows         # sequenceDiagram only
 #   hecks visualize --type slices        # slice flowchart only
+#   hecks visualize --type ports         # hexagonal port diagram
 #   hecks visualize --browser            # open HTML in browser
 #   hecks visualize --output diagram.md  # write to file
 #
 Hecks::CLI.register_command(:visualize, "Generate Mermaid diagrams for the domain",
   options: {
     domain:  { type: :string,  desc: "Domain gem name or path" },
-    type:    { type: :string,  desc: "Diagram type: structure, behavior, flows, slices (default: all)" },
+    type:    { type: :string,  desc: "Diagram type: structure, behavior, flows, slices, ports (default: all)" },
     browser: { type: :boolean, desc: "Open diagram as HTML in browser" },
     output:  { type: :string,  desc: "Write diagram to file (e.g. diagram.md)" }
   }
@@ -53,6 +54,8 @@ def build_mermaid(domain, type)
     "```mermaid\n#{Hecks::FlowGenerator.new(domain).generate_mermaid}\n```"
   when :slices
     "```mermaid\n#{Hecks::Features::SliceDiagram.new(domain).generate}\n```"
+  when :ports
+    "```mermaid\n#{Hecks::DomainVisualizer.new(domain).generate_ports}\n```"
   else
     Hecks::DomainVisualizer.new(domain).generate
   end

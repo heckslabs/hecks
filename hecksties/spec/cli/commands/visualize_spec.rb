@@ -59,6 +59,17 @@ RSpec.describe "hecks visualize" do
     end
   end
 
+  it "--type ports produces port flowchart" do
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "TestVizBluebook"), BLUEBOOK_DSL)
+      Dir.chdir(dir) do
+        output = run_visualize(cli, { type: "ports" })
+        expect(output).to include("flowchart LR")
+        expect(output).to include("TestViz")
+      end
+    end
+  end
+
   it "--type flows produces sequenceDiagram" do
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "TestVizBluebook"), BLUEBOOK_DSL)

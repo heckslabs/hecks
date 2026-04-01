@@ -1,5 +1,6 @@
 require_relative "visualizer_parts/structure_diagram"
 require_relative "visualizer_parts/behavior_diagram"
+require_relative "visualizer_parts/port_diagram"
 
 module Hecks
   # Hecks::DomainVisualizer
@@ -19,6 +20,7 @@ module Hecks
   class DomainVisualizer
     include StructureDiagram
     include BehaviorDiagram
+    include PortDiagram
 
     # @param domain [Hecks::DomainModel::Domain] the domain IR to visualize
     def initialize(domain)
