@@ -24,6 +24,7 @@ module Hecks
       validate preview describe build save to_dsl status browse
       play! sketch! serve! events events_of commands history reset!
       promote visualize
+      save_image restore_image list_images
     ].each do |m|
       define_method(m) do |*args, **kwargs, &block|
         @workshop.send(m, *args, **kwargs, &block)

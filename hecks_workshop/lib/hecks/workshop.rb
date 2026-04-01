@@ -7,6 +7,8 @@ require_relative "workshop/renderer"
 require_relative "workshop/deep_inspect"
 require_relative "workshop/handles/aggregate_handle"
 require_relative "workshop/system_browser"
+require_relative "workshop/session_image"
+require_relative "workshop/persistent_image"
 require_relative "workshop/workshop_runner"
 require_relative "workshop/playground"
 require_relative "workshop/tour"
@@ -43,6 +45,7 @@ module Hecks
     include Presenter
     include DeepInspect
     include SystemBrowser
+    include PersistentImage
 
     attr_reader :name, :playground, :aggregate_builders
 

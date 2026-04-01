@@ -287,6 +287,10 @@
 - Event history with timestamps, reset/replay capability
 - Suppressed backtraces by default — `backtrace!` / `quiet!` to toggle
 - Persistent command history across sessions (`~/.hecks_history`)
+- Session image save/restore: `save_image` / `restore_image` to snapshot and restore workshop state
+- Named image labels: `save_image("checkpoint")` for multiple save points
+- Image files stored in `.hecks/images/` with human-readable `.heckimage` format
+- `list_images` to see all saved session snapshots
 - `Hecks::TestHelper` for spec setup and constant cleanup
 
 ## Vertical Slice Architecture (hecks_features)
