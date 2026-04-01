@@ -25,7 +25,7 @@ module Hecks
     private
 
     def adapter_registry
-      @adapter_registry ||= SetRegistry.new(%i[memory sqlite postgres mysql mysql2 filesystem filesystem_store])
+      @adapter_registry ||= SetRegistry.new(%i[memory sqlite postgres mysql mysql2 filesystem filesystem_store mongodb])
     end
   end
 end

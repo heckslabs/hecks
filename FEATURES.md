@@ -72,6 +72,7 @@
 - `hecks_sqlite` — SQLite persistence, auto-wires when in Gemfile
 - `hecks_postgres` — PostgreSQL persistence
 - `hecks_mysql` — MySQL persistence
+- `hecks_mongodb` — MongoDB persistence; value objects embedded as nested documents (no join tables)
 - `hecks_cqrs` — named persistence connections for read/write separation
 - `hecks_mongodb` — MongoDB document persistence via the mongo Ruby driver
 

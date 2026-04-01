@@ -3,13 +3,17 @@
 # Generates MongoDB repository adapter classes for each aggregate.
 # Each adapter wraps a Mongo::Collection and implements the standard
 # repository interface: find, save, delete, all, count, query, clear.
+# Embeds value objects as nested hashes (single) or arrays of hashes (list).
 #
 #   gen = MongoAdapterGenerator.new(agg, domain_module: "PizzasDomain")
 #   gen.generate  # => Ruby source string
 #
+require_relative "mongo_adapter_generator/serialization_lines"
+
 module Hecks
   class MongoAdapterGenerator
     include HecksTemplating::NamingHelpers
+    include SerializationLines
 
     def initialize(aggregate, domain_module:)
       @aggregate = aggregate
@@ -23,6 +27,8 @@ module Hecks
       lines << "module #{@domain_module}"
       lines << "  module Adapters"
       lines << "    class #{@safe_name}MongoRepository"
+      lines << "      include Ports::#{@safe_name}Repository"
+      lines << ""
       lines << "      def initialize(collection)"
       lines << "        @collection = collection"
       lines << "      end"
@@ -87,38 +93,6 @@ module Hecks
         "#{pad}  cursor = cursor.skip(offset) if offset && offset > 0",
         "#{pad}  cursor = cursor.limit(limit) if limit && limit > 0",
         "#{pad}  cursor.map { |doc| deserialize(doc) }",
-        "#{pad}end"
-      ]
-    end
-
-    def serialize_lines(indent)
-      pad = " " * indent
-      attrs = @aggregate.attributes.reject(&:list?)
-      refs = @aggregate.references || []
-      fields = attrs.map { |a| "\"#{a.name}\" => obj.#{a.name}" }
-      fields += refs.map { |r| "\"#{r.name}_id\" => obj.respond_to?(:#{r.name}_id) ? obj.#{r.name}_id : nil" }
-      [
-        "#{pad}def serialize(obj)",
-        "#{pad}  {",
-        "#{pad}    \"_id\" => obj.id,",
-        *fields.map { |f| "#{pad}    #{f}," },
-        "#{pad}    \"created_at\" => obj.respond_to?(:created_at) ? obj.created_at&.to_s : nil,",
-        "#{pad}    \"updated_at\" => obj.respond_to?(:updated_at) ? obj.updated_at&.to_s : nil",
-        "#{pad}  }",
-        "#{pad}end"
-      ]
-    end
-
-    def deserialize_lines(indent)
-      pad = " " * indent
-      attrs = @aggregate.attributes.reject(&:list?)
-      params = attrs.map { |a| "#{a.name}: doc[\"#{a.name}\"]" }
-      [
-        "#{pad}def deserialize(doc)",
-        "#{pad}  klass = #{@domain_module}.const_get(\"#{@safe_name}\")",
-        "#{pad}  obj = klass.new(#{params.join(", ")})",
-        "#{pad}  obj.instance_variable_set(:@id, doc[\"_id\"]) if doc[\"_id\"]",
-        "#{pad}  obj",
         "#{pad}end"
       ]
     end

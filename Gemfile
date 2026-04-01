@@ -14,4 +14,5 @@ group :development, :test do
   gem "sqlite3", ">= 1.4", "< 3.0"
   gem "rdoc", ">= 6.4", "< 6.7"
   gem "sdoc"
+  gem "mongo"
 end
