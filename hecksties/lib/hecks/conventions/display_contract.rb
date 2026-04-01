@@ -152,7 +152,7 @@ module Hecks::Conventions
     #
     # @param agg [Aggregate] the aggregate IR
     # @param plural [String] the plural URL segment
-    # @return [Hash] { name:, href:, commands:, attributes:, policies: }
+    # @return [Hash] { name:, href:, command_names:, attributes:, policies: }
     def self.home_aggregate_data(agg, plural)
       user_attrs = agg.attributes.reject { |a|
         Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s)
@@ -160,7 +160,7 @@ module Hecks::Conventions
       {
         name: UILabelContract.plural_label(agg.name),
         href: "/#{plural}",
-        commands: agg.commands.size,
+        command_names: agg.commands.map { |c| UILabelContract.label(c.name) }.join(", "),
         attributes: user_attrs.size,
         policies: agg.policies.size,
       }

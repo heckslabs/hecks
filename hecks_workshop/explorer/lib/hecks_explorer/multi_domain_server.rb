@@ -113,7 +113,7 @@ module Hecks
         agg_data = @entries.flat_map do |e|
           e[:domain].aggregates.map do |agg|
             d = HecksTemplating::DisplayContract.home_aggregate_data(agg, "#{e[:slug]}/#{plural(agg)}")
-            { name: d[:name], href: d[:href], commands: d[:commands],
+            { name: d[:name], href: d[:href], command_names: d[:command_names],
               attributes: d[:attributes], policies: d[:policies] }
           end
         end

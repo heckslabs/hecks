@@ -96,7 +96,7 @@ module Hecks::Conventions
         home_agg: [
           { name: :href, type: :string },
           { name: :name, type: :string },
-          { name: :commands, type: :int },
+          { name: :command_names, type: :string },
           { name: :attributes, type: :int },
           { name: :policies, type: :int },
         ],

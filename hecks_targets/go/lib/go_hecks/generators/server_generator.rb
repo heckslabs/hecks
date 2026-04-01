@@ -112,7 +112,7 @@ module GoHecks
       agg_data = @domain.aggregates.map do |agg|
         plural = GoUtils.snake_case(agg.name) + "s"
         d = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural)
-        "{Name: \"#{d[:name]}\", Href: \"#{d[:href]}\", Commands: #{d[:commands]}, Attributes: #{d[:attributes]}, Policies: #{d[:policies]}}"
+        "{Name: \"#{d[:name]}\", Href: \"#{d[:href]}\", CommandNames: \"#{d[:command_names]}\", Attributes: #{d[:attributes]}, Policies: #{d[:policies]}}"
       end
       lines = []
       vc = HecksTemplating::ViewContract

@@ -97,7 +97,7 @@ class UIGenerator < Hecks::Generator
   def root_route(mod)
     agg_data = @domain.aggregates.map do |agg|
       d = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural(agg))
-      "{ name: \"#{d[:name]}\", href: \"#{d[:href]}\", commands: #{d[:commands]}, attributes: #{d[:attributes]}, policies: #{d[:policies]} }"
+      "{ name: \"#{d[:name]}\", href: \"#{d[:href]}\", command_names: \"#{d[:command_names]}\", attributes: #{d[:attributes]}, policies: #{d[:policies]} }"
     end
     [
       "        server.mount_proc \"/\" do |req, res|",
