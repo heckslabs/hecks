@@ -21,10 +21,14 @@ module Hecksagon
       # @return [Array<Symbol>] methods this role is allowed to call
       attr_reader :allowed_methods
 
-      def initialize(aggregate:, role:, allowed_methods:)
+      # @return [Symbol, nil] the aggregate attribute used for ownership checks
+      attr_reader :ownership_field
+
+      def initialize(aggregate:, role:, allowed_methods:, ownership_field: nil)
         @aggregate = aggregate.to_s
         @role = role.to_sym
         @allowed_methods = allowed_methods.map(&:to_sym)
+        @ownership_field = ownership_field&.to_sym
       end
 
       # Returns true if the given method is allowed through this gate.

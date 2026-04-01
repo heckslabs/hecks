@@ -88,6 +88,8 @@
 - Default-secure auth: raises `ConfigurationError` at boot when actor-protected commands exist but no `:auth` extension is registered
 - Explicit opt-out: `extend :auth, enforce: false` registers a no-op sentinel that satisfies the check
 - `hecks_tenancy` — multi-tenant isolation (`Hecks.tenant = "acme"`)
+- Row-level authorization — `owned_by :field` on gates restricts `find`/`all`/`delete` to the current user; `tenancy: :row` isolates by `Hecks.tenant`
+- `Hecks.current_user` / `Hecks.with_user(user) { }` — thread-local current user context for ownership enforcement
 - `hecks_audit` — audit trail of every command execution
 - `hecks_logging` — structured stdout logging with duration
 - `hecks_rate_limit` — sliding window rate limiting per actor

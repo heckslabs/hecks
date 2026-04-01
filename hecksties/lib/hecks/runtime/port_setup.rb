@@ -54,7 +54,7 @@ module Hecks
       # @return [void]
       def wire_aggregate(agg)
         agg_class = @mod.const_get(domain_constant_name(agg.name))
-        repo = @repositories[agg.name]
+        repo = ownership_scoped_repo(agg, @repositories[agg.name])
         defaults = build_defaults(agg)
 
         Persistence.bind(agg_class, agg, repo)
@@ -65,6 +65,33 @@ module Hecks
         AttachmentMethods.bind(agg_class) if agg.attachable?
         wire_query_objects(agg, agg_class)
         GateEnforcer.new(gate_name: @gate_name, hecksagon: @hecksagon).enforce!(agg, agg_class)
+      end
+
+      # Wraps the repository with an OwnershipScopedRepository when the active
+      # gate declares +owned_by+ or when tenancy is +:row+.
+      #
+      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition
+      # @param repo [Object] the inner repository instance
+      # @return [Object] the repo, possibly wrapped with ownership scoping
+      def ownership_scoped_repo(agg, repo)
+        gate_def = @hecksagon&.gate_for(agg.name, @gate_name) if @gate_name && @hecksagon
+        if gate_def&.ownership_field
+          require "hecks/extensions/tenancy_support/ownership_scoped_repository"
+          HecksTenancy::OwnershipScopedRepository.new(
+            repo,
+            ownership_field: gate_def.ownership_field,
+            identity_source: -> { Hecks.current_user }
+          )
+        elsif @hecksagon&.tenancy == :row
+          require "hecks/extensions/tenancy_support/ownership_scoped_repository"
+          HecksTenancy::OwnershipScopedRepository.new(
+            repo,
+            ownership_field: :tenant_id,
+            identity_source: -> { Hecks.tenant }
+          )
+        else
+          repo
+        end
       end
 
       # Builds a default values hash for the aggregate's attributes.

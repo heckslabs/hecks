@@ -36,5 +36,21 @@ module Hecks
     ensure
       Thread.current[:hecks_actor] = old
     end
+
+    def current_user
+      Thread.current[:hecks_current_user]
+    end
+
+    def current_user=(user)
+      Thread.current[:hecks_current_user] = user
+    end
+
+    def with_user(user)
+      old = Thread.current[:hecks_current_user]
+      Thread.current[:hecks_current_user] = user
+      yield
+    ensure
+      Thread.current[:hecks_current_user] = old
+    end
   end
 end

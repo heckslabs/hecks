@@ -16,6 +16,7 @@ module Hecksagon
         @aggregate = aggregate
         @role = role
         @allowed_methods = []
+        @ownership_field = nil
       end
 
       # Declare one or more methods as allowed through this gate.
@@ -26,6 +27,19 @@ module Hecksagon
         @allowed_methods.concat(methods.map(&:to_sym))
       end
 
+      # Declare which aggregate attribute identifies the record owner.
+      #
+      # When set, find/all/delete operations will be scoped to the current
+      # user (from +Hecks.current_user+). find and delete raise
+      # +Hecks::GateAccessDenied+ if the record is owned by someone else.
+      # +all+ filters to only owned records.
+      #
+      # @param field [Symbol] the attribute name holding the owner identity
+      # @return [void]
+      def owned_by(field)
+        @ownership_field = field.to_sym
+      end
+
       # Build and return the GateDefinition IR object.
       #
       # @return [Hecksagon::Structure::GateDefinition]
@@ -33,7 +47,8 @@ module Hecksagon
         Structure::GateDefinition.new(
           aggregate: @aggregate,
           role: @role,
-          allowed_methods: @allowed_methods
+          allowed_methods: @allowed_methods,
+          ownership_field: @ownership_field
         )
       end
     end
