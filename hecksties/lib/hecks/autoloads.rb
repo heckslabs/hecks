@@ -76,9 +76,10 @@ module Hecks
   # - +Behavior+ -- Behavioral types: Command, Event, Policy, Lifecycle,
   #   Workflow, Guard, Invariant
   module DomainModel
-    autoload :Behavior,  "hecks/domain_model/behavior"
-    autoload :Structure, "hecks/domain_model/structure"
-    autoload :Names,     "hecks/domain_model/names"
+    autoload :Behavior,                "hecks/domain_model/behavior"
+    autoload :Structure,               "hecks/domain_model/structure"
+    autoload :Names,                   "hecks/domain_model/names"
+    autoload :SubscriberRegistration,  "hecks/domain_model/subscriber_registration"
   end
 
   # = Hecks::DSL

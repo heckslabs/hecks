@@ -22,7 +22,7 @@ module Hecks::Features
     # @return [String] the command that starts this slice
     attr_reader :entry_command
 
-    # @return [Array<Hash>] ordered steps from FlowGenerator trace
+    # @return [Array<SliceStep>] ordered steps from FlowGenerator trace
     attr_reader :steps
 
     # @return [Array<String>] unique aggregate names involved in this slice
@@ -50,21 +50,21 @@ module Hecks::Features
     #
     # @return [Array<String>]
     def commands
-      steps.select { |s| s[:type] == :command }.map { |s| s[:command] }
+      steps.select { |s| s.type == :command }.map(&:command)
     end
 
     # All event names emitted in this slice.
     #
     # @return [Array<String>]
     def events
-      steps.select { |s| s[:type] == :command }.map { |s| s[:event] }.compact
+      steps.select { |s| s.type == :command }.map(&:event).compact
     end
 
     # All policy names in this slice.
     #
     # @return [Array<String>]
     def policies
-      steps.select { |s| s[:type] == :policy }.map { |s| s[:policy] }
+      steps.select { |s| s.type == :policy }.map(&:policy)
     end
 
     # Number of steps in the reactive chain.

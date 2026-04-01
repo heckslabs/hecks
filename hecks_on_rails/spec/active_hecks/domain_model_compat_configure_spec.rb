@@ -45,7 +45,7 @@ RSpec.describe "ActiveHecks::DomainModelCompat (edge cases)" do
       attr_reader :id
 
       def self.hecks_attributes
-        [{ name: :id }]
+        [Hecks::RuntimeAttributeDefinition.new(name: :id)]
       end
     end
     klass.include(ActiveHecks::DomainModelCompat)

@@ -114,7 +114,7 @@ module Hecks
       # @return [Array<Symbol>] the attribute names (excluding :id)
       def self.attr_names(klass)
         if klass.respond_to?(:hecks_attributes)
-          klass.hecks_attributes.map { |a| a[:name] }
+          klass.hecks_attributes.map(&:name)
         else
           klass.instance_method(:initialize).parameters
             .select { |type, _| type == :key || type == :keyreq }

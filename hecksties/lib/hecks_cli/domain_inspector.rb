@@ -116,8 +116,7 @@ module Hecks
         return [] if @domain.actors.empty?
         lines = ["Actors:"]
         @domain.actors.each do |actor|
-          name = actor.respond_to?(:name) ? actor.name : actor.to_s
-          lines << "  #{name}"
+          lines << "  #{actor.name}"
         end
         lines << ""
       end

@@ -24,7 +24,7 @@ module Hecks
         def errors
           return [] unless @domain.world_goals.include?(:security)
 
-          domain_actor_names = @domain.actors.map { |a| a.is_a?(Hash) ? a[:name] : a.name }
+          domain_actor_names = @domain.actors.map(&:name)
           issues = []
 
           @domain.aggregates.each do |agg|

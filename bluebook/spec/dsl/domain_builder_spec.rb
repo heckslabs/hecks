@@ -243,8 +243,10 @@ RSpec.describe Hecks::DSL::DomainBuilder do
         aggregate("Policy") { attribute :name, String; command("CreatePolicy") { attribute :name, String } }
       end
       expect(domain.actors.length).to eq(2)
-      expect(domain.actors[0]).to eq({ name: "governance_board", description: nil })
-      expect(domain.actors[1]).to eq({ name: "admin", description: "System administrator" })
+      expect(domain.actors[0].name).to eq("governance_board")
+      expect(domain.actors[0].description).to be_nil
+      expect(domain.actors[1].name).to eq("admin")
+      expect(domain.actors[1].description).to eq("System administrator")
     end
   end
 

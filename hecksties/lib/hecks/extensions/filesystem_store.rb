@@ -127,7 +127,7 @@ module Hecks
       when Array then val.map { |v| serialize_value(v) }
       when ->(v) { v.class.respond_to?(:hecks_attributes) }
         h = {}
-        val.class.hecks_attributes.each { |a| h[a[:name].to_s] = serialize_value(val.send(a[:name])) }
+        val.class.hecks_attributes.each { |a| h[a.name.to_s] = serialize_value(val.send(a.name)) }
         h
       else val
       end

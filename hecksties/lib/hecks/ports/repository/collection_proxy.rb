@@ -192,7 +192,7 @@ module Hecks
           attrs = { id: @owner.id }
           if @owner.class.respond_to?(:hecks_attributes)
             @owner.class.hecks_attributes.each do |a|
-              attrs[a[:name]] = a[:name] == @attr_name ? new_items : @owner.send(a[:name])
+              attrs[a.name] = a.name == @attr_name ? new_items : @owner.send(a.name)
             end
           else
             @owner.class.instance_method(:initialize).parameters.each do |_, name|

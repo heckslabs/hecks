@@ -28,15 +28,16 @@ module Hecks::Features
     private
 
     def build_slice(flow)
-      aggregates = flow[:steps]
-        .map { |s| s[:aggregate] }
+      steps = flow[:steps].map { |s| SliceStep.new(**s) }
+      aggregates = steps
+        .map(&:aggregate)
         .compact
         .uniq
 
       VerticalSlice.new(
         name: flow[:name],
-        entry_command: flow[:steps].first[:command],
-        steps: flow[:steps],
+        entry_command: steps.first.command,
+        steps: steps,
         aggregates: aggregates,
         cyclic: flow[:cyclic]
       )

@@ -208,7 +208,7 @@ module Hecks
       klass = obj.is_a?(Class) ? obj : obj.class
       names = [:id]
       if klass.respond_to?(:hecks_attributes)
-        names += klass.hecks_attributes.map { |a| a[:name] }
+        names += klass.hecks_attributes.map(&:name)
       else
         klass.instance_method(:initialize).parameters.each do |_, name|
           names << name if name && name != :id

@@ -1,4 +1,5 @@
 require "securerandom"
+require_relative "runtime_attribute_definition"
 
 module Hecks
   # Hecks::Model
@@ -73,16 +74,15 @@ module Hecks
       # @return [void]
       def attribute(name, default: nil, freeze: false)
         @hecks_attributes ||= []
-        @hecks_attributes << { name: name.to_sym, default: default, freeze: freeze }
+        @hecks_attributes << RuntimeAttributeDefinition.new(name: name.to_sym, default: default, freeze: freeze)
         attr_reader name
         attr_writer name
         rebuild_initializer
       end
 
       # Returns the list of declared attribute definitions for this model.
-      # Each entry is a Hash with keys +:name+, +:default+, and +:freeze+.
       #
-      # @return [Array<Hash>] attribute definitions, empty array if none declared
+      # @return [Array<RuntimeAttributeDefinition>] attribute definitions, empty array if none declared
       def hecks_attributes
         @hecks_attributes || []
       end
@@ -100,10 +100,10 @@ module Hecks
           @id = id || SecureRandom.uuid
           @_pristine = {}
           attrs.each do |attr|
-            val = kwargs.fetch(attr[:name], attr[:default])
+            val = kwargs.fetch(attr.name, attr.default)
             val = val.freeze if attr[:freeze]
-            instance_variable_set(:"@#{attr[:name]}", val)
-            @_pristine[attr[:name]] = val
+            instance_variable_set(:"@#{attr.name}", val)
+            @_pristine[attr.name] = val
           end
           validate!
           check_invariants!
@@ -168,8 +168,8 @@ module Hecks
       short_class = self.class.name&.split("::")&.last || self.class.to_s
       short_id = id.to_s[0, 8]
       attrs = self.class.hecks_attributes.map do |attr|
-        val = instance_variable_get(:"@#{attr[:name]}")
-        "#{attr[:name]}: #{val.inspect}"
+        val = instance_variable_get(:"@#{attr.name}")
+        "#{attr.name}: #{val.inspect}"
       end
       "#<#{short_class} id:#{short_id} #{attrs.join(' ')}>"
     end

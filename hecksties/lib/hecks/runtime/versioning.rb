@@ -35,7 +35,7 @@ module Hecks
           versions = version_store[aggregate.id] ||= []
           snapshot = {}
           klass.hecks_attributes.each do |attr_def|
-            snapshot[attr_def[:name]] = existing.send(attr_def[:name])
+            snapshot[attr_def.name] = existing.send(attr_def.name)
           end
           versions << { version: versions.size + 1, state: snapshot, at: Time.now }
         end

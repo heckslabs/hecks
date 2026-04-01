@@ -50,8 +50,9 @@ module Hecks
 
         # Wires domain-level event subscribers (defined via +on_event+ in the domain DSL).
         #
-        # These are simple block-based subscribers stored as hashes with +:event_name+
-        # and +:block+ keys. Each block is subscribed directly to the event bus.
+        # These are block-based subscribers stored as SubscriberRegistration structs
+        # with +event_name+ and +block+ members. Each block is subscribed directly
+        # to the event bus.
         #
         # Returns immediately if the domain does not support +event_subscribers+
         # (backward compatibility with older domain definitions).
@@ -61,9 +62,9 @@ module Hecks
           return unless @domain.respond_to?(:event_subscribers)
 
           @domain.event_subscribers.each do |sub|
-            block = sub[:block]
-            @event_bus.subscribe(sub[:event_name]) do |event|
-              block.call(event)
+            callback = sub.block
+            @event_bus.subscribe(sub.event_name) do |event|
+              callback.call(event)
             end
           end
         end

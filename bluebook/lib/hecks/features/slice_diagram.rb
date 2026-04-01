@@ -30,20 +30,20 @@ module Hecks::Features
 
         slice.steps.each_with_index do |step, j|
           node_id = "s#{i}_#{j}"
-          case step[:type]
+          case step.type
           when :command
-            lines << "    #{node_id}[#{step[:command]}]"
+            lines << "    #{node_id}[#{step.command}]"
             event_id = "#{node_id}_evt"
-            lines << "    #{event_id}([#{step[:event]}])"
+            lines << "    #{event_id}([#{step.event}])"
             lines << "    #{node_id} --> #{event_id}"
           when :policy
-            lines << "    #{node_id}{{#{step[:policy]}}}"
-            prev_event = find_event_node(i, step[:event], slice.steps, j)
+            lines << "    #{node_id}{{#{step.policy}}}"
+            prev_event = find_event_node(i, step.event, slice.steps, j)
             lines << "    #{prev_event} -.-> #{node_id}" if prev_event
-            next_cmd = find_command_node(i, step[:command], slice.steps, j)
+            next_cmd = find_command_node(i, step.command, slice.steps, j)
             lines << "    #{node_id} --> #{next_cmd}" if next_cmd
           when :cycle
-            lines << "    #{node_id}>CYCLE: #{step[:command]}]"
+            lines << "    #{node_id}>CYCLE: #{step.command}]"
           end
         end
 
@@ -58,7 +58,7 @@ module Hecks::Features
     def find_event_node(slice_idx, event_name, steps, before_idx)
       steps.each_with_index do |step, j|
         next if j >= before_idx
-        return "s#{slice_idx}_#{j}_evt" if step[:type] == :command && step[:event] == event_name
+        return "s#{slice_idx}_#{j}_evt" if step.type == :command && step.event == event_name
       end
       nil
     end
@@ -66,7 +66,7 @@ module Hecks::Features
     def find_command_node(slice_idx, cmd_name, steps, after_idx)
       steps.each_with_index do |step, j|
         next if j <= after_idx
-        return "s#{slice_idx}_#{j}" if step[:type] == :command && step[:command] == cmd_name
+        return "s#{slice_idx}_#{j}" if step.type == :command && step.command == cmd_name
       end
       nil
     end

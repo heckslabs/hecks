@@ -25,7 +25,7 @@ module ActiveHecks
       hash = {}
       hash["id"] = id if respond_to?(:id)
       if self.class.respond_to?(:hecks_attributes)
-        self.class.hecks_attributes.each { |a| hash[a[:name].to_s] = send(a[:name]) }
+        self.class.hecks_attributes.each { |a| hash[a.name.to_s] = send(a.name) }
       else
         self.class.instance_method(:initialize).parameters.each do |_, name|
           next unless name

@@ -81,7 +81,7 @@ module Hecks
       end
 
       def actor(name, description: nil)
-        @actors << { name: name.to_s, description: description }
+        @actors << Structure::Actor.new(name: name.to_s, description: description)
       end
 
 
@@ -156,7 +156,9 @@ module Hecks
       # @yield block invoked when the event fires
       # @return [void]
       def on_event(event_name, &block)
-        @event_subscribers << { event_name: event_name.to_s, block: block }
+        @event_subscribers << DomainModel::SubscriberRegistration.new(
+          event_name: event_name.to_s, block: block
+        )
       end
 
       # Load partial domain definitions from a file.

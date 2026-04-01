@@ -50,7 +50,7 @@ module Hecks
       #   When set, the runtime scopes all repository operations to the current tenant.
       attr_reader :tenancy
 
-      # @return [Array<Hash>] actors (roles) that interact with this domain
+      # @return [Array<Actor>] actors (roles) that interact with this domain
       attr_reader :actors
 
 
@@ -71,7 +71,7 @@ module Hecks
       #   (e.g. :transparency, :consent, :privacy, :security)
       attr_reader :world_goals
 
-      # @return [Array] event subscriber registrations at the domain level
+      # @return [Array<DomainModel::SubscriberRegistration>] event subscriber registrations at the domain level
       attr_reader :event_subscribers
 
       # @return [String, nil] the filesystem path where this domain's source files live.

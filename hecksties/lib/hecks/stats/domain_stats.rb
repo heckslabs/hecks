@@ -29,7 +29,7 @@ module Hecks::Stats
         validations:     aggs.sum { |a| a.validations.size },
         invariants:      aggs.sum { |a| a.invariants.size },
         references:      references_breakdown(aggs),
-        actors:          (@domain.actors || []).map { |a| a[:name] },
+        actors:          (@domain.actors || []).map(&:name),
         services:        @domain.services.size,
         lifecycles:      aggs.count { |a| a.lifecycle },
         subscribers:     aggs.sum { |a| a.subscribers.size }
