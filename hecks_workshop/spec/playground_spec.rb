@@ -77,7 +77,6 @@ RSpec.describe Hecks::Workshop::Playground do
       pizza = playground.execute("CreatePizza", name: "Seed")
       playground.execute("PlaceOrder", pizza: pizza.id, quantity: 2)
 
-      expect(output).to include("Command: PlaceOrder")
       expect(output).to include("  Policy: ReserveIngredients -> ReserveStock")
     end
 

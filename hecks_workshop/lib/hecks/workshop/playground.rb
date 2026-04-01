@@ -76,16 +76,12 @@ module Hecks
       agg_snake = domain_snake_name(agg_def.name)
       method_name = domain_snake_name(command_name).sub(/_#{agg_snake}$/, "").to_sym
 
+      events_before = @events.size
       result = agg_class.send(method_name, **attrs)
 
-      event = @events.last
-      if event
+      new_events = @events[events_before..]
+      new_events.each do |event|
         event_name = Hecks::Utils.const_short_name(event)
-        puts "Command: #{command_name}"
-        puts "  Event: #{event_name}"
-        attrs.each { |k, v| puts "    #{k}: #{v.inspect}" }
-        puts "    occurred_at: #{event.occurred_at}"
-
         triggered = check_policies(event)
         triggered.each do |policy|
           puts "  Policy: #{policy.name} -> #{policy.trigger_command}"

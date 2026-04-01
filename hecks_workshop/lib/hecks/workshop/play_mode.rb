@@ -92,6 +92,14 @@ module Hecks
         @playground.execute(command_name, **attrs)
       end
 
+      # Return the most recent event captured during play mode.
+      #
+      # @return [Object, nil] the last event or nil if no events yet
+      def last_event
+        return nil unless play? && @playground
+        @playground.events.last
+      end
+
       # Return all events captured during play mode.
       #
       # @return [Array] list of event objects recorded by the playground

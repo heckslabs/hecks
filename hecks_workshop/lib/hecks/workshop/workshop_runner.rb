@@ -86,10 +86,16 @@ module Hecks
     def inspect
       mode = @workshop&.play? ? "play" : "sketch"
       name = @workshop&.name&.downcase || "scratch"
-      "hecks(#{name} #{mode})"
+      event = last_event_label
+      event ? "hecks(#{name} #{mode}) [#{event}]" : "hecks(#{name} #{mode})"
     end
 
     def to_s = inspect
+
+    def last_event
+      return nil unless @workshop&.play? && @workshop&.playground
+      @workshop.playground.events.last
+    end
 
     def tour
       @workshop = Hecks.workshop("Tour")
@@ -115,6 +121,13 @@ module Hecks
     end
 
     private
+
+    def last_event_label
+      return nil unless @workshop&.play? && @workshop&.playground
+      event = @workshop.playground.events.last
+      return nil unless event
+      Hecks::Utils.const_short_name(event)
+    end
 
     def launch_irb
       history_file = File.join(Dir.home, ".hecks_history")

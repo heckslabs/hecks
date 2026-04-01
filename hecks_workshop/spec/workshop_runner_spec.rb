@@ -42,6 +42,34 @@ RSpec.describe Hecks::Workshop::WorkshopRunner do
     end
   end
 
+  describe "#inspect" do
+    it "shows mode in prompt" do
+      expect(runner.inspect).to eq("hecks(test sketch)")
+    end
+
+    it "shows last event in prompt after play-mode execution" do
+      runner.aggregate("Cat") { attribute :name, String; command("Meow") { attribute :name, String } }
+      runner.play!
+      mod = Object.const_get("TestDomain")
+      mod::Cat.meow(name: "Henry")
+      expect(runner.inspect).to match(/\[Meowed\]/)
+    end
+  end
+
+  describe "#last_event" do
+    it "returns nil in sketch mode" do
+      expect(runner.last_event).to be_nil
+    end
+
+    it "returns the last event in play mode" do
+      runner.aggregate("Cat") { attribute :name, String; command("Meow") { attribute :name, String } }
+      runner.play!
+      mod = Object.const_get("TestDomain")
+      mod::Cat.meow(name: "Henry")
+      expect(runner.last_event).not_to be_nil
+    end
+  end
+
   describe "delegated methods" do
     it "delegates validate" do
       runner.aggregate("Cat") { attribute :name, String; command("AdoptCat") { attribute :name, String } }

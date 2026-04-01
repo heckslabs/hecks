@@ -156,6 +156,30 @@ RSpec.describe "Play mode" do
       end
     end
 
+    describe "aggregate inspect" do
+      it "shows a concise representation with attributes" do
+        pizza = @mod::Pizza.create(name: "Margherita", style: "NY")
+        output = pizza.inspect
+        expect(output).to include("Pizza")
+        expect(output).to include("name: \"Margherita\"")
+        expect(output).to include("style: \"NY\"")
+        expect(output).to match(/id:\w{8}/)
+      end
+    end
+
+    describe "last_event" do
+      it "returns the most recent event" do
+        @mod::Pizza.create(name: "Test", style: "NY")
+        event = @wb.last_event
+        expect(Hecks::Utils.const_short_name(event)).to eq("CreatedPizza")
+      end
+
+      it "returns nil when no events" do
+        fresh_wb = Hecks::Workshop.new("Fresh")
+        expect(fresh_wb.last_event).to be_nil
+      end
+    end
+
     describe "persistence" do
       it "persists aggregates after execute" do
         result = @mod::Pizza.create(name: "Margherita", style: "NY")

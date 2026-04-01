@@ -233,6 +233,9 @@
 - Interactive session for incremental domain building (`Hecks.session`)
 - `sketch!` / `play!` toggling — switch between modeling and execution modes
 - Dynamic REPL prompt: `hecks(scratch sketch)`, `hecks(banking play)`
+- Last event in prompt: `hecks(pizzas play) [CreatedPizza]` — shows most recent domain event
+- `last_event` — returns the most recent event object for inspection
+- Real return values: commands return the aggregate with a concise `inspect` showing attributes, not just "ok"
 
 ### Named Constants & System Browser
 - Named constants: `aggregate("Cat")` creates `Cat` constant in the REPL

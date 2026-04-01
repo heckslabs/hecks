@@ -158,6 +158,24 @@ module Hecks
       [self.class, id].hash
     end
 
+    # Returns a concise, human-readable representation of the aggregate.
+    #
+    # Shows the short class name, truncated id, and all user-defined
+    # attribute values. Designed for REPL readability.
+    #
+    # @return [String] e.g. '#<Pizza id:abc123 name:"Margherita" style:"NY">'
+    def inspect
+      short_class = self.class.name&.split("::")&.last || self.class.to_s
+      short_id = id.to_s[0, 8]
+      attrs = self.class.hecks_attributes.map do |attr|
+        val = instance_variable_get(:"@#{attr[:name]}")
+        "#{attr[:name]}: #{val.inspect}"
+      end
+      "#<#{short_class} id:#{short_id} #{attrs.join(' ')}>"
+    end
+
+    alias to_s inspect
+
     private
 
     # Validation hook called at the end of +#initialize+. Override in
