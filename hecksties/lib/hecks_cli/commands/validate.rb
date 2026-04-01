@@ -1,10 +1,45 @@
+# Hecks::CLI -- validate command
+#
+# Validates a domain definition and reports errors, warnings, and
+# an aggregate summary. Supports JSON output for tooling.
+#
+#   hecks validate
+#   hecks validate --domain path/to/domain
+#   hecks validate --format json
+#
 Hecks::CLI.register_command(:validate, "Validate the domain definition",
-  options: { domain: { type: :string, desc: "Domain gem name or path" } }
+  options: {
+    domain: { type: :string, desc: "Domain gem name or path" },
+    format: { type: :string, desc: "Output format: text (default) or json" }
+  }
 ) do
   domain = resolve_domain_option
   return unless domain
   validator = Hecks::Validator.new(domain)
-  if validator.valid?
+  valid = validator.valid?
+
+  if options[:format] == "json"
+    require "json"
+    result = {
+      valid: valid,
+      domain: domain.name,
+      aggregates: domain.aggregates.map do |agg|
+        entry = { name: agg.name, attributes: agg.attributes.map(&:name).map(&:to_s) }
+        entry[:value_objects] = agg.value_objects.map(&:name) unless agg.value_objects.empty?
+        entry[:entities] = agg.entities.map(&:name) unless agg.entities.empty?
+        entry[:commands] = agg.commands.map(&:name) unless agg.commands.empty?
+        entry[:events] = agg.events.map(&:name) unless agg.events.empty?
+        entry[:policies] = agg.policies.map(&:name) unless agg.policies.empty?
+        entry
+      end,
+      errors: validator.errors,
+      warnings: validator.warnings
+    }
+    say JSON.pretty_generate(result)
+    next
+  end
+
+  if valid
     say "Domain is valid", :green
     say ""
     say "Aggregates:"

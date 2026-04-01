@@ -416,12 +416,14 @@
 - `hecks validate` — check domain against DDD rules
 - `hecks mcp` — start MCP server
 - `hecks inspect` — show full domain definition including business logic (attributes, lifecycle, commands, policies, invariants, etc.)
+- `hecks tree` — print all CLI commands as a grouped tree; `--format json` for tooling
 - `hecks glossary` — print domain glossary to stdout; `--export` writes `glossary.md`
 - `hecks dump` — show glossary, visualizer, and DSL output
 - `hecks migrations` — schema migration management
 - `hecks interview` — conversational onboarding that walks through domain definition interactively (name, aggregates, attributes, commands) and writes a Bluebook file
 - `hecks docs update` — sync doc headers and READMEs
 - All commands accept `--domain` flag consistently
+- `--format json` on `validate`, `inspect`, and `tree` commands for Studio/tooling consumption
 
 ## Rails Integration (ActiveHecks)
 - `Hecks.configure` block for Rails initializers
