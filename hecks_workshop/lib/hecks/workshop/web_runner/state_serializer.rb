@@ -187,7 +187,7 @@ module Hecks
               next if %i[occurred_at aggregate_id].include?(m)
               attrs[m] = e.send(m).inspect rescue nil
             end
-            event_name = e.class.name.split("::").last
+            event_name = Hecks::Utils.const_short_name(e)
             command_name = event_name
               .sub(/\ACanceled/, "Cancel")
               .sub(/\ACreated/, "Create")

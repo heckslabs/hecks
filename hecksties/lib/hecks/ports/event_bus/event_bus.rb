@@ -69,7 +69,7 @@ module Hecks
       # @return [void]
       def publish(event)
         @events << event
-        event_name = event.class.name.split("::").last
+        event_name = Hecks::Utils.const_short_name(event)
         @listeners[event_name].each { |handler| handler.call(event) }
         @global_listeners.each { |handler| handler.call(event) }
       end

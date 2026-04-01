@@ -108,7 +108,7 @@ module Hecks
         # @param event [Object] an event instance with a class name like "PizzasDomain::Pizza::Events::CreatedPizza"
         # @return [Array<DomainModel::Structure::Policy>] policies triggered by this event
         def check_policies(event)
-          event_name = event.class.name.split("::").last
+          event_name = Hecks::Utils.const_short_name(event)
           @policies.select { |p| p.event_name == event_name }
         end
       end

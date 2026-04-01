@@ -80,7 +80,7 @@ module Hecks
 
       event = @events.last
       if event
-        event_name = event.class.name.split("::").last
+        event_name = Hecks::Utils.const_short_name(event)
         puts "Command: #{command_name}"
         puts "  Event: #{event_name}"
         attrs.each { |k, v| puts "    #{k}: #{v.inspect}" }
@@ -114,7 +114,7 @@ module Hecks
     # @param type_name [String] the event class name (e.g. "CreatedPizza")
     # @return [Array] events whose class name matches
     def events_of(type_name)
-      @events.select { |e| e.class.name.split("::").last == type_name }
+      @events.select { |e| Hecks::Utils.const_short_name(e) == type_name }
     end
 
     # Clear all captured events and repository data.
@@ -144,7 +144,7 @@ module Hecks
       end
 
       @events.each_with_index do |event, i|
-        name = event.class.name.split("::").last
+        name = Hecks::Utils.const_short_name(event)
         puts "#{i + 1}. #{name} at #{event.occurred_at}"
       end
       nil

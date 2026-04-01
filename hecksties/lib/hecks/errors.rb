@@ -36,7 +36,7 @@ module Hecks
     #
     # @return [Hash] with :error (class name) and :message keys
     def as_json
-      { error: self.class.name.split("::").last, message: message }
+      { error: Hecks::Utils.const_short_name(self), message: message }
     end
 
     # Returns a JSON string representation of this error.

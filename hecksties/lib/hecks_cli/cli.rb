@@ -33,7 +33,7 @@ module Hecks
     # hecks_workshop → "Workshop", hecks_cli/commands/build.rb → "Cli"
     def self.infer_group(path)
       if path =~ /hecks_(\w+)/
-        $1.split("_").map(&:capitalize).join(" ")
+        Hecks::Utils.humanize(Hecks::Utils.sanitize_constant($1))
       else
         "Commands"
       end

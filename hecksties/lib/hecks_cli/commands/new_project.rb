@@ -1,7 +1,7 @@
 Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
   args: ["NAME"]
 ) do |name|
-  pascal = name.split(/[_\-\s]/).map(&:capitalize).join
+  pascal = Hecks::Utils.sanitize_constant(name)
   dir = name
 
   if File.exist?(dir)

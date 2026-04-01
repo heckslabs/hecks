@@ -86,7 +86,7 @@ module Hecks
         if req.path == "/events"
           # SSE not supported in basic WEBrick — return event list instead
           res["Content-Type"] = "application/json"
-          res.body = JSON.generate(@app.events.map { |e| { type: e.class.name.split("::").last, occurred_at: e.occurred_at.iso8601 } })
+          res.body = JSON.generate(@app.events.map { |e| { type: Hecks::Utils.const_short_name(e), occurred_at: e.occurred_at.iso8601 } })
           return
         end
 

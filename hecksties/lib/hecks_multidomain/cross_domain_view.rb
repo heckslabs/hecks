@@ -88,7 +88,7 @@ module Hecks
     #   is used to find the matching projection
     # @return [void]
     def apply(event)
-      event_name = event.class.name.split("::").last
+      event_name = Hecks::Utils.const_short_name(event)
       projection = @projections[event_name]
       @state = projection.call(event, @state) if projection
     end

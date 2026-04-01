@@ -35,7 +35,7 @@ Hecks.register_extension(:logging) do |_domain_mod, _domain, runtime|
   # @param next_handler [#call] the next handler in the middleware chain
   # @return [Object] the return value of +next_handler.call+
   runtime.use :logging do |command, next_handler|
-    cmd_name = command.class.name.split("::").last
+    cmd_name = Hecks::Utils.const_short_name(command)
     actor = Hecks.actor&.respond_to?(:role) ? Hecks.actor.role : nil
     tenant = Hecks.tenant
     start = Process.clock_gettime(Process::CLOCK_MONOTONIC)

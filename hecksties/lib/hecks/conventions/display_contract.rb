@@ -126,6 +126,6 @@ module Hecks::Conventions
     end
 
     # Go field name helper — PascalCase.
-    GoFieldName = ->(name) { name.to_s.split("_").map(&:capitalize).join }
+    GoFieldName = ->(name) { Hecks::Utils.sanitize_constant(name) }
   end
 end

@@ -59,10 +59,10 @@ Hecks.register_extension(:auth) do |domain_mod, domain, runtime|
 
     if required_roles
       actor = Hecks.actor
-      raise Hecks::Unauthenticated, "No actor set. Call Hecks.actor = user before running #{command.class.name.split('::').last}" unless actor
+      raise Hecks::Unauthenticated, "No actor set. Call Hecks.actor = user before running #{Hecks::Utils.const_short_name(command)}" unless actor
       role = actor.respond_to?(:role) ? actor.role.to_s : actor.to_s
       unless required_roles.include?(role)
-        raise Hecks::Unauthorized, "Actor '#{role}' is not authorized for #{command.class.name.split('::').last}. Required: #{required_roles.join(', ')}"
+        raise Hecks::Unauthorized, "Actor '#{role}' is not authorized for #{Hecks::Utils.const_short_name(command)}. Required: #{required_roles.join(', ')}"
       end
     end
 

@@ -61,7 +61,7 @@ Hecks::CLI.register_command(:info, "Show auto-wiring details for this project") 
     return if files.empty?
     say "Services (#{files.size}):", :green
     files.each do |f|
-      name = File.basename(f, ".rb").split("_").map(&:capitalize).join
+      name = Hecks::Utils.sanitize_constant(File.basename(f, ".rb"))
       say "  #{name}"
     end
     say ""

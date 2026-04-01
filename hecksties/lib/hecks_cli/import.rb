@@ -16,7 +16,7 @@ module Hecks
     def self.from_rails(app_path, domain_name: nil)
       schema_path = File.join(app_path, "db", "schema.rb")
       models_dir  = File.join(app_path, "app", "models")
-      domain_name ||= File.basename(File.expand_path(app_path)).split(/[-_]/).map(&:capitalize).join
+      domain_name ||= Hecks::Utils.sanitize_constant(File.basename(File.expand_path(app_path)))
 
       schema_data = SchemaParser.new(schema_path).parse
       model_data  = File.directory?(models_dir) ? ModelParser.new(models_dir).parse : {}

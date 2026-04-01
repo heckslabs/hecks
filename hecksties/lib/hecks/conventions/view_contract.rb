@@ -14,7 +14,7 @@ module Hecks::Conventions
     # Maps a snake_case field name to a Go PascalCase name.
     # Centralizes the naming rule so templates and structs agree.
     def self.go_name(field)
-      field.to_s.split("_").map(&:capitalize).join
+      Hecks::Utils.sanitize_constant(field)
     end
 
     # Display conventions shared by all targets.

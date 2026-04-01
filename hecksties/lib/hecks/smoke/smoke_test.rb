@@ -193,9 +193,7 @@ module HecksTemplating
     end
 
     def underscore(str)
-      str.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
-         .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-         .downcase
+      Hecks::Utils.underscore(str)
     end
   end
 end

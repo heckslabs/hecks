@@ -49,7 +49,7 @@ module Hecks
 
           @db[:domain_events].insert(
             stream_id: stream_id,
-            event_type: event.class.name.split("::").last,
+            event_type: Hecks::Utils.const_short_name(event),
             data: serialize_event(event),
             occurred_at: event.occurred_at.iso8601,
             version: version

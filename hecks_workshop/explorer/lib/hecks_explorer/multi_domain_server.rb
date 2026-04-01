@@ -158,7 +158,7 @@ module Hecks
       end
 
       def humanize(name)
-        name.to_s.split("_").map(&:capitalize).join(" ")
+        Hecks::Utils.humanize(Hecks::Utils.sanitize_constant(name))
       end
 
       def match?(pattern, path)

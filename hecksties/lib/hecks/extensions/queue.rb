@@ -35,7 +35,7 @@ Hecks.register_extension(:queue) do |domain_mod, domain, runtime|
   queue_adapter = resolve_queue_adapter(adapter, domain)
 
   runtime.event_bus.on_any do |event|
-    event_name = event.class.name.split("::").last
+    event_name = Hecks::Utils.const_short_name(event)
     occurred = event.respond_to?(:occurred_at) ? event.occurred_at.iso8601 : Time.now.iso8601
     payload = { event: event_name, domain: domain.name, occurred_at: occurred }
 

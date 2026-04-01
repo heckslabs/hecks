@@ -27,7 +27,7 @@ Hecks.register_extension(:slack) do |domain_mod, domain, runtime|
   next unless webhook
 
   runtime.event_bus.on_any do |event|
-    event_name = event.class.name.split("::").last
+    event_name = Hecks::Utils.const_short_name(event)
     occurred = event.respond_to?(:occurred_at) ? event.occurred_at.iso8601 : Time.now.iso8601
     payload = { text: "[#{domain.name}] #{event_name} at #{occurred}" }
 

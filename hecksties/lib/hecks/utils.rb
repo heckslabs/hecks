@@ -121,6 +121,25 @@ module Hecks
          .downcase
     end
 
+    # Extracts the short class name from a fully-qualified constant path.
+    # Works with both string names and objects/classes.
+    #
+    # @param obj [String, Class, Object] a constant name, class, or instance
+    # @return [String] the last component (e.g., "CreatedPizza")
+    #
+    # @example
+    #   const_short_name("PizzasDomain::Pizza::Events::CreatedPizza")  # => "CreatedPizza"
+    #   const_short_name(PizzasDomain::Pizza)                          # => "Pizza"
+    #   const_short_name(some_event)                                   # => "PlacedOrder"
+    def const_short_name(obj)
+      name = case obj
+             when String then obj
+             when Class, Module then obj.name
+             else obj.class.name
+             end
+      name.to_s.split("::").last
+    end
+
     # Returns a human-readable type label for a domain attribute.
     # Wraps list and reference types in descriptive notation.
     #

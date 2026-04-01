@@ -56,7 +56,7 @@ class HecksAudit
   # @return [Object] the return value of +next_handler.call+
   def around_command(command, next_handler, actor: nil, tenant: nil)
     @pending_context = {
-      command: command.class.name.split("::").last,
+      command: Hecks::Utils.const_short_name(command),
       actor: actor,
       tenant: tenant
     }
@@ -94,7 +94,7 @@ class HecksAudit
       actor: @pending_context&.dig(:actor),
       tenant: @pending_context&.dig(:tenant),
       timestamp: Time.now,
-      event_name: event.class.name.split("::").last,
+      event_name: Hecks::Utils.const_short_name(event),
       event_data: extract_attrs(event)
     }
     @pending_context = nil
