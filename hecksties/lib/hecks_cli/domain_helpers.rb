@@ -93,9 +93,15 @@ module Hecks
       report[:violations].each { |v| say "    - #{v}", :red }
     end
 
-    def domain_template(name)
+    def domain_template(name, world_goals: [])
+      goals_line = if world_goals.any?
+        "\n  world_goals #{world_goals.map { |g| ":#{g}" }.join(", ")}\n"
+      else
+        ""
+      end
+
       <<~RUBY
-        Hecks.domain "#{name}" do
+        Hecks.domain "#{name}" do#{goals_line}
           aggregate "Example" do
             attribute :name, String
             validation :name, presence: true

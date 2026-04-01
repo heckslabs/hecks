@@ -1,6 +1,7 @@
 require "spec_helper"
 require "fileutils"
 require "tmpdir"
+require "stringio"
 require "hecks_cli"
 
 RSpec.describe "hecks new CLI command" do
@@ -54,5 +55,45 @@ RSpec.describe "hecks new CLI command" do
     domain = eval(domain_content, TOPLEVEL_BINDING, bluebook, 1)
     valid, errors = Hecks.validate(domain)
     expect(valid).to be(true), "Generated domain is invalid: #{errors.join(', ')}"
+  end
+
+  context "world goals onboarding" do
+    def with_stdin(text)
+      fake = StringIO.new(text)
+      allow(fake).to receive(:tty?).and_return(true)
+      original = $stdin
+      $stdin = fake
+      yield
+    ensure
+      $stdin = original
+    end
+
+    it "includes selected goals, filters invalid input, and skips on opt-out" do
+      Dir.chdir(tmpdir) do
+        with_stdin("transparency bogus consent\n") do
+          Hecks::CLI.new.invoke(:new_project, ["with_goals"])
+        end
+        bluebook = File.read(Dir["with_goals/*Bluebook"].first)
+        expect(bluebook).to include("world_goals :transparency, :consent")
+        expect(bluebook).not_to include("bogus")
+
+        with_stdin("\n") do
+          Hecks::CLI.new.invoke(:new_project, ["no_goals"])
+        end
+        bluebook = File.read(Dir["no_goals/*Bluebook"].first)
+        expect(bluebook).not_to include("world_goals")
+      end
+    end
+
+    it "skips prompt in non-interactive mode" do
+      allow($stdin).to receive(:tty?).and_return(false)
+
+      Dir.chdir(tmpdir) do
+        Hecks::CLI.new.invoke(:new_project, ["noninteractive"])
+
+        bluebook = File.read(Dir["noninteractive/*Bluebook"].first)
+        expect(bluebook).not_to include("world_goals")
+      end
+    end
   end
 end

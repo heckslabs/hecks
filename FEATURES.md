@@ -397,7 +397,7 @@
 - Preview mode with `--preview` flag
 
 ## CLI Commands
-- `hecks new NAME` — scaffold a complete project
+- `hecks new NAME` — scaffold a complete project with interactive world goals onboarding (opt-out by pressing Enter; skipped in non-interactive/CI)
 - `hecks build` — validate and generate versioned gem
 - `hecks serve [--rpc]` — start REST or JSON-RPC server
 - `hecks console [NAME]` — interactive REPL with domain loaded
