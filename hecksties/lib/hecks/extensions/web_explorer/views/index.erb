@@ -26,7 +26,7 @@
       <tr>
         <td class="mono"><a href="<%= item[:show_href] %>"><%= item[:short_id] %></a></td>
         <% item[:cells].each do |cell| %>
-          <td><%= cell %></td>
+          <td><%= h(cell) %></td>
         <% end %>
         <% if row_actions.any? %>
           <td>

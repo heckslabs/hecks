@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/extensions/web_explorer/ir_introspector"
 require "hecks/extensions/web_explorer/runtime_bridge"
+require "hecks/extensions/web_explorer/renderer"
 
 RSpec.describe "Web Explorer IR introspection" do
   let(:domain) { BootedDomains.pizzas }
@@ -91,6 +92,15 @@ RSpec.describe "Web Explorer IR introspection" do
       expect(data[:name]).to eq("Pizzas")
       expect(data[:command_names]).to include("Create Pizza")
       expect(data[:attributes]).to be_a(Integer)
+    end
+  end
+
+  describe Hecks::WebExplorer::Renderer do
+    let(:views_dir) { File.expand_path("../../lib/hecks/extensions/web_explorer/views", __dir__) }
+    let(:renderer) { Hecks::WebExplorer::Renderer.new(views_dir) }
+
+    it "escapes HTML special characters via h()" do
+      expect(renderer.h("<script>alert(1)</script>")).to eq("&lt;script&gt;alert(1)&lt;/script&gt;")
     end
   end
 
