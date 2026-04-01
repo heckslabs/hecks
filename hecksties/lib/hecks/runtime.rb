@@ -138,6 +138,25 @@ module Hecks
         @command_bus.dispatch(command_name, **attrs)
       end
 
+      # Preview what a command would do without persisting, emitting, or recording.
+      # Runs guards, preconditions, the call body, and postconditions. Returns a
+      # DryRunResult with the aggregate, event, and reactive chain that would fire.
+      #
+      #   result = app.dry_run("CreatePizza", name: "Margherita")
+      #   result.aggregate.name  # => "Margherita"
+      #   result.event           # => #<CreatedPizza ...>
+      #
+      # @param command_name [String] the command name (e.g., "CreatePizza")
+      # @param attrs [Hash] the command attributes
+      # @return [Hecks::DryRunResult]
+      # @raise [Hecks::GuardRejected, Hecks::PreconditionError, Hecks::PostconditionError]
+      def dry_run(command_name, **attrs)
+        cmd_class = @command_bus.resolve_command_class(command_name)
+        cmd = cmd_class.dry_call(**attrs)
+        chain = trace_reactive_chain(command_name)
+        DryRunResult.new(command: cmd, aggregate: cmd.aggregate, event: cmd.event, reactive_chain: chain)
+      end
+
       # Register an async handler for policies marked +async: true+ in the DSL.
       # The handler receives an event and is responsible for scheduling deferred work
       # (e.g., enqueuing a background job).
@@ -228,6 +247,14 @@ module Hecks
           domain: @domain,
           event_bus: @event_bus
         )
+      end
+
+      def trace_reactive_chain(command_name)
+        return [] unless defined?(Hecks::FlowGenerator)
+        flows = Hecks::FlowGenerator.new(@domain).trace_flows
+        flow = flows.find { |f| f[:steps]&.first&.dig(:command) == command_name.to_s }
+        return [] unless flow
+        flow[:steps].drop(1)
       end
     end
 

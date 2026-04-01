@@ -107,7 +107,7 @@ module Hecks
       def dispatch(command_name, **attrs)
         agg_def, cmd_def, event_def = resolve(command_name)
 
-        cmd_class = resolve_command_class(agg_def.name, command_name)
+        cmd_class = resolve_class(agg_def.name, command_name)
         command = cmd_class.new(**attrs)
 
         # Build the innermost handler — creates and publishes the event
@@ -129,6 +129,15 @@ module Hecks
         chain.call
       end
 
+      # Resolves a command name to its Ruby class. Used by dry_run.
+      #
+      # @param command_name [String] the command name (e.g., "CreatePizza")
+      # @return [Class] the command class
+      def resolve_command_class(command_name)
+        agg_def, _, _ = resolve(command_name)
+        resolve_class(agg_def.name, command_name)
+      end
+
       private
 
       # Resolves a command name to its aggregate, command, and event definitions.
@@ -148,12 +157,10 @@ module Hecks
         raise "Unknown command: #{command_name}. Available: #{available.join(', ')}"
       end
 
-      # Resolves the Ruby command class from the domain module namespace.
-      #
       # @param agg_name [String] the aggregate name (e.g., "Pizza")
       # @param command_name [String, Symbol] the command name (e.g., "CreatePizza")
-      # @return [Class] the command class (e.g., +PizzasDomain::Pizza::Commands::CreatePizza+)
-      def resolve_command_class(agg_name, command_name)
+      # @return [Class] the command class
+      def resolve_class(agg_name, command_name)
         agg_mod = @mod.const_get(agg_name)
         agg_mod::Commands.const_get(command_name)
       end

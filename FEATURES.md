@@ -112,6 +112,8 @@
 - `app.use { }` — register command bus middleware
 - `Hecks.boot(__dir__)` auto-detects multi-domain when `bluebook/` has multiple Bluebook files
 - `Hecks.shared_event_bus` — access the shared cross-domain event bus after multi-domain boot
+- `app.dry_run("CommandName", attrs)` — preview command result without side effects (no persist, no events)
+- Dry-run validates guards, preconditions, postconditions and traces the reactive policy chain
 
 ## Code Generation
 
