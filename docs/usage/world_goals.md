@@ -56,15 +56,60 @@ an actor for audit trails.
 Command-level actors must be declared at the domain level with `actor "Name"`.
 This prevents dangling or misspelled role references.
 
-## Example Validation Output
+## Mother Earth Report
+
+When world goals are declared, `hecks validate` prints a **Mother Earth Report**
+after the standard validation output. Each declared goal gets a PASS/FAIL status,
+and any violations are listed.
 
 ```
-Privacy: Patient#ssn is PII but visible. Mark PII attributes visible: false.
-Consent: Patient#UpdateRecord has no actor. Commands on user-like aggregates must declare who initiates them.
-Security: Config#UpdateConfig declares actor 'Ghost' which is not a domain-level actor. Add: actor 'Ghost'
-Transparency: Record#DeleteRecord emits no events. Commands must emit events so changes are observable.
+$ hecks validate
+
+Domain is valid
+
+Aggregates:
+  Patient
+    Attributes:     name, ssn
+    Commands:       CreatePatient, UpdateRecord
+
+Mother Earth Report
+  Goals declared: transparency, consent, privacy, security
+  [PASS] transparency
+  [PASS] consent
+  [PASS] privacy
+  [PASS] security
+```
+
+When violations exist:
+
+```
+$ hecks validate
+
+Domain validation failed:
+  - Transparency: Record#DeleteRecord emits no events. Commands must emit events so changes are observable.
+  - Consent: Patient#UpdateRecord has no actor. Commands on user-like aggregates must declare who initiates them.
+
+Mother Earth Report
+  Goals declared: transparency, consent
+  [FAIL] transparency
+  [FAIL] consent
+
+  Violations:
+    - Transparency: Record#DeleteRecord emits no events. Commands must emit events so changes are observable.
+    - Consent: Patient#UpdateRecord has no actor. Commands on user-like aggregates must declare who initiates them.
+```
+
+The report is also available programmatically via `Validator#mother_earth_report`:
+
+```ruby
+validator = Hecks::Validator.new(domain)
+validator.valid?
+report = validator.mother_earth_report
+# => { goals_declared: [:transparency], violations: [...],
+#      passing_goals: [], failing_goals: [:transparency] }
 ```
 
 ## No Goals, No Rules
 
 If you do not declare `world_goals`, none of these rules fire. They are opt-in.
+The Mother Earth Report is omitted when no goals are declared.

@@ -84,6 +84,7 @@
 - `:consent` — user-like aggregate commands must declare actors
 - `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
 - `:security` — command actors must be declared at domain level
+- **Mother Earth Report** — `hecks validate` shows a per-goal PASS/FAIL summary with violations listed
 
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer

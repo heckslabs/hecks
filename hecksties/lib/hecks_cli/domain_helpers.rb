@@ -72,6 +72,27 @@ module Hecks
         .group_by(&:name).map { |name, specs| [name, specs.map(&:version).sort.reverse] }
     end
 
+    def print_mother_earth_report(validator)
+      report = validator.mother_earth_report
+      return unless report
+
+      say ""
+      say "Mother Earth Report", :bold
+      say "  Goals declared: #{report[:goals_declared].map(&:to_s).join(', ')}"
+      report[:goals_declared].each do |goal|
+        if report[:passing_goals].include?(goal)
+          say "  [PASS] #{goal}", :green
+        else
+          say "  [FAIL] #{goal}", :red
+        end
+      end
+      return if report[:violations].empty?
+
+      say ""
+      say "  Violations:", :red
+      report[:violations].each { |v| say "    - #{v}", :red }
+    end
+
     def domain_template(name)
       <<~RUBY
         Hecks.domain "#{name}" do

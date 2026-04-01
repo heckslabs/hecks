@@ -141,6 +141,42 @@ RSpec.describe "World Goals validation rules" do
     end
   end
 
+  describe "mother_earth_report" do
+    it "returns nil when no goals declared and reports failing goals" do
+      # No goals => nil
+      no_goals = Hecks.domain "Plain" do
+        aggregate "Widget" do
+          attribute :name, String
+          command "CreateWidget" do
+            attribute :name, String
+          end
+        end
+      end
+      v1 = Hecks::Validator.new(no_goals)
+      v1.valid?
+      expect(v1.mother_earth_report).to be_nil
+
+      # Failing goal => report with failing_goals populated
+      failing = Hecks.domain "Opaque" do
+        world_goals :transparency
+        aggregate "Record" do
+          attribute :name, String
+          command "DeleteRecord" do
+            attribute :id, String
+            emits []
+          end
+        end
+      end
+      v2 = Hecks::Validator.new(failing)
+      v2.valid?
+      report = v2.mother_earth_report
+      expect(report[:goals_declared]).to eq([:transparency])
+      expect(report[:failing_goals]).to eq([:transparency])
+      expect(report[:passing_goals]).to be_empty
+      expect(report[:violations]).to include(/Transparency/)
+    end
+  end
+
   describe ":security" do
     it "flags command actors not declared at domain level" do
       domain = Hecks.domain "Dangling" do
