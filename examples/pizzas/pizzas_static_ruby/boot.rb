@@ -87,7 +87,7 @@ module PizzasDomain
 
     def serve(port: 9292)
       require_relative "lib/pizzas_domain/server/domain_app"
-      Server::DomainApp.new(self).start(gate: port)
+      Server::DomainApp.new(self).start(port: port)
     end
 
     def domain_info

@@ -146,7 +146,10 @@ module GoHecks
       write("server/renderer.go", RendererGenerator.new.generate)
 
       # Convert ERB views to Go templates using view contracts
-      erb_dir = File.expand_path("../../../../hecks_runtime/lib/hecks/extensions/web_explorer/views", __dir__)
+      # Path resolution: try hecksties first (monorepo layout), then legacy hecks_runtime
+      erb_base = File.expand_path("../../../../../hecksties/lib/hecks/extensions/web_explorer/views", __dir__)
+      erb_base = File.expand_path("../../../../hecks_runtime/lib/hecks/extensions/web_explorer/views", __dir__) unless Dir.exist?(erb_base)
+      erb_dir = erb_base
       gen = ViewGenerator.new
       Dir.glob(File.join(erb_dir, "*.erb")).each do |erb_file|
         name = File.basename(erb_file, ".erb")

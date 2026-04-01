@@ -574,6 +574,15 @@
 - Same IR output — implicit is sugar on top of explicit DSL
 - Both forms can be mixed in the same file
 
+## Testing
+
+### Cross-Target Parity
+- `hecksties/spec/cross_target_parity_spec.rb` — tagged `:parity`, excluded from default run
+- Builds Pizzas domain into both Ruby static and Go targets from the domain IR
+- Boots both HTTP servers, submits identical command sequences via browser-style form submission
+- Fetches `/_events` from both, normalizes to event name lists, asserts equality
+- Run explicitly: `bundle exec rspec hecksties/spec/cross_target_parity_spec.rb --tag parity`
+
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history
 - Pizzas static Ruby: generated standalone Ruby project with HTTP server, UI, roles, filesystem persistence

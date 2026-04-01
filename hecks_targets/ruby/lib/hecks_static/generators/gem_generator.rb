@@ -49,7 +49,9 @@ class GemGenerator < Hecks::Generator
 
   def generate_domain_rb(root)
     serializer = Hecks::DslSerializer.new(@domain)
-    File.write(Dir[File.join(root, "*Bluebook")].first, serializer.serialize)
+    bluebook = Dir[File.join(root, "*Bluebook")].first ||
+               File.join(root, "#{@domain.name}Bluebook")
+    File.write(bluebook, serializer.serialize)
   end
 
   def generate_gemspec(root, gem_name, mod)
@@ -98,7 +100,9 @@ class GemGenerator < Hecks::Generator
     File.write(File.join(server_dir, "server.rb"), source.gsub("__DOMAIN_MODULE__", mod))
 
     # Copy renderer from runtime web_explorer extension
-    explorer_dir = File.expand_path("../../../../hecks_runtime/lib/hecks/extensions/web_explorer", __dir__)
+    # Path resolution: try hecksties first (monorepo layout), then legacy hecks_runtime
+    explorer_dir = File.expand_path("../../../../../hecksties/lib/hecks/extensions/web_explorer", __dir__)
+    explorer_dir = File.expand_path("../../../../hecks_runtime/lib/hecks/extensions/web_explorer", __dir__) unless Dir.exist?(explorer_dir)
     renderer_src = File.read(File.join(explorer_dir, "renderer.rb"))
     renderer_out = renderer_src
       .gsub("module Hecks\n  module WebExplorer", "module #{mod}\n  module Server")

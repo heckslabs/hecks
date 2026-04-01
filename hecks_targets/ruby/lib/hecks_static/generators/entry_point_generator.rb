@@ -168,7 +168,7 @@ module HecksStatic
       lines << ""
       lines << "    def serve(port: 9292)"
       lines << "      require_relative \"lib/#{@gem_name}/server/domain_app\""
-      lines << "      Server::DomainApp.new(self).start(gate: port)"
+      lines << "      Server::DomainApp.new(self).start(port: port)"
       lines << "    end"
       lines << ""
       lines << "    def domain_info"
