@@ -4,6 +4,7 @@
 -I hecksties
 -I hecksties/watchers/lib
 --require spec_helper
---pattern {hecksties,hecksties/watchers,bluebook,hecksagon,hecks_workshop,hecks_ai,hecks_on_rails}/spec/**/*_spec.rb
+-I hecks_targets/node/lib
+--pattern {hecksties,hecksties/watchers,bluebook,hecksagon,hecks_workshop,hecks_ai,hecks_on_rails,hecks_targets/node}/spec/**/*_spec.rb
 --tag ~parity
 --tag ~slow

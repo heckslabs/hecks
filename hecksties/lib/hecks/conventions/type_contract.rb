@@ -18,13 +18,13 @@ module Hecks::Conventions
 
     # Built-in type definitions
     TYPES = {
-      "String"   => { go: "string",          sql: "VARCHAR(255)", json: "string",  openapi: "string"  },
-      "Integer"  => { go: "int64",           sql: "INTEGER",      json: "integer", openapi: "integer" },
-      "Float"    => { go: "float64",         sql: "REAL",         json: "number",  openapi: "number"  },
-      "Boolean"  => { go: "bool",            sql: "BOOLEAN",      json: "boolean", openapi: "boolean" },
-      "Date"     => { go: "time.Time",       sql: "DATE",         json: "string",  openapi: "string"  },
-      "DateTime" => { go: "time.Time",       sql: "VARCHAR(255)", json: "string",  openapi: "string"  },
-      "JSON"     => { go: "json.RawMessage", sql: "TEXT",         json: "object",  openapi: "object"  },
+      "String"   => { go: "string",          sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string"  },
+      "Integer"  => { go: "int64",           sql: "INTEGER",      json: "integer", openapi: "integer", node: "number"  },
+      "Float"    => { go: "float64",         sql: "REAL",         json: "number",  openapi: "number",  node: "number"  },
+      "Boolean"  => { go: "bool",            sql: "BOOLEAN",      json: "boolean", openapi: "boolean", node: "boolean" },
+      "Date"     => { go: "time.Time",       sql: "DATE",         json: "string",  openapi: "string",  node: "string"  },
+      "DateTime" => { go: "time.Time",       sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string"  },
+      "JSON"     => { go: "json.RawMessage", sql: "TEXT",         json: "object",  openapi: "object",  node: "Record<string, unknown>" },
     }.freeze
 
     # Register a target with its type mappings and default.
@@ -62,12 +62,14 @@ module Hecks::Conventions
     def self.sql(type)     = self.for(:sql, type)
     def self.json(type)    = self.for(:json, type)
     def self.openapi(type) = self.for(:openapi, type)
+    def self.node(type)    = self.for(:node, type)
 
     # Register built-in defaults
     @defaults[:go] = "string"
     @defaults[:sql] = "TEXT"
     @defaults[:json] = "string"
     @defaults[:openapi] = "string"
+    @defaults[:node] = "string"
 
     # Go-specific helpers
 

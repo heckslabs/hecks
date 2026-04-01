@@ -2,7 +2,7 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
   options: {
     domain:  { type: :string,  desc: "Domain gem name or path" },
     version: { type: :string,  desc: "Domain version" },
-    target:  { type: :string,  desc: "Build target: ruby (default), static, go, rails" },
+    target:  { type: :string,  desc: "Build target: ruby (default), static, go, node, rails" },
     static:  { type: :boolean, desc: "Generate static gem (alias for --target static)" }
   }
 ) do
@@ -31,6 +31,7 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
 
   opts = case target
          when "go"    then { smoke_test: false }
+         when "node"  then {}
          when "rails" then { output_dir: "." }
          else              { version: version }
          end
@@ -53,6 +54,10 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
     else
       say "  Go not installed — run `go build` in #{output}/ to compile", :yellow
     end
+  when "node"
+    say "Built #{domain.name} Node.js/TypeScript project", :green
+    say "  Output: #{output}/"
+    say "  cd #{output} && npm install && npm run dev"
   when "static"
     say "Built #{domain.gem_name} v#{version} (static)", :green
     say "  Output: #{output}/"

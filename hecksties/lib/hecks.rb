@@ -87,6 +87,7 @@ module Hecks
   register_target(:ruby) { |domain, **opts| Hecks.build(domain, **opts) }
   register_target(:static) { |domain, **opts| Hecks.build_static(domain, **opts) }
   register_target(:go) { |domain, **opts| Hecks.build_go(domain, **opts) }
+  register_target(:node) { |domain, **opts| Hecks.build_node(domain, **opts) }
   register_target(:rails) { |domain, **opts| Hecks.build_rails(domain, **opts) }
 
   # Built-in dump formats

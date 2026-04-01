@@ -132,6 +132,22 @@ module Hecks
       root
     end
 
+    # Build a Node.js/TypeScript project from the domain IR.
+    #
+    # @param domain [Hecks::DomainModel::Domain] the domain to compile
+    # @param output_dir [String] parent directory for the generated project
+    # @return [String] absolute path to the generated Node project root
+    def build_node(domain, output_dir: ".")
+      valid, errors = validate(domain)
+      unless valid
+        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+      end
+
+      require "node_hecks"
+      generator = NodeHecks::ProjectGenerator.new(domain, output_dir: output_dir)
+      generator.generate
+    end
+
     # Generate a bootstrapped Rails app with the domain loaded.
     #
     # @param domain [Hecks::DomainModel::Domain] the domain to compile

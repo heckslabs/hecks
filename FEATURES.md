@@ -605,6 +605,26 @@
 - `go.mod` with only `google/uuid` dependency
 - Type mapping: String→string, Integer→int64, Float→float64, list_of→[]Type
 
+## Node.js/TypeScript Target (`hecks build --target node`)
+
+### Generated TypeScript Project
+- TypeScript interfaces for each aggregate with typed fields (id, createdAt, updatedAt)
+- Command functions returning typed event objects (create and update patterns)
+- In-memory repository classes using `Map<string, T>` with all(), find(), save(), delete()
+- Express REST server with GET list, GET by id, and POST command routes per aggregate
+- `package.json` with express, typescript, ts-node, @types/express
+- `tsconfig.json` with ESNext module, strict mode, ES2022 target
+- README with getting started instructions
+
+### Type Mapping (via TypeContract registry)
+- String -> string, Integer -> number, Float -> number, Boolean -> boolean
+- Date/DateTime -> string, JSON -> Record<string, unknown>
+- list_of(X) -> X[], reference_to(X) -> string (ID)
+
+### CLI Integration
+- `hecks build --target node` registered in target registry
+- Output: `<domain>_static_node/` directory with complete TypeScript project
+
 ## Web Explorer Extension (hecks_web_explorer)
 
 ### Domain UI as an Extension
