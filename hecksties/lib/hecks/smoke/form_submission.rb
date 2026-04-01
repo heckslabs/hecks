@@ -23,7 +23,7 @@ module HecksTemplating
       # @param strict [Boolean] if true, 422 is a failure
       # @return [Array<Result>] results for the GET and POST.
       #   The last result's error field contains the redirect ID if available.
-      def submit_form(form_path, cmd, label, strict: true)
+      def submit_form(form_path, cmd, label, strict: true, agg_snake: nil)
         results = []
 
         # 1. GET the form page
@@ -34,8 +34,24 @@ module HecksTemplating
         # 2. Parse the HTML
         uri = URI("#{@base}#{form_path}")
         html = Net::HTTP.get(uri)
-        action = parse_form_action(html) || form_path.sub(/\/new$/, "/submit")
+        plural, cmd_snake = form_path.split("/").drop(1).first(2)
+        action = parse_form_action(html) || HecksTemplating::RouteContract.submit_path(plural, cmd_snake)
         fields = parse_form_fields(html)
+
+        # Field count check — catch empty or broken forms
+        if agg_snake
+          expected = HecksTemplating::AggregateContract.user_fields(cmd, agg_snake)
+          if fields.size < expected.size
+            results << Result.new(
+              status: :fail,
+              method: "GET",
+              path: form_path,
+              http_code: 200,
+              error: "#{label} form has #{fields.size} fields, expected #{expected.size} (#{expected.map(&:name).join(", ")})"
+            )
+            return results
+          end
+        end
 
         # 3. Fill empty fields with sample data from command
         cmd.attributes.each do |attr|

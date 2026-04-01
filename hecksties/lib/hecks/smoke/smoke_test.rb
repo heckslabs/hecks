@@ -48,7 +48,7 @@ module HecksTemplating
         create_cmds.each do |cmd|
           cmd_snake = underscore(cmd.name)
           form_path = "/#{plural}/#{cmd_snake}/new"
-          results.concat(submit_form(form_path, cmd, cmd.name, strict: true))
+          results.concat(submit_form(form_path, cmd, cmd.name, strict: true, agg_snake: agg_snake))
           expected_events << cmd.inferred_event_name
         end
 
@@ -65,7 +65,7 @@ module HecksTemplating
           update_cmds.each do |cmd|
             cmd_snake = underscore(cmd.name)
             form_path = "/#{plural}/#{cmd_snake}/new?id=#{id}"
-            results.concat(submit_form(form_path, cmd, cmd.name, strict: false))
+            results.concat(submit_form(form_path, cmd, cmd.name, strict: false, agg_snake: agg_snake))
           end
         end
       end
