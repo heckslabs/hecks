@@ -7,13 +7,18 @@ module Hecks
     # Intermediate representation of a domain command -- an intent to change state.
     # Each command carries attributes, optional read models, external systems,
     # and actors. Can infer a corresponding event name by converting the verb
-    # to past tense (CreatePizza -> CreatedPizza).
+    # to past tense (CreatePizza -> CreatedPizza), or can have explicit event
+    # name(s) declared via the +emits+ DSL keyword.
     #
     # Part of the DomainModel IR layer. Built by CommandBuilder or EventStorm
     # parser, consumed by CommandGenerator and event inference in AggregateBuilder.
     #
-    #   cmd = Command.new(name: "CreatePizza", attributes: [Attribute.new(name: :name, type: String)])
+    #   cmd = Command.new(name: "CreatePizza", attributes: [])
     #   cmd.inferred_event_name  # => "CreatedPizza"
+    #   cmd.event_names          # => ["CreatedPizza"]
+    #
+    #   cmd2 = Command.new(name: "CreatePizza", emits: ["PizzaCreated", "MenuUpdated"])
+    #   cmd2.event_names         # => ["PizzaCreated", "MenuUpdated"]
     #
     class Command
       # @return [String] PascalCase command name, e.g. "CreatePizza"
@@ -27,9 +32,10 @@ module Hecks
       # @return [Hash{Symbol => Object}] attribute defaults to set on the aggregate after execution
       # @return [Array<Condition>] preconditions checked before command execution
       # @return [Array<Condition>] postconditions checked after command execution
+      # @return [String, Array<String>, nil] explicit event name(s) declared via +emits+
       attr_reader :name, :attributes, :references, :handler, :guard_name, :read_models,
                   :external_systems, :actors, :call_body, :sets,
-                  :preconditions, :postconditions
+                  :preconditions, :postconditions, :emits
 
       # Creates a new Command IR node.
       #
@@ -44,10 +50,11 @@ module Hecks
       # @param sets [Hash{Symbol => Object}] attribute values to assign on the aggregate post-execution
       # @param preconditions [Array<Condition>] conditions that must hold before execution
       # @param postconditions [Array<Condition>] conditions that must hold after execution
+      # @param emits [String, Array<String>, nil] explicit event name(s); nil means infer from command name
       # @return [Command]
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
-                     call_body: nil, sets: {}, preconditions: [], postconditions: [])
+                     call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil)
         @name = Names.command_name(name)
         @attributes = attributes
         @references = references
@@ -60,6 +67,16 @@ module Hecks
         @sets = sets
         @preconditions = preconditions
         @postconditions = postconditions
+        @emits = emits
+      end
+
+      # Returns the event name(s) this command emits.
+      # When +emits+ is set explicitly, returns those names as an array.
+      # Otherwise returns an array containing the single inferred event name.
+      #
+      # @return [Array<String>] event names this command emits
+      def event_names
+        @emits ? Array(@emits) : [inferred_event_name]
       end
 
       # Lookup table of irregular English verb past tenses, keyed by PascalCase verb.

@@ -71,7 +71,7 @@ module Hecks
         agg.commands.each do |cmd|
           key = cmd.name
           @command_to_aggregate[key] = agg.name
-          @command_to_event[key] = cmd.inferred_event_name
+          @command_to_event[key] = cmd.event_names.first
         end
 
         agg.policies.select(&:reactive?).each do |pol|

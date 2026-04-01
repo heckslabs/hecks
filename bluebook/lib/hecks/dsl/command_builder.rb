@@ -55,6 +55,7 @@ module Hecks
         @sets = {}
         @preconditions = []
         @postconditions = []
+        @emits = nil
       end
 
       # Set the call body block executed when the command runs.
@@ -79,6 +80,22 @@ module Hecks
       # @return [void]
       def handler(&block)
         @handler = block
+      end
+
+      # Declare explicit event name(s) emitted when this command succeeds.
+      # Overrides the default inferred past-tense event name. Pass multiple
+      # names when a single command should emit more than one event.
+      #
+      # @param names [Array<String>] one or more PascalCase event names
+      # @return [void]
+      #
+      # @example Single explicit event
+      #   emits "PizzaCreated"
+      #
+      # @example Multiple events
+      #   emits "PizzaCreated", "MenuUpdated"
+      def emits(*names)
+        @emits = names.length == 1 ? names.first : names
       end
 
       # Reference a guard policy by name that must pass before execution.
@@ -208,7 +225,8 @@ module Hecks
           handler: @handler, guard_name: @guard_name,
           read_models: @read_models, external_systems: @external_systems, actors: @actors,
           call_body: @call_body, sets: @sets,
-          preconditions: @preconditions, postconditions: @postconditions
+          preconditions: @preconditions, postconditions: @postconditions,
+          emits: @emits
         )
       end
     end

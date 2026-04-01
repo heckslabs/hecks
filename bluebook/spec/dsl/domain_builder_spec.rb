@@ -31,6 +31,53 @@ RSpec.describe Hecks::DSL::DomainBuilder do
       event = domain.aggregates.first.events.first
       expect(event.attributes.map(&:name)).to eq([:aggregate_id, :title, :price, :name])
     end
+
+    describe "emits keyword" do
+      it "overrides the inferred event name with a single explicit name" do
+        domain = Hecks.domain("Pizzeria") do
+          aggregate("Pizza") do
+            attribute :name, String
+            command("CreatePizza") do
+              attribute :name, String
+              emits "PizzaCreated"
+            end
+          end
+        end
+        agg = domain.aggregates.first
+        cmd = agg.commands.first
+        expect(cmd.emits).to eq("PizzaCreated")
+        expect(cmd.event_names).to eq(["PizzaCreated"])
+        expect(agg.events.map(&:name)).to include("PizzaCreated")
+        expect(agg.events.map(&:name)).not_to include("CreatedPizza")
+      end
+
+      it "produces multiple events for a command with multiple emits" do
+        domain = Hecks.domain("Pizzeria") do
+          aggregate("Pizza") do
+            attribute :name, String
+            command("CreatePizza") do
+              attribute :name, String
+              emits "PizzaCreated", "MenuUpdated"
+            end
+          end
+        end
+        agg = domain.aggregates.first
+        cmd = agg.commands.first
+        expect(cmd.event_names).to eq(["PizzaCreated", "MenuUpdated"])
+        expect(agg.events.map(&:name)).to include("PizzaCreated", "MenuUpdated")
+      end
+
+      it "falls back to inferred event name when emits is not set" do
+        domain = Hecks.domain("Pizzeria") do
+          aggregate("Pizza") do
+            attribute :name, String
+            command("CreatePizza") { attribute :name, String }
+          end
+        end
+        cmd = domain.aggregates.first.commands.first
+        expect(cmd.event_names).to eq(["CreatedPizza"])
+      end
+    end
   end
 
   describe "queries" do

@@ -25,6 +25,8 @@
 ### Commands
 - Define commands with attributes, handlers, guards, read models, actors, and external system docs
 - Auto-infer domain events from commands (CreatePizza → CreatedPizza) with irregular verb support
+- Explicit event names with `emits` keyword: `emits "PizzaCreated"` overrides inferred conjugation
+- Multiple events per command: `emits "PizzaCreated", "MenuUpdated"` — all are emitted and reach subscribers
 - Events carry command attrs + all aggregate attrs by convention — policies can reference any field
 - Command `sets` declaration: `sets status: "approved"` — static field assignments
 - Define command `call` blocks in DSL for inline business logic (prototyping and play mode)

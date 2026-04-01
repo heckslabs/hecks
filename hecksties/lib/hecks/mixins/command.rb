@@ -42,14 +42,17 @@ module Hecks
   #
   module Command
     # Hook called when a class includes +Hecks::Command+. Extends the class
-    # with +ClassMethods+ and defines +aggregate+ and +event+ readers on
-    # instances so callers can inspect command results.
+    # with +ClassMethods+ and defines +aggregate+, +event+, and +events+ readers
+    # on instances so callers can inspect command results.
+    #
+    # +event+ returns the first (or only) emitted event for backward compatibility.
+    # +events+ returns all emitted events as an array.
     #
     # @param base [Class] the class including this module
     # @return [void]
     def self.included(base)
       base.extend(ClassMethods)
-      base.attr_reader :aggregate, :event
+      base.attr_reader :aggregate, :event, :events
     end
 
     # Class-level DSL and execution entry point for command classes.
@@ -61,20 +64,28 @@ module Hecks
       attr_accessor :repository, :event_bus, :handler, :guarded_by,
                     :event_recorder, :aggregate_type, :command_bus
 
-      # Declares the event name emitted when this command succeeds.
-      # The event class is resolved at runtime from the aggregate's Events module.
+      # Declares the event name(s) emitted when this command succeeds.
+      # The event class(es) are resolved at runtime from the aggregate's Events module.
+      # Pass multiple names to emit more than one event per command execution.
       #
-      # @param event_name [String] PascalCase event name (e.g. "CreatedPizza")
+      # @param event_names [Array<String>] one or more PascalCase event names
       # @return [void]
-      def emits(event_name)
-        @event_name = event_name
+      def emits(*event_names)
+        @event_names = event_names
       end
 
-      # Returns the declared event name for this command.
+      # Returns the first declared event name for this command (backward compat).
       #
-      # @return [String, nil] the event name set via +emits+, or nil if none declared
+      # @return [String, nil] the first event name set via +emits+, or nil if none declared
       def event_name
-        @event_name
+        @event_names&.first
+      end
+
+      # Returns all declared event names for this command.
+      #
+      # @return [Array<String>] all event names set via +emits+, or empty array if none declared
+      def event_names
+        @event_names || []
       end
 
       # Returns the list of registered precondition checks.
@@ -119,7 +130,7 @@ module Hecks
         postconditions << DomainModel::Behavior::Condition.new(message: message, block: block)
       end
 
-      # Resolves the event class constant from the declared event name.
+      # Resolves the event class constant from the declared event name (first event).
       # Navigates up from the command's namespace to the aggregate module,
       # then looks up +Events::<event_name>+.
       #
@@ -127,7 +138,16 @@ module Hecks
       # @raise [NameError] if the event class cannot be found
       def event_class
         agg_module = name.split("::")[0..-3].join("::")
-        Object.const_get("#{agg_module}::Events::#{@event_name}")
+        Object.const_get("#{agg_module}::Events::#{event_name}")
+      end
+
+      # Resolves all event class constants from the declared event names.
+      #
+      # @return [Array<Class>] all event classes
+      # @raise [NameError] if any event class cannot be found
+      def event_classes
+        agg_module = name.split("::")[0..-3].join("::")
+        event_names.map { |en| Object.const_get("#{agg_module}::Events::#{en}") }
       end
 
       # Executes the full command lifecycle: guard, handler, preconditions,
@@ -153,14 +173,16 @@ module Hecks
 
       # Runs the command through validation steps (guard, precondition, call,
       # postcondition) without persisting, emitting, or recording. Builds the
-      # event that would have been emitted and attaches it to the command.
+      # event(s) that would have been emitted and attaches them to the command.
       #
       # @param attrs [Hash] command attributes
-      # @return [self] the command instance with +#aggregate+ and +#event+ populated
+      # @return [self] the command instance with +#aggregate+, +#event+, and +#events+ populated
       def dry_call(**attrs)
         cmd = new(**attrs)
         Command::LifecycleSteps::DRY_RUN_PIPELINE.each { |step| step.call(cmd) }
-        cmd.instance_variable_set(:@event, cmd.send(:build_event))
+        built = cmd.send(:build_events)
+        cmd.instance_variable_set(:@events, built)
+        cmd.instance_variable_set(:@event, built.first)
         cmd
       end
     end
@@ -325,13 +347,13 @@ module Hecks
       repository.save(aggregate)
     end
 
-    # Constructs the event declared via +emits+ without publishing it.
+    # Constructs a single event instance from the given event class.
     # Introspects the event class constructor to map command and aggregate
     # attributes into event parameters.
     #
+    # @param event_class [Class] the event class to instantiate
     # @return [Object] the constructed event instance
-    def build_event
-      event_class = self.class.event_class
+    def build_event_for(event_class)
       event_params = event_class.instance_method(:initialize).parameters.map { |_, n| n }
       attrs = {}
       event_params.each do |param|
@@ -346,13 +368,31 @@ module Hecks
       event_class.new(**attrs)
     end
 
-    # Builds and publishes the event on the event bus.
+    # Constructs all events declared via +emits+ without publishing them.
+    #
+    # @return [Array<Object>] all constructed event instances
+    def build_events
+      self.class.event_classes.map { |klass| build_event_for(klass) }
+    end
+
+    # Constructs the first event declared via +emits+ without publishing it.
+    # Preserved for backward compatibility.
     #
     # @return [Object] the constructed event instance
+    def build_event
+      build_event_for(self.class.event_class)
+    end
+
+    # Builds and publishes all events declared via +emits+ on the event bus.
+    # Sets +@event+ to the first event for backward compatibility,
+    # and +@events+ to the full array.
+    #
+    # @return [Array<Object>] all constructed and published event instances
     def emit_event
-      @event = build_event
-      self.class.event_bus&.publish(@event)
-      @event
+      @events = build_events
+      @event = @events.first
+      @events.each { |evt| self.class.event_bus&.publish(evt) }
+      @events
     end
 
     # Records the emitted event in the event recorder for the aggregate,

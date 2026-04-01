@@ -124,6 +124,10 @@ module Hecks
     def serialize_commands(commands)
       commands.flat_map do |cmd|
         lines = ["", "    command \"#{cmd.name}\" do"]
+        if cmd.emits
+          emits_names = Array(cmd.emits)
+          lines << "      emits #{emits_names.map { |n| "\"#{n}\"" }.join(", ")}"
+        end
         lines.concat(serialize_attributes(cmd.attributes, "      "))
         lines.concat(serialize_references(cmd.references, "      "))
         cmd.read_models.each { |rm| lines << "      read_model \"#{rm.name}\"" }

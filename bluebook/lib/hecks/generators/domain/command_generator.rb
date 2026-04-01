@@ -71,7 +71,15 @@ module Hecks
         lines << "    module Commands"
         lines << "      class #{@command.name}"
         lines << "        include #{@mixin_prefix}::#{@mixin_prefix == "Hecks" ? "Command" : "Runtime::Command"}"
-        lines << "        emits \"#{@event.name}\"" if @event
+        if @event
+          event_names = Array(@command.emits).any? ? Array(@command.emits) : [@event.name]
+          if event_names.length == 1
+            lines << "        emits \"#{event_names.first}\""
+          else
+            names_str = event_names.map { |n| "\"#{n}\"" }.join(", ")
+            lines << "        emits #{names_str}"
+          end
+        end
         lines.concat(condition_declarations)
         lines << ""
         attr_syms = @command.attributes.map { |a| ":#{a.name}" } +

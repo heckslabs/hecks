@@ -216,7 +216,7 @@ module Hecks
 
       def infer_events
         aggregate_id_attr = Structure::Attribute.new(name: :aggregate_id, type: String)
-        @commands.map do |command|
+        @commands.flat_map do |command|
           event_attrs = [aggregate_id_attr] + command.attributes.dup
           @attributes.each do |agg_attr|
             next if event_attrs.any? { |a| a.name == agg_attr.name }
@@ -227,11 +227,13 @@ module Hecks
             next if event_refs.any? { |r| r.name == agg_ref.name }
             event_refs << agg_ref
           end
-          Behavior::DomainEvent.new(
-            name: command.inferred_event_name,
-            attributes: event_attrs,
-            references: event_refs
-          )
+          command.event_names.map do |event_name|
+            Behavior::DomainEvent.new(
+              name: event_name,
+              attributes: event_attrs,
+              references: event_refs
+            )
+          end
         end
       end
     end
