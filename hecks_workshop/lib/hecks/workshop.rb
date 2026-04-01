@@ -2,6 +2,9 @@ require "fileutils"
 require_relative "workshop/build_actions"
 require_relative "workshop/play_mode"
 require_relative "workshop/presenter"
+require_relative "workshop/navigator"
+require_relative "workshop/renderer"
+require_relative "workshop/deep_inspect"
 require_relative "workshop/handles/aggregate_handle"
 require_relative "workshop/system_browser"
 require_relative "workshop/workshop_runner"
@@ -38,6 +41,7 @@ module Hecks
     include BuildActions
     include PlayMode
     include Presenter
+    include DeepInspect
     include SystemBrowser
 
     attr_reader :name, :playground, :aggregate_builders

@@ -240,6 +240,9 @@
 ### Named Constants & System Browser
 - Named constants: `aggregate("Cat")` creates `Cat` constant in the REPL
 - System browser: `browse` prints a tree of all domain elements
+- Deep inspect: `deep_inspect` prints full structural breakdown of all aggregates with nested value objects, entities, commands, params, events, policies, validations, queries, scopes, specifications, subscribers, and references
+- Deep inspect single aggregate: `deep_inspect("Pizza")` inspects one aggregate only
+- Navigator/Renderer architecture: Navigator walks the domain IR tree, Renderer formats each element — composable for custom output formats
 
 ### One-Line Dot Syntax
 - Implicit attributes: `Post.title String` adds attribute via method_missing
