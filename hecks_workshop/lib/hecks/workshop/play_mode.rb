@@ -78,6 +78,20 @@ module Hecks
         self
       end
 
+      # Execute a command by name against the live playground.
+      #
+      # Auto-enters play mode if not already in it. Delegates to
+      # Playground#execute which resolves the aggregate, translates the
+      # command name to a method call, and captures the emitted event.
+      #
+      # @param command_name [String] the command class name (e.g. "CreatePizza")
+      # @param attrs [Hash] keyword arguments for the command
+      # @return [Object] the result of the command execution
+      def execute(command_name, **attrs)
+        play! unless play?
+        @playground.execute(command_name, **attrs)
+      end
+
       # Return all events captured during play mode.
       #
       # @return [Array] list of event objects recorded by the playground

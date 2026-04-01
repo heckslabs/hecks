@@ -1,5 +1,4 @@
 require "mcp"
-require "tmpdir"
 
 require_relative "domain_server/command_tools"
 require_relative "domain_server/query_tools"
@@ -19,9 +18,9 @@ module Hecks
     #   - +QueryTools+      -- one tool per query per aggregate
     #   - +RepositoryTools+ -- Find/All/Count per aggregate
     #
-    # This class handles the full lifecycle: building the domain gem into a temp
-    # directory, loading it, booting a runtime with memory adapters, and registering
-    # all tools on the MCP server.
+    # This class handles the full lifecycle: loading the domain into memory via
+    # InMemoryLoader (no disk I/O), booting a runtime with memory adapters, and
+    # registering all tools on the MCP server.
     #
     #   hecks domain mcp --domain NAME
     #
@@ -67,26 +66,19 @@ module Hecks
         register_repository_tools
       end
 
-      # Builds the domain gem into a temp directory (if not already loaded) and
-      # requires it. Sets +@mod+ to the generated domain module constant.
+      # Loads the domain into memory using InMemoryLoader (no disk I/O) and
+      # sets +@mod+ to the generated domain module constant.
       #
       # If the domain module is already defined in the Ruby runtime (e.g., from
-      # a prior load), it reuses it without rebuilding.
+      # a prior load), it reuses it without reloading.
       #
       # @return [void]
       def build_and_load
         mod_name = domain_module_name(@domain.name)
-        if Object.const_defined?(mod_name)
-          @mod = Object.const_get(mod_name)
-        else
-          @tmpdir = Dir.mktmpdir("hecks_mcp_domain")
-          gem_path = Hecks.build(@domain, output_dir: @tmpdir)
-          lib_path = File.join(gem_path, "lib")
-          $LOAD_PATH.unshift(lib_path) unless $LOAD_PATH.include?(lib_path)
-          require @domain.gem_name
-          Dir[File.join(lib_path, "**/*.rb")].sort.each { |f| require f }
-          @mod = Object.const_get(mod_name)
-        end
+        return @mod = Object.const_get(mod_name) if Object.const_defined?(mod_name)
+
+        Hecks.load_domain(@domain, force: true)
+        @mod = Object.const_get(mod_name)
       end
 
       # Boots a Hecks::Runtime for the domain and binds repository methods

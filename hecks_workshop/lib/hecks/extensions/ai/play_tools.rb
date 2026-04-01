@@ -51,6 +51,7 @@ module Hecks
           }
         ) do |args|
           ctx.ensure_session!
+          ctx.workshop.play! unless ctx.workshop.play?
           attrs = (args["attrs"] || {}).transform_keys(&:to_sym)
           ctx.capture_output { ctx.workshop.execute(args["command"], **attrs) }
         end
