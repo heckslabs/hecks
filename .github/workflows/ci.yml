@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  full-suite:
-    name: Full Test Suite
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,31 +16,7 @@ jobs:
         with:
           ruby-version: "3.3"
           bundler-cache: true
-      - run: bundle install
-      - run: bundle exec rspec
+      - name: Run specs
+        run: bundle exec rspec
       - name: Smoke test
-        run: ruby -Ihecksties/lib -Ihecks_model/lib -Ihecks_domain/lib -Ihecks_runtime/lib -Ihecks_workshop/lib -Ihecks_cli/lib -Ihecks_persist/lib examples/pizzas/app.rb
-
-  component:
-    name: "${{ matrix.component }}"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        component:
-          - hecksties
-          - hecks_model
-          - hecks_domain
-          - hecks_runtime
-          - hecks_workshop
-          - hecks_cli
-          - hecks_persist
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
-      - run: bundle install
-      - name: Run ${{ matrix.component }} specs
-        run: cd ${{ matrix.component }} && rake spec
+        run: bundle exec ruby examples/pizzas/app.rb
