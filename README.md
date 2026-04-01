@@ -24,7 +24,7 @@ Hecks is built around three root principles:
 
 These principles are not marketing. They are encoded into the framework as validators, defaults, and the first question `hecks new` asks you.
 
-You can build extractive software without Hecks. With Hecks, you'll have to mean it.
+The defaults protect people. Overriding them requires a deliberate choice. That choice is yours — but it won't be accidental.
 
 ---
 
