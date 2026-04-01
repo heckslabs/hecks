@@ -59,6 +59,7 @@ module Hecks
       @name = name
       @aggregate_builders = {}
       @handles = {}
+      @service_builders = []
       @custom_verbs = []
       @active_hecks = false
       @mode = :sketch
@@ -111,6 +112,21 @@ module Hecks
       handle
     end
 
+    # Define a domain service that orchestrates commands across aggregates.
+    #
+    # Services are domain-level operations that coordinate multiple aggregates.
+    # The block is evaluated in the context of a ServiceBuilder.
+    #
+    # @param name [String] the service name (e.g. "TransferMoney")
+    # @yield block evaluated in the context of ServiceBuilder
+    # @return [void]
+    def service(name, &block)
+      builder = DSL::ServiceBuilder.new(name)
+      builder.instance_eval(&block) if block
+      @service_builders << builder.build
+      puts "Service #{name} added"
+    end
+
     # Build and return a Domain structure from the current aggregate definitions.
     #
     # Constructs a DomainModel::Structure::Domain by building each aggregate
@@ -119,7 +135,10 @@ module Hecks
     # @return [DomainModel::Structure::Domain] the fully assembled domain object
     def to_domain
       aggregates = @aggregate_builders.values.map(&:build)
-      DomainModel::Structure::Domain.new(name: @name, aggregates: aggregates, custom_verbs: @custom_verbs)
+      DomainModel::Structure::Domain.new(
+        name: @name, aggregates: aggregates,
+        services: @service_builders, custom_verbs: @custom_verbs
+      )
     end
 
     # Compile the domain and activate ActiveHecks (Rails persistence layer).

@@ -4,6 +4,7 @@ require_relative "aggregate_tools"
 require_relative "inspect_tools"
 require_relative "build_tools"
 require_relative "play_tools"
+require_relative "service_tools"
 
 module Hecks
   # Hecks::McpServer
@@ -13,9 +14,10 @@ module Hecks
   # domain modeling MCP server (as opposed to DomainServer which serves a
   # pre-built domain).
   #
-  # Registers five tool groups:
+  # Registers six tool groups:
   #   - +SessionTools+    -- create/load domain sessions
   #   - +AggregateTools+  -- add/remove domain structures
+  #   - +ServiceTools+    -- add domain services (cross-aggregate orchestration)
   #   - +InspectTools+    -- read-only domain introspection
   #   - +BuildTools+      -- validate, build, save, serve
   #   - +PlayTools+       -- interactive playground for testing
@@ -45,6 +47,7 @@ module Hecks
       @server = ::MCP::Server.new(name: "hecks", version: Hecks::VERSION)
       Hecks::MCP::SessionTools.register(@server, self)
       Hecks::MCP::AggregateTools.register(@server, self)
+      Hecks::MCP::ServiceTools.register(@server, self)
       Hecks::MCP::InspectTools.register(@server, self)
       Hecks::MCP::BuildTools.register(@server, self)
       Hecks::MCP::PlayTools.register(@server, self)

@@ -140,6 +140,8 @@ module GoHecks
         write("#{dir}/#{GoUtils.snake_case(pol.name)}_policy.go", gen.generate)
       end
 
+      # TODO: Generate service stubs from @domain.services (HEC-32)
+
       # Errors
       gen = ErrorsGenerator.new(package: @package)
       write("#{dir}/errors.go", gen.generate)

@@ -30,6 +30,7 @@ module NodeHecks
       generate_package_json
       generate_tsconfig
       generate_readme
+      # TODO: Generate service stubs from @domain.services (HEC-32)
 
       @root
     end
