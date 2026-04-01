@@ -357,6 +357,10 @@
 ### Rails Import (Reverse Engineering)
 - `hecks import rails /path/to/app` — extract domain from existing Rails app
 - `hecks import schema /path/to/schema.rb` — schema-only import
+- `hecks extract /path/to/project` — auto-detect project type and extract domain
+- Model-only extraction: works without schema.rb using belongs_to/has_many/validations/enums/AASM
+- `Hecks::Import.from_directory(path)` — programmatic auto-detecting extraction
+- `Hecks::Import.from_models(models_dir)` — programmatic model-only extraction
 - Parses db/schema.rb: tables → aggregates, columns → typed attributes, foreign keys → references
 - Parses app/models: validates → validations, enum → enum constraints, AASM → lifecycles
 - Auto-generates Create commands for each aggregate
