@@ -3,6 +3,8 @@
 # Generates Go lifecycle support: status type, state constants,
 # predicate methods, and transition validation.
 #
+#   LifecycleGenerator.new(lifecycle, aggregate_name: "Order", package: "domain").generate
+#
 module GoHecks
   class LifecycleGenerator
     include GoUtils
@@ -14,51 +16,49 @@ module GoHecks
     end
 
     def generate
-      field = GoUtils.pascal_case(@lc.field)
-      lines = []
-      lines << "package #{@package}"
-      lines << ""
+      @field = GoUtils.pascal_case(@lc.field)
+      b = GoCodeBuilder.new(@package)
 
-      # State constants
-      lines << "const ("
-      @lc.states.each do |state|
-        const_name = "#{@agg}Status#{GoUtils.pascal_case(state)}"
-        lines << "\t#{const_name} = \"#{state}\""
-      end
-      lines << ")"
-      lines << ""
-
-      # Predicate methods
-      @lc.states.each do |state|
-        method = "Is#{GoUtils.pascal_case(state)}"
-        const_name = "#{@agg}Status#{GoUtils.pascal_case(state)}"
-        lines << "func (a *#{@agg}) #{method}() bool { return a.#{field} == #{const_name} }"
-      end
-      lines << ""
-
-      # Transition validation
-      lines << "func (a *#{@agg}) ValidTransition(target string) bool {"
-      lines << "\tswitch {"
-      @lc.transitions.each do |cmd_name, _|
-        target = @lc.target_for(cmd_name)
-        from = @lc.from_for(cmd_name)
-        next unless target
-        if from
-          if from.is_a?(Array)
-            from_check = from.map { |f| "a.#{field} == \"#{f}\"" }.join(" || ")
-          else
-            from_check = "a.#{field} == \"#{from}\""
-          end
-          lines << "\tcase target == \"#{target}\" && (#{from_check}): return true"
-        else
-          lines << "\tcase target == \"#{target}\": return true"
+      b.const_block do |c|
+        @lc.states.each do |state|
+          c.value("#{@agg}Status#{GoUtils.pascal_case(state)}", "\"#{state}\"")
         end
       end
-      lines << "\tdefault: return false"
-      lines << "\t}"
-      lines << "}"
 
-      lines.join("\n") + "\n"
+      predicate_methods(b)
+      b.blank
+      transition_method(b)
+
+      b.to_s
+    end
+
+    private
+
+    def predicate_methods(b)
+      @lc.states.each do |state|
+        const = "#{@agg}Status#{GoUtils.pascal_case(state)}"
+        b.one_liner(@agg, "Is#{GoUtils.pascal_case(state)}", "bool", "return a.#{@field} == #{const}")
+      end
+    end
+
+    def transition_method(b)
+      b.receiver(@agg, "ValidTransition(target string)", "bool") do |m|
+        m.line("switch {")
+        @lc.transitions.each do |cmd_name, _|
+          target = @lc.target_for(cmd_name)
+          from = @lc.from_for(cmd_name)
+          next unless target
+          if from
+            from_list = from.is_a?(Array) ? from : [from]
+            from_check = from_list.map { |f| "a.#{@field} == \"#{f}\"" }.join(" || ")
+            m.line("case target == \"#{target}\" && (#{from_check}): return true")
+          else
+            m.line("case target == \"#{target}\": return true")
+          end
+        end
+        m.line("default: return false")
+        m.line("}")
+      end
     end
   end
 end

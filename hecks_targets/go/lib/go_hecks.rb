@@ -13,6 +13,7 @@
 #   hecks build --target go
 #
 require_relative "go_hecks/go_utils"
+require_relative "go_hecks/go_code_builder"
 require_relative "go_hecks/generators/aggregate_generator"
 require_relative "go_hecks/generators/value_object_generator"
 require_relative "go_hecks/generators/command_generator"

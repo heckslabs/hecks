@@ -3,6 +3,8 @@
 # Generates a Go interface for a repository port. Ports are Go's native
 # abstraction — compile-time enforcement, not runtime NotImplementedError.
 #
+#   PortGenerator.new(aggregate, package: "domain").generate
+#
 module GoHecks
   class PortGenerator
     include GoUtils
@@ -13,18 +15,17 @@ module GoHecks
     end
 
     def generate
-      lines = []
-      lines << "package #{@package}"
-      lines << ""
-      lines << "type #{@agg.name}Repository interface {"
-      lines << "\tFind(id string) (*#{@agg.name}, error)"
-      lines << "\tSave(#{GoUtils.camel_case(@agg.name)} *#{@agg.name}) error"
-      lines << "\tAll() ([]*#{@agg.name}, error)"
-      lines << "\tDelete(id string) error"
-      lines << "\tCount() (int, error)"
-      lines << "}"
-
-      lines.join("\n") + "\n"
+      n = @agg.name
+      v = GoUtils.camel_case(n)
+      b = GoCodeBuilder.new(@package)
+      b.line("type #{n}Repository interface {")
+      b.line("\tFind(id string) (*#{n}, error)")
+      b.line("\tSave(#{v} *#{n}) error")
+      b.line("\tAll() ([]*#{n}, error)")
+      b.line("\tDelete(id string) error")
+      b.line("\tCount() (int, error)")
+      b.line("}")
+      b.to_s
     end
   end
 end
