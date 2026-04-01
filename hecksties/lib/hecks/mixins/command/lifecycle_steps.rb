@@ -59,6 +59,10 @@ module Hecks
         GuardStep, HandlerStep, PreconditionStep, CallStep,
         PostconditionStep, PersistStep, EmitStep, RecordStep
       ].freeze
+
+      DRY_RUN_PIPELINE = [
+        GuardStep, HandlerStep, PreconditionStep, CallStep, PostconditionStep
+      ].freeze
     end
   end
 end

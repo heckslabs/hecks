@@ -150,6 +150,19 @@ module Hecks
       def lifecycle_pipeline
         Command::LifecycleSteps::PIPELINE
       end
+
+      # Runs the command through validation steps (guard, precondition, call,
+      # postcondition) without persisting, emitting, or recording. Builds the
+      # event that would have been emitted and attaches it to the command.
+      #
+      # @param attrs [Hash] command attributes
+      # @return [self] the command instance with +#aggregate+ and +#event+ populated
+      def dry_call(**attrs)
+        cmd = new(**attrs)
+        Command::LifecycleSteps::DRY_RUN_PIPELINE.each { |step| step.call(cmd) }
+        cmd.instance_variable_set(:@event, cmd.send(:build_event))
+        cmd
+      end
     end
 
     # Chain commands fluently. Yields self to block, returns the block's
@@ -312,12 +325,12 @@ module Hecks
       repository.save(aggregate)
     end
 
-    # Builds and emits the event declared via +emits+. Introspects the event
-    # class constructor to map command attributes and aggregate attributes
-    # into event parameters. Publishes the event on the event bus.
+    # Constructs the event declared via +emits+ without publishing it.
+    # Introspects the event class constructor to map command and aggregate
+    # attributes into event parameters.
     #
     # @return [Object] the constructed event instance
-    def emit_event
+    def build_event
       event_class = self.class.event_class
       event_params = event_class.instance_method(:initialize).parameters.map { |_, n| n }
       attrs = {}
@@ -330,7 +343,14 @@ module Hecks
           attrs[param] = aggregate.send(param)
         end
       end
-      @event = event_class.new(**attrs)
+      event_class.new(**attrs)
+    end
+
+    # Builds and publishes the event on the event bus.
+    #
+    # @return [Object] the constructed event instance
+    def emit_event
+      @event = build_event
       self.class.event_bus&.publish(@event)
       @event
     end

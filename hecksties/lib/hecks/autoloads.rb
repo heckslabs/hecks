@@ -134,6 +134,7 @@ module Hecks
   end
 
   # Runtime and port components
+  autoload :DryRunResult,      "hecks/dry_run_result"
   autoload :Runtime,           "hecks/runtime"
   autoload :Application,       "hecks/runtime"
   # PortWiring is included directly in Runtime, no autoload needed
