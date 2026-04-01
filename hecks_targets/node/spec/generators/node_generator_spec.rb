@@ -177,4 +177,46 @@ RSpec.describe NodeHecks::NodeGenerator do
       expect(File.exist?(File.join(output_path, "README.md"))).to be true
     end
   end
+
+  describe NodeHecks::NodeUtils do
+    describe ".ts_object" do
+      it "builds an indented object literal from key-value pairs" do
+        result = described_class.ts_object("  ", [["name", '"hi"'], ["age", "42"]])
+        expect(result).to eq(["  {", '    name: "hi",', "    age: 42,", "  }"])
+      end
+    end
+
+    describe ".ts_return_object" do
+      it "builds a return statement with an object literal" do
+        result = described_class.ts_return_object("  ", [["ok", "true"]])
+        expect(result).to eq(["  return {", "    ok: true,", "  };"])
+      end
+    end
+
+    describe ".express_list_route" do
+      it "generates a GET list handler" do
+        lines = described_class.express_list_route("/pizzas", "pizzaRepo")
+        expect(lines.first).to include('app.get("/pizzas"')
+        expect(lines).to include("  res.json(pizzaRepo.all());")
+      end
+    end
+
+    describe ".express_detail_route" do
+      it "generates a GET by-id handler with 404 fallback" do
+        lines = described_class.express_detail_route("/pizzas", "pizzaRepo")
+        expect(lines.first).to include('app.get("/pizzas/:id"')
+        expect(lines.join).to include("404")
+      end
+    end
+
+    describe ".express_command_route" do
+      it "generates a POST handler with try/catch" do
+        lines = described_class.express_command_route("/pizzas/create", "createPizza", "pizzaRepo")
+        expect(lines.first).to include('app.post("/pizzas/create"')
+        expect(lines.join).to include("createPizza(req.body, pizzaRepo)")
+        expect(lines.join).to include("201")
+        expect(lines.join).to include("422")
+      end
+    end
+  end
 end

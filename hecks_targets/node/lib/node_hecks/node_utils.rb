@@ -58,5 +58,60 @@ module NodeHecks
     def join_lines(lines)
       lines.join("\n") + "\n"
     end
+
+    # Builds an indented object literal from [key, value] pairs.
+    #   ts_object("  ", [["type", '"Foo"'], ["id", "x"]])
+    #   # => ["  {", '    type: "Foo",', "    id: x,", "  }"]
+    def ts_object(indent, pairs)
+      lines = ["#{indent}{"]
+      pairs.each { |k, v| lines << "#{indent}  #{k}: #{v}," }
+      lines << "#{indent}}"
+      lines
+    end
+
+    # Builds a return statement with an object literal.
+    #   ts_return_object("  ", [["type", '"Foo"']])
+    #   # => ["  return {", '    type: "Foo",', "  };"]
+    def ts_return_object(indent, pairs)
+      lines = ["#{indent}return {"]
+      pairs.each { |k, v| lines << "#{indent}  #{k}: #{v}," }
+      lines << "#{indent}};"
+      lines
+    end
+
+    # Express GET list route: responds with repo.all()
+    def express_list_route(path, repo_var)
+      [
+        "app.get(\"#{path}\", (_req, res) => {",
+        "  res.json(#{repo_var}.all());",
+        "});",
+      ]
+    end
+
+    # Express GET detail route: finds by id or returns 404
+    def express_detail_route(path, repo_var)
+      [
+        "app.get(\"#{path}/:id\", (req, res) => {",
+        "  const entity = #{repo_var}.find(req.params.id);",
+        "  if (!entity) { res.status(404).json({ error: \"Not found\" }); return; }",
+        "  res.json(entity);",
+        "});",
+      ]
+    end
+
+    # Express POST command route: calls fn(req.body, repo), returns 201 or 422
+    def express_command_route(path, fn_name, repo_var)
+      [
+        "app.post(\"#{path}\", (req, res) => {",
+        "  try {",
+        "    const event = #{fn_name}(req.body, #{repo_var});",
+        "    res.status(201).json(event);",
+        "  } catch (err: unknown) {",
+        "    const message = err instanceof Error ? err.message : \"Unknown error\";",
+        "    res.status(422).json({ error: message });",
+        "  }",
+        "});",
+      ]
+    end
   end
 end

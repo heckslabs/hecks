@@ -106,16 +106,13 @@ module NodeHecks
     end
 
     def event_return_block(id_expr)
-      lines = []
-      lines << "  return {"
-      lines << "    type: \"#{@event.name}\","
-      lines << "    aggregateId: #{id_expr},"
-      @cmd.attributes.each do |a|
-        lines << "    #{NodeUtils.camel_case(a.name)}: attrs.#{NodeUtils.camel_case(a.name)},"
-      end
-      lines << "    occurredAt: now,"
-      lines << "  };"
-      lines
+      pairs = [
+        ["type", "\"#{@event.name}\""],
+        ["aggregateId", id_expr],
+      ]
+      @cmd.attributes.each { |a| pairs << [NodeUtils.camel_case(a.name), "attrs.#{NodeUtils.camel_case(a.name)}"] }
+      pairs << ["occurredAt", "now"]
+      NodeUtils.ts_return_object("  ", pairs)
     end
 
     def ts_default(attr)
