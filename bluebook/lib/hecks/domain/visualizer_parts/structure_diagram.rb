@@ -15,8 +15,6 @@ module Hecks
     #   generate_structure  # => "classDiagram\n    class Pizza { ... }\n"
     #
     module StructureDiagram
-      private
-
       # Generate the complete Mermaid classDiagram string for the domain's
       # structural model. Includes classes for aggregates, value objects,
       # and entities, plus composition and reference relationships.
@@ -55,6 +53,8 @@ module Hecks
         references(lines)
         lines.join("\n")
       end
+
+      private
 
       # Format an attribute for display in a Mermaid class diagram.
       # List attributes show as +Type[] name+, references show as

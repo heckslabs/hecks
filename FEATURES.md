@@ -276,6 +276,13 @@
 - Auto-indexes on reference columns
 
 ## Documentation Generation
+- `hecks visualize` — CLI command prints Mermaid diagrams to stdout, file, or browser HTML page
+  - `--type structure` — classDiagram of aggregates, attributes, value objects, entities
+  - `--type behavior` — flowchart of command-to-event flows and policy chains
+  - `--type flows` — sequenceDiagram of reactive chain flows
+  - `--type slices` — slice flowchart with subgraph per vertical slice
+  - `--browser` — self-contained HTML with Mermaid CDN opened in browser
+  - `--output <file>` — write Mermaid markdown to a file
 - Domain glossary with English descriptions
 - Mermaid class diagrams and flowcharts
 - DSL serializer: round-trip compiled domain back to DSL source code

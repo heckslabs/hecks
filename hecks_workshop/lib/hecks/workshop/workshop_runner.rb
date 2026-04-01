@@ -23,7 +23,7 @@ module Hecks
       aggregates remove add_verb active_hecks!
       validate preview describe build save to_dsl status browse
       play! sketch! serve! events events_of commands history reset!
-      promote
+      promote visualize
     ].each do |m|
       define_method(m) do |*args, **kwargs, &block|
         @workshop.send(m, *args, **kwargs, &block)
@@ -185,6 +185,9 @@ module Hecks
       puts "  play! / sketch!                  # switch modes"
       puts "  save / build"
       puts "  validate / describe / preview / browse"
+      puts "  visualize                        # print Mermaid diagrams"
+      puts "  visualize(:browser)              # open in browser"
+      puts "  visualize(:file, type: :flows)   # write .md file"
       puts ""
     end
   end

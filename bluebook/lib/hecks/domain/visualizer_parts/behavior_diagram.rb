@@ -14,8 +14,6 @@ module Hecks
     #   generate_behavior  # => "flowchart LR\n    subgraph Pizza\n    ..."
     #
     module BehaviorDiagram
-      private
-
       # Generate the complete Mermaid flowchart string for the domain's
       # behavioral model. Includes subgraphs for each aggregate and
       # dotted-line policy links between events and commands.
@@ -46,6 +44,8 @@ module Hecks
         policy_links(lines)
         lines.join("\n")
       end
+
+      private
 
       # Add dotted-line policy links to the diagram. Each policy connects
       # an event node to a command node with a labeled edge showing the
