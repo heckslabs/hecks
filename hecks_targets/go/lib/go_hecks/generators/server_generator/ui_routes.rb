@@ -22,7 +22,7 @@ module GoHecks
             cmd_snake = GoUtils.snake_case(cmd.name)
             self_id = ac.self_ref_attr(cmd, agg_snake)
 
-            lines << "\tmux.HandleFunc(\"GET /#{plural}/#{cmd_snake}/new\", func(w http.ResponseWriter, r *http.Request) {"
+            lines << "\tmux.HandleFunc(\"GET #{HecksTemplating::RouteContract.form_path(plural, cmd_snake)}\", func(w http.ResponseWriter, r *http.Request) {"
             lines << "\t\tfields := []FormField{"
             cmd.attributes.each do |a|
               if a == self_id
@@ -65,7 +65,7 @@ module GoHecks
 
             lines << "\t\trenderer.Render(w, \"form\", \"#{cmd.name}\", FormData{"
             lines << "\t\t\tCommandName: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\","
-            lines << "\t\t\tAction: \"/#{plural}/#{cmd_snake}\","
+            lines << "\t\t\tAction: \"#{HecksTemplating::RouteContract.submit_path(plural, cmd_snake)}\","
             lines << "\t\t\tFields: fields,"
             lines << "\t\t})"
             lines << "\t})"

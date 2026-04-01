@@ -87,7 +87,7 @@ module GoHecks
       def command_route(safe, plural, cmd)
         cmd_snake = GoUtils.snake_case(cmd.name)
         lines = []
-        lines << "\tmux.HandleFunc(\"POST /#{plural}/#{cmd_snake}\", func(w http.ResponseWriter, r *http.Request) {"
+        lines << "\tmux.HandleFunc(\"POST #{HecksTemplating::RouteContract.submit_path(plural, cmd_snake)}\", func(w http.ResponseWriter, r *http.Request) {"
         lines << "\t\tvar cmd domain.#{cmd.name}"
         lines << "\t\tif r.Header.Get(\"Content-Type\") == \"application/json\" {"
         lines << "\t\t\tif err := json.NewDecoder(r.Body).Decode(&cmd); err != nil { http.Error(w, `{\"error\":\"invalid json\"}`, 400); return }"

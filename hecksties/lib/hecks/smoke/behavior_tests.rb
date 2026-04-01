@@ -15,7 +15,7 @@ module HecksTemplating
           plural = underscore(agg.name) + "s"
           agg.queries.each do |query|
             query_snake = underscore(query.name)
-            path = "/#{plural}/queries/#{query_snake}"
+            path = HecksTemplating::RouteContract.query_path(plural, query_snake)
             path += "?value=example" if query.block.arity > 0
             results << check_get(path, "#{agg.name} query #{query.name}")
           end
@@ -26,7 +26,7 @@ module HecksTemplating
         @domain.aggregates.each do |agg|
           plural = underscore(agg.name) + "s"
           agg.scopes.each do |scope|
-            path = "/#{plural}/scopes/#{scope.name}"
+            path = HecksTemplating::RouteContract.scope_path(plural, scope.name)
             path += "?value=example" if scope.callable?
             results << check_get(path, "#{agg.name} scope #{scope.name}")
           end
@@ -41,7 +41,7 @@ module HecksTemplating
 
           agg.specifications.each do |spec|
             spec_snake = underscore(spec.name)
-            path = "/#{plural}/specifications/#{spec_snake}?id=#{id}"
+            path = "#{HecksTemplating::RouteContract.spec_path(plural, spec_snake)}?id=#{id}"
             results << check_get(path, "#{agg.name} spec #{spec.name}")
           end
         end
@@ -149,7 +149,7 @@ module HecksTemplating
             # GET form, parse action, POST with empty values
             uri = URI("#{@base}#{form_path}")
             html = Net::HTTP.get(uri) rescue ""
-            action = parse_form_action(html) || "/#{plural}/#{cmd_snake}/submit"
+            action = parse_form_action(html) || HecksTemplating::RouteContract.submit_path(plural, cmd_snake)
             post_uri = URI("#{@base}#{action}")
             res = Net::HTTP.post_form(post_uri, {})
             code = res.code.to_i
