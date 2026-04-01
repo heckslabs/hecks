@@ -1,0 +1,26 @@
+<% if local_assigns[:errors]&.any? %>
+  <div style="color:red">
+    <ul>
+      <% errors.each do |msg| %>
+        <li><%= msg %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<form action="<%= pizza.id ? pizza_path(pizza.id) : pizzas_path %>" method="post">
+  <% if pizza.id %>
+    <input type="hidden" name="_method" value="patch">
+  <% end %>
+  <div>
+    <label for="pizza_name">Name</label><br>
+    <input type="text" name="pizza[name]" id="pizza_name" value="<%= pizza.name %>">
+  </div>
+  <div>
+    <label for="pizza_description">Description</label><br>
+    <textarea name="pizza[description]" id="pizza_description"><%= pizza.description %></textarea>
+  </div>
+  <div>
+    <input type="submit" value="Save">
+  </div>
+</form>

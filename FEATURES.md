@@ -700,6 +700,13 @@
 - Fetches `/_events` from both, normalizes to event name lists, asserts equality
 - Run explicitly: `bundle exec rspec hecksties/spec/cross_target_parity_spec.rb --tag parity`
 
+### Rails Smoke Test
+- `hecksties/spec/rails_smoke_spec.rb` — tagged `:slow`, excluded from default run
+- Boots `examples/pizzas_rails` as a real subprocess against a free port
+- Exercises full CRUD lifecycle: index, new, create, show, edit, update, destroy
+- Validates 422 on invalid params via ActiveModel validations
+- Run explicitly: `bundle exec rspec hecksties/spec/rails_smoke_spec.rb --tag slow`
+
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history
 - Pizzas static Ruby: generated standalone Ruby project with HTTP server, UI, roles, filesystem persistence

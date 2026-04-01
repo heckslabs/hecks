@@ -1,0 +1,6 @@
+<h1><%= @pizza.name %></h1>
+<p><%= @pizza.description %></p>
+<p>
+  <%= link_to "Edit", edit_pizza_path(@pizza.id) %> |
+  <%= link_to "Back", pizzas_path %>
+</p>

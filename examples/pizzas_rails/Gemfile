@@ -15,5 +15,11 @@ group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 end
 
+gem "webrick"
 gem "hecks", path: "../.."
+gem "bluebook", path: "../../bluebook"
+gem "hecksties", path: "../../hecksties"
+gem "hecksagon", path: "../../hecksagon"
+gem "hecks_workshop", path: "../../hecks_workshop"
+gem "hecks_ai", path: "../../hecks_ai"
 gem "pizzas_domain", path: "../pizzas_domain"
