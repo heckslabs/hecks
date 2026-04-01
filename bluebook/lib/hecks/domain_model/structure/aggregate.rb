@@ -72,6 +72,9 @@ module Hecks
       # @return [Array<Hash>] factory declarations for complex construction
       attr_reader :factories
 
+      # @return [Array<ComputedAttribute>] derived attributes computed from other attributes
+      attr_reader :computed_attributes
+
       # @return [Lifecycle, nil] optional state machine definition
       attr_reader :lifecycle
 
@@ -104,7 +107,8 @@ module Hecks
                      events: [], policies: [], validations: [], invariants: [],
                      scopes: [], queries: [], subscribers: [], indexes: [],
                      specifications: [], references: [],
-                     factories: [], lifecycle: nil, versioned: false,
+                     factories: [], computed_attributes: [],
+                     lifecycle: nil, versioned: false,
                      attachable: false, metadata: {}, origin_domain: nil,
                      identity_fields: nil)
         @name = Names.aggregate_name(name)
@@ -123,6 +127,7 @@ module Hecks
         @specifications = specifications
         @references = references
         @factories = factories
+        @computed_attributes = computed_attributes
         @lifecycle = lifecycle
         @versioned = versioned
         @attachable = attachable

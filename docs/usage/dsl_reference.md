@@ -219,6 +219,11 @@ aggregate "Pizza" do
     attribute :reason, String
   end
 
+  # Computed attributes (derived, not stored)
+  computed :lot_size do
+    area / 43560.0
+  end
+
   # Versioning and attachments
   versioned
   attachable
@@ -421,6 +426,37 @@ end
 # TeamCycle.find(uuid)                                    # always works
 # TeamCycle.find_by_identity(team: "Alpha", start_date: Date.today)  # natural key
 ```
+
+---
+
+## Computed Attributes
+
+Computed attributes are derived values calculated from other attributes. They generate methods on the aggregate class but are not stored in the database. The block body becomes the method body.
+
+```ruby
+aggregate "Parcel" do
+  attribute :area, Float
+  attribute :density, Float
+
+  computed :lot_size do
+    area / 43560.0
+  end
+
+  computed :total_units do
+    (area * density).ceil
+  end
+end
+```
+
+At runtime:
+
+```ruby
+parcel = Parcel.create(area: 87120.0, density: 0.5)
+parcel.lot_size    # => 2.0
+parcel.total_units # => 43561
+```
+
+Computed attribute names must not collide with regular attribute names (the validator will catch this). They appear in the web explorer with a "(computed)" label but are not shown on command forms.
 
 ---
 

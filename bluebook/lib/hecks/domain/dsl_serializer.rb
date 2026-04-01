@@ -35,6 +35,7 @@ module Hecks
       lines.concat(serialize_validations(agg.validations))
       lines.concat(serialize_invariants(agg.invariants, "    "))
       lines.concat(serialize_scopes(agg.scopes))
+      lines.concat(serialize_computed_attributes(agg.computed_attributes))
       lines.concat(serialize_queries(agg.queries))
       lines.concat(serialize_specifications(agg.specifications))
       lines.concat(serialize_commands(agg.commands))
@@ -89,6 +90,14 @@ module Hecks
       queries.flat_map do |q|
         ["", "    query \"#{q.name}\" do",
          "      #{Hecks::Utils.block_source(q.block)}",
+         "    end"]
+      end
+    end
+
+    def serialize_computed_attributes(computed_attrs)
+      (computed_attrs || []).flat_map do |ca|
+        ["", "    computed :#{ca.name} do",
+         "      #{Hecks::Utils.block_source(ca.block)}",
          "    end"]
       end
     end

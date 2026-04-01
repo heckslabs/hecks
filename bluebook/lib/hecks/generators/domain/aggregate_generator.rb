@@ -75,6 +75,15 @@ module Hecks
         (@aggregate.references || []).each do |ref|
           lines << "    attribute :#{ref.name}"
         end
+        unless (@aggregate.computed_attributes || []).empty?
+          lines << ""
+          lines << "    # Computed attributes — derived values, not stored"
+          @aggregate.computed_attributes.each do |ca|
+            lines << "    def #{ca.name}"
+            lines << "      #{Hecks::Utils.block_source(ca.block)}"
+            lines << "    end"
+          end
+        end
         if @aggregate.lifecycle
           lines << ""
           lines << "    # State predicates — see lifecycle.rb for full state machine"

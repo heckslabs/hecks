@@ -55,10 +55,18 @@ module Hecks
             }
             { id: obj.id, short_id: obj.id[0..7], show_href: "#{prefix}/#{p}/show?id=#{obj.id}", cells: cells }
           end
+          computed = agg.computed_attributes || []
+          computed.each do |ca|
+            items.each do |item|
+              obj = klass.find(item[:id])
+              item[:cells] << obj.instance_eval(&ca.block).to_s if obj
+            end
+          end
           columns = user_attrs.map { |a|
             lbl = dc.reference_attr?(a) ? dc.reference_column_label(a) : humanize(a.name)
             { label: lbl }
           }
+          computed.each { |ca| columns << { label: "#{humanize(ca.name)} (computed)" } }
           create_cmds = agg.commands.select { |c| c.name.start_with?("Create") }
           buttons = create_cmds.map do |c|
             cm = domain_snake_name(c.name)
@@ -89,6 +97,9 @@ module Hecks
             end
             { label: lbl, value: val }
           }
+          (agg.computed_attributes || []).each do |ca|
+            fields << { label: "#{humanize(ca.name)} (computed)", value: obj.instance_eval(&ca.block).to_s }
+          end
           html = @renderer.render(:show,
             title: "#{safe} — #{@brand}", brand: @brand, nav_items: @nav,
             aggregate_name: safe, back_href: "#{prefix}/#{p}",

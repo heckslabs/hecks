@@ -17,7 +17,8 @@ module Hecks
       autoload :CommandNaming,        "hecks/validation_rules/naming/command_naming"
       autoload :NameCollisions,       "hecks/validation_rules/naming/name_collisions"
       autoload :UniqueAggregateNames, "hecks/validation_rules/naming/unique_aggregate_names"
-      autoload :ReservedNames,        "hecks/validation_rules/naming/reserved_names"
+      autoload :ReservedNames,            "hecks/validation_rules/naming/reserved_names"
+      autoload :ComputedNameCollisions, "hecks/validation_rules/naming/computed_name_collisions"
     end
   end
 end

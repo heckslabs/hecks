@@ -107,6 +107,22 @@ module GoHecks
 
       lines << "\treturn nil"
       lines << "}"
+      lines.concat(computed_methods)
+      lines
+    end
+
+    def computed_methods
+      cas = @agg.computed_attributes || []
+      return [] if cas.empty?
+      lines = []
+      cas.each do |ca|
+        lines << ""
+        lines << "// #{GoUtils.pascal_case(ca.name)} — computed attribute (TODO: implement)"
+        lines << "func (a *#{@agg.name}) #{GoUtils.pascal_case(ca.name)}() interface{} {"
+        lines << "\t// TODO: translate computed logic from Ruby DSL"
+        lines << "\treturn nil"
+        lines << "}"
+      end
       lines
     end
   end

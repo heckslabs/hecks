@@ -78,6 +78,7 @@ module Hecks
         @references = []
         @explicit_events = []
         @factories = []
+        @computed_attributes = []
         @lifecycle = nil
         @versioned = false
         @attachable = false
@@ -96,6 +97,17 @@ module Hecks
 
       def attachable
         @attachable = true
+      end
+
+      # Declare a computed (derived) attribute. The block body becomes a
+      # method on the generated aggregate class. Not stored in the database.
+      #
+      #   computed :lot_size do
+      #     area / 43560.0
+      #   end
+      #
+      def computed(name, &block)
+        @computed_attributes << Structure::ComputedAttribute.new(name: name.to_sym, block: block)
       end
 
       # Declare a natural key composed from attributes.
@@ -186,8 +198,8 @@ module Hecks
           validations: @validations, invariants: @invariants,
           scopes: @scopes, queries: @queries,
           subscribers: @subscribers, indexes: @indexes,
-          specifications: @specifications, lifecycle: @lifecycle,
-          versioned: @versioned, attachable: @attachable,
+          specifications: @specifications, computed_attributes: @computed_attributes,
+          lifecycle: @lifecycle, versioned: @versioned, attachable: @attachable,
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields
         )
