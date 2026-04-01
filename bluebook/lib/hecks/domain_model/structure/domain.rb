@@ -67,6 +67,10 @@ module Hecks
       # @return [Array<Hash>] logical module groupings within this domain
       attr_reader :modules
 
+      # @return [Array<Symbol>] declared world goals for this domain
+      #   (e.g. :transparency, :consent, :privacy, :security)
+      attr_reader :world_goals
+
       # @return [Array] event subscriber registrations at the domain level
       attr_reader :event_subscribers
 
@@ -98,7 +102,7 @@ module Hecks
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
-                     version: nil)
+                     version: nil, world_goals: [])
         validate_version!(version)
         @name = name
         @version = version
@@ -115,6 +119,7 @@ module Hecks
         @custom_verbs = custom_verbs
         @tenancy = tenancy
         @event_subscribers = event_subscribers
+        @world_goals = world_goals.map(&:to_sym)
       end
 
       # Returns the sanitized Ruby constant name for this domain.

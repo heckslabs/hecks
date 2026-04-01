@@ -78,6 +78,13 @@
 ### Ubiquitous Language
 - `glossary { prefer "customer", not: ["user", "client"] }` — warn when banned terms appear in names across aggregates, commands, and events
 
+### World Goals
+- `world_goals :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
+- `:transparency` — commands must emit events (no silent mutations)
+- `:consent` — user-like aggregate commands must declare actors
+- `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
+- `:security` — command actors must be declared at domain level
+
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer
 - Import domains from event storm formats (Markdown and YAML)
