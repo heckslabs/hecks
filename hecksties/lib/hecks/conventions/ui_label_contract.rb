@@ -2,13 +2,12 @@
 #
 # Single source of truth for converting names to display labels.
 # Handles both snake_case (field names) and PascalCase (command
-# names, aggregate names). Uses ActiveSupport for pluralization.
+# names, aggregate names). Pure Ruby — no ActiveSupport dependency.
 #
 #   Hecks::Conventions::UILabelContract.label(:effective_date)    # => "Effective Date"
 #   Hecks::Conventions::UILabelContract.label("ReportIncident")   # => "Report Incident"
 #   Hecks::Conventions::UILabelContract.plural_label("GovernancePolicy")  # => "Governance Policies"
 #
-require "active_support/core_ext/string/inflections"
 
 module Hecks::Conventions
   module UILabelContract
@@ -24,8 +23,20 @@ module Hecks::Conventions
     # "GovernancePolicy" → "Governance Policies"
     def self.plural_label(name)
       words = label(name).split(" ")
-      words[-1] = words[-1].pluralize
+      words[-1] = pluralize(words[-1])
       words.join(" ")
+    end
+
+    # Inline pluralizer covering common English patterns for Ruby class names.
+    # Handles: s/x/z/ch/sh → +es, consonant+y → ies, everything else → +s.
+    def self.pluralize(word)
+      if word.match?(/(?:s|x|z|ch|sh)\z/i)
+        "#{word}es"
+      elsif word.match?(/[^aeiou]y\z/i)
+        "#{word[0..-2]}ies"
+      else
+        "#{word}s"
+      end
     end
   end
 end
