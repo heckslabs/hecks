@@ -42,5 +42,21 @@ module NodeHecks
     def kebab_case(str)
       snake_case(str).tr("_", "-")
     end
+
+    def ts_import(name, path)
+      "import { #{name} } from \"#{path}\";"
+    end
+
+    def ts_interface(name, fields)
+      lines = []
+      lines << "export interface #{name} {"
+      fields.each { |f| lines << "  #{f}" }
+      lines << "}"
+      lines
+    end
+
+    def join_lines(lines)
+      lines.join("\n") + "\n"
+    end
   end
 end

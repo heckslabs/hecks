@@ -23,42 +23,32 @@ module NodeHecks
     end
 
     def generate
+      slug = NodeUtils.snake_case(@agg.name)
       lines = []
-      lines << "import { #{@agg.name} } from \"../aggregates/#{NodeUtils.snake_case(@agg.name)}\";"
-      lines << "import { #{@agg.name}Repository } from \"../repositories/#{NodeUtils.snake_case(@agg.name)}_repository\";"
-      lines << "import { randomUUID } from \"crypto\";"
+      lines << NodeUtils.ts_import(@agg.name, "../aggregates/#{slug}")
+      lines << NodeUtils.ts_import("#{@agg.name}Repository", "../repositories/#{slug}_repository")
+      lines << NodeUtils.ts_import("randomUUID", "crypto")
       lines << ""
       lines.concat(attrs_interface)
       lines << ""
       lines.concat(event_interface)
       lines << ""
       lines.concat(command_function)
-      lines.join("\n") + "\n"
+      NodeUtils.join_lines(lines)
     end
 
     private
 
     def attrs_interface
-      lines = []
-      lines << "export interface #{@cmd.name}Attrs {"
-      @cmd.attributes.each do |attr|
-        lines << "  #{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};"
-      end
-      lines << "}"
-      lines
+      fields = @cmd.attributes.map { |a| "#{NodeUtils.camel_case(a.name)}: #{NodeUtils.ts_type(a)};" }
+      NodeUtils.ts_interface("#{@cmd.name}Attrs", fields)
     end
 
     def event_interface
-      lines = []
-      lines << "export interface #{@event.name} {"
-      lines << "  type: \"#{@event.name}\";"
-      lines << "  aggregateId: string;"
-      @cmd.attributes.each do |attr|
-        lines << "  #{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};"
-      end
-      lines << "  occurredAt: string;"
-      lines << "}"
-      lines
+      fields = ["type: \"#{@event.name}\";", "aggregateId: string;"]
+      @cmd.attributes.each { |a| fields << "#{NodeUtils.camel_case(a.name)}: #{NodeUtils.ts_type(a)};" }
+      fields << "occurredAt: string;"
+      NodeUtils.ts_interface(@event.name, fields)
     end
 
     def command_function
@@ -93,14 +83,7 @@ module NodeHecks
       lines << "    updatedAt: now,"
       lines << "  };"
       lines << "  repo.save(#{NodeUtils.camel_case(@agg.name)});"
-      lines << "  return {"
-      lines << "    type: \"#{@event.name}\","
-      lines << "    aggregateId: #{NodeUtils.camel_case(@agg.name)}.id,"
-      @cmd.attributes.each do |a|
-        lines << "    #{NodeUtils.camel_case(a.name)}: attrs.#{NodeUtils.camel_case(a.name)},"
-      end
-      lines << "    occurredAt: now,"
-      lines << "  };"
+      lines.concat(event_return_block("#{NodeUtils.camel_case(@agg.name)}.id"))
       lines
     end
 
@@ -118,9 +101,15 @@ module NodeHecks
       end
       lines << "  existing.updatedAt = now;"
       lines << "  repo.save(existing);"
+      lines.concat(event_return_block("existing.id"))
+      lines
+    end
+
+    def event_return_block(id_expr)
+      lines = []
       lines << "  return {"
       lines << "    type: \"#{@event.name}\","
-      lines << "    aggregateId: existing.id,"
+      lines << "    aggregateId: #{id_expr},"
       @cmd.attributes.each do |a|
         lines << "    #{NodeUtils.camel_case(a.name)}: attrs.#{NodeUtils.camel_case(a.name)},"
       end

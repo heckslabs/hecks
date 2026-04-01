@@ -16,16 +16,13 @@ module NodeHecks
     end
 
     def generate
-      lines = []
-      lines << "export interface #{@agg.name} {"
-      lines << "  id: string;"
+      fields = ["id: string;"]
       @user_attrs.each do |attr|
-        lines << "  #{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};"
+        fields << "#{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};"
       end
-      lines << "  createdAt: string;"
-      lines << "  updatedAt: string;"
-      lines << "}"
-      lines.join("\n") + "\n"
+      fields << "createdAt: string;"
+      fields << "updatedAt: string;"
+      NodeUtils.join_lines(NodeUtils.ts_interface(@agg.name, fields))
     end
   end
 end

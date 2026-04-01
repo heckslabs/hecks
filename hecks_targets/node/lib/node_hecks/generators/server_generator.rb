@@ -24,7 +24,7 @@ module NodeHecks
       lines.concat(routes)
       lines << ""
       lines.concat(listen)
-      lines.join("\n") + "\n"
+      NodeUtils.join_lines(lines)
     end
 
     private
@@ -34,10 +34,10 @@ module NodeHecks
       lines << 'import express from "express";'
       @domain.aggregates.each do |agg|
         slug = NodeUtils.snake_case(agg.name)
-        lines << "import { #{agg.name}Repository } from \"./repositories/#{slug}_repository\";"
+        lines << NodeUtils.ts_import("#{agg.name}Repository", "./repositories/#{slug}_repository")
         agg.commands.each do |cmd|
           fn = NodeUtils.camel_case(cmd.name)
-          lines << "import { #{fn} } from \"./commands/#{NodeUtils.snake_case(cmd.name)}\";"
+          lines << NodeUtils.ts_import(fn, "./commands/#{NodeUtils.snake_case(cmd.name)}")
         end
       end
       lines

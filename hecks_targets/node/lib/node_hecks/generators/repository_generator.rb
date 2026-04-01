@@ -17,7 +17,7 @@ module NodeHecks
     def generate
       name = @agg.name
       lines = []
-      lines << "import { #{name} } from \"../aggregates/#{NodeUtils.snake_case(name)}\";"
+      lines << NodeUtils.ts_import(name, "../aggregates/#{NodeUtils.snake_case(name)}")
       lines << ""
       lines << "export class #{name}Repository {"
       lines << "  private store: Map<string, #{name}> = new Map();"
@@ -42,7 +42,7 @@ module NodeHecks
       lines << "    return this.store.size;"
       lines << "  }"
       lines << "}"
-      lines.join("\n") + "\n"
+      NodeUtils.join_lines(lines)
     end
   end
 end
