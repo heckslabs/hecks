@@ -1,5 +1,6 @@
 require_relative "ui_generator/form_routes"
 require_relative "ui_generator/config_routes"
+require_relative "ui_generator/show_route"
 
 module HecksStatic
 # HecksStatic::UIGenerator
@@ -10,6 +11,7 @@ module HecksStatic
 class UIGenerator < Hecks::Generator
   include FormRoutes
   include ConfigRoutes
+  include ShowRoute
 
   def initialize(domain)
     @domain = domain
@@ -117,7 +119,10 @@ class UIGenerator < Hecks::Generator
     dc = HecksTemplating::DisplayContract
     create_cmds, update_cmds = ac.partition_commands(agg)
 
-    columns = attrs.map { |a| "{ label: \"#{humanize(a.name)}\" }" }
+    columns = attrs.map { |a|
+      lbl = dc.reference_attr?(a) ? dc.reference_column_label(a) : humanize(a.name)
+      "{ label: \"#{lbl}\" }"
+    }
     btns = create_cmds.map { |c| cm = domain_snake_name(c.name); "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href: \"/#{p}/#{cm}/new\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\") }" }
     row_acts = update_cmds.map do |c|
       cm = domain_snake_name(c.name)
@@ -129,7 +134,7 @@ class UIGenerator < Hecks::Generator
       end
     end
 
-    cell_exprs = attrs.map { |a| dc.cell_expression(a, "obj", lang: :ruby) }
+    cell_exprs = attrs.map { |a| dc.cell_expression(a, "obj", lang: :ruby, domain: @domain) }
     cells_code = cell_exprs.map { |e| e }.join(", ")
 
     [
@@ -148,73 +153,5 @@ class UIGenerator < Hecks::Generator
     ]
   end
 
-  def show_route(agg, mod)
-    safe = domain_constant_name(agg.name)
-    p = plural(agg)
-    attrs = user_attrs(agg)
-    agg_snake = domain_snake_name(agg.name)
-
-    lc = agg.lifecycle
-    lc_field = lc&.field&.to_s
-
-    field_exprs = attrs.map do |a|
-      if a.list?
-        vo = agg.value_objects.find { |v| v.name == a.type.to_s }
-        if vo
-          vo_attrs = vo.attributes.map(&:name).map(&:to_s)
-          items_expr = "obj.#{a.name}.map { |v| #{vo_attrs.map { |va| "v.#{va}.to_s" }.join(' + " — " + ')} }"
-          "{ label: \"#{humanize(a.name)}\", type: :list, items: #{items_expr} }"
-        else
-          "{ label: \"#{humanize(a.name)}\", type: :list, items: obj.#{a.name}.map(&:to_s) }"
-        end
-      elsif lc_field && a.name.to_s == lc_field
-        transitions = HecksTemplating::DisplayContract.lifecycle_transitions(lc)
-        "{ label: \"#{humanize(a.name)}\", type: :lifecycle, value: obj.#{a.name}.to_s, transitions: #{transitions.inspect} }"
-      else
-        "{ label: \"#{humanize(a.name)}\", value: obj.#{a.name}.to_s }"
-      end
-    end
-
-    # Collect buttons — from contract
-    ac = HecksTemplating::AggregateContract
-    btn_parts = []
-    _, update_cmds = ac.partition_commands(agg)
-    update_cmds.each do |c|
-      cm = domain_snake_name(c.name)
-      if ac.direct_action?(c, agg_snake)
-        self_id = ac.self_ref_attr(c, agg_snake)
-        btn_parts << "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href: \"/#{p}/#{cm}/submit\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\"), direct: true, id_field: \"#{self_id.name}\" }"
-      else
-        btn_parts << "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href: \"/#{p}/#{cm}/new?id=\" + obj.id, allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\") }"
-      end
-    end
-    # Cross-aggregate commands
-    snake = domain_snake_name(agg.name)
-    @domain.aggregates.each do |other|
-      next if other.name == agg.name
-      other_safe = domain_constant_name(other.name)
-      other_p = plural(other)
-      other.commands.each do |cmd|
-        next unless cmd.attributes.any? { |a| a.name.to_s == "#{snake}_id" }
-        cm = domain_snake_name(cmd.name)
-        btn_parts << "{ label: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\", href: \"/#{other_p}/#{cm}/new?id=\" + obj.id, allowed: #{mod}.role_allows?(\"#{other_safe}\", \"#{cm}\") }"
-      end
-    end
-
-    [
-      "        server.mount_proc \"/#{p}/show\" do |req, res|",
-      "          obj = #{safe}.find(req.query[\"id\"])",
-      "          unless obj",
-      "            res.status = 404; res.body = \"Not found\"; next",
-      "          end",
-      "          html = renderer.render(:show, title: \"#{safe} — #{mod}\", brand: brand, nav_items: nav,",
-      "            aggregate_name: \"#{safe}\", back_href: \"/#{p}\",",
-      "            id: obj.id, fields: [#{field_exprs.join(', ')}],",
-      "            buttons: [#{btn_parts.join(', ')}])",
-      "          res[\"Content-Type\"] = \"text/html\"; res.body = html",
-      "        end",
-      ""
-    ]
-  end
 end
 end

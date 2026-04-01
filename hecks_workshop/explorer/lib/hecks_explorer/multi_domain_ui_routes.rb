@@ -29,9 +29,9 @@ module Hecks
           remaining = sub_path.sub("/#{p}", "")
 
           if remaining == "" || remaining == "/"
-            serve_index(res, agg, klass, safe, p, prefix)
+            serve_index(res, agg, klass, safe, p, prefix, domain)
           elsif remaining == "/show"
-            serve_show(req, res, agg, klass, safe, p, prefix)
+            serve_show(req, res, agg, klass, safe, p, prefix, domain)
           elsif remaining =~ /\/(\w+)\/new$/
             serve_form(req, res, agg, klass, safe, p, prefix, $1)
           elsif remaining =~ /\/(\w+)\/submit$/
@@ -41,13 +41,24 @@ module Hecks
           end
         end
 
-        def serve_index(res, agg, klass, safe, p, prefix)
+        def serve_index(res, agg, klass, safe, p, prefix, domain)
+          dc = HecksTemplating::DisplayContract
           user_attrs = agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
           items = klass.all.map do |obj|
-            cells = user_attrs.map { |a| obj.send(a.name).to_s }
+            cells = user_attrs.map { |a|
+              if dc.reference_attr?(a)
+                ref_agg = dc.find_referenced_aggregate(a, domain)
+                resolve_reference(obj, a, ref_agg, klass)
+              else
+                obj.send(a.name).to_s
+              end
+            }
             { id: obj.id, short_id: obj.id[0..7], show_href: "#{prefix}/#{p}/show?id=#{obj.id}", cells: cells }
           end
-          columns = user_attrs.map { |a| { label: humanize(a.name) } }
+          columns = user_attrs.map { |a|
+            lbl = dc.reference_attr?(a) ? dc.reference_column_label(a) : humanize(a.name)
+            { label: lbl }
+          }
           create_cmds = agg.commands.select { |c| c.name.start_with?("Create") }
           buttons = create_cmds.map do |c|
             cm = domain_snake_name(c.name)
@@ -61,13 +72,23 @@ module Hecks
           res.body = html
         end
 
-        def serve_show(req, res, agg, klass, safe, p, prefix)
+        def serve_show(req, res, agg, klass, safe, p, prefix, domain)
+          dc = HecksTemplating::DisplayContract
           obj = klass.find(req.query["id"])
           unless obj
             res.status = 404; res.body = "Not found"; return
           end
           user_attrs = agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
-          fields = user_attrs.map { |a| { label: humanize(a.name), value: obj.send(a.name).to_s } }
+          fields = user_attrs.map { |a|
+            lbl = dc.reference_attr?(a) ? dc.reference_column_label(a) : humanize(a.name)
+            val = if dc.reference_attr?(a)
+              ref_agg = dc.find_referenced_aggregate(a, domain)
+              resolve_reference(obj, a, ref_agg, klass)
+            else
+              obj.send(a.name).to_s
+            end
+            { label: lbl, value: val }
+          }
           html = @renderer.render(:show,
             title: "#{safe} — #{@brand}", brand: @brand, nav_items: @nav,
             aggregate_name: safe, back_href: "#{prefix}/#{p}",
@@ -118,6 +139,16 @@ module Hecks
             error_message: e.message, fields: fields)
           res["Content-Type"] = "text/html"
           res.body = html
+        end
+        def resolve_reference(obj, attr, ref_agg, klass)
+          raw = obj.send(attr.name).to_s
+          return raw[0..7] + "..." unless ref_agg
+          ref_const = domain_constant_name(ref_agg.name)
+          mod = klass.is_a?(Module) ? klass.to_s.split("::")[0..-2].join("::") : nil
+          ref_klass = mod ? Object.const_get("#{mod}::#{ref_const}") : Object.const_get(ref_const) rescue nil
+          return raw[0..7] + "..." unless ref_klass
+          found = ref_klass.all.find { |x| x.id == raw }
+          found&.respond_to?(:name) ? found.name.to_s : raw[0..7] + "..."
         end
       end
     end

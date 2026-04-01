@@ -477,6 +477,7 @@
 - Lifecycle badge on show pages — purple status badge with transition hint map
 - Direct-action buttons — commands with no user fields POST immediately (no empty form)
 - `reference_to` fields render as dropdowns populated from the referenced aggregate
+- Reference columns (`_id` attrs) show entity name instead of raw UUID, with short-ID fallback
 - Enum fields render as `<select>` dropdowns with valid values
 - Humanized labels everywhere — PascalCase split + ActiveSupport pluralization via UILabelContract
 - Nav sidebar grouped by origin domain in multi-domain servers

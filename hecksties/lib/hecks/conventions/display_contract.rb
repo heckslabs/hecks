@@ -12,19 +12,66 @@
 #
 module Hecks::Conventions
   module DisplayContract
+    # True when the attribute is a foreign-key reference (ends in _id, type String).
+    #
+    # @param attr [Attribute] the attribute to check
+    # @return [Boolean]
+    def self.reference_attr?(attr)
+      attr.name.to_s.end_with?("_id") && attr.type == String && !attr.list?
+    end
+
+    # Column/field label for a reference attribute — strips "_id" and humanizes.
+    #   reference_column_label(attr_named(:model_id)) # => "Model"
+    #
+    # @param attr [Attribute] a reference attribute
+    # @return [String] humanized label without "Id"
+    def self.reference_column_label(attr)
+      base = attr.name.to_s.sub(/_id\z/, "")
+      UILabelContract.label(base)
+    end
+
+    # Find the aggregate referenced by a _id attribute within a domain.
+    #
+    # @param attr [Attribute] a reference attribute
+    # @param domain [Domain] the domain IR to search
+    # @return [Aggregate, nil]
+    def self.find_referenced_aggregate(attr, domain)
+      base = attr.name.to_s.sub(/_id\z/, "")
+      pascal = Hecks::Utils.sanitize_constant(base)
+      domain.aggregates.find { |a| a.name == pascal } ||
+        domain.aggregates.find { |a| a.name.end_with?(pascal) }
+    end
+
     # Format a cell value for index table display.
     # List attributes show "N items"; scalars show the value.
+    # Reference attributes resolve to the referenced entity's name.
     #
     # @param attr [Attribute] the attribute to display
     # @param obj_var [String] the variable name for the object
     # @param lang [Symbol] :ruby or :go
+    # @param domain [Domain, nil] domain IR for reference lookups
     # @return [String] code expression
-    def self.cell_expression(attr, obj_var, lang:)
+    def self.cell_expression(attr, obj_var, lang:, domain: nil)
       field = lang == :go ? GoFieldName.call(attr.name) : attr.name
       if attr.list?
         case lang
         when :go then "fmt.Sprintf(\"%d items\", len(#{obj_var}.#{field}))"
         when :ruby then "#{obj_var}.#{field}.size.to_s + \" items\""
+        end
+      elsif reference_attr?(attr) && domain
+        ref_agg = find_referenced_aggregate(attr, domain)
+        if ref_agg
+          ref_const = ref_agg.name
+          case lang
+          when :ruby
+            "(-> { _r = #{ref_const}.all.find { |x| x.id == #{obj_var}.#{field} }; _r&.respond_to?(:name) ? _r.name.to_s : #{obj_var}.#{field}.to_s[0..7] + \"...\" }).call"
+          when :go then "fmt.Sprintf(\"%v\", #{obj_var}.#{field})"
+          end
+        else
+          case lang
+          when :go then "fmt.Sprintf(\"%v\", #{obj_var}.#{field})"
+          when :ruby then "#{obj_var}.#{field}.to_s[0..7] + \"...\""
+          end
         end
       else
         case lang

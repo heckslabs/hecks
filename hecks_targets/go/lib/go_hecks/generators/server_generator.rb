@@ -1,4 +1,5 @@
 require_relative "server_generator/data_routes"
+require_relative "server_generator/html_routes"
 require_relative "server_generator/ui_routes"
 require_relative "server_generator/domain_behavior_routes"
 
@@ -12,6 +13,7 @@ module GoHecks
   class ServerGenerator < Hecks::Generator
     include GoUtils
     include DataRoutes
+    include HtmlRoutes
     include UIRoutes
     include DomainBehaviorRoutes
 
