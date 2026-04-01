@@ -44,12 +44,14 @@ module Hecks
       require_relative "../generators/docs/openapi_generator"
       require_relative "../generators/docs/rpc_discovery"
       require_relative "../generators/docs/json_schema_generator"
+      require_relative "../generators/docs/typescript_generator"
       docs_dir = File.join(gem_path, "docs")
       FileUtils.mkdir_p(docs_dir)
       File.write(File.join(docs_dir, "openapi.json"), JSON.pretty_generate(HTTP::OpenapiGenerator.new(domain).generate))
       File.write(File.join(docs_dir, "rpc_methods.json"), JSON.pretty_generate(HTTP::RpcDiscovery.new(domain).generate))
       File.write(File.join(docs_dir, "schema.json"), JSON.pretty_generate(HTTP::JsonSchemaGenerator.new(domain).generate))
       File.write(File.join(docs_dir, "glossary.md"), DomainGlossary.new(domain).generate.join("\n") + "\n")
+      File.write(File.join(docs_dir, "types.d.ts"), HTTP::TypescriptGenerator.new(domain).generate)
 
       gem_path
     end

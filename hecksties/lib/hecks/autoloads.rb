@@ -165,6 +165,7 @@ module Hecks
     autoload :RouteBuilder,       "hecks/extensions/serve/route_builder"
     autoload :OpenapiGenerator,   "hecks/generators/docs/openapi_generator"
     autoload :RpcDiscovery,       "hecks/generators/docs/rpc_discovery"
-    autoload :JsonSchemaGenerator, "hecks/generators/docs/json_schema_generator"
+    autoload :JsonSchemaGenerator,  "hecks/generators/docs/json_schema_generator"
+    autoload :TypescriptGenerator,  "hecks/generators/docs/typescript_generator"
   end
 end

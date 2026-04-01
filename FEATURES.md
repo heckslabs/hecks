@@ -199,7 +199,8 @@
 - Port enforcement stubs, autoload registries, gem scaffolds
 - Preview generated source for any aggregate without writing files
 - Auto-include mixins by convention — `include Hecks::Command` in generated files
-- Auto-generate OpenAPI, JSON-RPC discovery, JSON Schema, and glossary docs on build
+- Auto-generate OpenAPI, JSON-RPC discovery, JSON Schema, TypeScript types (.d.ts), and glossary docs on build
+- TypeScript type generation — interfaces for aggregates/value objects/entities, types for commands/events, enums for lifecycles, union types for enums; `hecks dump --types` for standalone export
 - Preserve custom `call` methods on regenerate
 - CalVer versioning (YYYY.MM.DD.N) auto-assigned at build time
 - Resolve domains from installed gems, not just local files
@@ -626,7 +627,7 @@
 - Go `html/template` views generated from ERB at build time — ERB is single source of truth
 - `hecks_templating` gem — shared data contracts for cross-target code generation:
   - `ViewContract` — view data shapes, short ID display, Go struct generation
-  - `TypeContract` — single type registry (Go, SQL, JSON, OpenAPI) + `format_go_literal` for typed comparisons
+  - `TypeContract` — single type registry (Go, SQL, JSON, OpenAPI, TypeScript) + `format_go_literal` for typed comparisons
   - `EventContract` — event interface, required fields (aggregate_id, occurred_at)
   - `EventLogContract` — JSON shape for `/_events` endpoint (same format Ruby and Go)
   - `MigrationContract` — validates round-trip serialization fidelity

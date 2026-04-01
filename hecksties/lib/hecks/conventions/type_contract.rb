@@ -18,13 +18,13 @@ module Hecks::Conventions
 
     # Built-in type definitions
     TYPES = {
-      "String"   => { go: "string",          sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string"  },
-      "Integer"  => { go: "int64",           sql: "INTEGER",      json: "integer", openapi: "integer", node: "number"  },
-      "Float"    => { go: "float64",         sql: "REAL",         json: "number",  openapi: "number",  node: "number"  },
-      "Boolean"  => { go: "bool",            sql: "BOOLEAN",      json: "boolean", openapi: "boolean", node: "boolean" },
-      "Date"     => { go: "time.Time",       sql: "DATE",         json: "string",  openapi: "string",  node: "string"  },
-      "DateTime" => { go: "time.Time",       sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string"  },
-      "JSON"     => { go: "json.RawMessage", sql: "TEXT",         json: "object",  openapi: "object",  node: "Record<string, unknown>" },
+      "String"   => { go: "string",          sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string",  typescript: "string"                  },
+      "Integer"  => { go: "int64",           sql: "INTEGER",      json: "integer", openapi: "integer", node: "number",  typescript: "number"                  },
+      "Float"    => { go: "float64",         sql: "REAL",         json: "number",  openapi: "number",  node: "number",  typescript: "number"                  },
+      "Boolean"  => { go: "bool",            sql: "BOOLEAN",      json: "boolean", openapi: "boolean", node: "boolean", typescript: "boolean"                 },
+      "Date"     => { go: "time.Time",       sql: "DATE",         json: "string",  openapi: "string",  node: "string",  typescript: "string"                  },
+      "DateTime" => { go: "time.Time",       sql: "VARCHAR(255)", json: "string",  openapi: "string",  node: "string",  typescript: "string"                  },
+      "JSON"     => { go: "json.RawMessage", sql: "TEXT",         json: "object",  openapi: "object",  node: "Record<string, unknown>", typescript: "Record<string, unknown>" },
     }.freeze
 
     # Register a target with its type mappings and default.
@@ -58,11 +58,12 @@ module Hecks::Conventions
     end
 
     # Convenience methods for built-in targets
-    def self.go(type)      = self.for(:go, type)
-    def self.sql(type)     = self.for(:sql, type)
-    def self.json(type)    = self.for(:json, type)
-    def self.openapi(type) = self.for(:openapi, type)
-    def self.node(type)    = self.for(:node, type)
+    def self.go(type)         = self.for(:go, type)
+    def self.sql(type)        = self.for(:sql, type)
+    def self.json(type)       = self.for(:json, type)
+    def self.openapi(type)    = self.for(:openapi, type)
+    def self.node(type)       = self.for(:node, type)
+    def self.typescript(type) = self.for(:typescript, type)
 
     # Register built-in defaults
     @defaults[:go] = "string"
@@ -70,6 +71,7 @@ module Hecks::Conventions
     @defaults[:json] = "string"
     @defaults[:openapi] = "string"
     @defaults[:node] = "string"
+    @defaults[:typescript] = "string"
 
     # Go-specific helpers
 
