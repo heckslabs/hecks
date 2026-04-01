@@ -91,6 +91,11 @@ module Hecks
 
     def to_s = inspect
 
+    def tour
+      @workshop = Hecks.workshop("Tour")
+      Tour.new(self).start
+    end
+
     def run
       require "irb"
       @workshop = setup_session

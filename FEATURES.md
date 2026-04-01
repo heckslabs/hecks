@@ -249,6 +249,11 @@
 - Reference attributes: `Post.order_id reference_to("Order")`
 - Terse single-line feedback after every operation (e.g. "title attribute added to Post")
 
+### Console Tour
+- Guided walkthrough via `hecks tour` — 15-step tour of sketch, play, and build
+- Also available inside the console: `tour`
+- CI-friendly: skips Enter pauses when stdin is not a TTY
+
 ### Web Console
 - Browser-based REPL via `hecks web_console [NAME]` — terminal-like interface at localhost:4567
 - Safe command parser: no eval, only whitelisted Grammar commands execute

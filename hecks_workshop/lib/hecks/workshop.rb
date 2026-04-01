@@ -6,6 +6,7 @@ require_relative "workshop/handles/aggregate_handle"
 require_relative "workshop/system_browser"
 require_relative "workshop/workshop_runner"
 require_relative "workshop/playground"
+require_relative "workshop/tour"
 require_relative "workshop/web_runner"
 
 module Hecks
