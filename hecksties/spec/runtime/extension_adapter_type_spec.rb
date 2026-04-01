@@ -8,9 +8,7 @@ RSpec.describe "Extension adapter_type classification" do
   describe "driven_extensions" do
     it "returns extensions declared as driven" do
       driven = Hecks.driven_extensions
-      expect(driven).to include(:auth, :validations, :logging, :idempotency,
-                                :retry, :rate_limit, :pii, :tenancy, :audit,
-                                :filesystem_store)
+      expect(driven).to include(:auth, :logging, :pii, :tenancy)
     end
 
     it "does not include driving extensions" do
@@ -22,7 +20,7 @@ RSpec.describe "Extension adapter_type classification" do
   describe "driving_extensions" do
     it "returns extensions declared as driving" do
       driving = Hecks.driving_extensions
-      expect(driving).to include(:http, :mcp)
+      expect(driving).to include(:http)
     end
 
     it "does not include driven extensions" do

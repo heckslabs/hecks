@@ -6,7 +6,8 @@ Hecks::CLI.register_command(:serve, "Serve a domain as HTTP (default) or JSON-RP
     rpc:       { type: :boolean, default: false, desc: "JSON-RPC" },
     live:      { type: :boolean, default: false, desc: "WebSocket server" },
     live_port: { type: :numeric, default: 9293, desc: "WebSocket port" },
-    static:    { type: :boolean, default: false, desc: "Serve with static UI" }
+    static:    { type: :boolean, default: false, desc: "Serve with static UI" },
+    watch:     { type: :boolean, default: false, desc: "Hot reload on domain changes" }
   }
 ) do
 
@@ -57,7 +58,8 @@ Hecks::CLI.register_command(:serve, "Serve a domain as HTTP (default) or JSON-RP
     else
       require "hecks_serve"
       server = Hecks::HTTP::DomainServer.new(domain, gate: options[:port],
-        live: options[:live], live_port: options[:live_port])
+        live: options[:live], live_port: options[:live_port],
+        watch: options[:watch])
       server.run
     end
   end

@@ -7,6 +7,7 @@ require_relative "cors_headers"
 require_relative "command_bus_port"
 require_relative "csrf_helpers"
 require_relative "../auth/screen_routes"
+require_relative "domain_watcher"
 
 module Hecks
   module HTTP
@@ -18,12 +19,11 @@ module Hecks
     # endpoints for each aggregate, query endpoints, and a +/events+ endpoint
     # that returns the domain's event history as JSON.
     #
-    # Optionally supports WebSocket live events via the +hecks_sockets+ gem.
-    # When +--live+ is enabled, a WebSocket server runs alongside HTTP on a
-    # separate port.
+    # Supports hot reload via +--watch+ flag. When enabled, polls the domain
+    # source directory for changes and rebuilds routes automatically.
     #
     #   hecks serve pizzas_domain
-    #   hecks serve pizzas_domain --live
+    #   hecks serve pizzas_domain --watch
     #
     class DomainServer
       include HecksTemplating::NamingHelpers
@@ -41,27 +41,35 @@ module Hecks
       #   HTTP for real-time event streaming (default: false)
       # @param live_port [Integer] the TCP port for the WebSocket server
       #   (default: 9293, only used when +live+ is true)
+      # @param watch [Boolean] whether to watch for domain source changes and
+      #   hot-reload routes without restart (default: false)
+      # @param watch_interval [Numeric] seconds between file polls when watch
+      #   is enabled (default: 1)
       # @return [DomainServer] a new server instance ready to run
-      def initialize(domain, port: 9292, live: false, live_port: 9293)
+      def initialize(domain, port: 9292, live: false, live_port: 9293,
+                     watch: false, watch_interval: 1)
         @domain = domain
         @port = port
         @live = live
         @live_port = live_port
+        @watch = watch
+        @watch_interval = watch_interval
         @sse_clients = []
+        @lock = Mutex.new
         boot_domain
       end
 
       # Start the WEBrick HTTP server and begin handling requests.
       #
       # Prints the route table to stdout, optionally starts the WebSocket
-      # server, then enters the WEBrick event loop. Blocks until the process
-      # receives an INT signal (Ctrl-C).
+      # server and file watcher, then enters the WEBrick event loop. Blocks
+      # until the process receives an INT signal (Ctrl-C).
       #
       # @return [void]
       def run
         puts "Hecks serving #{@domain.name} on http://localhost:#{@port}"
         puts ""
-        @routes.each { |r| puts "  #{r[:method].ljust(6)} #{r[:path]}" }
+        @lock.synchronize { @routes }.each { |r| puts "  #{r[:method].ljust(6)} #{r[:path]}" }
         puts "  GET    /login"
         puts "  POST   /login"
         puts "  GET    /signup"
@@ -71,12 +79,33 @@ module Hecks
         puts "  GET    /_openapi"
         puts "  GET    /_schema"
         start_websocket_server if @live
+        start_watcher if @watch
         puts ""
 
         server = WEBrick::HTTPServer.new(Port: @port, Logger: WEBrick::Log.new("/dev/null"), AccessLog: [])
         server.mount_proc("/") { |req, res| handle(req, res) }
-        trap("INT") { server.shutdown }
+        trap("INT") { @watcher&.stop; server.shutdown }
         server.start
+      end
+
+      # Reload the domain by re-reading the Bluebook source, rebuilding the
+      # domain IR, and swapping routes. Thread-safe via mutex.
+      #
+      # @return [void]
+      def reload!
+        source = @domain.source_path
+        return unless source && File.exist?(source)
+
+        Kernel.load(source)
+        new_domain = Hecks.last_domain
+        new_domain.source_path = source
+        @lock.synchronize do
+          @domain = new_domain
+          rebuild_routes
+        end
+        puts "[hecks] Domain reloaded at #{Time.now.strftime('%H:%M:%S')}"
+      rescue => e
+        warn "[hecks] Reload failed: #{e.message}"
       end
 
       private
@@ -86,7 +115,7 @@ module Hecks
       # Sets CORS headers on every response. Handles OPTIONS preflight
       # requests by returning immediately. Routes +/events+ to the event
       # history endpoint. For all other paths, finds a matching route and
-      # delegates to its handler lambda.
+      # delegates to its handler lambda. Thread-safe via mutex on route access.
       #
       # @param req [WEBrick::HTTPRequest] the incoming HTTP request
       # @param res [WEBrick::HTTPResponse] the outgoing HTTP response
@@ -109,26 +138,27 @@ module Hecks
           return
         end
 
+        app, domain, routes = @lock.synchronize { [@app, @domain, @routes] }
+
         if req.path == "/events"
-          # SSE not supported in basic WEBrick — return event list instead
           res["Content-Type"] = "application/json"
-          res.body = JSON.generate(@app.events.map { |e| { type: Hecks::Utils.const_short_name(e), occurred_at: e.occurred_at.iso8601 } })
+          res.body = JSON.generate(app.events.map { |e| { type: Hecks::Utils.const_short_name(e), occurred_at: e.occurred_at.iso8601 } })
           return
         end
 
         if req.path == "/_openapi"
           res["Content-Type"] = "application/json"
-          res.body = JSON.generate(Hecks::HTTP::OpenapiGenerator.new(@domain).generate)
+          res.body = JSON.generate(Hecks::HTTP::OpenapiGenerator.new(domain).generate)
           return
         end
 
         if req.path == "/_schema"
           res["Content-Type"] = "application/json"
-          res.body = JSON.generate(Hecks::HTTP::JsonSchemaGenerator.new(@domain).generate)
+          res.body = JSON.generate(Hecks::HTTP::JsonSchemaGenerator.new(domain).generate)
           return
         end
 
-        route = @routes.find { |r| r[:method] == req.request_method && route_matches_request_path?(r[:path], req.path) }
+        route = routes.find { |r| r[:method] == req.request_method && route_matches_request_path?(r[:path], req.path) }
         unless route
           res.status = 404
           res["Content-Type"] = "application/json"
@@ -172,6 +202,33 @@ module Hecks
         warn "[hecks] hecks_sockets gem not found — skipping WebSocket server"
       end
 
+      # Start the file watcher for hot reload.
+      #
+      # Resolves the domain source directory from the domain's source_path,
+      # then starts a DomainWatcher that calls reload! on change.
+      #
+      # @return [void]
+      def start_watcher
+        watch_dir = resolve_watch_dir
+        unless watch_dir
+          warn "[hecks] No source_path on domain — cannot watch for changes"
+          return
+        end
+        puts "  Watching #{watch_dir} for changes..."
+        @watcher = DomainWatcher.new(watch_dir, interval: @watch_interval) { reload! }
+        @watcher.start
+      end
+
+      # Resolve the directory to watch from the domain's source_path.
+      #
+      # @return [String, nil] the directory containing domain source files
+      def resolve_watch_dir
+        return nil unless @domain.source_path
+
+        path = @domain.source_path
+        File.directory?(path) ? path : File.dirname(path)
+      end
+
       # Build the domain gem into a temp directory and boot it.
       #
       # Creates a temporary directory, builds the domain gem there,
@@ -190,9 +247,18 @@ module Hecks
           Dir[File.join(lib_path, "**/*.rb")].sort.each { |f| require f }
         end
         @mod = Object.const_get(mod_name)
+        rebuild_routes
+      end
+
+      # Rebuild the runtime and routes from the current @domain.
+      # Called from boot_domain and reload!. Caller must hold @lock
+      # when called from reload!.
+      #
+      # @return [void]
+      def rebuild_routes
         @app = Runtime.new(@domain)
-        @port = CommandBusPort.new(command_bus: @app.command_bus)
-        @routes = RouteBuilder.new(@domain, @mod, port: @port).build
+        bus_port = CommandBusPort.new(command_bus: @app.command_bus)
+        @routes = RouteBuilder.new(@domain, @mod, port: bus_port).build
       end
 
       # Check if a route pattern matches a request path.

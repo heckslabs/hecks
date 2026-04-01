@@ -423,6 +423,7 @@
 - `hecks build` — validate and generate versioned gem
 - `hecks build --gem` — produce a publishable `.gem` artifact after building (runs `gem build` on generated output); supported for `ruby` and `static` targets
 - `hecks serve [--rpc]` — start REST or JSON-RPC server
+- `hecks serve --watch` — hot reload: polls domain source for changes and rebuilds routes without restart
 - `hecks console [NAME]` — interactive REPL with domain loaded
 - `hecks validate` — check domain against DDD rules
 - `hecks mcp` — start MCP server
@@ -573,6 +574,7 @@
 
 ### HTTP Server & UI
 - WEBrick-based server with JSON API (one POST per command, GET per aggregate)
+- Hot reload via `--watch` flag — polls domain source directory, reloads Bluebook and rebuilds routes on change (no restart needed, thread-safe via Mutex)
 - HTML UI with index tables, show pages, create/update forms
 - OpenAPI endpoint at `/_openapi`, validation rules at `/_validations`
 - `GET /_events` — JSON event log (EventLogContract shape, same for Ruby and Go)
