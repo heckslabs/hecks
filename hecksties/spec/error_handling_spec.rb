@@ -36,6 +36,13 @@ RSpec.describe "Error handling" do
   end
 
   describe "domain validation errors" do
+    it "formats multiple validation errors with for_domain" do
+      errors = ["Aggregate 'Pizza' has no fields", "Command 'Create' missing event"]
+      error = Hecks::ValidationError.for_domain(errors)
+      expect(error.message).to include("Domain validation failed:")
+      expect(error.message).to include("- Aggregate 'Pizza' has no fields")
+    end
+
     it "raises ValidationError for invalid domains" do
       domain = Hecks.domain "BadDomain" do
         aggregate "Widget" do

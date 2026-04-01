@@ -54,6 +54,16 @@ module Hecks
   #
   #   raise Hecks::ValidationError.new("Name cannot be blank", field: :name, rule: :presence)
   class ValidationError < Error
+    # Build a ValidationError from a list of domain validation error strings.
+    #
+    # @param errors [Array<String>] validation error messages
+    # @return [ValidationError] formatted error with bullet-pointed message
+    #
+    #   Hecks::ValidationError.for_domain(["No fields", "Missing event"])
+    def self.for_domain(errors)
+      new("Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}")
+    end
+
     # @return [Symbol, String, nil] the field that failed validation
     attr_reader :field
 

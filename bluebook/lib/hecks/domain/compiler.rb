@@ -31,7 +31,7 @@ module Hecks
     def build(domain, version: "0.1.0", output_dir: ".")
       valid, errors = validate(domain)
       unless valid
-        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        raise Hecks::ValidationError.for_domain(errors)
       end
 
       ValidationRules::Naming::ReservedNames.reserved_attr_warnings(domain).each do |w|
@@ -77,7 +77,7 @@ module Hecks
       unless skip_validation
         validator = Validator.new(domain)
         unless validator.valid?
-          raise Hecks::ValidationError, "Domain validation failed:\n#{validator.errors.map { |e| "  - #{e}" }.join("\n")}"
+          raise Hecks::ValidationError.for_domain(validator.errors)
         end
       end
 
@@ -104,7 +104,7 @@ module Hecks
     def build_static(domain, version: "0.1.0", output_dir: ".", smoke_test: true)
       valid, errors = validate(domain)
       unless valid
-        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        raise Hecks::ValidationError.for_domain(errors)
       end
 
       require "hecks_static"
@@ -122,7 +122,7 @@ module Hecks
     def build_go(domain, output_dir: ".", smoke_test: true)
       valid, errors = validate(domain)
       unless valid
-        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        raise Hecks::ValidationError.for_domain(errors)
       end
 
       require "go_hecks"
@@ -160,7 +160,7 @@ module Hecks
     def build_node(domain, output_dir: ".")
       valid, errors = validate(domain)
       unless valid
-        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        raise Hecks::ValidationError.for_domain(errors)
       end
 
       require "node_hecks"
@@ -176,7 +176,7 @@ module Hecks
     def build_rails(domain, output_dir: ".")
       valid, errors = validate(domain)
       unless valid
-        raise Hecks::ValidationError, "Domain validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        raise Hecks::ValidationError.for_domain(errors)
       end
 
       require "hecks/generators/rails_generator"
