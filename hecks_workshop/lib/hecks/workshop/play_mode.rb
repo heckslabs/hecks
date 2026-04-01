@@ -54,6 +54,7 @@ module Hecks
           puts "  events                    # event log"
           puts "  history                   # numbered timeline"
           puts "  reset!                    # clear all data"
+          puts "  reload!                   # re-read DSL, reboot runtime"
           puts "  sketch!                   # back to sketch mode"
         else
           puts "Entering play mode"
@@ -144,6 +145,31 @@ module Hecks
       def reset!
         ensure_play_mode!
         @playground.reset!
+      end
+
+      # Re-read the domain DSL and reboot the playground without leaving
+      # play mode. Validates the updated domain; if invalid, prints errors
+      # and keeps the previous playground running. Events and repository
+      # data are cleared on a successful reload.
+      #
+      #   workshop.aggregate("Pizza") { attribute :size, String }
+      #   workshop.reload!   # picks up the new attribute
+      #
+      # @return [Session] self
+      def reload!
+        ensure_play_mode!
+        domain = to_domain
+        valid, errors = Hecks.validate(domain)
+
+        unless valid
+          puts "Reload failed - domain is invalid:"
+          errors.each { |e| puts "  - #{e}" }
+          return self
+        end
+
+        @playground = Playground.new(domain)
+        puts "Reloaded domain"
+        self
       end
 
       # Apply an extension to the live runtime without rebooting.

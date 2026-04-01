@@ -56,6 +56,17 @@ module Hecks
       result
     end
 
+    def reload!
+      result = @workshop.reload!
+      if @workshop.play? && @workshop.playground
+        mod_name = domain_module_name(@workshop.name)
+        if Object.const_defined?(mod_name)
+          hoist_domain_constants(Object.const_get(mod_name))
+        end
+      end
+      result
+    end
+
     def sketch!
       # Unload the domain module (removes hoisted constants + module itself)
       mod_name = domain_module_name(@workshop.name)
@@ -202,6 +213,7 @@ module Hecks
       puts "  Post.transition \"PublishPost\" => \"published\""
       puts ""
       puts "  play! / sketch!                  # switch modes"
+      puts "  reload!                          # re-read DSL, reboot playground"
       puts "  save / build"
       puts "  validate / describe / preview / browse"
       puts "  visualize                        # print Mermaid diagrams"

@@ -53,6 +53,9 @@ module Hecks
 
           # Bare command (no target)
           if target.nil?
+            if method == "reload!" && @web_runner
+              return @web_runner.reload_domain!
+            end
             if method == "reset!" && @web_runner && !@runner.instance_variable_get(:@workshop).play?
               return @web_runner.reload_domain!
             end

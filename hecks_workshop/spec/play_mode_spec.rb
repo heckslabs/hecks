@@ -205,6 +205,34 @@ RSpec.describe "Play mode" do
     end
   end
 
+  describe "reload!" do
+    it "recompiles the domain and stays in play mode" do
+      wb = build_workshop
+      wb.play!
+      wb.aggregate("Pizza") { attribute :size, String }
+      wb.reload!
+      expect(wb.play?).to be true
+      mod = Object.const_get("ScratchDomain")
+      pizza = mod::Pizza.new(name: "Margherita", style: "NY", size: "Large")
+      expect(pizza.size).to eq("Large")
+    end
+
+    it "clears events on reload" do
+      wb = build_workshop
+      wb.play!
+      mod = Object.const_get("ScratchDomain")
+      mod::Pizza.create(name: "Test", style: "NY")
+      expect(wb.events.size).to be >= 1
+      wb.reload!
+      expect(wb.events).to be_empty
+    end
+
+    it "requires play mode" do
+      wb = build_workshop
+      expect { wb.reload! }.to raise_error(RuntimeError, /Not in play mode/)
+    end
+  end
+
   describe "sketch! / play! toggling" do
     it "can switch back to sketch mode" do
       wb = build_workshop
