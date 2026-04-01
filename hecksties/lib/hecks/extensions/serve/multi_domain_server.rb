@@ -2,6 +2,7 @@ require "webrick"
 require "json"
 require "tmpdir"
 require_relative "route_builder"
+require_relative "csrf_helpers"
 require "hecks/extensions/web_explorer/renderer"
 require "hecks/extensions/web_explorer/ir_introspector"
 require "hecks/extensions/web_explorer/runtime_bridge"
@@ -23,6 +24,7 @@ module Hecks
     class MultiDomainServer
       include HecksTemplating::NamingHelpers
       include UIRoutes
+      include CsrfHelpers
 
       def initialize(domains, runtimes, port: 9292)
         @domains = domains
@@ -89,6 +91,8 @@ module Hecks
 
       def handle(req, res)
         res["Access-Control-Allow-Origin"] = "*"
+        res["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
+        res["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
         return if req.request_method == "OPTIONS"
 
         path = req.path
@@ -151,6 +155,12 @@ module Hecks
       def serve_domain_route(req, res, entry, sub_path)
         route = entry[:routes].find { |r| r[:method] == req.request_method && match?(r[:path], sub_path) }
         if route && req["Accept"]&.include?("application/json")
+          if csrf_required?(req) && !valid_csrf_json?(req)
+            res.status = 403
+            res["Content-Type"] = "application/json"
+            res.body = JSON.generate(error: "CSRF token mismatch")
+            return
+          end
           wrapper = DomainServer::RequestWrapper.new(req)
           result = route[:handler].call(wrapper)
           res["Content-Type"] = "application/json"

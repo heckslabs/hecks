@@ -18,9 +18,9 @@ RSpec.describe Hecks::Conventions::CsrfContract do
   end
 
   describe ".cookie_header" do
-    it "includes the token and SameSite=Strict; HttpOnly" do
+    it "includes the token and SameSite=Strict (no HttpOnly — SPA clients must read it)" do
       header = described_class.cookie_header("abc123")
-      expect(header).to eq("_csrf_token=abc123; SameSite=Strict; HttpOnly")
+      expect(header).to eq("_csrf_token=abc123; SameSite=Strict")
     end
   end
 

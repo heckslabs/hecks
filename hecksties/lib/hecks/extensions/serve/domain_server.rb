@@ -3,6 +3,7 @@ require "json"
 require "stringio"
 require "tmpdir"
 require_relative "route_builder"
+require_relative "csrf_helpers"
 
 module Hecks
   module HTTP
@@ -23,6 +24,7 @@ module Hecks
     #
     class DomainServer
       include HecksTemplating::NamingHelpers
+      include CsrfHelpers
       # Initialize the server, boot the domain gem, and build routes.
       #
       # Builds the domain gem into a temporary directory, requires it,
@@ -82,6 +84,13 @@ module Hecks
       def handle(req, res)
         set_cors(res)
         return if req.request_method == "OPTIONS"
+
+        if csrf_required?(req) && !valid_csrf_json?(req)
+          res.status = 403
+          res["Content-Type"] = "application/json"
+          res.body = JSON.generate(error: "CSRF token mismatch")
+          return
+        end
 
         if req.path == "/events"
           # SSE not supported in basic WEBrick — return event list instead
@@ -180,7 +189,7 @@ module Hecks
       def set_cors(res)
         res["Access-Control-Allow-Origin"] = "*"
         res["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
-        res["Access-Control-Allow-Headers"] = "Content-Type"
+        res["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
       end
 
       # Wraps a WEBrick::HTTPRequest to provide a consistent interface

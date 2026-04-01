@@ -74,7 +74,7 @@ module Hecks
       def handle(req, res)
         res["Access-Control-Allow-Origin"] = "*"
         res["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        res["Access-Control-Allow-Headers"] = "Content-Type"
+        res["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
         res["Content-Type"] = "application/json"
         return if req.request_method == "OPTIONS"
 

@@ -58,6 +58,9 @@ RSpec.describe Hecks::Runtime do
 
   describe "custom adapter" do
     it "uses the provided adapter class" do
+      # Boot the domain first so PizzasDomain::Ports::PizzaRepository is defined
+      Hecks.load(domain)
+
       custom_repo = Class.new do
         include PizzasDomain::Ports::PizzaRepository
         def find(id) = "custom_find"

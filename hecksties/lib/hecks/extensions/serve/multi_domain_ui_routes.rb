@@ -11,6 +11,7 @@ module Hecks
       #
       module UIRoutes
         include HecksTemplating::NamingHelpers
+        include CsrfHelpers
         private
 
         def serve_ui_route(req, res, entry, sub_path)
@@ -146,22 +147,8 @@ module Hecks
           res.body = html
         end
 
-        def ensure_csrf_cookie(req, res)
-          existing = read_csrf_cookie(req)
-          return existing if existing && !existing.empty?
-          token = Hecks::Conventions::CsrfContract.generate_token
-          res["Set-Cookie"] = Hecks::Conventions::CsrfContract.cookie_header(token)
-          token
-        end
-
-        def read_csrf_cookie(req)
-          cookie_header = req["Cookie"] || ""
-          name = Hecks::Conventions::CsrfContract::COOKIE_NAME
-          match = cookie_header.match(/(?:^|;\s*)#{Regexp.escape(name)}=([^;]+)/)
-          match ? match[1] : nil
-        end
-
         def valid_csrf?(req)
+          return true if token_authenticated?(req)
           cookie_val = read_csrf_cookie(req)
           form_val = req.query[Hecks::Conventions::CsrfContract::FIELD_NAME]
           Hecks::Conventions::CsrfContract.valid?(cookie_val, form_val)
