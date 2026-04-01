@@ -177,6 +177,12 @@ module Hecks
   # missing domain.rb file, syntax error in DSL, unresolvable references).
   class DomainLoadError < Error; end
 
+  # Raised when a +version:+ kwarg passed to +Hecks.domain+ does not conform
+  # to semver (+x.y.z+) or CalVer (+YYYY.MM.DD.N+).
+  #
+  #   Hecks.domain "Banking", version: "bad"  # => InvalidDomainVersion
+  class InvalidDomainVersion < Error; end
+
   # Raised when a schema migration fails (e.g., attempting to add a column
   # that already exists, incompatible type change).
   class MigrationError < Error; end

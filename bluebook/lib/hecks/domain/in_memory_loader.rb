@@ -13,7 +13,7 @@ module Hecks
 
     def self.load(domain, mod)
       gem = domain.gem_name
-      load_src(module_shell(mod), "#{gem}.rb")
+      load_src(module_shell(mod, domain.version), "#{gem}.rb")
 
       domain.aggregates.each do |agg|
         safe = domain_constant_name(agg.name)
@@ -62,8 +62,10 @@ module Hecks
       end
     end
 
-    def self.module_shell(mod)
+    def self.module_shell(mod, version = nil)
+      version_line = version ? "  VERSION = #{version.inspect}\n  def self.version; VERSION; end\n" : ""
       "require 'securerandom'\nmodule #{mod}\n" \
+      "#{version_line}" \
       "  class ValidationError < StandardError\n" \
       "    attr_reader :field, :rule\n" \
       "    def initialize(message = nil, field: nil, rule: nil)\n" \

@@ -4,6 +4,7 @@
 
 ### Core Structure
 - Define domains with `Hecks.domain "Name" { }` block syntax
+- Declare an explicit domain version with `Hecks.domain "Name", version: "2.1.0" { }` — semver and CalVer supported; propagates to generated gemspec and Go server header
 - Define aggregates with attributes, commands, events, policies, queries, and scopes
 - Define value objects as immutable nested types within aggregates
 - Define entities within aggregates — sub-objects with identity (UUID), mutable, not frozen

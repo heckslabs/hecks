@@ -24,6 +24,8 @@ module GoHecks
 
     def generate
       lines = []
+      lines << "// Domain: #{@domain.name}"
+      lines << "// Version: #{@domain.version || "unversioned"}"
       lines << "package server"
       lines << ""
       lines << "import ("

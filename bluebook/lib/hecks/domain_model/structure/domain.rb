@@ -75,6 +75,9 @@ module Hecks
       #   where to write output files.
       attr_accessor :source_path
 
+      # @return [String, nil] the declared domain version (semver or CalVer), or nil if unset.
+      attr_reader :version
+
       # Creates a new Domain IR node.
       #
       # @param name [String] the domain name (e.g., "Pizzas"). Used to derive module_name and gem_name.
@@ -88,11 +91,17 @@ module Hecks
       # @param event_subscribers [Array] domain-level event subscriber registrations
       #
       # @return [Domain] a new Domain instance
+      SEMVER_RE  = /\A\d+\.\d+\.\d+\z/.freeze
+      CALVER_RE  = /\A\d{4}\.\d{2}\.\d{2}\.\d+\z/.freeze
+
       def initialize(name:, aggregates: [], policies: [], services: [], views: [],
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
-                     sagas: [], glossary_rules: [], modules: [], glossary_strict: false)
+                     sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
+                     version: nil)
+        validate_version!(version)
         @name = name
+        @version = version
         @aggregates = aggregates
         @policies = policies
         @services = services
@@ -238,6 +247,15 @@ module Hecks
       # @return [Aggregate, nil]
       def aggregate_for_command(command_name)
         aggregates.find { |a| a.commands.any? { |c| c.name == command_name.to_s } }
+      end
+
+      private
+
+      def validate_version!(v)
+        return if v.nil?
+        return if SEMVER_RE.match?(v.to_s) || CALVER_RE.match?(v.to_s)
+        raise Hecks::InvalidDomainVersion,
+              "Invalid version #{v.inspect}. Must be semver (x.y.z) or CalVer (YYYY.MM.DD.N)."
       end
     end
     end

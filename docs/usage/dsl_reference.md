@@ -18,6 +18,24 @@ Hecks.domain "Pizzas" do
 end
 ```
 
+You may optionally declare a version with the `version:` kwarg. Both semver
+and CalVer are supported; invalid strings raise `Hecks::InvalidDomainVersion`
+immediately.
+
+```ruby
+Hecks.domain "Banking", version: "2.1.0" do
+  # ...
+end
+
+Hecks.domain "Banking", version: "2026.04.01.1" do  # CalVer
+  # ...
+end
+```
+
+The version is accessible on the domain IR (`domain.version`), the loaded
+module (`BankingDomain.version`), the generated gemspec, and the Go server
+comment header. See [Domain Versioning](domain_version.md) for details.
+
 ### Domain-level methods
 
 At the domain level you can declare aggregates, cross-aggregate policies, services, read models, workflows, actors, tenancy, and glossary rules:

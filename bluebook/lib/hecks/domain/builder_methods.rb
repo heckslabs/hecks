@@ -25,17 +25,17 @@ module Hecks
     # @param name [String] the human-readable domain name (e.g., "Pizzas")
     # @param block [Proc] DSL block evaluated inside DSL::DomainBuilder
     # @return [Hecks::DomainModel::Domain] the fully built domain IR object
-    def domain(name, &block)
-      model(name, grammar: :bluebook, &block)
+    def domain(name, version: nil, &block)
+      model(name, version: version, grammar: :bluebook, &block)
     end
 
     # Generic entry point — delegates to whichever grammar's builder.
     #   Hecks.model "SpaceGame", grammar: :game_book do ... end
     #   Hecks.model "Pizzas" do ... end  # defaults to :bluebook
-    def model(name, grammar: :bluebook, &block)
+    def model(name, grammar: :bluebook, version: nil, &block)
       g = Hecks.grammar(grammar)
       builder_class = g&.builder || DSL::DomainBuilder
-      builder = builder_class.new(name)
+      builder = builder_class.new(name, version: version)
       builder.instance_eval(&block)
       result = builder.build
       result.source_path = caller_locations(1, 1).first.absolute_path if result.respond_to?(:source_path=)

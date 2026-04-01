@@ -49,8 +49,10 @@ module Hecks
       # Sets up empty collections for all domain-level elements.
       #
       # @param name [String] the domain name (e.g. "Banking", "PizzaShop")
-      def initialize(name)
+      # @param version [String, nil] optional version string (semver or CalVer)
+      def initialize(name, version: nil)
         @name = name
+        @version = version
         @aggregates = []
         @policies = []
         @services = []
@@ -256,7 +258,7 @@ module Hecks
       # @return [DomainModel::Structure::Domain] the fully built domain IR object
       def build
         domain = Structure::Domain.new(
-          name: @name, aggregates: @aggregates, policies: @policies,
+          name: @name, version: @version, aggregates: @aggregates, policies: @policies,
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,
