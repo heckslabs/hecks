@@ -596,6 +596,12 @@
 - Renderer class with layout wrapping and HTML escaping
 - Registers with runtime, auto-wires when loaded
 
+### IR-Driven Structural Discovery (HEC-430)
+- All structural queries (aggregate names, attributes, columns, commands, policies, roles) come from the Bluebook IR via `IRIntrospector`
+- Runtime CRUD operations (find, all, create, delete) isolated behind `RuntimeBridge`
+- No `Object.const_get`, `respond_to?`, or `instance_variable_get` in the UI layer
+- Same IR structs consumed by Ruby, Go, and Rails generators now also drive the Web Explorer
+
 ## Implicit DSL (HEC-229)
 
 ### Infer Domain Concepts from Structure

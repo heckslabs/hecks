@@ -3,6 +3,8 @@ require "json"
 require "tmpdir"
 require_relative "route_builder"
 require "hecks/extensions/web_explorer/renderer"
+require "hecks/extensions/web_explorer/ir_introspector"
+require "hecks/extensions/web_explorer/runtime_bridge"
 require_relative "multi_domain_ui_routes"
 
 module Hecks
@@ -10,10 +12,9 @@ module Hecks
     # Hecks::HTTP::MultiDomainServer
     #
     # WEBrick server that serves multiple Hecks domains in one process.
-    # Navigation is grouped by domain. Each domain's routes are prefixed
-    # with its slug (e.g. /blog/posts, /photos/photos).
-    #
-    # Uses the same ERB views as the static Ruby and Go generators.
+    # All structural discovery (aggregates, attributes, commands, policies)
+    # comes from the Bluebook IR via IRIntrospector. Runtime access for
+    # CRUD operations is isolated behind RuntimeBridge.
     #
     #   domains = [blog_domain, photos_domain]
     #   runtimes = [blog_runtime, photos_runtime]
@@ -34,7 +35,8 @@ module Hecks
       def run
         puts "Hecks serving #{@domains.size} domains on http://localhost:#{@port}"
         @entries.each do |e|
-          puts "  #{e[:domain].name}: /#{e[:slug]}/ (#{e[:domain].aggregates.size} aggregates)"
+          ir = e[:ir]
+          puts "  #{ir.domain.name}: /#{e[:slug]}/ (#{ir.aggregate_names.size} aggregates)"
         end
         puts ""
 
@@ -52,10 +54,11 @@ module Hecks
         @domains.each_with_index do |domain, i|
           runtime = @runtimes[i]
           slug = domain_slug(domain.name)
-          mod_name = domain_module_name(domain.name)
-          mod = Object.const_get(mod_name)
+          mod = Object.const_get(domain_module_name(domain.name))
+          ir = Hecks::WebExplorer::IRIntrospector.new(domain)
+          bridge = Hecks::WebExplorer::RuntimeBridge.new(mod)
           routes = RouteBuilder.new(domain, mod).build
-          @entries << { domain: domain, runtime: runtime, mod: mod, slug: slug, routes: routes }
+          @entries << { ir: ir, bridge: bridge, runtime: runtime, slug: slug, routes: routes }
         end
 
         require "hecks/extensions/web_explorer"
@@ -69,8 +72,9 @@ module Hecks
       def build_nav
         items = [{ label: "Home", href: "/" }]
         @entries.each do |e|
-          group = HecksTemplating::UILabelContract.label(e[:domain].name)
-          e[:domain].aggregates.each do |agg|
+          ir = e[:ir]
+          group = HecksTemplating::UILabelContract.label(ir.domain.name)
+          ir.domain.aggregates.each do |agg|
             items << {
               label: HecksTemplating::UILabelContract.plural_label(agg.name),
               href: "/#{e[:slug]}/#{plural(agg)}",
@@ -111,8 +115,9 @@ module Hecks
 
       def serve_home(res)
         agg_data = @entries.flat_map do |e|
-          e[:domain].aggregates.map do |agg|
-            d = HecksTemplating::DisplayContract.home_aggregate_data(agg, "#{e[:slug]}/#{plural(agg)}")
+          ir = e[:ir]
+          ir.domain.aggregates.map do |agg|
+            d = ir.home_aggregate_data(agg, "#{e[:slug]}/#{plural(agg)}")
             { name: d[:name], href: d[:href], command_names: d[:command_names],
               attributes: d[:attributes], policies: d[:policies] }
           end
@@ -126,13 +131,14 @@ module Hecks
 
       def serve_config(res)
         summaries = @entries.flat_map do |e|
-          e[:domain].aggregates.map do |agg|
-            s = HecksTemplating::DisplayContract.aggregate_summary(agg)
+          ir = e[:ir]
+          ir.domain.aggregates.map do |agg|
+            s = ir.aggregate_summary(agg)
             { name: agg.name, commands: s[:commands], ports: s[:ports] }
           end
         end
-        policies = @entries.flat_map { |e| HecksTemplating::DisplayContract.policy_labels(e[:domain]) }
-        roles = @entries.flat_map { |e| HecksTemplating::DisplayContract.available_roles(e[:domain]) }.uniq
+        policies = @entries.flat_map { |e| e[:ir].policy_labels }
+        roles = @entries.flat_map { |e| e[:ir].available_roles }.uniq
         html = @renderer.render(:config,
           title: "Config — #{@brand}", brand: @brand, nav_items: @nav,
           aggregates: summaries, policies: policies, roles: roles,
@@ -155,10 +161,6 @@ module Hecks
 
       def plural(agg)
         domain_aggregate_slug(agg.name)
-      end
-
-      def humanize(name)
-        Hecks::Utils.humanize(Hecks::Utils.sanitize_constant(name))
       end
 
       def match?(pattern, path)
