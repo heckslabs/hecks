@@ -1,5 +1,7 @@
 require_relative "command/lifecycle_steps"
 require_relative "command/reference_validation"
+require_relative "command/validation"
+require_relative "command/dispatch"
 
 module Hecks
   # Hecks::Command
@@ -55,6 +57,8 @@ module Hecks
       base.extend(ClassMethods)
       base.attr_reader :aggregate, :event, :events
       base.include(ReferenceValidation)
+      base.include(Validation)
+      base.include(Dispatch)
     end
 
     # Class-level DSL and execution entry point for command classes.
@@ -89,48 +93,6 @@ module Hecks
       # @return [Array<String>] all event names set via +emits+, or empty array if none declared
       def event_names
         @event_names || []
-      end
-
-      # Returns the list of registered precondition checks.
-      # Preconditions are validated before the command's +#call+ executes.
-      #
-      # @return [Array<DomainModel::Behavior::Condition>] registered preconditions
-      def preconditions
-        @preconditions ||= []
-      end
-
-      # Returns the list of registered postcondition checks.
-      # Postconditions are validated after +#call+ returns, receiving the
-      # before and after states of the aggregate.
-      #
-      # @return [Array<DomainModel::Behavior::Condition>] registered postconditions
-      def postconditions
-        @postconditions ||= []
-      end
-
-      # Registers a precondition that must hold before the command executes.
-      # The block is evaluated in the context of the command instance via
-      # +instance_exec+, so it has access to command attributes.
-      #
-      # @param message [String] human-readable description of the precondition (used in error messages)
-      # @yield block that returns truthy if the precondition holds
-      # @return [void]
-      # @raise [Hecks::PreconditionError] at execution time if the block returns falsey
-      def precondition(message, &block)
-        preconditions << DomainModel::Behavior::Condition.new(message: message, block: block)
-      end
-
-      # Registers a postcondition that must hold after the command executes.
-      # The block receives the aggregate state before and after +#call+.
-      #
-      # @param message [String] human-readable description of the postcondition (used in error messages)
-      # @yield [before, after] block that returns truthy if the postcondition holds
-      # @yieldparam before [Object, nil] the aggregate before command execution (nil for creates)
-      # @yieldparam after [Object] the aggregate after command execution
-      # @return [void]
-      # @raise [Hecks::PostconditionError] at execution time if the block returns falsey
-      def postcondition(message, &block)
-        postconditions << DomainModel::Behavior::Condition.new(message: message, block: block)
       end
 
       # Resolves the event class constant from the declared event name (first event).
@@ -269,48 +231,6 @@ module Hecks
       self.class.repository
     end
 
-    # Evaluates all registered preconditions in the command instance context.
-    # Raises +Hecks::PreconditionError+ on the first failure.
-    #
-    # @return [void]
-    # @raise [Hecks::PreconditionError] if any precondition block returns falsey
-    def check_preconditions
-      self.class.preconditions.each do |cond|
-        unless instance_exec(&cond.block)
-          raise Hecks::PreconditionError, "Precondition failed: #{cond.message}"
-        end
-      end
-    end
-
-    # Evaluates all registered postconditions, comparing the aggregate state
-    # before and after command execution.
-    #
-    # @param before [Object, nil] the aggregate state before execution
-    # @param after [Object] the aggregate state after execution
-    # @return [void]
-    # @raise [Hecks::PostconditionError] if any postcondition block returns falsey
-    def check_postconditions(before, after)
-      self.class.postconditions.each do |cond|
-        unless cond.block.call(before, after)
-          raise Hecks::PostconditionError, "Postcondition failed: #{cond.message}"
-        end
-      end
-    end
-
-    # Attempts to find the existing aggregate for before/after postcondition
-    # comparison. Looks for an instance variable ending in +_id+ and uses it
-    # to fetch from the repository.
-    #
-    # @return [Object, nil] the existing aggregate, or nil if not found or no postconditions
-    def find_existing_for_postcondition
-      return nil if self.class.postconditions.empty?
-      # Try to find the existing aggregate for before/after comparison
-      id_method = instance_variables.find { |v| v.to_s.end_with?("_id") }
-      return nil unless id_method
-      id_val = instance_variable_get(id_method)
-      repository&.find(id_val) rescue nil
-    end
-
     # Executes the guard policy if one is configured via +guarded_by+.
     # Resolves the policy class from the aggregate's Policies module.
     #
@@ -334,78 +254,6 @@ module Hecks
     # @return [void]
     def run_handler
       self.class.handler&.call(self)
-    end
-
-    # Persists the aggregate via the wired repository. Stamps created_at or
-    # updated_at timestamps automatically if the aggregate supports them.
-    #
-    # @return [void]
-    def persist_aggregate
-      return unless aggregate
-      if aggregate.respond_to?(:stamp_created!) && aggregate.created_at.nil?
-        aggregate.stamp_created!
-      elsif aggregate.respond_to?(:stamp_updated!)
-        aggregate.stamp_updated!
-      end
-      repository.save(aggregate)
-    end
-
-    # Constructs a single event instance from the given event class.
-    # Introspects the event class constructor to map command and aggregate
-    # attributes into event parameters.
-    #
-    # @param event_class [Class] the event class to instantiate
-    # @return [Object] the constructed event instance
-    def build_event_for(event_class)
-      event_params = event_class.instance_method(:initialize).parameters.map { |_, n| n }
-      attrs = {}
-      event_params.each do |param|
-        if param == :aggregate_id && aggregate
-          attrs[param] = aggregate.id
-        elsif respond_to?(param, true)
-          attrs[param] = send(param)
-        elsif aggregate&.respond_to?(param)
-          attrs[param] = aggregate.send(param)
-        end
-      end
-      event_class.new(**attrs)
-    end
-
-    # Constructs all events declared via +emits+ without publishing them.
-    #
-    # @return [Array<Object>] all constructed event instances
-    def build_events
-      self.class.event_classes.map { |klass| build_event_for(klass) }
-    end
-
-    # Constructs the first event declared via +emits+ without publishing it.
-    # Preserved for backward compatibility with dry_call and internal use.
-    #
-    # @return [Object] the constructed event instance
-    def build_event
-      build_event_for(self.class.event_class)
-    end
-
-    # Builds and publishes all events declared via +emits+ on the event bus.
-    # Sets +@event+ to the first event for backward compatibility,
-    # and +@events+ to the full array.
-    #
-    # @return [Array<Object>] all constructed and published event instances
-    def emit_event
-      @events = build_events
-      @event = @events.first
-      @events.each { |evt| self.class.event_bus&.publish(evt) }
-      @events
-    end
-
-    # Records the emitted event in the event recorder for the aggregate,
-    # enabling event sourcing and audit trails.
-    #
-    # @return [void]
-    def record_event_for_aggregate
-      recorder = self.class.event_recorder
-      agg_type = self.class.aggregate_type
-      recorder.record(agg_type, aggregate.id, @event) if recorder && aggregate
     end
   end
 end
