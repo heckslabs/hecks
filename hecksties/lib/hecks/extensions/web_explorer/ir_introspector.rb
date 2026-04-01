@@ -64,9 +64,15 @@ module Hecks
 
       def command_fields(cmd, params = {})
         cmd.attributes.map do |a|
-          { type: :input, name: a.name.to_s, label: humanize(a.name),
-            input_type: "text", step: false, required: false,
-            value: params[a.name.to_s] || "" }
+          if a.enum
+            { type: :enum, name: a.name.to_s, label: humanize(a.name),
+              options: a.enum, required: false,
+              value: params[a.name.to_s] || "" }
+          else
+            { type: :input, name: a.name.to_s, label: humanize(a.name),
+              input_type: "text", step: false, required: false,
+              value: params[a.name.to_s] || "" }
+          end
         end
       end
 

@@ -131,6 +131,42 @@ RSpec.describe "Web Explorer IR introspection" do
     it "escapes HTML special characters via h()" do
       expect(renderer.h("<script>alert(1)</script>")).to eq("&lt;script&gt;alert(1)&lt;/script&gt;")
     end
+
+    it "renders enum fields as <select> dropdowns" do
+      enum_domain = Hecks.domain "EnumSmoke" do
+        aggregate "Ticket" do
+          attribute :priority, String, enum: %w[low medium high]
+          command "CreateTicket" do
+            attribute :priority, String, enum: %w[low medium high]
+          end
+        end
+      end
+
+      enum_ir = Hecks::WebExplorer::IRIntrospector.new(enum_domain)
+      agg = enum_ir.find_aggregate("Ticket")
+      cmd = enum_ir.find_command(agg, "create_ticket")
+      fields = enum_ir.command_fields(cmd)
+
+      priority_field = fields.find { |f| f[:name] == "priority" }
+      expect(priority_field[:type]).to eq(:enum)
+      expect(priority_field[:options]).to eq(%w[low medium high])
+
+      html = renderer.render(:form, {
+        command_name: "CreateTicket",
+        action: "/tickets",
+        csrf_token: "tok",
+        fields: fields,
+        error_message: nil,
+        skip_layout: true
+      })
+
+      expect(html).to include("<select")
+      expect(html).to include('name="priority"')
+      %w[low medium high].each do |val|
+        expect(html).to include("<option value=\"#{val}\">#{val}</option>")
+      end
+      expect(html).not_to include('type="text"')
+    end
   end
 
   describe Hecks::WebExplorer::RuntimeBridge do
