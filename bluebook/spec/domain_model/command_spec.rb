@@ -20,6 +20,66 @@ RSpec.describe Hecks::DomainModel::Behavior::Command do
       cmd = described_class.new(name: "PlaceOrder", attributes: [])
       expect(cmd.inferred_event_name).to eq("PlacedOrder")
     end
+
+    context "CVC doubling via DOUBLE_FINAL" do
+      it "doubles final consonant for Submit" do
+        cmd = described_class.new(name: "SubmitOrder", attributes: [])
+        expect(cmd.inferred_event_name).to eq("SubmittedOrder")
+      end
+
+      it "doubles final consonant for Refer" do
+        cmd = described_class.new(name: "ReferFriend", attributes: [])
+        expect(cmd.inferred_event_name).to eq("ReferredFriend")
+      end
+    end
+
+    context "CVC doubling via monosyllable regex fallback" do
+      it "doubles final consonant for Drop" do
+        cmd = described_class.new(name: "DropItem", attributes: [])
+        expect(cmd.inferred_event_name).to eq("DroppedItem")
+      end
+
+      it "doubles final consonant for Plan" do
+        cmd = described_class.new(name: "PlanTrip", attributes: [])
+        expect(cmd.inferred_event_name).to eq("PlannedTrip")
+      end
+    end
+
+    context "multi-syllable stress-final doubling" do
+      it "doubles final consonant for Overlap" do
+        cmd = described_class.new(name: "OverlapShift", attributes: [])
+        expect(cmd.inferred_event_name).to eq("OverlappedShift")
+      end
+
+      it "doubles final consonant for Unwrap" do
+        cmd = described_class.new(name: "UnwrapGift", attributes: [])
+        expect(cmd.inferred_event_name).to eq("UnwrappedGift")
+      end
+    end
+
+    context "irregular verbs" do
+      it "converts Forget to Forgot" do
+        cmd = described_class.new(name: "ForgetPassword", attributes: [])
+        expect(cmd.inferred_event_name).to eq("ForgotPassword")
+      end
+
+      it "converts Upset to Upset" do
+        cmd = described_class.new(name: "UpsetBalance", attributes: [])
+        expect(cmd.inferred_event_name).to eq("UpsetBalance")
+      end
+
+      it "converts Broadcast to Broadcast" do
+        cmd = described_class.new(name: "BroadcastMessage", attributes: [])
+        expect(cmd.inferred_event_name).to eq("BroadcastMessage")
+      end
+    end
+
+    context "consonant-y rule" do
+      it "converts Deny to Denied" do
+        cmd = described_class.new(name: "DenyAccess", attributes: [])
+        expect(cmd.inferred_event_name).to eq("DeniedAccess")
+      end
+    end
   end
 
   describe "#event_names" do

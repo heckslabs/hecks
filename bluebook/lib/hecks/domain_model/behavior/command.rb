@@ -102,6 +102,9 @@ module Hecks
         "Wake" => "Woke", "Wear" => "Wore", "Withdraw" => "Withdrew",
         "Open" => "Opened", "Offer" => "Offered", "Listen" => "Listened",
         "Enter" => "Entered", "Order" => "Ordered", "Deliver" => "Delivered",
+        "Forget" => "Forgot", "Upset" => "Upset", "Offset" => "Offset",
+        "Reset" => "Reset", "Broadcast" => "Broadcast", "Cost" => "Cost",
+        "Burst" => "Burst", "Hurt" => "Hurt", "Quit" => "Quit",
       }.freeze
 
       # Set of multi-syllable verbs whose final consonant doubles in past tense.
@@ -115,6 +118,7 @@ module Hecks
         Compel Expel Repel Propel
         Control Patrol Enrol Fulfil
         Begin Regret Abet Embed Equip
+        Overlap Unwrap Outfit Outrun Outwit
       ].to_set.freeze
 
       # Converts the command verb to past tense to derive the corresponding
@@ -143,7 +147,7 @@ module Hecks
                        verb.sub(/y$/i, "ied")
                      elsif verb =~ /e$/
                        "#{verb}d"
-                     elsif DOUBLE_FINAL.include?(verb) || verb =~ /\A[A-Z][^aeiou]*[aeiou][^aeiouwxy]\z/
+                     elsif DOUBLE_FINAL.include?(verb) || (verb.scan(/[aeiou]/i).length == 1 && verb =~ /[aeiou][^aeiouwxy]\z/i && verb[-1] != verb[-2])
                        "#{verb}#{verb[-1]}ed"
                      else
                        "#{verb}ed"
