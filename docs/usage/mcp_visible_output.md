@@ -5,7 +5,7 @@ Every MCP tool produces human-readable feedback visible in the Claude Code conve
 ## How It Works
 
 MCP tools wrap AggregateHandle operations in `capture_output`, which captures the
-same terse feedback the REPL prints. Claude and the user see identical output.
+same terse feedback the REPL prints. Claude and you see identical output.
 
 ## Example: Claude builds a blog domain
 

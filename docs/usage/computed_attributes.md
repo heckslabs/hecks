@@ -1,7 +1,7 @@
 # Computed Attributes
 
 Computed attributes are derived values calculated from other attributes on an
-aggregate. They are not stored in the database -- they exist only as methods on
+aggregate. They're not stored in the database — they exist only as methods on
 the generated Ruby class.
 
 ## DSL
@@ -77,7 +77,7 @@ func (a *Parcel) LotSize() interface{} {
 
 ## Validation
 
-Computed attribute names must not collide with regular attribute names. The
-validator will report an error like:
+Computed attribute names can't collide with regular attribute names. The
+validator will catch this:
 
     Parcel: computed attribute 'area' collides with a regular attribute

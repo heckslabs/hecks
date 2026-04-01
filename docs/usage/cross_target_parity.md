@@ -1,7 +1,7 @@
 # Cross-Target Parity Testing
 
-The parity spec proves that the Ruby static and Go targets produce identical event logs
-when given the same command sequence. It builds both targets from the Pizzas domain IR,
+The parity spec verifies that the Ruby static and Go targets produce identical event logs
+for the same command sequence. It builds both targets from the Pizzas domain IR,
 boots them as HTTP servers, submits form commands to each, and compares `/_events`.
 
 ## Running the spec
@@ -37,5 +37,5 @@ The spec is tagged `:parity` and excluded from the default run via `.rspec`:
 --tag ~parity
 ```
 
-This keeps the default suite under 1 second. The parity spec itself runs in ~1s
+This keeps the default suite under 1 second. The parity spec runs in ~1s
 (builds are cached by the Go toolchain).

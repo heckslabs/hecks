@@ -1,8 +1,6 @@
 # Vertical Slice Architecture
 
-Extract vertical slices from domain reactive chains. A slice is everything
-triggered by a single command: the command, its event, any policies it fires,
-and all downstream commands.
+Extract vertical slices from domain reactive chains. A slice is everything triggered by a single command: the command, its event, any policies it fires, and all downstream commands.
 
 ## Setup
 
@@ -73,7 +71,7 @@ puts domain.slices_diagram
 ## Leaky slice detection
 
 If an aggregate-scoped policy triggers a command on a different aggregate,
-validation warns you to promote it to a domain-level policy:
+validation warns you to move it to a domain-level policy:
 
 ```ruby
 # This is "leaky" — cross-aggregate coupling hidden inside Order

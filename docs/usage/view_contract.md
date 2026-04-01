@@ -3,9 +3,9 @@
 ## View Contracts
 
 Shared data shape definitions for the web explorer views. Each contract
-defines the fields, types, and nested structs a template expects. Both
-Go struct generation and Go template conversion use these contracts,
-preventing field name drift.
+defines the fields, types, and nested structs a template expects. Go struct
+generation and Go template conversion both use these contracts to prevent
+field name drift.
 
 ```ruby
 require "hecks_templating"
@@ -42,8 +42,7 @@ results = smoke.run
 # 12 passed, 0 failed (12 total)
 ```
 
-The smoke test runs automatically after `Hecks.build_go`. Pass
-`smoke_test: false` to skip:
+The smoke test runs automatically after `Hecks.build_go`. To skip it:
 
 ```ruby
 Hecks.build_go(domain, output_dir: ".", smoke_test: false)

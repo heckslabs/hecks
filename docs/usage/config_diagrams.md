@@ -1,15 +1,15 @@
 # Config Page Domain Wiring Diagrams
 
-The web explorer's `/config` page now renders Mermaid diagrams showing domain
+The web explorer's `/config` page renders Mermaid diagrams showing domain
 structure, behavior, and reactive flows.
 
 ## What you see
 
 Three collapsible sections appear below the Aggregates table:
 
-- **Structure** -- classDiagram of aggregates, attributes, value objects, entities, and references
-- **Behavior** -- flowchart of commands, events, and policy chains
-- **Flows** -- sequenceDiagram of reactive chains (command -> event -> policy -> command)
+- **Structure** — classDiagram of aggregates, attributes, value objects, entities, and references
+- **Behavior** — flowchart of commands, events, and policy chains
+- **Flows** — sequenceDiagram of reactive chains (command -> event -> policy -> command)
 
 ## How it works
 

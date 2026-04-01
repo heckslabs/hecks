@@ -44,7 +44,7 @@ module PizzasDomain
 end
 ```
 
-Adapters `include` the port to declare compliance. If you write a custom adapter, you include the port and the compiler tells you what's missing.
+Adapters `include` the port to declare compliance. Write a custom adapter, include the port, and the compiler tells you what's missing.
 
 ## Adapters
 
@@ -75,7 +75,7 @@ end
 
 ## The .bind Pattern
 
-This is where the hexagonal magic happens. Each concern is a module group with a `.bind` class method that injects behavior into domain classes at boot time:
+Each concern is a module group with a `.bind` class method that injects behavior into domain classes at boot time:
 
 ```ruby
 # Application boot (AggregateWiring):
@@ -84,13 +84,13 @@ Commands.bind(Pizza, agg, bus, repo) # → Pizza.create dispatches CreatePizza e
 Querying.bind(Pizza, agg)            # → scopes, query objects
 ```
 
-The domain gem has zero knowledge of these modules. The aggregate class starts as pure attributes + validations + invariants. Everything else is injected from the outside.
+The domain gem has no knowledge of these modules. The aggregate class starts as pure attributes + validations + invariants. Everything else is injected from the outside.
 
-This is dependency inversion without a DI container. No configuration, no registration, no resolution. Just `.bind`.
+Dependency inversion without a DI container. No configuration, no registration, no resolution. Just `.bind`.
 
 ## Adapter Swapping
 
-The whole point of hexagonal: swap adapters without changing domain code.
+Swap adapters without changing domain code.
 
 ```ruby
 # Tests — memory (automatic, zero config)
@@ -115,7 +115,7 @@ Same domain gem. Same `Pizza.create`. Same query objects. Different infrastructu
 
 ## The QueryBuilder Bridge
 
-The most subtle hexagonal pattern in Hecks. The `QueryBuilder` collects query parameters (where, order, limit) and delegates execution to the adapter:
+The `QueryBuilder` collects query parameters (where, order, limit) and delegates execution to the adapter:
 
 ```ruby
 Pizza.where(style: "Classic").order(:name).limit(5)
@@ -124,7 +124,7 @@ Pizza.where(style: "Classic").order(:name).limit(5)
 - **Memory adapter**: filters `@store.values` with Ruby `select`, `sort_by`, `take`
 - **SQL adapter**: builds `SELECT * FROM pizzas WHERE style = 'Classic' ORDER BY name LIMIT 5` via Sequel
 
-Same interface, different execution strategy. The query DSL is the port. Each adapter is... the adapter.
+Same interface, different execution strategy. The query DSL is the port. Each adapter is the adapter.
 
 ## Event Sourcing as an Adapter Concern
 
@@ -134,16 +134,16 @@ Event sourcing is opt-in infrastructure, not a domain concern:
 adapter :sql, database: :postgres, event_sourced: true
 ```
 
-The domain doesn't know events are being persisted. The `EventRecorder` hooks into the command dispatch flow and appends events to a `domain_events` table. The domain code is identical with or without event sourcing.
+The domain doesn't know events are being persisted. The `EventRecorder` hooks into the command dispatch flow and appends events to a `domain_events` table. The domain code is identical either way.
 
 ## What Makes This Different
 
-Most "hexagonal architecture" implementations in Ruby require you to:
-1. Define interfaces manually
-2. Write adapters manually
-3. Configure a DI container
-4. Wire everything by hand
+Most "hexagonal architecture" Ruby implementations require:
+1. Defining interfaces manually
+2. Writing adapters manually
+3. Configuring a DI container
+4. Wiring everything by hand
 
-Hecks generates the interfaces (ports), generates the default adapters (memory), generates SQL adapters on demand, and wires everything automatically at boot. You describe your domain in a DSL and get a hexagonal architecture for free.
+Hecks generates the interfaces (ports), generates the default adapters (memory), generates SQL adapters on demand, and wires everything automatically at boot. Describe your domain in a DSL, get a hexagonal architecture for free.
 
 No DI container. No dry-system. No configuration ceremony. Just `.bind`.

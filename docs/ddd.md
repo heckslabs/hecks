@@ -33,7 +33,7 @@ end
 
 ## Commands
 
-`command` in the DSL. Represents intent — a request to change state. Each command automatically infers a corresponding domain event (`CreatePizza` -> `CreatedPizza`). Commands are dispatched through a CommandBus with middleware support (Chapter 10: Supple Design).
+`command` in the DSL. Represents intent — a request to change state. Each command automatically infers a corresponding domain event (`CreatePizza` → `CreatedPizza`). Commands dispatch through a CommandBus with middleware support (Chapter 10: Supple Design).
 
 Commands support event-storming annotations: `read_model` names a read model dependency, `external` names an external system, and `actor` names who triggers the command. These appear in documentation and MCP introspection but don't affect runtime behavior.
 
@@ -50,7 +50,7 @@ end
 
 ## Domain Events
 
-Auto-generated from commands. Frozen, immutable facts with `occurred_at` timestamps. Published through an in-process EventBus. With `event_sourced: true`, persisted to a `domain_events` table for full audit history.
+Auto-generated from commands. Frozen, immutable facts with `occurred_at` timestamps. Published through an in-process EventBus. With `event_sourced: true`, events persist to a `domain_events` table for full audit history.
 
 ```ruby
 # CreatedPizza event auto-generated from CreatePizza command
@@ -59,9 +59,9 @@ app.on("CreatedPizza") { |event| puts event.name }
 
 ## Policies
 
-`policy` in the DSL. Hecks supports two kinds of policies:
+`policy` in the DSL. Hecks supports two kinds:
 
-**Reactive policies** subscribe to domain events and trigger commands — Evans' "domain event subscribers" pattern. Policies are the mechanism for cross-aggregate communication.
+**Reactive policies** subscribe to domain events and trigger commands — Evans' "domain event subscribers" pattern. They're the mechanism for cross-aggregate communication.
 
 ```ruby
 policy "ReserveIngredients" do   # Chapter 14: Model Integrity
@@ -85,7 +85,7 @@ end
 
 ## Validations
 
-`validation` in the DSL. Declarative attribute constraints checked at construction time. Currently supports `:presence` (non-nil/non-empty) and `:type` checks. Raises `ValidationError` on failure.
+`validation` in the DSL. Declarative attribute constraints checked at construction time. Supports `:presence` (non-nil/non-empty) and `:type` checks. Raises `ValidationError` on failure.
 
 ```ruby
 aggregate "Order" do
@@ -106,7 +106,7 @@ end
 
 ## Scopes
 
-`scope` in the DSL. Named, reusable query filters bound as class methods on aggregates at boot time. Support both hash-based (static) and parameterized (lambda) forms. Returns a chainable `QueryBuilder`.
+`scope` in the DSL. Named, reusable query filters bound as class methods on aggregates at boot time. Support hash-based (static) and parameterized (lambda) forms. Returns a chainable `QueryBuilder`.
 
 ```ruby
 aggregate "Order" do
@@ -124,7 +124,7 @@ Order.by_size("L").to_a
 
 ## Query Objects
 
-`query` in the DSL. Named, reusable queries defined as domain concepts. Internally use a `QueryBuilder` that delegates to the adapter — memory adapters filter in Ruby, SQL adapters build Sequel datasets.
+`query` in the DSL. Named, reusable queries defined as domain concepts. They use a `QueryBuilder` that delegates to the adapter — memory adapters filter in Ruby, SQL adapters build Sequel datasets.
 
 ```ruby
 query "ByDescription" do |desc|    # Repository pattern: named queries
@@ -137,7 +137,7 @@ Pizza.by_description("Classic").to_a
 
 ## Ports
 
-`port` in the DSL. Access control boundaries that restrict which repository methods are available through a named port. Raises `PortAccessDenied` when a disallowed method is called.
+`port` in the DSL. Access control boundaries that restrict which repository methods are available through a named port. Raises `PortAccessDenied` on disallowed method calls.
 
 ```ruby
 aggregate "Pizza" do
@@ -151,7 +151,7 @@ end
 
 Not in the DSL — they're infrastructure. Hecks generates memory repositories by default and SQL repositories on demand. The `RepositoryMethods` mixin binds `find`, `save`, `create`, `delete` onto aggregate classes at boot time. The domain never references repositories directly.
 
-The `.bind` pattern implements the Ports and Adapters (Hexagonal) architecture:
+The `.bind` pattern implements Ports and Adapters (Hexagonal) architecture:
 
 ```ruby
 # Domain layer: pure aggregate class (no persistence knowledge)
@@ -171,7 +171,7 @@ Each group has a `.bind` method that injects behavior into aggregate classes at 
 
 ## Event Sourcing
 
-Opt-in via `adapter :sql, event_sourced: true` in `Hecks.configure`. Every command records its event to a `domain_events` table (stream ID, event type, JSON data, version) alongside the regular SQL state. The `EventRecorder` provides `history(aggregate_type, id)` for full event streams. Regular SQL tables serve as the read model — queries stay fast.
+Opt in with `adapter :sql, event_sourced: true` in `Hecks.configure`. Every command records its event to a `domain_events` table (stream ID, event type, JSON data, version) alongside the regular SQL state. The `EventRecorder` provides `history(aggregate_type, id)` for full event streams. Regular SQL tables serve as the read model, so queries stay fast.
 
 ## What Hecks Validates (DDD Rules)
 

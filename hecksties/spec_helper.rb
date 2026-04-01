@@ -4,6 +4,10 @@ require "hecks_ai"
 require "tmpdir"
 require_relative "support/shared_boot"
 
+def load_domain(domain)
+  Hecks.load(domain)
+end
+
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
     expectations.include_chain_clauses_in_custom_matcher_descriptions = true

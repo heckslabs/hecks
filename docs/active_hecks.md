@@ -49,7 +49,7 @@ This walks every class in the domain module and includes the right mixins:
 - **Aggregates** get full ActiveModel support (validations, callbacks, persistence guards)
 - **Value objects** get naming and serialization only (they're frozen, so no validations)
 
-The walker handles nested modules too — if your domain groups aggregates under sub-modules, it recurses into them (skipping `Ports` and `Adapters`). It uses `constants(false)` when scanning for nested value objects, so inherited constants from included modules (like ActiveModel validators) are ignored. It also strips the domain module prefix from `model_name` so `PizzasDomain::Pizza` reports as just `"Pizza"`.
+The walker handles nested modules — if your domain groups aggregates under sub-modules, it recurses into them (skipping `Ports` and `Adapters`). It uses `constants(false)` when scanning for nested value objects, so inherited constants from included modules (like ActiveModel validators) are ignored. It strips the domain module prefix from `model_name` so `PizzasDomain::Pizza` reports as just `"Pizza"`.
 
 With Rails, activation happens automatically via the Railtie — just call `Hecks.configure` in an initializer.
 
@@ -135,11 +135,11 @@ validation :name, presence: true
 Pizza.validates :name, presence: true
 ```
 
-Also disables the domain-level `validate!` (which raises in the constructor) so you can build invalid objects and check `valid?` / `errors` the Rails way. Note: `check_invariants!` is not disabled — invariants are structural constraints that still run at construction time.
+This also disables the domain-level `validate!` (which raises in the constructor) so you can build invalid objects and check `valid?` / `errors` the Rails way. `check_invariants!` is not disabled — invariants are structural constraints that still run at construction time.
 
 ### PersistenceWrapper
 
-Wraps `save` and `destroy` with validation checks and callbacks. Only binds if the class already has a `save` method (i.e., RepositoryMethods has been wired):
+Wraps `save` and `destroy` with validation checks and callbacks. Only binds if the class already has a `save` method (i.e., RepositoryMethods is wired):
 
 ```ruby
 pizza.save     # => false if invalid (won't hit the adapter)
@@ -171,7 +171,7 @@ end
 
 ## What a Domain Object Looks Like
 
-With `Hecks::Model`, domain objects are minimal. ActiveHecks layers Rails compatibility on top:
+With `Hecks::Model`, domain objects are minimal. ActiveHecks layers Rails compatibility on top without touching the domain:
 
 ```ruby
 # Generated domain gem — pure Ruby, no Rails
@@ -243,7 +243,7 @@ admin_pizza_path(pizza)  # works — ActiveHecks patches to_param on command cla
 
 ## What Stays Out of the Domain
 
-ActiveHecks is intentionally separate from the domain gem. The generated gem uses `Hecks::Model`, `Hecks::Command`, and `Hecks::Query` — pure Ruby with no framework dependency. ActiveHecks adds Rails compatibility from the outside — the domain never knows.
+ActiveHecks is separate from the domain gem by design. The generated gem uses `Hecks::Model`, `Hecks::Command`, and `Hecks::Query` — pure Ruby with no framework dependency. ActiveHecks adds Rails compatibility from the outside. The domain never knows.
 
 | Concern | Domain Gem | ActiveHecks |
 |---|---|---|

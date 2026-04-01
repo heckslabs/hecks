@@ -85,7 +85,7 @@ end
 ```
 
 No hidden callbacks. Every cause and effect is visible in the DSL. Reactive policies
-listen for events and trigger commands. Guard policies validate commands with a block.
+listen for events and trigger commands. Guard policies gate commands with a block.
 
 ### Associations → References + Value Objects
 
@@ -138,7 +138,7 @@ end
 
 In plain Ruby, validations are enforced at construction time. In Rails, Hecks
 converts DSL validations to ActiveModel validators so `pizza.valid?` and
-`pizza.errors` work as expected in forms.
+`pizza.errors` work as expected in form flows.
 
 ### Migrations
 
@@ -160,7 +160,7 @@ rails generate active_hecks:migration
 rake hecks:db:migrate
 ```
 
-Hecks diffs your DSL against a saved snapshot and auto-generates SQL migrations.
+Hecks diffs your DSL against a saved snapshot and generates SQL migrations.
 No manual column definitions — add an attribute to the DSL and the migration appears.
 
 ### Testing
@@ -197,9 +197,8 @@ Tests run against in-memory adapters. No database process, no migrations, no fix
 
 1. Describe your models in a `hecks_domain.rb` file
 2. Run `hecks build` to generate the domain gem
-3. Add the gem to your Rails Gemfile
-4. Run `rails generate active_hecks:init` to create the initializer, or add
-   `config/initializers/hecks.rb` manually:
+3. Add the gem to your Gemfile
+4. Run `rails generate active_hecks:init`, or add `config/initializers/hecks.rb` manually:
 
 ```ruby
 Hecks.configure do
@@ -209,5 +208,5 @@ Hecks.configure do
 end
 ```
 
-5. Your controllers don't change — `Pizza.create`, `Pizza.find`, `Pizza.all` all work
-6. Generate migrations when the domain changes: `rails generate active_hecks:migration`
+5. Controllers don't change — `Pizza.create`, `Pizza.find`, `Pizza.all` all work
+6. When the domain changes, generate migrations: `rails generate active_hecks:migration`

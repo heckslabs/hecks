@@ -63,7 +63,7 @@ $ cd bookshelf
 $ bundle install
 ```
 
-`Hecks.boot(__dir__)` finds `BookshelfBluebook`, validates it, builds the gem in memory, and returns a `Runtime`. One call, no config.
+`Hecks.boot(__dir__)` finds `BookshelfBluebook`, validates it, builds the gem in memory, and returns a `Runtime`. One call.
 
 ---
 
@@ -219,7 +219,7 @@ hecks(play)> Book.all
 
 ## Step 7 — Add the checkout lifecycle
 
-You already have `CheckOutBook` and `ReturnBook` transitions on `status`. Watch Hecks enforce the state machine at runtime. Try checking out an already-checked-out book — Hecks raises `Hecks::TransitionNotAllowed`.
+The `CheckOutBook` and `ReturnBook` transitions on `status` enforce the state machine at runtime. Try checking out an already-checked-out book — Hecks raises `Hecks::TransitionNotAllowed`.
 
 Add this to `app.rb` to see it in action:
 
@@ -283,7 +283,7 @@ Loans track who has a book and when it's due. Add this to `BookshelfBluebook` in
   end
 ```
 
-`reference_to "Book"` at the aggregate level means Loan holds a `book` foreign key. The web explorer will render it as a dropdown showing available books.
+`reference_to "Book"` at the aggregate level means Loan holds a `book` foreign key. The web explorer renders it as a dropdown showing available books.
 
 Now use it:
 
@@ -321,13 +321,13 @@ $ hecks serve bookshelf
 Serving BookshelfDomain on http://localhost:9292
 ```
 
-Open `http://localhost:9292`. You'll find:
+Open `http://localhost:9292`:
 
-- **Book** — a form with title, author fields. Status shows as a lifecycle badge: `available` / `checked_out`. Transition buttons appear inline.
-- **Loan** — a form where the Book field is a dropdown showing all books. Status badge and CloseLoan button.
+- **Book** — a form with title and author fields. Status shows as a lifecycle badge: `available` / `checked_out`. Transition buttons appear inline.
+- **Loan** — the Book field is a dropdown showing all books. Status badge and CloseLoan button.
 - **Event log** at `/_events` — every `AddedBook`, `CheckedOutBook`, `CreatedLoan` in order.
 
-No routes to write. No views to build. The explorer is generated from the Bluebook.
+No routes to write. No views to build. The explorer generates from the Bluebook.
 
 ---
 

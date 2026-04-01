@@ -1,9 +1,9 @@
 # Auth Default-Secure
 
-When a domain declares `actor` requirements on commands, Hecks now
-raises `ConfigurationError` at boot if no `:auth` extension is
-registered. This prevents silent security gaps where access control
-is defined in the DSL but never enforced at runtime.
+When a domain declares `actor` requirements on commands, Hecks raises
+`ConfigurationError` at boot if no `:auth` extension is registered.
+This catches the case where access control is defined in the DSL but
+never enforced at runtime.
 
 ## The problem
 
@@ -24,9 +24,8 @@ Invoice.approve(invoice_id: "123")  # silently succeeds — oops!
 
 ## The fix
 
-The boot process now checks for actor-protected commands after
-extensions are wired. If any exist and no `:auth` middleware is
-registered, it raises:
+Boot now checks for actor-protected commands after extensions are
+wired. If any exist and no `:auth` middleware is registered, it raises:
 
 ```
 Hecks::ConfigurationError:
@@ -45,16 +44,16 @@ app.extend(:auth)  # wires actor-based authorization middleware
 
 ## Opting out explicitly
 
-If you intentionally want to skip authorization (e.g., in a dev
-environment or a batch-processing service), use `enforce: false`:
+To skip authorization intentionally (in a dev environment or a
+batch-processing service), use `enforce: false`:
 
 ```ruby
 app = Hecks.boot(__dir__)
 app.extend(:auth, enforce: false)  # registers a no-op sentinel
 ```
 
-This documents the intentional decision and satisfies the boot check
-without enforcing any access control.
+This satisfies the boot check without enforcing any access control,
+and makes the decision explicit.
 
 ## When does the check run?
 

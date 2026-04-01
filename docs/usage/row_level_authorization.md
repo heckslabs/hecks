@@ -1,7 +1,6 @@
 # Row-level Authorization
 
-Row-level authorization restricts data access to individual records based on ownership
-or tenancy. Hecks supports two modes:
+Row-level authorization restricts data access based on ownership or tenancy. Two modes:
 
 1. **`owned_by :field`** on a gate — records are scoped to `Hecks.current_user`
 2. **`tenancy: :row`** — records are scoped to `Hecks.tenant`
@@ -10,7 +9,7 @@ or tenancy. Hecks supports two modes:
 
 Declare `owned_by :owner_id` inside a gate block. `find` and `delete` raise
 `Hecks::GateAccessDenied` when the record belongs to a different user. `all` and
-`count` filter to only the current user's records.
+`count` return only the current user's records.
 
 ```ruby
 hecksagon = Hecks.hecksagon do
@@ -50,7 +49,7 @@ Hecks.current_user = nil
 
 ## Admin gate — full access
 
-A gate without `owned_by` sees all records:
+A gate without `owned_by` has full access:
 
 ```ruby
 hecksagon = Hecks.hecksagon do
@@ -67,8 +66,8 @@ Order.find(alice_order.id)   # => works fine — admin has full access
 
 ## Row tenancy (`tenancy: :row`)
 
-When the tenancy strategy is `:row`, all repositories are wrapped with ownership
-scoping using `tenant_id` as the field and `Hecks.tenant` as the identity source:
+With the `:row` tenancy strategy, all repositories scope data to `Hecks.tenant`
+using `tenant_id` as the field:
 
 ```ruby
 hecksagon = Hecks.hecksagon { tenancy :row }

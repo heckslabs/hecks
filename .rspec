@@ -1,5 +1,6 @@
 --format documentation
 --color
+--order random
 -I hecksties
 -I hecksties/watchers/lib
 --require spec_helper

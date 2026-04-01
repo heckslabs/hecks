@@ -6,15 +6,15 @@ Three intentional decisions in Hecks deviate from textbook hexagonal architectur
 
 ## 1. Web Explorer — Intentional Hexagonal Impurity
 
-The Web Explorer (`hecksties/lib/hecks/extensions/web_explorer.rb`) is infrastructure code with deep domain knowledge. It inspects the domain IR at runtime to build forms, render aggregate state, display lifecycle badges, and populate reference dropdowns. This is a deliberate violation of the hexagonal principle that says infrastructure should not know about domain internals.
+The Web Explorer (`hecksties/lib/hecks/extensions/web_explorer.rb`) is infrastructure code with deep domain knowledge. It inspects the domain IR at runtime to build forms, render aggregate state, display lifecycle badges, and populate reference dropdowns. This deliberately violates the hexagonal principle that infrastructure should not know about domain internals.
 
 **Why it's justified:**
 
-The Web Explorer is explicitly contained inside `hecksties/`, the extension layer. It is never shipped as part of the generated domain gem — it runs only in development and exploration contexts. Its purpose is to reflect the domain faithfully, which requires knowing its structure. A generic UI that knows nothing about the domain cannot render typed command forms, lifecycle transitions, or cross-aggregate reference dropdowns.
+The Web Explorer lives inside `hecksties/`, the extension layer. It's never shipped as part of the generated domain gem — it runs only in development and exploration contexts. Its purpose is to reflect the domain faithfully, which requires knowing its structure. A generic UI with no domain knowledge can't render typed command forms, lifecycle transitions, or cross-aggregate reference dropdowns.
 
 **Contrast with static build targets:**
 
-Static targets (Ruby, Go, Rails) bake routes and views into the generated output at build time. There the relationship between domain and UI is resolved once, at generation time, and the resulting code has no such coupling. The Web Explorer takes the opposite approach: it reads the IR at every request, which is what makes it universal.
+Static targets (Ruby, Go, Rails) bake routes and views into the generated output at build time. The relationship between domain and UI is resolved once, at generation time, with no runtime coupling. The Web Explorer takes the opposite approach: it reads the IR at every request, which is what makes it universal.
 
 **How it's contained:**
 
@@ -31,9 +31,9 @@ Hecks.register_extension(:web_explorer) do |domain_mod, domain, runtime|
 end
 ```
 
-The domain knowledge stays inside the extension registration block. It does not bleed into the domain module's own code or the generated gem.
+The domain knowledge stays inside the extension registration block. It doesn't bleed into the domain module's own code or the generated gem.
 
-**Rule of thumb:** The Web Explorer pattern is not one to replicate. If you are writing an extension and find it reaching into the domain IR, ask whether it belongs in `hecksties/` as a development-only tool or whether it should be a static generator instead.
+**Rule of thumb:** Don't replicate the Web Explorer pattern. If you're writing an extension and it reaches into the domain IR, ask whether it belongs in `hecksties/` as a development-only tool or whether it should be a static generator instead.
 
 ---
 
@@ -64,7 +64,7 @@ end
 
 ### Why the split?
 
-Access control is deployment-context-dependent. The same domain might expose a public API (guest gate), an admin panel (admin gate), and an internal service-to-service interface (no gate at all). Putting access control in the domain DSL would couple the domain to a specific deployment topology. Gates belong in the Hecksagon precisely because the Hecksagon is where infrastructure decisions live.
+Access control depends on deployment context. The same domain might expose a public API (guest gate), an admin panel (admin gate), and an internal service-to-service interface (no gate at all). Putting access control in the domain DSL couples the domain to a specific deployment topology. Gates belong in the Hecksagon because that's where infrastructure decisions live.
 
 The Bluebook `port` keyword still exists for backward compatibility but is now a no-op:
 
@@ -73,7 +73,7 @@ The Bluebook `port` keyword still exists for backward compatibility but is now a
 def port(_name, _methods = nil, &_block); end
 ```
 
-Any `port` declarations in existing domain files are silently ignored. Migrate them to `gate` declarations in the Hecksagon.
+Existing `port` declarations in domain files are silently ignored. Migrate them to `gate` declarations in the Hecksagon.
 
 **Summary:**
 
@@ -88,11 +88,11 @@ See the [Hecksagon DSL Reference](hecksagon_reference.md) for the full `gate` sy
 
 ## 3. Implicit Application Service Layer
 
-There is no `ApplicationService` class in Hecks. The `Runtime` itself is the application service.
+Hecks has no `ApplicationService` class. The `Runtime` is the application service.
 
 ### What wires everything together
 
-`PortSetup#wire_aggregate` is the orchestration point. For each aggregate it binds five concerns in sequence:
+`PortSetup#wire_aggregate` is the orchestration point. For each aggregate, it binds five concerns in sequence:
 
 ```ruby
 def wire_aggregate(agg)
@@ -133,9 +133,9 @@ Middleware wraps inward, Rack-style. The innermost handler creates the domain ev
 
 ### Trade-offs
 
-**Benefit:** Zero boilerplate. Calling `Pizza.create(name: "Margherita")` invokes the full pipeline — validation, persistence, event publication, middleware — without any application service class to write or maintain.
+**Benefit:** Zero boilerplate. `Pizza.create(name: "Margherita")` runs the full pipeline — validation, persistence, event publication, middleware — without an application service class to write or maintain.
 
-**Cost:** The execution path is harder to follow for newcomers. When `Pizza.create` is called, control passes from `Commands.bind`'s dynamically defined singleton method through the `CommandBus` middleware chain to the persistence adapter, then back out through the event bus. There is no single file to open that shows this flow. Reading `PortSetup#wire_aggregate` is the entry point to understanding it.
+**Cost:** The execution path is harder to follow for newcomers. When `Pizza.create` is called, control passes from `Commands.bind`'s dynamically defined singleton method through the `CommandBus` middleware chain to the persistence adapter, then back out through the event bus. No single file shows this flow. Start with `PortSetup#wire_aggregate`.
 
 **Where to look:**
 - `hecksties/lib/hecks/runtime/port_setup.rb` — wiring orchestration

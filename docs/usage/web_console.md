@@ -1,6 +1,6 @@
 # Web Console
 
-A browser-based REPL for the Hecks Workshop. Same features as the terminal console, but with a visual domain tree and live event log.
+A browser-based REPL for the Hecks Workshop — same features as the terminal console, plus a visual domain tree and live event log.
 
 ## Usage
 
@@ -17,13 +17,13 @@ Open `http://localhost:4567/hecks_web_workbench` in your browser. You'll see thr
 
 ## Security
 
-The console endpoint is disabled by default. To enable command execution, pass `--enable-console`:
+The console endpoint is disabled by default. Enable command execution with `--enable-console`:
 
 ```bash
 hecks web_console Pizzas --enable-console
 ```
 
-Without this flag, POST requests to `/command` return 403. All input is parsed through `BlueBook::Grammar` — only whitelisted domain commands execute. Methods like `system`, `eval`, `exec`, `send`, and `require` are blocked at the grammar level.
+Without this flag, POST requests to `/command` return 403. All input is parsed through `BlueBook::Grammar` — only whitelisted domain commands execute. `system`, `eval`, `exec`, `send`, and `require` are blocked at the grammar level.
 
 ## Options
 
@@ -80,7 +80,7 @@ Command: CreatePizza
 Back to sketch mode
 ```
 
-The domain tree and event log update automatically after each command.
+The domain tree and event log update after each command.
 
 ## Keyboard Shortcuts
 

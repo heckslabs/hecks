@@ -1,6 +1,6 @@
 # DomainDiff — Detect Changes Across Domain Versions
 
-Compare two domain definitions and get a list of every structural and behavioral change.
+Compare two domain definitions and get every structural and behavioral change.
 
 ## Usage
 

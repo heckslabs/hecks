@@ -1,6 +1,6 @@
 # Packaging
 
-Hecks features ship as separate packages so you only install what you use.
+Hecks features ship as separate packages — install only what you use.
 
 ## What's Available
 
@@ -12,15 +12,15 @@ Hecks features ship as separate packages so you only install what you use.
 | `hecks_on_rails` | Bundles `active_hecks` + `hecks_live` |
 | `hecks_sqlite` | Persistence: SQLite via Sequel |
 
-## For Rails Apps
+## Rails
 
 ```ruby
 gem "hecks_on_rails"
 ```
 
-This is the default. Brings everything: ActiveModel compat, real-time events, generators.
+Brings everything: ActiveModel compat, real-time events, generators.
 
-## For Plain Ruby
+## Plain Ruby
 
 ```ruby
 gem "hecks"
@@ -38,7 +38,7 @@ hecks_on_rails
     └── hecks
 ```
 
-Extension packages auto-wire when present — no configuration needed.
+Extension packages auto-wire when present. No configuration needed.
 
 ## Building and Installing Locally
 
@@ -61,4 +61,4 @@ Installed hecksties-2026.03.26.0.gem
 Installed hecks-2026.03.26.0.gem
 ```
 
-Components are built in dependency order. Missing components are skipped. The build stops on first failure.
+Components build in dependency order. Missing components are skipped. The build stops on the first failure.

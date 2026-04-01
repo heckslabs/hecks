@@ -1,6 +1,6 @@
 # Play Mode Persistence
 
-Play mode now uses a full Runtime with memory adapters. Aggregates are persisted, queryable, and countable after executing commands.
+Play mode uses a full Runtime with memory adapters. After executing commands, aggregates are persisted, queryable, and countable.
 
 ## Usage
 
@@ -51,4 +51,4 @@ Cat.count: 0
 
 ## What changed
 
-Play mode previously recorded events but didn't persist aggregates. Now it boots a real `Services::Runtime` with memory adapters, giving you the full command lifecycle: guard, handler, call, persist, emit, record. Same API as production, just in-memory.
+Play mode used to record events but not persist aggregates. Now it boots a real `Services::Runtime` with memory adapters, giving you the full command lifecycle: guard, handler, call, persist, emit, record. Same API as production, just in-memory.

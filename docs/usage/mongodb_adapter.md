@@ -2,6 +2,7 @@
 
 Store aggregates as MongoDB documents instead of in-memory hashes or SQL rows.
 
+
 ## Setup
 
 Add the mongo gem to your Gemfile:
@@ -58,7 +59,7 @@ app["Pizza"].query(             # filtered query
 
 ## Switching adapters
 
-You can swap between memory, SQL, and MongoDB at any time:
+Swap between memory, SQL, and MongoDB at any time:
 
 ```ruby
 # Memory (default)

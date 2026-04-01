@@ -1,6 +1,6 @@
 # Rails Generators
 
-Hecks provides three Rails generators, registered automatically via the Railtie.
+Three Rails generators, registered automatically via the Railtie.
 
 ## `active_hecks:init`
 
@@ -44,5 +44,5 @@ Generates SQL migrations from domain changes.
 rails generate active_hecks:migration
 ```
 
-Compares current domain against saved snapshot, generates incremental SQL
-to `db/hecks_migrate/`. Run with `rake hecks:db:migrate`.
+Compares the current domain against the saved snapshot, generates incremental SQL
+to `db/hecks_migrate/`. Apply with `rake hecks:db:migrate`.

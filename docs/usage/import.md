@@ -1,6 +1,6 @@
 # Import — Reverse Engineer a Rails App
 
-Extract a Hecks domain definition from an existing Rails application.
+Extract a Hecks domain definition from an existing Rails app.
 
 ## Full Import (Schema + Models)
 
@@ -23,7 +23,7 @@ Reads `db/schema.rb` for structure and `app/models/*.rb` for behavior:
 hecks import schema /path/to/db/schema.rb
 ```
 
-Extracts structure without model enrichment. Useful when you don't have access to the model files or just want the data shape.
+Extracts structure without model enrichment. Use this when you don't have access to the model files or just want the data shape.
 
 ## Options
 

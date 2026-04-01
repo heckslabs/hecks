@@ -1,6 +1,6 @@
 # hecks_modules
 
-Module infrastructure for Hecks — DSL, registries, and discovery.
+DSL, registries, and discovery infrastructure for Hecks modules.
 
 ## ModuleDSL
 
@@ -16,7 +16,7 @@ module MyRegistryMethods
 end
 ```
 
-Registries are initialized on first access — no upfront `@var = {}` needed.
+Registries initialize on first access — no upfront `@var = {}` needed.
 
 ## Built-in Registries
 

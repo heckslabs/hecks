@@ -288,7 +288,7 @@ Same domain. Ten lines. Pick your framework.
 
 AI is good at writing code. It's bad at maintaining constraints across a codebase over time.
 
-Ask Claude to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs — the code runs fine. They're architectural violations that compound silently until the domain is unmaintainable.
+Ask Claude to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs — the code runs fine. They're architectural violations that compound silently until the domain becomes unmaintainable.
 
 Hecks catches all of these at build time. Twelve rules, checked before a single line of code is generated. Every violation comes with a fix suggestion.
 

@@ -1,6 +1,6 @@
 # SQL Adapter Lifecycle
 
-One line to go from domain definition to SQL-backed persistence.
+One line from domain definition to SQL-backed persistence.
 
 ## Usage
 
@@ -19,7 +19,7 @@ app = Hecks.boot(__dir__, adapter: { type: :postgres, host: "localhost", databas
 
 ## What it does
 
-`Hecks.boot` with an adapter option automatically:
+`Hecks.boot` with an adapter option:
 1. Requires Sequel
 2. Creates the database connection
 3. Generates SQL repository classes for each aggregate

@@ -27,7 +27,7 @@ end
 # emits PizzaCreated instead of CreatedPizza
 ```
 
-This is useful when your team prefers noun-first event names or when the
+Use this when your team prefers noun-first event names or when the
 inferred conjugation is wrong for a domain-specific verb.
 
 ## Multiple events per command
@@ -42,7 +42,7 @@ end
 # emits both PizzaCreated and MenuUpdated
 ```
 
-All events are published to the event bus, so policies and subscribers can
+All events are published to the event bus. Policies and subscribers can
 react to any of them independently.
 
 ## Runtime access

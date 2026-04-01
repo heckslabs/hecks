@@ -6,7 +6,7 @@ Complete reference for the hexagonal architecture wiring DSL. The Hecksagon decl
 
 ## Overview
 
-The Hecksagon is the hexagonal architecture layer. While the Bluebook defines *what* your domain is (aggregates, commands, events, policies), the Hecksagon defines *how* it connects to the outside world (who can access what, where data is stored, which extensions are active).
+The Hecksagon is the infrastructure layer. The Bluebook defines *what* your domain is (aggregates, commands, events, policies). The Hecksagon defines *how* it connects to the outside world (who can access what, where data is stored, which extensions are active).
 
 ```ruby
 Hecks.hecksagon do
@@ -30,9 +30,9 @@ end
 
 ## Gate
 
-A gate is role-based access control for an aggregate. It declares which operations a specific role is allowed to perform. When a gate is active, any attempt to call a disallowed method raises an error.
+A gate is role-based access control for an aggregate. It declares which operations a specific role can perform. When a gate is active, calling a disallowed method raises an error.
 
-Gates replace ports from the Bluebook DSL. The difference: ports were mixed into the domain definition, but access control is an infrastructure concern — it depends on deployment context, not domain logic. The same domain might have different gates in a public API vs. an admin panel.
+Gates replace ports from the Bluebook DSL. Ports were mixed into the domain definition, but access control is an infrastructure concern — it depends on deployment context, not domain logic. The same domain might have different gates in a public API vs. an admin panel.
 
 ```ruby
 gate "Pizza", :admin do
@@ -61,7 +61,7 @@ For the full rationale on why gates live in the Hecksagon rather than the Bluebo
 
 ## Adapter
 
-Declares the persistence adapter for the domain. This is where you choose between in-memory storage, SQLite, PostgreSQL, MySQL, or a custom adapter.
+Declares the persistence adapter for the domain — in-memory, SQLite, PostgreSQL, MySQL, or a custom adapter.
 
 ```ruby
 # In-memory (default, no declaration needed)
@@ -91,7 +91,7 @@ extension :rate_limit, max: 100
 extension :idempotency
 ```
 
-Extensions are registered globally and fired during `Hecks.boot`. The Hecksagon declares which extensions are active for this domain.
+Extensions are registered globally and fired during `Hecks.boot`. The Hecksagon declares which ones are active for this domain.
 
 ---
 
@@ -104,13 +104,13 @@ subscribe "Billing"
 subscribe "Shipping"
 ```
 
-This enables cross-domain reactive policies: when the Billing domain publishes an event, this domain can react to it.
+This enables cross-domain reactive policies: when the Billing domain publishes an event, this domain reacts to it.
 
 ---
 
 ## Tenancy
 
-Sets the multi-tenancy isolation strategy for the domain. Determines how the runtime separates data between tenants.
+Sets the multi-tenancy isolation strategy for the domain.
 
 ```ruby
 tenancy :row       # row-level isolation (tenant_id column)
@@ -121,7 +121,7 @@ tenancy :schema    # schema-level isolation (separate schemas per tenant)
 
 ## Booting with a Hecksagon
 
-When you call `Hecks.boot`, it looks for both a Bluebook (domain definition) and a Hecksagon (infrastructure wiring) in the project directory. If no Hecksagon is found, defaults are used (memory adapter, no gates, no extensions).
+`Hecks.boot` looks for both a Bluebook (domain definition) and a Hecksagon (infrastructure wiring) in the project directory. If no Hecksagon is found, it uses defaults: memory adapter, no gates, no extensions.
 
 ```ruby
 # Define domain

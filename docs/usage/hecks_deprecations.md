@@ -1,6 +1,6 @@
 # hecks_deprecations
 
-Backward-compatible shims with deprecation warnings for migrating users.
+Backward-compatible shims with deprecation warnings to ease migration.
 
 ## Usage
 
@@ -15,7 +15,7 @@ step.command    # => "CreatePizza" (preferred)
 
 ## Registering Deprecations
 
-Any module can register deprecated methods:
+Any module can register a deprecated method:
 
 ```ruby
 HecksDeprecations.register(MyClass, :old_method) do |*args|
@@ -40,6 +40,6 @@ HecksDeprecations.registered
 - `SendConfig#[]`, `SendConfig#==` (vs Hash)
 - `ExtensionConfig#==` (vs Hash)
 
-## For Generated Examples
+## Generated examples
 
 Generated examples never `require "hecks_deprecations"` — they always use the current attribute accessor API.

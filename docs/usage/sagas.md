@@ -1,6 +1,6 @@
 # Sagas / Process Managers
 
-A saga coordinates a long-running process that spans multiple aggregates and commands. Use sagas when a single business operation requires several sequential steps — and each step may need to be undone if a later step fails.
+A saga coordinates a long-running process that spans multiple aggregates and commands. Use them when a single business operation requires sequential steps that may need to be undone if a later step fails.
 
 ## When to use a saga vs. a workflow
 
@@ -66,7 +66,7 @@ end
 compensation "CommandName"
 ```
 
-Registers a rollback command. Compensations are collected in declaration order and run in reverse if the saga must unwind. Each compensation should undo the effects of its corresponding step.
+Registers a rollback command. Compensations collect in declaration order and run in reverse if the saga unwinds. Each compensation should undo the effects of its corresponding step.
 
 ## Example: Order Fulfillment
 
@@ -131,8 +131,8 @@ result[:completed_steps] # => [0, 1]
 
 ## Compensation
 
-When a step fails, all previously completed steps are compensated in reverse order.
-Each step's `compensate` command is dispatched best-effort (failures logged, not re-raised).
+When a step fails, all previously completed steps compensate in reverse order.
+Each step's `compensate` command dispatches best-effort (failures are logged, not re-raised).
 
 ```ruby
 # If ChargePayment fails, ReleaseInventory is dispatched automatically
@@ -160,8 +160,8 @@ end
 
 ## Saga store
 
-The default in-memory store is swappable. The store persists saga instance state
-keyed by `saga_id` with `save`, `find`, `delete`, and `clear` methods.
+The default in-memory store is swappable. It persists saga instance state
+keyed by `saga_id`, with `save`, `find`, `delete`, and `clear` methods.
 
 ## Inspecting sagas in the domain IR
 

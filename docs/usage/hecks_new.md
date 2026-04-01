@@ -49,7 +49,7 @@ app = Hecks.boot(__dir__)
 
 ## Hecks.boot
 
-`Hecks.boot(__dir__)` replaces the manual load/validate/build/require/wire dance:
+`Hecks.boot(__dir__)` replaces the manual load/validate/build/require/wire sequence:
 
 ```ruby
 # Before (10 lines):
@@ -65,7 +65,7 @@ app = Hecks::Services::Runtime.new(domain)
 app = Hecks.boot(__dir__)
 ```
 
-It finds `hecks_domain.rb`, validates, builds the gem, loads it, and returns a Runtime.
+`Hecks.boot` finds `hecks_domain.rb`, validates, builds the gem, loads it, and returns a Runtime.
 
 ## Running
 

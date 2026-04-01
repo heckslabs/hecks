@@ -61,7 +61,7 @@ end
 
 ## Use cases
 
-- Form validation before submit
-- Approval workflow previews
+- Validate a form before submit
+- Preview approval workflows
 - What-if analysis ("what would happen if I run this?")
 - CI/CD pipeline checks

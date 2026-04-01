@@ -1,26 +1,26 @@
 # Why Hecks instead of ActiveRecord?
 
-Hecks was born out of frustration with ActiveRecord. Your model layer shouldn't be a tangle of persistence logic, callbacks, and query scopes — with business rules buried somewhere in the middle. ActiveRecord makes the database the center of your app. Hecks makes your business logic the center. Describing your business shouldn't be harder than `rails generate model` — so we made it just as easy.
+ActiveRecord makes the database the center of your app. Hecks makes your business logic the center. Your model layer shouldn't be a tangle of persistence logic, callbacks, and query scopes with business rules buried somewhere in the middle. Describing your business shouldn't be harder than `rails generate model` — so it isn't.
 
 ## Model real-world relationships, not database tables
 
-ActiveRecord starts with the database and works backward — your models are table wrappers. Hecks starts with how your business actually works. A Pizza has Toppings. An Order references a Pizza. You describe that in Ruby, and the database plumbing gets handled for you.
+ActiveRecord starts with the database and works backward — your models are table wrappers. Hecks starts with how your business actually works. A Pizza has Toppings. An Order references a Pizza. Describe that in Ruby, and the database plumbing is handled for you.
 
 ## Your business logic is a gem, not a directory
 
-Hecks generates a standalone Ruby gem with zero dependencies. Your domain is a versioned artifact — you can share it across multiple apps, test it in isolation, and reason about it without a database running.
+Hecks generates a standalone Ruby gem with zero dependencies. Your domain is a versioned artifact — share it across multiple apps, test it in isolation, reason about it without a database running.
 
 ## No persistence in your objects
 
-A Hecks class is just Ruby — attributes, requirements, and rules. No `belongs_to`, no `has_many`, no callbacks, no `before_save`. You don't need database plumbing mixed into your business logic.
+A Hecks class is just Ruby — attributes, requirements, and rules. No `belongs_to`, no `has_many`, no callbacks, no `before_save`. Database plumbing doesn't belong in your business logic.
 
 ## Tests don't need a database
 
-Your code runs against memory by default — no migrations, no fixtures, no database process. Production uses SQL. The code is identical either way.
+Code runs against memory by default — no migrations, no fixtures, no database process. Production uses SQL. The code is identical either way.
 
 ## Lookups are part of your business
 
-Instead of scattering `where` clauses across controllers and services, you define named lookups in the DSL:
+Instead of scattering `where` clauses across controllers and services, define named lookups in the DSL:
 
 ```ruby
 aggregate "Order" do
@@ -45,11 +45,11 @@ end
 
 ## Commands make intent explicit
 
-Instead of `pizza.update(status: "cancelled")`, you define `CancelOrder` — a named command that fires a `CancelledOrder` event. Every state change has a name, a payload, and a paper trail.
+Instead of `pizza.update(status: "cancelled")`, define `CancelOrder` — a named command that fires a `CancelledOrder` event. Every state change has a name, a payload, and a paper trail.
 
 ## Any database, zero lock-in
 
-Configure your database in one line. Sequel handles MySQL, Postgres, and SQLite behind the scenes:
+Configure your database in one line. Sequel handles MySQL, Postgres, and SQLite:
 
 ```ruby
 Hecks.configure do
@@ -59,7 +59,7 @@ Hecks.configure do
 end
 ```
 
-Switch databases by changing the config. Your domain code never touches SQL.
+Switch databases by changing the config. Domain code never touches SQL.
 
 ## Still feels like ActiveRecord when you want it to
 
@@ -94,4 +94,4 @@ Try that with ActiveRecord.
 
 ---
 
-Even simple CRUD apps have a domain. Hecks just makes you model it first and pick a database later — instead of the other way around.
+Even simple CRUD apps have a domain. Hecks makes you model it first and pick a database second — instead of the other way around.

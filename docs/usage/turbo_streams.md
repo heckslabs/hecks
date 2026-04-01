@@ -1,10 +1,10 @@
 # Turbo Streams
 
-Hecks + Turbo Streams gives you real-time, no-reload UIs with zero custom JavaScript.
+Hecks + Turbo Streams gives you real-time, no-reload UIs with no custom JavaScript.
 
 ## How Forms Work
 
-With Turbo installed (via `active_hecks:init`), all form submissions are intercepted by Turbo Drive. No page reload. Controllers respond with `format.turbo_stream` to update the DOM in place.
+With Turbo installed (via `active_hecks:init`), Turbo Drive intercepts all form submissions. No page reload. Controllers respond with `format.turbo_stream` to update the DOM in place.
 
 ```ruby
 # Controller
@@ -24,7 +24,7 @@ end
 <% end %>
 ```
 
-The `format.html` fallback handles non-Turbo requests (curl, API clients, etc.).
+The `format.html` fallback handles non-Turbo requests (curl, API clients).
 
 ## Clearing Forms After Submit
 
@@ -56,4 +56,4 @@ Use `data-turbo-permanent` to keep an element alive across Turbo Drive page navi
 </div>
 ```
 
-This keeps the ActionCable WebSocket connection and event history intact when navigating between pages.
+This keeps the ActionCable WebSocket connection and event history alive across page navigations.

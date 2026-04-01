@@ -1,6 +1,6 @@
 # MCP-Compatible Runtime: Boot from IR
 
-Load and run a domain without gem building, disk writes, or tmpdir.
+Load and run a domain without gem building, disk writes, or temp directories.
 
 ## Hecks.load
 
@@ -32,7 +32,7 @@ mod::Pizza.create(name: "Margherita")
 
 ## Workshop#execute
 
-`execute` auto-enters play mode if not already active:
+`execute` enters play mode automatically if it's not already active:
 
 ```ruby
 workshop = Hecks::Workshop.new("Pizzas")
@@ -48,8 +48,8 @@ workshop.play?  # => true
 
 ## MCP execute_command tool
 
-The `execute_command` MCP tool automatically enters play mode before running,
-removing the need for a separate `enter_play_mode` call:
+The `execute_command` MCP tool enters play mode automatically before running —
+no separate `enter_play_mode` call needed:
 
 ```json
 { "tool": "execute_command", "command": "CreatePizza", "attrs": { "name": "Margherita" } }

@@ -1,6 +1,6 @@
 # Policy Conditions
 
-Reactive policies can have a `condition` block that gates when they fire. The block receives the event and must return true for the policy to trigger.
+A reactive policy can have a `condition` block that controls when it fires. The block receives the event and must return true for the policy to trigger.
 
 ## Usage
 
@@ -44,7 +44,7 @@ Account.withdraw(account_id: acct.id, amount: 25_000.0)
 
 ## No condition = always fires
 
-Policies without a `condition` block fire on every matching event (backward compatible):
+Policies without a `condition` block fire on every matching event:
 
 ```ruby
 policy "NotifyOnDeposit" do

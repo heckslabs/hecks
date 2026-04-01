@@ -1,6 +1,6 @@
 # hecks visualize
 
-Generate Mermaid diagrams from your Hecks domain definition. Output to stdout, a file, or an HTML page in the browser.
+Generate Mermaid diagrams from your domain definition. Output to stdout, a file, or an HTML page in the browser.
 
 ## Usage
 
@@ -69,4 +69,4 @@ flowchart LR
 
 ## Browser Mode
 
-`--browser` writes a self-contained HTML file to a system temp directory and opens it with `open`. The page uses the Mermaid CDN to render diagrams interactively.
+`--browser` writes a self-contained HTML file to a temp directory and opens it with `open`. The page uses the Mermaid CDN to render diagrams interactively.
