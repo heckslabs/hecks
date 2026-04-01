@@ -64,7 +64,13 @@ module GoHecks
           lines << "\tmux.HandleFunc(\"GET /#{plural}/queries/#{query_snake}\", func(w http.ResponseWriter, r *http.Request) {"
           if query.block.arity > 0
             param_names = query.block.parameters.map { |_, n| n.to_s }
-            args_code = param_names.map { |p| "r.URL.Query().Get(\"#{p}\")" }.join(", ")
+            attr_index = agg.attributes.each_with_object({}) { |a, h| h[a.name.to_s] = a }
+            param_names.each do |p|
+              attr = attr_index[p]
+              go_type = attr ? GoUtils.go_type(attr) : "string"
+              lines.concat(query_param_coercion(p, go_type))
+            end
+            args_code = param_names.map { |p| "qp_#{p}" }.join(", ")
             lines << "\t\tresults, _ := domain.#{func_name}(app.#{safe}Repo, #{args_code})"
           else
             lines << "\t\tresults, _ := domain.#{func_name}(app.#{safe}Repo)"
@@ -91,6 +97,20 @@ module GoHecks
         end
         lines
       end
+      def query_param_coercion(param, go_type)
+        raw = "r.URL.Query().Get(\"#{param}\")"
+        case go_type
+        when "int64"
+          ["\t\tqp_#{param}, _ := strconv.ParseInt(#{raw}, 10, 64)"]
+        when "float64"
+          ["\t\tqp_#{param}, _ := strconv.ParseFloat(#{raw}, 64)"]
+        when "time.Time"
+          ["\t\tqp_#{param}, _ := time.Parse(\"2006-01-02\", #{raw})"]
+        else
+          ["\t\tqp_#{param} := #{raw}"]
+        end
+      end
+
       # Views use a simple in-memory state map. Each view is initialized
       # as an empty map[string]interface{} on the App. The route returns
       # the current state as JSON.

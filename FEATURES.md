@@ -551,6 +551,7 @@
 - `GET /_events` — JSON event log (EventLogContract shape, same for Ruby and Go)
 - `POST /_reset` — clear all data (button on config page, used by smoke tests)
 - Query routes: `GET /aggregates/queries/name` for each DSL-defined query
+- Query parameter type coercion: Integer params use `strconv.ParseInt`, Date params use `time.Parse` instead of raw strings
 - Scope routes: `GET /aggregates/scopes/name` for each DSL-defined scope
 - Specification routes: `GET /aggregates/specifications/name?id=` for predicate checks
 - View routes: `GET /_views/name` for read model state

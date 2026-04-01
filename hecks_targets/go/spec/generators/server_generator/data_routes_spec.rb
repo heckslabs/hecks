@@ -148,6 +148,41 @@ RSpec.describe GoHecks::ServerGenerator do
     end
   end
 
+  describe "query parameter type coercion (HEC-257)" do
+    let(:domain) do
+      Hecks.domain("Inventory") do
+        aggregate("Product") do
+          attribute :name, String
+          attribute :quantity, Integer
+          attribute :released_on, Date
+          command("CreateProduct") { attribute :name, String; attribute :quantity, Integer; attribute :released_on, Date }
+          query("ByQuantity") { |quantity| where(quantity: quantity) }
+          query("ByDate") { |released_on| where(released_on: released_on) }
+        end
+      end
+    end
+
+    let(:server) { GoHecks::ServerGenerator.new(domain, module_path: "inventory_domain") }
+    let(:output) { server.generate }
+
+    it "emits strconv.ParseInt for integer query parameters" do
+      expect(output).to include("strconv.ParseInt")
+    end
+
+    it "emits time.Parse for date query parameters" do
+      expect(output).to include('time.Parse("2006-01-02"')
+    end
+
+    it "passes coerced variable to domain function" do
+      expect(output).to include("qp_quantity")
+      expect(output).to include("qp_released_on")
+    end
+
+    it "adds strconv import when integer query params exist" do
+      expect(output).to include('"strconv"')
+    end
+  end
+
   describe "nav items" do
     it "does not include duplicate Home entry" do
       expect(output.scan('"Home"').size).to eq(0)

@@ -34,6 +34,7 @@ module GoHecks
       lines << "\t\"encoding/json\""
       lines << "\t\"fmt\""
       lines << "\t\"net/http\""
+      lines << "\t\"strconv\"" if needs_strconv_import?
       lines << "\t\"time\""
       lines << "\t\"os\""
       lines << "\t\"path/filepath\""
@@ -49,6 +50,18 @@ module GoHecks
     end
 
     private
+
+    def needs_strconv_import?
+      @domain.aggregates.any? do |agg|
+        attr_index = agg.attributes.each_with_object({}) { |a, h| h[a.name.to_s] = a }
+        agg.queries.any? do |q|
+          q.block.parameters.any? do |_, n|
+            attr = attr_index[n.to_s]
+            attr && %w[int64 float64].include?(GoUtils.go_type(attr))
+          end
+        end
+      end
+    end
 
     def app_struct
       lines = []

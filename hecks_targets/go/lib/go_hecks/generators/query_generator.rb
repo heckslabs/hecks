@@ -14,6 +14,7 @@ module GoHecks
       @module_path = module_path
       @conditions = extract_conditions
       @params = @query.block.parameters.map { |_, n| n.to_s }
+      @attr_index = @agg.attributes.each_with_object({}) { |a, h| h[a.name.to_s] = a }
     end
 
     def generate
@@ -27,7 +28,7 @@ module GoHecks
       if @params.empty?
         lines << "func #{func_name}(repo #{safe}Repository) ([]*#{safe}, error) {"
       else
-        param_list = @params.map { |p| "#{p} string" }.join(", ")
+        param_list = @params.map { |p| "#{p} #{param_go_type(p)}" }.join(", ")
         lines << "func #{func_name}(repo #{safe}Repository, #{param_list}) ([]*#{safe}, error) {"
       end
 
@@ -59,6 +60,11 @@ module GoHecks
     end
 
     private
+
+    def param_go_type(param_name)
+      attr = @attr_index[param_name]
+      attr ? GoUtils.go_type(attr) : "string"
+    end
 
     # Extract where conditions from the block source.
     # Parses `where(field: "value")` or `where(field: param)` patterns.
