@@ -85,7 +85,11 @@ module Hecks
       #   glossary do
       #     prefer "stakeholder", not: ["user", "person"]
       #   end
-      def glossary(&block)
+      #   glossary(strict: true) do
+      #     prefer "stakeholder", not: ["user", "person"]
+      #   end
+      def glossary(strict: false, &block)
+        @glossary_strict = strict
         gb = GlossaryBuilder.new(@glossary_rules)
         gb.instance_eval(&block) if block
       end
@@ -252,7 +256,8 @@ module Hecks
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,
-          sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules
+          sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
+          glossary_strict: @glossary_strict || false
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

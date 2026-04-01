@@ -17,8 +17,18 @@ Hecks::CLI.register_command(:validate, "Validate the domain definition",
       say "    Events:         #{agg.events.map(&:name).join(', ')}" unless agg.events.empty?
       say "    Policies:       #{agg.policies.map(&:name).join(', ')}" unless agg.policies.empty?
     end
+    unless validator.warnings.empty?
+      say ""
+      say "Warnings:", :yellow
+      validator.warnings.each { |w| say "  - #{w}", :yellow }
+    end
   else
     say "Domain validation failed:", :red
     validator.errors.each { |e| say "  - #{e}", :red }
+    unless validator.warnings.empty?
+      say ""
+      say "Warnings:", :yellow
+      validator.warnings.each { |w| say "  - #{w}", :yellow }
+    end
   end
 end

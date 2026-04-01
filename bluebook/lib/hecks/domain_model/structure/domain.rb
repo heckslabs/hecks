@@ -61,6 +61,9 @@ module Hecks
       # @return [Array<Hash>] ubiquitous language rules
       attr_reader :glossary_rules
 
+      # @return [Boolean] true if glossary violations are treated as errors instead of warnings
+      attr_reader :glossary_strict
+
       # @return [Array<Hash>] logical module groupings within this domain
       attr_reader :modules
 
@@ -88,7 +91,7 @@ module Hecks
       def initialize(name:, aggregates: [], policies: [], services: [], views: [],
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
-                     sagas: [], glossary_rules: [], modules: [])
+                     sagas: [], glossary_rules: [], modules: [], glossary_strict: false)
         @name = name
         @aggregates = aggregates
         @policies = policies
@@ -98,6 +101,7 @@ module Hecks
         @actors = actors
         @sagas = sagas
         @glossary_rules = glossary_rules
+        @glossary_strict = glossary_strict
         @modules = modules
         @custom_verbs = custom_verbs
         @tenancy = tenancy
