@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "sequel"
 
-RSpec.describe "SQL adapter integration" do
+RSpec.describe "SQL adapter integration", :slow do
   let(:domain) do
     Hecks.domain "Pizzas" do
       aggregate "Pizza" do

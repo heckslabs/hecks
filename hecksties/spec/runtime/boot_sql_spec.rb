@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "sequel"
 
-RSpec.describe "Hecks.boot with SQL adapter" do
+RSpec.describe "Hecks.boot with SQL adapter", :slow do
   let(:tmpdir) { Dir.mktmpdir("hecks-sql-boot-") }
 
   after do

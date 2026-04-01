@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks_mongodb"
 
-RSpec.describe "Hecks.boot with MongoDB adapter" do
+RSpec.describe "Hecks.boot with MongoDB adapter", :slow do
   let(:tmpdir) { Dir.mktmpdir("hecks-mongo-boot-") }
 
   after do
