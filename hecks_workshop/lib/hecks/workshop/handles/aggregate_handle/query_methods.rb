@@ -17,6 +17,12 @@ module Hecks
           puts "#{name} scope added to #{@name}"
           self
         end
+
+        def computed(name, &block)
+          @builder.computed(name, &block)
+          puts "#{name} computed attribute added to #{@name}"
+          self
+        end
       end
     end
   end

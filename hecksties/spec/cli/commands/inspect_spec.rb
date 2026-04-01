@@ -62,6 +62,28 @@ RSpec.describe "hecks inspect" do
     end
   end
 
+  it "shows computed attributes" do
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "TestBluebook"), <<~RUBY)
+        Hecks.domain "Realty" do
+          aggregate "Property" do
+            attribute :area, Float
+
+            computed :lot_size do
+              area / 43560.0
+            end
+          end
+        end
+      RUBY
+      Dir.chdir(dir) do
+        output = capture_inspect_output(dir)
+        expect(output).to include("Computed Attributes:")
+        expect(output).to include("lot_size:")
+        expect(output).to include("area / 43560.0")
+      end
+    end
+  end
+
   it "filters to a single aggregate" do
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "TestBluebook"), <<~RUBY)

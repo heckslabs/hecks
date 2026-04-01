@@ -75,6 +75,38 @@ func (a *Parcel) LotSize() interface{} {
 }
 ```
 
+## CLI Inspector
+
+`hecks inspect` shows computed attributes under their own section:
+
+```
+Aggregate: Parcel
+=================
+
+  Attributes:
+    area: Float
+    density: Float
+
+  Computed Attributes:
+    lot_size: area / 43560.0
+    total_units: (area * density).ceil
+```
+
+## MCP / AI Tooling
+
+The `add_computed` MCP tool lets AI agents add computed attributes:
+
+```json
+{
+  "tool": "add_computed",
+  "arguments": {
+    "aggregate": "Parcel",
+    "name": "lot_size",
+    "formula": "area / 43560.0"
+  }
+}
+```
+
 ## Validation
 
 Computed attribute names can't collide with regular attribute names. The
