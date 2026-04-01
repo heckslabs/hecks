@@ -48,6 +48,7 @@ module Hecks
   autoload :DomainGlossary,    "hecks/domain/glossary"
   autoload :LlmsGenerator,     "hecks/domain/llms_generator"
   autoload :DomainVisualizer,  "hecks/domain/visualizer"
+  autoload :ContextMapGenerator, "hecks/domain/context_map_generator"
   autoload :DslSerializer,     "hecks/domain/dsl_serializer"
   autoload :DomainVersioning,  "hecks/domain_versioning"
   autoload :FlowGenerator,     "hecks/domain/flow_generator"

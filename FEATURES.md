@@ -359,6 +359,14 @@
   - `--type slices` — slice flowchart with subgraph per vertical slice
   - `--browser` — self-contained HTML with Mermaid CDN opened in browser
   - `--output <file>` — write Mermaid markdown to a file
+- `hecks context_map` — CLI command renders DDD context map of bounded context relationships
+  - Text summary to stdout by default (bounded contexts, cross-domain event flows, shared kernels)
+  - `--mermaid` — Mermaid graph TD diagram with subgraphs per domain and event arrows
+  - `--browser` — self-contained HTML with Mermaid CDN opened in browser
+  - `--output <file>` — write Mermaid markdown to a file
+  - Reads multiple domains from a `domains/` directory or a single Bluebook
+  - Detects cross-domain relationships via reactive policies that listen to foreign events
+  - Identifies shared kernels (domains referenced by two or more other domains)
 - Domain glossary with English descriptions
 - Mermaid class diagrams and flowcharts
 - DSL serializer: round-trip compiled domain back to DSL source code

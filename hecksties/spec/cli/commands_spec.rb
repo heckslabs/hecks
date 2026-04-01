@@ -122,7 +122,7 @@ RSpec.describe "CLI commands" do
     it "shows bounded contexts" do
       Dir.chdir(tmpdir) do
         out = run_cli("context_map")
-        expect(out).to include("Context Map")
+        expect(out).to include("Bounded Contexts:")
       end
     end
   end
