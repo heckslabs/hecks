@@ -74,7 +74,8 @@ module Hecks
     def aggregates
       each_aggregate.map do |agg|
         attrs = agg.attributes.map { |a| "#{a.name}: #{Utils.type_label(a)}" }.join(", ")
-        "#{agg.name} (#{attrs})"
+        base = "#{agg.name} (#{attrs})"
+        agg.description ? "#{base} — #{agg.description}" : base
       end
     end
 

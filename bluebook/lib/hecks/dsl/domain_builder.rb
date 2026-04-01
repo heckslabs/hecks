@@ -187,13 +187,14 @@ module Hecks
       # @return [void]
       # @raise [ArgumentError] if an aggregate with the same name already exists
       # @raise [Hecks::ValidationError] if the block raises a non-Hecks error
-      def aggregate(name, description = nil, &block)
+      def aggregate(name, description = nil, definition: nil, &block)
         if @aggregates.any? { |a| a.name == name }
           raise ArgumentError, "Duplicate aggregate name: #{name}"
         end
 
         builder = AggregateBuilder.new(name)
-        builder.instance_variable_get(:@metadata)[:description] = description if description
+        desc = definition || description
+        builder.instance_variable_get(:@metadata)[:description] = desc if desc
         begin
           builder.instance_eval(&block) if block
         rescue Hecks::Error
@@ -250,10 +251,10 @@ module Hecks
 
       # Implicit DSL support. PascalCase calls at the domain level create aggregates.
       # Example: `Pizza do ... end` is sugar for `aggregate "Pizza" do ... end`
-      def method_missing(name, *args, &block)
+      def method_missing(name, *args, **kwargs, &block)
         if name.to_s =~ /\A[A-Z]/ && block_given?
           desc = args.first.is_a?(String) ? args.first : nil
-          aggregate(name.to_s, desc, &block)
+          aggregate(name.to_s, desc, **kwargs, &block)
         else
           super
         end

@@ -289,6 +289,58 @@ RSpec.describe Hecks::DSL::DomainBuilder do
     end
   end
 
+  describe "aggregate definition keyword" do
+    it "stores definition via definition: kwarg" do
+      domain = Hecks.domain("Banking") do
+        aggregate "Account", definition: "Manages customer funds and balances" do
+          attribute :name, String
+          command("CreateAccount") { attribute :name, String }
+        end
+      end
+      expect(domain.aggregates.first.description).to eq("Manages customer funds and balances")
+    end
+
+    it "stores definition via positional description" do
+      domain = Hecks.domain("Banking") do
+        aggregate "Account", "Manages customer funds" do
+          attribute :name, String
+          command("CreateAccount") { attribute :name, String }
+        end
+      end
+      expect(domain.aggregates.first.description).to eq("Manages customer funds")
+    end
+
+    it "definition: kwarg takes precedence over positional description" do
+      domain = Hecks.domain("Banking") do
+        aggregate "Account", "positional", definition: "kwarg wins" do
+          attribute :name, String
+          command("CreateAccount") { attribute :name, String }
+        end
+      end
+      expect(domain.aggregates.first.description).to eq("kwarg wins")
+    end
+
+    it "works with implicit PascalCase syntax" do
+      domain = Hecks.domain("Banking") do
+        Account definition: "Manages customer funds" do
+          attribute :name, String
+          command("CreateAccount") { attribute :name, String }
+        end
+      end
+      expect(domain.aggregates.first.description).to eq("Manages customer funds")
+    end
+
+    it "returns nil when no definition is provided" do
+      domain = Hecks.domain("Banking") do
+        aggregate "Account" do
+          attribute :name, String
+          command("CreateAccount") { attribute :name, String }
+        end
+      end
+      expect(domain.aggregates.first.description).to be_nil
+    end
+  end
+
   describe "explicit domain events" do
     it "includes explicit events alongside inferred ones" do
       domain = Hecks.domain("Gov") do
