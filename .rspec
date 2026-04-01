@@ -3,5 +3,5 @@
 -I hecksties
 -I hecksties/watchers/lib
 --require spec_helper
---pattern {hecksties,hecksties/watchers,bluebook,hecksagon,hecks_workshop,hecks_ai}/spec/**/*_spec.rb
+--pattern {hecksties,hecksties/watchers,bluebook,hecksagon,hecks_workshop,hecks_ai,hecks_on_rails}/spec/**/*_spec.rb
 --tag ~parity
