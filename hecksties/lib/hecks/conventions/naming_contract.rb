@@ -61,8 +61,7 @@ module Hecks::Conventions
 
       # "CreatePizza" on "Pizza" → :create
       def domain_command_method(cmd_name, agg_name)
-        Hecks::Utils.underscore(cmd_name)
-          .sub(/_#{Hecks::Utils.underscore(agg_name)}$/, "").to_sym
+        Hecks::Conventions::CommandContract.method_name(cmd_name, agg_name)
       end
 
       # ("Blog", "Post") → "/blog/posts"

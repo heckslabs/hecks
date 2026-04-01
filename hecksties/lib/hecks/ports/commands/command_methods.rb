@@ -137,23 +137,9 @@ module Hecks
       # @yieldreturn [Proc] a proc that accepts a Hash of attributes and executes the command
       # @return [void]
       def self.bind_shortcuts(klass, aggregate)
-        agg_snake = domain_snake_name(aggregate.name)
-        agg_suffixes = agg_snake.split("_").each_index.map { |i|
-          agg_snake.split("_").drop(i).join("_")
-        }.uniq
-
         aggregate.commands.each do |cmd|
           executor = yield(cmd)
-          full_name = domain_snake_name(cmd.name)
-          method_name = full_name
-          agg_suffixes.each do |suffix|
-            stripped = full_name.sub(/_#{suffix}$/, "")
-            if stripped != full_name
-              method_name = stripped
-              break
-            end
-          end
-          method_name = method_name.to_sym
+          method_name = Hecks::Conventions::CommandContract.method_name(cmd.name, aggregate.name)
 
           # Class method: Pizza.create(name: "Margherita")
           klass.define_singleton_method(method_name) do |**attrs|

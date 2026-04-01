@@ -71,9 +71,7 @@ module Hecks::Conventions
     # @param agg_snake [String] underscore aggregate name
     # @return [Array<String>] suffixes
     def self.agg_suffixes(agg_snake)
-      agg_snake.split("_").each_index.map { |i|
-        agg_snake.split("_").drop(i).join("_")
-      }.uniq
+      CommandContract.agg_suffixes(agg_snake)
     end
 
     # Find the self-referencing reference on a command.

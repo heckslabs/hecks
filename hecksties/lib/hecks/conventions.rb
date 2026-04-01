@@ -28,6 +28,8 @@ module Hecks
     MigrationContract = Hecks::Conventions::MigrationContract
     UILabelContract = Hecks::Conventions::UILabelContract
     NamingContract = Hecks::Conventions::Names
+    CommandContract = Hecks::Conventions::CommandContract
+    RouteContract = Hecks::Conventions::RouteContract
   end
 
   module Contracts
@@ -47,4 +49,6 @@ module Hecks
   Contracts.register(:naming,     Conventions::Names)
   Contracts.register(:migrations, Conventions::MigrationContract)
   Contracts.register(:ui_labels,  Conventions::UILabelContract)
+  Contracts.register(:commands,   Conventions::CommandContract)
+  Contracts.register(:routes,     Conventions::RouteContract)
 end

@@ -118,17 +118,7 @@ module Hecks
           end
 
           def derive_command_method(cmd, aggregate)
-            agg_snake = domain_snake_name(aggregate.name)
-            suffixes = agg_snake.split("_").each_index.map { |i|
-              agg_snake.split("_").drop(i).join("_")
-            }.uniq
-
-            full = domain_snake_name(cmd.name)
-            suffixes.each do |s|
-              stripped = full.sub(/_#{s}$/, "")
-              return stripped if stripped != full
-            end
-            full
+            Hecks::Conventions::CommandContract.method_name(cmd.name, aggregate.name).to_s
           end
 
           def update_command?(cmd, aggregate)

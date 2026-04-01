@@ -13,10 +13,7 @@ module GoHecks
       @agg = aggregate
       @event = event
       @package = package
-      agg_snake = GoUtils.snake_case(@agg.name)
-      suffixes = agg_snake.split("_").each_index.map { |i|
-        agg_snake.split("_").drop(i).join("_")
-      }.uniq
+      suffixes = HecksTemplating::CommandContract.agg_suffixes(@agg.name)
       @self_id = @cmd.attributes.find { |a|
         a.name.to_s.end_with?("_id") &&
           suffixes.any? { |s| a.name.to_s == "#{s}_id" }
