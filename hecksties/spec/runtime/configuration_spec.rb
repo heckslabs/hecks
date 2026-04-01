@@ -59,4 +59,44 @@ RSpec.describe Hecks::Configuration do
       expect(custom_bus.events.size).to eq(1)
     end
   end
+
+  describe "gems DSL — extension gem loading" do
+    let(:config) { Hecks::Configuration.new }
+    let(:loaded) { [] }
+
+    before do
+      require "hecks/runtime/load_extensions"
+      allow(Hecks::LoadExtensions).to receive(:require_one) { |name| loaded << name }
+    end
+
+    it "gems only: loads exactly the specified gems" do
+      config.gems(only: [:audit, :logging])
+      config.send(:require_extensions)
+
+      expect(loaded).to contain_exactly(:audit, :logging)
+    end
+
+    it "gems except: skips excluded gems and loads the rest of AUTO" do
+      config.gems(except: [:pii])
+      config.send(:require_extensions)
+
+      expect(loaded).not_to include(:pii)
+      expect(loaded).to include(*Hecks::LoadExtensions::AUTO - [:pii])
+    end
+
+    it "default behavior loads the full AUTO list when no gems call is made" do
+      allow(Hecks::LoadExtensions).to receive(:require_auto)
+      config.send(:require_extensions)
+
+      expect(Hecks::LoadExtensions).to have_received(:require_auto).once
+    end
+
+    it "boot! is idempotent — calling require_extensions twice does not double-load" do
+      config.gems(only: [:audit])
+      config.send(:require_extensions)
+      config.send(:require_extensions)
+
+      expect(loaded).to eq([:audit])
+    end
+  end
 end

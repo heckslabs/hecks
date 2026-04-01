@@ -10,9 +10,11 @@ module Hecks
   #
   # Wires Hecks into an application. Supports single or multiple domains with
   # pluggable adapters (memory or SQL). Extensions can be auto-wired or
-  # explicitly declared.
+  # explicitly declared. Use the +gems+ DSL to control which extension gems
+  # are required at boot.
   #
   #   Hecks.configure do
+  #     gems only: [:audit, :logging]   # require only these
   #     domain "pizzas_domain"
   #     adapter :sqlite
   #     extension :http, port: 9292
@@ -35,6 +37,19 @@ module Hecks
       @ad_hoc_queries = false
       @extensions = {}
       @extensions_explicit = false
+      @gem_overrides = nil
+      @extensions_loaded = false
+    end
+
+    # Control which extension gems are required at boot.
+    #
+    # @param only [Array<Symbol>, nil] if provided, require only these gems
+    # @param except [Array<Symbol>] gems to skip from the AUTO list
+    #
+    #   gems only: [:audit, :logging]   # require only these
+    #   gems except: [:pii]             # skip pii from the AUTO list
+    def gems(only: nil, except: [])
+      @gem_overrides = { only: only&.map(&:to_sym), except: except.map(&:to_sym) }
     end
 
     # Register a domain gem to load at boot time.
@@ -73,11 +88,10 @@ module Hecks
     # @param only [Array<Symbol>, nil] if provided, only enable these
     def auto_wire(except: [], only: nil)
       @extensions_explicit = true
-      require_relative "load_extensions"
-      LoadExtensions.require_auto
+      require_extensions
 
       Hecks.extension_registry.each_key do |name|
-        next if Boot::PERSISTENCE_EXTENSIONS.include?(name)
+        next if Hecks.adapter?(name)
         next if except.map(&:to_sym).include?(name)
         next if only && !only.map(&:to_sym).include?(name)
         meta = Hecks.extension_meta[name]
@@ -105,6 +119,7 @@ module Hecks
 
     # Boot all registered domains, wire adapters and extensions.
     def boot!
+      require_extensions
       @shared_event_bus = EventBus.new
       @db = connect_database if @adapter_type == :sql
       @declarations = build_declarations
@@ -117,6 +132,22 @@ module Hecks
     def app = @apps.values.first
 
     private
+
+    # Require extension gems according to @gem_overrides, idempotently.
+    def require_extensions
+      return if @extensions_loaded
+
+      @extensions_loaded = true
+      require_relative "load_extensions"
+
+      if @gem_overrides.nil?
+        LoadExtensions.require_auto
+      elsif @gem_overrides[:only]
+        @gem_overrides[:only].each { |name| LoadExtensions.require_one(name) }
+      else
+        (LoadExtensions::AUTO - @gem_overrides[:except]).each { |name| LoadExtensions.require_one(name) }
+      end
+    end
 
     def build_declarations
       @domains.each_with_object({}) do |d, decl|

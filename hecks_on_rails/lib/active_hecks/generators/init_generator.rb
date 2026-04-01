@@ -37,6 +37,9 @@ module ActiveHecks
 
       create_file "config/initializers/hecks.rb", <<~RUBY
         Hecks.configure do
+          # Optional: control which extension gems are required at boot.
+          # gems only: [:audit, :logging]   # require only these
+          # gems except: [:pii]             # skip from the default AUTO list
           domain "#{@gem_name}"
           adapter :memory
         end
