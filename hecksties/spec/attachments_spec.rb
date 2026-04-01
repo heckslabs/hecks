@@ -5,7 +5,6 @@ RSpec.describe "Attachments (HEC-165)" do
     Hecks.domain "AttachTest" do
       aggregate "Document" do
         attribute :title, String
-        attachable
 
         command "CreateDocument" do
           attribute :title, String
@@ -15,24 +14,9 @@ RSpec.describe "Attachments (HEC-165)" do
   end
 
   before do
-    @app = Hecks.load(domain)
-  end
-
-
-  it "marks aggregate as attachable in the IR" do
-    agg = domain.aggregates.first
-    expect(agg.attachable?).to be true
-  end
-
-  it "non-attachable aggregates default to false" do
-    plain = Hecks.domain("PlainTest") do
-      aggregate "Note" do
-        attribute :body, String
-        command("CreateNote") { attribute :body, String }
-      end
+    @app = Hecks.load(domain) do
+      enable "Document", :attachable
     end
-    agg = plain.aggregates.first
-    expect(agg.attachable?).to be false
   end
 
   it "attaches file metadata and lists attachments" do

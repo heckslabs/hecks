@@ -55,7 +55,6 @@
 ### Specifications & Validation
 - Define specifications as reusable composable predicates (`satisfied_by?`, `and`, `or`, `not`)
 - Define per-attribute validations (presence, uniqueness, length, format, custom)
-- Define indexes on aggregates with `index :field` and `index :field, unique: true`
 - Define aggregate-level and value-object-level invariants as block constraints
 
 ### Domain Services
@@ -154,6 +153,8 @@
 - `app.events` — event history
 - `app.async { }` — register async handler for policies and subscribers
 - `app.use { }` — register command bus middleware
+- `enable "Aggregate", :versioned` — enable version tracking (infrastructure config, not domain IR)
+- `enable "Aggregate", :attachable` — enable file attachment support (infrastructure config, not domain IR)
 - `Hecks.boot(__dir__)` auto-detects multi-domain when `bluebook/` has multiple Bluebook files
 - `Hecks.shared_event_bus` — access the shared cross-domain event bus after multi-domain boot
 - `app.dry_run("CommandName", attrs)` — preview command result without side effects (no persist, no events)
@@ -344,7 +345,7 @@
 - Auto-bump domain version on breaking changes: `hecks build` compares against the latest tagged snapshot and auto-bumps CalVer when breaking changes are detected
 
 ## Migrations & Schema Evolution
-- `DomainDiff` detects added/removed aggregates, attributes, VOs, entities, indexes, commands, policies, validations, invariants, queries, scopes, subscribers, specifications
+- `DomainDiff` detects added/removed aggregates, attributes, VOs, entities, commands, policies, validations, invariants, queries, scopes, subscribers, specifications
 - SQL migration strategy generates Sequel-compatible files
 - NOT NULL from `validation :field, presence: true`
 - UNIQUE from `validation :field, uniqueness: true`

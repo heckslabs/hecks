@@ -28,8 +28,6 @@ module Hecks
       # - :remove_attribute -> ALTER TABLE DROP COLUMN
       # - :add_value_object -> CREATE TABLE for join table
       # - :remove_value_object -> DROP TABLE for join table
-      # - :add_index -> CREATE INDEX
-      # - :remove_index -> DROP INDEX
       #
       # @param changes [Array<Migrations::Change>] the domain changes to migrate
       # @return [String, nil] the SQL migration content, or nil if no changes
@@ -56,10 +54,6 @@ module Hecks
           when :remove_reference
             ref = change.details[:reference]
             lines << "ALTER TABLE #{table_name(change.aggregate)} DROP COLUMN #{reference_column_name(ref)};"
-          when :add_index
-            lines << generate_add_index(change)
-          when :remove_index
-            lines << generate_drop_index(change)
           end
         end
 
@@ -200,27 +194,6 @@ module Hecks
         end
 
         "CREATE TABLE #{jt} (\n#{cols.join(",\n")}\n);"
-      end
-
-      # Generates a CREATE INDEX statement.
-      #
-      # @param change [Migrations::Change] the :add_index change with :fields
-      #   and :unique in details
-      # @return [String] the CREATE INDEX SQL statement
-      def generate_add_index(change)
-        idx_name = index_name(change.aggregate, change.details[:fields])
-        unique = change.details[:unique] ? "UNIQUE " : ""
-        cols = change.details[:fields].join(", ")
-        "CREATE #{unique}INDEX #{idx_name} ON #{table_name(change.aggregate)}(#{cols});"
-      end
-
-      # Generates a DROP INDEX statement.
-      #
-      # @param change [Migrations::Change] the :remove_index change
-      # @return [String] the DROP INDEX SQL statement
-      def generate_drop_index(change)
-        idx_name = index_name(change.aggregate, change.details[:fields])
-        "DROP INDEX IF EXISTS #{idx_name};"
       end
 
       # Generates CREATE INDEX statements for reference columns on a new table.

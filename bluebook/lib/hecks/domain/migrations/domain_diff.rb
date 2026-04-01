@@ -13,7 +13,6 @@ module Hecks
     # - Attributes (add/remove on existing aggregates)
     # - Value objects (add/remove)
     # - Entities (add/remove)
-    # - Indexes (add/remove)
     # - Commands, policies, validations, invariants, queries, scopes,
     #   subscribers, specifications (via BehaviorDiff mixin)
     #
@@ -79,7 +78,6 @@ module Hecks
           result.concat(diff_references(old_agg, new_agg))
           result.concat(diff_value_objects(old_agg, new_agg))
           result.concat(diff_entities(old_agg, new_agg))
-          result.concat(diff_indexes(old_agg, new_agg))
           # Behavioral diffs
           result.concat(diff_commands(old_agg, new_agg))
           result.concat(diff_policies(old_agg, new_agg))
@@ -248,41 +246,6 @@ module Hecks
       changes
     end
 
-    # Diff indexes between old and new versions of the same aggregate.
-    # Compares indexes by their :fields arrays.
-    #
-    # @param old_agg [Hecks::DomainModel::Aggregate] the previous aggregate version
-    # @param new_agg [Hecks::DomainModel::Aggregate] the current aggregate version
-    # @return [Array<Change>] index-level changes
-    def diff_indexes(old_agg, new_agg)
-      changes = []
-      old_idx = (old_agg.indexes || []).map { |i| i[:fields] }
-      new_idx = (new_agg.indexes || []).map { |i| i[:fields] }
-
-      (new_agg.indexes || []).each do |idx|
-        unless old_idx.include?(idx[:fields])
-          changes << Change.new(
-            kind: :add_index,
-            context: nil,
-            aggregate: new_agg.name,
-            details: idx
-          )
-        end
-      end
-
-      (old_agg.indexes || []).each do |idx|
-        unless new_idx.include?(idx[:fields])
-          changes << Change.new(
-            kind: :remove_index,
-            context: nil,
-            aggregate: new_agg.name,
-            details: idx
-          )
-        end
-      end
-
-      changes
-    end
     end
   end
 end

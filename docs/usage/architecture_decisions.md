@@ -104,8 +104,8 @@ def wire_aggregate(agg)
   Commands.bind(agg_class, agg, @command_bus, repo, defaults) # create, update, commands
   Querying.bind(agg_class, agg)                      # where, first, last, count
   Introspection.bind(agg_class, agg)                 # hecks_attributes, hecks_aggregate
-  Versioning.bind(agg_class, repo) if agg.versioned?
-  AttachmentMethods.bind(agg_class) if agg.attachable?
+  Versioning.bind(agg_class, repo) if runtime_option?(agg.name, :versioned)
+  AttachmentMethods.bind(agg_class) if runtime_option?(agg.name, :attachable)
   wire_query_objects(agg, agg_class)
   GateEnforcer.new(gate_name: @gate_name, hecksagon: @hecksagon).enforce!(agg, agg_class)
 end

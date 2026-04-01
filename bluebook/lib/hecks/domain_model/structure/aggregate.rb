@@ -60,9 +60,6 @@ module Hecks
       # @return [Array] event subscribers registered for this aggregate's events
       attr_reader :subscribers
 
-      # @return [Array] database index definitions for this aggregate's persisted fields
-      attr_reader :indexes
-
       # @return [Array] specification objects for complex query/filter logic
       attr_reader :specifications
 
@@ -78,7 +75,12 @@ module Hecks
       # @return [Lifecycle, nil] optional state machine definition
       attr_reader :lifecycle
 
-      # @return [Array<Symbol>, nil] natural key fields for secondary identity lookup
+      # @return [Array<Symbol>, nil] natural key fields that form the aggregate's
+      #   domain-level identity (e.g., [:team, :start_date] for a Season).
+      #   This is a domain concept ("this combination of fields uniquely
+      #   identifies an instance") — not a persistence index. Persistence layers
+      #   may choose to create a unique index from these fields, but that is
+      #   an infrastructure decision made outside the domain IR.
       attr_reader :identity_fields
 
       # Creates a new Aggregate IR node.
@@ -96,20 +98,16 @@ module Hecks
       # @param ports [Hash{Symbol => GateDefinition}] access-control port definitions
       # @param queries [Array<Behavior::Query>] named queries
       # @param subscribers [Array] event subscriber registrations
-      # @param indexes [Array] database index definitions
       # @param specifications [Array] specification objects for complex filtering
       # @param lifecycle [Lifecycle, nil] optional state machine definition
-      # @param versioned [Boolean] whether this aggregate tracks version history
-      # @param attachable [Boolean] whether this aggregate supports file attachments
       #
       # @return [Aggregate] a new Aggregate instance
       def initialize(name:, attributes: [], value_objects: [], entities: [], commands: [],
                      events: [], policies: [], validations: [], invariants: [],
-                     scopes: [], queries: [], subscribers: [], indexes: [],
+                     scopes: [], queries: [], subscribers: [],
                      specifications: [], references: [],
                      factories: [], computed_attributes: [],
-                     lifecycle: nil, versioned: false,
-                     attachable: false, metadata: {}, origin_domain: nil,
+                     lifecycle: nil, metadata: {}, origin_domain: nil,
                      identity_fields: nil)
         @name = Names.aggregate_name(name)
         @attributes = attributes
@@ -123,14 +121,11 @@ module Hecks
         @scopes = scopes
         @queries = queries
         @subscribers = subscribers
-        @indexes = indexes
         @specifications = specifications
         @references = references
         @factories = factories
         @computed_attributes = computed_attributes
         @lifecycle = lifecycle
-        @versioned = versioned
-        @attachable = attachable
         @metadata = metadata
         @origin_domain = origin_domain
         @identity_fields = identity_fields
@@ -140,24 +135,6 @@ module Hecks
 
       def description
         @metadata[:description]
-      end
-
-      # Returns true if this aggregate tracks version history.
-      # Versioned aggregates maintain a history of changes and can be
-      # reverted to prior states.
-      #
-      # @return [Boolean] true if version tracking is enabled
-      def versioned?
-        @versioned
-      end
-
-      # Returns true if this aggregate supports file attachments.
-      # Attachable aggregates can have files (images, documents, etc.)
-      # associated with their instances.
-      #
-      # @return [Boolean] true if file attachment support is enabled
-      def attachable?
-        @attachable
       end
 
     end

@@ -2,7 +2,6 @@ require "date"
 
 Hecks.domain "ModelRegistry" do
   AiModel "AI models registered for governance oversight" do
-    versioned
     name String
     version String
     attribute :provider_id, reference_to("Vendor")

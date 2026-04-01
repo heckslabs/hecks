@@ -129,7 +129,6 @@ Hecks.domain "Compliance" do
   end
 
   ComplianceReview "Reviews of AI models against governance policies" do
-    attachable
     attribute :model_id, String
     attribute :policy_id, reference_to("GovernancePolicy")
     attribute :reviewer_id, String

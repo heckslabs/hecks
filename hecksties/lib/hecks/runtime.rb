@@ -93,6 +93,7 @@ module Hecks
         @repositories = {}
         @adapter_overrides = {}
         @async_handler = nil
+        @runtime_options = {}
 
         instance_eval(&config) if config
 
@@ -127,6 +128,24 @@ module Hecks
       # @return [void]
       def adapter(aggregate_name, adapter_obj)
         @adapter_overrides[aggregate_name.to_s] = adapter_obj
+      end
+
+      # Configuration DSL: enable an infrastructure option for a specific aggregate.
+      # Used to configure cross-cutting concerns like versioning and attachments
+      # that were previously baked into the domain IR.
+      #
+      #   app = Hecks.load(domain) do
+      #     enable "Document", :versioned
+      #     enable "Document", :attachable
+      #   end
+      #
+      # @param aggregate_name [String, Symbol] the aggregate name
+      # @param option [Symbol] the option to enable (e.g., :versioned, :attachable)
+      # @return [void]
+      def enable(aggregate_name, option)
+        name = aggregate_name.to_s
+        @runtime_options[name] ||= {}
+        @runtime_options[name][option] = true
       end
 
       # Retrieve the repository for a named aggregate.

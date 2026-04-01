@@ -293,10 +293,6 @@ aggregate "Pizza" do
   scope :active, status: "active"
   scope :by_style, ->(style) { { style: style } }
 
-  # Indexes
-  index :email, unique: true
-  index :name, :status
-
   # Specifications (reusable predicates)
   specification "HighValue" do |pizza|
     pizza.price > 20
@@ -339,9 +335,6 @@ aggregate "Pizza" do
     area / 43560.0
   end
 
-  # Versioning and attachments
-  versioned
-  attachable
 end
 ```
 
@@ -740,15 +733,6 @@ scope :premium, tier: "premium"
 
 # Lambda scope (parameterized)
 scope :by_price, ->(min) { { price: Hecks::Querying::Operators::Gte.new(min) } }
-```
-
-### Indexes
-
-Indexes declare which fields should be indexed in the database for query performance:
-
-```ruby
-index :email, unique: true
-index :name, :status           # composite index
 ```
 
 ---

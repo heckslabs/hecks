@@ -4,8 +4,6 @@ RSpec.describe "Aggregate versioning (HEC-164)" do
   let(:domain) do
     Hecks.domain "VersionTest" do
       aggregate "Document" do
-        versioned
-
         attribute :title, String
         attribute :content, String
 
@@ -23,10 +21,10 @@ RSpec.describe "Aggregate versioning (HEC-164)" do
     end
   end
 
-  before { @app = Hecks.load(domain) }
-
-  it "stores versioned flag on aggregate IR" do
-    expect(domain.aggregates.first.versioned?).to be true
+  before do
+    @app = Hecks.load(domain) do
+      enable "Document", :versioned
+    end
   end
 
   it "snapshots state before each update" do

@@ -50,7 +50,7 @@ module Hecks
 
       attr_reader :attributes, :commands, :value_objects, :entities,
                   :policies, :validations, :invariants, :scopes,
-                  :queries, :subscribers, :indexes, :specifications,
+                  :queries, :subscribers, :specifications,
                   :references
       # Writer for lifecycle — used by AggregateHandle to update lifecycle
       # without reaching into instance variables. Reader is the DSL method
@@ -73,15 +73,12 @@ module Hecks
         @scopes = []
         @queries = []
         @subscribers = []
-        @indexes = []
         @specifications = []
         @references = []
         @explicit_events = []
         @factories = []
         @computed_attributes = []
         @lifecycle = nil
-        @versioned = false
-        @attachable = false
         @identity_fields = nil
         @metadata = {}
         @facet_data = {}
@@ -89,14 +86,6 @@ module Hecks
           @facet_data[facet_name] = []
           setup.call(self.class) unless self.class.method_defined?(facet_name)
         end
-      end
-
-      def versioned
-        @versioned = true
-      end
-
-      def attachable
-        @attachable = true
       end
 
       # Declare a computed (derived) attribute. The block body becomes a
@@ -197,9 +186,9 @@ module Hecks
           commands: @commands, events: events, policies: @policies,
           validations: @validations, invariants: @invariants,
           scopes: @scopes, queries: @queries,
-          subscribers: @subscribers, indexes: @indexes,
+          subscribers: @subscribers,
           specifications: @specifications, computed_attributes: @computed_attributes,
-          lifecycle: @lifecycle, versioned: @versioned, attachable: @attachable,
+          lifecycle: @lifecycle,
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields
         )

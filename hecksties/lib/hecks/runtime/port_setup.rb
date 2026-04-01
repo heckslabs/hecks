@@ -61,8 +61,8 @@ module Hecks
         Commands.bind(agg_class, agg, @command_bus, repo, defaults)
         Querying.bind(agg_class, agg)
         Introspection.bind(agg_class, agg)
-        Versioning.bind(agg_class, repo) if agg.versioned?
-        AttachmentMethods.bind(agg_class) if agg.attachable?
+        Versioning.bind(agg_class, repo) if runtime_option?(agg.name, :versioned)
+        AttachmentMethods.bind(agg_class) if runtime_option?(agg.name, :attachable)
         wire_query_objects(agg, agg_class)
         GateEnforcer.new(gate_name: @gate_name, hecksagon: @hecksagon).enforce!(agg, agg_class)
       end
@@ -104,6 +104,16 @@ module Hecks
       # @return [Hash{String => Array, nil}] attribute name to default value mapping
       def build_defaults(agg)
         agg.attributes.each_with_object({}) { |attr, h| h[attr.name] = attr.list? ? [] : nil }
+      end
+
+      # Checks whether a runtime infrastructure option is enabled for an aggregate.
+      # Options are registered via +Runtime#enable+ in the config block.
+      #
+      # @param aggregate_name [String] the aggregate name
+      # @param option [Symbol] the option key (e.g., :versioned, :attachable)
+      # @return [Boolean]
+      def runtime_option?(aggregate_name, option)
+        (@runtime_options || {}).dig(aggregate_name.to_s, option) || false
       end
 
       # Wires DSL-defined query objects as class methods on the aggregate class.

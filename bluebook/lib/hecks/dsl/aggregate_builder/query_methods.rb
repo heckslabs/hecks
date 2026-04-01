@@ -25,15 +25,6 @@ module Hecks
         def query(name, &block)
           @queries << DomainModel::Behavior::Query.new(name: name, block: block)
         end
-
-        # Declare a database index on one or more fields.
-        #
-        # @param fields [Array<Symbol>] field names to index
-        # @param unique [Boolean] whether to enforce uniqueness
-        # @return [void]
-        def index(*fields, unique: false)
-          @indexes << { fields: fields.map(&:to_sym), unique: unique }
-        end
       end
     end
   end
