@@ -376,6 +376,13 @@
 - `{{connections}}` tag generates extension gem listing
 - `{{smalltalk}}` tag generates Smalltalk features section from `SmalltalkFeatures` metadata
 
+## AST-Based Domain Extraction (HEC-476)
+- `Hecks::AstExtractor.extract(source)` — parse Bluebook DSL source into a plain hash IR using `RubyVM::AbstractSyntaxTree`, no eval
+- `Hecks::AstExtractor.extract_file(path)` — read and parse a Bluebook file from disk
+- Extracts: domain name, aggregates, attributes (with types, list, defaults), commands, references, value objects, entities, validations, specifications, queries, invariants, scopes, domain-level policies (with attribute maps), services, world goals, actors, sagas, modules, workflows, views
+- Supports implicit PascalCase aggregate syntax (e.g. `Pizza do ... end` instead of `aggregate "Pizza" do ... end`)
+- Safe for static analysis, linting, and tooling — never executes domain code
+
 ## Gem Architecture
 - Core `hecks` gem has zero runtime dependencies
 - Each extension is a top-level gem candidate at `lib/`

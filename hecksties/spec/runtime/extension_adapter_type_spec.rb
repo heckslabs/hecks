@@ -1,6 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "hecks/extensions/serve"
+require "hecks_ai"
 
 RSpec.describe "Extension adapter_type classification" do
   describe "driven_extensions" do

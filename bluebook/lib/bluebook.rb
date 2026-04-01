@@ -30,6 +30,7 @@ require_relative "hecks/domain/inspector"
 require_relative "hecks/domain/builder_methods"
 require_relative "hecks/domain/compiler"
 require_relative "hecks/domain/in_memory_loader"
+require_relative "hecks/domain/ast_extractor"
 require_relative "hecks/domain/event_storm_importer"
 require_relative "hecks/domain/visualizer_methods"
 
