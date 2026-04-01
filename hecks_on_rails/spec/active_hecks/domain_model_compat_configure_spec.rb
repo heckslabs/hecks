@@ -3,7 +3,8 @@
 # Uses anonymous classes — no domain DSL required. Covers fallback attribute
 # introspection, timestamp inclusion, id deduplication, and serialization.
 #
-require_relative "../spec_helper"
+require "spec_helper"
+require "rails_spec_helper"
 
 RSpec.describe "ActiveHecks::DomainModelCompat (edge cases)" do
   let(:base_class) do

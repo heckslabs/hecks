@@ -3,7 +3,8 @@
 # Verifies that the railtie registers itself correctly and that the
 # active_hecks.setup initializer boots the configuration when present.
 #
-require_relative "../spec_helper"
+require "spec_helper"
+require "rails_spec_helper"
 require "active_hecks/railtie"
 
 RSpec.describe "ActiveHecks::Railtie" do

@@ -1,4 +1,4 @@
-require_relative "spec_helper"
+require "spec_helper"
 
 RSpec.describe HecksWatchers::PreCommit do
   let(:project_root) { Dir.pwd }

@@ -3,7 +3,8 @@
 # Verifies the configure block returns a Configuration, does not auto-boot
 # when Rails is present, and that calling boot! activates DomainModelCompat.
 #
-require_relative "../spec_helper"
+require "spec_helper"
+require "rails_spec_helper"
 
 RSpec.describe "Hecks.configure (Rails context)" do
   after { Hecks.instance_variable_set(:@configuration, nil) }

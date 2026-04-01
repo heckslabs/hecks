@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks_multidomain"
 require "hecks_ai"
+require "hecks_watchers"
 require "tmpdir"
 require_relative "support/shared_boot"
 

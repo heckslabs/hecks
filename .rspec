@@ -1,6 +1,7 @@
 --format documentation
 --color
 --order random
+-I hecks_on_rails/spec
 -I hecksties
 -I hecksties/watchers/lib
 -I hecks_targets/go/lib
