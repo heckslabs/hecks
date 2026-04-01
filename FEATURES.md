@@ -237,10 +237,12 @@
 
 ### Web Console
 - Browser-based REPL via `hecks web_console [NAME]` — terminal-like interface at localhost:4567
+- Safe command parser: no eval, only whitelisted Grammar commands execute
+- Console endpoint disabled by default — requires `--enable-console` flag to activate
 - Multi-domain support: load multiple domain files into a single web console with domain grouping
 - Three-panel layout: domain tree sidebar, terminal center, event log sidebar
 - Interactive domain diagram with aggregate nodes, reference arrows, and policy flow visualization
-- Same implicit syntax as IRB — commands evaluated in ConsoleRunner binding
+- Same implicit syntax as IRB — commands parsed as a safe command language
 - Paren-style command syntax: `create_pizza(name: "Margherita")` alongside space-delimited
 - Side panels auto-refresh after each command
 - Command history with Up/Down arrows

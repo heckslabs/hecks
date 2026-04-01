@@ -37,7 +37,7 @@ RSpec.describe Hecks::Workshop::WebRunner::Evaluator do
     it "rejects unknown methods" do
       evaluator.evaluate("Pizza")
       result = evaluator.evaluate("Pizza.send :system")
-      expect(result[:output]).to include("Unknown method")
+      expect(result[:error]).to include("Unknown method")
     end
 
     it "rejects non-PascalCase targets" do

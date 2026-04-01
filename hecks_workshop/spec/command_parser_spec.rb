@@ -95,32 +95,70 @@ RSpec.describe Hecks::Workshop::WebRunner::CommandParser do
     end
   end
 
-  describe "security" do
-    it "rejects lowercase bare words" do
+  describe "error propagation" do
+    it "returns error hash for unknown commands" do
+      result = parser.execute("Pizza.send :system")
+      expect(result[:error]).to include("Unknown method")
+      expect(result[:output]).to be_empty.or(be_nil)
+    end
+
+    it "returns error hash for unknown bare commands" do
       result = parser.execute("system")
-      # "system" is not in BARE_COMMANDS
-      expect(result[:error]).to be_nil # just returns nil
+      expect(result[:error]).to include("Unknown")
+    end
+  end
+
+  describe "security" do
+    it "rejects system() style inputs" do
+      result = parser.execute('System("rm -rf")')
+      expect(result[:error]).not_to be_nil
+    end
+
+    it "rejects lowercase bare words that are not whitelisted" do
+      result = parser.execute("system")
+      expect(result[:error]).to include("Unknown")
     end
 
     it "rejects non-PascalCase targets" do
       result = parser.execute("file.read")
-      expect(result[:output]).not_to include("/")
+      expect(result[:error]).not_to be_nil
     end
 
     it "rejects unknown handle methods" do
       parser.execute("Pizza")
       result = parser.execute("Pizza.send :system")
-      expect(result[:output]).to include("Unknown method")
+      expect(result[:error]).to include("Unknown method")
     end
 
     it "rejects chained method calls" do
       result = parser.execute("Object.const_get")
-      expect(result[:output]).to include("Unknown method")
+      expect(result[:error]).to include("Unknown method")
     end
 
     it "cannot access Hecks namespace" do
       result = parser.execute("Hecks.boot")
-      expect(result[:output]).to include("Unknown method")
+      expect(result[:error]).to include("Unknown method")
+    end
+
+    it "rejects eval" do
+      result = parser.execute("Pizza.eval")
+      expect(result[:error]).to include("Unknown method")
+    end
+
+    it "rejects instance_eval" do
+      result = parser.execute("Pizza.instance_eval")
+      expect(result[:error]).to include("Unknown method")
+    end
+
+    it "rejects public_send" do
+      result = parser.execute("Pizza.public_send")
+      expect(result[:error]).to include("Unknown method")
+    end
+
+    it "rejects methods not on handle via respond_to? guard" do
+      parser.execute("Pizza")
+      result = parser.execute("Pizza.__id__")
+      expect(result[:error]).not_to be_nil
     end
   end
 end

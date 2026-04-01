@@ -127,7 +127,7 @@
     function runCommand(cmd) {
       lastCmd = cmd;
       appendCmd(cmd);
-      fetch('/hecks_web_workbench/eval', {
+      fetch('/hecks_web_workbench/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: cmd })

@@ -19,13 +19,14 @@ module Hecks
     class WebRunner
       VIEWS_DIR = File.join(__dir__, "web_runner", "views")
 
-      attr_reader :domain_path, :domain_paths, :domain_groups, :loaded_domains
+      attr_reader :domain_path, :domain_paths, :domain_groups, :loaded_domains, :console_enabled
 
-      def initialize(name: nil, port: 4567, domain: nil, domains: nil)
+      def initialize(name: nil, port: 4567, domain: nil, domains: nil, enable_console: false)
         @port        = port
         @domain_path = domain
         @domain_paths = domains
         @workshop_name = name
+        @console_enabled = enable_console
         @domain_groups = {}
         @loaded_domains = []
         @runner = WorkshopRunner.new(name: name)
@@ -76,7 +77,7 @@ module Hecks
       def handle(req, res)
         case [req.request_method, req.path]
         when ["GET",  BASE]           then serve_console(res)
-        when ["POST", "#{BASE}/eval"] then serve_eval(req, res)
+        when ["POST", "#{BASE}/command"] then guard_console(req, res) { serve_command(req, res) }
         when ["GET",  "#{BASE}/state"] then serve_state(res)
         else
           if req.request_method == "GET" && req.path.start_with?("#{BASE}/js/") && req.path.end_with?(".js")
@@ -86,6 +87,16 @@ module Hecks
             res.body = "Not found"
           end
         end
+      end
+
+      def guard_console(_req, res)
+        unless @console_enabled
+          res.status = 403
+          res.content_type = "application/json"
+          res.body = JSON.generate(output: nil, error: "Console disabled. Restart with --enable-console to activate.")
+          return
+        end
+        yield
       end
 
       def serve_console(res)
@@ -107,7 +118,7 @@ module Hecks
         load File.join(__dir__, "..", "..", "..", "..", "bluebook", "lib", "bluebook", "tokenizer.rb") rescue nil
       end
 
-      def serve_eval(req, res)
+      def serve_command(req, res)
         reload_code! if ENV["HECKS_DEV"]
         input = JSON.parse(req.body)["input"].to_s.strip
         result = @evaluator.evaluate(input)

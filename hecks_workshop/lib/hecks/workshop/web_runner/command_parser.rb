@@ -43,8 +43,7 @@ module Hecks
           parsed = BlueBook::Grammar.parse(input)
 
           if parsed[:error]
-            puts parsed[:error]
-            return nil
+            raise parsed[:error]
           end
 
           target = parsed[:target]
@@ -60,6 +59,9 @@ module Hecks
             if method == "diagram"
               puts "%%DIAGRAM%%"
               return nil
+            end
+            unless BlueBook::Grammar::BARE_COMMANDS.include?(method)
+              raise "Unknown bare command: #{method}"
             end
             return @runner.send(method)
           end
@@ -88,6 +90,9 @@ module Hecks
 
           # Handle method
           handle = @runner.aggregate(target)
+          unless handle.respond_to?(method)
+            raise "#{target} does not respond to #{method}"
+          end
           if kwargs.any?
             handle.send(method, *args, **kwargs)
           else

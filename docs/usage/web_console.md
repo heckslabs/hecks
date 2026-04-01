@@ -15,10 +15,21 @@ Open `http://localhost:4567/hecks_web_workbench` in your browser. You'll see thr
 - **Center** — Terminal-like REPL input and output, with interactive domain diagram
 - **Right sidebar** — Event log (populated in play mode)
 
+## Security
+
+The console endpoint is disabled by default. To enable command execution, pass `--enable-console`:
+
+```bash
+hecks web_console Pizzas --enable-console
+```
+
+Without this flag, POST requests to `/command` return 403. All input is parsed through `BlueBook::Grammar` — only whitelisted domain commands execute. Methods like `system`, `eval`, `exec`, `send`, and `require` are blocked at the grammar level.
+
 ## Options
 
 ```bash
 hecks web_console Pizzas --port 3000
+hecks web_console Pizzas --enable-console   # enable command execution
 ```
 
 ## Multi-Domain
