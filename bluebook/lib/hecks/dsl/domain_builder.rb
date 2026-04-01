@@ -71,14 +71,18 @@ module Hecks
 
 
       # Saga for long-running cross-aggregate coordination.
-      #   saga "ModelOnboarding" do
-      #     step "RegisterModel", on_success: "ClassifyRisk"
-      #     compensation "SuspendModel"
+      #   saga "OrderFulfillment" do
+      #     step "ReserveInventory" do
+      #       on_success "InventoryReserved"
+      #       compensate "ReleaseInventory"
+      #     end
+      #     timeout "48h"
+      #     on_timeout "CancelOrder"
       #   end
       def saga(name, &block)
-        s = { name: name, steps: [], compensations: [] }
-        SagaBuilder.new(s).instance_eval(&block) if block
-        @sagas << s
+        builder = SagaBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @sagas << builder.build
       end
 
       # Ubiquitous language enforcement.

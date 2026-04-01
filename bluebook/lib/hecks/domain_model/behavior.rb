@@ -41,6 +41,8 @@ module Hecks
       autoload :CommandStep,    "hecks/domain_model/behavior/workflow_step"
       autoload :BranchStep,     "hecks/domain_model/behavior/workflow_step"
       autoload :ScheduledStep,  "hecks/domain_model/behavior/workflow_step"
+      autoload :Saga,           "hecks/domain_model/behavior/saga"
+      autoload :SagaStep,       "hecks/domain_model/behavior/saga_step"
     end
   end
 end

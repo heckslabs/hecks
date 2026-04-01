@@ -20,26 +20,81 @@ module Hecks
         end
       end
 
+      # Hecks::DSL::DomainBuilder::SagaStepBuilder
+      #
+      # DSL builder for a single saga step. Collects success/failure events
+      # and compensation command within a block.
+      #
+      #   step "ReserveInventory" do
+      #     on_success "InventoryReserved"
+      #     on_failure "ReservationFailed"
+      #     compensate "ReleaseInventory"
+      #   end
+      #
+      class SagaStepBuilder
+        def initialize(command)
+          @command = command
+          @on_success = nil
+          @on_failure = nil
+          @compensate = nil
+        end
+
+        def on_success(event)  = (@on_success = event)
+        def on_failure(event)  = (@on_failure = event)
+        def compensate(cmd)    = (@compensate = cmd)
+
+        def build
+          DomainModel::Behavior::SagaStep.new(
+            command: @command,
+            on_success: @on_success,
+            on_failure: @on_failure,
+            compensate: @compensate
+          )
+        end
+      end
+
       # Hecks::DSL::DomainBuilder::SagaBuilder
       #
-      # Collects steps and compensations for a saga.
+      # Collects steps, timeout, and on_timeout for a saga process manager.
+      # Supports both block-based steps (new API) and keyword steps (legacy).
       #
-      #   saga "ModelOnboarding" do
-      #     step "RegisterModel", on_success: "ClassifyRisk"
-      #     compensation "SuspendModel"
+      #   saga "OrderFulfillment" do
+      #     step "ReserveInventory" do
+      #       on_success "InventoryReserved"
+      #       compensate "ReleaseInventory"
+      #     end
+      #     timeout "48h"
+      #     on_timeout "CancelOrder"
       #   end
       #
       class SagaBuilder
-        def initialize(saga)
-          @saga = saga
+        def initialize(name)
+          @name = name
+          @steps = []
+          @timeout = nil
+          @on_timeout = nil
         end
 
-        def step(command, on_success: nil, on_failure: nil)
-          @saga[:steps] << { command: command, on_success: on_success, on_failure: on_failure }
+        def step(command, on_success: nil, on_failure: nil, &block)
+          if block
+            builder = SagaStepBuilder.new(command)
+            builder.instance_eval(&block)
+            @steps << builder.build
+          else
+            @steps << DomainModel::Behavior::SagaStep.new(
+              command: command, on_success: on_success, on_failure: on_failure
+            )
+          end
         end
 
-        def compensation(command)
-          @saga[:compensations] << command
+        def timeout(duration)   = (@timeout = duration)
+        def on_timeout(command)  = (@on_timeout = command)
+
+        def build
+          DomainModel::Behavior::Saga.new(
+            name: @name, steps: @steps,
+            timeout: @timeout, on_timeout: @on_timeout
+          )
         end
       end
 

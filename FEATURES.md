@@ -61,6 +61,16 @@
 - Services orchestrate multiple commands across aggregates via the command bus
 - Wired as methods on the domain module: `Banking.transfer_money(...)`
 
+### Sagas / Process Managers
+- Long-running stateful business processes with compensation: `saga "OrderFulfillment" { ... }`
+- Block-based step DSL with `on_success`, `on_failure`, and `compensate` per step
+- Keyword step syntax for simple cases: `step "DoThing", on_success: "ThingDone"`
+- Automatic compensation on failure: reverses completed steps in reverse order (best-effort)
+- Timeout and on_timeout metadata for time-bounded sagas
+- In-memory `SagaStore` for saga instance persistence (swappable for Redis/SQL)
+- `SagaRunner` state machine: pending -> running -> compensating -> completed/failed
+- Wired as `start_<saga_name>` methods on the domain module: `OrdersDomain.start_order_fulfillment(...)`
+
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer
 - Import domains from event storm formats (Markdown and YAML)
