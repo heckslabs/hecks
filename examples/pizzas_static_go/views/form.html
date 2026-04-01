@@ -4,6 +4,7 @@
   <div class="flash-error">{{ .ErrorMessage }}</div>
 {{ end }}
 <form method="post" action="{{ .Action }}">
+  <input type="hidden" name="_csrf_token" value="{{ .CsrfToken }}">
   {{ range .Fields }}
     {{ if eq .Type "hidden" }}
       <input type="hidden" name="{{ .Name }}" value="{{ .Value }}">
@@ -19,7 +20,7 @@
       {{ end }}
     {{ else }}
       <label>{{ .Label }}{{ if .Required }}<span class="required">required</span>{{ end }}</label>
-      <input name="{{ .Name }}" type="{{ or .InputType "text" }}"
+      <input name="{{ .Name }}" type="{{ if .InputType }}{{ .InputType }}{{ else }}text{{ end }}"
              value="{{ .Value }}"{{ if .Step }} step="any"{{ end }} required>
       {{ if .Error }}
         <div class="field-error">{{ .Error }}</div>

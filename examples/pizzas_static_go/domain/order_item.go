@@ -3,13 +3,11 @@ package domain
 import "fmt"
 
 type OrderItem struct {
-	PizzaId string `json:"pizza_id"`
 	Quantity int64 `json:"quantity"`
 }
 
-func NewOrderItem(pizzaId string, quantity int64) (OrderItem, error) {
+func NewOrderItem(quantity int64) (OrderItem, error) {
 	v := OrderItem{
-		PizzaId: pizzaId,
 		Quantity: quantity,
 	}
 	// quantity must be positive

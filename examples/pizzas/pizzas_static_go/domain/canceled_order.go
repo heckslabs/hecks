@@ -5,7 +5,6 @@ import "time"
 type CanceledOrder struct {
 	AggregateID string    `json:"aggregate_id"`
 	AggregateId string `json:"aggregate_id"`
-	OrderId string `json:"order_id"`
 	CustomerName string `json:"customer_name"`
 	Items []OrderItem `json:"items"`
 	Status string `json:"status"`

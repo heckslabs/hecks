@@ -23,10 +23,10 @@ type GuardRejected struct {
 
 func (e *GuardRejected) Error() string { return e.Message }
 
-type PortAccessDenied struct {
+type GateAccessDenied struct {
 	Role    string `json:"role"`
 	Action  string `json:"action"`
 	Message string `json:"message"`
 }
 
-func (e *PortAccessDenied) Error() string { return e.Message }
+func (e *GateAccessDenied) Error() string { return e.Message }

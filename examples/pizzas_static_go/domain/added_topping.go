@@ -5,7 +5,6 @@ import "time"
 type AddedTopping struct {
 	AggregateID string    `json:"aggregate_id"`
 	AggregateId string `json:"aggregate_id"`
-	PizzaId string `json:"pizza_id"`
 	Name string `json:"name"`
 	Amount int64 `json:"amount"`
 	Description string `json:"description"`

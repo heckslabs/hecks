@@ -6,14 +6,13 @@ import (
 
 type PlaceOrder struct {
 	CustomerName string `json:"customer_name"`
-	PizzaId string `json:"pizza_id"`
 	Quantity int64 `json:"quantity"`
 }
 
 func (c PlaceOrder) CommandName() string { return "PlaceOrder" }
 
 func (c PlaceOrder) Execute(repo OrderRepository) (*Order, *PlacedOrder, error) {
-	OrderItemItem, err := NewOrderItem(c.PizzaId, c.Quantity)
+	OrderItemItem, err := NewOrderItem(c.Quantity)
 	if err != nil { return nil, nil, err }
 	agg := NewOrder(c.CustomerName, []OrderItem{OrderItemItem}, "")
 	agg.Status = "pending"
@@ -26,7 +25,6 @@ func (c PlaceOrder) Execute(repo OrderRepository) (*Order, *PlacedOrder, error) 
 	event := PlacedOrder{
 		AggregateID: agg.ID,
 		CustomerName: c.CustomerName,
-		PizzaId: c.PizzaId,
 		Quantity: c.Quantity,
 		OccurredAt: time.Now(),
 	}

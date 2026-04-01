@@ -6,7 +6,6 @@ type PlacedOrder struct {
 	AggregateID string    `json:"aggregate_id"`
 	AggregateId string `json:"aggregate_id"`
 	CustomerName string `json:"customer_name"`
-	PizzaId string `json:"pizza_id"`
 	Quantity int64 `json:"quantity"`
 	Items []OrderItem `json:"items"`
 	Status string `json:"status"`

@@ -6,12 +6,12 @@ import (
 )
 
 type Pizza struct {
-	ID        string    `json:"id"`
+	ID string `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	Name string `json:"name"`
 	Description string `json:"description"`
 	Toppings []Topping `json:"toppings"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func NewPizza(name string, description string, toppings []Topping) *Pizza {

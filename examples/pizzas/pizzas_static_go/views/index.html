@@ -23,9 +23,11 @@
         {{ range .Cells }}<td>{{ . }}</td>{{ end }}
         {{ if .RowActions }}
           <td>
+            {{ $csrf := $.CsrfToken }}
             {{ range .RowActions }}
               {{ if .Direct }}
                 <form class="inline" method="post" action="{{ .HrefPrefix }}">
+                  <input type="hidden" name="_csrf_token" value="{{ $csrf }}">
                   <input type="hidden" name="{{ .IdField }}" value="{{ .Id }}">
                   <button class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}" type="submit">{{ .Label }}</button>
                 </form>

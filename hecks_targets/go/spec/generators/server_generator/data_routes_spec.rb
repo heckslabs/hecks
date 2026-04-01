@@ -25,8 +25,8 @@ RSpec.describe GoHecks::ServerGenerator do
     end
 
     it "generates column and item structs" do
-      expect(output).to include("type PizzaCol struct")
-      expect(output).to include("type PizzaItem struct")
+      expect(output).to include("type PizzaColumn struct")
+      expect(output).to include("type PizzaIndexItem struct")
       expect(output).to include("type PizzaIndexData struct")
     end
   end
@@ -39,8 +39,8 @@ RSpec.describe GoHecks::ServerGenerator do
 
   describe "command routes" do
     it "generates POST handler per command" do
-      expect(output).to include('mux.HandleFunc("POST /pizzas/create_pizza"')
-      expect(output).to include('mux.HandleFunc("POST /pizzas/update_pizza"')
+      expect(output).to include('mux.HandleFunc("POST /pizzas/create_pizza/submit"')
+      expect(output).to include('mux.HandleFunc("POST /pizzas/update_pizza/submit"')
     end
 
     it "decodes JSON and form submissions" do
@@ -66,7 +66,7 @@ RSpec.describe GoHecks::ServerGenerator do
     end
 
     it "generates field and show data structs" do
-      expect(output).to include("type PizzaField struct")
+      expect(output).to include("type PizzaShowField struct")
       expect(output).to include("type PizzaShowData struct")
     end
   end
@@ -94,6 +94,57 @@ RSpec.describe GoHecks::ServerGenerator do
 
     it "links cross-aggregate button to the other aggregate's form with id param" do
       expect(output).to include('/reviews/create_review/new?id=')
+    end
+  end
+
+  describe "reference column name lookup (HEC-239)" do
+    let(:domain) do
+      Hecks.domain("Store") do
+        aggregate("Product") do
+          attribute :name, String
+          command("CreateProduct") { attribute :name, String }
+        end
+        aggregate("Review") do
+          attribute :body, String
+          attribute :product_id, String
+          command("CreateReview") { attribute :product_id, String; attribute :body, String }
+        end
+      end
+    end
+
+    let(:server) { GoHecks::ServerGenerator.new(domain, module_path: "store_domain") }
+    let(:output) { server.generate }
+
+    it "labels reference column as entity name without Id suffix" do
+      expect(output).to include('{Label: "Product"}')
+    end
+
+    it "builds a name-lookup map for the referenced aggregate" do
+      expect(output).to include("productNames := map[string]string{}")
+      expect(output).to include("app.ProductRepo.All()")
+    end
+
+    it "uses the lookup map in cell expression" do
+      expect(output).to include("productNames[obj.ProductId]")
+    end
+  end
+
+  describe "home page command names (HEC-242)" do
+    it "includes command names in home aggregate data" do
+      expect(output).to include('CommandNames: "Create Pizza, Update Pizza"')
+    end
+
+    it "generates HomeAgg struct with CommandNames field" do
+      expect(output).to include("type HomeAgg struct")
+      expect(output).to include("CommandNames string")
+    end
+  end
+
+  describe "cross-aggregate buttons negative case (HEC-258)" do
+    it "does not add cross-aggregate buttons when no references exist" do
+      # The basic pizza domain has no cross-aggregate references
+      # so there should be no `buttons = append(buttons,` calls
+      expect(output).not_to include("buttons = append(buttons,")
     end
   end
 

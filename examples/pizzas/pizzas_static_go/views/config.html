@@ -64,4 +64,16 @@
     {{ end }}
   </tbody>
 </table>
+{{ if .StructureDiagram }}
+<h2>Domain Wiring</h2>
+<details open><summary>Structure</summary>
+  <pre class="mermaid">{{ .StructureDiagram }}</pre>
+</details>
+<details><summary>Behavior</summary>
+  <pre class="mermaid">{{ .BehaviorDiagram }}</pre>
+</details>
+<details><summary>Flows</summary>
+  <pre class="mermaid">{{ .FlowsDiagram }}</pre>
+</details>
+{{ end }}
 {{ end }}

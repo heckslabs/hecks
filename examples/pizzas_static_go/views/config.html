@@ -28,6 +28,12 @@
     <dd>{{ .EventCount }} total</dd>
     <dt>Booted</dt>
     <dd>{{ .BootedAt }}</dd>
+    <dt>Reset</dt>
+    <dd>
+      <form class="inline" method="post" action="/_reset">
+        <button class="btn btn-sm" type="submit">Clear All Data</button>
+      </form>
+    </dd>
     <dt>Policies</dt>
     <dd>
       {{ if not .Policies }}
@@ -58,4 +64,16 @@
     {{ end }}
   </tbody>
 </table>
+{{ if .StructureDiagram }}
+<h2>Domain Wiring</h2>
+<details open><summary>Structure</summary>
+  <pre class="mermaid">{{ .StructureDiagram }}</pre>
+</details>
+<details><summary>Behavior</summary>
+  <pre class="mermaid">{{ .BehaviorDiagram }}</pre>
+</details>
+<details><summary>Flows</summary>
+  <pre class="mermaid">{{ .FlowsDiagram }}</pre>
+</details>
+{{ end }}
 {{ end }}

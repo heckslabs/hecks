@@ -28,6 +28,8 @@
     .btn:hover { background: #3a56d4; }
     .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
     .btn-faded { opacity: 0.4; }
+    .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: #6c5ce7; color: #fff; }
+    .hint { display: inline-block; margin-left: 0.5rem; font-size: 0.75rem; color: #999; }
     form.inline { display: inline; background: none; padding: 0; box-shadow: none; }
     form { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 500px; }
     label { display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem; }
@@ -105,6 +107,7 @@
       }
     });
   </script>
+  <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'; mermaid.initialize({startOnLoad: true});</script>
 </body>
 </html>
 {{ end }}

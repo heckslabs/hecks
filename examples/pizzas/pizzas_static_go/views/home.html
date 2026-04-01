@@ -4,7 +4,7 @@
   {{ range .Aggregates }}
     <a href="{{ .Href }}" class="card">
       <h2>{{ .Name }}</h2>
-      <p class="mono">{{ .Commands }} commands &middot; {{ .Attributes }} attributes{{ if gt .Policies 0 }} &middot; {{ .Policies }} policies{{ end }}</p>
+      <p class="mono">{{ .CommandNames }} &middot; {{ .Attributes }} attributes{{ if gt .Policies 0 }} &middot; {{ .Policies }} policies{{ end }}</p>
     </a>
   {{ end }}
 </div>

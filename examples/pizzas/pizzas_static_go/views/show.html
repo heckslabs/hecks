@@ -26,9 +26,11 @@
 <div class="actions">
   <a href="{{ .BackHref }}" class="btn btn-sm">Back</a>
   {{ $aggId := .Id }}
+  {{ $csrf := .CsrfToken }}
   {{ range .Buttons }}
     {{ if .Direct }}
       <form class="inline" method="post" action="{{ .Href }}">
+        <input type="hidden" name="_csrf_token" value="{{ $csrf }}">
         <input type="hidden" name="{{ .IdField }}" value="{{ $aggId }}">
         <button class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}" type="submit">{{ .Label }}</button>
       </form>

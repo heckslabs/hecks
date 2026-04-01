@@ -7,33 +7,34 @@
     {{ end }}
   </div>
 </div>
-{{ if .Description }}
-  <p style="color:#666;margin:-1rem 0 1.5rem">{{ .Description }}</p>
-{{ end }}
+{{ if .Description }}<p style="color:#666;margin:-1rem 0 1.5rem">{{ .Description }}</p>{{ end }}
 <table>
   <thead>
     <tr>
       <th>ID</th>
-      {{ range .Columns }}
-        <th>{{ .Label }}</th>
-      {{ end }}
-      {{ if .RowActions }}
-        <th>Actions</th>
-      {{ end }}
+      {{ range .Columns }}<th>{{ .Label }}</th>{{ end }}
+      {{ if .RowActions }}<th>Actions</th>{{ end }}
     </tr>
   </thead>
   <tbody>
     {{ range .Items }}
       <tr>
         <td class="mono"><a href="{{ .ShowHref }}">{{ .ShortId }}</a></td>
-        {{ range .Cells }}
-          <td>{{ . }}</td>
-        {{ end }}
+        {{ range .Cells }}<td>{{ . }}</td>{{ end }}
         {{ if .RowActions }}
           <td>
+            {{ $csrf := $.CsrfToken }}
             {{ range .RowActions }}
-              <a class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}"
-                 href="{{ .HrefPrefix }}{{ .Id }}">{{ .Label }}</a>
+              {{ if .Direct }}
+                <form class="inline" method="post" action="{{ .HrefPrefix }}">
+                  <input type="hidden" name="_csrf_token" value="{{ $csrf }}">
+                  <input type="hidden" name="{{ .IdField }}" value="{{ .Id }}">
+                  <button class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}" type="submit">{{ .Label }}</button>
+                </form>
+              {{ else }}
+                <a class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}"
+                   href="{{ .HrefPrefix }}{{ .Id }}">{{ .Label }}</a>
+              {{ end }}
             {{ end }}
           </td>
         {{ end }}
