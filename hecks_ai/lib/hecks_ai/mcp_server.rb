@@ -1,4 +1,5 @@
 require "mcp"
+require_relative "type_resolver"
 require_relative "session_tools"
 require_relative "aggregate_tools"
 require_relative "inspect_tools"
@@ -69,36 +70,22 @@ module Hecks
     end
 
     # Converts a type string from MCP tool input into a Ruby type or type
-    # descriptor hash. Used by AggregateTools when adding attributes.
-    #
-    # Supported formats:
-    #   - +"String"+              -> String
-    #   - +"Integer"+             -> Integer
-    #   - +"Float"+               -> Float
-    #   - +"reference_to(Order)"+ -> { reference: "Order" }
-    #   - +"list_of(Topping)"+    -> { list: "Topping" }
-    #   - anything else           -> String (default)
+    # descriptor hash. Delegates to Hecks::AI::TypeResolver.
     #
     # @param type_str [String] the type string to resolve
     # @return [Class, Hash] the resolved Ruby type or descriptor hash
     def resolve_type(type_str)
-      case type_str
-      when "String" then String
-      when "Integer" then Integer
-      when "Float" then Float
-      when /^list_of\((.+)\)$/ then { list: $1.delete('"') }
-      else String
-      end
+      Hecks::AI::TypeResolver.resolve(type_str)
     end
 
     # Returns true if the type string is a reference_to declaration.
     def reference_type?(type_str)
-      type_str.to_s =~ /^reference_to\(/
+      Hecks::AI::TypeResolver.reference_type?(type_str)
     end
 
     # Extracts the target type from a reference_to string.
     def reference_target(type_str)
-      type_str.to_s[/^reference_to\(["']?(.+?)["']?\)$/, 1]
+      Hecks::AI::TypeResolver.reference_target(type_str)
     end
 
     # Captures stdout during the execution of the given block and returns
