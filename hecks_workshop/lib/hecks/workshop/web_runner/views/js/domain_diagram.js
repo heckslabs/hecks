@@ -21,7 +21,7 @@ class DomainDiagram extends HTMLElement {
         ${BASE_STYLES}
         :host { display: block; position: relative; }
         .container { position: relative; transform-origin: top left; }
-        svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
         .cards { position: relative; z-index: 1; }
         .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .title { color: ${COLORS.blue}; font-weight: 600; font-size: 14px; }
@@ -143,6 +143,7 @@ class DomainDiagram extends HTMLElement {
       maxH = Math.max(maxH, (parseFloat(c.style.top)||0) + c.offsetHeight + 10);
     });
     svg.setAttribute('width', maxW); svg.setAttribute('height', maxH);
+    svg.style.overflow = 'visible';
     this._ports = new PortSpreader();
     this._state.aggregates.forEach(agg => {
       agg.attributes.forEach(a => {
