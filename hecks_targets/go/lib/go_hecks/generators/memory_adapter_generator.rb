@@ -7,10 +7,11 @@ module GoHecks
   class MemoryAdapterGenerator
     include GoUtils
 
-    def initialize(aggregate, package:, domain_package:)
+    def initialize(aggregate, package:, domain_package:, domain_alias: nil)
       @agg = aggregate
       @package = package
       @domain_package = domain_package
+      @domain_alias = domain_alias
     end
 
     def generate
@@ -22,7 +23,11 @@ module GoHecks
       lines << ""
       lines << "import ("
       lines << "\t\"sync\""
-      lines << "\t\"#{@domain_package}/domain\""
+      if @domain_alias
+        lines << "\t#{@domain_alias} \"#{@domain_package}\""
+      else
+        lines << "\t\"#{@domain_package}\""
+      end
       lines << ")"
       lines << ""
       lines << "type #{agg}MemoryRepository struct {"

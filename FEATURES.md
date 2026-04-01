@@ -623,6 +623,15 @@
 - `go.mod` with only `google/uuid` dependency
 - Type mapping: String→string, Integer→int64, Float→float64, list_of→[]Type
 
+### Multi-Domain Go Target (HEC-237)
+- `Hecks.build_go_multi(domains)` generates a multi-domain Go project
+- Each bounded context gets its own Go package (e.g., `pizzas/`, `orders/`)
+- Shared runtime package (EventBus, CommandBus) across all domains
+- Combined server routing all domain aggregates under `/<domain>/<aggregate>` prefix
+- Memory adapters nested under each domain package (`pizzas/adapters/memory/`)
+- Single `go.mod` and `cmd/main/main.go` entry point
+- `ProjectGenerator` supports `subdomain_mode` for reuse in multi-domain builds
+
 ## Node.js/TypeScript Target (`hecks build --target node`)
 
 ### Generated TypeScript Project

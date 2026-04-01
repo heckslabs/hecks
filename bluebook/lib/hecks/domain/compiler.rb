@@ -132,6 +132,26 @@ module Hecks
       root
     end
 
+    # Build a multi-domain Go project where each bounded context
+    # gets its own Go package with shared runtime and combined server.
+    #
+    # @param domains [Array<Hecks::DomainModel::Domain>] domains to compile
+    # @param output_dir [String] parent directory for the generated project
+    # @param name [String] project name (default "multi_domain")
+    # @return [String] absolute path to the generated Go project root
+    def build_go_multi(domains, output_dir: ".", name: "multi_domain")
+      domains.each do |domain|
+        valid, errors = validate(domain)
+        unless valid
+          raise Hecks::ValidationError, "Domain '#{domain.name}' validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+        end
+      end
+
+      require "go_hecks"
+      generator = GoHecks::MultiProjectGenerator.new(domains, output_dir: output_dir, name: name)
+      generator.generate
+    end
+
     # Build a Node.js/TypeScript project from the domain IR.
     #
     # @param domain [Hecks::DomainModel::Domain] the domain to compile
