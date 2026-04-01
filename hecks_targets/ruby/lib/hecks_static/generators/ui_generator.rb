@@ -63,7 +63,9 @@ class UIGenerator < Hecks::Generator
   end
 
   def user_attrs(agg)
-    agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+    agg.attributes.reject { |a|
+      Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+    }
   end
 
   def self_ref?(cmd, agg_snake)

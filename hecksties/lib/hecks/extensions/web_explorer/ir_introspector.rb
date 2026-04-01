@@ -35,7 +35,9 @@ module Hecks
       end
 
       def user_attributes(agg)
-        agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+        agg.attributes.reject { |a|
+          Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+        }
       end
 
       def computed_attributes(agg)

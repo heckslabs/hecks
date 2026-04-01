@@ -24,4 +24,16 @@ RSpec.describe Hecks::DomainModel::Structure::Attribute do
       expect(attr).to be_list
     end
   end
+
+  describe "visibility" do
+    it "is visible by default" do
+      attr = described_class.new(name: :name, type: String)
+      expect(attr.visible?).to be true
+    end
+
+    it "is hidden when visible: false" do
+      attr = described_class.new(name: :password_digest, type: String, visible: false)
+      expect(attr.visible?).to be false
+    end
+  end
 end

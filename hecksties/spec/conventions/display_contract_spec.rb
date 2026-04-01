@@ -20,6 +20,18 @@ RSpec.describe Hecks::Conventions::DisplayContract do
       data = described_class.home_aggregate_data(agg, "empties")
       expect(data[:command_names]).to eq("")
     end
+
+    it "does not count hidden attributes in the attribute count" do
+      visible_attr = attr_class.new(name: :name, type: String)
+      hidden_attr  = attr_class.new(name: :password_digest, type: String, visible: false)
+      agg = double("agg",
+        name: "Account",
+        commands: [],
+        attributes: [visible_attr, hidden_attr],
+        policies: [])
+      data = described_class.home_aggregate_data(agg, "accounts")
+      expect(data[:attributes]).to eq(1)
+    end
   end
 
   describe ".reference_attr?" do

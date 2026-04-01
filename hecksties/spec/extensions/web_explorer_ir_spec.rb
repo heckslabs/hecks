@@ -75,6 +75,27 @@ RSpec.describe "Web Explorer IR introspection" do
       expect(ref.name).to eq("Pizza")
     end
 
+    it "excludes hidden attributes from user_attributes" do
+      attr_class = Hecks::DomainModel::Structure::Attribute
+      hidden = attr_class.new(name: :secret, type: String, visible: false)
+      visible = attr_class.new(name: :label, type: String)
+      agg = double("agg", attributes: [hidden, visible])
+      result = ir.user_attributes(agg)
+      expect(result.map(&:name)).to eq([:label])
+      expect(result.map(&:name)).not_to include(:secret)
+    end
+
+    it "excludes hidden attributes from columns_for" do
+      attr_class = Hecks::DomainModel::Structure::Attribute
+      hidden = attr_class.new(name: :token, type: String, visible: false)
+      visible = attr_class.new(name: :title, type: String)
+      agg = double("agg", attributes: [hidden, visible], computed_attributes: [])
+      cols = ir.columns_for(agg)
+      labels = cols.map { |c| c[:label] }
+      expect(labels).to include("Title")
+      expect(labels).not_to include("Token")
+    end
+
     it "returns policy labels from the IR" do
       labels = ir.policy_labels
       expect(labels).to include("PlacedOrder \u2192 ReserveIngredients")

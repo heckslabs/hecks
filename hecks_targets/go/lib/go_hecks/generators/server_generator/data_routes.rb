@@ -14,7 +14,9 @@ module GoHecks
         @domain.aggregates.each do |agg|
           safe = agg.name
           plural = GoUtils.snake_case(safe) + "s"
-          attrs = agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+          attrs = agg.attributes.reject { |a|
+            Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+          }
           agg_snake = GoUtils.snake_case(safe)
 
           lines.concat(index_route(agg, safe, plural, attrs, agg_snake))

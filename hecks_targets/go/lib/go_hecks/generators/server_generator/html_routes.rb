@@ -19,7 +19,9 @@ module GoHecks
           safe = agg.name
           plural = GoUtils.snake_case(safe) + "s"
           agg_snake = GoUtils.snake_case(safe)
-          attrs = agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+          attrs = agg.attributes.reject { |a|
+            Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+          }
 
           ref_attrs = attrs.select { |a| dc.reference_attr?(a) }
           show_ref_lookups = ref_attrs.map { |a| [a, dc.find_referenced_aggregate(a, @domain)] }.select { |_, ra| ra }

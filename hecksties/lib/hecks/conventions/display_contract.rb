@@ -155,7 +155,7 @@ module Hecks::Conventions
     # @return [Hash] { name:, href:, command_names:, attributes:, policies: }
     def self.home_aggregate_data(agg, plural)
       user_attrs = agg.attributes.reject { |a|
-        Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s)
+        Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
       }
       {
         name: UILabelContract.plural_label(agg.name),

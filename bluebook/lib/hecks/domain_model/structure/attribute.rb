@@ -42,15 +42,19 @@ module Hecks
       #   and should be handled according to PII policies (encryption, masking, etc.).
       # @param enum [Array<String>, nil] optional list of allowed string values. When present,
       #   generated code will validate that the attribute value is one of these.
+      # @param visible [Boolean] if false, this attribute is hidden from the web explorer
+      #   and generated UI (index tables, show pages, home cards). Useful for internal fields
+      #   like passwords, tokens, or raw foreign keys that should not be displayed to users.
       #
       # @return [Attribute] a new Attribute instance
-      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil)
+      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true)
         @name = name.to_sym
         @type = type
         @default = default
         @list = list
         @pii = pii
         @enum = enum
+        @visible = visible
       end
 
       # Returns true if this attribute holds a collection of values.
@@ -69,6 +73,18 @@ module Hecks
       # @return [Boolean] true if this attribute holds PII data
       def pii?
         @pii
+      end
+
+      # Returns true if this attribute should appear in the web explorer
+      # and generated UI (index tables, show pages, home cards).
+      # Defaults to true. Set +visible: false+ in the DSL to suppress an attribute
+      # from all UI surfaces while retaining it in the domain model.
+      #
+      #   attribute :password_digest, String, visible: false
+      #
+      # @return [Boolean] true if this attribute is visible in the UI
+      def visible?
+        @visible
       end
 
       # Returns true if this attribute stores a JSON blob.
