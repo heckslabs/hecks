@@ -141,3 +141,282 @@ Middleware wraps inward, Rack-style. The innermost handler creates the domain ev
 - `hecksties/lib/hecks/runtime/port_setup.rb` — wiring orchestration
 - `hecksties/lib/hecks/ports/commands/command_bus.rb` — middleware pipeline
 - `hecksties/lib/hecks/ports/commands/` — individual command binding strategies
+
+---
+
+## 4. Domain Compiler — DSL to IR to Generated Code
+
+Hecks is a domain compiler, not a framework you subclass. You write a domain definition in the Bluebook DSL, the compiler produces an intermediate representation (IR), and generators consume the IR to produce runnable code.
+
+### The pipeline
+
+```
+Bluebook DSL  -->  DomainBuilder  -->  Domain IR  -->  Generators  -->  Ruby / Go / Node.js / Rails
+```
+
+The DSL (`Hecks.domain "Pizzas" do ... end`) is syntactic sugar. `DomainBuilder` evaluates the block and constructs a tree of IR objects: `Domain`, `Aggregate`, `Command`, `Attribute`, `ValueObject`, `Lifecycle`, `Policy`, etc. These are plain data objects in `bluebook/lib/hecks/domain_model/`.
+
+```ruby
+# The DSL:
+domain = Hecks.domain "Pizzas" do
+  aggregate "Pizza" do
+    attribute :name, String
+    command "CreatePizza" do
+      attribute :name, String
+    end
+  end
+end
+
+# The IR:
+domain.name                          # => "Pizzas"
+domain.gem_name                      # => "pizzas_domain"
+domain.aggregates.first.name         # => "Pizza"
+domain.aggregates.first.commands.first.name  # => "CreatePizza"
+```
+
+No generator reads the DSL directly. Every generator reads the IR. This means the DSL can change without touching generators, and new generators can be added without touching the DSL.
+
+### Why a compiler instead of a runtime metaprogramming framework
+
+A runtime framework (like most Rails-style DSLs) evaluates your definitions and modifies classes in place. Hecks does this too for the dynamic runtime (`Hecks.boot`), but additionally supports *static* code generation. The `build` family of methods produces standalone, zero-dependency codebases:
+
+```ruby
+Hecks.build(domain)                  # Ruby gem with full runtime
+Hecks.build_static(domain)           # Standalone Ruby gem (no hecks dependency)
+Hecks.build_go(domain)               # Go project
+Hecks.build_node(domain)             # Node.js/TypeScript project
+Hecks.build_rails(domain)            # Rails app
+```
+
+Static targets ship without any Hecks dependency. The generated Go server, for example, is pure Go — it has no knowledge of Ruby or Hecks at runtime. This is only possible because the compiler separates the definition (DSL/IR) from the output (generated code).
+
+**Where to look:**
+- `bluebook/lib/hecks/dsl/` — DSL builders
+- `bluebook/lib/hecks/domain_model/` — IR data structures
+- `bluebook/lib/hecks/domain/compiler.rb` — `build`, `build_static`, `build_go`, `build_node`
+
+---
+
+## 5. Multi-Target Strategy — One DSL, Many Runtimes
+
+Hecks generates code for Ruby, Go, and Node.js from the same domain definition. The targets are registered in a target registry and selected via the CLI:
+
+```bash
+hecks build                    # Ruby gem (default)
+hecks build --target static    # Standalone Ruby (no hecks dep)
+hecks build --target go        # Go HTTP server
+hecks build --target node      # Node.js/TypeScript Express server
+hecks build --target rails     # Rails app
+```
+
+Each target has its own generator package:
+
+| Target | Package | Generator |
+|--------|---------|-----------|
+| Ruby gem | `bluebook` | `Generators::Infrastructure::DomainGemGenerator` |
+| Standalone Ruby | `hecks_targets/ruby` | `HecksStatic::GemGenerator` |
+| Go | `hecks_targets/go` | `GoHecks::ProjectGenerator` |
+| Node.js | `hecks_targets/node` | `NodeHecks::ProjectGenerator` |
+
+### What stays the same
+
+All targets generate the same logical structure: aggregates with typed attributes, commands that produce events, repository interfaces, and HTTP routes. The type mapping differs per language but follows a shared contract (`TypeContract`):
+
+| Hecks DSL | Ruby | Go | TypeScript |
+|-----------|------|----|------------|
+| `String` | `String` | `string` | `string` |
+| `Integer` | `Integer` | `int` | `number` |
+| `Float` | `Float` | `float64` | `number` |
+| `Boolean` | `TrueClass` | `bool` | `boolean` |
+| `list_of(X)` | `Array` | `[]X` | `X[]` |
+
+### What differs
+
+Language idioms differ. Go uses structs and interfaces; Ruby uses modules and mixins; TypeScript uses interfaces and classes. Each generator translates the IR into the target's idiomatic patterns. The generated code is meant to read like a native developer wrote it, not like a transliteration.
+
+**Where to look:**
+- `hecksties/lib/hecks/registries/target_registry.rb` — target registration
+- `hecks_targets/go/` — Go generator
+- `hecks_targets/ruby/` — standalone Ruby generator
+- `hecks_targets/node/` — Node.js/TypeScript generator
+
+---
+
+## 6. Aggregates Are Pure Domain Objects
+
+Aggregates in Hecks have no persistence logic, no framework base class, and no database dependency. They are plain Ruby objects with typed attributes, invariants, and lifecycle rules. Persistence is wired externally by the runtime.
+
+```ruby
+# Generated aggregate (simplified):
+module PizzasDomain
+  class Pizza
+    attr_reader :id, :name, :description, :toppings, :created_at, :updated_at
+
+    def initialize(id:, name:, description:, toppings: [], **_)
+      @id = id
+      @name = name
+      @description = description
+      @toppings = toppings
+    end
+  end
+end
+```
+
+The aggregate knows nothing about how it's stored. `PortSetup#wire_aggregate` adds `find`, `all`, `save`, `delete`, and command methods as singleton methods on the class at boot time. The repository (memory, SQL, MongoDB, filesystem) is injected, not inherited.
+
+This matters for the multi-target strategy: the same aggregate definition compiles to a Go struct, a TypeScript interface, or a Ruby class. None of them inherit from a persistence base class. The persistence adapter is always a separate concern wired at the infrastructure layer.
+
+**Trade-off:** You can't add custom persistence methods to an aggregate. All data access goes through the repository interface. This is intentional — it keeps aggregates portable across targets and prevents domain logic from depending on storage implementation.
+
+---
+
+## 7. Ports-as-Auth — Access Control at the Infrastructure Layer
+
+Access control is an infrastructure concern, not a domain concept. Hecks separates *what actors exist* (declared in the DSL) from *what they're allowed to do* (enforced by extensions at the infrastructure layer).
+
+The DSL declares actors on commands:
+
+```ruby
+command "Approve" do
+  actor "Manager"
+  attribute :invoice_id, String
+end
+```
+
+But the enforcement happens in the `auth` extension, which registers command bus middleware:
+
+```ruby
+app = Hecks.boot(__dir__)
+app.extend(:auth)
+```
+
+The middleware intercepts every command dispatch, checks `Hecks.actor.role` against the command's declared actor list, and raises `Hecks::Unauthorized` on mismatch. The domain objects never see the authorization logic.
+
+Boot-time safety: if any command declares actors but no `:auth` extension is registered, Hecks raises `ConfigurationError`. You must either wire auth or explicitly opt out with `extend :auth, enforce: false`.
+
+**Why not domain-level auth:** The same domain might be deployed as a public API (with strict auth), an internal service (with service-to-service tokens), and a CLI tool (with no auth). The domain definition shouldn't change between these deployments. Only the infrastructure wiring changes.
+
+**Where to look:**
+- `hecksties/lib/hecks/extensions/auth.rb` — auth extension
+- [Auth Default-Secure](auth_default_secure.md) — boot-time safety check
+
+---
+
+## 8. Persistence-as-Extensions
+
+Persistence in Hecks is not built into the framework core. It's provided by extensions that wire repository adapters at boot time. The default adapter is in-memory (a Hash). Swapping to SQL, MongoDB, or filesystem storage is a one-line change.
+
+```ruby
+# Memory (default — tests and exploration)
+app = Hecks.boot(__dir__)
+
+# SQL
+app = Hecks.boot(__dir__, adapter: :sqlite)
+
+# Filesystem (JSON files, survives restarts)
+app = Hecks.boot(__dir__, adapter: :filesystem)
+```
+
+Extensions register via `Hecks.register_extension` and declare what they wire to:
+
+```ruby
+Hecks.describe_extension(:filesystem_store,
+  description: "JSON file persistence",
+  config: { data_dir: { default: "./data", desc: "Directory for JSON files" } },
+  wires_to: :repository)
+
+Hecks.register_extension(:filesystem_store) do |domain_mod, domain, runtime|
+  domain.aggregates.each do |agg|
+    repo = Hecks::FilesystemRepository.new(agg.name, ...)
+    runtime.swap_adapter(agg.name, repo)
+  end
+end
+```
+
+Every adapter implements the same interface: `find`, `save`, `delete`, `all`, `count`, `query`, `clear`. The runtime doesn't know or care which adapter is behind the interface.
+
+**Why not ActiveRecord-style ORM:** Generated domains must work in Ruby, Go, and Node.js. Coupling to a Ruby ORM would make the Go and Node.js targets impossible. Persistence-as-extensions keeps the domain portable and the adapter swappable.
+
+**Where to look:**
+- `hecksties/lib/hecks/registries/extension_registry.rb` — extension registration
+- `hecksties/lib/hecks/extensions/filesystem_store.rb` — filesystem adapter
+- `hecksagon/lib/hecks_persist/` — SQL adapter
+- `hecksagon/lib/hecks_mongodb/` — MongoDB adapter
+
+---
+
+## 9. Contract-Driven Cross-Target Consistency
+
+When you generate the same domain for Ruby and Go, both targets must produce identical behavior: same events, same validation errors, same lifecycle transitions, same HTTP routes. Hecks enforces this with 13 data contracts that both generators consume.
+
+```ruby
+Hecks::Contracts.registered
+# => [:types, :display, :views, :events, :event_log, :forms,
+#     :aggregates, :naming, :migrations, :ui_labels, :commands,
+#     :routes, :dispatch]
+```
+
+Each contract is a Ruby module in `hecksties/lib/hecks/conventions/` that extracts normalized rules from the domain IR. For example, `AggregateContract.rules(agg)` returns:
+
+```ruby
+{
+  standard_fields: [
+    { name: :id,         go: "string",    ruby: "String",  json: "id" },
+    { name: :created_at, go: "time.Time", ruby: "Time",    json: "created_at" },
+    { name: :updated_at, go: "time.Time", ruby: "Time",    json: "updated_at" },
+  ],
+  validations: [{ field: :name, check: :presence }, ...],
+  enums: [{ field: :category, values: ["classic", "specialty"] }],
+  lifecycle: { field: :status, default: "draft", transitions: [...] },
+  invariants: [{ message: "price must be positive", has_block: true }],
+}
+```
+
+Both the Ruby generator and the Go generator read these rules to produce their validation code. Neither generator invents its own interpretation of the IR — they both consume the contract.
+
+The parity spec (`hecksties/spec/cross_target_parity_spec.rb`) verifies the result: it builds both Ruby and Go from the same domain, starts both as HTTP servers, submits the same commands to each, and compares the `/_events` endpoint. If they diverge, the spec fails.
+
+**Where to look:**
+- `hecksties/lib/hecks/conventions/` — all contract modules
+- `hecksties/lib/hecks/conventions/aggregate_contract.rb` — central aggregate contract
+- `hecksties/spec/cross_target_parity_spec.rb` — behavioral parity test
+
+---
+
+## 10. CalVer Versioning
+
+Hecks uses calendar-based versioning (CalVer) for both the framework itself and for generated domain gems. The format is `YYYY.MM.DD.N` where N is a build number that auto-increments within the same day and resets to 1 when the date changes.
+
+```ruby
+versioner = Hecks::Versioner.new(".")
+versioner.current   # => "2026.03.31.13"
+versioner.next      # => "2026.03.31.14"
+# next day:
+versioner.next      # => "2026.04.01.1"
+```
+
+The version is persisted to a `.hecks_version` file in the project directory. The CLI auto-bumps it on each `hecks build`:
+
+```bash
+hecks build
+# => Built pizzas_domain v2026.04.01.1
+```
+
+**Why CalVer instead of SemVer:** Hecks domains are definitions, not libraries with public API contracts. The version tells you *when* the domain was defined, which is the most useful information for debugging ("which day's definition is running in production?"). There's no meaningful distinction between "major" and "minor" changes to a domain definition — adding a command is always a schema change. Domain interface versioning (see [Domain Versioning](domain_version.md)) handles breaking change detection separately with `hecks diff`.
+
+Both SemVer and CalVer are accepted in the `version:` kwarg of `Hecks.domain`:
+
+```ruby
+Hecks.domain "Banking", version: "2026.04.01.1" do  # CalVer
+  # ...
+end
+
+Hecks.domain "Banking", version: "2.1.0" do          # SemVer (also valid)
+  # ...
+end
+```
+
+**Where to look:**
+- `bluebook/lib/hecks/domain/versioner.rb` — CalVer implementation
+- `hecksties/lib/hecks/version.rb` — framework version
+- [Domain Versioning](domain_version.md) — interface version tagging and diffing
