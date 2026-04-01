@@ -11,6 +11,26 @@ module Hecks
       extend HecksTemplating::NamingHelpers
       module_function
 
+      # Returns warnings for aggregate names that appear in more than one bounded
+      # context. Shared names across contexts suggest ambiguous ubiquitous language
+      # that should be clarified with a context-specific prefix or rename.
+      #
+      # @param domains [Array<Hecks::DomainModel::Structure::Domain>]
+      # @return [Array<String>] warning messages
+      def ambiguous_name_warnings(domains)
+        name_to_contexts = Hash.new { |h, k| h[k] = [] }
+        domains.each do |domain|
+          domain.aggregates.each do |agg|
+            name_to_contexts[agg.name] << domain.name
+          end
+        end
+        name_to_contexts.each_with_object([]) do |(name, contexts), warnings|
+          if contexts.size > 1
+            warnings << "Aggregate name '#{name}' appears in multiple bounded contexts (#{contexts.join(', ')}) -- consider a context-specific name to clarify ubiquitous language"
+          end
+        end
+      end
+
       def validate_no_cross_domain_references(domains)
         errors = []
         domains.each do |domain|

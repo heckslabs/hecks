@@ -98,6 +98,25 @@ Hecks::CLI.register_command(:info, "Show auto-wiring details for this project") 
     end
   end
 
+  say_boundary_advisories = lambda do |domains|
+    all_warnings = []
+    domains.each do |d|
+      validator = Hecks::Validator.new(d)
+      validator.valid?
+      validator.warnings.each { |w| all_warnings << "#{d.name}: #{w}" }
+    end
+    if defined?(Hecks::MultiDomain::Validator)
+      Hecks::MultiDomain::Validator.ambiguous_name_warnings(domains).each do |w|
+        all_warnings << w
+      end
+    end
+    if all_warnings.any?
+      say ""
+      say "Boundary advisories:", :yellow
+      all_warnings.each { |w| say "  - #{w}", :yellow }
+    end
+  end
+
   domains = load_all_domains_local.call
   next if domains.empty?
 
@@ -105,4 +124,5 @@ Hecks::CLI.register_command(:info, "Show auto-wiring details for this project") 
   say_extensions.call
   say_services.call
   say_cross_domain_policies.call(domains)
+  say_boundary_advisories.call(domains)
 end

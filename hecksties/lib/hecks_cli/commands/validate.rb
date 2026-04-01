@@ -31,4 +31,9 @@ Hecks::CLI.register_command(:validate, "Validate the domain definition",
       validator.warnings.each { |w| say "  - #{w}", :yellow }
     end
   end
+  unless validator.warnings.empty?
+    say ""
+    say "Warnings:", :yellow
+    validator.warnings.each { |w| say "  - #{w}", :yellow }
+  end
 end
