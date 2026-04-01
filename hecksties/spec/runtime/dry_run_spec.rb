@@ -18,12 +18,12 @@ RSpec.describe "Runtime#dry_run" do
         attribute :quantity, Integer
 
         command "PlaceOrder" do
-          reference_to "Pizza"
+          reference_to "Pizza", validate: false
           attribute :quantity, Integer
         end
 
         command "NotifyChef" do
-          reference_to "Pizza"
+          reference_to "Pizza", validate: false
         end
 
         policy "NotifyKitchen" do

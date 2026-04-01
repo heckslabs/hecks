@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# Commit message hook: rejects commits with Co-Authored-By trailers.
+# Follows the rule: "No Co-Authored-By — never add Co-Authored-By lines to commit messages"
+#
+
+# The commit message file is passed as the first argument
+commit_msg_file="$1"
+
+if [ -f "$commit_msg_file" ]; then
+  if grep -qi "^co-authored-by:" "$commit_msg_file"; then
+    echo "COMMIT BLOCKED: Co-Authored-By trailers are not allowed."
+    echo "This project enforces sole authorship - remove the Co-Authored-By lines."
+    echo ""
+    echo "See CLAUDE.md for authorship rules."
+    exit 1
+  fi
+fi
+
+exit 0

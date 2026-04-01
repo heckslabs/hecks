@@ -1,4 +1,5 @@
 require_relative "command/lifecycle_steps"
+require_relative "command/reference_validation"
 
 module Hecks
   # Hecks::Command
@@ -53,6 +54,7 @@ module Hecks
     def self.included(base)
       base.extend(ClassMethods)
       base.attr_reader :aggregate, :event, :events
+      base.include(ReferenceValidation)
     end
 
     # Class-level DSL and execution entry point for command classes.
@@ -62,19 +64,20 @@ module Hecks
     # are wired during boot by the Hecks runtime.
     module ClassMethods
       attr_accessor :repository, :event_bus, :handler, :guarded_by,
-                    :event_recorder, :aggregate_type, :command_bus
+                    :event_recorder, :aggregate_type, :command_bus,
+                    :reference_meta, :reference_authorizer
 
       # Declares the event name(s) emitted when this command succeeds.
       # The event class(es) are resolved at runtime from the aggregate's Events module.
       # Pass multiple names to emit more than one event per command execution.
       #
-      # @param event_names [Array<String>] one or more PascalCase event names
+      # @param event_names [Array<String>] one or more PascalCase event names (e.g. "CreatedPizza")
       # @return [void]
       def emits(*event_names)
         @event_names = event_names
       end
 
-      # Returns the first declared event name for this command (backward compat).
+      # Returns the declared event name for this command (first event, for backward compat).
       #
       # @return [String, nil] the first event name set via +emits+, or nil if none declared
       def event_name
@@ -376,7 +379,7 @@ module Hecks
     end
 
     # Constructs the first event declared via +emits+ without publishing it.
-    # Preserved for backward compatibility.
+    # Preserved for backward compatibility with dry_call and internal use.
     #
     # @return [Object] the constructed event instance
     def build_event

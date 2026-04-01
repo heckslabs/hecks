@@ -199,4 +199,84 @@ module Hecks
 
   # Raised when a rate limit is exceeded for a command or query operation.
   class RateLimitExceeded < Error; end
+
+  # Raised when a command references an aggregate ID that does not exist in the
+  # repository. Prevents executing commands with dangling foreign keys.
+  #
+  # Accepts +reference_type+ (the target aggregate name) and +reference_id+
+  # (the value that was supplied but could not be found).
+  #
+  #   raise Hecks::ReferenceNotFound.new(
+  #     "Pizza id 'abc' not found",
+  #     reference_type: "Pizza", reference_id: "abc"
+  #   )
+  class ReferenceNotFound < Error
+    # @return [String] the name of the referenced aggregate type (e.g. "Pizza")
+    attr_reader :reference_type
+
+    # @return [Object] the ID value that could not be resolved
+    attr_reader :reference_id
+
+    # @param message [String] human-readable error message
+    # @param reference_type [String] the target aggregate name
+    # @param reference_id [Object] the supplied ID value
+    def initialize(message = nil, reference_type: nil, reference_id: nil)
+      @reference_type = reference_type
+      @reference_id = reference_id
+      super(message)
+    end
+
+    # Returns structured error data including reference context.
+    #
+    # @return [Hash] error data with :error, :message, :reference_type, :reference_id
+    def as_json
+      h = super
+      h[:reference_type] = reference_type.to_s if reference_type
+      h[:reference_id] = reference_id.to_s if reference_id
+      h
+    end
+  end
+
+  # Raised when the current actor is not permitted to access the referenced
+  # aggregate. Indicates an IDOR (Insecure Direct Object Reference) attempt —
+  # the referenced record exists but the actor does not own or have access to it.
+  #
+  # Accepts +reference_type+, +reference_id+, and +actor+ for structured output.
+  #
+  #   raise Hecks::ReferenceAccessDenied.new(
+  #     "Access denied to Pizza 'abc'",
+  #     reference_type: "Pizza", reference_id: "abc", actor: current_user
+  #   )
+  class ReferenceAccessDenied < Error
+    # @return [String] the name of the referenced aggregate type (e.g. "Pizza")
+    attr_reader :reference_type
+
+    # @return [Object] the ID value that was referenced
+    attr_reader :reference_id
+
+    # @return [Object] the actor that was denied access
+    attr_reader :actor
+
+    # @param message [String] human-readable error message
+    # @param reference_type [String] the target aggregate name
+    # @param reference_id [Object] the supplied ID value
+    # @param actor [Object] the actor denied access
+    def initialize(message = nil, reference_type: nil, reference_id: nil, actor: nil)
+      @reference_type = reference_type
+      @reference_id = reference_id
+      @actor = actor
+      super(message)
+    end
+
+    # Returns structured error data including reference and actor context.
+    #
+    # @return [Hash] error data with :error, :message, :reference_type, :reference_id, :actor
+    def as_json
+      h = super
+      h[:reference_type] = reference_type.to_s if reference_type
+      h[:reference_id] = reference_id.to_s if reference_id
+      h[:actor] = actor.to_s if actor
+      h
+    end
+  end
 end

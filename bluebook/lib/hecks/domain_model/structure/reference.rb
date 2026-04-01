@@ -29,11 +29,16 @@ module Hecks
       # @return [Symbol, nil] the relationship kind, set by classify_references
       attr_accessor :kind
 
-      def initialize(name:, type:, domain: nil, kind: nil)
+      # @return [Symbol, Boolean] validation mode — true/:exists checks existence,
+      #   false skips validation entirely (opt-out for eventual consistency)
+      attr_reader :validate
+
+      def initialize(name:, type:, domain: nil, kind: nil, validate: true)
         @name = name.to_sym
         @type = type.to_s
         @domain = domain
         @kind = kind
+        @validate = validate
       end
 
       # Returns true if this is a cross-context reference.

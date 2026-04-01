@@ -188,8 +188,11 @@ module Hecks
       #
       # @param type [String] the target aggregate name (e.g. "Team")
       # @param role [String, nil] optional role name, defaults to downcased type
+      # @param validate [Boolean, Symbol] validation mode: true (default) checks
+      #   existence and authorization; :exists checks existence only; false skips
+      #   all validation (opt-out for cross-context eventual consistency)
       # @return [void]
-      def reference_to(type, role: nil)
+      def reference_to(type, role: nil, validate: true)
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last
@@ -197,7 +200,7 @@ module Hecks
         name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << DomainModel::Structure::Reference.new(
-          name: name, type: target, domain: domain
+          name: name, type: target, domain: domain, validate: validate
         )
       end
 

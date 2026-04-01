@@ -60,6 +60,7 @@ module Hecks
           cmd_class.handler = cmd.handler
           cmd_class.guarded_by = cmd.guard_name
           cmd_class.command_bus = bus
+          cmd_class.reference_meta = cmd.references if cmd.respond_to?(:references)
 
           cmd.preconditions.each { |c| cmd_class.preconditions << c }
           cmd.postconditions.each { |c| cmd_class.postconditions << c }

@@ -4,7 +4,7 @@
 # Steps follow a consistent interface: call(cmd) returns cmd.
 # The pipeline executes them in order.
 #
-#   LIFECYCLE = [GuardStep, HandlerStep, PreconditionStep, ...]
+#   LIFECYCLE = [GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep, ...]
 #
 module Hecks
   module Command
@@ -21,6 +21,11 @@ module Hecks
 
       PreconditionStep = ->(cmd) {
         cmd.send(:check_preconditions)
+        cmd
+      }
+
+      ValidateReferencesStep = ->(cmd) {
+        cmd.send(:validate_references)
         cmd
       }
 
@@ -56,12 +61,13 @@ module Hecks
       }
 
       PIPELINE = [
-        GuardStep, HandlerStep, PreconditionStep, CallStep,
+        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep, CallStep,
         PostconditionStep, PersistStep, EmitStep, RecordStep
       ].freeze
 
       DRY_RUN_PIPELINE = [
-        GuardStep, HandlerStep, PreconditionStep, CallStep, PostconditionStep
+        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep, CallStep,
+        PostconditionStep
       ].freeze
     end
   end
