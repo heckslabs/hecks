@@ -1,7 +1,9 @@
 # Hecks::MultiDomain::Validator
 #
-# Rejects references that cross domain boundaries.
-# Cross-domain references must use plain String IDs, not reference_to.
+# Validates references that cross domain boundaries. Qualified references
+# (+reference_to "Billing::Invoice"+) are allowed when the target domain is
+# loaded. Unqualified references that happen to match a foreign aggregate
+# are rejected — the developer must qualify the path explicitly.
 #
 #   Hecks::MultiDomain::Validator.validate_no_cross_domain_references(domains)
 #
@@ -33,22 +35,34 @@ module Hecks
 
       def validate_no_cross_domain_references(domains)
         errors = []
+        domain_names = domains.map(&:name)
         domains.each do |domain|
           own_aggs = domain.aggregates.map(&:name)
           domain.aggregates.each do |agg|
             (agg.references || []).each do |ref|
               ref_name = ref.type.to_s
+
+              if ref.domain
+                # Qualified cross-domain reference — verify the target domain is loaded
+                unless domain_names.include?(ref.domain)
+                  errors << "#{domain.name}::#{agg.name} uses reference_to(\"#{ref.domain}::#{ref_name}\") " \
+                            "but domain '#{ref.domain}' is not loaded. Loaded domains: #{domain_names.join(', ')}"
+                end
+                next
+              end
+
               next if own_aggs.include?(ref_name)
               owner = domains.find { |d| d.aggregates.any? { |a| a.name == ref_name } }
               if owner
                 errors << "#{domain.name}::#{agg.name} uses reference_to(\"#{ref_name}\") " \
-                          "which belongs to #{owner.name}. Use: attribute :#{domain_snake_name(ref_name)}_id, String"
+                          "which belongs to #{owner.name}. " \
+                          "Qualify the reference: reference_to \"#{owner.name}::#{ref_name}\""
               end
             end
           end
         end
         unless errors.empty?
-          raise Hecks::ValidationError, "Cross-domain reference_to detected:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+          raise Hecks::ValidationError, "Cross-domain reference_to errors:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
         end
       end
     end

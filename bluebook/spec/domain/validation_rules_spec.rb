@@ -64,6 +64,33 @@ RSpec.describe "Validation Rules" do
     end
   end
 
+  describe "References::ValidReferences" do
+    it "exempts qualified cross-domain references from compile-time validation" do
+      domain = Hecks.domain("Validation") do
+        aggregate("Order") do
+          attribute :name, String
+          reference_to "Billing::Invoice"
+          command("PlaceOrder") { attribute :name, String }
+        end
+      end
+      valid, errors = validate(domain)
+      expect(valid).to be(true), "Expected qualified ref to pass but got: #{errors}"
+    end
+
+    it "still rejects unknown unqualified references" do
+      domain = Hecks.domain("Validation") do
+        aggregate("Order") do
+          attribute :name, String
+          reference_to "Nonexistent"
+          command("PlaceOrder") { attribute :name, String }
+        end
+      end
+      valid, errors = validate(domain)
+      expect(valid).to be false
+      expect(errors.any? { |e| e.include?("unknown aggregate") }).to be true
+    end
+  end
+
   describe "References::NoSelfReferences" do
     it "rejects aggregate referencing itself" do
       domain = Hecks.domain("Validation") do

@@ -69,16 +69,27 @@ module Hecks
       private
 
       # Resolves the Ruby class for a reference from the command's domain module.
+      # For cross-domain references (ref.domain non-nil), resolves from the
+      # foreign domain's constant (e.g., BillingDomain::Invoice).
       #
       # @param ref [Hecks::DomainModel::Structure::Reference] the reference IR node
       # @return [Class, nil] the resolved aggregate class, or nil if unresolvable
       def resolve_reference_class(ref)
-        domain_mod = self.class.name.split("::")[0..-4].join("::")
-        mod = domain_mod.empty? ? Object : Object.const_get(domain_mod)
-        begin
-          mod.const_get(ref.type)
-        rescue NameError
-          nil
+        if ref.domain
+          foreign_mod = "#{ref.domain}Domain"
+          begin
+            Object.const_get(foreign_mod).const_get(ref.type)
+          rescue NameError
+            nil
+          end
+        else
+          domain_mod = self.class.name.split("::")[0..-4].join("::")
+          mod = domain_mod.empty? ? Object : Object.const_get(domain_mod)
+          begin
+            mod.const_get(ref.type)
+          rescue NameError
+            nil
+          end
         end
       end
     end

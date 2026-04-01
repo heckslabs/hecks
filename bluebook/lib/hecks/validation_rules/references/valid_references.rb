@@ -29,6 +29,10 @@ module Hecks
 
         @domain.aggregates.each do |agg|
           (agg.references || []).each do |ref|
+            # Cross-domain qualified references (ref.domain non-nil) are validated
+            # at boot time by the multi-domain validator, not at compile time.
+            next if ref.domain
+
             ref_name = ref.type.to_s
 
             # Check if referencing a value object instead of an aggregate
