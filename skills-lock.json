@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "skills": {
+    "andrew-kane-gem-writer": {
+      "source": "everyinc/compound-engineering-plugin",
+      "sourceType": "github",
+      "computedHash": "053f9ad15a8dbdea33fc333821d0417b90910ea3c05b08d2fe3def6401e332cd"
+    },
+    "claude-md-improver": {
+      "source": "anthropics/claude-plugins-official",
+      "sourceType": "github",
+      "computedHash": "d6707ed0467d9664d0f9d2c44724c8fb1814475ec6d3c62a5d54bbbe807e0775"
+    },
+    "cli-design": {
+      "source": "joelhooks/joelclaw",
+      "sourceType": "github",
+      "computedHash": "a501d24af9c02722e22cf3cbd200e5a64a4cd3aa72904553aae707fe4456d542"
+    },
+    "code-review-pro": {
+      "source": "onewave-ai/claude-skills",
+      "sourceType": "github",
+      "computedHash": "445641e6b9eaa5a00f49060259fb4e23a8f339536ec7fc313e39b817dd402a51"
+    },
+    "commit-work": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "88cec816d028de357ae7ede3ace36a2bc235a225e3e7d2bb18cdb5190ab6c482"
+    },
+    "deploy-to-vercel": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
+    },
+    "domain-driven-design": {
+      "source": "wondelai/skills",
+      "sourceType": "github",
+      "computedHash": "01ae2a9d33c87237a174a36e2b9d2f34f796398a2b6ff6ea9d08076417c83545"
+    },
+    "event-driven-architect": {
+      "source": "404kidwiz/claude-supercode-skills",
+      "sourceType": "github",
+      "computedHash": "df22ea5cbe16d3df5e139e7171d28bf37f2f01d55b932a12428cb3bdf6181f53"
+    },
+    "gh-cli": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "cbe644b0c6760ae2a1eaafa39133920d889331327065d92a131675a665273e56"
+    },
+    "linear-cli": {
+      "source": "schpet/linear-cli",
+      "sourceType": "github",
+      "computedHash": "70277ba232286817c648a7ca111dba19f8ed5f4e97bfb43d08ba92c69f0036ba"
+    },
+    "methodical-programming": {
+      "source": "vmvarela/skills",
+      "sourceType": "github",
+      "computedHash": "598c8693eb98b0c5a003b2e40cadcf41b4058c80ec0c1c2c542a5d873fba882c"
+    },
+    "product-marketing-context": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "computedHash": "21dd05f970ba54406d7405f92240853f809d0fed09ef6ca2a9204abcdd21548a"
+    },
+    "refactor-plan": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "e4b09e28e20bcfcd1c48b7a2504fb3cdab4c36b455f2d7689574470c76ea5c2c"
+    },
+    "rspec": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "4275d92422b1c4636fd4c1e9b3e91db63a7ec67d0cae576d50ee6b6a2b869281"
+    },
+    "ruby-pro": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "684d3586c25128d495715fb13b50ce36a2d35a2a91ae4ccd22e4bcfc7c852514"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "e0eced9fbb205c212f420aded0c6f2bf5d5f059254679a8459b4fe72390160be"
+    },
+    "vercel-cli-with-tokens": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "1e1ef4ae4ad838d0ad5f93a659bf065475705cd552bd3c9a2a4faade6098b030"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b1142c5e1bc7b77e8479db09dbabf671f44e1f2d4d9d3eed8cc20cc2c90aeb20"
+    },
+    "vercel-react-native-skills": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "2e9088a7333666d8c2833b8ff58bd51b955501c42b4c7244f72b4cbf22dafcc4"
+    },
+    "vercel-react-view-transitions": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "160157fa34d1497782f5685205132066643b85bdcac8693ff1e8607cc6cee58f"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    }
+  }
+}

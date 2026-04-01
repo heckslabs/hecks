@@ -33,12 +33,4 @@ doc/
 bad_domain/
 screenshots/
 .agents/
-skills-lock.json
-skills/*/
-!skills/hecks-navigator/
-!skills/hecks-precommit/
-!skills/hecks-feature-docs/
-!skills/hecks-bluebook-dsl/
-!skills/hecks-data-contracts/
-!skills/hecks-rename-playbook/
-!skills/hecks-skill-maintenance/
+.claude/skills/
