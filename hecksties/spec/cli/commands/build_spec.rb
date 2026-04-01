@@ -30,4 +30,59 @@ RSpec.describe "hecks build" do
       end
     end
   end
+
+  it "produces a .gem artifact with --gem flag" do
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "verbs.txt"), "Create\n")
+      File.write(File.join(dir, "PizzasBluebook"), <<~RUBY)
+        Hecks.domain "Test" do
+          aggregate "Widget" do
+            attribute :name, String
+            command "CreateWidget" do
+              attribute :name, String
+            end
+          end
+        end
+      RUBY
+
+      Dir.chdir(dir) do
+        cli = Hecks::CLI.new([], gem: true)
+        messages = []
+        allow(cli).to receive(:say) { |msg, *| messages << msg }
+        cli.build
+
+        gem_dir = File.join(dir, "test_domain")
+        gem_files = Dir.glob(File.join(gem_dir, "*.gem"))
+        expect(gem_files).not_to be_empty, "Expected a .gem file in #{gem_dir}"
+        expect(messages).to include(match(/Gem artifact:/))
+      end
+    end
+  end
+
+  it "warns when --gem is used with a non-ruby target" do
+    Dir.mktmpdir do |dir|
+      File.write(File.join(dir, "verbs.txt"), "Create\n")
+      File.write(File.join(dir, "PizzasBluebook"), <<~RUBY)
+        Hecks.domain "Test" do
+          aggregate "Widget" do
+            attribute :name, String
+            command "CreateWidget" do
+              attribute :name, String
+            end
+          end
+        end
+      RUBY
+
+      Dir.chdir(dir) do
+        # Register a fake target so the build succeeds without extra deps
+        Hecks.target_registry.register(:fake, ->(_domain, **_opts) { dir })
+        cli = Hecks::CLI.new([], gem: true, target: "fake")
+        messages = []
+        allow(cli).to receive(:say) { |msg, *| messages << msg }
+        cli.build
+
+        expect(messages).to include("--gem is only supported for ruby and static targets")
+      end
+    end
+  end
 end

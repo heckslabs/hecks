@@ -3,7 +3,8 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
     domain:  { type: :string,  desc: "Domain gem name or path" },
     version: { type: :string,  desc: "Domain version" },
     target:  { type: :string,  desc: "Build target: ruby (default), static, go, node, rails" },
-    static:  { type: :boolean, desc: "Generate static gem (alias for --target static)" }
+    static:  { type: :boolean, desc: "Generate static gem (alias for --target static)" },
+    gem:     { type: :boolean, desc: "Produce a publishable .gem artifact after building" }
   }
 ) do
 
@@ -80,5 +81,23 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
     say "Built #{domain.gem_name} v#{version}", :green
     say "  Docs: #{output}/docs/"
     say "  Output: #{output}/"
+  end
+
+  if options[:gem] && %w[ruby static].include?(target)
+    gemspec = Dir.glob(File.join(output, "*.gemspec")).first
+    if gemspec
+      say "Packaging gem..."
+      result = `cd #{output} && BUNDLE_GEMFILE= gem build #{File.basename(gemspec)} 2>&1`
+      gem_file = Dir.glob(File.join(output, "*.gem")).first
+      if gem_file
+        say "Gem artifact: #{gem_file}", :green
+      else
+        say "gem build failed:\n#{result}", :red
+      end
+    else
+      say "No gemspec found in #{output} — cannot build .gem", :red
+    end
+  elsif options[:gem]
+    say "--gem is only supported for ruby and static targets", :yellow
   end
 end

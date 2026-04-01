@@ -412,6 +412,7 @@
 ## CLI Commands
 - `hecks new NAME` — scaffold a complete project with interactive world goals onboarding (opt-out by pressing Enter; skipped in non-interactive/CI)
 - `hecks build` — validate and generate versioned gem
+- `hecks build --gem` — produce a publishable `.gem` artifact after building (runs `gem build` on generated output); supported for `ruby` and `static` targets
 - `hecks serve [--rpc]` — start REST or JSON-RPC server
 - `hecks console [NAME]` — interactive REPL with domain loaded
 - `hecks validate` — check domain against DDD rules
