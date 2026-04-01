@@ -112,12 +112,18 @@ RSpec.describe GoHecks::ServerGenerator do
       expect(output).to include("func csrfToken(w http.ResponseWriter, r *http.Request) string {")
     end
 
-    it "generates validateCSRF helper function" do
-      expect(output).to include("func validateCSRF(w http.ResponseWriter, r *http.Request) bool {")
+    it "generates CSRFMiddleware struct and constructor" do
+      expect(output).to include("type CSRFMiddleware struct{ next http.Handler }")
+      expect(output).to include("func NewCSRFMiddleware(next http.Handler) *CSRFMiddleware {")
     end
 
-    it "calls validateCSRF in form POST handler" do
-      expect(output).to include("if !validateCSRF(w, r) { return }")
+    it "wraps mux with CSRFMiddleware in ListenAndServe" do
+      expect(output).to include("NewCSRFMiddleware(mux)")
+    end
+
+    it "does not emit inline validateCSRF function or calls" do
+      expect(output).not_to include("func validateCSRF(")
+      expect(output).not_to include("if !validateCSRF(w, r)")
     end
 
     it "passes CsrfToken to index render" do

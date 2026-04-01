@@ -104,7 +104,7 @@ module GoHecks
       lines.concat(config_route)
       lines << "\taddr := fmt.Sprintf(\":%d\", port)"
       lines << "\tfmt.Printf(\"#{@domain.name}Domain on http://localhost%s\\n\", addr)"
-      lines << "\treturn http.ListenAndServe(addr, mux)"
+      lines << "\treturn http.ListenAndServe(addr, NewCSRFMiddleware(mux))"
       lines << "}"
       lines << ""
       lines
@@ -155,13 +155,21 @@ module GoHecks
         "\treturn token",
         "}",
         "",
-        "func validateCSRF(w http.ResponseWriter, r *http.Request) bool {",
-        "\tc, err := r.Cookie(\"_csrf_token\")",
-        "\tif err != nil || c.Value == \"\" || c.Value != r.FormValue(\"_csrf_token\") {",
-        "\t\thttp.Error(w, \"Forbidden: CSRF token mismatch\", http.StatusForbidden)",
-        "\t\treturn false",
+        "type CSRFMiddleware struct{ next http.Handler }",
+        "",
+        "func NewCSRFMiddleware(next http.Handler) *CSRFMiddleware {",
+        "\treturn &CSRFMiddleware{next: next}",
+        "}",
+        "",
+        "func (m *CSRFMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {",
+        "\tif r.Method == \"POST\" && r.Header.Get(\"Content-Type\") != \"application/json\" {",
+        "\t\tcookie, err := r.Cookie(\"_csrf_token\")",
+        "\t\tif err != nil || r.FormValue(\"_csrf_token\") != cookie.Value {",
+        "\t\t\thttp.Error(w, \"CSRF validation failed\", http.StatusForbidden)",
+        "\t\t\treturn",
+        "\t\t}",
         "\t}",
-        "\treturn true",
+        "\tm.next.ServeHTTP(w, r)",
         "}",
       ]
     end

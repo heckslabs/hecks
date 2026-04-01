@@ -123,7 +123,6 @@ module GoHecks
         lines << "\t\t\tif err := json.NewDecoder(r.Body).Decode(&cmd); err != nil { http.Error(w, `{\"error\":\"invalid json\"}`, 400); return }"
         lines << "\t\t} else {"
         lines << "\t\t\tr.ParseForm()"
-        lines << "\t\t\tif !validateCSRF(w, r) { return }"
         cmd.attributes.each do |a|
           field = GoUtils.pascal_case(a.name)
           go_type = GoUtils.go_type(a)
