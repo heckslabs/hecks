@@ -17,15 +17,19 @@ module BlueBook
       play! sketch! reset! events history save to_dsl
     ].freeze
 
-    HANDLE_METHODS = %w[
-      describe preview attributes commands entities value_objects
-      attr command remove remove_command remove_event remove_policy
-      remove_validation remove_query remove_scope remove_specification
-      remove_subscriber remove_value_object remove_entity
-      validation lifecycle policy query scope entity value_object
-      transition specification
-      create new all find count
-    ].freeze
+    HANDLE_METHODS = begin
+      dsl_methods = (Hecks::DSL::AggregateBuilder.public_instance_methods -
+                     Object.public_instance_methods).map(&:to_s)
+      crud = %w[create new all find count]
+      introspection = %w[describe preview errors valid?]
+      # attr: shorthand for attribute used in workshop handles
+      # transition: lifecycle sub-DSL method used directly at aggregate level
+      workshop_aliases = %w[attr transition]
+      remove_ops = %w[remove remove_command remove_event remove_policy remove_validation
+                      remove_query remove_scope remove_specification remove_subscriber
+                      remove_value_object remove_entity]
+      (dsl_methods + crud + introspection + workshop_aliases + remove_ops).uniq.freeze
+    end
 
     TYPE_MAP = {
       "String" => String, "Integer" => Integer, "Float" => Float,

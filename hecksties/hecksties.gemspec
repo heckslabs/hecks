@@ -13,6 +13,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.files         = Dir["lib/**/*"] + ["README.md"]
 
+  spec.add_dependency "bluebook", Hecks::VERSION
   spec.add_dependency "rwordnet", ">= 1.0", "< 3.0"
   spec.add_dependency "activemodel", ">= 6.0", "< 10.0"
 end
