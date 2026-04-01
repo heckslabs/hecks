@@ -9,6 +9,7 @@
 #   domain   = Hecks::DomainVersioning.load_version("2.1.0", base_dir: Dir.pwd)
 #
 require_relative "domain_versioning/breaking_classifier"
+require_relative "domain_versioning/breaking_bumper"
 
 module Hecks
   module DomainVersioning

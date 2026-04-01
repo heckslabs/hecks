@@ -67,6 +67,34 @@ hecks diff
 # No changes detected (v2.1.0 -> working).
 ```
 
+## Auto-bump on breaking changes
+
+When you run `hecks build`, the build command compares your current domain
+against the latest tagged snapshot. If any breaking changes are detected,
+the CalVer version is auto-bumped and the breaking changes are printed:
+
+```bash
+hecks build
+# Breaking changes detected — auto-bumped to v2026.04.01.2:
+#   - command: Account.CloseAccount
+# Built banking v2026.04.01.2
+#   Output: banking/
+```
+
+If no previous snapshot exists (first build) or changes are non-breaking,
+the version is assigned normally without a bump.
+
+The `BreakingBumper` service can also be used programmatically:
+
+```ruby
+versioner  = Hecks::Versioner.new(".")
+old_domain = Hecks::DomainVersioning.load_version("1.0.0", base_dir: ".")
+result     = Hecks::DomainVersioning::BreakingBumper.call(old_domain, new_domain, versioner)
+result[:bumped]           # => true
+result[:version]          # => "2026.04.01.2"
+result[:breaking_changes] # => [{ change: ..., label: "- command: Account.CloseAccount", breaking: true }]
+```
+
 ## Breaking change rules
 
 A change is **BREAKING** if:

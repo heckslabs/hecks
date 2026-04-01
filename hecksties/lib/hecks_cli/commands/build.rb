@@ -21,7 +21,16 @@ Hecks::CLI.register_command(:build, "Generate the domain gem",
 
   target = options[:target] || (options[:static] ? "static" : "ruby")
   versioner = Hecks::Versioner.new(".")
-  version = versioner.next
+
+  latest_ver = Hecks::DomainVersioning.latest_version(base_dir: ".")
+  old_domain = latest_ver ? Hecks::DomainVersioning.load_version(latest_ver, base_dir: ".") : nil
+  bump_result = Hecks::DomainVersioning::BreakingBumper.call(old_domain, domain, versioner)
+  version = bump_result[:version]
+
+  if bump_result[:bumped]
+    say "Breaking changes detected — auto-bumped to v#{version}:", :yellow
+    bump_result[:breaking_changes].each { |c| say "  #{c[:label]}", :red }
+  end
 
   builder = Hecks.target_registry[target.to_sym]
   unless builder

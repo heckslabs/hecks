@@ -336,6 +336,7 @@
 - `hecks diff` — diff working domain against latest tagged version (falls back to build snapshot)
 - Breaking change classification: removed commands, removed attributes, removed aggregates marked as BREAKING
 - Non-breaking changes: added commands, added attributes, added queries, added scopes
+- Auto-bump domain version on breaking changes: `hecks build` compares against the latest tagged snapshot and auto-bumps CalVer when breaking changes are detected
 
 ## Migrations & Schema Evolution
 - `DomainDiff` detects added/removed aggregates, attributes, VOs, entities, indexes, commands, policies, validations, invariants, queries, scopes, subscribers, specifications
