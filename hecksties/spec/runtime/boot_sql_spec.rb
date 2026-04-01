@@ -91,7 +91,7 @@ RSpec.describe "Hecks.boot with SQL adapter" do
           reference_to "Owner"
           attribute :price, Float
           command "CreateProduct" do
-            reference_to "Owner"
+            reference_to "Owner", validate: :exists
             attribute :price, Float
           end
         end

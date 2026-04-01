@@ -12,6 +12,7 @@ require_relative "runtime/constant_hoisting"
 require_relative "runtime/connection_setup"
 require_relative "runtime/service_setup"
 require_relative "runtime/auth_coverage_check"
+require_relative "runtime/reference_authorizer_check"
 
 module Hecks
   # Hecks::Runtime
@@ -60,6 +61,7 @@ module Hecks
       include ConstantHoisting
       include ConnectionSetup
       include AuthCoverageCheck
+      include ReferenceCoverageCheck
       include SagaSetup
 
       # @return [Hecks::DomainModel::Structure::Domain] the domain IR object this runtime is wired to

@@ -26,7 +26,7 @@ Hecks.domain "Pizzas" do
     end
 
     command "AddTopping" do
-      reference_to "Pizza"
+      reference_to "Pizza", validate: :exists
       attribute :name, String
       attribute :amount, Integer
     end
@@ -53,12 +53,12 @@ Hecks.domain "Pizzas" do
 
     command "PlaceOrder" do
       attribute :customer_name, String
-      reference_to "Pizza"
+      reference_to "Pizza", validate: :exists
       attribute :quantity, Integer
     end
 
     command "CancelOrder" do
-      reference_to "Order"
+      reference_to "Order", validate: :exists
     end
 
     query "Pending" do

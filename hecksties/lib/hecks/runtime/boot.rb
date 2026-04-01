@@ -101,6 +101,7 @@ module Hecks
       end
 
       runtime.check_auth_coverage!
+      runtime.check_reference_coverage!
     end
 
     def autoload_services(dir)
