@@ -20,48 +20,9 @@ module GoHecks
 
           agg.commands.each do |cmd|
             cmd_snake = GoUtils.snake_case(cmd.name)
-            self_id = ac.self_ref_attr(cmd, agg_snake)
 
             lines << "\tmux.HandleFunc(\"GET #{HecksTemplating::RouteContract.form_path(plural, cmd_snake)}\", func(w http.ResponseWriter, r *http.Request) {"
-            lines << "\t\tfields := []FormField{"
-            cmd.attributes.each do |a|
-              if a == self_id
-                lines << "\t\t\t{Type: \"hidden\", Name: \"#{a.name}\", Value: r.URL.Query().Get(\"id\")},"
-              else
-                agg_attr = agg.attributes.find { |aa| aa.name == a.name }
-                enum_values = agg_attr&.enum
-                label = HecksTemplating::UILabelContract.label(a.name)
-                if enum_values && !enum_values.empty?
-                  opts = enum_values.map { |v| "FormOption{Value: \"#{v}\", Label: \"#{v}\"}" }.join(", ")
-                  lines << "\t\t\t{Type: \"select\", Name: \"#{a.name}\", Label: \"#{label}\", Required: true, Options: []FormOption{#{opts}}},"
-                else
-                  go_type = GoUtils.go_type(a)
-                  input_type = HecksTemplating::FormParsingContract.input_type(go_type)
-                  step = HecksTemplating::FormParsingContract.step?(go_type) ? ", Step: true" : ""
-                  lines << "\t\t\t{Type: \"input\", Name: \"#{a.name}\", Label: \"#{label}\", InputType: \"#{input_type}\", Required: true#{step}},"
-                end
-              end
-            end
-            # Reference dropdowns (placeholders, built dynamically below)
-            (cmd.references || []).each do |ref|
-              lines << "\t\t\t// #{ref.type} dropdown built dynamically below"
-            end
-            lines << "\t\t}"
-
-            # Build dropdowns for reference fields
-            (cmd.references || []).each do |ref|
-              ref_agg = @domain.aggregates.find { |ra| ra.name == ref.type }
-              next unless ref_agg
-              ref_safe = ref_agg.name
-              display = HecksTemplating::DisplayContract.go_reference_display_field(ref_agg)
-              label = HecksTemplating::UILabelContract.label(ref.name.to_s)
-              lines << "\t\t#{ref_safe.downcase}s, _ := app.#{ref_safe}Repo.All()"
-              lines << "\t\tvar #{ref_safe.downcase}Opts []FormOption"
-              lines << "\t\tfor _, item := range #{ref_safe.downcase}s {"
-              lines << "\t\t\t#{ref_safe.downcase}Opts = append(#{ref_safe.downcase}Opts, FormOption{Value: item.ID, Label: fmt.Sprintf(\"%v\", item.#{display}), Selected: item.ID == r.URL.Query().Get(\"id\")})"
-              lines << "\t\t}"
-              lines << "\t\tfields = append(fields, FormField{Type: \"select\", Name: \"#{ref.name}\", Label: \"#{label}\", Required: true, Options: #{ref_safe.downcase}Opts})"
-            end
+            lines.concat(build_form_fields_go(cmd, agg, agg_snake, value_source: :query))
 
             lines << "\t\trenderer.Render(w, \"form\", \"#{cmd.name}\", FormData{"
             lines << "\t\t\tCommandName: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\","
@@ -71,6 +32,57 @@ module GoHecks
             lines << "\t})"
             lines << ""
           end
+        end
+        lines
+      end
+
+      def build_form_fields_go(cmd, agg, agg_snake, value_source: :query)
+        ac = HecksTemplating::AggregateContract
+        self_id = ac.self_ref_attr(cmd, agg_snake)
+        lines = []
+        lines << "\t\tfields := []FormField{"
+        cmd.attributes.each do |a|
+          if a == self_id
+            id_val = value_source == :form ? "r.FormValue(\"#{a.name}\")" : "r.URL.Query().Get(\"id\")"
+            lines << "\t\t\t{Type: \"hidden\", Name: \"#{a.name}\", Value: #{id_val}},"
+          else
+            agg_attr = agg.attributes.find { |aa| aa.name == a.name }
+            enum_values = agg_attr&.enum
+            label = HecksTemplating::UILabelContract.label(a.name)
+            if enum_values && !enum_values.empty?
+              opts = enum_values.map { |v| "FormOption{Value: \"#{v}\", Label: \"#{v}\"}" }.join(", ")
+              lines << "\t\t\t{Type: \"select\", Name: \"#{a.name}\", Label: \"#{label}\", Required: true, Options: []FormOption{#{opts}}},"
+            else
+              go_type = GoUtils.go_type(a)
+              input_type = HecksTemplating::FormParsingContract.input_type(go_type)
+              step = HecksTemplating::FormParsingContract.step?(go_type) ? ", Step: true" : ""
+              val = value_source == :form ? ", Value: r.FormValue(\"#{a.name}\")" : ""
+              lines << "\t\t\t{Type: \"input\", Name: \"#{a.name}\", Label: \"#{label}\", InputType: \"#{input_type}\", Required: true#{step}#{val}},"
+            end
+          end
+        end
+        # Reference dropdowns (placeholders, built dynamically below)
+        (cmd.references || []).each do |ref|
+          lines << "\t\t\t// #{ref.type} dropdown built dynamically below"
+        end
+        lines << "\t\t}"
+
+        # Build dropdowns for reference fields
+        (cmd.references || []).each do |ref|
+          ref_agg = @domain.aggregates.find { |ra| ra.name == ref.type }
+          next unless ref_agg
+          ref_safe = ref_agg.name
+          display = HecksTemplating::DisplayContract.go_reference_display_field(ref_agg)
+          label = HecksTemplating::UILabelContract.label(ref.name.to_s)
+          selected_expr = value_source == :form \
+            ? "item.ID == r.FormValue(\"#{ref.name}\")" \
+            : "item.ID == r.URL.Query().Get(\"id\")"
+          lines << "\t\t#{ref_safe.downcase}s, _ := app.#{ref_safe}Repo.All()"
+          lines << "\t\tvar #{ref_safe.downcase}Opts []FormOption"
+          lines << "\t\tfor _, item := range #{ref_safe.downcase}s {"
+          lines << "\t\t\t#{ref_safe.downcase}Opts = append(#{ref_safe.downcase}Opts, FormOption{Value: item.ID, Label: fmt.Sprintf(\"%v\", item.#{display}), Selected: #{selected_expr}})"
+          lines << "\t\t}"
+          lines << "\t\tfields = append(fields, FormField{Type: \"select\", Name: \"#{ref.name}\", Label: \"#{label}\", Required: true, Options: #{ref_safe.downcase}Opts})"
         end
         lines
       end

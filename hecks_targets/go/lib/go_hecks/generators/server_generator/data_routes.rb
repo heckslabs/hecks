@@ -85,7 +85,10 @@ module GoHecks
       end
 
       def command_route(safe, plural, cmd)
+        ac = HecksTemplating::AggregateContract
         cmd_snake = GoUtils.snake_case(cmd.name)
+        agg_snake = GoUtils.snake_case(safe)
+        agg = @domain.aggregates.find { |a| a.name == safe }
         lines = []
         lines << "\tmux.HandleFunc(\"POST #{HecksTemplating::RouteContract.submit_path(plural, cmd_snake)}\", func(w http.ResponseWriter, r *http.Request) {"
         lines << "\t\tvar cmd domain.#{cmd.name}"
@@ -103,7 +106,14 @@ module GoHecks
         lines << "\t\tif event != nil { app.EventBus.Publish(event) }"
         lines << "\t\tif err != nil {"
         lines << "\t\t\tif r.Header.Get(\"Content-Type\")==\"application/json\" { jsonError(w, err); return }"
-        lines << "\t\t\thttp.Error(w, err.Error(), 422); return"
+        lines.concat(build_form_fields_go(cmd, agg, agg_snake, value_source: :form).map { |l| "\t" + l })
+        lines << "\t\t\tw.WriteHeader(422)"
+        lines << "\t\t\trenderer.Render(w, \"form\", \"#{cmd.name}\", FormData{"
+        lines << "\t\t\t\tCommandName: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\","
+        lines << "\t\t\t\tAction: \"/#{plural}/#{cmd_snake}\","
+        lines << "\t\t\t\tErrorMessage: err.Error(),"
+        lines << "\t\t\t\tFields: fields,"
+        lines << "\t\t\t}); return"
         lines << "\t\t}"
         lines << "\t\tif r.Header.Get(\"Content-Type\")==\"application/json\" { w.WriteHeader(201); jsonResponse(w, agg) } else {"
         lines << "\t\t\thttp.Redirect(w, r, \"/#{plural}/show?id=\"+agg.ID, http.StatusSeeOther)"

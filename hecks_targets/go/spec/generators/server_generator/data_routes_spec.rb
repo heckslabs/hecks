@@ -47,6 +47,17 @@ RSpec.describe GoHecks::ServerGenerator do
       expect(output).to include("json.NewDecoder(r.Body).Decode(&cmd)")
       expect(output).to include("r.ParseForm()")
     end
+
+    it "re-renders form with error message on validation failure instead of raw http.Error 422" do
+      expect(output).not_to include("http.Error(w, err.Error(), 422)")
+      expect(output).to include("ErrorMessage: err.Error()")
+      expect(output).to include('renderer.Render(w, "form"')
+      expect(output).to include("w.WriteHeader(422)")
+    end
+
+    it "preserves submitted field values in error re-render using r.FormValue" do
+      expect(output).to include('Value: r.FormValue("name")')
+    end
   end
 
   describe "show route" do
