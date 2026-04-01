@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please report it privately by emailing **hecks-security@example.com**.
+If you discover a security vulnerability, please report it privately by emailing **security@hecks.dev**.
 
 Do **not** open a public GitHub issue for security vulnerabilities.
 

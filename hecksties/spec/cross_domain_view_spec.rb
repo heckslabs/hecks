@@ -4,10 +4,11 @@ RSpec.describe Hecks::CrossDomainView do
   let(:bus) { Hecks::EventBus.new }
 
   def make_event(name, **attrs)
-    klass = Struct.new(*attrs.keys, keyword_init: true) do
+    fields = attrs.empty? ? { _: nil } : attrs
+    klass = Struct.new(*fields.keys, keyword_init: true) do
       define_method(:class) { Class.new { define_method(:name) { name } }.new }
     end
-    klass.new(**attrs)
+    klass.new(**fields)
   end
 
   it "projects events into state" do

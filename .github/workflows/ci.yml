@@ -8,15 +8,24 @@ on:
 
 jobs:
   test:
-    name: Test Suite
+    name: Ruby ${{ matrix.ruby }}
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "3.3"]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.3"
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+
       - name: Run specs
         run: bundle exec rspec
+
       - name: Smoke test
         run: bundle exec ruby examples/pizzas/app.rb

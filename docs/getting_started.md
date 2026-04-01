@@ -1,5 +1,13 @@
 # Getting Started with Hecks
 
+> **Note:** The `hecks` gem is not yet published to RubyGems. Install from source instead:
+> ```bash
+> git clone https://github.com/hecks-rb/hecks.git
+> cd hecks
+> bundle install
+> ```
+> Then use `bundle exec ruby -Ilib` in place of `ruby` in the examples below.
+
 From zero to a running domain in 10 minutes.
 
 Hecks is a domain compiler. You describe your business in a single Ruby DSL file — the Bluebook — and Hecks builds everything: typed aggregates, commands that emit events, lifecycle state machines, queries, and a web explorer. You own the output.
