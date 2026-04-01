@@ -43,6 +43,7 @@ module Hecks
     autoload :MultiDomainServer,  "hecks/extensions/serve/multi_domain_server"
     autoload :RpcServer,          "hecks/extensions/serve/rpc_server"
     autoload :RouteBuilder,       "hecks/extensions/serve/route_builder"
+    autoload :CommandBusPort,     "hecks/extensions/serve/command_bus_port"
     autoload :OpenapiGenerator,   "hecks/generators/docs/openapi_generator"
     autoload :RpcDiscovery,       "hecks/generators/docs/rpc_discovery"
     autoload :JsonSchemaGenerator, "hecks/generators/docs/json_schema_generator"

@@ -22,9 +22,10 @@ module Hecks
       # @param mod [Module] the domain module constant (e.g. +PizzasDomain+)
       #   that holds the generated aggregate classes
       # @return [RouteBuilder] a new builder ready to generate routes
-      def initialize(domain, mod)
+      def initialize(domain, mod, port: nil)
         @domain = domain
         @mod = mod
+        @port = port
         @whitelist = Hecks::Conventions::DispatchContract.build_whitelist(domain)
       end
 
@@ -63,10 +64,15 @@ module Hecks
       # @param slug [String] the URL slug (e.g. "pizzas")
       # @return [Array<Hash>] the generated CRUD route hashes
       def crud_routes(agg, klass, slug)
+        port = @port
         routes = []
-        routes << { method: "GET", path: "/#{slug}", handler: ->(_) { klass.all.map { |r| serialize(r) } } }
+        routes << { method: "GET", path: "/#{slug}", handler: ->(_) {
+          results = port ? port.read(klass, agg.name, :all) : klass.all
+          results.map { |r| serialize(r) }
+        }}
         routes << { method: "GET", path: "/#{slug}/:id", handler: ->(req) {
-          result = klass.find(req.path.split("/").last)
+          id = req.path.split("/").last
+          result = port ? port.read(klass, agg.name, :find, id) : klass.find(id)
           result ? serialize(result) : (raise "Not found")
         }}
 
@@ -75,21 +81,33 @@ module Hecks
           m = derive_method(create_cmd.name, agg.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, m)
           routes << { method: "POST", path: "/#{slug}", handler: ->(req) {
-            serialize(klass.send(m, **parse_body(req)))
+            if port
+              serialize(port.dispatch(create_cmd.name, **parse_body(req)))
+            else
+              m = derive_method(create_cmd.name, agg.name)
+              serialize(klass.send(m, **parse_body(req)))
+            end
           }}
         end
 
         update_cmd = agg.commands.find { |c| c.name.start_with?("Update") }
         if update_cmd
           routes << { method: "PATCH", path: "/#{slug}/:id", handler: ->(req) {
-            existing = klass.find(req.path.split("/").last)
+            id = req.path.split("/").last
+            existing = port ? port.read(klass, agg.name, :find, id) : klass.find(id)
             raise "Not found" unless existing
             serialize(existing.update(**parse_body(req)))
           }}
         end
 
         routes << { method: "DELETE", path: "/#{slug}/:id", handler: ->(req) {
-          id = req.path.split("/").last; klass.delete(id); { deleted: id }
+          id = req.path.split("/").last
+          if port
+            port.read(klass, agg.name, :delete, id)
+          else
+            klass.delete(id)
+          end
+          { deleted: id }
         }}
         routes
       end
@@ -104,12 +122,18 @@ module Hecks
       # @param slug [String] the URL slug
       # @return [Array<Hash>] the generated query route hashes
       def query_routes(agg, klass, slug)
+        port = @port
         agg.queries.map do |query|
           qn = domain_snake_name(query.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           { method: "GET", path: "/#{slug}/#{qn}", handler: ->(req) {
-            results = params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *params.map { |_, n| req.params[n.to_s] })
+            args = params.map { |_, n| req.params[n.to_s] }
+            results = if port
+              params.empty? ? port.read(klass, agg.name, qn.to_sym) : port.read(klass, agg.name, qn.to_sym, *args)
+            else
+              params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *args)
+            end
             results.respond_to?(:map) ? results.map { |r| serialize(r) } : results
           }}
         end

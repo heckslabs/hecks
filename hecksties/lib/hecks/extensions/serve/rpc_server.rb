@@ -1,6 +1,7 @@
 require "webrick"
 require "json"
 require "tmpdir"
+require_relative "command_bus_port"
 
 module Hecks
   module HTTP
@@ -122,6 +123,7 @@ module Hecks
         end
         @mod = Object.const_get(mod_name)
         @app = Runtime.new(@domain)
+        @port = CommandBusPort.new(command_bus: @app.command_bus)
       end
 
       # Register all RPC methods for all aggregates.
@@ -149,11 +151,12 @@ module Hecks
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_commands(agg, klass)
+        port = @port
         agg.commands.each do |cmd|
           method_name = domain_command_method(cmd.name, agg.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, method_name)
           @methods[cmd.name] = ->(params) {
-            serialize(klass.send(method_name, **params.transform_keys(&:to_sym)))
+            serialize(port.dispatch(cmd.name, **params.transform_keys(&:to_sym)))
           }
         end
       end
@@ -168,13 +171,14 @@ module Hecks
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_queries(agg, klass)
+        port = @port
         agg.queries.each do |query|
           qn = domain_snake_name(query.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           @methods["#{agg.name}.#{qn}"] = ->(p) {
             args = params.map { |_, name| p[name.to_s] }
-            results = params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *args)
+            results = params.empty? ? port.read(klass, agg.name, qn.to_sym) : port.read(klass, agg.name, qn.to_sym, *args)
             results.respond_to?(:map) ? results.map { |r| serialize(r) } : results
           }
         end
@@ -192,14 +196,15 @@ module Hecks
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_crud(agg, klass)
+        port = @port
         name = agg.name
         @methods["#{name}.find"] = ->(p) {
-          result = klass.find(p["id"])
+          result = port.read(klass, name, :find, p["id"])
           result ? serialize(result) : (raise "Not found")
         }
-        @methods["#{name}.all"] = ->(_) { klass.all.map { |r| serialize(r) } }
-        @methods["#{name}.count"] = ->(_) { klass.count }
-        @methods["#{name}.delete"] = ->(p) { klass.delete(p["id"]); { deleted: p["id"] } }
+        @methods["#{name}.all"] = ->(_) { port.read(klass, name, :all).map { |r| serialize(r) } }
+        @methods["#{name}.count"] = ->(_) { port.read(klass, name, :count) }
+        @methods["#{name}.delete"] = ->(p) { port.read(klass, name, :delete, p["id"]); { deleted: p["id"] } }
       end
 
       # Serialize a domain object into a plain Hash using Hecks::Utils.

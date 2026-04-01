@@ -3,6 +3,7 @@ require "json"
 require "stringio"
 require "tmpdir"
 require_relative "route_builder"
+require_relative "command_bus_port"
 require_relative "csrf_helpers"
 
 module Hecks
@@ -165,7 +166,8 @@ module Hecks
         end
         @mod = Object.const_get(mod_name)
         @app = Runtime.new(@domain)
-        @routes = RouteBuilder.new(@domain, @mod).build
+        @port = CommandBusPort.new(command_bus: @app.command_bus)
+        @routes = RouteBuilder.new(@domain, @mod, port: @port).build
       end
 
       # Check if a route pattern matches a request path.

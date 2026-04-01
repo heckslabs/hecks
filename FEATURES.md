@@ -428,6 +428,14 @@
 - `add_attribute` tool for adding individual attributes to existing aggregates
 - All tool output uses `capture_output` to show the same terse feedback as the REPL
 
+### Command Bus Port (HTTP Adapter Boundary)
+- `Hecks::HTTP::CommandBusPort` — explicit port between HTTP routes and the domain
+- Mutations route through the `CommandBus` middleware pipeline via `port.dispatch`
+- Reads validate against a safety whitelist (blocks `eval`, `system`, `exec`, `send`, etc.)
+- Port-level middleware fires before the command bus — `port.use(:name) { |cmd, attrs, next_fn| ... }`
+- Port middleware can short-circuit requests without reaching the domain
+- `DomainServer` and `RpcServer` both use the port for all dispatch
+
 ### Self-Discoverable HTTP API
 - `GET /_openapi` returns the OpenAPI 3.0 spec as JSON
 - `GET /_schema` returns JSON Schema definitions
