@@ -85,6 +85,8 @@
 
 ### Application Service Extensions
 - `hecks_auth` — actor-based authentication & authorization
+- Default-secure auth: raises `ConfigurationError` at boot when actor-protected commands exist but no `:auth` extension is registered
+- Explicit opt-out: `extend :auth, enforce: false` registers a no-op sentinel that satisfies the check
 - `hecks_tenancy` — multi-tenant isolation (`Hecks.tenant = "acme"`)
 - `hecks_audit` — audit trail of every command execution
 - `hecks_logging` — structured stdout logging with duration

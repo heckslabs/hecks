@@ -27,7 +27,17 @@ Hecks.describe_extension(:auth,
   config: {},
   wires_to: :command_bus)
 
-Hecks.register_extension(:auth) do |domain_mod, domain, runtime|
+Hecks.register_extension(:auth) do |domain_mod, domain, runtime, **opts|
+  # When enforce: false, register a no-op sentinel middleware that satisfies
+  # the auth coverage check without actually enforcing access control.
+  # This documents an intentional decision to skip authorization.
+  if opts[:enforce] == false
+    runtime.use :auth do |_command, next_handler|
+      next_handler.call
+    end
+    next
+  end
+
   # Build a lookup of command class name → required actor roles.
   #
   # Iterates all aggregates and their commands, collecting any that have

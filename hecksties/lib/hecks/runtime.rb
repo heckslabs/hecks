@@ -8,6 +8,7 @@ require_relative "runtime/workflow_setup"
 require_relative "runtime/constant_hoisting"
 require_relative "runtime/connection_setup"
 require_relative "runtime/service_setup"
+require_relative "runtime/auth_coverage_check"
 
 module Hecks
   # Hecks::Runtime
@@ -55,6 +56,7 @@ module Hecks
       include WorkflowSetup
       include ConstantHoisting
       include ConnectionSetup
+      include AuthCoverageCheck
 
       # @return [Hecks::DomainModel::Structure::Domain] the domain IR object this runtime is wired to
       attr_reader :domain
@@ -223,7 +225,7 @@ module Hecks
         if kwargs.any? && @mod.respond_to?(:connections)
           @mod.connections[:sends] << { name: name.to_sym, **kwargs }
         end
-        hook.call(@mod, @domain, self)
+        hook.call(@mod, @domain, self, **kwargs)
         puts "#{name} extension applied"
       end
 

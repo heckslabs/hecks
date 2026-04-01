@@ -99,6 +99,8 @@ module Hecks
         next if explicit && !config.extensions.key?(name)
         hook.call(mod, domain, runtime)
       end
+
+      runtime.check_auth_coverage!
     end
 
     def autoload_services(dir)
