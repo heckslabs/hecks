@@ -80,6 +80,15 @@ Hecks.domain "Banking" do
     prefer "stakeholder", not: ["user", "person"]
   end
 
+  # Long-running cross-aggregate coordination
+  saga "OrderFulfillment" do
+    step "ReserveInventory", on_success: "ChargePayment", on_failure: "CancelOrder"
+    step "ChargePayment",    on_success: "ShipOrder",     on_failure: "RefundReservation"
+    step "ShipOrder"
+    compensation "ReleaseInventory"
+    compensation "RefundPayment"
+  end
+
   # Logical grouping
   domain_module "PolicyManagement" do
     aggregate "GovernancePolicy" do ... end
@@ -106,6 +115,74 @@ Hecks.domain "Pizzas" do
   end
 end
 ```
+
+---
+
+## Glossary
+
+The glossary enforces ubiquitous language — the shared vocabulary your team uses. It warns when banned terms appear in attribute names, command names, or event names.
+
+```ruby
+Hecks.domain "Banking" do
+  glossary do
+    prefer "customer", not: ["user", "client"]
+    prefer "account",  not: ["wallet", "fund"]
+  end
+end
+```
+
+When a banned term is detected, the compiler emits a warning: `"Use 'customer', not 'user' (found in attribute 'user_name')"`.
+
+Multiple `prefer` rules can be declared in the same block:
+
+```ruby
+glossary do
+  prefer "invoice",   not: ["bill", "receipt"]
+  prefer "customer",  not: ["user", "client", "buyer"]
+  prefer "shipment",  not: ["delivery", "parcel"]
+end
+```
+
+---
+
+## Saga
+
+A saga coordinates a long-running process that spans multiple aggregates and commands. Use sagas when a single business operation requires several sequential steps — and each step may need to be undone if a later step fails.
+
+Unlike a workflow (which branches based on specification predicates), a saga defines explicit success and failure transitions between named commands.
+
+```ruby
+Hecks.domain "Fulfillment" do
+  saga "OrderFulfillment" do
+    step "ReserveInventory", on_success: "ChargePayment", on_failure: "CancelOrder"
+    step "ChargePayment",    on_success: "ShipOrder",     on_failure: "RefundReservation"
+    step "ShipOrder"
+    compensation "ReleaseInventory"
+    compensation "RefundPayment"
+  end
+end
+```
+
+### step
+
+```ruby
+step "CommandName", on_success: "NextCommand", on_failure: "RollbackCommand"
+```
+
+- `on_success:` — the command to trigger when this step completes successfully
+- `on_failure:` — the command to trigger when this step raises an error
+
+Both options are optional. A step without `on_success` is the terminal step.
+
+### compensation
+
+```ruby
+compensation "CommandName"
+```
+
+Registers a rollback command. Compensations are collected in declaration order and run in reverse if the saga must unwind. Each compensation should undo the effects of its corresponding step.
+
+Saga definitions are stored in the domain IR and available via `domain.sagas`. See [Sagas](sagas.md) for a full walkthrough.
 
 ---
 
@@ -317,6 +394,23 @@ The command verb is automatically converted to past tense:
 | SubmitApplication | SubmittedApplication |
 | SendInvoice | SentInvoice |
 | DenyRequest | DeniedRequest |
+
+### emits — explicit event names
+
+Generated command classes use `emits` to declare the event name rather than relying on the inferred past-tense conjugation. This is useful when the inferred name is awkward or when a command should emit a domain-specific event name:
+
+```ruby
+class PublishPost
+  include Hecks::Command
+  emits "PostPublished"   # overrides inferred "PublishedPost"
+
+  def call
+    Post.new(...)
+  end
+end
+```
+
+The `emits` declaration is set automatically by the code generator based on the domain IR. When using the DSL, the inferred event name is used unless the command has an explicit `emits:` value in the IR.
 
 ### Implicit syntax
 

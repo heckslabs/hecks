@@ -15,6 +15,7 @@ RSpec.describe Hecks::ValidationRules::Naming::GlossaryTermViolations do
       domain = build_domain do
         aggregate "Customer" do
           attribute :name, String
+          attribute :email, String
           command "CreateCustomer" do
             attribute :name, String
           end

@@ -70,6 +70,12 @@
 - In-memory `SagaStore` for saga instance persistence (swappable for Redis/SQL)
 - `SagaRunner` state machine: pending -> running -> compensating -> completed/failed
 - Wired as `start_<saga_name>` methods on the domain module: `OrdersDomain.start_order_fulfillment(...)`
+- Steps declare success and failure transitions to other named commands
+- Compensations are rollback commands run in reverse order if the saga must unwind
+- Saga definitions stored in domain IR and available via `domain.sagas`
+
+### Ubiquitous Language
+- `glossary { prefer "customer", not: ["user", "client"] }` — warn when banned terms appear in names across aggregates, commands, and events
 
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer
