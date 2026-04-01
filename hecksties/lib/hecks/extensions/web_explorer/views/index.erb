@@ -33,6 +33,7 @@
             <% row_actions.each do |action| %>
               <% if action[:direct] %>
                 <form class="inline" method="post" action="<%= action[:href_prefix] %>">
+                  <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
                   <input type="hidden" name="<%= action[:id_field] %>" value="<%= item[:id] %>">
                   <button class="btn btn-sm<%= ' btn-faded' unless action[:allowed] %>" type="submit"><%= action[:label] %></button>
                 </form>

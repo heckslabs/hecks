@@ -11,10 +11,10 @@ module HecksTemplating
       private
 
       # Submit a form the way a browser would:
-      # 1. GET the form page
+      # 1. GET the form page (capturing Set-Cookie for CSRF)
       # 2. Parse action URL and all input fields from HTML
       # 3. Fill empty fields with sample data
-      # 4. POST form-urlencoded to the action URL
+      # 4. POST form-urlencoded with CSRF cookie forwarded
       # 5. Expect redirect (3xx) or success (2xx)
       #
       # @param form_path [String] GET path for the form page (e.g., /pizzas/create_pizza/new)
@@ -31,9 +31,12 @@ module HecksTemplating
         results << get_result
         return results unless get_result.status == :pass
 
-        # 2. Parse the HTML
+        # 2. Parse the HTML — also capture CSRF cookie from GET response
         uri = URI("#{@base}#{form_path}")
-        html = Net::HTTP.get(uri)
+        get_res = Net::HTTP.get_response(uri)
+        html = get_res.body
+        csrf_cookie = parse_csrf_cookie(get_res)
+
         plural, cmd_snake = form_path.split("/").drop(1).first(2)
         action = parse_form_action(html) || HecksTemplating::RouteContract.submit_path(plural, cmd_snake)
         fields = parse_form_fields(html)
@@ -64,9 +67,9 @@ module HecksTemplating
           end
         end
 
-        # 4. POST form-urlencoded
+        # 4. POST form-urlencoded, forwarding CSRF cookie if present
         post_uri = URI("#{@base}#{action}")
-        res = Net::HTTP.post_form(post_uri, fields)
+        res = post_with_cookie(post_uri, fields, csrf_cookie)
         code = res.code.to_i
 
         # 5. Check result
@@ -113,6 +116,25 @@ module HecksTemplating
           fields[name] = value if name
         end
         fields
+      end
+
+      # Extract CSRF token cookie value from a GET response Set-Cookie header.
+      def parse_csrf_cookie(response)
+        set_cookie = Array(response.get_fields("Set-Cookie") || [])
+        set_cookie.each do |cookie|
+          if (m = cookie.match(/\A_csrf_token=([^;]+)/))
+            return m[1]
+          end
+        end
+        nil
+      end
+
+      # POST form data with an optional CSRF cookie forwarded in the Cookie header.
+      def post_with_cookie(uri, fields, csrf_cookie)
+        req = Net::HTTP::Post.new(uri)
+        req.set_form_data(fields)
+        req["Cookie"] = "_csrf_token=#{csrf_cookie}" if csrf_cookie
+        Net::HTTP.start(uri.host, uri.port) { |http| http.request(req) }
       end
     end
   end

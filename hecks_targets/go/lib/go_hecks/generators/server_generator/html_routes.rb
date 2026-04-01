@@ -94,7 +94,7 @@ module GoHecks
             end
           end
 
-          lines << "\t\trenderer.Render(w, \"show\", \"#{safe}\", #{safe}ShowData{AggregateName: \"#{safe}\", BackHref: \"/#{plural}\", Id: obj.ID, Fields: fields, Buttons: buttons})"
+          lines << "\t\trenderer.Render(w, \"show\", \"#{safe}\", #{safe}ShowData{AggregateName: \"#{safe}\", BackHref: \"/#{plural}\", Id: obj.ID, CsrfToken: csrfToken(w, r), Fields: fields, Buttons: buttons})"
           lines << "\t})"
           lines << ""
         end

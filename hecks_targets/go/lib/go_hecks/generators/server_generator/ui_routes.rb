@@ -28,6 +28,7 @@ module GoHecks
             lines << "\t\t\tCommandName: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\","
             lines << "\t\t\tAction: \"#{HecksTemplating::RouteContract.submit_path(plural, cmd_snake)}\","
             lines << "\t\t\tFields: fields,"
+            lines << "\t\t\tCsrfToken: csrfToken(w, r),"
             lines << "\t\t})"
             lines << "\t})"
             lines << ""

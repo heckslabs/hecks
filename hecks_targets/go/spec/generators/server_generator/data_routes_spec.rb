@@ -106,4 +106,31 @@ RSpec.describe GoHecks::ServerGenerator do
       expect(output).to include('{Label: "Pizzas", Href: "/pizzas"')
     end
   end
+
+  describe "CSRF protection" do
+    it "generates csrfToken helper function" do
+      expect(output).to include("func csrfToken(w http.ResponseWriter, r *http.Request) string {")
+    end
+
+    it "generates validateCSRF helper function" do
+      expect(output).to include("func validateCSRF(w http.ResponseWriter, r *http.Request) bool {")
+    end
+
+    it "calls validateCSRF in form POST handler" do
+      expect(output).to include("if !validateCSRF(w, r) { return }")
+    end
+
+    it "passes CsrfToken to index render" do
+      expect(output).to include("CsrfToken: csrfToken(w, r)")
+    end
+
+    it "includes CsrfToken field in FormData struct" do
+      expect(output).to include("CsrfToken string")
+    end
+
+    it "imports crypto/rand and encoding/hex for token generation" do
+      expect(output).to include('"crypto/rand"')
+      expect(output).to include('"encoding/hex"')
+    end
+  end
 end

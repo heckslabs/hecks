@@ -39,6 +39,8 @@ class UIGenerator < Hecks::Generator
     lines.concat(config_route(mod))
     lines.concat(reboot_route(mod))
     lines << "      end"
+    lines << ""
+    lines.concat(csrf_helpers)
     lines << "    end"
     lines << "  end"
     lines << "end"
@@ -94,6 +96,33 @@ class UIGenerator < Hecks::Generator
     name.to_s.split("_").map(&:capitalize).join(" ")
   end
 
+  def csrf_helpers
+    [
+      "      private",
+      "",
+      "      def ensure_csrf_cookie(req, res)",
+      "        existing = read_csrf_cookie(req)",
+      "        return existing if existing && !existing.empty?",
+      "        require \"securerandom\"",
+      "        token = SecureRandom.hex(32)",
+      "        res[\"Set-Cookie\"] = \"_csrf_token=\#{token}; SameSite=Strict; HttpOnly\"",
+      "        token",
+      "      end",
+      "",
+      "      def read_csrf_cookie(req)",
+      "        header = req[\"Cookie\"] || \"\"",
+      "        m = header.match(/(?:^|;\\s*)_csrf_token=([^;]+)/)",
+      "        m ? m[1] : nil",
+      "      end",
+      "",
+      "      def validate_csrf(req)",
+      "        cookie = read_csrf_cookie(req)",
+      "        form  = req.query[\"_csrf_token\"]",
+      "        cookie && !cookie.empty? && cookie == form",
+      "      end",
+    ]
+  end
+
   def root_route(mod)
     agg_data = @domain.aggregates.map do |agg|
       d = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural(agg))
@@ -144,6 +173,7 @@ class UIGenerator < Hecks::Generator
       "          items = all_items.map { |obj| { id: obj.id, short_id: #{HecksTemplating::ViewContract.ruby_short_id('obj.id')}, show_href: \"/#{p}/show?id=\" + obj.id, cells: [#{cells_code}] } }",
       "          html = renderer.render(:index, title: \"#{safe}s — #{mod}\", brand: brand, nav_items: nav,",
       "            aggregate_name: \"#{safe}\", items: items,",
+      "            csrf_token: ensure_csrf_cookie(req, res),",
       "            columns: [#{columns.join(', ')}],",
       "            buttons: [#{btns.join(', ')}],",
       "            row_actions: [#{row_acts.join(', ')}])",

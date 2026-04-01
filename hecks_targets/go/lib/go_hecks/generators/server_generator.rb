@@ -27,6 +27,8 @@ module GoHecks
       lines << "package server"
       lines << ""
       lines << "import ("
+      lines << "\t\"crypto/rand\""
+      lines << "\t\"encoding/hex\""
       lines << "\t\"encoding/json\""
       lines << "\t\"fmt\""
       lines << "\t\"net/http\""
@@ -139,6 +141,27 @@ module GoHecks
         "\tw.Header().Set(\"Content-Type\", \"application/json\")",
         "\tw.WriteHeader(422)",
         "\tjson.NewEncoder(w).Encode(map[string]string{\"error\": err.Error()})",
+        "}",
+        "",
+        "func csrfToken(w http.ResponseWriter, r *http.Request) string {",
+        "\tconst cookieName = \"_csrf_token\"",
+        "\tif c, err := r.Cookie(cookieName); err == nil && c.Value != \"\" {",
+        "\t\treturn c.Value",
+        "\t}",
+        "\tb := make([]byte, 32)",
+        "\trand.Read(b)",
+        "\ttoken := hex.EncodeToString(b)",
+        "\thttp.SetCookie(w, &http.Cookie{Name: cookieName, Value: token, SameSite: http.SameSiteStrictMode, HttpOnly: true})",
+        "\treturn token",
+        "}",
+        "",
+        "func validateCSRF(w http.ResponseWriter, r *http.Request) bool {",
+        "\tc, err := r.Cookie(\"_csrf_token\")",
+        "\tif err != nil || c.Value == \"\" || c.Value != r.FormValue(\"_csrf_token\") {",
+        "\t\thttp.Error(w, \"Forbidden: CSRF token mismatch\", http.StatusForbidden)",
+        "\t\treturn false",
+        "\t}",
+        "\treturn true",
         "}",
       ]
     end

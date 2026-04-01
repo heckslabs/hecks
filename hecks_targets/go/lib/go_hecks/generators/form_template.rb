@@ -14,6 +14,7 @@ module GoHecks
           <div class="flash-error">{{ .ErrorMessage }}</div>
         {{ end }}
         <form method="post" action="{{ .Action }}">
+          <input type="hidden" name="_csrf_token" value="{{ .CsrfToken }}">
           {{ range .Fields }}
             {{ if eq .Type "hidden" }}
               <input type="hidden" name="{{ .Name }}" value="{{ .Value }}">

@@ -92,7 +92,7 @@ module GoHecks
         lines << "\t\t\tfor i, a := range baseActions { actions[i] = RowAction{Label: a.Label, HrefPrefix: a.HrefPrefix, Id: obj.ID, Allowed: a.Allowed, Direct: a.Direct, IdField: a.IdField} }"
         lines << "\t\t\trows = append(rows, #{safe}IndexItem{Id: obj.ID, ShortId: sid, ShowHref: \"/#{plural}/show?id=\"+obj.ID, Cells: []string{#{cell_exprs.join(', ')}}, RowActions: actions})"
         lines << "\t\t}"
-        lines << "\t\trenderer.Render(w, \"index\", \"#{safe}s\", #{safe}IndexData{AggregateName: \"#{safe}\", Description: \"#{desc}\", Items: rows, Columns: []#{safe}Column{#{cols.join(', ')}}, Buttons: []#{safe}Button{#{btns.join(', ')}}, RowActions: []RowAction{#{row_acts.join(', ')}}})"
+        lines << "\t\trenderer.Render(w, \"index\", \"#{safe}s\", #{safe}IndexData{AggregateName: \"#{safe}\", Description: \"#{desc}\", CsrfToken: csrfToken(w, r), Items: rows, Columns: []#{safe}Column{#{cols.join(', ')}}, Buttons: []#{safe}Button{#{btns.join(', ')}}, RowActions: []RowAction{#{row_acts.join(', ')}}})"
         lines << "\t})"
         lines << ""
         lines
@@ -121,6 +121,7 @@ module GoHecks
         lines << "\t\t\tif err := json.NewDecoder(r.Body).Decode(&cmd); err != nil { http.Error(w, `{\"error\":\"invalid json\"}`, 400); return }"
         lines << "\t\t} else {"
         lines << "\t\t\tr.ParseForm()"
+        lines << "\t\t\tif !validateCSRF(w, r) { return }"
         cmd.attributes.each do |a|
           field = GoUtils.pascal_case(a.name)
           go_type = GoUtils.go_type(a)
@@ -138,6 +139,7 @@ module GoHecks
         lines << "\t\t\t\tAction: \"/#{plural}/#{cmd_snake}\","
         lines << "\t\t\t\tErrorMessage: err.Error(),"
         lines << "\t\t\t\tFields: fields,"
+        lines << "\t\t\t\tCsrfToken: csrfToken(w, r),"
         lines << "\t\t\t}); return"
         lines << "\t\t}"
         lines << "\t\tif r.Header.Get(\"Content-Type\")==\"application/json\" { w.WriteHeader(201); jsonResponse(w, agg) } else {"

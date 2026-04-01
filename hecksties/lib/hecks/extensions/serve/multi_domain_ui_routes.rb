@@ -29,7 +29,7 @@ module Hecks
           remaining = sub_path.sub("/#{p}", "")
 
           if remaining == "" || remaining == "/"
-            serve_index(res, agg, klass, safe, p, prefix, domain)
+            serve_index(req, res, agg, klass, safe, p, prefix, domain)
           elsif remaining == "/show"
             serve_show(req, res, agg, klass, safe, p, prefix, domain)
           elsif remaining =~ /\/(\w+)\/new$/
@@ -41,7 +41,8 @@ module Hecks
           end
         end
 
-        def serve_index(res, agg, klass, safe, p, prefix, domain)
+        def serve_index(req, res, agg, klass, safe, p, prefix, domain)
+          token = ensure_csrf_cookie(req, res)
           dc = HecksTemplating::DisplayContract
           user_attrs = agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
           items = klass.all.map do |obj|
@@ -75,12 +76,13 @@ module Hecks
           html = @renderer.render(:index,
             title: "#{safe}s — #{@brand}", brand: @brand, nav_items: @nav,
             aggregate_name: safe, items: items, columns: columns,
-            buttons: buttons, row_actions: [])
+            buttons: buttons, row_actions: [], csrf_token: token)
           res["Content-Type"] = "text/html"
           res.body = html
         end
 
         def serve_show(req, res, agg, klass, safe, p, prefix, domain)
+          token = ensure_csrf_cookie(req, res)
           dc = HecksTemplating::DisplayContract
           obj = klass.find(req.query["id"])
           unless obj
@@ -103,12 +105,13 @@ module Hecks
           html = @renderer.render(:show,
             title: "#{safe} — #{@brand}", brand: @brand, nav_items: @nav,
             aggregate_name: safe, back_href: "#{prefix}/#{p}",
-            id: obj.id, fields: fields, buttons: [])
+            id: obj.id, fields: fields, buttons: [], csrf_token: token)
           res["Content-Type"] = "text/html"
           res.body = html
         end
 
         def serve_form(req, res, agg, klass, safe, p, prefix, cmd_snake)
+          token = ensure_csrf_cookie(req, res)
           cmd = agg.commands.find { |c| domain_snake_name(c.name) == cmd_snake }
           unless cmd
             res.status = 404; res.body = "Command not found"; return
@@ -121,17 +124,19 @@ module Hecks
             title: "#{cmd.name} — #{@brand}", brand: @brand, nav_items: @nav,
             command_name: HecksTemplating::UILabelContract.label(cmd.name),
             action: "#{prefix}/#{p}/#{cmd_snake}/submit",
-            error_message: nil, fields: fields)
+            error_message: nil, fields: fields, csrf_token: token)
           res["Content-Type"] = "text/html"
           res.body = html
         end
 
         def serve_submit(req, res, agg, klass, safe, p, prefix, cmd_snake)
+          unless valid_csrf?(req)
+            res.status = 403; res.body = "Forbidden: CSRF token mismatch"; return
+          end
           cmd = agg.commands.find { |c| domain_snake_name(c.name) == cmd_snake }
           unless cmd
             res.status = 404; res.body = "Command not found"; return
           end
-          mod = klass
           params = req.query
           method_name = domain_command_method(cmd.name, agg.name)
           attrs = cmd.attributes.each_with_object({}) { |a, h| h[a.name] = params[a.name.to_s] || "" }
@@ -139,6 +144,7 @@ module Hecks
           id = result.respond_to?(:aggregate) ? result.aggregate.id : result.id
           res.set_redirect(WEBrick::HTTPStatus::SeeOther, "#{prefix}/#{p}/show?id=#{id}")
         rescue => e
+          token = read_csrf_cookie(req)
           fields = cmd.attributes.map do |a|
             { type: :input, name: a.name.to_s, label: humanize(a.name),
               input_type: "text", step: false, required: false, value: params[a.name.to_s] || "" }
@@ -147,10 +153,32 @@ module Hecks
             title: "#{cmd.name} — #{@brand}", brand: @brand, nav_items: @nav,
             command_name: HecksTemplating::UILabelContract.label(cmd.name),
             action: "#{prefix}/#{p}/#{cmd_snake}/submit",
-            error_message: e.message, fields: fields)
+            error_message: e.message, fields: fields, csrf_token: token)
           res["Content-Type"] = "text/html"
           res.body = html
         end
+
+        def ensure_csrf_cookie(req, res)
+          existing = read_csrf_cookie(req)
+          return existing if existing && !existing.empty?
+          token = Hecks::Conventions::CsrfContract.generate_token
+          res["Set-Cookie"] = Hecks::Conventions::CsrfContract.cookie_header(token)
+          token
+        end
+
+        def read_csrf_cookie(req)
+          cookie_header = req["Cookie"] || ""
+          name = Hecks::Conventions::CsrfContract::COOKIE_NAME
+          match = cookie_header.match(/(?:^|;\s*)#{Regexp.escape(name)}=([^;]+)/)
+          match ? match[1] : nil
+        end
+
+        def valid_csrf?(req)
+          cookie_val = read_csrf_cookie(req)
+          form_val = req.query[Hecks::Conventions::CsrfContract::FIELD_NAME]
+          Hecks::Conventions::CsrfContract.valid?(cookie_val, form_val)
+        end
+
         def resolve_reference(obj, attr, ref_agg, klass)
           raw = obj.send(attr.name).to_s
           return raw[0..7] + "..." unless ref_agg

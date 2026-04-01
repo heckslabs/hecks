@@ -109,6 +109,7 @@ module Hecks::Conventions
       fields: [
         { name: :aggregate_name, type: :string },
         { name: :description, type: :string },
+        { name: :csrf_token, type: :string },
         { name: :items, type: :list, item_type: :index_item },
         { name: :columns, type: :list, item_type: :column },
         { name: :buttons, type: :list, item_type: :button },
@@ -150,6 +151,7 @@ module Hecks::Conventions
         { name: :aggregate_name, type: :string },
         { name: :id, type: :string },
         { name: :back_href, type: :string },
+        { name: :csrf_token, type: :string },
         { name: :fields, type: :list, item_type: :show_field },
         { name: :buttons, type: :list, item_type: :button },
       ],
@@ -178,6 +180,7 @@ module Hecks::Conventions
         { name: :command_name, type: :string },
         { name: :action, type: :string },
         { name: :error_message, type: :string },
+        { name: :csrf_token, type: :string },
         { name: :fields, type: :list, item_type: :form_field },
       ],
       structs: {

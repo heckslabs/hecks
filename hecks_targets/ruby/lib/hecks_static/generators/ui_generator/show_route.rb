@@ -34,6 +34,7 @@ module HecksStatic
           "          end",
           "          html = renderer.render(:show, title: \"#{safe} — #{mod}\", brand: brand, nav_items: nav,",
           "            aggregate_name: \"#{safe}\", back_href: \"/#{p}\",",
+          "            csrf_token: ensure_csrf_cookie(req, res),",
           "            id: obj.id, fields: [#{field_exprs.join(', ')}],",
           "            buttons: [#{btn_parts.join(', ')}])",
           "          res[\"Content-Type\"] = \"text/html\"; res.body = html",

@@ -3,6 +3,7 @@
   <div class="flash-error"><%= error_message %></div>
 <% end %>
 <form method="post" action="<%= action %>">
+  <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
   <% fields.each do |field| %>
     <% if field[:type] == :hidden %>
       <input type="hidden" name="<%= field[:name] %>" value="<%= field[:value] %>">
