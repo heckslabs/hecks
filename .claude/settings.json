@@ -21,6 +21,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby -e \"f=ENV['CLAUDE_FILE']||''; s=f.sub(%r{^.*/lib/},'spec/').sub('.rb','_spec.rb'); exit unless File.exist?(s); system('bundle','exec','rspec',s,'--format','progress','--no-color')\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
