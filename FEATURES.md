@@ -73,6 +73,7 @@
 - `hecks_postgres` — PostgreSQL persistence
 - `hecks_mysql` — MySQL persistence
 - `hecks_cqrs` — named persistence connections for read/write separation
+- `hecks_mongodb` — MongoDB document persistence via the mongo Ruby driver
 
 ### Server Extensions
 - `hecks_serve` registers `:http` — adds `CatsDomain.serve(port: 9292)`

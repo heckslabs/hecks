@@ -80,6 +80,9 @@ module Hecks
       hook = Hecks.extension_registry[effective[:type]]
       if hook
         hook.call(mod, domain, runtime)
+      elsif effective[:type] == :mongodb
+        require "hecks_mongodb"
+        boot_with_mongo(domain, effective, runtime)
       elsif sql_adapter_type?(effective[:type])
         require "hecks_persist/sql_boot"
         boot_with_sql(domain, effective, runtime)
@@ -159,6 +162,12 @@ module Hecks
     def boot_with_sql(domain, adapter_config, runtime)
       db = SqlBoot.connect(adapter_config)
       adapters = SqlBoot.setup(domain, db)
+      adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
+    end
+
+    def boot_with_mongo(domain, adapter_config, runtime)
+      client = MongoBoot.connect(adapter_config)
+      adapters = MongoBoot.setup(domain, client)
       adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
     end
   end
