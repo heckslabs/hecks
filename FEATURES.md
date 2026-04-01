@@ -618,6 +618,7 @@
 - Go aggregate `Validate()` enforces enum constraints from AggregateContract
 - Go commands set lifecycle default status on create, enforce from-constraints and set target on update
 - Go runtime package: EventBus (goroutine-safe pub/sub with history) and CommandBus (middleware pipeline)
+- Go runtime interpreter: `Application` struct boots the domain, wires repos/buses, dispatches commands via `Run(name, json)`, returns `CommandResult` with aggregate + event
 - Events published on every command execution, event count live on config page
 - `go.mod` with only `google/uuid` dependency
 - Type mapping: String→string, Integer→int64, Float→float64, list_of→[]Type

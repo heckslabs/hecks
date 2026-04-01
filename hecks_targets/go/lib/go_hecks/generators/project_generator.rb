@@ -46,6 +46,9 @@ module GoHecks
       gen = RuntimeGenerator.new
       write("runtime/eventbus.go", gen.generate_event_bus)
       write("runtime/commandbus.go", gen.generate_command_bus)
+
+      app_gen = ApplicationGenerator.new(@domain, module_path: @module_path)
+      write("runtime/application.go", app_gen.generate)
     end
 
     def generate_go_mod
