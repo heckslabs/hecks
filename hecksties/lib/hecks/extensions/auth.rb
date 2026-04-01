@@ -45,14 +45,7 @@ Hecks.register_extension(:auth) do |domain_mod, domain, runtime, **opts|
   # actor declarations. The key is the fully-qualified Ruby class name
   # (e.g. "CatsDomain::Cat::Commands::Adopt"), and the value is an Array
   # of role name strings (e.g. ["Admin", "Vet"]).
-  actor_map = {}
-  domain.aggregates.each do |agg|
-    agg.commands.each do |cmd|
-      next if cmd.actors.empty?
-      fqn = "#{domain_mod.name}::#{agg.name}::Commands::#{cmd.name}"
-      actor_map[fqn] = cmd.actors.map(&:name)
-    end
-  end
+  actor_map = Hecks::Conventions::Names.actor_roles_for(domain, domain_mod)
 
   next if actor_map.empty?
 

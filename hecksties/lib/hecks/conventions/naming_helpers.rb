@@ -49,6 +49,30 @@ module Hecks::Conventions
       Hecks::Conventions::Names.domain_command_method(cmd_name, agg_name)
     end
 
+    def domain_command_fqn(domain_mod_name, agg_name, cmd_name)
+      Hecks::Conventions::Names.domain_command_fqn(domain_mod_name, agg_name, cmd_name)
+    end
+
+    def domain_event_fqn(domain_mod_name, agg_name, event_name)
+      Hecks::Conventions::Names.domain_event_fqn(domain_mod_name, agg_name, event_name)
+    end
+
+    def domain_policy_fqn(domain_mod_name, agg_name, policy_name)
+      Hecks::Conventions::Names.domain_policy_fqn(domain_mod_name, agg_name, policy_name)
+    end
+
+    def actor_roles_for(domain, domain_mod)
+      Hecks::Conventions::Names.actor_roles_for(domain, domain_mod)
+    end
+
+    def aggregate_module_from_command(command_class_name)
+      Hecks::Conventions::Names.aggregate_module_from_command(command_class_name)
+    end
+
+    def resolve_command_const(mod, agg_name, cmd_name)
+      Hecks::Conventions::Names.resolve_command_const(mod, agg_name, cmd_name)
+    end
+
     def domain_route_path(domain_name, aggregate_name)
       Hecks::Conventions::Names.domain_route_path(domain_name, aggregate_name)
     end

@@ -64,6 +64,50 @@ module Hecks::Conventions
         Hecks::Conventions::CommandContract.method_name(cmd_name, agg_name)
       end
 
+      # ("PizzasDomain", "Pizza", "CreatePizza") → "PizzasDomain::Pizza::Commands::CreatePizza"
+      def domain_command_fqn(domain_mod_name, agg_name, cmd_name)
+        "#{domain_mod_name}::#{agg_name}::Commands::#{cmd_name}"
+      end
+
+      # ("PizzasDomain", "Pizza", "CreatedPizza") → "PizzasDomain::Pizza::Events::CreatedPizza"
+      def domain_event_fqn(domain_mod_name, agg_name, event_name)
+        "#{domain_mod_name}::#{agg_name}::Events::#{event_name}"
+      end
+
+      # ("PizzasDomain", "Pizza", "CanCreate") → "PizzasDomain::Pizza::Policies::CanCreate"
+      def domain_policy_fqn(domain_mod_name, agg_name, policy_name)
+        "#{domain_mod_name}::#{agg_name}::Policies::#{policy_name}"
+      end
+
+      # Builds { fqn_string => [role_names] } for all commands with actor declarations.
+      #
+      #   Names.actor_roles_for(domain, domain_mod)
+      #   # => { "CatsDomain::Cat::Commands::Adopt" => ["Admin", "Vet"] }
+      def actor_roles_for(domain, domain_mod)
+        map = {}
+        domain.aggregates.each do |agg|
+          agg.commands.each do |cmd|
+            next if cmd.actors.empty?
+            map[domain_command_fqn(domain_mod.name, agg.name, cmd.name)] = cmd.actors.map(&:name)
+          end
+        end
+        map
+      end
+
+      # "PizzasDomain::Pizza::Commands::CreatePizza" → "PizzasDomain::Pizza"
+      # Extracts the aggregate module path from a fully-qualified command class name.
+      def aggregate_module_from_command(command_class_name)
+        command_class_name.split("::")[0..-3].join("::")
+      end
+
+      # Resolves the command class constant from a domain module.
+      #
+      #   Names.resolve_command_const(PizzasDomain, "Pizza", "CreatePizza")
+      #   # => PizzasDomain::Pizza::Commands::CreatePizza
+      def resolve_command_const(mod, agg_name, cmd_name)
+        mod.const_get("#{agg_name}::Commands::#{cmd_name}")
+      end
+
       # ("Blog", "Post") → "/blog/posts"
       def domain_route_path(domain_name, aggregate_name)
         "/#{domain_slug(domain_name)}/#{domain_aggregate_slug(aggregate_name)}"

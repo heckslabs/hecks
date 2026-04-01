@@ -112,7 +112,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
     pii_lookup = {}
     domain.aggregates.each do |agg|
       agg.commands.each do |cmd|
-        fqn = "#{domain_mod.name}::#{agg.name}::Commands::#{cmd.name}"
+        fqn = Hecks::Conventions::Names.domain_command_fqn(domain_mod.name, agg.name, cmd.name)
         pii_names = HecksPii.pii_fields(agg)
         pii_lookup[fqn] = pii_names unless pii_names.empty?
       end

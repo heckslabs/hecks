@@ -102,7 +102,7 @@ module Hecks
       # @return [Class] the event class (e.g. +Pizza::Events::CreatedPizza+)
       # @raise [NameError] if the event class cannot be found
       def event_class
-        agg_module = name.split("::")[0..-3].join("::")
+        agg_module = Hecks::Conventions::Names.aggregate_module_from_command(name)
         Object.const_get("#{agg_module}::Events::#{event_name}")
       end
 
@@ -111,7 +111,7 @@ module Hecks
       # @return [Array<Class>] all event classes
       # @raise [NameError] if any event class cannot be found
       def event_classes
-        agg_module = name.split("::")[0..-3].join("::")
+        agg_module = Hecks::Conventions::Names.aggregate_module_from_command(name)
         event_names.map { |en| Object.const_get("#{agg_module}::Events::#{en}") }
       end
 
@@ -240,7 +240,7 @@ module Hecks
       policy_name = self.class.guarded_by
       return unless policy_name
 
-      agg_module = self.class.name.split("::")[0..-3].join("::")
+      agg_module = Hecks::Conventions::Names.aggregate_module_from_command(self.class.name)
       policy_class = Object.const_get("#{agg_module}::Policies::#{policy_name}")
       result = policy_class.new.call(self)
       unless result

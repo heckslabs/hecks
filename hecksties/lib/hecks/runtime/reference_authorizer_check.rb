@@ -75,7 +75,7 @@ module Hecks
       # @param cmd [DomainModel::Behavior::Command]
       # @return [Class, nil]
       def resolve_command_class(agg, cmd)
-        @mod.const_get("#{agg.name}::Commands::#{cmd.name}")
+        Hecks::Conventions::Names.resolve_command_const(@mod, agg.name, cmd.name)
       rescue NameError
         nil
       end

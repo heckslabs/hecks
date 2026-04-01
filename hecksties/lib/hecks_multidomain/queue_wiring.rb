@@ -17,7 +17,7 @@ module Hecks
               rt.domain.aggregates.each do |agg|
                 next unless agg.commands.any? { |c| c.name == cmd_name }
                 mod = Object.const_get(domain_module_name(rt.domain.name))
-                klass = mod.const_get(agg.name).const_get(:Commands).const_get(cmd_name)
+                klass = Hecks::Conventions::Names.resolve_command_const(mod, agg.name, cmd_name)
                 return klass.call(**attrs)
               end
             end
