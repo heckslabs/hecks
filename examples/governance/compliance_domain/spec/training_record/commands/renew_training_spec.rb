@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ComplianceDomain::TrainingRecord::Commands::RenewTraining do
   describe "attributes" do

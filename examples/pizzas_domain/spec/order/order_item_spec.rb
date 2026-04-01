@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe PizzasDomain::Order::OrderItem do
   subject(:order_item) { described_class.new(pizza: "example", quantity: 1) }

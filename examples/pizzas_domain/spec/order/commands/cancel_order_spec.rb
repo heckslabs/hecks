@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe PizzasDomain::Order::Commands::CancelOrder do
   describe "attributes" do

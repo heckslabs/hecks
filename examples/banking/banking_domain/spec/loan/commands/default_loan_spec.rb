@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe BankingDomain::Loan::Commands::DefaultLoan do
   describe "attributes" do

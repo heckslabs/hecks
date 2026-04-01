@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe OperationsDomain::Deployment::Specifications::CustomerFacing do
   it "responds to satisfied_by?" do

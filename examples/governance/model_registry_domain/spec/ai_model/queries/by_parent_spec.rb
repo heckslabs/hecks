@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "AiModel.by_parent" do
   before { @app = Hecks.load(domain, force: true) }

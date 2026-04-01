@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe IdentityDomain::Stakeholder::Events::AssignedRole do
   subject(:event) { described_class.new(

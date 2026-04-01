@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe OperationsDomain::Incident::Commands::ResolveIncident do
   describe "attributes" do

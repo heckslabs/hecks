@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe RiskAssessmentDomain::Assessment::Commands::SubmitAssessment do
   describe "attributes" do

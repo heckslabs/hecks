@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "Order :customer port" do
   before { @app = Hecks.load(domain, gate: :customer, force: true) }

@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe ModelRegistryDomain::AiModel::IntendedUse do
   subject(:intended_use) { described_class.new(description: "example", domain: "example") }

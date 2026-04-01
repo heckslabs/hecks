@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe OperationsDomain::Deployment::Commands::DeployModel do
   describe "attributes" do

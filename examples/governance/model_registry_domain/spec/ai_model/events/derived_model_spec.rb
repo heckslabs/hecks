@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ModelRegistryDomain::AiModel::Events::DerivedModel do
   subject(:event) { described_class.new(

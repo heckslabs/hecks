@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe BankingDomain::Transfer::Commands::CompleteTransfer do
   describe "attributes" do

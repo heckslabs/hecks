@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe BankingDomain::Loan::PaymentScheduleEntry do
   subject(:payment_schedule_entry) { described_class.new(

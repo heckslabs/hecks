@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ComplianceDomain::Exemption::Events::RevokedExemption do
   subject(:event) { described_class.new(

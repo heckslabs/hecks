@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe ModelRegistryDomain::DataUsageAgreement::Restriction do
   subject(:restriction) { described_class.new(type: "example", description: "example") }

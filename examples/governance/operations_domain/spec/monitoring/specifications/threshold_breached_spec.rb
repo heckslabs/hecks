@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe OperationsDomain::Monitoring::Specifications::ThresholdBreached do
   it "responds to satisfied_by?" do

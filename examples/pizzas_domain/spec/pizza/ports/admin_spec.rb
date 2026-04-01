@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "Pizza :admin port" do
   before { @app = Hecks.load(domain, gate: :admin, force: true) }

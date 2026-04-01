@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "Order.pending" do
   before { @app = Hecks.load(domain, force: true) }

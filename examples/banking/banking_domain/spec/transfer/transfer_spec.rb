@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe BankingDomain::Transfer do
   describe "creating a Transfer" do

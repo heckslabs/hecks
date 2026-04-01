@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ModelRegistryDomain::AiModel::Commands::RegisterModel do
   describe "attributes" do

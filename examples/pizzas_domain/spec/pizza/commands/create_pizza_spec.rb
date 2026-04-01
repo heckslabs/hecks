@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe PizzasDomain::Pizza::Commands::CreatePizza do
   describe "attributes" do

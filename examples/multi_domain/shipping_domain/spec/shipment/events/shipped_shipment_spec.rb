@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ShippingDomain::Shipment::Events::ShippedShipment do
   subject(:event) { described_class.new(

@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe ComplianceDomain::RegulatoryFramework::FrameworkRequirement do
   subject(:framework_requirement) { described_class.new(

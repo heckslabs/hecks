@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe ComplianceDomain::ComplianceReview::ReviewCondition do
   subject(:review_condition) { described_class.new(

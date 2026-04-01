@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ModelRegistryDomain::DataUsageAgreement::Commands::CreateAgreement do
   describe "attributes" do

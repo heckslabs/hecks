@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe BankingDomain::Account::LedgerEntry do
   subject(:ledger_entry) { described_class.new(

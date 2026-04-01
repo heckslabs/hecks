@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe PizzasDomain::Pizza::Topping do
   subject(:topping) { described_class.new(name: "example", amount: 1) }

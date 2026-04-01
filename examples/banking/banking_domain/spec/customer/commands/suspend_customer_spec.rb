@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe BankingDomain::Customer::Commands::SuspendCustomer do
   describe "attributes" do

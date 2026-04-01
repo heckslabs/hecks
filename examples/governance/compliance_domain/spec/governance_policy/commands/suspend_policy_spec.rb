@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ComplianceDomain::GovernancePolicy::Commands::SuspendPolicy do
   describe "attributes" do

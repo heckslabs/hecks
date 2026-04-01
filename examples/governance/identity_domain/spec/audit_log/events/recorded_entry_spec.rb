@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe IdentityDomain::AuditLog::Events::RecordedEntry do
   subject(:event) { described_class.new(

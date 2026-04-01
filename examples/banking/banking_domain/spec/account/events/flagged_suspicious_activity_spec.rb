@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe BankingDomain::Account::Events::FlaggedSuspiciousActivity do
   subject(:event) { described_class.new(account_id: "example", reason: "example") }

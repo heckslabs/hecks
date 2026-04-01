@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe OperationsDomain::Deployment::Events::PlannedDeployment do
   subject(:event) { described_class.new(

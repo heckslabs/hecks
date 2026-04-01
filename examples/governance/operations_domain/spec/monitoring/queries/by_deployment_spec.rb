@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "Monitoring.by_deployment" do
   before { @app = Hecks.load(domain, force: true) }

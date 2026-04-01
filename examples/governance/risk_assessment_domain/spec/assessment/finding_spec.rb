@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../spec_helper"
 
 RSpec.describe RiskAssessmentDomain::Assessment::Finding do
   subject(:finding) { described_class.new(

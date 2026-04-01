@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe BankingDomain::Loan::Events::MadePayment do
   subject(:event) { described_class.new(loan_id: "example", amount: 1.0) }

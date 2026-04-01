@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe "Stakeholder.by_role" do
   before { @app = Hecks.load(domain, force: true) }

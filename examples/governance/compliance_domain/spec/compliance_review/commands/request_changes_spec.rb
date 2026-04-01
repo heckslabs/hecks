@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ComplianceDomain::ComplianceReview::Commands::RequestChanges do
   describe "attributes" do

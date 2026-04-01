@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe IdentityDomain::Stakeholder::Commands::RegisterStakeholder do
   describe "attributes" do

@@ -1,4 +1,4 @@
-require "spec_helper"
+require_relative "../../spec_helper"
 
 RSpec.describe ShippingDomain::Shipment::Commands::CreateShipment do
   describe "attributes" do
