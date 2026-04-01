@@ -8,6 +8,26 @@
 
 Hecks is a domain compiler. Describe your business once. Generate complete applications in Ruby, Go, or Rails. Zero runtime dependency. The output is yours.
 
+---
+
+## A Covenant
+
+Software affects living beings — humans, animals, ecosystems. A domain model is not neutral. It encodes values about who matters, whose data is protected, what can be taken without consent, what gets discarded. Most frameworks treat these as the developer's problem. Hecks treats them as the framework's responsibility.
+
+Hecks is built around three root principles:
+
+**Transparency** — make the true nature of your system visible. Events are observable. State changes are auditable. Nothing is hidden from the people it affects.
+
+**Equity** — build systems that serve without clinging. Not extracting engagement, not maximizing dependency, not gatekeeping by wealth or identity.
+
+**Consent** — design for the beings your software serves, not against them. Their autonomy and inner life are sacred.
+
+These principles are not marketing. They are encoded into the framework as validators, defaults, and the first question `hecks new` asks you.
+
+You can build extractive software without Hecks. With Hecks, you'll have to mean it.
+
+---
+
 ```bash
 $ gem install hecks
 ```
