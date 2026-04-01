@@ -379,6 +379,7 @@
 - `hecks console [NAME]` — interactive REPL with domain loaded
 - `hecks validate` — check domain against DDD rules
 - `hecks mcp` — start MCP server
+- `hecks inspect` — show full domain definition including business logic (attributes, lifecycle, commands, policies, invariants, etc.)
 - `hecks dump` — show glossary, visualizer, and DSL output
 - `hecks migrations` — schema migration management
 - `hecks docs update` — sync doc headers and READMEs
