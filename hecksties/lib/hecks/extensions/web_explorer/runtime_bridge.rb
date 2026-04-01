@@ -16,8 +16,9 @@ module Hecks
     class RuntimeBridge
       include HecksTemplating::NamingHelpers
 
-      def initialize(mod)
+      def initialize(mod, whitelist: nil)
         @mod = mod
+        @whitelist = whitelist
       end
 
       def find_all(agg_name)
@@ -29,6 +30,9 @@ module Hecks
       end
 
       def execute_command(agg_name, method_name, attrs)
+        if @whitelist
+          Hecks::Conventions::DispatchContract.validate!(@whitelist, agg_name, method_name)
+        end
         result = klass_for(agg_name).send(method_name, **attrs)
         extract_id(result)
       end

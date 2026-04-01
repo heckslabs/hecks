@@ -37,6 +37,7 @@ module Hecks
         @port = port
         @methods = {}
         boot_domain
+        @whitelist = Hecks::Conventions::DispatchContract.build_whitelist(domain)
         register_methods
       end
 
@@ -150,6 +151,7 @@ module Hecks
       def register_commands(agg, klass)
         agg.commands.each do |cmd|
           method_name = domain_command_method(cmd.name, agg.name)
+          Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, method_name)
           @methods[cmd.name] = ->(params) {
             serialize(klass.send(method_name, **params.transform_keys(&:to_sym)))
           }
@@ -168,6 +170,7 @@ module Hecks
       def register_queries(agg, klass)
         agg.queries.each do |query|
           qn = domain_snake_name(query.name)
+          Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           @methods["#{agg.name}.#{qn}"] = ->(p) {
             args = params.map { |_, name| p[name.to_s] }

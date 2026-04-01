@@ -51,4 +51,5 @@ module Hecks
   Contracts.register(:ui_labels,  Conventions::UILabelContract)
   Contracts.register(:commands,   Conventions::CommandContract)
   Contracts.register(:routes,     Conventions::RouteContract)
+  Contracts.register(:dispatch,   Conventions::DispatchContract)
 end

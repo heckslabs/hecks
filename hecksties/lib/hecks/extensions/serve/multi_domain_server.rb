@@ -56,7 +56,8 @@ module Hecks
           slug = domain_slug(domain.name)
           mod = Object.const_get(domain_module_name(domain.name))
           ir = Hecks::WebExplorer::IRIntrospector.new(domain)
-          bridge = Hecks::WebExplorer::RuntimeBridge.new(mod)
+          whitelist = Hecks::Conventions::DispatchContract.build_whitelist(domain)
+          bridge = Hecks::WebExplorer::RuntimeBridge.new(mod, whitelist: whitelist)
           routes = RouteBuilder.new(domain, mod).build
           @entries << { ir: ir, bridge: bridge, runtime: runtime, slug: slug, routes: routes }
         end
