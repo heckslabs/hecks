@@ -2,6 +2,7 @@ require "webrick"
 require "json"
 require "tmpdir"
 require_relative "route_builder"
+require "hecks/extensions/serve/cors_headers"
 require "hecks/extensions/web_explorer/renderer"
 require "hecks/extensions/web_explorer/ir_introspector"
 require "hecks/extensions/web_explorer/runtime_bridge"
@@ -23,6 +24,7 @@ module Hecks
     class MultiDomainServer
       include HecksTemplating::NamingHelpers
       include UIRoutes
+      include Hecks::HTTP::CorsHeaders
 
       def initialize(domains, runtimes, port: 9292)
         @domains = domains
@@ -87,7 +89,7 @@ module Hecks
       end
 
       def handle(req, res)
-        res["Access-Control-Allow-Origin"] = "*"
+        apply_cors_origin(res)
         return if req.request_method == "OPTIONS"
 
         path = req.path

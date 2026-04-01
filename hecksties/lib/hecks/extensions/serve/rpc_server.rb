@@ -1,6 +1,7 @@
 require "webrick"
 require "json"
 require "tmpdir"
+require_relative "cors_headers"
 require_relative "command_bus_port"
 
 module Hecks
@@ -24,6 +25,7 @@ module Hecks
     #
     class RpcServer
       include HecksTemplating::NamingHelpers
+      include Hecks::HTTP::CorsHeaders
       # Initialize the RPC server, boot the domain, and register all methods.
       #
       # Builds the domain gem into a temp directory, boots it, then
@@ -73,7 +75,7 @@ module Hecks
       # @param res [WEBrick::HTTPResponse] the outgoing HTTP response
       # @return [void]
       def handle(req, res)
-        res["Access-Control-Allow-Origin"] = "*"
+        apply_cors_origin(res)
         res["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         res["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
         res["Content-Type"] = "application/json"

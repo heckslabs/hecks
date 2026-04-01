@@ -3,6 +3,7 @@ require "json"
 require "stringio"
 require "tmpdir"
 require_relative "route_builder"
+require_relative "cors_headers"
 require_relative "command_bus_port"
 require_relative "csrf_helpers"
 
@@ -25,6 +26,7 @@ module Hecks
     #
     class DomainServer
       include HecksTemplating::NamingHelpers
+      include Hecks::HTTP::CorsHeaders
       include CsrfHelpers
       # Initialize the server, boot the domain gem, and build routes.
       #
@@ -184,12 +186,15 @@ module Hecks
         pp.size == ap.size && pp.zip(ap).all? { |p, a| p.start_with?(":") || p == a }
       end
 
-      # Set CORS headers on the response to allow cross-origin requests.
+      # Set CORS headers on the response using ENV-driven origin config.
+      #
+      # Delegates to {Hecks::HTTP::CorsHeaders#apply_cors_origin} which
+      # checks HECKS_ALLOW_ALL_ORIGINS and HECKS_CORS_ORIGIN env vars.
       #
       # @param res [WEBrick::HTTPResponse] the response to add headers to
       # @return [void]
       def set_cors(res)
-        res["Access-Control-Allow-Origin"] = "*"
+        apply_cors_origin(res)
         res["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
         res["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token, Authorization"
       end
