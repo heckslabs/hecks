@@ -370,7 +370,7 @@ Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
 $ gem install hecks
 ```
 
-[All Features](FEATURES.md) | [Into the Weeds](INTO_THE_WEEDS.md) | [DDD Mapping](hecks_docs/ddd.md) | [Hexagonal Architecture](hecks_docs/hexagonal.md) | [Why Hecks](hecks_docs/why_hecks.md)
+[All Features](FEATURES.md) | [Into the Weeds](INTO_THE_WEEDS.md) | [DDD Mapping](hecks_docs/ddd.md) | [Hexagonal Architecture](hecks_docs/hexagonal.md) | [Why Hecks](hecks_docs/why_hecks.md) | [Architecture Decisions](docs/usage/architecture_decisions.md)
 
 ## License
 

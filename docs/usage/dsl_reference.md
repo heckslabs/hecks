@@ -577,6 +577,8 @@ end
 
 Access control is an infrastructure concern, not a domain concept. Gates (formerly "ports") are declared in the [Hecksagon](hecksagon_reference.md), not the Bluebook. See the Hecksagon DSL Reference for gate syntax.
 
+The `port` keyword in the Bluebook is a no-op kept for backward compatibility. For the full rationale on the ports-vs-gates split and how to migrate, see [Architecture Decisions: Ports vs Gates](architecture_decisions.md#2-ports-vs-gates-naming-and-responsibility-split).
+
 ---
 
 ## Query and Scope

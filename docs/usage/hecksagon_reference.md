@@ -55,6 +55,8 @@ Standard methods you can gate:
 - **Write**: `:create`, `:save`, `:update`, `:destroy`, `:delete`
 - **Commands**: any command method name (e.g., `:create_pizza`, `:place_order`)
 
+For the full rationale on why gates live in the Hecksagon rather than the Bluebook, and how they differ from ports, see [Architecture Decisions: Ports vs Gates](architecture_decisions.md#2-ports-vs-gates-naming-and-responsibility-split).
+
 ---
 
 ## Adapter
