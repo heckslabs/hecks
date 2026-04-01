@@ -554,6 +554,7 @@
   - Resets server data before and after each run via `POST /_reset`
 - Form submission: accepts both JSON and form-urlencoded, redirects on success
 - Config page with roles, adapter, policies, aggregate counts, ports
+- Config page domain wiring diagrams: Mermaid structure, behavior, and flow diagrams generated at compile time
 - All DSL concepts generate Go code: lifecycle (state constants, predicates, transition validation, default on create, from-constraints on update), queries (prefixed to avoid collisions), specifications (with predicate translation), policies
 - Go aggregate `Validate()` enforces enum constraints from AggregateContract
 - Go commands set lifecycle default status on create, enforce from-constraints and set target on update

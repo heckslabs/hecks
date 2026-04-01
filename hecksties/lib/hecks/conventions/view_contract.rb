@@ -212,6 +212,9 @@ module Hecks::Conventions
         { name: :booted_at, type: :string },
         { name: :policies, type: :string_list },
         { name: :aggregates, type: :list, item_type: :config_agg },
+        { name: :structure_diagram, type: :html },
+        { name: :behavior_diagram, type: :html },
+        { name: :flows_diagram, type: :html },
       ],
       structs: {
         config_agg: [

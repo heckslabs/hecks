@@ -91,6 +91,7 @@ module GoHecks
         dc = HecksTemplating::DisplayContract
         all_roles = dc.available_roles(@domain)
         policies = dc.policy_labels(@domain)
+        diagrams = generate_diagrams
 
         vc = HecksTemplating::ViewContract
         lines = []
@@ -119,10 +120,26 @@ module GoHecks
         lines << "\t\t\tBootedAt: \"running\","
         lines << "\t\t\tPolicies: []string{#{policies.map { |p| "\"#{p}\"" }.join(', ')}},"
         lines << "\t\t\tAggregates: aggs,"
+        lines << "\t\t\tStructureDiagram: #{go_html_literal(diagrams[:structure])},"
+        lines << "\t\t\tBehaviorDiagram: #{go_html_literal(diagrams[:behavior])},"
+        lines << "\t\t\tFlowsDiagram: #{go_html_literal(diagrams[:flows])},"
         lines << "\t\t})"
         lines << "\t})"
         lines << ""
         lines
+      end
+
+      def generate_diagrams
+        vis = Hecks::DomainVisualizer.new(@domain)
+        {
+          structure: vis.generate_structure,
+          behavior: vis.generate_behavior,
+          flows: Hecks::FlowGenerator.new(@domain).generate_mermaid
+        }
+      end
+
+      def go_html_literal(str)
+        "template.HTML(#{str.inspect})"
       end
     end
   end

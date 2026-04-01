@@ -19,6 +19,7 @@ module HecksStatic
         end
 
         policies = dc.policy_labels(@domain)
+        diagrams = generate_diagrams
 
         [
           "        server.mount_proc \"/config\" do |req, res|",
@@ -29,11 +30,23 @@ module HecksStatic
           "            adapters: %w[memory filesystem sqlite], current_adapter: cfg[:adapter].to_s,",
           "            event_count: #{mod}.events.size, booted_at: (cfg[:booted_at] || \"unknown\").to_s,",
           "            policies: #{policies.inspect},",
-          "            aggregates: [#{agg_rows.join(', ')}])",
+          "            aggregates: [#{agg_rows.join(', ')}],",
+          "            structure_diagram: #{diagrams[:structure].inspect},",
+          "            behavior_diagram: #{diagrams[:behavior].inspect},",
+          "            flows_diagram: #{diagrams[:flows].inspect})",
           "          res[\"Content-Type\"] = \"text/html\"; res.body = html",
           "        end",
           ""
         ]
+      end
+
+      def generate_diagrams
+        vis = Hecks::DomainVisualizer.new(@domain)
+        {
+          structure: vis.generate_structure,
+          behavior: vis.generate_behavior,
+          flows: Hecks::FlowGenerator.new(@domain).generate_mermaid
+        }
       end
 
       def reboot_route(mod)
