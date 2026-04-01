@@ -38,7 +38,7 @@ module Hecks
       builder = builder_class.new(name, version: version)
       builder.instance_eval(&block)
       result = builder.build
-      result.source_path = caller_locations(1, 1).first.absolute_path if result.respond_to?(:source_path=)
+      result.source_path = caller_locations(1, 1).first.absolute_path
       Hecks.last_domain = result
       result
     end
