@@ -16,7 +16,7 @@ module Hecks
     # - Queries: use "AggregateName.query_name" (e.g. "Pizza.by_topping")
     # - CRUD: use "AggregateName.find", ".all", ".count", ".delete"
     #
-    #   hecks domain serve pizzas_domain --rpc
+    #   hecks serve pizzas_domain --rpc
     #
     #   # JSON-RPC request:
     #   # POST / {"jsonrpc":"2.0","method":"CreatePizza","params":{"name":"Margherita"},"id":1}

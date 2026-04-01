@@ -67,7 +67,7 @@ Hecks::CLI.register_command(:generate_sql, "Generate SQL schema and adapters",
       say "Generated #{path}", :green
     end
   else
-    say "Domain gem not found at #{gem_dir}/. Run 'hecks domain build' first.", :yellow
+    say "Domain gem not found at #{gem_dir}/. Run 'hecks build' first.", :yellow
   end
 end
 

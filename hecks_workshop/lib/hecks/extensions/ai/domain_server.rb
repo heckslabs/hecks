@@ -22,7 +22,7 @@ module Hecks
     # InMemoryLoader (no disk I/O), booting a runtime with memory adapters, and
     # registering all tools on the MCP server.
     #
-    #   hecks domain mcp --domain NAME
+    #   hecks mcp --domain NAME
     #
     class DomainServer
       include HecksTemplating::NamingHelpers

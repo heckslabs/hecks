@@ -315,13 +315,13 @@
 
 ## CLI Commands
 - `hecks new NAME` — scaffold a complete project
-- `hecks domain build` — validate and generate versioned gem
-- `hecks domain serve [--rpc]` — start REST or JSON-RPC server
-- `hecks domain console [NAME]` — interactive REPL with domain loaded
-- `hecks domain validate` — check domain against DDD rules
-- `hecks domain mcp` — start MCP server
-- `hecks domain dump` — show glossary, visualizer, and DSL output
-- `hecks domain migrations` — schema migration management
+- `hecks build` — validate and generate versioned gem
+- `hecks serve [--rpc]` — start REST or JSON-RPC server
+- `hecks console [NAME]` — interactive REPL with domain loaded
+- `hecks validate` — check domain against DDD rules
+- `hecks mcp` — start MCP server
+- `hecks dump` — show glossary, visualizer, and DSL output
+- `hecks migrations` — schema migration management
 - `hecks docs update` — sync doc headers and READMEs
 - All commands accept `--domain` flag consistently
 
@@ -444,7 +444,7 @@
 ## Static Domain Generation (hecks_static)
 
 ### Zero-Dependency Output — Full DSL Parity
-- `hecks domain build --static` generates a complete Ruby project with no hecks runtime dependency
+- `hecks build --static` generates a complete Ruby project with no hecks runtime dependency
 - All DSL concepts generated: aggregates, value objects, entities, commands, events, ports, queries, validations, invariants, lifecycles, specifications, policies
 - Generated project includes inlined runtime (Model, Command, EventBus, QueryBuilder, Specification)
 - `bin/<domain> serve` starts an HTTP server with JSON API and HTML UI

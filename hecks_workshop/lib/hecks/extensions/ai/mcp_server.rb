@@ -27,7 +27,7 @@ module Hecks
   #   - +resolve_type+ for converting type strings to Ruby types
   #   - +capture_output+ for capturing stdout during block execution
   #
-  #   hecks domain mcp    # starts the server on stdio
+  #   hecks mcp    # starts the server on stdio
   #
   class McpServer
     # The current Hecks::Workshop instance, set after +create_session+ or

@@ -6,7 +6,7 @@ module Hecks
     #
     # Generates CREATE TABLE SQL statements from a domain model. Produces one
     # table per aggregate plus join tables for list-type value objects. Part of
-    # Generators::SQL, invoked by the CLI `hecks domain build` command to produce
+    # Generators::SQL, invoked by the CLI `hecks build` command to produce
     # db/schema.sql.
     #
     #   gen = SqlMigrationGenerator.new(domain)

@@ -18,8 +18,8 @@ module Hecks
     # When +--live+ is enabled, a WebSocket server runs alongside HTTP on a
     # separate port.
     #
-    #   hecks domain serve pizzas_domain
-    #   hecks domain serve pizzas_domain --live
+    #   hecks serve pizzas_domain
+    #   hecks serve pizzas_domain --live
     #
     class DomainServer
       include HecksTemplating::NamingHelpers

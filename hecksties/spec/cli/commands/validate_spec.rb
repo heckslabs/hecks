@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks_cli"
 
-RSpec.describe "hecks domain validate" do
+RSpec.describe "hecks validate" do
   let(:cli) { Hecks::CLI.new }
 
   before { allow($stdout).to receive(:puts) }

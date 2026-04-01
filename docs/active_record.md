@@ -150,8 +150,8 @@ rake db:migrate
 
 Hecks (standalone):
 ```bash
-hecks domain generate:migrations
-hecks domain db:migrate --database my.db
+hecks generate:migrations
+hecks db:migrate --database my.db
 ```
 
 Hecks (in Rails):
@@ -196,7 +196,7 @@ Tests run against in-memory adapters. No database process, no migrations, no fix
 ## Switching from ActiveRecord
 
 1. Describe your models in a `hecks_domain.rb` file
-2. Run `hecks domain build` to generate the domain gem
+2. Run `hecks build` to generate the domain gem
 3. Add the gem to your Rails Gemfile
 4. Run `rails generate active_hecks:init` to create the initializer, or add
    `config/initializers/hecks.rb` manually:

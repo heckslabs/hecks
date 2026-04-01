@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks_cli"
 
-RSpec.describe "hecks domain diff" do
+RSpec.describe "hecks diff" do
   before { allow($stdout).to receive(:puts) }
 
   it "detects added aggregates as non-breaking" do

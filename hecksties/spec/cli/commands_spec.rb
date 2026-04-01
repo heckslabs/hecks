@@ -4,7 +4,7 @@ require "fileutils"
 
 # Hecks CLI Command Integration Tests
 #
-# Tests each `hecks domain` subcommand by invoking Hecks::CLI.start
+# Tests each `hecks` command by invoking Hecks::CLI.start
 # with captured stdout. Uses a temp directory with a minimal domain.
 RSpec.describe "CLI commands" do
   let(:tmpdir) { Dir.mktmpdir("hecks-cli-") }

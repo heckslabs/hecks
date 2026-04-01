@@ -12,7 +12,7 @@ module Hecks
     # events, policies, queries, ports, adapters, specs, and a gemspec. Delegates
     # to FileWriter (disk I/O) and SpecWriter
     # (RSpec scaffolds). Part of the Generators::Infrastructure layer, invoked by
-    # the CLI `hecks domain build` command and `Hecks.build`.
+    # the CLI `hecks build` command and `Hecks.build`.
     #
     #   gen = DomainGemGenerator.new(domain, output_dir: "./generated")
     #   gen.generate  # => path to generated gem root

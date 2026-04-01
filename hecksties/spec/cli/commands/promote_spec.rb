@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks_cli"
 
-RSpec.describe "hecks domain promote" do
+RSpec.describe "hecks promote" do
   before { allow($stdout).to receive(:puts) }
 
   it "extracts an aggregate into a standalone domain file" do

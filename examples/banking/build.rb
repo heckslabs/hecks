@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # Build a banking domain live using the Hecks Session API.
-# This is exactly what you'd type in `hecks domain workshop`.
+# This is exactly what you'd type in `hecks console`.
 
 require_relative "../../lib/hecks"
 

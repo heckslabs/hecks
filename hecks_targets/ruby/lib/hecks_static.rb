@@ -11,7 +11,7 @@
 #   HecksStatic::GemGenerator.new(domain).generate
 #
 #   # Or via CLI:
-#   hecks domain build --standalone
+#   hecks build --standalone
 #
 require_relative "hecks_static/generators/runtime_writer"
 require_relative "hecks_static/generators/entry_point_generator"

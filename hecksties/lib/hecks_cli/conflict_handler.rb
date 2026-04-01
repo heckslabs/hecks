@@ -7,7 +7,7 @@ module Hecks
     # --force to overwrite without prompting. Uses system `diff -u` for real
     # unified diffs with proper insertion/deletion handling.
     #
-    #   class Domain < Thor
+    #   class MyCommand < Thor
     #     include ConflictHandler
     #
     #     def some_generator
