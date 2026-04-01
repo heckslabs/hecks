@@ -274,6 +274,32 @@ module Hecks
       end
     end
 
+    # Resolves a relative path under a root directory, raising
+    # +Hecks::PathTraversalDetected+ if the resolved path escapes the root.
+    # Guards against +../+ traversal, absolute paths, and null bytes.
+    #
+    # @param root [String] the directory the write must stay within
+    # @param relative_path [String] the path to resolve (relative to root)
+    # @return [String] the absolute resolved path when safe
+    # @raise [Hecks::PathTraversalDetected] if the path escapes root or contains
+    #   a null byte
+    #
+    # @example
+    #   Hecks::Utils.safe_path!("/tmp/out", "lib/pizza.rb")
+    #   # => "/tmp/out/lib/pizza.rb"
+    #
+    #   Hecks::Utils.safe_path!("/tmp/out", "../etc/passwd")
+    #   # raises Hecks::PathTraversalDetected
+    def safe_path!(root, relative_path)
+      raise PathTraversalDetected.new(attempted_path: relative_path, output_dir: root) if relative_path.include?("\0")
+      expanded_root = File.expand_path(root)
+      full = File.expand_path(relative_path, expanded_root)
+      unless full.start_with?(expanded_root + File::SEPARATOR) || full == expanded_root
+        raise PathTraversalDetected.new(attempted_path: relative_path, output_dir: root)
+      end
+      full
+    end
+
     # Remove a constant from a module if it exists.
     #
     #   Hecks::Utils.remove_constant(:PizzasDomain)

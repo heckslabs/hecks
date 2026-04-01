@@ -37,7 +37,7 @@ module GoHecks
     private
 
     def write(path, content)
-      full = File.join(@root, path)
+      full = Hecks::Utils.safe_path!(@root, path)
       FileUtils.mkdir_p(File.dirname(full))
       File.write(full, content)
     end

@@ -260,7 +260,7 @@ module Hecks
           #   checked for +call_body+ to decide preservation behavior
           # @return [void]
           def write_command_file(root, relative_path, new_content, command)
-            full_path = File.join(root, relative_path)
+            full_path = Hecks::Utils.safe_path!(root, relative_path)
             if !command.call_body && File.exist?(full_path)
               existing_source = File.read(full_path)
               existing_call = Hecks::Utils.extract_call_method(existing_source)
@@ -279,7 +279,7 @@ module Hecks
           # @param content [String] the file content to write
           # @return [void]
           def write_file(root, relative_path, content)
-            path = File.join(root, relative_path)
+            path = Hecks::Utils.safe_path!(root, relative_path)
             FileUtils.mkdir_p(File.dirname(path))
             File.write(path, content)
           end

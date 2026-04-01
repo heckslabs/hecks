@@ -14,9 +14,20 @@ module HecksStatic
 
       private
 
+      # Resolves a path relative to root through +Hecks::Utils.safe_path!+,
+      # raising +PathTraversalDetected+ if the path escapes root.
+      #
+      # @param root [String] the output root directory
+      # @param *parts [Array<String>] path segments to join before resolving
+      # @return [String] the safe absolute path
+      def safe_join(root, *parts)
+        relative = File.join(*parts)
+        Hecks::Utils.safe_path!(root, relative)
+      end
+
       def generate_aggregates(root, gem_name, mod)
         @domain.aggregates.each do |agg|
-          agg_dir = File.join(root, "lib", gem_name, domain_snake_name(agg.name))
+          agg_dir = safe_join(root, "lib", gem_name, domain_snake_name(agg.name))
           FileUtils.mkdir_p(agg_dir)
 
           gen = DomainGen::AggregateGenerator.new(agg, domain_module: mod, mixin_prefix: mod)
@@ -39,7 +50,7 @@ module HecksStatic
       def generate_queries(root, gem_name, mod)
         @domain.aggregates.each do |agg|
           next if agg.queries.empty?
-          q_dir = File.join(root, "lib", gem_name, domain_snake_name(agg.name), "queries")
+          q_dir = safe_join(root, "lib", gem_name, domain_snake_name(agg.name), "queries")
           FileUtils.mkdir_p(q_dir)
           agg.queries.each do |query|
             gen = DomainGen::QueryGenerator.new(query,
@@ -50,7 +61,7 @@ module HecksStatic
       end
 
       def generate_ports(root, gem_name, mod)
-        port_dir = File.join(root, "lib", gem_name, "ports")
+        port_dir = safe_join(root, "lib", gem_name, "ports")
         FileUtils.mkdir_p(port_dir)
         @domain.aggregates.each do |agg|
           gen = InfraGen::PortGenerator.new(agg, domain_module: mod)
@@ -59,7 +70,7 @@ module HecksStatic
       end
 
       def generate_adapters(root, gem_name, mod)
-        adapter_dir = File.join(root, "lib", gem_name, "adapters")
+        adapter_dir = safe_join(root, "lib", gem_name, "adapters")
         FileUtils.mkdir_p(adapter_dir)
         @domain.aggregates.each do |agg|
           gen = InfraGen::MemoryAdapterGenerator.new(agg,
@@ -73,7 +84,7 @@ module HecksStatic
 
       def generate_services(root, gem_name, mod)
         return if @domain.services.empty?
-        svc_dir = File.join(root, "lib", gem_name, "services")
+        svc_dir = safe_join(root, "lib", gem_name, "services")
         FileUtils.mkdir_p(svc_dir)
         @domain.services.each do |svc|
           gen = DomainGen::ServiceGenerator.new(svc, domain_module: mod)

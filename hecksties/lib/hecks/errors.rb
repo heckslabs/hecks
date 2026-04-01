@@ -200,6 +200,31 @@ module Hecks
   # Raised when a rate limit is exceeded for a command or query operation.
   class RateLimitExceeded < Error; end
 
+  # Raised when a generator attempts to write a file outside the designated
+  # output directory. Prevents path traversal attacks where user-controlled
+  # domain names or aggregate names contain +../+ segments, absolute paths,
+  # or null bytes that would escape the intended root directory.
+  #
+  #   raise Hecks::PathTraversalDetected.new(
+  #     attempted_path: "../etc/passwd",
+  #     output_dir: "/tmp/my_domain"
+  #   )
+  class PathTraversalDetected < Hecks::Error
+    # @return [String] the path that was attempted
+    attr_reader :attempted_path
+
+    # @return [String] the output directory that was being written to
+    attr_reader :output_dir
+
+    # @param attempted_path [String] the relative or absolute path that was rejected
+    # @param output_dir [String] the root directory the write was constrained to
+    def initialize(attempted_path:, output_dir:)
+      @attempted_path = attempted_path
+      @output_dir = output_dir
+      super("Path traversal detected: #{attempted_path} is outside #{output_dir}")
+    end
+  end
+
   # Raised when a command references an aggregate ID that does not exist in the
   # repository. Prevents executing commands with dangling foreign keys.
   #
