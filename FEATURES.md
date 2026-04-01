@@ -118,6 +118,9 @@
 - `hecks_auth` — actor-based authentication & authorization
 - Default-secure auth: raises `ConfigurationError` at boot when actor-protected commands exist but no `:auth` extension is registered
 - Explicit opt-out: `extend :auth, enforce: false` registers a no-op sentinel that satisfies the check
+- Auth screens: auto-generated login/signup/logout HTML pages wired into the serve extension (GET/POST `/login`, GET/POST `/signup`, GET `/logout`)
+- Session management via HttpOnly cookies with Base64-encoded JSON payloads
+- In-memory credential store for development; default role inferred from domain DSL actor declarations
 - `hecks_tenancy` — multi-tenant isolation (`Hecks.tenant = "acme"`)
 - Row-level authorization — `owned_by :field` on gates restricts `find`/`all`/`delete` to the current user; `tenancy: :row` isolates by `Hecks.tenant`
 - `Hecks.current_user` / `Hecks.with_user(user) { }` — thread-local current user context for ownership enforcement

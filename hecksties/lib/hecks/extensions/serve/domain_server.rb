@@ -6,6 +6,7 @@ require_relative "route_builder"
 require_relative "cors_headers"
 require_relative "command_bus_port"
 require_relative "csrf_helpers"
+require_relative "../auth/screen_routes"
 
 module Hecks
   module HTTP
@@ -28,6 +29,7 @@ module Hecks
       include HecksTemplating::NamingHelpers
       include Hecks::HTTP::CorsHeaders
       include CsrfHelpers
+      include Hecks::Auth::ScreenRoutes
       # Initialize the server, boot the domain gem, and build routes.
       #
       # Builds the domain gem into a temporary directory, requires it,
@@ -60,6 +62,11 @@ module Hecks
         puts "Hecks serving #{@domain.name} on http://localhost:#{@port}"
         puts ""
         @routes.each { |r| puts "  #{r[:method].ljust(6)} #{r[:path]}" }
+        puts "  GET    /login"
+        puts "  POST   /login"
+        puts "  GET    /signup"
+        puts "  POST   /signup"
+        puts "  GET    /logout"
         puts "  GET    /events (SSE)"
         puts "  GET    /_openapi"
         puts "  GET    /_schema"
@@ -87,6 +94,13 @@ module Hecks
       def handle(req, res)
         set_cors(res)
         return if req.request_method == "OPTIONS"
+
+        restore_actor_from_session(req)
+
+        if auth_route?(req.path)
+          handle_auth_route(req, res)
+          return
+        end
 
         if csrf_required?(req) && !valid_csrf_json?(req)
           res.status = 403
@@ -130,6 +144,15 @@ module Hecks
         res.status = 422
         res["Content-Type"] = "application/json"
         res.body = JSON.generate(error: e.message)
+      end
+
+      # Restore the actor from the session cookie if present.
+      #
+      # @param req [WEBrick::HTTPRequest] the incoming request
+      # @return [void]
+      def restore_actor_from_session(req)
+        actor = restore_session(req)
+        Hecks.actor = actor if actor
       end
 
       # Start a WebSocket server for real-time event streaming.
