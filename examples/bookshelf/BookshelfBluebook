@@ -1,0 +1,60 @@
+Hecks.domain "Bookshelf" do
+  aggregate "Book" do
+    attribute :title, String
+    attribute :author, String
+    attribute :status, String, default: "available" do
+      transition "CheckOutBook" => "checked_out"
+      transition "ReturnBook"   => "available"
+    end
+
+    validation :title,  presence: true
+    validation :author, presence: true
+
+    command "AddBook" do
+      attribute :title,  String
+      attribute :author, String
+    end
+
+    command "CheckOutBook" do
+      reference_to "Book"
+    end
+
+    command "ReturnBook" do
+      reference_to "Book"
+    end
+
+    query "Available" do
+      where(status: "available")
+    end
+
+    query "ByAuthor" do |author|
+      where(author: author)
+    end
+  end
+
+  aggregate "Loan" do
+    reference_to "Book"
+    attribute :borrower_name, String
+    attribute :due_date,      String
+    attribute :status,        String, default: "active" do
+      transition "CloseLoan" => "returned"
+    end
+
+    validation :borrower_name, presence: true
+    validation :due_date,      presence: true
+
+    command "CreateLoan" do
+      reference_to "Book"
+      attribute :borrower_name, String
+      attribute :due_date,      String
+    end
+
+    command "CloseLoan" do
+      reference_to "Loan"
+    end
+
+    query "Active" do
+      where(status: "active")
+    end
+  end
+end

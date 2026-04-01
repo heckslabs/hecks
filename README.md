@@ -12,6 +12,8 @@ Hecks is a domain compiler. Describe your business once. Generate complete appli
 $ gem install hecks
 ```
 
+**[Getting Started — zero to a running domain in 10 minutes](docs/getting_started.md)**
+
 ---
 
 ## Sketch
@@ -370,7 +372,7 @@ Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
 $ gem install hecks
 ```
 
-[All Features](FEATURES.md) | [Into the Weeds](INTO_THE_WEEDS.md) | [DDD Mapping](hecks_docs/ddd.md) | [Hexagonal Architecture](hecks_docs/hexagonal.md) | [Why Hecks](hecks_docs/why_hecks.md) | [Architecture Decisions](docs/usage/architecture_decisions.md)
+[Getting Started](docs/getting_started.md) | [All Features](FEATURES.md) | [Into the Weeds](INTO_THE_WEEDS.md) | [DDD Mapping](hecks_docs/ddd.md) | [Hexagonal Architecture](hecks_docs/hexagonal.md) | [Why Hecks](hecks_docs/why_hecks.md) | [Architecture Decisions](docs/usage/architecture_decisions.md)
 
 ## License
 
