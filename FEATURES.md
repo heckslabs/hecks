@@ -77,6 +77,9 @@
 
 ### Ubiquitous Language
 - `glossary { prefer "customer", not: ["user", "client"] }` — warn when banned terms appear in names across aggregates, commands, and events
+- `glossary { define "aggregate", as: "A cluster of objects" }` — define domain terms for the glossary
+- `prefer` accepts optional `definition:` kwarg to document preferred terms inline
+- Glossary `generate` produces a "Ubiquitous Language" section with definitions and avoid lists
 
 ### World Goals
 - `world_goals :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
@@ -395,6 +398,7 @@
 - `hecks validate` — check domain against DDD rules
 - `hecks mcp` — start MCP server
 - `hecks inspect` — show full domain definition including business logic (attributes, lifecycle, commands, policies, invariants, etc.)
+- `hecks glossary` — print domain glossary to stdout; `--export` writes `glossary.md`
 - `hecks dump` — show glossary, visualizer, and DSL output
 - `hecks migrations` — schema migration management
 - `hecks docs update` — sync doc headers and READMEs

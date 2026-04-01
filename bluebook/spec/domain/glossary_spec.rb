@@ -125,4 +125,39 @@ RSpec.describe Hecks::DomainGlossary do
       expect { domain.glossary }.to output(/Pizzas Domain Glossary/).to_stdout
     end
   end
+
+  describe "ubiquitous language section" do
+    let(:domain) do
+      Hecks.domain "Pizzas" do
+        glossary do
+          define "aggregate", as: "A cluster of domain objects treated as a unit"
+          prefer "stakeholder", not: ["user", "person"], definition: "Anyone with a vested interest"
+          prefer "topping", not: ["ingredient"]
+        end
+
+        aggregate "Pizza" do
+          attribute :name, String
+          command "CreatePizza" do
+            attribute :name, String
+          end
+        end
+      end
+    end
+
+    it "includes the Ubiquitous Language heading" do
+      expect(text).to include("## Ubiquitous Language")
+    end
+
+    it "renders defined terms with definitions" do
+      expect(text).to include("- **aggregate** -- A cluster of domain objects treated as a unit")
+    end
+
+    it "renders prefer terms with definitions and avoided words" do
+      expect(text).to include("- **stakeholder** -- Anyone with a vested interest (avoid: user, person)")
+    end
+
+    it "renders prefer terms without definitions but with avoided words" do
+      expect(text).to include("- **topping** (avoid: ingredient)")
+    end
+  end
 end

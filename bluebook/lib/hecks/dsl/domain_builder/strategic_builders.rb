@@ -100,10 +100,11 @@ module Hecks
 
       # Hecks::DSL::DomainBuilder::GlossaryBuilder
       #
-      # Collects term preference rules for ubiquitous language enforcement.
+      # Collects term preference rules and definitions for ubiquitous language.
       #
       #   glossary do
-      #     prefer "stakeholder", not: ["user", "person"]
+      #     define "aggregate", as: "A cluster of domain objects treated as a unit"
+      #     prefer "stakeholder", not: ["user", "person"], definition: "Anyone with interest in the outcome"
       #   end
       #
       class GlossaryBuilder
@@ -111,9 +112,13 @@ module Hecks
           @rules = rules
         end
 
-        def prefer(term, not: [])
+        def prefer(term, not: [], definition: nil)
           banned = binding.local_variable_get(:not)
-          @rules << { preferred: term, banned: banned }
+          @rules << { preferred: term, banned: banned, definition: definition }
+        end
+
+        def define(term, as:)
+          @rules << { preferred: term, banned: [], definition: as }
         end
       end
 

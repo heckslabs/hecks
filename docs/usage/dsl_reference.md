@@ -98,6 +98,7 @@ Hecks.domain "Banking" do
 
   # Ubiquitous language enforcement
   glossary do
+    define "stakeholder", as: "Anyone with a vested interest in the outcome"
     prefer "stakeholder", not: ["user", "person"]
   end
 
@@ -141,12 +142,17 @@ end
 
 ## Glossary
 
-The glossary enforces your team's shared vocabulary. It warns when banned terms appear in attribute names, command names, or event names.
+The glossary enforces your team's shared vocabulary and documents domain terms. It warns when banned terms appear in attribute names, command names, or event names.
 
 ```ruby
 Hecks.domain "Banking" do
   glossary do
-    prefer "customer", not: ["user", "client"]
+    # Define a term with a definition (no enforcement, just documentation)
+    define "aggregate", as: "A cluster of domain objects treated as a unit"
+
+    # Prefer a term, ban synonyms, and optionally add a definition
+    prefer "customer", not: ["user", "client"],
+      definition: "The party responsible for payment"
     prefer "account",  not: ["wallet", "fund"]
   end
 end
@@ -154,10 +160,21 @@ end
 
 When a banned term is detected, the compiler emits a warning: `"Use 'customer', not 'user' (found in attribute 'user_name')"`.
 
-Multiple `prefer` rules can be declared in the same block:
+The glossary output includes an "Ubiquitous Language" section:
+
+```
+## Ubiquitous Language
+
+- **aggregate** -- A cluster of domain objects treated as a unit
+- **customer** -- The party responsible for payment (avoid: user, client)
+- **account** (avoid: wallet, fund)
+```
+
+Multiple rules can be declared in the same block:
 
 ```ruby
 glossary do
+  define "bounded context", as: "An explicit boundary within which a domain model exists"
   prefer "invoice",   not: ["bill", "receipt"]
   prefer "customer",  not: ["user", "client", "buyer"]
   prefer "shipment",  not: ["delivery", "parcel"]

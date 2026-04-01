@@ -71,6 +71,32 @@ module Hecks
         "When #{subject} is #{verb}, the system will #{trigger_verb} #{trigger_target}#{async_note}. (policy)"
       end
 
+      # Build the "Ubiquitous Language" section from glossary rules.
+      # Renders each defined/preferred term with its definition and
+      # any avoided synonyms.
+      #
+      # @return [Array<String>] lines of markdown describing the glossary terms,
+      #   or an empty array if there are no glossary rules
+      def describe_ubiquitous_language
+        rules = Array(@domain.glossary_rules)
+        return [] if rules.empty?
+
+        lines = []
+        lines << "## Ubiquitous Language"
+        lines << ""
+        rules.each do |rule|
+          term = rule[:preferred]
+          defn = rule[:definition]
+          banned = Array(rule[:banned])
+          line = "- **#{term}**"
+          line += " -- #{defn}" if defn
+          line += " (avoid: #{banned.join(', ')})" unless banned.empty?
+          lines << line
+        end
+        lines << ""
+        lines
+      end
+
       # Build the "Relationships" section listing all cross-aggregate
       # references in the domain. Scans all aggregates for reference-type
       # attributes and generates one sentence per reference.

@@ -51,6 +51,7 @@ module Hecks
       end
 
       lines.concat(describe_relationships)
+      lines.concat(describe_ubiquitous_language)
       lines
     end
 
