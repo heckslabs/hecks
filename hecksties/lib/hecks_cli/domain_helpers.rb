@@ -72,18 +72,18 @@ module Hecks
         .group_by(&:name).map { |name, specs| [name, specs.map(&:version).sort.reverse] }
     end
 
-    def print_mother_earth_report(validator)
-      report = validator.mother_earth_report
+    def print_world_concerns_report(validator)
+      report = validator.world_concerns_report
       return unless report
 
       say ""
-      say "Mother Earth Report", :bold
-      say "  Goals declared: #{report[:goals_declared].map(&:to_s).join(', ')}"
-      report[:goals_declared].each do |goal|
-        if report[:passing_goals].include?(goal)
-          say "  [PASS] #{goal}", :green
+      say "World Concerns Report", :bold
+      say "  Concerns declared: #{report[:concerns_declared].map(&:to_s).join(', ')}"
+      report[:concerns_declared].each do |concern|
+        if report[:passing_concerns].include?(concern)
+          say "  [PASS] #{concern}", :green
         else
-          say "  [FAIL] #{goal}", :red
+          say "  [FAIL] #{concern}", :red
         end
       end
       return if report[:violations].empty?
@@ -93,15 +93,15 @@ module Hecks
       report[:violations].each { |v| say "    - #{v}", :red }
     end
 
-    def domain_template(name, world_goals: [])
-      goals_line = if world_goals.any?
-        "\n  world_goals #{world_goals.map { |g| ":#{g}" }.join(", ")}\n"
+    def domain_template(name, world_concerns: [])
+      concerns_line = if world_concerns.any?
+        "\n  world_concerns #{world_concerns.map { |g| ":#{g}" }.join(", ")}\n"
       else
         ""
       end
 
       <<~RUBY
-        Hecks.domain "#{name}" do#{goals_line}
+        Hecks.domain "#{name}" do#{concerns_line}
           aggregate "Example" do
             attribute :name, String
             validation :name, presence: true

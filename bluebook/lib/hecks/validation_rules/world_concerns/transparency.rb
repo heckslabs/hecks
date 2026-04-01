@@ -1,14 +1,14 @@
 module Hecks
   module ValidationRules
-    module WorldGoals
+    module WorldConcerns
 
-      # Hecks::ValidationRules::WorldGoals::Transparency
+      # Hecks::ValidationRules::WorldConcerns::Transparency
       #
-      # When the :transparency goal is declared, every command must emit at least
+      # When the :transparency concern is declared, every command must emit at least
       # one domain event. Silent mutations violate transparency because observers
       # and audit logs have no way to know a change occurred.
       #
-      #   world_goals :transparency
+      #   world_concerns :transparency
       #
       #   # violation: a command with no events
       #   command "DeleteRecord" do
@@ -18,7 +18,7 @@ module Hecks
       #
       class Transparency < BaseRule
         def errors
-          return [] unless @domain.world_goals.include?(:transparency)
+          return [] unless @domain.world_concerns.include?(:transparency)
 
           issues = []
           @domain.aggregates.each do |agg|

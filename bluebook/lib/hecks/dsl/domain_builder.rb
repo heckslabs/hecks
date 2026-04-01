@@ -65,19 +65,19 @@ module Hecks
         @modules = []
         @tenancy = nil
         @event_subscribers = []
-        @world_goals = []
+        @world_concerns = []
       end
 
-      # Declare world goals that this domain aspires to uphold.
-      # Goals activate corresponding validation rules that check domain design
-      # for alignment. Available goals: :transparency, :consent, :privacy, :security.
+      # Declare world concerns that this domain aspires to uphold.
+      # Concerns activate corresponding validation rules that check domain design
+      # for alignment. Available concerns: :transparency, :consent, :privacy, :security.
       #
-      #   world_goals :transparency, :consent, :privacy
+      #   world_concerns :transparency, :consent, :privacy
       #
-      # @param goals [Array<Symbol>] one or more goal names
+      # @param concerns [Array<Symbol>] one or more concern names
       # @return [void]
-      def world_goals(*goals)
-        @world_goals.concat(goals.map(&:to_sym))
+      def world_concerns(*concerns)
+        @world_concerns.concat(concerns.map(&:to_sym))
       end
 
       def actor(name, description: nil)
@@ -280,7 +280,7 @@ module Hecks
           event_subscribers: @event_subscribers,
           sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
           glossary_strict: @glossary_strict || false,
-          world_goals: @world_goals
+          world_concerns: @world_concerns
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

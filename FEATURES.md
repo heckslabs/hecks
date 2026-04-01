@@ -81,13 +81,13 @@
 - `prefer` accepts optional `definition:` kwarg to document preferred terms inline
 - Glossary `generate` produces a "Ubiquitous Language" section with definitions and avoid lists
 
-### World Goals
-- `world_goals :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
+### World Concerns
+- `world_concerns :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
 - `:transparency` — commands must emit events (no silent mutations)
 - `:consent` — user-like aggregate commands must declare actors
 - `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
 - `:security` — command actors must be declared at domain level
-- **Mother Earth Report** — `hecks validate` shows a per-goal PASS/FAIL summary with violations listed
+- **World Concerns Report** — `hecks validate` shows a per-concern PASS/FAIL summary with violations listed
 
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer

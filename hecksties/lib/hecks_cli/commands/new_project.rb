@@ -14,9 +14,9 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
 
   if $stdin.tty?
     say ""
-    say "World goals are opt-in ethical validation rules for your domain.", :cyan
+    say "World concerns are opt-in ethical validation rules for your domain.", :cyan
     say "Available: #{available_goals.map { |g| ":#{g}" }.join(", ")}"
-    say "Enter goals (space-separated), or press Enter to skip:"
+    say "Enter concerns (space-separated), or press Enter to skip:"
     input = $stdin.gets&.chomp
     if input && !input.strip.empty?
       selected_goals = input.strip.split(/\s+/).map(&:to_sym) & available_goals
@@ -78,7 +78,7 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
 
   FileUtils.mkdir_p(File.join(dir, "spec"))
 
-  write_or_diff(File.join(dir, "#{pascal}Bluebook"), domain_template(pascal, world_goals: selected_goals))
+  write_or_diff(File.join(dir, "#{pascal}Bluebook"), domain_template(pascal, world_concerns: selected_goals))
   write_or_diff(File.join(dir, "app.rb"), app_template.call)
   write_or_diff(File.join(dir, "Gemfile"), gemfile_template.call)
   write_or_diff(File.join(dir, "spec", "spec_helper.rb"), spec_helper_template.call)

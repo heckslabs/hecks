@@ -69,5 +69,5 @@ Hecks::CLI.register_command(:validate, "Validate the domain definition",
     end
   end
 
-  print_mother_earth_report(validator)
+  print_world_concerns_report(validator)
 end

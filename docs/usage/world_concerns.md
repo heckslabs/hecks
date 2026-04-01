@@ -1,13 +1,13 @@
-# World Goals
+# World Concerns
 
-Declare ethical and governance aspirations for your domain. Each goal activates
+Declare ethical and governance aspirations for your domain. Each concern activates
 validation rules that check your model for alignment.
 
 ## DSL
 
 ```ruby
 Hecks.domain "Healthcare" do
-  world_goals :transparency, :consent, :privacy, :security
+  world_concerns :transparency, :consent, :privacy, :security
 
   actor "Doctor"
   actor "Admin"
@@ -30,7 +30,7 @@ Hecks.domain "Healthcare" do
 end
 ```
 
-## Available Goals
+## Available Concerns
 
 ### `:transparency`
 
@@ -56,10 +56,10 @@ an actor for audit trails.
 Command-level actors must be declared at the domain level with `actor "Name"`.
 This prevents dangling or misspelled role references.
 
-## Mother Earth Report
+## World Concerns Report
 
-When world goals are declared, `hecks validate` prints a **Mother Earth Report**
-after the standard validation output. Each declared goal gets a PASS/FAIL status,
+When world concerns are declared, `hecks validate` prints a **World Concerns Report**
+after the standard validation output. Each declared concern gets a PASS/FAIL status,
 and any violations are listed.
 
 ```
@@ -72,8 +72,8 @@ Aggregates:
     Attributes:     name, ssn
     Commands:       CreatePatient, UpdateRecord
 
-Mother Earth Report
-  Goals declared: transparency, consent, privacy, security
+World Concerns Report
+  Concerns declared: transparency, consent, privacy, security
   [PASS] transparency
   [PASS] consent
   [PASS] privacy
@@ -89,8 +89,8 @@ Domain validation failed:
   - Transparency: Record#DeleteRecord emits no events. Commands must emit events so changes are observable.
   - Consent: Patient#UpdateRecord has no actor. Commands on user-like aggregates must declare who initiates them.
 
-Mother Earth Report
-  Goals declared: transparency, consent
+World Concerns Report
+  Concerns declared: transparency, consent
   [FAIL] transparency
   [FAIL] consent
 
@@ -99,17 +99,17 @@ Mother Earth Report
     - Consent: Patient#UpdateRecord has no actor. Commands on user-like aggregates must declare who initiates them.
 ```
 
-The report is also available programmatically via `Validator#mother_earth_report`:
+The report is also available programmatically via `Validator#world_concerns_report`:
 
 ```ruby
 validator = Hecks::Validator.new(domain)
 validator.valid?
-report = validator.mother_earth_report
-# => { goals_declared: [:transparency], violations: [...],
-#      passing_goals: [], failing_goals: [:transparency] }
+report = validator.world_concerns_report
+# => { concerns_declared: [:transparency], violations: [...],
+#      passing_concerns: [], failing_concerns: [:transparency] }
 ```
 
-## No Goals, No Rules
+## No Concerns, No Rules
 
-If you do not declare `world_goals`, none of these rules fire. They are opt-in.
-The Mother Earth Report is omitted when no goals are declared.
+If you do not declare `world_concerns`, none of these rules fire. They are opt-in.
+The World Concerns Report is omitted when no concerns are declared.

@@ -1,15 +1,15 @@
 module Hecks
   module ValidationRules
-    module WorldGoals
+    module WorldConcerns
 
-      # Hecks::ValidationRules::WorldGoals::Security
+      # Hecks::ValidationRules::WorldConcerns::Security
       #
-      # When the :security goal is declared, commands that declare actors must
+      # When the :security concern is declared, commands that declare actors must
       # reference actors that are also declared at the domain level. This ensures
       # that every role used in access control is a recognized part of the domain
       # model -- no dangling or misspelled actor references.
       #
-      #   world_goals :security
+      #   world_concerns :security
       #
       #   actor "Admin"
       #
@@ -22,7 +22,7 @@ module Hecks
       #
       class Security < BaseRule
         def errors
-          return [] unless @domain.world_goals.include?(:security)
+          return [] unless @domain.world_concerns.include?(:security)
 
           domain_actor_names = @domain.actors.map(&:name)
           issues = []

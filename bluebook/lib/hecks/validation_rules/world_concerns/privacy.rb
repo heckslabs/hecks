@@ -1,15 +1,15 @@
 module Hecks
   module ValidationRules
-    module WorldGoals
+    module WorldConcerns
 
-      # Hecks::ValidationRules::WorldGoals::Privacy
+      # Hecks::ValidationRules::WorldConcerns::Privacy
       #
-      # When the :privacy goal is declared, PII attributes must be marked
+      # When the :privacy concern is declared, PII attributes must be marked
       # +visible: false+ so they are hidden from generated UIs and explorers.
       # Additionally, commands on aggregates containing PII must declare an
       # actor so there is an audit trail of who accessed or modified PII.
       #
-      #   world_goals :privacy
+      #   world_concerns :privacy
       #
       #   aggregate "Patient" do
       #     attribute :ssn, String, pii: true, visible: false  # good
@@ -18,7 +18,7 @@ module Hecks
       #
       class Privacy < BaseRule
         def errors
-          return [] unless @domain.world_goals.include?(:privacy)
+          return [] unless @domain.world_concerns.include?(:privacy)
 
           issues = []
           @domain.aggregates.each do |agg|

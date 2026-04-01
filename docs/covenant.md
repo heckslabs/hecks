@@ -16,7 +16,7 @@ Not just users. Not just paying customers. The people downstream of the software
 
 ## The Three Root Principles
 
-All of Hecks' world goals flow from three roots. They are not arbitrary. They map to the three ways software most commonly fails the beings it touches.
+All of Hecks' world concerns flow from three roots. They are not arbitrary. They map to the three ways software most commonly fails the beings it touches.
 
 **Transparency** — the relief of ignorance.
 
@@ -38,9 +38,9 @@ Hecks encodes these principles as defaults, validators, and invitations — not 
 
 **Defaults protect.** The secure path is the easy path. Auth is fail-closed. References are validated. Sensitive attributes can be hidden. The framework makes the compassionate choice the convenient choice.
 
-**Validators witness.** `world_goals` declarations are checked at boot. If your structure contradicts your stated values, Hecks will tell you. Not to block you — to show you the gap between intention and reality.
+**Validators witness.** `world_concerns` declarations are checked at boot. If your structure contradicts your stated values, Hecks will tell you. Not to block you — to show you the gap between intention and reality.
 
-**Mother Earth reviews.** After validation, a voice speaks from the perspective of the living world — calm, non-judgmental, present-tense. Not a score. Not a grade. A witness to what the domain does for the beings downstream of it.
+**World concerns report.** After validation, a report speaks from the perspective of the living world — calm, non-judgmental, present-tense. Not a score. Not a grade. A witness to what the domain does for the beings downstream of it.
 
 **`hecks new` asks first.** Before a single aggregate is declared, the framework asks what the domain owes the world. The developer can skip it. But they saw the question.
 
@@ -52,20 +52,20 @@ Hecks does not prevent harmful software from being built.
 
 This is intentional. A framework that forced goodness would not actually be good — it would be paternalistic. It would say: we do not trust you. That is not compassion. That is control.
 
-The design honors developers as beings with agency. The deliberate opt-out — skipping world goals, overriding a default, disabling a validator — is always available. What Hecks asks is that the choice be conscious. That it not happen by accident, by inattention, by not knowing the question existed.
+The design honors developers as beings with agency. The deliberate opt-out — skipping world concerns, overriding a default, disabling a validator — is always available. What Hecks asks is that the choice be conscious. That it not happen by accident, by inattention, by not knowing the question existed.
 
-When someone does declare `world_goals :consent, :privacy` — it means something. It was not the only option. They chose it anyway.
+When someone does declare `world_concerns :consent, :privacy` — it means something. It was not the only option. They chose it anyway.
 
 The framework is a witness, not an enforcer.
 
 ---
 
-## The World Goals
+## The World Concerns
 
-These are the current goals available to declare. They are expressions of the three root principles in concrete, checkable form.
+These are the current concerns available to declare. They are expressions of the three root principles in concrete, checkable form.
 
-| Goal | Root | What it checks |
-|------|------|----------------|
+| Concern | Root | What it checks |
+|---------|------|----------------|
 | `:transparency` | Transparency | All state-changing commands emit at least one event |
 | `:privacy` | Consent | PII-signal attributes are marked `visible: false`; actor required on PII commands |
 | `:consent` | Consent | Commands affecting user-representing aggregates declare an actor |
@@ -73,7 +73,7 @@ These are the current goals available to declare. They are expressions of the th
 | `:sustainability` | Equity | No unbounded queries; data growth is bounded |
 | `:security` | Transparency | Fail-closed auth, CSRF protection, reference validation enforced |
 
-New goals will be added as the framework's understanding deepens.
+New concerns will be added as the framework's understanding deepens.
 
 ---
 

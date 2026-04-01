@@ -74,14 +74,14 @@ RSpec.describe "hecks new CLI command" do
           Hecks::CLI.new.invoke(:new_project, ["with_goals"])
         end
         bluebook = File.read(Dir["with_goals/*Bluebook"].first)
-        expect(bluebook).to include("world_goals :transparency, :consent")
+        expect(bluebook).to include("world_concerns :transparency, :consent")
         expect(bluebook).not_to include("bogus")
 
         with_stdin("\n") do
           Hecks::CLI.new.invoke(:new_project, ["no_goals"])
         end
         bluebook = File.read(Dir["no_goals/*Bluebook"].first)
-        expect(bluebook).not_to include("world_goals")
+        expect(bluebook).not_to include("world_concerns")
       end
     end
 
@@ -92,7 +92,7 @@ RSpec.describe "hecks new CLI command" do
         Hecks::CLI.new.invoke(:new_project, ["noninteractive"])
 
         bluebook = File.read(Dir["noninteractive/*Bluebook"].first)
-        expect(bluebook).not_to include("world_goals")
+        expect(bluebook).not_to include("world_concerns")
       end
     end
   end

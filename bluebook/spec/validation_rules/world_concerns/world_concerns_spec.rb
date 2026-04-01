@@ -1,13 +1,13 @@
 require "spec_helper"
 
-RSpec.describe "World Goals validation rules" do
+RSpec.describe "World Concerns validation rules" do
   def validate(domain)
     validator = Hecks::Validator.new(domain)
     [validator.valid?, validator.errors]
   end
 
-  describe "no goals declared" do
-    it "passes with no world goals" do
+  describe "no concerns declared" do
+    it "passes with no world concerns" do
       domain = Hecks.domain "Clean" do
         aggregate "Widget" do
           attribute :name, String
@@ -25,7 +25,7 @@ RSpec.describe "World Goals validation rules" do
   describe ":transparency" do
     it "flags commands that emit no events" do
       domain = Hecks.domain "Opaque" do
-        world_goals :transparency
+        world_concerns :transparency
         aggregate "Record" do
           attribute :name, String
           command "DeleteRecord" do
@@ -42,7 +42,7 @@ RSpec.describe "World Goals validation rules" do
 
     it "passes when commands emit events normally" do
       domain = Hecks.domain "Transparent" do
-        world_goals :transparency
+        world_concerns :transparency
         aggregate "Record" do
           attribute :name, String
           command "CreateRecord" do
@@ -59,7 +59,7 @@ RSpec.describe "World Goals validation rules" do
   describe ":consent" do
     it "flags user-like aggregates with actor-less commands" do
       domain = Hecks.domain "NoConsent" do
-        world_goals :consent
+        world_concerns :consent
         aggregate "Patient" do
           attribute :name, String
           command "UpdatePatient" do
@@ -75,7 +75,7 @@ RSpec.describe "World Goals validation rules" do
 
     it "passes when user-like aggregate commands have actors" do
       domain = Hecks.domain "WithConsent" do
-        world_goals :consent
+        world_concerns :consent
         aggregate "Patient" do
           attribute :name, String
           command "UpdatePatient" do
@@ -93,7 +93,7 @@ RSpec.describe "World Goals validation rules" do
   describe ":privacy" do
     it "flags PII attributes that are visible" do
       domain = Hecks.domain "LeakyPII" do
-        world_goals :privacy
+        world_concerns :privacy
         aggregate "Patient" do
           attribute :ssn, String, pii: true
           command "CreatePatient" do
@@ -110,7 +110,7 @@ RSpec.describe "World Goals validation rules" do
 
     it "flags PII aggregate commands without actors" do
       domain = Hecks.domain "NoAudit" do
-        world_goals :privacy
+        world_concerns :privacy
         aggregate "Patient" do
           attribute :ssn, String, pii: true, visible: false
           command "CreatePatient" do
@@ -126,7 +126,7 @@ RSpec.describe "World Goals validation rules" do
 
     it "passes when PII is hidden and commands have actors" do
       domain = Hecks.domain "Secure" do
-        world_goals :privacy
+        world_concerns :privacy
         aggregate "Patient" do
           attribute :ssn, String, pii: true, visible: false
           command "CreatePatient" do
@@ -141,10 +141,10 @@ RSpec.describe "World Goals validation rules" do
     end
   end
 
-  describe "mother_earth_report" do
-    it "returns nil when no goals declared and reports failing goals" do
-      # No goals => nil
-      no_goals = Hecks.domain "Plain" do
+  describe "world_concerns_report" do
+    it "returns nil when no concerns declared and reports failing concerns" do
+      # No concerns => nil
+      no_concerns = Hecks.domain "Plain" do
         aggregate "Widget" do
           attribute :name, String
           command "CreateWidget" do
@@ -152,13 +152,13 @@ RSpec.describe "World Goals validation rules" do
           end
         end
       end
-      v1 = Hecks::Validator.new(no_goals)
+      v1 = Hecks::Validator.new(no_concerns)
       v1.valid?
-      expect(v1.mother_earth_report).to be_nil
+      expect(v1.world_concerns_report).to be_nil
 
-      # Failing goal => report with failing_goals populated
+      # Failing concern => report with failing_concerns populated
       failing = Hecks.domain "Opaque" do
-        world_goals :transparency
+        world_concerns :transparency
         aggregate "Record" do
           attribute :name, String
           command "DeleteRecord" do
@@ -169,10 +169,10 @@ RSpec.describe "World Goals validation rules" do
       end
       v2 = Hecks::Validator.new(failing)
       v2.valid?
-      report = v2.mother_earth_report
-      expect(report[:goals_declared]).to eq([:transparency])
-      expect(report[:failing_goals]).to eq([:transparency])
-      expect(report[:passing_goals]).to be_empty
+      report = v2.world_concerns_report
+      expect(report[:concerns_declared]).to eq([:transparency])
+      expect(report[:failing_concerns]).to eq([:transparency])
+      expect(report[:passing_concerns]).to be_empty
       expect(report[:violations]).to include(/Transparency/)
     end
   end
@@ -180,7 +180,7 @@ RSpec.describe "World Goals validation rules" do
   describe ":security" do
     it "flags command actors not declared at domain level" do
       domain = Hecks.domain "Dangling" do
-        world_goals :security
+        world_concerns :security
         aggregate "Config" do
           attribute :key, String
           command "UpdateConfig" do
@@ -197,7 +197,7 @@ RSpec.describe "World Goals validation rules" do
 
     it "passes when command actors match domain actors" do
       domain = Hecks.domain "Locked" do
-        world_goals :security
+        world_concerns :security
         actor "Admin"
         aggregate "Config" do
           attribute :key, String

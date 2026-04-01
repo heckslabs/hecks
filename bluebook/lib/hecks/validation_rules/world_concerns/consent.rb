@@ -1,10 +1,10 @@
 module Hecks
   module ValidationRules
-    module WorldGoals
+    module WorldConcerns
 
-      # Hecks::ValidationRules::WorldGoals::Consent
+      # Hecks::ValidationRules::WorldConcerns::Consent
       #
-      # When the :consent goal is declared, commands on user-like aggregates
+      # When the :consent concern is declared, commands on user-like aggregates
       # must declare at least one actor. User-like aggregates are identified
       # by name heuristic: User, Account, Member, Customer, Patient, Person,
       # Profile.
@@ -12,7 +12,7 @@ module Hecks
       # Without an actor declaration, there is no record of who initiated the
       # action -- consent cannot be verified.
       #
-      #   world_goals :consent
+      #   world_concerns :consent
       #
       #   aggregate "Patient" do
       #     command "UpdateRecord" do
@@ -27,7 +27,7 @@ module Hecks
         ].freeze
 
         def errors
-          return [] unless @domain.world_goals.include?(:consent)
+          return [] unless @domain.world_concerns.include?(:consent)
 
           issues = []
           @domain.aggregates.each do |agg|
