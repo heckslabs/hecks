@@ -59,6 +59,7 @@ end
 
 Hecks.describe_extension(:pii,
   description: "PII field encryption and masking",
+  adapter_type: :driven,
   config: {},
   wires_to: :repository)
 

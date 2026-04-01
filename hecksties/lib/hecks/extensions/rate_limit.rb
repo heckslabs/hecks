@@ -19,6 +19,12 @@
 #   Hecks.actor = current_user
 #   app.run("CreatePizza", name: "Margherita")  # rate-limited per actor
 #
+Hecks.describe_extension(:rate_limit,
+  description: "Per-actor sliding window rate limiting",
+  adapter_type: :driven,
+  config: {},
+  wires_to: :command_bus)
+
 Hecks.register_extension(:rate_limit) do |_domain_mod, _domain, runtime|
   window = {}
   limit = ENV.fetch("HECKS_RATE_LIMIT", "60").to_i

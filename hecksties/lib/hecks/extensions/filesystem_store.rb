@@ -15,6 +15,7 @@
 #
 Hecks.describe_extension(:filesystem_store,
   description: "JSON file persistence",
+  adapter_type: :driven,
   config: { data_dir: { default: "./data", desc: "Directory for JSON files" } },
   wires_to: :repository)
 

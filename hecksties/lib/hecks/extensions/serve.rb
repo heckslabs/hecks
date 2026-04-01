@@ -21,6 +21,7 @@
 #
 Hecks.describe_extension(:http,
   description: "REST and JSON-RPC server with OpenAPI docs",
+  adapter_type: :driving,
   config: { gate: { default: 9292, desc: "HTTP port" }, rpc: { default: false, desc: "Enable JSON-RPC mode" } },
   wires_to: :command_bus)
 

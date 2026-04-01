@@ -20,6 +20,7 @@ require "hecks"
 
 Hecks.describe_extension(:transactions,
   description: "Transactional command execution with rollback",
+  adapter_type: :driven,
   config: {},
   wires_to: :command_bus)
 

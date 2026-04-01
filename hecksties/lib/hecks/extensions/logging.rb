@@ -16,6 +16,7 @@
 #
 Hecks.describe_extension(:logging,
   description: "Command execution logging",
+  adapter_type: :driven,
   config: {},
   wires_to: :command_bus)
 

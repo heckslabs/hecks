@@ -23,6 +23,7 @@ require "hecks"
 
 Hecks.describe_extension(:retry,
   description: "Automatic command retry with backoff",
+  adapter_type: :driven,
   config: { max_attempts: { default: 3, desc: "Max retry attempts" } },
   wires_to: :command_bus)
 

@@ -94,6 +94,9 @@
 ### Extension Registry
 - Extension registry: `Hecks.register_extension(:sqlite) { |mod, domain, runtime| ... }`
 - Add to Gemfile to wire, remove to unwire — no code changes needed
+- Adapter type classification: `adapter_type: :driven` or `:driving` on `describe_extension`
+- Two-phase boot: driven extensions (repos, middleware) fire before driving extensions (HTTP, queues)
+- Query helpers: `Hecks.driven_extensions` and `Hecks.driving_extensions`
 
 ### Persistence Extensions
 - `hecks_sqlite` — SQLite persistence, auto-wires when in Gemfile

@@ -24,6 +24,7 @@
 #
 Hecks.describe_extension(:auth,
   description: "Actor-based authorization via port guards",
+  adapter_type: :driven,
   config: {},
   wires_to: :command_bus)
 

@@ -93,15 +93,33 @@ module Hecks
       config = Hecks.configuration
       explicit = config&.extensions_explicit?
 
-      Hecks.extension_registry.each do |name, hook|
-        next if persistence_extension?(name)
-        next unless hook.respond_to?(:call)
-        next if explicit && !config.extensions.key?(name)
-        hook.call(mod, domain, runtime)
+      eligible = Hecks.extension_registry.select do |name, hook|
+        next false if persistence_extension?(name)
+        next false unless hook.respond_to?(:call)
+        next false if explicit && !config.extensions.key?(name)
+        true
       end
+
+      driven, driving, untyped = partition_by_adapter_type(eligible)
+      (driven + untyped + driving).each { |_name, hook| hook.call(mod, domain, runtime) }
 
       runtime.check_auth_coverage!
       runtime.check_reference_coverage!
+    end
+
+    def partition_by_adapter_type(extensions)
+      driven  = []
+      driving = []
+      untyped = []
+      extensions.each do |name, hook|
+        meta = Hecks.extension_meta[name]
+        case meta&.dig(:adapter_type)
+        when :driven  then driven  << [name, hook]
+        when :driving then driving << [name, hook]
+        else               untyped << [name, hook]
+        end
+      end
+      [driven, driving, untyped]
     end
 
     def autoload_services(dir)

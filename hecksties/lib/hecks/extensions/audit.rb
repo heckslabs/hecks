@@ -124,6 +124,7 @@ end
 # Auto-wire when loaded: subscribe to shared event bus and add middleware.
 Hecks.describe_extension(:audit,
   description: "Immutable audit trail for every domain event",
+  adapter_type: :driven,
   config: {},
   wires_to: :event_bus)
 

@@ -26,6 +26,7 @@ require_relative "tenancy_support/tenant_scoped_repository"
 
 Hecks.describe_extension(:tenancy,
   description: "Multi-tenant column-scoped data isolation",
+  adapter_type: :driven,
   config: { strategy: { default: :column, desc: "Tenancy strategy" } },
   wires_to: :repository)
 

@@ -16,6 +16,7 @@
 #
 Hecks.describe_extension(:idempotency,
   description: "Idempotent command execution via dedup keys",
+  adapter_type: :driven,
   config: {},
   wires_to: :command_bus)
 

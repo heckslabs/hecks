@@ -20,6 +20,7 @@ require "erb"
 
 Hecks.describe_extension(:web_explorer,
   description: "Domain web explorer UI",
+  adapter_type: :driving,
   config: {},
   wires_to: :http)
 

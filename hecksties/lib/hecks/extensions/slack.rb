@@ -17,6 +17,7 @@ require "json"
 
 Hecks.describe_extension(:slack,
   description: "Slack webhook notifications for domain events",
+  adapter_type: :driving,
   config: { webhook: { desc: "Slack incoming webhook URL" } },
   wires_to: :event_bus)
 

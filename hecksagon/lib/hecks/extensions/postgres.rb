@@ -21,6 +21,7 @@ require_relative "../../hecks_persist"
 
 Hecks.describe_extension(:postgres,
   description: "PostgreSQL persistence via Sequel",
+  adapter_type: :driven,
   config: { host: { default: "localhost", desc: "DB host" }, database: { default: nil, desc: "DB name" } },
   wires_to: :repository)
 

@@ -19,6 +19,7 @@
 #
 Hecks.describe_extension(:mcp,
   description: "MCP server for AI-assisted domain modeling",
+  adapter_type: :driving,
   config: { gate: { default: 8080, desc: "MCP server port" } },
   wires_to: :domain)
 

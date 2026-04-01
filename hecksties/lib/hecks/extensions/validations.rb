@@ -20,6 +20,7 @@
 #
 Hecks.describe_extension(:validations,
   description: "Server-side parameter validation from domain rules",
+  adapter_type: :driven,
   config: {},
   wires_to: :command_bus)
 

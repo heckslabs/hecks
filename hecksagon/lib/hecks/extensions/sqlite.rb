@@ -20,6 +20,7 @@ require_relative "../../hecks_persist/sql_boot"
 
 Hecks.describe_extension(:sqlite,
   description: "SQLite persistence via Sequel",
+  adapter_type: :driven,
   config: { database: { default: ":memory:", desc: "Database path" } },
   wires_to: :repository)
 

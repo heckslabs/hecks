@@ -22,6 +22,7 @@ require "json"
 
 Hecks.describe_extension(:queue,
   description: "Event queue publishing (RabbitMQ, file, custom adapter)",
+  adapter_type: :driving,
   config: { adapter: { default: :file, desc: "Queue adapter (:rabbitmq, :file, or object)" } },
   wires_to: :event_bus)
 
