@@ -89,6 +89,8 @@
 - `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
 - `:security` — command actors must be declared at domain level
 - **World Concerns Report** — `hecks validate` shows a per-concern PASS/FAIL summary with violations listed
+- **GovernanceGuard** — general-purpose governance checker (`Hecks::GovernanceGuard.new(domain).check`) returns `Result` with `passed?`, `violations`, `suggestions`; works from CLI (`--governance`), MCP (`governance_check` tool), REPL, or any entry point
+- GovernanceGuard falls back to rule-based checks when no LLM API key is present; enriches suggestions via AI when available
 
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer

@@ -93,6 +93,29 @@ module Hecks
       report[:violations].each { |v| say "    - #{v}", :red }
     end
 
+    def print_governance_report(domain)
+      require "hecks_ai"
+      guard = Hecks::GovernanceGuard.new(domain)
+      result = guard.check
+
+      say ""
+      say "Governance Check", :bold
+      if result.passed?
+        say "  All governance checks passed", :green
+      else
+        say "  Violations:", :red
+        result.violations.each do |v|
+          say "    [#{v[:concern]}] #{v[:message]}", :red
+        end
+      end
+
+      return if result.suggestions.empty?
+
+      say ""
+      say "  Suggestions:", :cyan
+      result.suggestions.each { |s| say "    - #{s}", :cyan }
+    end
+
     def domain_template(name, world_concerns: [])
       concerns_line = if world_concerns.any?
         "\n  world_concerns #{world_concerns.map { |g| ":#{g}" }.join(", ")}\n"

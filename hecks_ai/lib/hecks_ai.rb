@@ -5,6 +5,8 @@
 # Also includes LLM-driven domain generation (HEC-102).
 #
 module Hecks
+  autoload :GovernanceGuard, "hecks_ai/governance_guard"
+
   module AI
     autoload :McpServer,        "hecks_ai/mcp_server"
     autoload :AggregateTools,   "hecks_ai/aggregate_tools"

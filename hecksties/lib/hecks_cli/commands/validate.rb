@@ -10,7 +10,8 @@
 Hecks::CLI.register_command(:validate, "Validate the domain definition",
   options: {
     domain: { type: :string, desc: "Domain gem name or path" },
-    format: { type: :string, desc: "Output format: text (default) or json" }
+    format: { type: :string, desc: "Output format: text (default) or json" },
+    governance: { type: :boolean, desc: "Run governance checks against world concerns" }
   }
 ) do
   domain = resolve_domain_option
@@ -70,4 +71,5 @@ Hecks::CLI.register_command(:validate, "Validate the domain definition",
   end
 
   print_world_concerns_report(validator)
+  print_governance_report(domain) if options[:governance]
 end

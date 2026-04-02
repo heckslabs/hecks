@@ -7,6 +7,7 @@ require_relative "inspect_tools"
 require_relative "build_tools"
 require_relative "play_tools"
 require_relative "service_tools"
+require_relative "governance_tools"
 
 module Hecks
   # Hecks::McpServer
@@ -16,13 +17,14 @@ module Hecks
   # domain modeling MCP server (as opposed to DomainServer which serves a
   # pre-built domain).
   #
-  # Registers six tool groups:
+  # Registers seven tool groups:
   #   - +SessionTools+    -- create/load domain sessions
   #   - +AggregateTools+  -- add/remove domain structures
   #   - +ServiceTools+    -- add domain services (cross-aggregate orchestration)
   #   - +InspectTools+    -- read-only domain introspection
   #   - +BuildTools+      -- validate, build, save, serve
   #   - +PlayTools+       -- interactive playground for testing
+  #   - +GovernanceTools+ -- governance checks against world concerns
   #
   # The server runs over stdio transport and acts as a shared context (+ctx+)
   # for all tool modules, providing:
@@ -53,6 +55,7 @@ module Hecks
       Hecks::MCP::InspectTools.register(@server, self)
       Hecks::MCP::BuildTools.register(@server, self)
       Hecks::MCP::PlayTools.register(@server, self)
+      Hecks::MCP::GovernanceTools.register(@server, self)
     end
 
     # Starts the MCP server using stdio transport. Blocks until the transport
