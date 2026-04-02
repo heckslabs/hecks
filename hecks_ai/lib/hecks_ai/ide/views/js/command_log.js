@@ -24,7 +24,7 @@ IDE.register({
   },
 
   logEntry(source, event, data) {
-    if (['autocomplete:close', 'autocomplete:update'].includes(event)) return;
+    if (['autocomplete:close', 'autocomplete:update', 'screenshot:saved'].includes(event)) return;
 
     const time = new Date().toLocaleTimeString('en-US', {
       hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
