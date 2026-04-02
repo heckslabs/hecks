@@ -749,6 +749,8 @@
 - Filter bar with dropdowns for event type and aggregate type
 - Table columns: timestamp, type (badge), aggregate, expandable payload details
 - Events displayed in reverse chronological order (newest first)
+- `Paginator` provides offset-based pagination (25 per page, prev/next links)
+- Content negotiation: `Accept: application/json` returns JSON, otherwise HTML
 - "Events" link in the sidebar nav under System group
 
 ## Implicit DSL (HEC-229)

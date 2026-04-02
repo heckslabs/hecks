@@ -103,7 +103,7 @@ module Hecks
         if path == "/"
           serve_home(res)
         elsif path == "/events"
-          serve_events(req, res)
+          req["Accept"]&.include?("application/json") ? serve_events_json(res) : serve_events(req, res)
         elsif path == "/config"
           serve_config(res)
         else
@@ -205,8 +205,6 @@ module Hecks
         segment.start_with?(":")
       end
 
-      # Minimal event bus adapter for merging events from multiple runtimes.
-      MergedEventBus = Struct.new(:events)
     end
   end
 end
