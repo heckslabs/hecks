@@ -27,7 +27,10 @@ const IDE = {
       eventsSidebar: document.getElementById('events-sidebar'),
       eventList: document.getElementById('event-list')
     };
-    this.el.prompt.addEventListener('keydown', e => this.onKeydown(e), true);
+    // Capture phase — fires before Awesomplete's handler
+    document.addEventListener('keydown', e => {
+      if (e.target === this.el.prompt) this.onKeydown(e);
+    }, true);
     this.el.prompt.addEventListener('input', () => this.onInput());
     this.el.sidebar.addEventListener('click', e => {
       const link = e.target.closest('.ctx-link, .book-app-name');
