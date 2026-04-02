@@ -1,11 +1,21 @@
 /* ── File tab viewer — open files as tabs ── */
 
 function toggleBookAggs(id) {
-  const el = document.getElementById('aggs-' + id);
-  const chev = document.getElementById('chev-' + id);
-  el.classList.toggle('collapsed');
-  chev.classList.toggle('open');
+  IDE.bus.emit('bluebook:toggle', id);
 }
+
+IDE.register({
+  init(ide) {
+    ide.bus.on('bluebook:toggle', (id) => {
+      const el = document.getElementById('aggs-' + id);
+      const chev = document.getElementById('chev-' + id);
+      if (el) el.classList.toggle('collapsed');
+      if (chev) chev.classList.toggle('open');
+    });
+
+    ide.bus.on('file:open', () => {}); // already emitted by openFile
+  }
+});
 
 async function openFile(path, opts) {
   const isDoc = opts?.doc || path.startsWith('docs/');

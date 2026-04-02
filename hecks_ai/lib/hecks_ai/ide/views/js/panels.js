@@ -1,19 +1,19 @@
-/* ── Panel management — collapse, toggle, sync dots ── */
+/* ── Panel management — all actions go through bus ── */
 
 IDE.collapsePanel = function(name) {
-  const el = document.getElementById('panel-' + name);
-  el.classList.toggle('closed');
-  IDE.syncDot(name);
+  IDE.bus.emit('panel:collapse', name);
 };
 
 IDE.toggleDotPanel = function(name) {
-  IDE.collapsePanel(name);
+  IDE.bus.emit('panel:collapse', name);
 };
 
 IDE.showPanel = function(name) {
-  const el = document.getElementById('panel-' + name);
-  el.classList.remove('hidden', 'closed');
-  IDE.syncDot(name);
+  IDE.bus.emit('panel:show', name);
+};
+
+IDE.toggleSidebar = function() {
+  IDE.bus.emit('sidebar:toggle');
 };
 
 IDE.syncDot = function(name) {
@@ -22,9 +22,35 @@ IDE.syncDot = function(name) {
   if (dot) dot.classList.toggle('inactive', el.classList.contains('closed'));
 };
 
-IDE.toggleSidebar = function() {
-  IDE.el.sidebar.classList.toggle('collapsed');
-};
+/* Bus handlers */
+IDE.register({
+  init(ide) {
+    ide.bus.on('panel:collapse', (name) => {
+      const el = document.getElementById('panel-' + name);
+      if (el) el.classList.toggle('closed');
+      IDE.syncDot(name);
+    });
+
+    ide.bus.on('panel:show', (name) => {
+      const el = document.getElementById('panel-' + name);
+      if (el) el.classList.remove('hidden', 'closed');
+      IDE.syncDot(name);
+    });
+
+    ide.bus.on('sidebar:toggle', () => {
+      IDE.el.sidebar.classList.toggle('collapsed');
+    });
+
+    ide.bus.on('command-log:toggle', () => {
+      document.getElementById('command-log').classList.toggle('collapsed');
+      document.getElementById('command-log-toggle').classList.toggle('open');
+    });
+
+    ide.bus.on('tab:close', (id) => {
+      IDE.closeTab(id);
+    });
+  }
+});
 
 /* Global aliases for onclick handlers */
 var collapsePanel = n => IDE.collapsePanel(n);

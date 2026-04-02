@@ -265,7 +265,7 @@
       <div class="tab-content active" id="tab-chat">
         <div class="messages" id="messages"></div>
       </div>
-      <div class="command-log-toggle" id="command-log-toggle" onclick="document.getElementById('command-log').classList.toggle('collapsed');this.classList.toggle('open')">&#9654; IDE commands log</div>
+      <div class="command-log-toggle" id="command-log-toggle" onclick="IDE.bus.emit('command-log:toggle')">&#9654; IDE commands log</div>
       <div class="command-log collapsed" id="command-log"></div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">

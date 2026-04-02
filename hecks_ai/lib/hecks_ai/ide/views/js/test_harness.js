@@ -37,7 +37,7 @@ const IDETests = {
     if (this.overlay) this.overlay.style.display = 'none';
   },
 
-  totalTests: 17,
+  totalTests: 22,
 
   async runAll() {
     this.results = [];
@@ -117,6 +117,49 @@ const IDETests = {
     });
 
     // Command log toggle — click
+    // Sidebar clicks via bus
+    await this.test('sidebar:toggle via bus', async () => {
+      const was = IDE.el.sidebar.classList.contains('collapsed');
+      IDE.bus.emit('sidebar:toggle');
+      const is = IDE.el.sidebar.classList.contains('collapsed');
+      IDE.bus.emit('sidebar:toggle'); // restore
+      return was !== is;
+    });
+
+    await this.test('panel:collapse via bus', async () => {
+      const panel = document.getElementById('panel-apps');
+      const was = panel.classList.contains('closed');
+      IDE.bus.emit('panel:collapse', 'apps');
+      const is = panel.classList.contains('closed');
+      IDE.bus.emit('panel:collapse', 'apps'); // restore
+      return was !== is;
+    });
+
+    await this.test('panel:show via bus', async () => {
+      const panel = document.getElementById('panel-hex');
+      panel.classList.add('hidden', 'closed');
+      IDE.bus.emit('panel:show', 'hex');
+      const shown = !panel.classList.contains('hidden') && !panel.classList.contains('closed');
+      panel.classList.add('hidden'); // restore
+      return shown;
+    });
+
+    await this.test('command-log:toggle via bus', async () => {
+      const log = document.getElementById('command-log');
+      log.classList.add('collapsed');
+      IDE.bus.emit('command-log:toggle');
+      const opened = !log.classList.contains('collapsed');
+      IDE.bus.emit('command-log:toggle'); // close
+      return opened;
+    });
+
+    await this.test('tab:close via bus', async () => {
+      IDE.createTab('test-tab', 'Test');
+      const existed = !!IDE.state.openTabs['test-tab'];
+      IDE.bus.emit('tab:close', 'test-tab');
+      return existed && !IDE.state.openTabs['test-tab'];
+    });
+
     await this.test('command-log toggle via click', async () => {
       const log = document.getElementById('command-log');
       const toggle = document.getElementById('command-log-toggle');
