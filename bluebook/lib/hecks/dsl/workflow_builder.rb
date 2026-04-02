@@ -26,6 +26,8 @@ module Hecks
     class WorkflowBuilder
       Behavior = DomainModel::Behavior
 
+      include Describable
+
       # Initialize a new workflow builder with the given workflow name.
       #
       # @param name [String] the workflow name (e.g. "LoanApproval")
@@ -101,7 +103,7 @@ module Hecks
       #
       # @return [DomainModel::Behavior::Workflow] the fully built workflow IR object
       def build
-        Behavior::Workflow.new(name: @name, steps: @steps, schedule: @schedule)
+        Behavior::Workflow.new(name: @name, steps: @steps, schedule: @schedule, description: @description)
       end
     end
 

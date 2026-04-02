@@ -30,6 +30,7 @@ module Hecks
       Behavior = DomainModel::Behavior
 
       include AttributeCollector
+      include Describable
 
       # Initialize a new service builder with the given service name.
       #
@@ -67,7 +68,8 @@ module Hecks
           name: @name,
           attributes: @attributes,
           coordinates: @coordinates,
-          call_body: @call_body
+          call_body: @call_body,
+          description: @description
         )
       end
     end

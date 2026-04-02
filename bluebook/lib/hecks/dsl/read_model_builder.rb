@@ -23,6 +23,8 @@ module Hecks
     class ReadModelBuilder
       Behavior = DomainModel::Behavior
 
+      include Describable
+
       # Initialize a new read model builder with the given view name.
       #
       # @param name [String] the read model name (e.g. "OrderSummary", "AccountBalance")
@@ -56,7 +58,8 @@ module Hecks
       def build
         Behavior::ReadModel.new(
           name: @name,
-          projections: @projections
+          projections: @projections,
+          description: @description
         )
       end
     end

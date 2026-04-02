@@ -15,6 +15,7 @@ module Hecks
     # @return [String] valid Ruby DSL source code
     def serialize
       lines = ["Hecks.domain \"#{@domain.name}\" do"]
+      lines << "  description \"#{@domain.description}\"" if @domain.description
       @domain.aggregates.each_with_index do |agg, i|
         lines << "" if i > 0
         lines.concat(serialize_aggregate(agg))
@@ -28,6 +29,7 @@ module Hecks
 
     def serialize_aggregate(agg)
       lines = ["  aggregate \"#{agg.name}\" do"]
+      lines << "    description \"#{agg.description}\"" if agg.description
       lines.concat(serialize_attributes(agg.attributes, "    "))
       lines.concat(serialize_references(agg.references, "    "))
       lines.concat(serialize_value_objects(agg.value_objects))
@@ -52,6 +54,7 @@ module Hecks
     def serialize_value_objects(vos)
       vos.flat_map do |vo|
         lines = ["", "    value_object \"#{vo.name}\" do"]
+        lines << "      description \"#{vo.description}\"" if vo.description
         lines.concat(serialize_attributes(vo.attributes, "      "))
         lines.concat(serialize_invariants(vo.invariants, "      "))
         lines << "    end"
@@ -61,6 +64,7 @@ module Hecks
     def serialize_entities(entities)
       entities.flat_map do |ent|
         lines = ["", "    entity \"#{ent.name}\" do"]
+        lines << "      description \"#{ent.description}\"" if ent.description
         lines.concat(serialize_attributes(ent.attributes, "      "))
         lines.concat(serialize_invariants(ent.invariants, "      "))
         lines << "    end"
@@ -124,6 +128,7 @@ module Hecks
     def serialize_commands(commands)
       commands.flat_map do |cmd|
         lines = ["", "    command \"#{cmd.name}\" do"]
+        lines << "      description \"#{cmd.description}\"" if cmd.description
         if cmd.emits
           emits_names = Array(cmd.emits)
           lines << "      emits #{emits_names.map { |n| "\"#{n}\"" }.join(", ")}"
@@ -140,6 +145,7 @@ module Hecks
     def serialize_policies(policies)
       policies.flat_map do |pol|
         lines = ["", "    policy \"#{pol.name}\" do"]
+        lines << "      description \"#{pol.description}\"" if pol.description
         lines << "      on \"#{pol.event_name}\""
         lines << "      trigger \"#{pol.trigger_command}\""
         lines << "      async true" if pol.async

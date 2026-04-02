@@ -41,6 +41,7 @@ module Hecks
       Structure = DomainModel::Structure
 
       include AttributeCollector
+      include Describable
       include Hecksagon::ExtensionsDSL if defined?(Hecksagon::ExtensionsDSL)
       include Hecksagon::StrategicDSL if defined?(Hecksagon::StrategicDSL)
 
@@ -196,7 +197,7 @@ module Hecks
 
         builder = AggregateBuilder.new(name)
         desc = definition || description
-        builder.instance_variable_get(:@metadata)[:description] = desc if desc
+        builder.description(desc) if desc
         begin
           builder.instance_eval(&block) if block
         rescue Hecks::Error
@@ -280,7 +281,8 @@ module Hecks
           event_subscribers: @event_subscribers,
           sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
           glossary_strict: @glossary_strict || false,
-          world_concerns: @world_concerns
+          world_concerns: @world_concerns,
+          description: @description
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

@@ -7,6 +7,7 @@
 - Declare an explicit domain version with `Hecks.domain "Name", version: "2.1.0" { }` — semver and CalVer supported; propagates to generated gemspec and Go server header
 - Define aggregates with attributes, commands, events, policies, queries, and scopes
 - Inline aggregate definitions with `definition:` keyword — attaches a human-readable description to the aggregate IR, surfaced in `Hecks.aggregates` inspector output
+- Universal `description` keyword — available inside every DSL block (domain, aggregate, command, event, value object, entity, policy, service, workflow, read model, lifecycle). Stored on the IR node and round-tripped through DslSerializer. Feeds glossary, documentation, and LLM context.
 - Define value objects as immutable nested types within aggregates
 - Define entities within aggregates — sub-objects with identity (UUID), mutable, not frozen
 - Multi-domain support with shared event bus across domains

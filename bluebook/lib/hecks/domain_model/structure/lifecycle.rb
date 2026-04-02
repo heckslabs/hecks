@@ -46,11 +46,15 @@ module Hecks
         #   string or a Hash like +{ target: "approved", from: "draft" }+.
         #
         # @return [Lifecycle] a new Lifecycle instance
-        def initialize(field:, default:, transitions: {})
+        def initialize(field:, default:, transitions: {}, description: nil)
           @field = field.to_sym
           @default = default.to_s
           @transitions = transitions
+          @description = description
         end
+
+        # @return [String, nil] human-readable description of this lifecycle
+        attr_reader :description
 
         # Returns all unique states reachable in this lifecycle, including the default.
         # Useful for generating enum validations or state-related documentation.

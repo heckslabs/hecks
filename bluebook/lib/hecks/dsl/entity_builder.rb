@@ -30,6 +30,7 @@ module Hecks
       Structure = DomainModel::Structure
 
       include AttributeCollector
+      include Describable
 
       # Initialize a new entity builder with the given entity name.
       #
@@ -59,7 +60,8 @@ module Hecks
         Structure::Entity.new(
           name: @name,
           attributes: @attributes,
-          invariants: @invariants
+          invariants: @invariants,
+          description: @description
         )
       end
     end

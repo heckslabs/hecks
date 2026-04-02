@@ -8,6 +8,7 @@ require_relative "hecks/domain_model/names"
 
 # DSL builders (loaded in dependency order, before grammar so HANDLE_METHODS
 # can be derived from AggregateBuilder introspection)
+require_relative "hecks/dsl/describable"
 require_relative "hecks/dsl/attribute_collector"
 require_relative "hecks/dsl/event_builder"
 require_relative "hecks/dsl/command_builder"

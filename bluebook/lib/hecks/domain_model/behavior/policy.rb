@@ -45,7 +45,7 @@ module Hecks
       #   event and must return truthy for the policy to fire
       # @return [Hash{Symbol => Object}] default values for command attributes not present
       #   on the event when a reactive policy fires
-      attr_reader :name, :event_name, :trigger_command, :async, :block, :attribute_map, :condition, :defaults
+      attr_reader :name, :event_name, :trigger_command, :async, :block, :attribute_map, :condition, :defaults, :description
 
       # Creates a new Policy IR node.
       #
@@ -62,7 +62,7 @@ module Hecks
       # @param defaults [Hash{Symbol => Object}] fallback attribute values for the
       #   triggered command. Defaults to empty hash.
       # @return [Policy]
-      def initialize(name:, event_name: nil, trigger_command: nil, async: false, block: nil, attribute_map: {}, condition: nil, defaults: {})
+      def initialize(name:, event_name: nil, trigger_command: nil, async: false, block: nil, attribute_map: {}, condition: nil, defaults: {}, description: nil)
         @name = name
         @event_name = event_name && Names.event_name(event_name)
         @trigger_command = trigger_command && Names.command_name(trigger_command)
@@ -71,6 +71,7 @@ module Hecks
         @attribute_map = attribute_map
         @condition = condition
         @defaults = defaults
+        @description = description
       end
 
       # Returns whether this policy is a guard policy (has a validation block).

@@ -12,6 +12,7 @@ module Hecks
     #
     class EventBuilder
       include AttributeCollector
+      include Describable
 
       def initialize(name)
         @name = name
@@ -21,7 +22,8 @@ module Hecks
       def build
         DomainModel::Behavior::DomainEvent.new(
           name: @name,
-          attributes: @attributes
+          attributes: @attributes,
+          description: @description
         )
       end
     end

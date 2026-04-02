@@ -32,6 +32,8 @@ module Hecks
     class PolicyBuilder
       Behavior = DomainModel::Behavior
 
+      include Describable
+
       # Initialize a new policy builder with the given policy name.
       #
       # @param name [String] the policy name (e.g. "FraudAlert", "DisburseFunds")
@@ -134,7 +136,8 @@ module Hecks
           async: @async,
           attribute_map: @attribute_map,
           condition: @condition,
-          defaults: @defaults
+          defaults: @defaults,
+          description: @description
         )
       end
     end

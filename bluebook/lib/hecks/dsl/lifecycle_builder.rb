@@ -22,6 +22,8 @@ module Hecks
     class LifecycleBuilder
       Structure = DomainModel::Structure
 
+      include Describable
+
       # Initialize a lifecycle builder for the given state field with a default value.
       #
       # @param field [Symbol] the attribute that holds the state value (e.g. :status)
@@ -66,7 +68,8 @@ module Hecks
       # @return [DomainModel::Structure::Lifecycle] the fully built lifecycle IR object
       def build
         Structure::Lifecycle.new(
-          field: @field, default: @default, transitions: @transitions
+          field: @field, default: @default, transitions: @transitions,
+          description: @description
         )
       end
     end

@@ -21,7 +21,7 @@ module Hecks
       # @return [String] PascalCase event name in past tense, e.g. "CreatedPizza"
       # @return [Array<Hecks::DomainModel::Structure::Attribute>] data attributes
       #   carried by the event, typically mirroring the originating command's attributes
-      attr_reader :name, :attributes, :references
+      attr_reader :name, :attributes, :references, :description
 
       # Creates a new DomainEvent IR node.
       #
@@ -32,10 +32,11 @@ module Hecks
       # @param references [Array<Hecks::DomainModel::Structure::Reference>] references
       #   carried by this event. Defaults to an empty array.
       # @return [DomainEvent]
-      def initialize(name:, attributes: [], references: [])
+      def initialize(name:, attributes: [], references: [], description: nil)
         @name = Names.event_name(name)
         @attributes = attributes
         @references = references
+        @description = description
       end
     end
     end

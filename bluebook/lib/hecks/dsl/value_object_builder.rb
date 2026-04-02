@@ -29,6 +29,7 @@ module Hecks
       Structure = DomainModel::Structure
 
       include AttributeCollector
+      include Describable
 
       # Initialize a new value object builder with the given type name.
       #
@@ -71,7 +72,8 @@ module Hecks
         Structure::ValueObject.new(
           name: @name,
           attributes: @attributes,
-          invariants: @invariants
+          invariants: @invariants,
+          description: @description
         )
       end
     end

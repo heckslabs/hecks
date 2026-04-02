@@ -108,7 +108,7 @@ module Hecks
                      specifications: [], references: [],
                      factories: [], computed_attributes: [],
                      lifecycle: nil, metadata: {}, origin_domain: nil,
-                     identity_fields: nil)
+                     identity_fields: nil, description: nil)
         @name = Names.aggregate_name(name)
         @attributes = attributes
         @value_objects = value_objects
@@ -129,13 +129,10 @@ module Hecks
         @metadata = metadata
         @origin_domain = origin_domain
         @identity_fields = identity_fields
+        @description = description || @metadata[:description]
       end
 
-      attr_reader :metadata, :origin_domain
-
-      def description
-        @metadata[:description]
-      end
+      attr_reader :metadata, :origin_domain, :description
 
     end
     end

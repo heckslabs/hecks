@@ -42,7 +42,7 @@ module Hecks
         #   ({ branch: { spec: String, if_steps: Array, else_steps: Array } })
         # @return [String, nil] schedule descriptor (e.g. a cron expression) for
         #   recurring workflows, or nil for on-demand workflows
-        attr_reader :name, :steps, :schedule
+        attr_reader :name, :steps, :schedule, :description
 
         # Creates a new Workflow IR node.
         #
@@ -54,10 +54,11 @@ module Hecks
         # @param schedule [String, nil] a cron expression or scheduling descriptor
         #   for recurring execution. Nil means the workflow runs on-demand only.
         # @return [Workflow]
-        def initialize(name:, steps: [], schedule: nil)
+        def initialize(name:, steps: [], schedule: nil, description: nil)
           @name = name
           @steps = steps
           @schedule = schedule
+          @description = description
         end
 
         # Returns whether this workflow is scheduled for recurring or timed execution.

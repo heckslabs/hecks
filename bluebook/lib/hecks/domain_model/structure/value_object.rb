@@ -47,11 +47,15 @@ module Hecks
       # @param invariants [Array<Invariant>] business rules enforced at construction time
       #
       # @return [ValueObject] a new ValueObject instance
-      def initialize(name:, attributes: [], invariants: [])
+      def initialize(name:, attributes: [], invariants: [], description: nil)
         @name = name
         @attributes = attributes
         @invariants = invariants
+        @description = description
       end
+
+      # @return [String, nil] human-readable description of this value object
+      attr_reader :description
     end
     end
   end

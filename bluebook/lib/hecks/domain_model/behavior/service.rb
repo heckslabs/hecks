@@ -29,13 +29,14 @@ module Hecks
         #   required to invoke this service
         # @return [Proc, nil] the orchestration body that dispatches commands;
         #   nil if the service has no inline implementation
-        attr_reader :name, :attributes, :coordinates, :call_body
+        attr_reader :name, :attributes, :coordinates, :call_body, :description
 
-        def initialize(name:, attributes: [], coordinates: [], call_body: nil)
+        def initialize(name:, attributes: [], coordinates: [], call_body: nil, description: nil)
           @name = name
           @attributes = attributes
           @coordinates = coordinates
           @call_body = call_body
+          @description = description
         end
       end
     end

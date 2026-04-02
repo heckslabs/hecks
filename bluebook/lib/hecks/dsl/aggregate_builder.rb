@@ -25,6 +25,7 @@ module Hecks
       Behavior  = DomainModel::Behavior
 
       include AttributeCollector
+      include Describable
       include BehaviorMethods
       include ConstraintMethods
       include QueryMethods
@@ -190,7 +191,8 @@ module Hecks
           specifications: @specifications, computed_attributes: @computed_attributes,
           lifecycle: @lifecycle,
           metadata: @metadata, references: @references,
-          factories: @factories, identity_fields: @identity_fields
+          factories: @factories, identity_fields: @identity_fields,
+          description: @description
         )
       end
 

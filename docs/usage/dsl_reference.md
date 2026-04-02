@@ -42,6 +42,9 @@ At the domain level you can declare aggregates, cross-aggregate policies, servic
 
 ```ruby
 Hecks.domain "Banking" do
+  # Human-readable description (available in every DSL block)
+  description "Core banking operations for retail customers"
+
   aggregate "Account" do ... end
 
   # Cross-aggregate reactive policies

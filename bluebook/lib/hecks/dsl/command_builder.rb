@@ -33,6 +33,7 @@ module Hecks
       Behavior  = DomainModel::Behavior
 
       include AttributeCollector
+      include Describable
 
       # @return [Array<DomainModel::Structure::Attribute>] the command's input attributes
       attr_reader :attributes
@@ -229,7 +230,7 @@ module Hecks
           read_models: @read_models, external_systems: @external_systems, actors: @actors,
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
-          emits: @emits
+          emits: @emits, description: @description
         )
       end
     end

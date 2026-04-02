@@ -102,7 +102,7 @@ module Hecks
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
-                     version: nil, world_concerns: [])
+                     version: nil, world_concerns: [], description: nil)
         validate_version!(version)
         @name = name
         @version = version
@@ -120,7 +120,11 @@ module Hecks
         @tenancy = tenancy
         @event_subscribers = event_subscribers
         @world_concerns = world_concerns.map(&:to_sym)
+        @description = description
       end
+
+      # @return [String, nil] human-readable description of this domain
+      attr_reader :description
 
       # Returns the sanitized Ruby constant name for this domain.
       # Strips non-alphanumeric characters and converts to PascalCase.
