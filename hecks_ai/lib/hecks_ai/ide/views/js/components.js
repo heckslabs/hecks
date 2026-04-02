@@ -2,8 +2,10 @@
 IDE.register({
   init() {
     window.onerror = (msg, src, line, col) => {
+      const errMsg = `${msg} at ${src}:${line}:${col}`;
+      ide.bus.emit('console:error', errMsg);
       fetch('/console', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: 'error', message: `${msg} at ${src}:${line}:${col}` })
+        body: JSON.stringify({ level: 'error', message: errMsg })
       }).catch(() => {});
     };
     ['error', 'warn', 'log'].forEach(level => {
@@ -11,6 +13,7 @@ IDE.register({
       console[level] = function(...args) {
         orig.apply(console, args);
         const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+        if (level === 'error') ide.bus.emit('console:error', msg.slice(0, 200));
         fetch('/console', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ level, message: msg.slice(0, 1000) })
         }).catch(() => {});
@@ -26,7 +29,9 @@ IDE.register({
       try {
         const canvas = await html2canvas(document.body, { backgroundColor: '#0d1117', scale: 0.5, logging: false });
         const data = canvas.toDataURL('image/png').split(',')[1];
-        fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+        const r = await fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+        const j = await r.json().catch(() => null);
+        if (j?.path) ide.bus.emit('screenshot:saved', j.path);
       } catch (e) {}
     };
 

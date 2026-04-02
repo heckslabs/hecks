@@ -107,7 +107,8 @@ module Hecks
           body = JSON.parse(req.body)
           @screenshots.save(body["data"])
           res.content_type = "application/json"
-          res.body = JSON.generate(ok: true)
+          path = @screenshots.latest_path&.sub("#{@project_dir}/", "")
+          res.body = JSON.generate(ok: true, path: path)
         rescue => e
           res.status = 400
           res.body = JSON.generate(error: e.message)

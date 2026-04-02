@@ -232,6 +232,12 @@
     .cmd-source.client { color: var(--blue); }
     .cmd-event { color: var(--fg); }
     .cmd-time { color: var(--fg-dim); margin-left: auto; }
+    .cmd-error { color: var(--red); cursor: pointer; }
+    .cmd-screenshot { cursor: pointer; opacity: 0.6; }
+    .cmd-screenshot:hover { opacity: 1; }
+    .cmd-errors { padding: 2px 0 2px 58px; }
+    .cmd-errors.hidden { display: none; }
+    .cmd-error-line { color: var(--red); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .thinking-bar { height: 3px; opacity: 0; transition: opacity 0.5s; overflow: hidden; }
     .thinking-bar.active { opacity: 1; }
