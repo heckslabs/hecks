@@ -11,7 +11,25 @@ const IDETests = {
       this.overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:100;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:var(--mono);';
       document.body.appendChild(this.overlay);
     }
-    this.overlay.innerHTML = `<div style="color:var(--green);font-size:20px;font-weight:600;margin-bottom:12px">Testing</div><div style="color:var(--fg);font-size:14px" id="test-name">${text}</div><div style="color:var(--fg-dim);font-size:11px;margin-top:8px">${this.results.length} / ${this.totalTests} completed</div>`;
+    if (!document.getElementById('test-log')) {
+      this.overlay.innerHTML =
+        `<div style="background:var(--bg-msg);border:1px solid var(--border);border-radius:8px;width:500px;max-height:400px;padding:16px;overflow-y:auto">` +
+        `<div style="color:var(--green);font-size:14px;font-weight:600;margin-bottom:8px">Testing</div>` +
+        `<div id="test-log" style="font-size:12px;line-height:1.8"></div>` +
+        `<div id="test-current" style="color:var(--fg-dim);font-size:11px;margin-top:8px;border-top:1px solid var(--border);padding-top:6px"></div>` +
+        `</div>`;
+    }
+    const log = document.getElementById('test-log');
+    const current = document.getElementById('test-current');
+    // Add last result to log
+    const last = this.results[this.results.length - 1];
+    if (last) {
+      const icon = last.pass ? '✓' : '✗';
+      const color = last.pass ? 'var(--green)' : 'var(--red)';
+      log.innerHTML += `<div><span style="color:${color}">${icon}</span> ${last.name}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+    current.textContent = `▸ ${text}  (${this.results.length}/${this.totalTests})`;
     this.overlay.style.display = 'flex';
   },
 
