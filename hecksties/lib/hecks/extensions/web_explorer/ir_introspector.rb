@@ -100,6 +100,10 @@ module Hecks
         HecksTemplating::DisplayContract.aggregate_summary(agg)
       end
 
+      def filterable_attributes(agg)
+        user_attributes(agg).select { |a| a.type == String && !a.list? }
+      end
+
       def policy_labels
         HecksTemplating::DisplayContract.policy_labels(@domain)
       end

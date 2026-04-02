@@ -42,10 +42,25 @@ module Hecks
           end
         end
 
+        def parse_search_params(req)
+          q = req.query["q"].to_s.strip
+          q = nil if q.empty?
+          filters = {}
+          req.query.each do |key, value|
+            next unless key.start_with?("filter[") && key.end_with?("]")
+            attr = key[7..-2]
+            filters[attr.to_sym] = value unless value.to_s.strip.empty?
+          end
+          [q, filters]
+        end
+
         def serve_index(req, res, ir, bridge, agg, safe, p, prefix)
           token = ensure_csrf_cookie(req, res)
+          q, filters = parse_search_params(req)
           user_attrs = ir.user_attributes(agg)
-          items = bridge.find_all(agg.name).map do |obj|
+          filterable = ir.filterable_attributes(agg).map(&:name)
+          records = bridge.search_and_filter(agg.name, string_attr_names: filterable, query: q, filters: filters)
+          items = records.map do |obj|
             cells = user_attrs.map { |a|
               if ir.reference_attr?(a)
                 ref_agg = ir.find_referenced_aggregate(a)
@@ -72,7 +87,8 @@ module Hecks
           html = @renderer.render(:index,
             title: "#{safe}s — #{@brand}", brand: @brand, nav_items: @nav,
             aggregate_name: safe, items: items, columns: columns,
-            buttons: buttons, row_actions: [], csrf_token: token)
+            buttons: buttons, row_actions: [], csrf_token: token,
+            search_query: q.to_s, index_url: "#{prefix}/#{p}")
           res["Content-Type"] = "text/html"
           res.body = html
         end

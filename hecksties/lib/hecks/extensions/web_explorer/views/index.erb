@@ -9,6 +9,13 @@
 <% if defined?(description) && description && !description.empty? %>
   <p style="color:#666;margin:-1rem 0 1.5rem"><%= description %></p>
 <% end %>
+<% base_url = defined?(index_url) ? index_url : "" %>
+<form method="get" action="<%= base_url %>" style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+  <label for="q" style="font-weight:600">Search</label>
+  <input id="q" name="q" type="text" value="<%= h(defined?(search_query) ? search_query : "") %>" placeholder="Search all text fields…" style="flex:1;padding:0.3rem 0.5rem">
+  <button type="submit" class="btn">Go</button>
+  <a class="btn btn-faded" href="<%= base_url %>">Clear</a>
+</form>
 <table>
   <thead>
     <tr>

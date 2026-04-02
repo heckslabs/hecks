@@ -730,6 +730,13 @@
 - No `Object.const_get`, `respond_to?`, or `instance_variable_get` in the UI layer
 - Same IR structs consumed by Ruby, Go, and Rails generators now also drive the Web Explorer
 
+### Index Search and Filter (HEC-261)
+- Search box on every aggregate index page: `q=` does case-insensitive substring match across all String-typed attributes
+- Exact-match filtering via `filter[attr]=value` query params (e.g., `filter[style]=Thin`)
+- `IRIntrospector#filterable_attributes` returns String-typed, non-list visible attributes
+- `RuntimeBridge#search_and_filter` filters the in-memory collection without custom query classes
+- "Clear" link resets to the plain unfiltered index URL
+
 ### Event Log Browser (HEC-262)
 - Browse all published domain events in a filterable HTML table at `/events`
 - `EventIntrospector` reads `EventBus#events` with `all_entries(type_filter:, aggregate_filter:)`, `event_types`, `aggregate_types`

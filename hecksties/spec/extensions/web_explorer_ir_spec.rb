@@ -209,5 +209,52 @@ RSpec.describe "Web Explorer IR introspection" do
       expect(bridge).to respond_to(:find_by_id)
       expect(bridge).not_to respond_to(:klass_for)
     end
+
+    it "search_and_filter: substring, exact-match, case-insensitive, and blank-filter" do
+      bridge.execute_command("Widget", :create, { label: "Alpha" })
+      bridge.execute_command("Widget", :create, { label: "Beta" })
+      bridge.execute_command("Widget", :create, { label: "Gamma" })
+
+      all = bridge.search_and_filter("Widget", string_attr_names: [:label])
+      expect(all.size).to be >= 3
+
+      by_q = bridge.search_and_filter("Widget", string_attr_names: [:label], query: "alph")
+      expect(by_q.map(&:label)).to include("Alpha")
+      expect(by_q.map(&:label)).not_to include("Beta")
+
+      case_insensitive = bridge.search_and_filter("Widget", string_attr_names: [:label], query: "BETA")
+      expect(case_insensitive.map(&:label)).to include("Beta")
+
+      exact = bridge.search_and_filter("Widget", string_attr_names: [:label], filters: { label: "Gamma" })
+      expect(exact.map(&:label)).to eq(["Gamma"])
+
+      no_match = bridge.search_and_filter("Widget", string_attr_names: [:label], filters: { label: "NoMatch" })
+      expect(no_match).to be_empty
+
+      blank_filter = bridge.search_and_filter("Widget", string_attr_names: [:label], filters: { label: "" })
+      expect(blank_filter.size).to be >= 3
+    end
+  end
+
+  describe "IRIntrospector#filterable_attributes" do
+    it "returns only string-typed, non-list user attributes" do
+      domain = Hecks.domain "FilterableTest" do
+        aggregate "Item" do
+          attribute :title, String
+          attribute :count, Integer
+          attribute :tags, list_of("String")
+          attribute :price, Float
+          attribute :secret, String, visible: false
+          command "CreateItem" do
+            attribute :title, String
+          end
+        end
+      end
+      ir = Hecks::WebExplorer::IRIntrospector.new(domain)
+      agg = ir.find_aggregate("Item")
+      names = ir.filterable_attributes(agg).map(&:name)
+      expect(names).to include(:title)
+      expect(names).not_to include(:count, :price, :secret)
+    end
   end
 end

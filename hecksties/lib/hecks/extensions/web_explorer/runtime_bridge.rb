@@ -25,6 +25,27 @@ module Hecks
         klass_for(agg_name).all
       end
 
+      def search_and_filter(agg_name, string_attr_names: [], query: nil, filters: {})
+        klass = klass_for(agg_name)
+        records = klass.all
+
+        unless filters.empty?
+          filters.each do |attr, value|
+            next if value.nil? || value.to_s.strip.empty?
+            records = records.select { |r| r.send(attr).to_s == value.to_s }
+          end
+        end
+
+        if query && !query.strip.empty?
+          q = query.strip.downcase
+          records = records.select do |r|
+            string_attr_names.any? { |attr| r.send(attr).to_s.downcase.include?(q) }
+          end
+        end
+
+        records
+      end
+
       def find_by_id(agg_name, id)
         klass_for(agg_name).find(id)
       end
