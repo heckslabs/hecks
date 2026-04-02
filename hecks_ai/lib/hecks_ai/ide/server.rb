@@ -59,6 +59,7 @@ module Hecks
           when ["POST", "/workshop/command"] then handle_workshop_command(req, res)
           when ["GET", "/workshop/state"]    then serve_workshop_state(res)
           when ["POST", "/interrupt"]        then handle_interrupt(res)
+          when ["GET", "/ide.js"]           then serve_js(res)
           when ["POST", "/console"]         then handle_console(req, res)
           when ["POST", "/screenshot"] then handle_screenshot(req, res)
           else
@@ -109,6 +110,15 @@ module Hecks
         rescue JSON::ParserError => e
           res.status = 400
           res.body = JSON.generate(error: e.message)
+        end
+
+        def serve_js(res)
+          res.content_type = "application/javascript"
+          res["Cache-Control"] = "no-cache, no-store"
+          js_dir = File.join(VIEWS_DIR, "js")
+          files = %w[ide.js panels.js components.js markdown.js file_viewer.js
+                     hecksagon_viewer.js bluebook_explorer.js workshop.js boot.js]
+          res.body = files.map { |f| File.read(File.join(js_dir, f)) }.join("\n")
         end
 
         def serve_context(res)
