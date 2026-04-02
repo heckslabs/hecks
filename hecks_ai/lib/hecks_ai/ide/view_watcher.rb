@@ -11,10 +11,11 @@ module Hecks
   module AI
     module IDE
       class ViewWatcher
-        def initialize(views_dir, events, mutex)
+        def initialize(views_dir, events, mutex, screenshot_handler: nil)
           @dir = views_dir
           @events = events
           @mutex = mutex
+          @screenshots = screenshot_handler
           @mtimes = snapshot
         end
 
@@ -27,6 +28,7 @@ module Hecks
                 @mtimes = current
                 @mutex.synchronize { @events.clear }
                 @mutex.synchronize { @events << '{"type":"reload"}' }
+                @screenshots&.clear_on_start
                 sleep 2
                 @mutex.synchronize { @events.clear }
               end

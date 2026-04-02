@@ -40,7 +40,7 @@ module Hecks
           )
           http.mount_proc("/") { |req, res| route(req, res) }
           trap("INT") { @claude&.stop; http.shutdown }
-          ViewWatcher.new(VIEWS_DIR, @events, @mutex).start
+          ViewWatcher.new(VIEWS_DIR, @events, @mutex, screenshot_handler: @screenshots).start
           Thread.new { sleep 0.5; open_browser("http://localhost:#{@port}") }
           puts "Hecks IDE: http://localhost:#{@port}"
           http.start
