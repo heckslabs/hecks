@@ -172,17 +172,11 @@
     .ws-error { color: var(--red); }
     .ws-mode { color: var(--fg-dim); font-size: 11px; }
 
-    .autocomplete {
-      position: absolute; bottom: 100%; left: 0; right: 80px;
-      background: var(--bg-msg); border: 1px solid var(--border);
-      border-radius: 6px; max-height: 150px; overflow-y: auto;
-      font-family: var(--mono); font-size: 13px; display: none; z-index: 20;
-    }
-    .autocomplete.visible { display: block; }
-    .ac-header { padding: 4px 12px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-dim); border-bottom: 1px solid var(--border); }
-    .ac-item { padding: 4px 12px; cursor: pointer; }
-    .ac-item:hover, .ac-item.selected { background: var(--bg-user); color: var(--blue); }
     .input-area { position: relative; }
+    .input-area .awesomplete { flex: 1; display: flex; }
+    .input-area .awesomplete input { flex: 1; }
+    .awesomplete > ul { bottom: 100% !important; top: auto !important; margin-bottom: 4px; }
+    .awesomplete .visually-hidden { position: absolute; clip: rect(0,0,0,0); height: 1px; width: 1px; overflow: hidden; }
 
     /* ── Messages ── */
     .messages { padding: 16px; }
@@ -245,7 +239,6 @@
       </div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">
-        <div class="autocomplete" id="autocomplete"></div>
         <input id="prompt" type="text" placeholder="Type a message..." autofocus>
         <button id="send" onclick="sendPrompt()">Send</button>
         <span class="esc-hint hidden" id="esc-hint">esc to cancel</span>
@@ -280,6 +273,15 @@
   </div>
   <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/awesomplete@1.1.5/awesomplete.css">
+  <script src="https://cdn.jsdelivr.net/npm/awesomplete@1.1.5/awesomplete.min.js"></script>
+  <style>
+    /* Override awesomplete for dark theme */
+    .awesomplete > ul { background: var(--bg-msg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: var(--mono); font-size: 13px; }
+    .awesomplete > ul > li { padding: 4px 12px; }
+    .awesomplete > ul > li:hover, .awesomplete > ul > li[aria-selected="true"] { background: var(--bg-user); color: var(--blue); }
+    .awesomplete mark { background: none; color: var(--blue); font-weight: 600; }
+  </style>
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
     mermaid.initialize({ startOnLoad: false, theme: 'dark' });
@@ -627,6 +629,14 @@
     }
 
 
+    function cacheAggAttrs(state) {
+      if (!state?.aggregates) return;
+      wsAggAttrs = {};
+      state.aggregates.forEach(a => {
+        wsAggAttrs[a.name.toLowerCase()] = a.attributes.map(at => at.name);
+      });
+    }
+
     /* ── Events sidebar ── */
     const eventsSidebar = document.getElementById('events-sidebar');
     const eventListEl = document.getElementById('event-list');
@@ -739,8 +749,21 @@
     }
 
     /* ── Workshop ── */
-    let wsCompletions = [], wsActive = false, acIdx = -1;
+    let wsCompletions = [], wsAggAttrs = {}, wsActive = false;
+    const cmdHistory = [];
+    let histIdx = -1;
     const acEl = document.getElementById('autocomplete');
+
+    // Awesomplete setup
+    const awes = new Awesomplete(promptEl, {
+      minChars: 1, maxItems: 10, autoFirst: true,
+      filter: function() { return true; },
+      list: []
+    });
+    // Prevent "no results" from showing
+    promptEl.addEventListener('awesomplete-open', () => {
+      if (!awes.ul.children.length) awes.close();
+    });
 
     async function openWorkshop(path, name) {
       const r = await fetch('/workshop/open', {
@@ -749,6 +772,7 @@
       });
       const d = await r.json();
       wsCompletions = d.completions || [];
+      cacheAggAttrs(d.state);
       wsActive = true;
 
       // Create or reuse workshop tab
@@ -798,6 +822,7 @@
       });
       const d = await r.json();
       wsCompletions = d.completions || wsCompletions;
+      cacheAggAttrs(d.state);
 
       if (d.error) entry.innerHTML += `<div class="ws-result ws-error">${esc(d.error)}</div>`;
       else if (d.output) entry.innerHTML += `<div class="ws-result">${esc(d.output)}</div>`;
@@ -809,77 +834,74 @@
       }
     }
 
-    // Autocomplete — slash commands always, workshop commands when active
-    promptEl.addEventListener('input', () => {
-      const val = promptEl.value.trim().toLowerCase();
-      if (!val) { acEl.classList.remove('visible'); return; }
-
-      let html = '';
-
+    // Build completions list based on current input context
+    function buildCompletions(val) {
       const inWorkshop = wsActive && document.querySelector('.tab[data-tab="workshop"].active');
 
       if (val.startsWith('/')) {
-        const ideMatches = Object.keys(ideCommands).filter(c => c.startsWith(val));
-        const claudeMatches = inWorkshop ? [] : claudeCommands.filter(c => c.startsWith(val));
-        if (!ideMatches.length && !claudeMatches.length) { acEl.classList.remove('visible'); return; }
-        if (ideMatches.length) {
-          html += '<div class="ac-header">IDE</div>';
-          ideMatches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
-        }
-        if (claudeMatches.length) {
-          html += '<div class="ac-header">Claude</div>';
-          claudeMatches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
-        }
-      } else if (wsActive) {
-        // Workshop completions
-        const matches = wsCompletions.filter(c => c.toLowerCase().startsWith(val)).slice(0, 8);
-        if (!matches.length) { acEl.classList.remove('visible'); return; }
-        matches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
-      } else {
-        acEl.classList.remove('visible'); return;
+        const ide = Object.keys(ideCommands).filter(c => c.startsWith(val));
+        const claude = inWorkshop ? [] : claudeCommands.filter(c => c.startsWith(val));
+        return [...ide, ...claude];
       }
 
-      acIdx = -1;
-      acEl.innerHTML = html;
-      acEl.classList.add('visible');
+      if (!wsActive) return [];
+
+      const parenIdx = val.indexOf('(');
+      const dotIdx = val.indexOf('.');
+
+      if (parenIdx > 0) {
+        const target = val.slice(0, dotIdx > 0 ? dotIdx : parenIdx).trim();
+        const inside = val.slice(parenIdx + 1);
+        const lastArg = inside.split(',').pop().trim();
+        const attrs = wsAggAttrs[target] || [];
+        const raw = promptEl.value.trim();
+        const prefix = raw.slice(0, raw.length - lastArg.length);
+        return attrs.filter(a => !lastArg || a.startsWith(lastArg)).map(a => prefix + a + ': ');
+      }
+
+      if (dotIdx > 0) {
+        const target = promptEl.value.trim().slice(0, dotIdx);
+        const partial = val.slice(dotIdx + 1);
+        const methods = ['attr', 'command', 'query', 'value_object', 'entity', 'reference_to',
+          'validation', 'invariant', 'lifecycle', 'specification', 'describe',
+          'create', 'find', 'all', 'count', 'first', 'last', 'new'];
+        return methods.filter(m => m.startsWith(partial)).map(m => target + '.' + m);
+      }
+
+      return wsCompletions.filter(c => c.toLowerCase().startsWith(val));
+    }
+
+    promptEl.addEventListener('input', () => {
+      const val = promptEl.value.trim().toLowerCase();
+      if (!val) { awes.close(); return; }
+      const items = buildCompletions(val);
+      awes.list = items;
+      awes.evaluate();
     });
 
-    function selectAc(val) {
-      promptEl.value = val;
-      acEl.classList.remove('visible');
+    // When awesomplete selects, replace full input
+    promptEl.addEventListener('awesomplete-selectcomplete', (e) => {
       promptEl.focus();
-    }
+    });
 
     // Override Enter to route to workshop when active
     const origKeydown = promptEl.onkeydown;
     promptEl.addEventListener('keydown', e => {
-      if (e.key === 'Tab' && acEl.classList.contains('visible')) {
+      // Command history — up/down when awesomplete is not open
+      const awesOpen = document.querySelector('.awesomplete > ul[hidden]') === null;
+      if (e.key === 'ArrowUp' && !awesOpen && cmdHistory.length) {
         e.preventDefault();
-        const items = acEl.querySelectorAll('.ac-item');
-        if (items.length) selectAc(items[0].dataset.val);
+        if (histIdx < 0) histIdx = cmdHistory.length;
+        histIdx = Math.max(histIdx - 1, 0);
+        promptEl.value = cmdHistory[histIdx] || '';
         return;
       }
-      if (e.key === 'ArrowDown' && acEl.classList.contains('visible')) {
+      if (e.key === 'ArrowDown' && !awesOpen && histIdx >= 0) {
         e.preventDefault();
-        const items = acEl.querySelectorAll('.ac-item');
-        acIdx = Math.min(acIdx + 1, items.length - 1);
-        items.forEach((it, i) => it.classList.toggle('selected', i === acIdx));
+        histIdx = Math.min(histIdx + 1, cmdHistory.length);
+        promptEl.value = histIdx < cmdHistory.length ? cmdHistory[histIdx] : '';
         return;
       }
-      if (e.key === 'ArrowUp' && acEl.classList.contains('visible')) {
-        e.preventDefault();
-        const items = acEl.querySelectorAll('.ac-item');
-        acIdx = Math.max(acIdx - 1, 0);
-        items.forEach((it, i) => it.classList.toggle('selected', i === acIdx));
-        return;
-      }
-      if (e.key === 'Enter' && acEl.classList.contains('visible') && acIdx >= 0) {
-        e.preventDefault();
-        const items = acEl.querySelectorAll('.ac-item');
-        if (items[acIdx]) selectAc(items[acIdx].dataset.val);
-        return;
-      }
-      if (e.key === 'Escape') { acEl.classList.remove('visible'); }
     }, true);
 
     // Intercept sendPrompt when workshop is active
@@ -887,6 +909,12 @@
     sendPrompt = async function() {
       const text = promptEl.value.trim();
       if (!text) return;
+
+      // Push to history
+      if (!text.startsWith('/')) {
+        cmdHistory.push(text);
+      }
+      histIdx = -1;
 
       // Slash commands work everywhere
       if (text.startsWith('/') && handleSlashCommand(text)) {
