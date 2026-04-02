@@ -120,7 +120,6 @@ IDE.register({
     };
     if (commands[cmd]) {
       commands[cmd]();
-      ide.addTurn('system', `Ran ${cmd}`);
       return true;
     }
     return false;
