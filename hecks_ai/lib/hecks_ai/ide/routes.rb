@@ -102,6 +102,14 @@ module Hecks
           res.body = JSON.generate(error: e.message)
         end
 
+        def handle_bus_emit(req, res)
+          body = JSON.parse(req.body)
+          event = JSON.generate(type: "bus", event: body["event"], data: body["data"])
+          @mutex.synchronize { @events << event }
+          res.content_type = "application/json"
+          res.body = JSON.generate(ok: true)
+        end
+
         def handle_console(req, res)
           body = JSON.parse(req.body)
           $stderr.puts "[IDE JS] #{body["level"]}: #{body["message"]}"

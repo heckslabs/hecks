@@ -67,6 +67,7 @@ module Hecks
           when ["POST", "/interrupt"]        then handle_interrupt(res)
           when ["POST", "/screenshot"]       then handle_screenshot(req, res)
           when ["POST", "/console"]          then handle_console(req, res)
+          when ["POST", "/bus"]              then handle_bus_emit(req, res)
           else
             if req.request_method == "GET" && req.path.start_with?("/file/")
               serve_file(req, res)

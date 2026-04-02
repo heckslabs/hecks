@@ -158,6 +158,8 @@ const IDE = {
         this.setBusy(false);
       } else if (e.type === 'error') {
         this.addTurn('system', e.message || 'Unknown error'); this.setBusy(false);
+      } else if (e.type === 'bus') {
+        this.bus.emit(e.event, e.data);
       } else if (e.type === 'reload') {
         this.state.nextIndex = 0; location.reload();
       }

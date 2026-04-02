@@ -1,7 +1,7 @@
 /* ── Cmd+O application picker ── */
 IDE.register({
   onKeydown(e, ide) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'o') {
       e.preventDefault();
       ide.bus.emit('app-picker:open');
       return true;

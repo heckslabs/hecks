@@ -46,11 +46,17 @@ module Hecks
         def extract_preview(path)
           File.foreach(path) do |line|
             data = JSON.parse(line) rescue next
-            if data["type"] == "human" || data["role"] == "human"
-              text = data["message"] || data["content"]
-              text = text.first["text"] if text.is_a?(Array)
-              return text.to_s[0..80] if text
-            end
+            next unless data["type"] == "user"
+            msg = data["message"]
+            text = case msg
+                   when Hash then msg["content"]
+                   when String then msg
+                   end
+            text = text.first["text"] if text.is_a?(Array)
+            next unless text.is_a?(String)
+            # Strip IDE context appended to prompts
+            clean = text.split("\n\n[IDE").first.strip
+            return clean[0..80] unless clean.empty?
           end
           "(no preview)"
         rescue

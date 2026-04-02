@@ -61,10 +61,12 @@ IDE.register({
         sessions = d.sessions || [];
       } catch (e) { sessions = []; }
       render();
+      overlay.focus();
     });
 
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
+    overlay.setAttribute('tabindex', '-1');
     overlay.addEventListener('keydown', e => {
       if (e.key === 'Escape') { close(); return; }
       if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, sessions.length); render(); return; }
