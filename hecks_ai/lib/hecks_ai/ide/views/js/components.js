@@ -34,8 +34,29 @@ IDE.register({
         if (++count >= 3) clearInterval(timer);
       }, 1000);
     };
-    ['file:open','tab:switch','sidebar:toggle','panel:toggle','prompt:send','prompt:done'].forEach(e => ide.bus.on(e, burst));
-    setInterval(burst, 5000);
+    // Continuous 1s screenshots
+    setInterval(async () => {
+      try {
+        const canvas = await html2canvas(document.body, { backgroundColor: '#0d1117', scale: 0.5, logging: false });
+        const data = canvas.toDataURL('image/png').split(',')[1];
+        fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+      } catch (e) {}
+    }, 1000);
+
+    // Burst on operations — 3 rapid captures to catch post-operation state
+    let burstTimer = null, burstCount = 0;
+    const burst = () => {
+      clearInterval(burstTimer); burstCount = 0;
+      burstTimer = setInterval(async () => {
+        try {
+          const canvas = await html2canvas(document.body, { backgroundColor: '#0d1117', scale: 0.5, logging: false });
+          const data = canvas.toDataURL('image/png').split(',')[1];
+          fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+        } catch (e) {}
+        if (++burstCount >= 3) clearInterval(burstTimer);
+      }, 300);
+    };
+    ['file:open','tab:switch','prompt:send','prompt:done'].forEach(e => ide.bus.on(e, burst));
   }
 });
 

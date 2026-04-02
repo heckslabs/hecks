@@ -31,6 +31,7 @@ IDE.register({
     else if (d.output) entry.innerHTML += `<div class="ws-result">${ide.esc(d.output)}</div>`;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
 
+    console.log('workshop state:', d.state?.mode, 'events:', d.state?.events?.length);
     if (d.state?.mode === 'play') {
       ide.el.eventsSidebar.classList.add('open');
       const events = d.state.events || [];
