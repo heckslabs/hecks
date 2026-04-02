@@ -211,6 +211,21 @@
     .esc-hint { font-size: 11px; color: var(--fg-dim); }
     .hidden { display: none; }
 
+    .command-log {
+      max-height: 80px; overflow-y: auto; border-top: 1px solid var(--border);
+      font-family: var(--mono); font-size: 10px; line-height: 1.6;
+      padding: 0 16px; scroll-behavior: smooth;
+    }
+    .command-log:empty { display: none; }
+    .command-log.collapsed { max-height: 18px; overflow: hidden; cursor: pointer; opacity: 0.6; }
+    .command-log.collapsed:hover { opacity: 1; }
+    .cmd-entry { display: flex; gap: 8px; padding: 1px 0; }
+    .cmd-source { color: var(--fg-dim); min-width: 50px; }
+    .cmd-source.server { color: var(--yellow); }
+    .cmd-source.client { color: var(--blue); }
+    .cmd-event { color: var(--fg); }
+    .cmd-time { color: var(--fg-dim); margin-left: auto; }
+
     .thinking-bar { height: 3px; opacity: 0; transition: opacity 0.5s; overflow: hidden; }
     .thinking-bar.active { opacity: 1; }
     .thinking-bar-inner {
@@ -237,6 +252,7 @@
       <div class="tab-content active" id="tab-chat">
         <div class="messages" id="messages"></div>
       </div>
+      <div class="command-log collapsed" id="command-log"></div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">
         <input id="prompt" type="text" placeholder="Type a message..." autofocus>

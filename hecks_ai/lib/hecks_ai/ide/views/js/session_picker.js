@@ -37,12 +37,22 @@ IDE.register({
     };
 
     const render = () => {
-      list.innerHTML = sessions.map((s, i) => {
+      const currentId = localStorage.getItem('hecks-ide-session');
+      // Sort current session to top
+      const sorted = [...sessions].sort((a, b) => {
+        if (a.id === currentId) return -1;
+        if (b.id === currentId) return 1;
+        return 0;
+      });
+
+      list.innerHTML = sorted.map((s, i) => {
         const sel = i === selectedIdx ? 'background:var(--bg-user);' : '';
-        const current = s.id === currentId ? '<span style="color:var(--green);font-size:9px;margin-left:6px">current</span>' : '';
+        const isCurrent = s.id === currentId;
+        const border = isCurrent ? 'border-left:3px solid var(--green);' : '';
+        const badge = isCurrent ? '<span style="color:var(--green);font-size:9px;margin-left:6px;text-transform:uppercase">active</span>' : '';
         const preview = IDE.esc(s.preview || '').slice(0, 60);
-        return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;${sel}" onclick="pickSession('${s.id}')">` +
-          `<div style="display:flex;justify-content:space-between"><span style="color:var(--fg)">${preview || '(empty)'}${current}</span><span style="color:var(--fg-dim);font-size:10px">${s.age}</span></div>` +
+        return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;${sel}${border}" onclick="pickSession('${s.id}')">` +
+          `<div style="display:flex;justify-content:space-between"><span style="color:var(--fg)">${preview || '(empty)'}${badge}</span><span style="color:var(--fg-dim);font-size:10px">${s.age}</span></div>` +
           `<div style="color:var(--fg-dim);font-size:10px;margin-top:2px">${s.id.slice(0,8)}...</div></div>`;
       }).join('') || '<div style="padding:16px;color:var(--fg-dim)">No sessions found</div>';
 
