@@ -59,6 +59,7 @@ module Hecks
           when ["POST", "/workshop/command"] then handle_workshop_command(req, res)
           when ["GET", "/workshop/state"]    then serve_workshop_state(res)
           when ["POST", "/interrupt"]        then handle_interrupt(res)
+          when ["POST", "/console"]         then handle_console(req, res)
           when ["POST", "/screenshot"] then handle_screenshot(req, res)
           else
             if req.request_method == "GET" && req.path.start_with?("/file/")
@@ -71,6 +72,7 @@ module Hecks
 
         def serve_page(res)
           res.content_type = "text/html"
+          res["Cache-Control"] = "no-cache, no-store"
           res.body = File.read(File.join(VIEWS_DIR, "ide.html"))
         end
 
@@ -183,6 +185,16 @@ module Hecks
         rescue => e
           res.status = 400
           res.body = JSON.generate(error: e.message)
+        end
+
+        def handle_console(req, res)
+          body = JSON.parse(req.body)
+          $stderr.puts "[IDE JS] #{body["level"]}: #{body["message"]}"
+          res.content_type = "application/json"
+          res.body = JSON.generate(ok: true)
+        rescue => e
+          res.status = 400
+          res.body = e.message
         end
 
         def handle_interrupt(res)

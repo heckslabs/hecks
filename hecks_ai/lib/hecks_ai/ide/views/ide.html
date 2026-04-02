@@ -227,6 +227,7 @@
     <div class="sidebar" id="sidebar">
       <div class="panel-nav" id="panel-nav">
         <div class="panel-dot panel-dot-apps" onclick="toggleDotPanel('apps')" title="Applications">A</div>
+        <div class="panel-dot panel-dot-hex inactive" onclick="toggleDotPanel('hex')" title="Hecksagon">H</div>
         <div class="panel-dot panel-dot-tools" onclick="toggleDotPanel('tools')" title="Tool Calls">T</div>
       </div>
       <div class="panel panel-apps" id="panel-apps">
@@ -234,6 +235,12 @@
           <span onclick="collapsePanel('apps')">Applications <span class="panel-chevron">&#9660;</span></span>
                   </div>
         <div class="panel-body" id="apps-body">Loading...</div>
+      </div>
+      <div class="panel panel-hex hidden" id="panel-hex">
+        <div class="panel-head">
+          <span onclick="collapsePanel('hex')">Hecksagon <span class="panel-chevron">&#9660;</span></span>
+        </div>
+        <div class="panel-body" id="hex-body"></div>
       </div>
       <div class="panel panel-tools" id="panel-tools">
         <div class="panel-head">
@@ -261,6 +268,27 @@
   </script>
 
   <script>
+    /* ── Error + Console streaming ── */
+    window.onerror = function(msg, src, line, col, err) {
+      fetch('/console', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: 'error', message: `${msg} at ${src}:${line}:${col}` })
+      }).catch(() => {});
+    };
+    ['error', 'warn', 'log'].forEach(level => {
+      const orig = console[level];
+      console[level] = function(...args) {
+        orig.apply(console, args);
+        const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+        fetch('/console', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ level, message: msg.slice(0, 1000) })
+        }).catch(() => {});
+      };
+    });
+
     const msgsEl = document.getElementById('messages');
     const promptEl = document.getElementById('prompt');
     const sendBtn = document.getElementById('send');
@@ -539,7 +567,7 @@
           } else {
             // Multi-domain app — group header, then "Bluebooks" sub-header
             const gid = group.replace(/[^a-zA-Z0-9]/g, '_');
-            const label = group.charAt(0).toUpperCase() + group.slice(1);
+            const label = group.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             html += `<div class="book-app">`;
             html += `<div class="book-app-name" onclick="toggleBookAggs('g_${gid}')">`;
             html += `<span class="book-chevron" id="chev-g_${gid}">&#9654;</span> ${esc(label)}`;
@@ -572,50 +600,45 @@
 
 
     function openHecksagon(path) {
+      console.log('openHecksagon called:', path);
       showPanel('hex');
       document.querySelector('.panel-dot-hex').classList.remove('inactive');
-      loadHecksagonPanel(path);
-      openHecksagonTab(path);
-    }
 
-    async function loadHecksagonPanel(path) {
-      const body = document.getElementById('hex-body');
-      try {
-        const r = await fetch('/file/' + encodeURIComponent(path));
-        const text = await r.text();
-        const name = path.split('/').pop().replace(/Hecksagon$/, '');
-        body.innerHTML = `<div class="file-view-path">${esc(path)}</div><pre style="font-size:11px;line-height:1.5;white-space:pre-wrap">${esc(text)}</pre>`;
-      } catch (e) { body.textContent = 'Failed to load.'; }
-    }
+      fetch('/file/' + encodeURIComponent(path))
+        .then(function(r) { return r.text(); })
+        .then(function(text) {
+          console.log('Hecksagon file loaded, length:', text.length);
 
-    async function openHecksagonTab(path) {
-      const id = 'hecksagon';
-      const name = path.split('/').pop();
-      try {
-        const r = await fetch('/file/' + encodeURIComponent(path));
-        const text = await r.text();
-        const diagram = buildHecksagonDiagram(text, path);
+          // Sidebar panel
+          var body = document.getElementById('hex-body');
+          body.innerHTML = '<div class="file-view-path">' + esc(path) + '</div><pre style="font-size:11px;line-height:1.5;white-space:pre-wrap">' + esc(text) + '</pre>';
 
-        if (!openTabs[id]) {
-          const tab = document.createElement('div');
-          tab.className = 'tab'; tab.dataset.tab = id;
-          tab.innerHTML = `<span class="tab-label" onclick="switchTab('${id}')">${esc(name)}</span><span class="tab-close" onclick="event.stopPropagation();closeTab('${id}')">&#215;</span>`;
-          tab.onclick = () => switchTab(id);
+          // Main tab
+          var id = 'hecksagon';
+          var name = path.split('/').pop();
+          if (openTabs[id]) closeTab(id);
+
+          var tab = document.createElement('div');
+          tab.className = 'tab';
+          tab.dataset.tab = id;
+          tab.innerHTML = '<span class="tab-label">' + esc(name) + '</span><span class="tab-close" onclick="event.stopPropagation();closeTab(\'' + id + '\')">&#215;</span>';
+          tab.onclick = function() { switchTab(id); };
           tabBar.appendChild(tab);
-          const content = document.createElement('div');
-          content.className = 'tab-content'; content.id = 'tab-' + id;
+
+          var content = document.createElement('div');
+          content.className = 'tab-content';
+          content.id = 'tab-' + id;
+          var diagram = buildHecksagonDiagram(text, path);
+          content.innerHTML =
+            '<div class="ws-diagram"><div class="ws-diagram-title">' + esc(name) + '</div><pre class="mermaid-pending">' + esc(diagram) + '</pre></div>' +
+            '<div class="file-view"><div class="file-view-path">' + esc(path) + '</div><pre>' + esc(text) + '</pre></div>';
           document.querySelector('.main').insertBefore(content, document.querySelector('.thinking-bar'));
-          openTabs[id] = { tab, content, path };
-        } else {
-          openTabs[id].tab.querySelector('.tab-label').textContent = name;
-          openTabs[id].path = path;
-        }
-        openTabs[id].content.innerHTML =
-          `<div class="ws-diagram"><div class="ws-diagram-title">${esc(name)}</div><pre class="mermaid-pending">${esc(diagram)}</pre></div>` +
-          `<div class="file-view"><div class="file-view-path">${esc(path)}</div><pre>${esc(text)}</pre></div>`;
-        switchTab(id);
-        setTimeout(() => { if (window.renderMermaid) window.renderMermaid(); }, 100);
-      } catch (e) {}
+          openTabs[id] = { tab: tab, content: content, path: path };
+
+          switchTab(id);
+          setTimeout(function() { if (window.renderMermaid) window.renderMermaid(); }, 200);
+        })
+        .catch(function(e) { console.error('openHecksagon error:', e); });
     }
 
     function buildHecksagonDiagram(text, path) {

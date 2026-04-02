@@ -10,7 +10,7 @@ module Hecks
   module AI
     module IDE
       class BluebookDiscovery
-        GENERATED_PATTERN = /_static_|_domain\/|_domain$/
+        GENERATED_PATTERN = /_static_ruby|_static_go|_domain\/[^\/]+_domain\//
 
         def initialize(project_dir)
           @dir = project_dir
@@ -21,7 +21,7 @@ module Hecks
           results.concat(root_books)
           results.concat(example_books)
           results.reject! { |a| a[:path] =~ GENERATED_PATTERN }
-          { apps: results }
+          dedup(results)
         end
 
         private
@@ -56,7 +56,9 @@ module Hecks
           rel = path.sub("#{@dir}/", "")
           name = File.basename(path).sub(/Bluebook$/, "")
           app_dir = File.dirname(path)
-          hex = Dir[File.join(app_dir, "*Hecksagon")].first
+          # Prefer NamedHecksagon over bare Hecksagon
+          hexes = Dir[File.join(app_dir, "*Hecksagon")].select { |f| File.file?(f) }
+          hex = hexes.find { |f| File.basename(f) != "Hecksagon" } || hexes.first
           entry = {
             name: name, path: rel, type: type,
             aggregates: parse_aggregates(path),
@@ -70,6 +72,21 @@ module Hecks
         def app_dir(path, examples_dir)
           relative = path.sub("#{examples_dir}/", "")
           relative.split("/").first
+        end
+
+        def dedup(results)
+          seen = {}
+          unique = results.select do |a|
+            key = "#{a[:group] || '_'}:#{a[:name]}"
+            depth = a[:path].count("/")
+            if seen[key].nil? || depth < seen[key]
+              seen[key] = depth
+              true
+            else
+              false
+            end
+          end
+          { apps: unique }
         end
 
         def parse_aggregates(path)
