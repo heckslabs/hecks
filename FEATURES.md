@@ -137,6 +137,7 @@
 - `hecks_idempotency` — command deduplication by fingerprint
 - `hecks_transactions` — DB transaction wrapping when SQL adapter present
 - `hecks_retry` — exponential backoff for transient errors
+- `hecks_bubble` — anti-corruption layer (ACL) for legacy data translation; context DSL with `map_aggregate`, `from_legacy` (field renaming + transforms), `map_out` (reverse mapping); API: `context.translate(:Pizza, :create, legacy_data)` and `context.reverse(:Pizza, :create, domain_data)`
 
 ### Domain Connections DSL
 - `extend :sqlite` — declare persistence adapter
