@@ -1,6 +1,6 @@
 # Hecks::DSL::AggregateBuilder::QueryMethods
 #
-# Scope, query, and index DSL methods extracted from AggregateBuilder.
+# Scope and query DSL methods extracted from AggregateBuilder.
 #
 module Hecks
   module DSL

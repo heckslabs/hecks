@@ -92,6 +92,7 @@ module Hecks
         @event_bus = event_bus || EventBus.new
         @repositories = {}
         @adapter_overrides = {}
+        @runtime_options = {}
         @async_handler = nil
         @runtime_options = {}
 
@@ -264,6 +265,16 @@ module Hecks
       end
 
       private
+
+      # Checks whether a runtime infrastructure option is enabled for an aggregate.
+      # Options are registered via +Runtime#enable+ in the config block.
+      #
+      # @param aggregate_name [String] the aggregate name
+      # @param option [Symbol] the option key (e.g., :versioned, :attachable)
+      # @return [Boolean]
+      def runtime_option?(aggregate_name, option)
+        (@runtime_options || {}).dig(aggregate_name.to_s, option) || false
+      end
 
       # Creates the command bus, binding it to the domain and event bus.
       # The command bus dispatches commands to the appropriate aggregate
