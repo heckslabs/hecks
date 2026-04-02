@@ -39,7 +39,12 @@ module Hecks
               queries: ir.queries.map(&:name)
             }
           end
-          { domain: ws.name, mode: ws.play? ? "play" : "sketch", aggregates: aggs }
+          {
+            domain: ws.name,
+            mode: ws.play? ? "play" : "sketch",
+            aggregates: aggs,
+            events: serialize_events(ws)
+          }
         end
 
         def completions
@@ -64,6 +69,22 @@ module Hecks
         end
 
         private
+
+        def serialize_events(ws)
+          return [] unless ws.play? && ws.playground
+          ws.playground.events.map do |e|
+            attrs = {}
+            e.class.instance_methods(false).each do |m|
+              next if %i[occurred_at aggregate_id].include?(m)
+              attrs[m.to_s] = e.send(m).to_s rescue "?"
+            end
+            {
+              type: e.class.name.split("::").last,
+              occurred_at: e.respond_to?(:occurred_at) ? e.occurred_at.to_s : nil,
+              attributes: attrs
+            }
+          end
+        end
 
         def build_mermaid(aggs)
           lines = ["classDiagram"]

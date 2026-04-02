@@ -17,6 +17,28 @@
     .layout { display: flex; height: 100vh; }
     .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
+    /* ── Events sidebar (left) ── */
+    .events-sidebar {
+      width: 0; border-right: 1px solid var(--border); overflow-y: auto;
+      font-family: var(--mono); font-size: 12px; transition: width 0.25s;
+      display: none;
+    }
+    .events-sidebar.open { width: 240px; display: block; }
+    .events-header {
+      padding: 10px 12px; font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--green); font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .event-list { padding: 8px; }
+    .event-item {
+      padding: 6px 8px; margin-bottom: 4px; border-radius: 4px;
+      background: var(--bg-msg); font-size: 11px; line-height: 1.4;
+    }
+    .event-type { color: var(--green); font-weight: 600; }
+    .event-time { color: var(--fg-dim); font-size: 10px; float: right; }
+    .event-attrs { color: var(--fg-dim); margin-top: 2px; }
+    .event-empty { color: var(--fg-dim); font-style: italic; padding: 12px; }
+
     /* ── Tabs ── */
     .tab-bar {
       display: flex; border-bottom: 1px solid var(--border); background: var(--bg);
@@ -208,6 +230,12 @@
 </head>
 <body>
   <div class="layout">
+    <div class="events-sidebar" id="events-sidebar">
+      <div class="events-header">Events</div>
+      <div class="event-list" id="event-list">
+        <div class="event-empty">Enter play! to see events.</div>
+      </div>
+    </div>
     <div class="main">
       <div class="tab-bar" id="tab-bar">
         <div class="tab tab-chat active" data-tab="chat" onclick="switchTab('chat')">Chat</div>
@@ -599,6 +627,23 @@
     }
 
 
+    /* ── Events sidebar ── */
+    const eventsSidebar = document.getElementById('events-sidebar');
+    const eventListEl = document.getElementById('event-list');
+
+    function renderEvents(events) {
+      eventsSidebar.classList.add('open');
+      if (!events.length) {
+        eventListEl.innerHTML = '<div class="event-empty">No events yet. Run a command.</div>';
+        return;
+      }
+      eventListEl.innerHTML = events.map(e => {
+        const attrs = Object.entries(e.attributes || {}).map(([k,v]) => `${k}: ${v}`).join(', ');
+        return `<div class="event-item"><span class="event-type">${esc(e.type)}</span><div class="event-attrs">${esc(attrs)}</div></div>`;
+      }).join('');
+      eventListEl.scrollTo({ top: eventListEl.scrollHeight, behavior: 'smooth' });
+    }
+
     function openHecksagon(path) {
       console.log('openHecksagon called:', path);
       showPanel('hex');
@@ -735,6 +780,7 @@
       wsActive = false;
       closeTab('workshop');
       promptEl.placeholder = 'Type a message...';
+      eventsSidebar.classList.remove('open');
     }
 
     async function sendWorkshopCommand(cmd) {
@@ -756,6 +802,11 @@
       if (d.error) entry.innerHTML += `<div class="ws-result ws-error">${esc(d.error)}</div>`;
       else if (d.output) entry.innerHTML += `<div class="ws-result">${esc(d.output)}</div>`;
       scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+
+      // Show events sidebar in play mode
+      if (d.state?.mode === 'play') {
+        renderEvents(d.state.events || []);
+      }
     }
 
     // Autocomplete — slash commands always, workshop commands when active
