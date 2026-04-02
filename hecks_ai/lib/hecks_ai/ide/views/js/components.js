@@ -56,6 +56,19 @@ IDE.register({
       minChars: 1, maxItems: 10, autoFirst: false,
       filter: () => true, list: []
     });
+
+    // Subscribe to bus events
+    ide.bus.on('autocomplete:close', () => {
+      this.awes.close();
+      document.querySelectorAll('.awesomplete > ul').forEach(ul => ul.setAttribute('hidden', ''));
+    });
+
+    ide.bus.on('autocomplete:update', (val) => {
+      const items = this.buildCompletions(val, ide);
+      if (!items.length) { this.awes.close(); return; }
+      this.awes.list = items;
+      this.awes.evaluate();
+    });
   },
 
   onKeydown(e, ide) {
@@ -66,7 +79,7 @@ IDE.register({
         const items = this.buildCompletions(val, ide);
         if (items.length) {
           ide.el.prompt.value = items[0];
-          if (this.awes) this.awes.close();
+          ide.bus.emit('autocomplete:close');
         }
       }
       return true;
@@ -75,13 +88,10 @@ IDE.register({
   },
 
   onInput(val, ide) {
-    if (!val) { this.awes.close(); return true; }
+    if (!val) { ide.bus.emit('autocomplete:close'); return true; }
     const inWs = ide.state.wsActive && document.querySelector('.tab[data-tab="workshop"].active');
-    if (!inWs && !val.startsWith('/')) { this.awes.close(); return true; }
-    const items = this.buildCompletions(val, ide);
-    if (!items.length) { this.awes.close(); return true; }
-    this.awes.list = items;
-    this.awes.evaluate();
+    if (!inWs && !val.startsWith('/')) { ide.bus.emit('autocomplete:close'); return true; }
+    ide.bus.emit('autocomplete:update', val);
     return true;
   },
 
@@ -120,6 +130,23 @@ IDE.register({
 
 /* ── Command history component ── */
 IDE.register({
+  init(ide) {
+    // Restore from localStorage
+    try {
+      const saved = localStorage.getItem('hecks-ide-history');
+      if (saved) ide.state.cmdHistory = JSON.parse(saved);
+    } catch (e) {}
+
+    // Persist on each prompt
+    ide.bus.on('prompt:send', () => {
+      try {
+        // Keep last 100
+        const hist = ide.state.cmdHistory.slice(-100);
+        localStorage.setItem('hecks-ide-history', JSON.stringify(hist));
+      } catch (e) {}
+    });
+  },
+
   onKeydown(e, ide) {
     const s = ide.state;
     const awesOpen = document.querySelector('.awesomplete > ul:not([hidden])');
@@ -146,8 +173,7 @@ IDE.register({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       e.stopImmediatePropagation();
-      // Force close autocomplete dropdown
-      document.querySelectorAll('.awesomplete > ul').forEach(ul => ul.setAttribute('hidden', ''));
+      ide.bus.emit('autocomplete:close');
       ide.sendPrompt();
       return true;
     }
