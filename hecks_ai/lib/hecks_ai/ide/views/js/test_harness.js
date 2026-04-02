@@ -3,8 +3,34 @@
 const IDETests = {
   results: [],
 
+  overlay: null,
+
+  showOverlay(text) {
+    if (!this.overlay) {
+      this.overlay = document.createElement('div');
+      this.overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:100;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:var(--mono);';
+      document.body.appendChild(this.overlay);
+    }
+    this.overlay.innerHTML = `<div style="color:var(--green);font-size:20px;font-weight:600;margin-bottom:12px">Testing</div><div style="color:var(--fg);font-size:14px" id="test-name">${text}</div><div style="color:var(--fg-dim);font-size:11px;margin-top:8px">${this.results.length} / ${this.totalTests} completed</div>`;
+    this.overlay.style.display = 'flex';
+  },
+
+  hideOverlay() {
+    if (this.overlay) this.overlay.style.display = 'none';
+  },
+
+  totalTests: 17,
+
   async runAll() {
     this.results = [];
+
+    // Snapshot state before tests
+    const savedMsgs = IDE.el.msgs.innerHTML;
+    const savedPrompt = IDE.el.prompt.value;
+    const savedPlaceholder = IDE.el.prompt.placeholder;
+    const panelStates = {};
+    document.querySelectorAll('.panel').forEach(p => { panelStates[p.id] = p.className; });
+    const logCollapsed = document.getElementById('command-log').classList.contains('collapsed');
 
     // Core
     await this.test('bus delivers to subscribers', async () => {
@@ -168,10 +194,27 @@ const IDETests = {
       return val === 'Pizza';
     });
 
+    this.hideOverlay();
+
+    // Restore state after tests
+    IDE.el.msgs.innerHTML = savedMsgs;
+    IDE.el.prompt.value = savedPrompt;
+    IDE.el.prompt.placeholder = savedPlaceholder;
+    document.querySelectorAll('.panel').forEach(p => { if (panelStates[p.id]) p.className = panelStates[p.id]; });
+    if (logCollapsed) document.getElementById('command-log').classList.add('collapsed');
+    else document.getElementById('command-log').classList.remove('collapsed');
+    const ap = document.getElementById('app-picker'); if (ap) ap.style.display = 'none';
+    const sp = document.getElementById('session-picker'); if (sp) sp.style.display = 'none';
+    IDE.switchTab('chat');
+    IDE.el.status.textContent = '';
+    IDE.state.busy = false;
+    IDE.el.send.disabled = false;
+
     this.report();
   },
 
   async test(name, fn) {
+    this.showOverlay(name);
     try {
       const result = await fn();
       this.results.push({ name, pass: !!result });
@@ -180,7 +223,7 @@ const IDETests = {
       this.results.push({ name, pass: false, error: e.message });
       console.error(`FAIL: ${name}: ${e.message}`);
     }
-    await this.wait(400); // pause between tests so you can see each one
+    await this.wait(400);
   },
 
   wait(ms) { return new Promise(r => setTimeout(r, ms)); },
