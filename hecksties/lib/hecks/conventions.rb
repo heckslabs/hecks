@@ -52,4 +52,5 @@ module Hecks
   Contracts.register(:commands,   Conventions::CommandContract)
   Contracts.register(:routes,     Conventions::RouteContract)
   Contracts.register(:dispatch,   Conventions::DispatchContract)
+  Contracts.register(:extensions, Conventions::ExtensionContract)
 end
