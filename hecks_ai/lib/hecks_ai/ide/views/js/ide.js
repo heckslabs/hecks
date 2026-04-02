@@ -28,8 +28,11 @@ const IDE = {
       eventList: document.getElementById('event-list')
     };
     // Capture phase — fires before Awesomplete's handler
+    // Global hotkeys (Cmd+O, Cmd+Shift+O, Escape) fire from anywhere
+    // Input-specific keys (Enter, Tab, arrows) only from prompt
     document.addEventListener('keydown', e => {
-      if (e.target === this.el.prompt) this.onKeydown(e);
+      const isGlobal = (e.metaKey || e.ctrlKey) || e.key === 'Escape';
+      if (isGlobal || e.target === this.el.prompt) this.onKeydown(e);
     }, true);
     this.el.prompt.addEventListener('input', () => this.onInput());
     this.el.sidebar.addEventListener('click', e => {
