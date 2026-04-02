@@ -7,6 +7,8 @@
 #
 require "webrick"
 require "json"
+require "base64"
+require "fileutils"
 require_relative "claude_process"
 
 module Hecks
@@ -42,9 +44,16 @@ module Hecks
           case [req.request_method, req.path]
           when ["GET", "/"]           then serve_page(res)
           when ["GET", "/events"]     then serve_events(req, res)
+          when ["GET", "/context"]    then serve_context(res)
           when ["POST", "/prompt"]    then handle_prompt(req, res)
           when ["POST", "/interrupt"] then handle_interrupt(res)
-          else res.status = 404; res.body = "Not found"
+          when ["POST", "/screenshot"] then handle_screenshot(req, res)
+          else
+            if req.request_method == "GET" && req.path.start_with?("/file/")
+              serve_file(req, res)
+            else
+              res.status = 404; res.body = "Not found"
+            end
           end
         end
 
@@ -55,21 +64,107 @@ module Hecks
 
         def serve_events(req, res)
           after = (req.query["after"] || "0").to_i
-          events = @mutex.synchronize { @events[after..] || [] }
+          events, total = @mutex.synchronize do
+            # Client is ahead of the array — a reset happened
+            if after > @events.size
+              return serve_reset(res)
+            end
+            [@events[after..] || [], @events.size]
+          end
           res.content_type = "application/json"
           res["Cache-Control"] = "no-cache"
           res.body = JSON.generate(events: events, next_index: after + events.size)
         end
 
+        def serve_reset(res)
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          res.body = JSON.generate(events: ['{"type":"reload"}'], next_index: 0)
+        end
+
         def handle_prompt(req, res)
           body = JSON.parse(req.body)
+          prompt = body["prompt"]
+
+          context_json = JSON.pretty_generate(build_context)
+
+          if body["screenshot"]
+            @screenshot_path ||= File.join(@project_dir, ".claude", "ide_screenshot.png")
+            FileUtils.mkdir_p(File.dirname(@screenshot_path))
+            File.binwrite(@screenshot_path, Base64.decode64(body["screenshot"]))
+            prompt = "#{prompt}\n\n[IDE screenshot at #{@screenshot_path} — use Read to view it]\n\n[IDE context]\n#{context_json}"
+          else
+            prompt = "#{prompt}\n\n[IDE context]\n#{context_json}"
+          end
+
           @claude ||= ClaudeProcess.new(project_dir: @project_dir) do |json|
             @mutex.synchronize { @events << json }
           end
-          @claude.send_prompt(body["prompt"])
+          @claude.send_prompt(prompt)
           res.content_type = "application/json"
           res.body = JSON.generate(ok: true)
         rescue JSON::ParserError => e
+          res.status = 400
+          res.body = JSON.generate(error: e.message)
+        end
+
+        def serve_context(res)
+          ctx = build_context
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          res.body = JSON.generate(ctx)
+        end
+
+        def build_context
+          branch = `git -C #{@project_dir} rev-parse --abbrev-ref HEAD 2>/dev/null`.strip
+          story = branch[/hec-(\d+)/i] ? "HEC-#{$1}" : nil
+
+          bluebooks = Dir[File.join(@project_dir, "*Bluebook")] +
+                      Dir[File.join(@project_dir, "bluebook", "*Bluebook")]
+          hecksagons = Dir[File.join(@project_dir, "*Hecksagon")]
+          features = File.exist?(File.join(@project_dir, "FEATURES.md"))
+          claude_md = File.exist?(File.join(@project_dir, "CLAUDE.md"))
+
+          key_files = [
+            { path: "CLAUDE.md", label: "Project rules", exists: claude_md },
+            { path: "FEATURES.md", label: "Feature list", exists: features },
+            *bluebooks.map { |f| { path: f.sub("#{@project_dir}/", ""), label: "Domain DSL", exists: true } },
+            *hecksagons.map { |f| { path: f.sub("#{@project_dir}/", ""), label: "Hecksagon DSL", exists: true } }
+          ].select { |f| f[:exists] }
+
+          docs = Dir[File.join(@project_dir, "docs", "usage", "*.md")].map do |f|
+            { path: "docs/usage/#{File.basename(f)}", label: File.basename(f, ".md").tr("_", " ") }
+          end
+
+          status = `git -C #{@project_dir} status --short 2>/dev/null`.strip
+          recent_commits = `git -C #{@project_dir} log --oneline -5 2>/dev/null`.strip
+
+          {
+            branch: branch, story: story, key_files: key_files,
+            docs: docs.first(12),
+            git_status: status.empty? ? "clean" : status,
+            recent_commits: recent_commits
+          }
+        end
+
+        def serve_file(req, res)
+          rel = req.path.sub("/file/", "")
+          path = File.join(@project_dir, rel)
+          unless File.exist?(path) && path.start_with?(@project_dir)
+            res.status = 404; res.body = "File not found"; return
+          end
+          res.content_type = "text/plain; charset=utf-8"
+          res.body = File.read(path)
+        end
+
+        def handle_screenshot(req, res)
+          body = JSON.parse(req.body)
+          @screenshot_path ||= File.join(@project_dir, ".claude", "ide_screenshot.png")
+          FileUtils.mkdir_p(File.dirname(@screenshot_path))
+          File.binwrite(@screenshot_path, Base64.decode64(body["data"]))
+          res.content_type = "application/json"
+          res.body = JSON.generate(ok: true)
+        rescue => e
           res.status = 400
           res.body = JSON.generate(error: e.message)
         end

@@ -9,23 +9,100 @@
       --border: #30363d; --fg: #c9d1d9; --fg-dim: #8b949e;
       --blue: #58a6ff; --green: #7ee787; --yellow: #d29922; --red: #f85149;
       --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+      --sidebar-w: 280px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; background: var(--bg); color: var(--fg); overflow: hidden; }
 
-    .app { display: flex; flex-direction: column; height: 100vh; max-width: 900px; margin: 0 auto; }
+    .layout { display: flex; height: 100vh; }
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-    /* ── Header ── */
-    .header {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      font-family: var(--mono); font-size: 13px; color: var(--fg-dim);
-      display: flex; justify-content: space-between; align-items: center;
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex; border-bottom: 1px solid var(--border); background: var(--bg);
+      font-family: var(--mono); font-size: 12px; overflow-x: auto;
     }
-    .header-title { color: var(--green); font-weight: 600; }
+    .tab {
+      padding: 8px 16px; cursor: pointer; color: var(--fg-dim);
+      border-right: 1px solid var(--border); white-space: nowrap;
+      display: flex; align-items: center; gap: 6px; user-select: none;
+    }
+    .tab:hover { color: var(--fg); background: var(--bg-msg); }
+    .tab.active { color: var(--fg); background: var(--bg-msg); border-bottom: 2px solid var(--blue); }
+    .tab-close {
+      font-size: 14px; color: var(--fg-dim); cursor: pointer; line-height: 1;
+    }
+    .tab-close:hover { color: var(--red); }
+    .tab-chat { color: var(--green); font-weight: 600; }
+
+    .tab-content { flex: 1; overflow-y: auto; display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── File viewer ── */
+    .file-view {
+      padding: 16px; font-family: var(--mono); font-size: 13px;
+      line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;
+    }
+    .file-view-path { color: var(--fg-dim); font-size: 11px; margin-bottom: 12px; }
+    .md-view {
+      padding: 16px 24px; font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+      font-size: 15px; line-height: 1.7; max-width: 800px;
+    }
+    .md-view h1 { font-size: 24px; margin: 20px 0 12px; color: var(--fg); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .md-view h2 { font-size: 20px; margin: 18px 0 10px; color: var(--fg); }
+    .md-view h3 { font-size: 16px; margin: 14px 0 8px; color: var(--fg); }
+    .md-view p { margin: 8px 0; }
+    .md-view code { background: var(--bg-user); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: 13px; }
+    .md-view pre { background: var(--bg-user); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+    .md-view pre code { background: none; padding: 0; }
+    .md-view ul, .md-view ol { padding-left: 24px; margin: 8px 0; }
+    .md-view li { margin: 4px 0; }
+    .md-view a { color: var(--blue); }
+    .md-view blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--fg-dim); margin: 8px 0; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto;
+      font-family: var(--mono); font-size: 12px; transition: width 0.2s;
+    }
+    .sidebar.collapsed { width: 0; border: none; overflow: hidden; }
+
+    .sidebar-toggle {
+      position: fixed; top: 8px; right: 12px; z-index: 10;
+      background: var(--bg-msg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--fg-dim); font-family: var(--mono); font-size: 11px;
+      padding: 4px 10px; cursor: pointer;
+    }
+    .sidebar-toggle:hover { color: var(--fg); border-color: var(--blue); }
+
+    .panel { border-bottom: 1px solid var(--border); }
+    .panel-head {
+      padding: 10px 14px; cursor: pointer; user-select: none;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--blue); font-weight: 600;
+    }
+    .panel-head:hover { background: var(--bg-msg); }
+    .panel-chevron { transition: transform 0.15s; font-size: 9px; }
+    .panel.closed .panel-chevron { transform: rotate(-90deg); }
+    .panel.closed .panel-body { display: none; }
+    .panel-body { padding: 4px 14px 12px; line-height: 1.8; }
+
+    .ctx-branch { color: var(--green); font-weight: 600; }
+    .ctx-story { color: var(--yellow); }
+    .ctx-link {
+      display: block; color: var(--fg); text-decoration: none;
+      padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .ctx-link:hover { color: var(--blue); }
+    .ctx-link-label { color: var(--fg-dim); font-size: 10px; margin-left: 4px; }
+    .ctx-section { margin-top: 10px; color: var(--fg-dim); font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
 
     /* ── Messages ── */
-    .messages { flex: 1; overflow-y: auto; padding: 16px; }
-
+    .messages { padding: 16px; }
     .turn { margin-bottom: 20px; }
     .turn-label {
       font-family: var(--mono); font-size: 11px; font-weight: 600;
@@ -35,7 +112,6 @@
     .turn-assistant .turn-label { color: var(--green); }
     .turn-system .turn-label { color: var(--fg-dim); }
     .turn-tool .turn-label { color: var(--yellow); }
-
     .turn-body {
       font-family: var(--mono); font-size: 14px; line-height: 1.6;
       padding: 10px 14px; border-radius: 8px;
@@ -43,11 +119,7 @@
     .turn-user .turn-body { background: var(--bg-user); border-left: 3px solid var(--blue); }
     .turn-assistant .turn-body { background: var(--bg-msg); }
     .turn-system .turn-body { background: transparent; color: var(--fg-dim); font-size: 12px; }
-    .turn-tool .turn-body {
-      background: #1a1e2a; border-left: 3px solid var(--yellow);
-      font-size: 12px; color: var(--fg-dim);
-    }
-
+    .turn-tool .turn-body { background: #1a1e2a; border-left: 3px solid var(--yellow); font-size: 12px; color: var(--fg-dim); }
     .turn-body pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; }
     .tool-name { color: var(--yellow); font-weight: 600; }
 
@@ -65,35 +137,75 @@
     .input-area input::placeholder { color: var(--fg-dim); }
     .input-area button {
       background: #238636; color: #fff; border: none; border-radius: 8px;
-      padding: 10px 20px; font-size: 14px; cursor: pointer;
-      font-family: var(--mono);
+      padding: 10px 20px; font-size: 14px; cursor: pointer; font-family: var(--mono);
     }
     .input-area button:hover { background: #2ea043; }
     .input-area button:disabled { opacity: 0.4; cursor: default; }
     .esc-hint { font-size: 11px; color: var(--fg-dim); }
     .hidden { display: none; }
 
-    /* ── Thinking indicator ── */
-    .thinking-dot {
-      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green); animation: pulse 1.5s infinite;
+    .thinking-bar {
+      position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
+      opacity: 0; transition: opacity 0.5s;
+      overflow: hidden;
     }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .thinking-bar.active { opacity: 1; }
+    .thinking-bar-inner {
+      height: 100%; width: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        #0a3d91 10%,
+        #1a6dff 20%,
+        #3b8bff 30%,
+        #58a6ff 40%,
+        #79c0ff 48%,
+        #a5d8ff 50%,
+        #79c0ff 52%,
+        #58a6ff 60%,
+        #3b8bff 70%,
+        #1a6dff 80%,
+        #0a3d91 90%,
+        transparent 100%
+      );
+      background-size: 200% 100%;
+      animation: thinking-shimmer 3s ease-in-out infinite;
+      box-shadow: 0 0 12px rgba(88, 166, 255, 0.6), 0 0 4px rgba(121, 192, 255, 0.4);
+    }
+    @keyframes thinking-shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="header">
-      <span class="header-title">hecks ide</span>
-      <span id="status"></span>
+  <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
+  <div class="layout">
+    <div class="main">
+      <div class="tab-bar" id="tab-bar">
+        <div class="tab tab-chat active" data-tab="chat" onclick="switchTab('chat')">Chat</div>
+      </div>
+      <div class="tab-content active" id="tab-chat">
+        <div class="messages" id="messages"></div>
+      </div>
+      <div class="input-area">
+        <input id="prompt" type="text" placeholder="Type a message..." autofocus>
+        <button id="send" onclick="sendPrompt()">Send</button>
+        <span class="esc-hint hidden" id="esc-hint">esc to cancel</span>
+        <span id="status"></span>
+      </div>
     </div>
-    <div class="messages" id="messages"></div>
-    <div class="input-area">
-      <input id="prompt" type="text" placeholder="Type a message..." autofocus>
-      <button id="send" onclick="sendPrompt()">Send</button>
-      <span class="esc-hint hidden" id="esc-hint">esc to cancel</span>
+    <div class="sidebar" id="sidebar">
+      <div class="panel" id="panel-context">
+        <div class="panel-head" onclick="togglePanel('panel-context')">
+          Project Context <span class="panel-chevron">&#9660;</span>
+        </div>
+        <div class="panel-body" id="context-body">Loading...</div>
+      </div>
     </div>
   </div>
+  <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <script>
     const msgsEl = document.getElementById('messages');
@@ -101,15 +213,115 @@
     const sendBtn = document.getElementById('send');
     const statusEl = document.getElementById('status');
     const escHint = document.getElementById('esc-hint');
+    const sidebar = document.getElementById('sidebar');
+    const tabBar = document.getElementById('tab-bar');
+    const thinkingBar = document.getElementById('thinking-bar');
     let nextIndex = 0, busy = false, curEl = null;
+    const openTabs = {};
 
+    /* ── Command Bus ── */
+    const bus = { _subs: {}, on(evt, fn) { (this._subs[evt] ||= []).push(fn); }, emit(evt, data) { (this._subs[evt] || []).forEach(fn => fn(data)); } };
+
+    /* ── Screenshot subscriber ── */
+    (function() {
+      let timer = null, count = 0;
+      function burst() {
+        clearInterval(timer);
+        count = 0;
+        timer = setInterval(async () => {
+          try {
+            const canvas = await html2canvas(document.body, { backgroundColor: '#0d1117', scale: 0.5, logging: false });
+            const data = canvas.toDataURL('image/png').split(',')[1];
+            fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+          } catch (e) {}
+          if (++count >= 3) clearInterval(timer);
+        }, 1000);
+      }
+      bus.on('file:open', burst);
+      bus.on('tab:switch', burst);
+      bus.on('sidebar:toggle', burst);
+      bus.on('panel:toggle', burst);
+      bus.on('prompt:send', burst);
+      bus.on('prompt:done', burst);
+      bus.on('prompt:interrupt', burst);
+    })();
+
+    function toggleSidebar() { sidebar.classList.toggle('collapsed'); bus.emit('sidebar:toggle'); }
+    function togglePanel(id) { document.getElementById(id).classList.toggle('closed'); bus.emit('panel:toggle', id); }
+
+    /* ── Tabs ── */
+    function switchTab(id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + id));
+      if (id === 'chat') promptEl.focus();
+      bus.emit('tab:switch', id);
+    }
+
+    async function openFile(path, opts) {
+      const isDoc = opts?.doc || path.startsWith('docs/');
+      const id = isDoc ? 'docs' : 'file-' + path.replace(/[^a-zA-Z0-9]/g, '_');
+
+      if (isDoc && openTabs[id]) {
+        // Reuse the docs tab — just replace content
+        await loadFileInto(openTabs[id].content, path);
+        openTabs[id].tab.querySelector('.tab-label').textContent = path.split('/').pop();
+        switchTab(id);
+        return;
+      }
+
+      if (openTabs[id]) { switchTab(id); return; }
+
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.dataset.tab = id;
+      const name = path.split('/').pop();
+      tab.innerHTML = `<span class="tab-label" onclick="switchTab('${id}')">${esc(name)}</span><span class="tab-close" onclick="event.stopPropagation();closeTab('${id}')">&#215;</span>`;
+      tab.onclick = () => switchTab(id);
+      tabBar.appendChild(tab);
+
+      const content = document.createElement('div');
+      content.className = 'tab-content';
+      content.id = 'tab-' + id;
+      content.innerHTML = '<div class="file-view"><div class="file-view-path">Loading...</div></div>';
+      document.querySelector('.main').insertBefore(content, document.querySelector('.input-area'));
+
+      openTabs[id] = { tab, content, path };
+      await loadFileInto(content, path);
+      switchTab(id);
+      bus.emit('file:open', path);
+    }
+
+    async function loadFileInto(el, path) {
+      try {
+        const r = await fetch('/file/' + encodeURIComponent(path));
+        const text = await r.text();
+        if (path.endsWith('.md')) {
+          el.innerHTML = `<div class="md-view"><div class="file-view-path">${esc(path)}</div>${renderMd(text)}</div>`;
+        } else {
+          el.innerHTML = `<div class="file-view"><div class="file-view-path">${esc(path)}</div><pre>${esc(text)}</pre></div>`;
+        }
+      } catch (e) {
+        el.innerHTML = '<div class="file-view">Failed to load file.</div>';
+      }
+    }
+
+    function closeTab(id) {
+      const t = openTabs[id];
+      if (!t) return;
+      t.tab.remove();
+      t.content.remove();
+      delete openTabs[id];
+      switchTab('chat');
+    }
+
+    /* ── Input ── */
     promptEl.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
     });
-
     document.addEventListener('keydown', async e => {
       if (e.key === 'Escape' && busy) {
         await fetch('/interrupt', { method: 'POST' });
+        bus.emit('prompt:interrupt');
         done('interrupted');
       }
     });
@@ -118,12 +330,13 @@
       const text = promptEl.value.trim();
       if (!text || busy) return;
       promptEl.value = '';
+      switchTab('chat');
       addTurn('user', text);
       curEl = null;
-      busy = true;
-      sendBtn.disabled = true;
+      busy = true; sendBtn.disabled = true;
       escHint.classList.remove('hidden');
-      statusEl.innerHTML = '<span class="thinking-dot"></span>';
+      thinkingBar.classList.add('active');
+      bus.emit('prompt:send', text);
       await fetch('/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,12 +345,12 @@
     }
 
     function done(label) {
-      busy = false;
-      sendBtn.disabled = false;
+      busy = false; sendBtn.disabled = false;
       escHint.classList.add('hidden');
+      thinkingBar.classList.remove('active');
       statusEl.textContent = label || '';
-      curEl = null;
-      promptEl.focus();
+      curEl = null; promptEl.focus();
+      bus.emit('prompt:done');
     }
 
     function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -155,8 +368,8 @@
     function addToolTurn(name, input) {
       const d = document.createElement('div');
       d.className = 'turn turn-tool';
-      const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
-      d.innerHTML = `<div class="turn-label">Tool</div><div class="turn-body"><span class="tool-name">${esc(name)}</span><pre>${esc(inputStr.slice(0, 400))}</pre></div>`;
+      const s = typeof input === 'string' ? input : JSON.stringify(input);
+      d.innerHTML = `<div class="turn-label">Tool</div><div class="turn-body"><span class="tool-name">${esc(name)}</span><pre>${esc(s.slice(0, 400))}</pre></div>`;
       msgsEl.appendChild(d);
       msgsEl.scrollTop = msgsEl.scrollHeight;
     }
@@ -175,13 +388,12 @@
             if (c.type === 'text') appendAssistant(c.text);
             if (c.type === 'tool_use') addToolTurn(c.name, c.input);
           });
-        } else if (e.type === 'result' && e.subtype === 'success') {
-          done();
-        } else if (e.type === 'result' && e.subtype === 'done') {
+        } else if (e.type === 'result' && (e.subtype === 'success' || e.subtype === 'done')) {
           done();
         } else if (e.type === 'error') {
-          addTurn('system', e.message || 'Unknown error');
-          done();
+          addTurn('system', e.message || 'Unknown error'); done();
+        } else if (e.type === 'reload') {
+          location.reload();
         }
       } catch (err) {}
     }
@@ -195,6 +407,93 @@
       } catch (e) {}
     }
     setInterval(poll, 250);
+
+    /* ── Context sidebar ── */
+    async function loadContext() {
+      try {
+        const r = await fetch('/context');
+        const c = await r.json();
+        const body = document.getElementById('context-body');
+        let html = '';
+        if (c.branch) {
+          html += `<span class="ctx-branch">${esc(c.branch)}</span>`;
+          if (c.story) html += ` <span class="ctx-story">${esc(c.story)}</span>`;
+          html += '<br>';
+        }
+        if (c.key_files?.length) {
+          html += '<div class="ctx-section">Key Files</div>';
+          c.key_files.forEach(f => {
+            html += `<a class="ctx-link" onclick="openFile('${f.path}')">${esc(f.path)}<span class="ctx-link-label">${esc(f.label)}</span></a>`;
+          });
+        }
+        if (c.docs?.length) {
+          html += '<div class="ctx-section">Usage Docs</div>';
+          c.docs.forEach(d => {
+            html += `<a class="ctx-link" onclick="openFile('${d.path}', {doc:true})">${esc(d.label)}</a>`;
+          });
+        }
+        body.innerHTML = html || '<span style="color:var(--fg-dim)">No context available.</span>';
+      } catch (e) {
+        document.getElementById('context-body').textContent = 'Failed to load.';
+      }
+    }
+    loadContext();
+    setInterval(loadContext, 10000);
+
+    /* ── Markdown renderer ── */
+    function renderMd(src) {
+      let html = '';
+      let inCode = false, codeLang = '', codeLines = [];
+      const lines = src.split('\n');
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (line.startsWith('```')) {
+          if (inCode) {
+            html += `<pre><code>${esc(codeLines.join('\n'))}</code></pre>`;
+            inCode = false; codeLines = [];
+          } else {
+            inCode = true; codeLang = line.slice(3).trim();
+          }
+          i++; continue;
+        }
+        if (inCode) { codeLines.push(line); i++; continue; }
+
+        if (line.startsWith('### ')) { html += `<h3>${mdInline(line.slice(4))}</h3>`; }
+        else if (line.startsWith('## ')) { html += `<h2>${mdInline(line.slice(3))}</h2>`; }
+        else if (line.startsWith('# ')) { html += `<h1>${mdInline(line.slice(2))}</h1>`; }
+        else if (line.startsWith('> ')) { html += `<blockquote>${mdInline(line.slice(2))}</blockquote>`; }
+        else if (/^[-*] /.test(line)) {
+          html += '<ul>';
+          while (i < lines.length && /^[-*] /.test(lines[i])) {
+            html += `<li>${mdInline(lines[i].slice(2))}</li>`;
+            i++;
+          }
+          html += '</ul>'; continue;
+        }
+        else if (/^\d+\. /.test(line)) {
+          html += '<ol>';
+          while (i < lines.length && /^\d+\. /.test(lines[i])) {
+            html += `<li>${mdInline(lines[i].replace(/^\d+\.\s*/, ''))}</li>`;
+            i++;
+          }
+          html += '</ol>'; continue;
+        }
+        else if (line.trim() === '') { html += ''; }
+        else { html += `<p>${mdInline(line)}</p>`; }
+        i++;
+      }
+      if (inCode) html += `<pre><code>${esc(codeLines.join('\n'))}</code></pre>`;
+      return html;
+    }
+
+    function mdInline(s) {
+      return esc(s)
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    }
   </script>
 </body>
 </html>
