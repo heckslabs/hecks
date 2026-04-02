@@ -99,7 +99,7 @@ puts "\n--- PII protection ---"
   pii = mod.pii_fields
   pii.each { |agg, fields| puts "  #{mod.name.sub('Domain', '')}::#{agg}: #{fields.join(', ')}" } unless pii.empty?
 end
-puts "  Masked email: #{HecksPii.mask("alice@governance.ai")}"
+puts "  Masked email: #{Hecks::PII.mask("alice@governance.ai")}"
 
 puts "\n--- Final state ---"
 { "AiModel" => AiModel, "Vendor" => Vendor, "DataUsageAgreement" => DataUsageAgreement,

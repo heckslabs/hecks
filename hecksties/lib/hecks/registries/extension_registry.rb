@@ -35,6 +35,11 @@ module Hecks
       })
     end
 
+    def alias_extension(alias_name, target_name)
+      extension_registry[alias_name] = extension_registry[target_name]
+      extension_meta[alias_name] = extension_meta[target_name] if extension_meta[target_name]
+    end
+
     def driven_extensions
       extension_meta.select { |_, m| m[:adapter_type] == :driven }.map(&:first)
     end

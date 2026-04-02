@@ -1,4 +1,4 @@
-# HecksPii
+# Hecks::PII
 #
 # PII (Personally Identifiable Information) protection extension for Hecks
 # domains. Reads +pii: true+ markers on aggregate attributes and provides
@@ -25,7 +25,8 @@
 #   # Erasure
 #   CatsDomain.erase_pii(customer_id)
 #
-module HecksPii
+module Hecks; end
+module Hecks::PII
   # Mask a string value for display, preserving the first and last characters
   # and replacing all middle characters with asterisks. Returns "[REDACTED]"
   # for strings shorter than 4 characters.
@@ -34,9 +35,9 @@ module HecksPii
   # @return [String, nil] the masked string, or nil if value was nil
   #
   # @example
-  #   HecksPii.mask("john@example.com")  # => "j**************m"
-  #   HecksPii.mask("Jo")                # => "[REDACTED]"
-  #   HecksPii.mask(nil)                 # => nil
+  #   Hecks::PII.mask("john@example.com")  # => "j**************m"
+  #   Hecks::PII.mask("Jo")                # => "[REDACTED]"
+  #   Hecks::PII.mask(nil)                 # => nil
   def self.mask(value)
     return nil if value.nil?
     s = value.to_s
@@ -74,7 +75,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
   # @return [void]
   domain_mod.define_singleton_method(:erase_pii) do |entity_id|
     domain.aggregates.each do |agg|
-      pii_names = HecksPii.pii_fields(agg)
+      pii_names = Hecks::PII.pii_fields(agg)
       next if pii_names.empty?
 
       repo = runtime[agg.name]
@@ -97,7 +98,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
   # @return [Hash{Symbol => Array<Symbol>}] aggregate name to PII field names
   domain_mod.define_singleton_method(:pii_fields) do
     domain.aggregates.each_with_object({}) do |agg, h|
-      fields = HecksPii.pii_fields(agg)
+      fields = Hecks::PII.pii_fields(agg)
       h[agg.name] = fields unless fields.empty?
     end
   end
@@ -113,7 +114,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
     domain.aggregates.each do |agg|
       agg.commands.each do |cmd|
         fqn = Hecks::Conventions::Names.domain_command_fqn(domain_mod.name, agg.name, cmd.name)
-        pii_names = HecksPii.pii_fields(agg)
+        pii_names = Hecks::PII.pii_fields(agg)
         pii_lookup[fqn] = pii_names unless pii_names.empty?
       end
     end
@@ -125,7 +126,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
         entry = domain_mod.audit_log.last
         if entry && entry[:attributes]
           pii_names.each do |name|
-            entry[:attributes][name] = HecksPii.mask(entry[:attributes][name]) if entry[:attributes].key?(name)
+            entry[:attributes][name] = Hecks::PII.mask(entry[:attributes][name]) if entry[:attributes].key?(name)
           end
         end
       end

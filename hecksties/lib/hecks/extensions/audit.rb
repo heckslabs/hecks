@@ -1,15 +1,17 @@
-# HecksAudit
+# Hecks::Audit
 #
 # Audit trail extension that records an immutable log entry for every
 # domain event published on the event bus. Captures the event class name,
 # full attribute data, and timestamp. Optionally pairs with command bus
 # middleware to enrich entries with command name, actor, and tenant.
 #
+# Future gem: hecks_audit
+#
 # Usage:
 #   require "hecks_audit"
 #
 #   app = Hecks.load(domain)
-#   audit = HecksAudit.new(app.event_bus)
+#   audit = Hecks::Audit.new(app.event_bus)
 #
 #   # Optional: add command context via middleware
 #   app.use(:audit) { |cmd, nxt| audit.around_command(cmd, nxt) }
@@ -18,7 +20,8 @@
 #   audit.log.last[:event_name]  # => "CreatedPizza"
 #   audit.log.last[:event_data]  # => { name: "Margherita" }
 #
-class HecksAudit
+module Hecks; end
+class Hecks::Audit
   # @return [Array<Hash>] the immutable audit log; each entry is a Hash with
   #   keys :command, :actor, :tenant, :timestamp, :event_name, :event_data
   attr_reader :log
@@ -130,7 +133,7 @@ Hecks.describe_extension(:audit,
 
 Hecks.register_extension(:audit) do |_domain_mod, _domain, runtime|
   bus = Hecks.event_bus || runtime.event_bus
-  audit = HecksAudit.new(bus)
+  audit = Hecks::Audit.new(bus)
   Hecks.instance_variable_set(:@_audit, audit)
   Hecks.define_singleton_method(:audit_log) { @_audit.log }
   runtime.use(:audit) do |cmd, nxt|

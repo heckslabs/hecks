@@ -1,4 +1,4 @@
-# HecksQueue
+# Hecks::Queue
 #
 # Message queue extension for Hecks. Subscribes to the domain event bus
 # and publishes every event as JSON to a queue adapter (e.g. RabbitMQ).
@@ -7,6 +7,8 @@
 # #call(event_json). If no adapter is provided, events are written
 # to a JSON-lines file at queue_events.jsonl for consumption by
 # external systems.
+#
+# Future gem: hecks_queue
 #
 # Usage:
 #   app = Hecks.boot(__dir__) do
@@ -33,7 +35,7 @@ Hecks.register_extension(:queue) do |domain_mod, domain, runtime|
   next unless config
 
   adapter = config[:adapter] || :file
-  queue_adapter = resolve_queue_adapter(adapter, domain)
+  queue_adapter = Hecks::Queue.resolve_adapter(adapter, domain)
 
   runtime.event_bus.on_any do |event|
     event_name = Hecks::Utils.const_short_name(event)
@@ -48,8 +50,9 @@ Hecks.register_extension(:queue) do |domain_mod, domain, runtime|
   end
 end
 
-module HecksQueue
-  # File-based queue adapter — appends JSON lines to a file.
+module Hecks; end
+module Hecks::Queue
+  # File-based queue adapter -- appends JSON lines to a file.
   # Useful for development and testing without a real broker.
   class FileAdapter
     def initialize(path)
@@ -61,7 +64,7 @@ module HecksQueue
     end
   end
 
-  # RabbitMQ adapter stub — logs to stdout. Replace with bunny gem
+  # RabbitMQ adapter stub -- logs to stdout. Replace with bunny gem
   # integration for production use.
   class RabbitMqAdapter
     def initialize(domain_name)
@@ -72,16 +75,20 @@ module HecksQueue
       $stdout.puts "[queue:#{@exchange}] #{routing_key}: #{payload}"
     end
   end
-end
 
-# Helper to resolve adapter symbol to an adapter instance.
-def resolve_queue_adapter(adapter, domain)
-  case adapter
-  when :file
-    HecksQueue::FileAdapter.new("queue_events.jsonl")
-  when :rabbitmq
-    HecksQueue::RabbitMqAdapter.new(domain.name)
-  else
-    adapter # assume it's a custom adapter object
+  # Resolve adapter symbol to an adapter instance.
+  #
+  # @param adapter [Symbol, Object] :file, :rabbitmq, or a custom adapter
+  # @param domain [Hecks::Domain] the domain definition
+  # @return [Object] the resolved adapter instance
+  def self.resolve_adapter(adapter, domain)
+    case adapter
+    when :file
+      FileAdapter.new("queue_events.jsonl")
+    when :rabbitmq
+      RabbitMqAdapter.new(domain.name)
+    else
+      adapter # assume it's a custom adapter object
+    end
   end
 end

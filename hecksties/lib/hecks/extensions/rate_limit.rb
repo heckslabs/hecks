@@ -10,6 +10,8 @@
 # the period) are pruned, and if the remaining count meets or exceeds the
 # limit, a +Hecks::RateLimitExceeded+ error is raised.
 #
+# Future gem: hecks_rate_limit
+#
 # Configuration via environment variables:
 #   HECKS_RATE_LIMIT  -- max commands per window (default: 60)
 #   HECKS_RATE_PERIOD -- window size in seconds (default: 60)
@@ -22,7 +24,10 @@
 Hecks.describe_extension(:rate_limit,
   description: "Per-actor sliding window rate limiting",
   adapter_type: :driven,
-  config: {},
+  config: {
+    HECKS_RATE_LIMIT: { default: 60, desc: "Max commands per window" },
+    HECKS_RATE_PERIOD: { default: 60, desc: "Window size in seconds" }
+  },
   wires_to: :command_bus)
 
 Hecks.register_extension(:rate_limit) do |_domain_mod, _domain, runtime|

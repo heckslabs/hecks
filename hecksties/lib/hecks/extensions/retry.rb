@@ -19,8 +19,6 @@
 #   # Automatically registered -- transient failures will be retried
 #   # up to HECKS_RETRY_MAX times with exponential backoff.
 #
-require "hecks"
-
 Hecks.describe_extension(:retry,
   description: "Automatic command retry with backoff",
   adapter_type: :driven,

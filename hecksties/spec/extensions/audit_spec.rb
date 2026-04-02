@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/extensions/audit"
 
-RSpec.describe HecksAudit do
+RSpec.describe Hecks::Audit do
   let(:domain) do
     Hecks.domain "Pizzas" do
       aggregate "Pizza" do

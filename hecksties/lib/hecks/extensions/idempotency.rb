@@ -6,6 +6,8 @@
 # TTL window, the cached result is returned instead of re-executing the
 # command. Expired cache entries are cleaned on each dispatch.
 #
+# Future gem: hecks_idempotency
+#
 # Configuration via environment variable:
 #   HECKS_IDEMPOTENCY_TTL -- cache TTL in seconds (default: 300)
 #
@@ -17,7 +19,9 @@
 Hecks.describe_extension(:idempotency,
   description: "Idempotent command execution via dedup keys",
   adapter_type: :driven,
-  config: {},
+  config: {
+    HECKS_IDEMPOTENCY_TTL: { default: 300, desc: "Cache TTL in seconds" }
+  },
   wires_to: :command_bus)
 
 Hecks.register_extension(:idempotency) do |_domain_mod, _domain, runtime|

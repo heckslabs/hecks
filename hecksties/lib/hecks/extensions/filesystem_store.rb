@@ -151,4 +151,4 @@ module Hecks
 end
 
 # Alias for convenience: adapter: :filesystem
-Hecks.extension_registry[:filesystem] = Hecks.extension_registry[:filesystem_store]
+Hecks.alias_extension(:filesystem, :filesystem_store)

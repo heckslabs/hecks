@@ -5,6 +5,8 @@
 # in milliseconds, and optional actor and tenant context. Uses
 # +Process::CLOCK_MONOTONIC+ for accurate timing.
 #
+# Future gem: hecks_logging
+#
 # Output format:
 #   [hecks] CreatePizza 0.3ms actor=admin tenant=acme
 #

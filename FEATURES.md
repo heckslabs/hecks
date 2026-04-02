@@ -102,6 +102,10 @@
 - Adapter type classification: `adapter_type: :driven` or `:driving` on `describe_extension`
 - Two-phase boot: driven extensions (repos, middleware) fire before driving extensions (HTTP, queues)
 - Query helpers: `Hecks.driven_extensions` and `Hecks.driving_extensions`
+- Extension aliasing: `Hecks.alias_extension(:short, :long)` registers a shorthand key for an existing extension
+- Standard extension format: describe, register, namespace under `Hecks::` (e.g. `Hecks::Audit`, `Hecks::PII`, `Hecks::Queue`)
+- Every extension declares its config keys in `describe_extension` for introspection
+- Every extension has a "Future gem" comment documenting its intended gem name
 
 ### Persistence Extensions
 - `hecks_sqlite` — SQLite persistence, auto-wires when in Gemfile

@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/extensions/pii"
 
-RSpec.describe "HecksPii" do
+RSpec.describe "Hecks::PII" do
   let(:domain) do
     Hecks.domain "PiiTest" do
       aggregate "Customer" do
@@ -59,17 +59,17 @@ RSpec.describe "HecksPii" do
     end
   end
 
-  describe "HecksPii.mask" do
+  describe "Hecks::PII.mask" do
     it "masks a string value" do
-      expect(HecksPii.mask("alice@example.com")).to eq("a***************m")
+      expect(Hecks::PII.mask("alice@example.com")).to eq("a***************m")
     end
 
     it "redacts short values" do
-      expect(HecksPii.mask("AB")).to eq("[REDACTED]")
+      expect(Hecks::PII.mask("AB")).to eq("[REDACTED]")
     end
 
     it "handles nil" do
-      expect(HecksPii.mask(nil)).to be_nil
+      expect(Hecks::PII.mask(nil)).to be_nil
     end
   end
 end

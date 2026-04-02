@@ -25,7 +25,9 @@
 Hecks.describe_extension(:auth,
   description: "Actor-based authorization via port guards",
   adapter_type: :driven,
-  config: {},
+  config: {
+    enforce: { default: true, desc: "Set false to register a no-op sentinel" }
+  },
   wires_to: :command_bus)
 
 Hecks.register_extension(:auth) do |domain_mod, domain, runtime, **opts|

@@ -3,6 +3,8 @@
 # Slack webhook extension for Hecks. Subscribes to the domain event bus
 # and POSTs a summary of every event to a Slack incoming webhook URL.
 #
+# Future gem: hecks_slack
+#
 # Usage:
 #   app = Hecks.boot(__dir__) do
 #     extend :slack, webhook: ENV["SLACK_URL"]
