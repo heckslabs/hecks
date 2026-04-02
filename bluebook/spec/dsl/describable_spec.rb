@@ -166,8 +166,7 @@ RSpec.describe "Describable keyword" do
     it "preserves descriptions through serialize and eval" do
       domain = Hecks.domain("Banking") do
         description "Core banking operations"
-        aggregate("Account") do
-          description "Manages customer funds"
+        aggregate("Account", definition: "Manages customer funds") do
           attribute :name, String
           value_object("Address") do
             description "Mailing address"
@@ -182,7 +181,7 @@ RSpec.describe "Describable keyword" do
 
       source = Hecks::DslSerializer.new(domain).serialize
       expect(source).to include('description "Core banking operations"')
-      expect(source).to include('description "Manages customer funds"')
+      expect(source).to include('definition: "Manages customer funds"')
       expect(source).to include('description "Mailing address"')
       expect(source).to include('description "Opens a new account"')
 

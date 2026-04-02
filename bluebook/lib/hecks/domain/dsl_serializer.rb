@@ -28,8 +28,8 @@ module Hecks
     private
 
     def serialize_aggregate(agg)
-      lines = ["  aggregate \"#{agg.name}\" do"]
-      lines << "    description \"#{agg.description}\"" if agg.description
+      definition_kwarg = agg.description ? ", definition: \"#{agg.description}\"" : ""
+      lines = ["  aggregate \"#{agg.name}\"#{definition_kwarg} do"]
       lines.concat(serialize_attributes(agg.attributes, "    "))
       lines.concat(serialize_references(agg.references, "    "))
       lines.concat(serialize_value_objects(agg.value_objects))

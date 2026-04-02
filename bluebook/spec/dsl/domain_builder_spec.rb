@@ -18,6 +18,26 @@ RSpec.describe Hecks::DSL::DomainBuilder do
       end
       expect(domain.aggregates.map(&:name)).to eq(["Widget", "Gadget"])
     end
+
+    describe "definition: kwarg" do
+      it "stores definition as description on the aggregate IR" do
+        domain = Hecks.domain("Pizzas") do
+          aggregate "Pizza", definition: "A customizable food item with a crust, sauce, and toppings" do
+            attribute :name, String
+          end
+        end
+        expect(domain.aggregates.first.description).to eq("A customizable food item with a crust, sauce, and toppings")
+      end
+
+      it "leaves description nil when definition: is omitted" do
+        domain = Hecks.domain("Pizzas") do
+          aggregate "Pizza" do
+            attribute :name, String
+          end
+        end
+        expect(domain.aggregates.first.description).to be_nil
+      end
+    end
   end
 
   describe "commands and events" do
