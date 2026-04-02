@@ -86,43 +86,17 @@ module Hecks
           private
 
           def find_create_cmd(aggregate)
-            agg_snake = domain_snake_name(aggregate.name)
-            suffixes = agg_snake.split("_").each_index.map { |i|
-              agg_snake.split("_").drop(i).join("_")
-            }.uniq
-
             aggregate.commands.find do |cmd|
-              cmd.attributes.none? { |a|
-                a.name.to_s.end_with?("_id") &&
-                  suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-              }
+              Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, aggregate.name).nil?
             end
           end
 
           def derive_method(cmd, agg)
-            agg_snake = domain_snake_name(agg.name)
-            suffixes = agg_snake.split("_").each_index.map { |i|
-              agg_snake.split("_").drop(i).join("_")
-            }.uniq
-
-            full = domain_snake_name(cmd.name)
-            suffixes.each do |s|
-              stripped = full.sub(/_#{s}$/, "")
-              return stripped if stripped != full
-            end
-            full
+            Hecks::Conventions::CommandContract.method_name(cmd.name, agg.name).to_s
           end
 
           def update_args(cmd, agg)
-            agg_snake = domain_snake_name(agg.name)
-            suffixes = agg_snake.split("_").each_index.map { |i|
-              agg_snake.split("_").drop(i).join("_")
-            }.uniq
-
-            self_ref = cmd.attributes.find { |a|
-              a.name.to_s.end_with?("_id") &&
-                suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-            }
+            self_ref = Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg.name)
 
             cmd.attributes.map { |attr|
               if self_ref && attr.name == self_ref.name

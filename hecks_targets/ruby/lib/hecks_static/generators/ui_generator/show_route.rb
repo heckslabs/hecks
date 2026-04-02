@@ -96,7 +96,7 @@ module HecksStatic
           other_safe = domain_constant_name(other.name)
           other_p = plural(other)
           other.commands.each do |cmd|
-            next unless cmd.attributes.any? { |a| a.name.to_s == "#{snake}_id" }
+            next unless Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg.name)
             cm = domain_snake_name(cmd.name)
             btn_parts << "{ label: \"#{HecksTemplating::UILabelContract.label(cmd.name)}\", href: \"/#{other_p}/#{cm}/new?id=\" + obj.id, allowed: #{mod}.role_allows?(\"#{other_safe}\", \"#{cm}\") }"
           end

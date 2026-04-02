@@ -69,24 +69,11 @@ class UIGenerator < Hecks::Generator
   end
 
   def self_ref?(cmd, agg_snake)
-    suffixes = agg_snake.split("_").each_index.map { |i|
-      agg_snake.split("_").drop(i).join("_")
-    }.uniq
-    cmd.attributes.any? { |a|
-      a.name.to_s.end_with?("_id") &&
-        suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-    }
+    Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg_snake) != nil
   end
 
   def find_self_ref_attr(cmd, agg)
-    agg_snake = domain_snake_name(agg.name)
-    suffixes = agg_snake.split("_").each_index.map { |i|
-      agg_snake.split("_").drop(i).join("_")
-    }.uniq
-    cmd.attributes.find { |a|
-      a.name.to_s.end_with?("_id") &&
-        suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-    }
+    Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg.name)
   end
 
   def required_field?(agg, attr_name)

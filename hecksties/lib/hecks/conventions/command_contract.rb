@@ -38,5 +38,32 @@ module Hecks::Conventions
         agg_snake.split("_").drop(i).join("_")
       }.uniq
     end
+
+    # True when +attr_name+ is a reference attribute pointing at +agg_name+.
+    # Matches any aggregate-suffix variant with an +_id+ tail:
+    #   reference_attribute?("policy_id", "GovernancePolicy") # => true
+    #   reference_attribute?("name",      "GovernancePolicy") # => false
+    #
+    # @param attr_name [String, Symbol] the attribute name to check
+    # @param agg_name  [String] the aggregate class name (camel or snake)
+    # @return [Boolean]
+    def self.reference_attribute?(attr_name, agg_name)
+      name = attr_name.to_s
+      return false unless name.end_with?("_id")
+      agg_suffixes(agg_name).any? { |s| name == "#{s}_id" }
+    end
+
+    # Find the self-referencing attribute in a list of attributes.
+    # Returns the first attribute whose name is a reference to +agg_name+.
+    #
+    #   find_self_ref(cmd.attributes, "GovernancePolicy")
+    #   # => #<Attribute name="policy_id" ...>  or nil
+    #
+    # @param attributes [Array] attribute objects responding to +#name+
+    # @param agg_name   [String] aggregate class name
+    # @return [Object, nil] the matching attribute, or nil
+    def self.find_self_ref(attributes, agg_name)
+      attributes.find { |a| reference_attribute?(a.name, agg_name) }
+    end
   end
 end

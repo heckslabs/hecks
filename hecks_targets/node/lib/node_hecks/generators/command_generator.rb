@@ -14,11 +14,7 @@ module NodeHecks
       @cmd = command
       @agg = aggregate
       @event = event
-      suffixes = HecksTemplating::CommandContract.agg_suffixes(@agg.name)
-      @self_id = @cmd.attributes.find { |a|
-        a.name.to_s.end_with?("_id") &&
-          suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-      }
+      @self_id = HecksTemplating::CommandContract.find_self_ref(@cmd.attributes, @agg.name)
       @is_create = @self_id.nil?
     end
 

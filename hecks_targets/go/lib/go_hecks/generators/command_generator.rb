@@ -13,11 +13,7 @@ module GoHecks
       @agg = aggregate
       @event = event
       @package = package
-      suffixes = HecksTemplating::CommandContract.agg_suffixes(@agg.name)
-      @self_id = @cmd.attributes.find { |a|
-        a.name.to_s.end_with?("_id") &&
-          suffixes.any? { |s| a.name.to_s == "#{s}_id" }
-      }
+      @self_id = HecksTemplating::CommandContract.find_self_ref(@cmd.attributes, @agg.name)
       @is_create = @self_id.nil?
       # Event type name in Go — suffixed if it collides with command name
       @go_event_name = @event.name == @cmd.name ? "#{@event.name}Event" : @event.name
