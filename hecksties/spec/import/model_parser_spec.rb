@@ -86,4 +86,61 @@ RSpec.describe Hecks::Import::ModelParser do
     expect(sm[:transitions]).to include(hash_including(event: "confirm", from: "pending", to: "confirmed"))
     expect(sm[:transitions]).to include(hash_including(event: "ship", from: "confirmed", to: "shipped"))
   end
+
+  context "edge cases that broke the regex parser" do
+    it "handles heredoc containing the word 'end'" do
+      write_model("article", <<~RUBY)
+        class Article < ApplicationRecord
+          belongs_to :author
+          validates :title, presence: true
+
+          HELP_TEXT = <<~HEREDOC
+            This is the end of the story.
+            end of file marker
+          HEREDOC
+
+          enum status: { draft: 0, published: 1 }
+        end
+      RUBY
+
+      expect(parsed["Article"][:associations]).to include(hash_including(type: :belongs_to, name: "author"))
+      expect(parsed["Article"][:validations]).to include(hash_including(field: "title"))
+      expect(parsed["Article"][:enums]["status"]).to eq(%w[draft published])
+    end
+
+    it "handles one-line method definitions without confusing the class extractor" do
+      write_model("product", <<~RUBY)
+        class Product < ApplicationRecord
+          belongs_to :category
+          validates :name, presence: true
+
+          def greeting = "Hello"
+          def label = name.upcase
+        end
+      RUBY
+
+      expect(parsed["Product"][:associations]).to include(hash_including(type: :belongs_to, name: "category"))
+      expect(parsed["Product"][:validations]).to include(hash_including(field: "name"))
+    end
+
+    it "scopes attr_accessor to the correct class and does not bleed into sibling classes" do
+      write_model("user", <<~RUBY)
+        class User < ApplicationRecord
+          attr_accessor :password
+          belongs_to :account
+        end
+
+        class Admin < ApplicationRecord
+          belongs_to :organization
+          validates :email, uniqueness: true
+        end
+      RUBY
+
+      expect(parsed["User"][:associations]).to include(hash_including(type: :belongs_to, name: "account"))
+      expect(parsed["Admin"][:associations]).to include(hash_including(type: :belongs_to, name: "organization"))
+      expect(parsed["Admin"][:validations]).to include(hash_including(field: "email"))
+      # The attr_accessor from User must not appear in Admin's associations
+      expect(parsed["Admin"][:associations].map { |a| a[:name] }).not_to include("password")
+    end
+  end
 end
