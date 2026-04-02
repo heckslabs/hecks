@@ -9,8 +9,6 @@
 #   session.execute("Pizza.attr :name, String")
 #   session.completions            # => ["Pizza", "Order", "attr", ...]
 #
-require "hecks_workshop"
-
 module Hecks
   module AI
     module IDE
@@ -51,6 +49,35 @@ module Hecks
           methods = %w[attr command query value_object entity reference_to
                        validation invariant lifecycle specification]
           names + commands + methods
+        end
+
+        def diagram
+          ws = workshop
+          aggs = ws.aggregate_builders.map do |name, builder|
+            ir = builder.build
+            refs = ir.references.map { |r| { name: r.name.to_s, target: r.type.to_s } }
+            vos = ir.value_objects.map(&:name)
+            { name: name, attrs: ir.attributes.size, cmds: ir.commands.size,
+              refs: refs, value_objects: vos }
+          end
+          build_mermaid(aggs)
+        end
+
+        private
+
+        def build_mermaid(aggs)
+          lines = ["classDiagram"]
+          names = aggs.map { |a| a[:name] }
+          aggs.each do |a|
+            lines << "  class #{a[:name]} { #{a[:attrs]} attrs · #{a[:cmds]} cmds }"
+            a[:refs].each do |r|
+              lines << "  #{a[:name]} --> #{r[:target]} : #{r[:name]}" if names.include?(r[:target])
+            end
+            a[:value_objects].each do |vo|
+              lines << "  #{a[:name]} *-- #{vo}"
+            end
+          end
+          lines.join("\n")
         end
 
         private

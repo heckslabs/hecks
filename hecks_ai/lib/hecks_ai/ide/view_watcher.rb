@@ -1,6 +1,8 @@
 # Hecks::AI::IDE::ViewWatcher
 #
 # Watches the views directory for changes and pushes reload events.
+# The reload event is cleared after 2 seconds to prevent infinite
+# reload loops when the page polls after refreshing.
 #
 #   watcher = ViewWatcher.new(views_dir, events, mutex)
 #   watcher.start  # spawns background thread
@@ -25,6 +27,8 @@ module Hecks
                 @mtimes = current
                 @mutex.synchronize { @events.clear }
                 @mutex.synchronize { @events << '{"type":"reload"}' }
+                sleep 2
+                @mutex.synchronize { @events.clear }
               end
             end
           end

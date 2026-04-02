@@ -4,12 +4,14 @@
 # Parses aggregate names from each Bluebook for the sidebar panel.
 #
 #   discovery = BluebookDiscovery.new("/path/to/project")
-#   discovery.apps  # => [{ name: "Pizzas", path: "PizzasBluebook", ... }]
+#   discovery.apps  # => { apps: [{ name: "Pizzas", ... }] }
 #
 module Hecks
   module AI
     module IDE
       class BluebookDiscovery
+        GENERATED_PATTERN = /_static_|_domain\/|_domain$/
+
         def initialize(project_dir)
           @dir = project_dir
         end
@@ -17,8 +19,8 @@ module Hecks
         def apps
           results = []
           results.concat(root_books)
-          results.concat(multi_books)
           results.concat(example_books)
+          results.reject! { |a| a[:path] =~ GENERATED_PATTERN }
           { apps: results }
         end
 
@@ -26,51 +28,48 @@ module Hecks
 
         def root_books
           Dir[File.join(@dir, "*Bluebook")].select { |f| File.file?(f) }.sort.map do |path|
-            rel = path.sub("#{@dir}/", "")
-            name = File.basename(path).sub(/Bluebook$/, "")
-            hex = Dir[File.join(@dir, "*Hecksagon")].first
-            {
-              name: name, path: rel, type: "single",
-              aggregates: parse_aggregates(path),
-              hecksagon: hex ? hex.sub("#{@dir}/", "") : nil
-            }
+            build_entry(path, type: "single")
           end
-        end
-
-        def multi_books
-          results = []
-          %w[bluebook hecks_domains domains].each do |dir|
-            full = File.join(@dir, dir)
-            next unless File.directory?(full)
-            Dir[File.join(full, "*Bluebook")].sort.each do |path|
-              rel = path.sub("#{@dir}/", "")
-              name = File.basename(path).sub(/Bluebook$/, "")
-              hex_path = File.join(full, "#{name}Hecksagon")
-              hex = File.exist?(hex_path) ? hex_path.sub("#{@dir}/", "") : nil
-              results << {
-                name: name, path: rel, type: "multi", group: dir,
-                aggregates: parse_aggregates(path), hecksagon: hex
-              }
-            end
-          end
-          results
         end
 
         def example_books
           dir = File.join(@dir, "examples")
           return [] unless File.directory?(dir)
-          Dir[File.join(dir, "**/*Bluebook")].select { |f| File.file?(f) }.sort.map do |path|
-            rel = path.sub("#{@dir}/", "")
-            name = File.basename(path).sub(/Bluebook$/, "")
-            app_dir = File.dirname(path)
-            hex = Dir[File.join(app_dir, "*Hecksagon")].first
-            {
-              name: name, path: rel, type: "example",
-              group: File.dirname(rel),
-              aggregates: parse_aggregates(path),
-              hecksagon: hex ? hex.sub("#{@dir}/", "") : nil
-            }
+
+          # Find all Bluebooks, filter generated, group by app directory
+          all = Dir[File.join(dir, "**/*Bluebook")]
+            .select { |f| File.file?(f) }
+            .reject { |f| f.sub("#{@dir}/", "") =~ GENERATED_PATTERN }
+            .sort
+          grouped = all.group_by { |path| app_dir(path, dir) }
+
+          grouped.flat_map do |app_name, paths|
+            if paths.size == 1
+              [build_entry(paths.first, type: "example")]
+            else
+              paths.map { |p| build_entry(p, type: "multi", group: app_name) }
+            end
           end
+        end
+
+        def build_entry(path, type:, group: nil)
+          rel = path.sub("#{@dir}/", "")
+          name = File.basename(path).sub(/Bluebook$/, "")
+          app_dir = File.dirname(path)
+          hex = Dir[File.join(app_dir, "*Hecksagon")].first
+          entry = {
+            name: name, path: rel, type: type,
+            aggregates: parse_aggregates(path),
+            hecksagon: hex ? hex.sub("#{@dir}/", "") : nil
+          }
+          entry[:group] = group if group
+          entry
+        end
+
+        # Extract the app name: first directory under examples/
+        def app_dir(path, examples_dir)
+          relative = path.sub("#{examples_dir}/", "")
+          relative.split("/").first
         end
 
         def parse_aggregates(path)

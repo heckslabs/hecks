@@ -5,7 +5,14 @@
 GEM_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${1:-3001}"
 
-ruby -I"$GEM_DIR/hecks_ai/lib" -e "
+ruby \
+  -I"$GEM_DIR/hecks_ai/lib" \
+  -I"$GEM_DIR/hecks_workshop/lib" \
+  -I"$GEM_DIR/bluebook/lib" \
+  -I"$GEM_DIR/hecksties/lib" \
+  -I"$GEM_DIR/hecksagon/lib" \
+  -I"$GEM_DIR/lib" \
+  -e "
   require 'hecks_ai/ide/server'
   Hecks::AI::IDE::Server.new(project_dir: '$GEM_DIR', port: $PORT).run
 "

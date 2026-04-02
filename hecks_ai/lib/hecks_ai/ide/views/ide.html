@@ -33,7 +33,7 @@
     .tab-close:hover { color: var(--red); }
     .tab-chat { color: var(--green); font-weight: 600; }
 
-    .tab-content { flex: 1; overflow-y: auto; display: none; }
+    .tab-content { flex: 1; overflow-y: auto; display: none; scroll-behavior: smooth; }
     .tab-content.active { display: block; }
 
     /* ── File viewer ── */
@@ -98,10 +98,9 @@
     .panel-head:hover { background: var(--bg-msg); }
     .panel-actions { display: flex; gap: 6px; align-items: center; }
     .panel-chevron { transition: transform 0.15s; font-size: 9px; cursor: pointer; }
-    .panel-x { font-size: 13px; color: var(--fg-dim); cursor: pointer; }
-    .panel-x:hover { color: var(--red); }
     .panel.closed .panel-chevron { transform: rotate(-90deg); }
-    .panel.closed .panel-body { display: none; }
+    .panel-body { transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease; max-height: 500px; opacity: 1; overflow: hidden; }
+    .panel.closed .panel-body { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
     .panel-body { padding: 4px 14px 12px; line-height: 1.8; overflow-y: auto; }
     .panel-count { font-size: 9px; background: var(--border); color: var(--fg); border-radius: 8px; padding: 1px 6px; margin-left: 6px; }
 
@@ -112,6 +111,7 @@
     .ctx-story { color: var(--yellow); }
     .ctx-link { display: block; color: var(--fg); text-decoration: none; padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
     .ctx-link:hover { color: var(--blue); }
+    .ctx-link.active, .book-app-name.active { background: var(--bg-user); border-radius: 4px; }
     .ctx-link-label { color: var(--fg-dim); font-size: 10px; margin-left: 4px; }
     .ctx-section { margin-top: 10px; color: var(--fg-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
 
@@ -120,9 +120,8 @@
     .tool-input { color: var(--fg-dim); margin-top: 2px; max-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .tool-empty { color: var(--fg-dim); font-style: italic; }
 
-    .panel-books .panel-head { color: var(--red); }
-    .panel-hex .panel-head { color: var(--purple); }
-    .panel-dot-books { background: var(--red); color: var(--bg); }
+    .panel-apps .panel-head { color: var(--red); }
+    .panel-dot-apps { background: var(--red); color: var(--bg); }
     .panel-dot-hex { background: var(--purple); color: var(--bg); }
 
     .book-app { margin-bottom: 6px; }
@@ -139,6 +138,10 @@
     .book-hex-link:hover { text-decoration: underline; }
 
     /* ── Workshop ── */
+    .ws-diagram { padding: 16px; text-align: center; border-bottom: 1px solid var(--border); }
+    .ws-diagram-title { font-family: var(--mono); font-size: 13px; color: var(--green); font-weight: 600; margin-bottom: 12px; }
+    .ws-diagram svg { max-width: 100%; }
+    .mermaid-pending { visibility: hidden; }
     .ws-output { padding: 16px; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
     .ws-entry { margin-bottom: 12px; }
     .ws-cmd { color: var(--green); }
@@ -154,6 +157,7 @@
       font-family: var(--mono); font-size: 13px; display: none; z-index: 20;
     }
     .autocomplete.visible { display: block; }
+    .ac-header { padding: 4px 12px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-dim); border-bottom: 1px solid var(--border); }
     .ac-item { padding: 4px 12px; cursor: pointer; }
     .ac-item:hover, .ac-item.selected { background: var(--bg-user); color: var(--blue); }
     .input-area { position: relative; }
@@ -222,43 +226,39 @@
     </div>
     <div class="sidebar" id="sidebar">
       <div class="panel-nav" id="panel-nav">
-        <div class="panel-dot panel-dot-ctx" onclick="showPanel('ctx')" title="Project Context">P</div>
-        <div class="panel-dot panel-dot-books" onclick="showPanel('books')" title="Bluebooks">B</div>
-        <div class="panel-dot panel-dot-hex inactive" onclick="showPanel('hex')" title="Hecksagon">H</div>
-        <div class="panel-dot panel-dot-tools" onclick="showPanel('tools')" title="Tool Calls">T</div>
+        <div class="panel-dot panel-dot-apps" onclick="toggleDotPanel('apps')" title="Applications">A</div>
+        <div class="panel-dot panel-dot-tools" onclick="toggleDotPanel('tools')" title="Tool Calls">T</div>
       </div>
-      <div class="panel panel-ctx" id="panel-ctx">
+      <div class="panel panel-apps" id="panel-apps">
         <div class="panel-head">
-          <span onclick="collapsePanel('ctx')">Project Context <span class="panel-chevron">&#9660;</span></span>
-          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('ctx')">&#215;</span></div>
-        </div>
-        <div class="panel-body" id="context-body">Loading...</div>
-      </div>
-      <div class="panel panel-books" id="panel-books">
-        <div class="panel-head">
-          <span onclick="collapsePanel('books')">Bluebooks <span class="panel-chevron">&#9660;</span></span>
-          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('books')">&#215;</span></div>
-        </div>
-        <div class="panel-body" id="books-body">Loading...</div>
-      </div>
-      <div class="panel panel-hex hidden" id="panel-hex">
-        <div class="panel-head">
-          <span onclick="collapsePanel('hex')">Hecksagon <span class="panel-chevron">&#9660;</span></span>
-          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('hex')">&#215;</span></div>
-        </div>
-        <div class="panel-body" id="hex-body"></div>
+          <span onclick="collapsePanel('apps')">Applications <span class="panel-chevron">&#9660;</span></span>
+                  </div>
+        <div class="panel-body" id="apps-body">Loading...</div>
       </div>
       <div class="panel panel-tools" id="panel-tools">
         <div class="panel-head">
           <span onclick="collapsePanel('tools')">Tool Calls <span class="panel-count" id="tool-count">0</span> <span class="panel-chevron">&#9660;</span></span>
-          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('tools')">&#215;</span></div>
-        </div>
+                  </div>
         <div class="panel-body" id="tool-log"><div class="tool-empty">No tool calls yet.</div></div>
       </div>
     </div>
   </div>
   <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    window.renderMermaid = async function() {
+      const els = document.querySelectorAll('.mermaid-pending');
+      for (const el of els) {
+        const id = 'mm-' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, el.textContent);
+        el.innerHTML = svg;
+        el.classList.remove('mermaid-pending');
+        el.classList.add('mermaid-rendered');
+      }
+    };
+  </script>
 
   <script>
     const msgsEl = document.getElementById('messages');
@@ -293,25 +293,45 @@
         }, 1000);
       }
       ['file:open','tab:switch','sidebar:toggle','panel:toggle','prompt:send','prompt:done','prompt:interrupt'].forEach(e => bus.on(e, burst));
+      setInterval(burst, 5000);
     })();
 
     /* ── Sidebar panels ── */
+    function highlightSidebarItem(el) {
+      sidebar.querySelectorAll('.active').forEach(a => a.classList.remove('active'));
+      if (el) el.classList.add('active');
+    }
+
+    sidebar.addEventListener('click', (e) => {
+      const link = e.target.closest('.ctx-link, .book-app-name');
+      if (link) highlightSidebarItem(link);
+    });
+
     function toggleSidebar() { sidebar.classList.toggle('collapsed'); bus.emit('sidebar:toggle'); }
 
     function collapsePanel(name) {
       document.getElementById('panel-' + name).classList.toggle('closed');
+      syncDot(name);
       bus.emit('panel:toggle', name);
     }
 
-    function hidePanel(name) {
-      document.getElementById('panel-' + name).classList.add('hidden');
-      document.querySelector('.panel-dot-' + name).classList.add('inactive');
+    function toggleDotPanel(name) {
+      const el = document.getElementById('panel-' + name);
+      el.classList.toggle('closed');
+      syncDot(name);
+      bus.emit('panel:toggle', name);
     }
 
     function showPanel(name) {
       const el = document.getElementById('panel-' + name);
       el.classList.remove('hidden', 'closed');
-      document.querySelector('.panel-dot-' + name).classList.remove('inactive');
+      syncDot(name);
+    }
+
+    function syncDot(name) {
+      const el = document.getElementById('panel-' + name);
+      const dot = document.querySelector('.panel-dot-' + name);
+      if (dot) dot.classList.toggle('inactive', el.classList.contains('closed'));
     }
 
     /* ── Tabs ── */
@@ -389,6 +409,11 @@
       const text = promptEl.value.trim();
       if (!text || busy) return;
       promptEl.value = '';
+      acEl.classList.remove('visible');
+
+      // Slash commands — IDE commands handled locally, rest to Claude
+      if (text.startsWith('/') && handleSlashCommand(text)) return;
+
       switchTab('chat');
       lastUserEl = addTurn('user', text);
       lastUserEl.classList.add('thinking');
@@ -422,13 +447,15 @@
 
     function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+    const chatScroller = document.getElementById('tab-chat');
+
     function addTurn(role, content) {
       const labels = { user: 'You', assistant: 'Claude', system: 'System' };
       const d = document.createElement('div');
       d.className = `turn turn-${role}`;
       d.innerHTML = `<div class="turn-label">${labels[role] || role}</div><div class="turn-body"><pre>${esc(content)}</pre></div>`;
       msgsEl.appendChild(d);
-      msgsEl.scrollTop = msgsEl.scrollHeight;
+      chatScroller.scrollTo({ top: chatScroller.scrollHeight, behavior: 'smooth' });
       return d;
     }
 
@@ -440,13 +467,13 @@
       const s = typeof input === 'string' ? input : JSON.stringify(input);
       d.innerHTML = `<span class="tool-name">${esc(name)}</span><div class="tool-input">${esc(s.slice(0, 200))}</div>`;
       toolLogEl.appendChild(d);
-      toolLogEl.scrollTop = toolLogEl.scrollHeight;
+      toolLogEl.scrollTo({ top: toolLogEl.scrollHeight, behavior: 'smooth' });
     }
 
     function appendAssistant(text) {
       if (!curEl) curEl = addTurn('assistant', '');
       curEl.querySelector('pre').textContent += text;
-      msgsEl.scrollTop = msgsEl.scrollHeight;
+      chatScroller.scrollTo({ top: chatScroller.scrollHeight, behavior: 'smooth' });
     }
 
     function handleEvent(raw) {
@@ -462,6 +489,7 @@
         } else if (e.type === 'error') {
           addTurn('system', e.message || 'Unknown error'); done();
         } else if (e.type === 'reload') {
+          nextIndex = 0; // reset before reload to avoid re-triggering
           location.reload();
         }
       } catch (err) {}
@@ -478,72 +506,60 @@
     setInterval(poll, 250);
 
     /* ── Context sidebar ── */
-    async function loadContext() {
-      try {
-        const r = await fetch('/context');
-        const c = await r.json();
-        const body = document.getElementById('context-body');
-        let html = '';
-        if (c.branch) {
-          html += `<span class="ctx-branch">${esc(c.branch)}</span>`;
-          if (c.story) html += ` <span class="ctx-story">${esc(c.story)}</span>`;
-          html += '<br>';
-        }
-        if (c.key_files?.length) {
-          html += '<div class="ctx-section">Key Files</div>';
-          c.key_files.forEach(f => {
-            html += `<a class="ctx-link" onclick="openFile('${f.path}')">${esc(f.path)}<span class="ctx-link-label">${esc(f.label)}</span></a>`;
-          });
-        }
-        if (c.docs?.length) {
-          html += '<div class="ctx-section">Usage Docs</div>';
-          c.docs.forEach(d => {
-            html += `<a class="ctx-link" onclick="openFile('${d.path}', {doc:true})">${esc(d.label)}</a>`;
-          });
-        }
-        body.innerHTML = html || '<span style="color:var(--fg-dim)">No context available.</span>';
-      } catch (e) {
-        document.getElementById('context-body').textContent = 'Failed to load.';
-      }
-    }
-    loadContext(); setInterval(loadContext, 10000);
 
     /* ── Bluebook panel ── */
     async function loadBluebooks() {
       try {
         const r = await fetch('/bluebooks');
         const d = await r.json();
-        const body = document.getElementById('books-body');
-        if (!d.apps?.length) { body.innerHTML = '<span class="tool-empty">No Bluebooks found.</span>'; return; }
+        const body = document.getElementById('apps-body');
+        if (!d.apps?.length) { body.innerHTML = '<span class="tool-empty">No applications found.</span>'; return; }
 
+        // Group by app directory
         const groups = {};
         d.apps.forEach(app => {
-          const key = app.group || '_root';
+          const key = app.group || app.path.replace(/\/[^/]+$/, '') || '_root';
           (groups[key] ||= []).push(app);
         });
 
         let html = '';
         for (const [group, apps] of Object.entries(groups)) {
-          if (group !== '_root') html += `<div class="ctx-section">${esc(group)}</div>`;
-          apps.forEach(app => {
+          if (apps.length === 1) {
+            // Single domain in directory — show flat, no group nesting
+            const app = apps[0];
             const id = app.path.replace(/[^a-zA-Z0-9]/g, '_');
             html += `<div class="book-app">`;
-            html += `<div class="book-app-name" onclick="toggleBookAggs('${id}');openWorkshop('${app.path}','${esc(app.name)}')">`;
+            html += `<div class="book-app-name" onclick="toggleBookAggs('${id}')">`;
             html += `<span class="book-chevron" id="chev-${id}">&#9654;</span> ${esc(app.name)}`;
-            html += ` <span class="book-app-type">${app.type}</span>`;
-            if (app.hecksagon) html += `<span class="book-hex-link" onclick="event.stopPropagation();openHecksagon('${app.hecksagon}')">&#x2B21;</span>`;
             html += `</div>`;
             html += `<div class="book-aggs collapsed" id="aggs-${id}">`;
-            app.aggregates.forEach(agg => {
-              html += `<div class="book-agg" onclick="openFile('${app.path}')">${esc(agg)}</div>`;
-            });
-            html += `<a class="ctx-link" onclick="openFile('${app.path}')" style="margin-top:4px;color:var(--red)">Open Bluebook</a>`;
+            html += `<a class="ctx-link" onclick="openWorkshop('${app.path}','${esc(app.name)}')" style="color:var(--blue)">Bluebook</a>`;
+            if (app.hecksagon) html += `<a class="ctx-link" onclick="openHecksagon('${app.hecksagon}')" style="color:var(--yellow)">Hecksagon</a>`;
             html += `</div></div>`;
-          });
+          } else {
+            // Multi-domain app — group header, then "Bluebooks" sub-header
+            const gid = group.replace(/[^a-zA-Z0-9]/g, '_');
+            const label = group.charAt(0).toUpperCase() + group.slice(1);
+            html += `<div class="book-app">`;
+            html += `<div class="book-app-name" onclick="toggleBookAggs('g_${gid}')">`;
+            html += `<span class="book-chevron" id="chev-g_${gid}">&#9654;</span> ${esc(label)}`;
+            html += `</div>`;
+            html += `<div class="book-aggs collapsed" id="aggs-g_${gid}">`;
+            // Bluebooks sub-header
+            html += `<div class="book-app-name" onclick="toggleBookAggs('bb_${gid}')" style="color:var(--blue)">`;
+            html += `<span class="book-chevron" id="chev-bb_${gid}">&#9654;</span> Bluebooks`;
+            html += `</div>`;
+            html += `<div class="book-aggs collapsed" id="aggs-bb_${gid}">`;
+            apps.forEach(app => {
+              html += `<a class="ctx-link" onclick="openWorkshop('${app.path}','${esc(app.name)}')" style="padding-left:8px">${esc(app.name)}</a>`;
+            });
+            html += `</div>`;
+            html += `</div></div>`;
+          }
         }
         body.innerHTML = html;
       } catch (e) {
-        document.getElementById('books-body').textContent = 'Failed to load.';
+        document.getElementById('apps-body').textContent = 'Failed to load.';
       }
     }
 
@@ -554,23 +570,105 @@
       chev.classList.toggle('open');
     }
 
+
     function openHecksagon(path) {
       showPanel('hex');
       document.querySelector('.panel-dot-hex').classList.remove('inactive');
-      loadHecksagonFile(path);
-      openFile(path);
+      loadHecksagonPanel(path);
+      openHecksagonTab(path);
     }
 
-    async function loadHecksagonFile(path) {
+    async function loadHecksagonPanel(path) {
       const body = document.getElementById('hex-body');
       try {
         const r = await fetch('/file/' + encodeURIComponent(path));
         const text = await r.text();
+        const name = path.split('/').pop().replace(/Hecksagon$/, '');
         body.innerHTML = `<div class="file-view-path">${esc(path)}</div><pre style="font-size:11px;line-height:1.5;white-space:pre-wrap">${esc(text)}</pre>`;
       } catch (e) { body.textContent = 'Failed to load.'; }
     }
 
+    async function openHecksagonTab(path) {
+      const id = 'hecksagon';
+      const name = path.split('/').pop();
+      try {
+        const r = await fetch('/file/' + encodeURIComponent(path));
+        const text = await r.text();
+        const diagram = buildHecksagonDiagram(text, path);
+
+        if (!openTabs[id]) {
+          const tab = document.createElement('div');
+          tab.className = 'tab'; tab.dataset.tab = id;
+          tab.innerHTML = `<span class="tab-label" onclick="switchTab('${id}')">${esc(name)}</span><span class="tab-close" onclick="event.stopPropagation();closeTab('${id}')">&#215;</span>`;
+          tab.onclick = () => switchTab(id);
+          tabBar.appendChild(tab);
+          const content = document.createElement('div');
+          content.className = 'tab-content'; content.id = 'tab-' + id;
+          document.querySelector('.main').insertBefore(content, document.querySelector('.thinking-bar'));
+          openTabs[id] = { tab, content, path };
+        } else {
+          openTabs[id].tab.querySelector('.tab-label').textContent = name;
+          openTabs[id].path = path;
+        }
+        openTabs[id].content.innerHTML =
+          `<div class="ws-diagram"><div class="ws-diagram-title">${esc(name)}</div><pre class="mermaid-pending">${esc(diagram)}</pre></div>` +
+          `<div class="file-view"><div class="file-view-path">${esc(path)}</div><pre>${esc(text)}</pre></div>`;
+        switchTab(id);
+        setTimeout(() => { if (window.renderMermaid) window.renderMermaid(); }, 100);
+      } catch (e) {}
+    }
+
+    function buildHecksagonDiagram(text, path) {
+      const name = path.split('/').pop().replace(/Hecksagon$/, '');
+      const caps = [...text.matchAll(/capabilities\s+(.+)/g)].map(m => m[1].trim());
+      const tags = [...text.matchAll(/capability\.(\w+)\.(\w+)/g)].map(m => `${m[1]}.${m[2]}`);
+      const gates = [...text.matchAll(/gate\s+"(\w+)",\s*:(\w+)\s+do\s*\n\s*allow\s+([^\n]+)/g)]
+        .map(m => ({ agg: m[1], role: m[2], methods: m[3].trim() }));
+      const adapter = text.match(/adapter\s+:(\w+)/)?.[1];
+      const tenancy = text.match(/tenancy\s+:(\w+)/)?.[1];
+
+      let d = 'graph TD\n';
+      d += `  H["${name} Hecksagon"]\n`;
+      if (adapter) d += `  DB[("${adapter}")]\n  H --> DB\n`;
+      if (tenancy) d += `  T["tenancy: ${tenancy}"]\n  H -.-> T\n`;
+      caps.forEach(c => {
+        c.split(/[,\s]+:?/).filter(Boolean).forEach(cap => {
+          const cl = cap.replace(/^:/, '');
+          d += `  ${cl}["${cl}"]\n  H -->|capability| ${cl}\n`;
+        });
+      });
+      tags.forEach(t => {
+        const [attr, tag] = t.split('.');
+        d += `  ${attr}_${tag}["${attr}.${tag}"]\n  H -.-> ${attr}_${tag}\n`;
+      });
+      const aggGates = {};
+      gates.forEach(g => { (aggGates[g.agg] ||= []).push(g); });
+      for (const [agg, gs] of Object.entries(aggGates)) {
+        const roles = gs.map(g => `${g.role}: ${g.methods}`).join('<br/>');
+        d += `  ${agg}["${agg}<br/><small>${roles}</small>"]\n  H --> ${agg}\n`;
+      }
+      return d;
+    }
+
     loadBluebooks();
+
+    /* ── Slash commands ── */
+    const ideCommands = {
+      '/hecks-ide-clear': () => { msgsEl.innerHTML = ''; },
+      '/hecks-ide-reset': () => { msgsEl.innerHTML = ''; nextIndex = 0; },
+    };
+    const claudeCommands = ['/commit', '/review', '/help', '/compact', '/clear', '/cost', '/init',
+      '/pr-comments', '/release-notes', '/security-review', '/simplify'];
+
+    function handleSlashCommand(text) {
+      const cmd = text.split(/\s/)[0];
+      if (ideCommands[cmd]) {
+        ideCommands[cmd]();
+        addTurn('system', `Ran ${cmd}`);
+        return true;
+      }
+      return false; // pass to Claude
+    }
 
     /* ── Workshop ── */
     let wsCompletions = [], wsActive = false, acIdx = -1;
@@ -596,15 +694,18 @@
 
         const content = document.createElement('div');
         content.className = 'tab-content'; content.id = 'tab-' + id;
-        content.innerHTML = '<div class="ws-output" id="ws-output"><div class="ws-entry"><span class="ws-mode">Workshop: ' + esc(d.domain) + ' (sketch mode)</span></div></div>';
+        content.innerHTML = `<div class="ws-diagram"><div class="ws-diagram-title">${esc(d.domain)}</div><pre class="mermaid-pending">${esc(d.diagram || '')}</pre></div><div class="ws-output" id="ws-output"><div class="ws-entry"><span class="ws-mode">Workshop: ${esc(d.domain)} (sketch mode)</span></div></div>`;
         document.querySelector('.main').insertBefore(content, document.querySelector('.thinking-bar'));
         openTabs[id] = { tab, content, path };
       } else {
         openTabs[id].tab.querySelector('.tab-label').textContent = name;
-        document.getElementById('ws-output').innerHTML = '<div class="ws-entry"><span class="ws-mode">Workshop: ' + esc(d.domain) + ' (sketch mode)</span></div>';
+        const diagEl = openTabs[id].content.querySelector('.ws-diagram');
+        if (diagEl) diagEl.innerHTML = `<pre class="mermaid-pending">${esc(d.diagram || '')}</pre>`;
+        document.getElementById('ws-output').innerHTML = `<div class="ws-entry"><span class="ws-mode">Workshop: ${esc(d.domain)} (sketch mode)</span></div>`;
       }
       switchTab(id);
       promptEl.placeholder = `${d.domain} workshop > `;
+      setTimeout(() => { if (window.renderMermaid) window.renderMermaid(); }, 100);
     }
 
     function closeWorkshop() {
@@ -615,11 +716,12 @@
 
     async function sendWorkshopCommand(cmd) {
       const out = document.getElementById('ws-output');
+      const scroller = out.closest('.tab-content');
       const entry = document.createElement('div');
       entry.className = 'ws-entry';
       entry.innerHTML = `<div class="ws-cmd">${esc(cmd)}</div>`;
       out.appendChild(entry);
-      out.scrollTop = out.scrollHeight;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
 
       const r = await fetch('/workshop/command', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -630,18 +732,41 @@
 
       if (d.error) entry.innerHTML += `<div class="ws-result ws-error">${esc(d.error)}</div>`;
       else if (d.output) entry.innerHTML += `<div class="ws-result">${esc(d.output)}</div>`;
-      out.scrollTop = out.scrollHeight;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
     }
 
-    // Autocomplete
+    // Autocomplete — slash commands always, workshop commands when active
     promptEl.addEventListener('input', () => {
-      if (!wsActive) { acEl.classList.remove('visible'); return; }
       const val = promptEl.value.trim().toLowerCase();
       if (!val) { acEl.classList.remove('visible'); return; }
-      const matches = wsCompletions.filter(c => c.toLowerCase().startsWith(val)).slice(0, 8);
-      if (!matches.length) { acEl.classList.remove('visible'); return; }
+
+      let html = '';
+
+      const inWorkshop = wsActive && document.querySelector('.tab[data-tab="workshop"].active');
+
+      if (val.startsWith('/')) {
+        const ideMatches = Object.keys(ideCommands).filter(c => c.startsWith(val));
+        const claudeMatches = inWorkshop ? [] : claudeCommands.filter(c => c.startsWith(val));
+        if (!ideMatches.length && !claudeMatches.length) { acEl.classList.remove('visible'); return; }
+        if (ideMatches.length) {
+          html += '<div class="ac-header">IDE</div>';
+          ideMatches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
+        }
+        if (claudeMatches.length) {
+          html += '<div class="ac-header">Claude</div>';
+          claudeMatches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
+        }
+      } else if (wsActive) {
+        // Workshop completions
+        const matches = wsCompletions.filter(c => c.toLowerCase().startsWith(val)).slice(0, 8);
+        if (!matches.length) { acEl.classList.remove('visible'); return; }
+        matches.forEach(m => { html += `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`; });
+      } else {
+        acEl.classList.remove('visible'); return;
+      }
+
       acIdx = -1;
-      acEl.innerHTML = matches.map((m, i) => `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`).join('');
+      acEl.innerHTML = html;
       acEl.classList.add('visible');
     });
 
@@ -686,9 +811,17 @@
     // Intercept sendPrompt when workshop is active
     const _origSend = sendPrompt;
     sendPrompt = async function() {
+      const text = promptEl.value.trim();
+      if (!text) return;
+
+      // Slash commands work everywhere
+      if (text.startsWith('/') && handleSlashCommand(text)) {
+        promptEl.value = '';
+        acEl.classList.remove('visible');
+        return;
+      }
+
       if (wsActive && document.querySelector('.tab[data-tab="workshop"].active')) {
-        const text = promptEl.value.trim();
-        if (!text) return;
         promptEl.value = '';
         acEl.classList.remove('visible');
         await sendWorkshopCommand(text);

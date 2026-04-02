@@ -10,7 +10,7 @@ require "json"
 require_relative "claude_process"
 require_relative "bluebook_discovery"
 require_relative "context_builder"
-require_relative "workshop_session"
+# workshop_session loaded lazily when a domain is opened
 require_relative "screenshot_handler"
 require_relative "view_watcher"
 require_relative "prompt_builder"
@@ -117,12 +117,15 @@ module Hecks
 
         def handle_workshop_open(req, res)
           body = JSON.parse(req.body)
+          require "hecks"
+          require_relative "workshop_session"
           @workshop = WorkshopSession.new(body["path"], project_dir: @project_dir)
           res.content_type = "application/json"
           res.body = JSON.generate(
             domain: @workshop.domain_name,
             state: @workshop.state,
-            completions: @workshop.completions
+            completions: @workshop.completions,
+            diagram: @workshop.diagram
           )
         end
 
