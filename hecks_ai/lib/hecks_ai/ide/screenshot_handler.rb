@@ -18,6 +18,12 @@ module Hecks
         def initialize(project_dir)
           @dir = File.join(project_dir, ".claude", "ide", "screenshots")
           @latest_path = nil
+          clear_on_start
+        end
+
+        def clear_on_start
+          return unless File.directory?(@dir)
+          Dir[File.join(@dir, "*.png")].each { |f| File.delete(f) }
         end
 
         def save(base64_data)
