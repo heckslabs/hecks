@@ -145,6 +145,8 @@
     .panel-apps .panel-head { color: var(--red); }
     .panel-dot-apps { background: var(--red); color: var(--bg); }
     .panel-dot-hex { background: var(--purple); color: var(--bg); }
+    .panel-dot-docs { background: var(--green); color: var(--bg); }
+    .panel-docs .panel-head { color: var(--green); }
 
     .book-app { margin-bottom: 6px; }
     .book-app-name { color: var(--fg); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 0; }
@@ -217,8 +219,7 @@
       padding: 0 16px; scroll-behavior: smooth;
     }
     .command-log:empty { display: none; }
-    .command-log.collapsed { max-height: 18px; overflow: hidden; cursor: pointer; opacity: 0.6; }
-    .command-log.collapsed:hover { opacity: 1; }
+    .command-log.collapsed { max-height: 0; padding: 0; border: none; overflow: hidden; }
     .cmd-entry { display: flex; gap: 8px; padding: 1px 0; }
     .cmd-source { color: var(--fg-dim); min-width: 50px; }
     .cmd-source.server { color: var(--yellow); }
@@ -265,6 +266,7 @@
       <div class="panel-nav" id="panel-nav">
         <div class="panel-dot panel-dot-apps" onclick="toggleDotPanel('apps')" title="Applications">A</div>
         <div class="panel-dot panel-dot-hex inactive" onclick="toggleDotPanel('hex')" title="Hecksagon">H</div>
+        <div class="panel-dot panel-dot-docs" onclick="toggleDotPanel('docs-panel')" title="Documentation">D</div>
         <div class="panel-dot panel-dot-tools" onclick="toggleDotPanel('tools')" title="Tool Calls">T</div>
       </div>
       <div class="panel panel-apps" id="panel-apps">
@@ -278,6 +280,12 @@
           <span onclick="collapsePanel('hex')">Hecksagon <span class="panel-chevron">&#9660;</span></span>
         </div>
         <div class="panel-body" id="hex-body"></div>
+      </div>
+      <div class="panel panel-docs" id="panel-docs-panel">
+        <div class="panel-head">
+          <span onclick="collapsePanel('docs-panel')">Documentation <span class="panel-chevron">&#9660;</span></span>
+        </div>
+        <div class="panel-body" id="docs-body"><span style="color:var(--fg-dim);font-style:italic">Loading...</span></div>
       </div>
       <div class="panel panel-tools" id="panel-tools">
         <div class="panel-head">
