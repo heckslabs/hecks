@@ -271,8 +271,15 @@ module Hecks
       # @param path [String] the actual request path (e.g. "/pizzas/abc123")
       # @return [Boolean] true if the path matches the pattern
       def route_matches_request_path?(pattern, path)
-        pp = pattern.split("/"); ap = path.split("/")
-        pp.size == ap.size && pp.zip(ap).all? { |p, a| p.start_with?(":") || p == a }
+        pattern_segments = pattern.split("/")
+        actual_segments  = path.split("/")
+        return false unless pattern_segments.size == actual_segments.size
+
+        pattern_segments.zip(actual_segments).all? { |pat, act| wildcard?(pat) || pat == act }
+      end
+
+      def wildcard?(segment)
+        segment.start_with?(":")
       end
 
       # Set CORS headers on the response using ENV-driven origin config.
