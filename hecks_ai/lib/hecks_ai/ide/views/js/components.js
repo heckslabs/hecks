@@ -146,6 +146,8 @@ IDE.register({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       e.stopImmediatePropagation();
+      // Force close autocomplete dropdown
+      document.querySelectorAll('.awesomplete > ul').forEach(ul => ul.setAttribute('hidden', ''));
       ide.sendPrompt();
       return true;
     }
