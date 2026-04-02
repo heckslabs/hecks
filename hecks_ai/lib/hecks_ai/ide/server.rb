@@ -116,8 +116,9 @@ module Hecks
           res.content_type = "application/javascript"
           res["Cache-Control"] = "no-cache, no-store"
           js_dir = File.join(VIEWS_DIR, "js")
-          files = %w[ide.js panels.js components.js markdown.js file_viewer.js
-                     hecksagon_viewer.js bluebook_explorer.js workshop.js boot.js]
+          files = %w[ide.js panels.js components.js autocomplete.js app_picker.js markdown.js
+                     file_viewer.js hecksagon_viewer.js bluebook_explorer.js
+                     workshop.js boot.js]
           res.body = files.map { |f| File.read(File.join(js_dir, f)) }.join("\n")
         end
 
