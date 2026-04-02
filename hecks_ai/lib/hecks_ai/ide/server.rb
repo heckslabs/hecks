@@ -88,6 +88,11 @@ module Hecks
 
           context_json = JSON.pretty_generate(build_context)
 
+          file_ctx = body["file_context"]
+          if file_ctx
+            prompt = "#{prompt}\n\n[User is viewing #{file_ctx} in the IDE — reference it directly without needing the filename]"
+          end
+
           if @latest_screenshot
             prompt = "#{prompt}\n\n[IDE screenshot at #{@latest_screenshot} — use Read to view it]\n\n[IDE context]\n#{context_json}"
           else
