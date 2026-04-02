@@ -51,8 +51,12 @@ IDE.register({
         const sel = i === selectedIdx ? 'background:var(--bg-user);' : '';
         const color = a.type === 'hecksagon' ? 'var(--yellow)' : 'var(--blue)';
         const label = a.type === 'hecksagon' ? 'Hecksagon' : 'Bluebook';
-        return `<div style="padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;${sel}" onclick="document.getElementById('app-picker').style.display='none';${a.action==='hecksagon'?"openHecksagon('"+a.path+"')":"openWorkshop('"+a.path+"','"+IDE.esc(a.name)+"')"}"><span>${IDE.esc(a.name)}</span><span style="color:${color};font-size:10px">${label}</span></div>`;
+        const pad = a.indent ? 'padding-left:32px;' : 'padding-left:16px;';
+        return `<div data-idx="${i}" style="${pad}padding-top:6px;padding-bottom:6px;padding-right:16px;cursor:pointer;display:flex;justify-content:space-between;${sel}" onclick="document.getElementById('app-picker').style.display='none';${a.action==='hecksagon'?"openHecksagon('"+a.path+"')":"openWorkshop('"+a.path+"','"+IDE.esc(a.name)+"')"}"><span>${IDE.esc(a.name)}</span><span style="color:${color};font-size:10px">${label}</span></div>`;
       }).join('') || '<div style="padding:12px 16px;color:var(--fg-dim)">No matches</div>';
+      // Scroll selected into view
+      const selEl = list.querySelector(`[data-idx="${selectedIdx}"]`);
+      if (selEl) selEl.scrollIntoView({ block: 'nearest' });
     };
 
     ide.bus.on('app-picker:open', async () => {
@@ -65,7 +69,7 @@ IDE.register({
         apps = [];
         (d.apps || []).forEach(a => {
           apps.push({ name: a.name, type: 'bluebook', path: a.path, action: 'workshop' });
-          if (a.hecksagon) apps.push({ name: a.name, type: 'hecksagon', path: a.hecksagon, action: 'hecksagon' });
+          if (a.hecksagon) apps.push({ name: a.name, type: 'hecksagon', path: a.hecksagon, action: 'hecksagon', indent: true });
         });
       } catch (e) { apps = []; }
       render();

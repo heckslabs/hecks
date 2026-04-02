@@ -152,6 +152,8 @@ const IDE = {
           }
           if (c.type === 'tool_use') this.addToolCall(c.name, c.input);
         });
+      } else if (e.type === 'system' && e.subtype === 'init' && e.session_id) {
+        localStorage.setItem('hecks-ide-session', e.session_id);
       } else if (e.type === 'result' && (e.subtype === 'success' || e.subtype === 'done')) {
         this.setBusy(false);
       } else if (e.type === 'error') {

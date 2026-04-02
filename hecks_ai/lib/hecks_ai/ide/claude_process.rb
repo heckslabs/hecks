@@ -26,6 +26,14 @@ module Hecks
           Thread.new { run_once(prompt) }
         end
 
+        def resume(session_id)
+          @session_id = session_id
+        end
+
+        def session_id
+          @session_id
+        end
+
         def interrupt!
           @mutex.synchronize do
             Process.kill(:INT, @current_pid) rescue nil if @current_pid
