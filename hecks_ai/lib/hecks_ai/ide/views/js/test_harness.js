@@ -15,6 +15,7 @@ const IDETests = {
     await this.testPanelToggle();
     await this.testCommandLogToggle();
     await this.testGlobalHotkeys();
+    await this.testIdeCommands();
     this.report();
   },
 
@@ -125,6 +126,30 @@ const IDETests = {
 
     const sp = document.getElementById('session-picker');
     if (sp) sp.style.display = 'none';
+  },
+
+  async testIdeCommands() {
+    // /hecks-ide-commands should list commands in chat
+    IDE.el.prompt.value = '/hecks-ide-commands';
+    await IDE.sendPrompt();
+    await new Promise(r => setTimeout(r, 100));
+    const lastMsg = IDE.el.msgs.lastElementChild;
+    this.assert('/hecks-ide-commands lists commands', lastMsg?.textContent.includes('/hecks-ide-clear'));
+
+    // /hecks-ide-log should open the command log
+    const log = document.getElementById('command-log');
+    log.classList.add('collapsed');
+    IDE.el.prompt.value = '/hecks-ide-log';
+    await IDE.sendPrompt();
+    await new Promise(r => setTimeout(r, 100));
+    this.assert('/hecks-ide-log opens command log', !log.classList.contains('collapsed'));
+    log.classList.add('collapsed'); // clean up
+
+    // /hecks-ide-clear should clear messages
+    IDE.el.prompt.value = '/hecks-ide-clear';
+    await IDE.sendPrompt();
+    await new Promise(r => setTimeout(r, 100));
+    this.assert('/hecks-ide-clear empties messages', IDE.el.msgs.children.length === 0);
   },
 
   report() {

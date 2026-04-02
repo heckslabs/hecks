@@ -51,7 +51,7 @@ IDE.register({
     const inWs = s.wsActive && document.querySelector('.tab[data-tab="workshop"].active');
 
     if (val.startsWith('/')) {
-      const ideC = ['/hecks-ide-clear', '/hecks-ide-reset'];
+      const ideC = ['/hecks-ide-clear', '/hecks-ide-reset', '/hecks-ide-commands', '/hecks-ide-log', '/hecks-ide-test'];
       const clC = ['/commit','/review','/help','/compact','/clear','/cost','/init',
         '/pr-comments','/release-notes','/security-review','/simplify'];
       return [...ideC.filter(c => c.startsWith(val)), ...(inWs ? [] : clC.filter(c => c.startsWith(val)))];

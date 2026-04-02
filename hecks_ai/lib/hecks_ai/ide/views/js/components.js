@@ -116,7 +116,16 @@ IDE.register({
     const cmd = text.split(/\s/)[0];
     const commands = {
       '/hecks-ide-clear': () => { ide.el.msgs.innerHTML = ''; },
-      '/hecks-ide-reset': () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; }
+      '/hecks-ide-reset': () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; },
+      '/hecks-ide-commands': () => {
+        const cmds = Object.keys(commands).join('\n');
+        ide.addTurn('system', cmds);
+      },
+      '/hecks-ide-log': () => {
+        document.getElementById('command-log').classList.remove('collapsed');
+        document.getElementById('command-log-toggle').classList.add('open');
+      },
+      '/hecks-ide-test': () => { ide.bus.emit('test:run'); }
     };
     if (commands[cmd]) {
       commands[cmd]();
