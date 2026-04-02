@@ -223,6 +223,10 @@ module Hecks
   # Raised when a rate limit is exceeded for a command or query operation.
   class RateLimitExceeded < Error; end
 
+  # Raised when optimistic concurrency detects a version mismatch —
+  # another process has updated the aggregate since it was read.
+  class ConcurrencyError < Error; end
+
   # Raised when a generator attempts to write a file outside the designated
   # output directory. Prevents path traversal attacks where user-controlled
   # domain names or aggregate names contain +../+ segments, absolute paths,

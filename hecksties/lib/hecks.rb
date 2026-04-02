@@ -28,6 +28,7 @@ require "bluebook"
 require "hecksagon"
 require_relative "hecks/deprecations"
 require_relative "hecks/stats"
+require_relative "hecks/event_sourcing"
 require "hecks/runtime/boot"
 require "hecks/workshop"
 

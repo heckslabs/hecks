@@ -758,6 +758,51 @@
 - Validates 422 on invalid params via ActiveModel validations
 - Run explicitly: `bundle exec rspec hecksties/spec/rails_smoke_spec.rb --tag slow`
 
+## Event Sourcing (Phase 3)
+
+### Optimistic Concurrency (HEC-65)
+- Version stamping on aggregates via `Concurrency.stamp!(aggregate, version)`
+- `ConcurrencyError` raised on version mismatch
+- `VersionCheckStep` lifecycle step for commands with `expected_version`
+
+### CQRS Read Model Store (HEC-63)
+- `ReadModelStore` port with thread-safe get/put/delete/clear/keys
+- Memory adapter for tests; swappable for Redis/SQL in production
+
+### Event Versioning & Upcasting (HEC-70)
+- `UpcasterRegistry` for registering schema migrations per event type
+- `UpcasterEngine` chains upcasters from stored schema_version to latest
+- Transparent upcasting on read — events stored at any version are automatically transformed
+
+### Read Models / Projections (HEC-64)
+- `EventStore` with append-only streams, auto-versioning, and global position ordering
+- `ProjectionRebuilder` replays events through projection procs to rebuild read model state
+- Supports rebuilding from all events or a single stream
+- Integrates with `UpcasterEngine` for transparent upcasting during rebuild
+
+### Outbox Pattern (HEC-80)
+- `Outbox` port with store/pending/mark_published/published
+- `OutboxStep` replaces `EmitStep` in the command lifecycle for transactional event capture
+- `OutboxPoller` publishes pending events to the event bus (one-shot or background thread)
+- Guarantees at-least-once event delivery
+
+### Process Managers (HEC-67)
+- `ProcessManager` event-driven state machine with correlation-based instance lookup
+- Supports state transitions with `on(event_type, correlate:, transition:)` DSL
+- Action blocks can return `{ commands: [...] }` for dispatching
+- Subscribes to `EventBus` for automatic event handling
+
+### Aggregate Snapshots (HEC-69)
+- `SnapshotStore` port with save/load/delete/clear
+- `Reconstitution` rebuilds aggregate state from snapshot + subsequent events
+- Auto-snapshot at configurable intervals (e.g., every N events)
+- Applier hash maps event types to state-transform procs
+
+### Time Travel (HEC-98)
+- `TimeTravel#as_of(stream_id, timestamp, appliers)` returns state at a point in time
+- `TimeTravel#at_version(stream_id, version, appliers)` returns state at a specific version
+- Built on `EventStore#read_stream_until` and `read_stream_to_version`
+
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history
 - Pizzas static Ruby: generated standalone Ruby project with HTTP server, UI, roles, filesystem persistence
