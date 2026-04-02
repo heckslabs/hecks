@@ -1,3 +1,5 @@
+// Domain: Pizzas
+// Version: unversioned
 package server
 
 import (
@@ -376,7 +378,8 @@ func (app *App) Start(port int) error {
 	})
 
 	mux.HandleFunc("GET /pizzas/queries/by_description", func(w http.ResponseWriter, r *http.Request) {
-		results, _ := domain.PizzaByDescription(app.PizzaRepo, r.URL.Query().Get("desc"))
+		qp_desc := r.URL.Query().Get("desc")
+		results, _ := domain.PizzaByDescription(app.PizzaRepo, qp_desc)
 		jsonResponse(w, results)
 	})
 
