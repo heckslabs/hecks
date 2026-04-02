@@ -180,6 +180,7 @@ const IDETests = {
       this.results.push({ name, pass: false, error: e.message });
       console.error(`FAIL: ${name}: ${e.message}`);
     }
+    await this.wait(400); // pause between tests so you can see each one
   },
 
   wait(ms) { return new Promise(r => setTimeout(r, ms)); },
