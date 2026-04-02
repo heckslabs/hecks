@@ -27,11 +27,13 @@ module Hecks
       @domain = domain
     end
 
-    # Generate both the structure and behavior Mermaid diagrams as a single
-    # markdown string with two code-fenced blocks.
+    # Generate the structure, behavior, and aggregate-ports Mermaid diagrams
+    # as a single markdown string with three code-fenced blocks.
     #
-    # @return [String] markdown with two ```mermaid blocks (structure then behavior)
-    def generate
+    # @param show_persistence [Boolean] include Persistence driven-port nodes
+    # @param show_event_bus   [Boolean] include EventBus driven-port nodes
+    # @return [String] markdown with three ```mermaid blocks
+    def generate(show_persistence: false, show_event_bus: false)
       parts = []
       parts << "```mermaid"
       parts << generate_structure
@@ -39,6 +41,13 @@ module Hecks
       parts << ""
       parts << "```mermaid"
       parts << generate_behavior
+      parts << "```"
+      parts << ""
+      parts << "```mermaid"
+      parts << generate_aggregate_ports(
+        show_persistence: show_persistence,
+        show_event_bus: show_event_bus
+      )
       parts << "```"
       parts.join("\n")
     end

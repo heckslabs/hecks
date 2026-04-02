@@ -368,6 +368,7 @@
   - `--type flows` — sequenceDiagram of reactive chain flows
   - `--type slices` — slice flowchart with subgraph per vertical slice
   - `--type ports` — hexagonal port diagram showing driving/driven adapters around the domain
+  - `--type aggregate-ports` — per-aggregate port diagram: commands as driving-port arrows (left), optional Persistence/EventBus as driven-port nodes (right); pass `show_persistence:` / `show_event_bus:` to enable driven nodes
   - `--browser` — self-contained HTML with Mermaid CDN opened in browser
   - `--output <file>` — write Mermaid markdown to a file
 - `hecks context_map` — CLI command renders DDD context map of bounded context relationships

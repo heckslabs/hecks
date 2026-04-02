@@ -129,4 +129,54 @@ RSpec.describe Hecks::DomainVisualizer do
       expect { domain.visualize }.to output(/classDiagram/).to_stdout
     end
   end
+
+  describe "aggregate ports diagram" do
+    subject(:ports_diagram) { visualizer.generate_aggregate_ports }
+
+    it "contains a flowchart block" do
+      expect(ports_diagram).to include("flowchart LR")
+    end
+
+    it "groups commands by aggregate subgraph" do
+      expect(ports_diagram).to include("subgraph Pizza")
+      expect(ports_diagram).to include("subgraph Order")
+    end
+
+    it "shows commands as driving-port nodes entering the aggregate" do
+      expect(ports_diagram).to include("Pizza_CreatePizza_cmd([CreatePizza])-->Pizza")
+      expect(ports_diagram).to include("Order_PlaceOrder_cmd([PlaceOrder])-->Order")
+    end
+
+    it "omits persistence node by default" do
+      expect(ports_diagram).not_to include("Persistence")
+    end
+
+    it "omits event bus node by default" do
+      expect(ports_diagram).not_to include("EventBus")
+    end
+
+    context "with show_persistence: true" do
+      subject(:ports_diagram) { visualizer.generate_aggregate_ports(show_persistence: true) }
+
+      it "includes a Persistence driven-port node for each aggregate" do
+        expect(ports_diagram).to include("Pizza-->Pizza_Persistence[(Persistence)]")
+        expect(ports_diagram).to include("Order-->Order_Persistence[(Persistence)]")
+      end
+    end
+
+    context "with show_event_bus: true" do
+      subject(:ports_diagram) { visualizer.generate_aggregate_ports(show_event_bus: true) }
+
+      it "includes an EventBus driven-port node for each aggregate" do
+        expect(ports_diagram).to include("Pizza-->Pizza_EventBus{{EventBus}}")
+        expect(ports_diagram).to include("Order-->Order_EventBus{{EventBus}}")
+      end
+    end
+
+    context "generate includes the aggregate ports block" do
+      it "the main generate output contains the ports flowchart" do
+        expect(mermaid).to include("Pizza_CreatePizza_cmd([CreatePizza])-->Pizza")
+      end
+    end
+  end
 end

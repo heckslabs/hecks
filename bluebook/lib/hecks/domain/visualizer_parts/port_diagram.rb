@@ -1,15 +1,23 @@
 # Hecks::DomainVisualizer::PortDiagram
 #
-# Builds a Mermaid flowchart showing the hexagonal architecture of a domain:
-# driving ports (HTTP, MCP, CLI, etc.) on the left, the domain hexagon in
-# the center, and driven ports (persistence, auth, logging, etc.) on the
-# right. Arrows show data flow direction.
+# Builds two Mermaid flowcharts that expose the hexagonal architecture of a
+# domain:
 #
-# Extension metadata is read from Hecks.extension_meta when available.
-# An explicit +extensions+ parameter can override this for testing.
+# 1. generate_ports — shows registered extension adapters. Driving adapters
+#    (HTTP, MCP, CLI) appear on the left; driven adapters (persistence, auth,
+#    logging) appear on the right. Arrows show data-flow direction.
+#    Extension metadata is read from Hecks.extension_meta when available; an
+#    explicit +extensions+ parameter can override this for testing.
+#
+# 2. generate_aggregate_ports — shows each aggregate's commands as driving
+#    port arrows entering the aggregate from the left, and optional driven
+#    port nodes (Persistence, EventBus) exiting to the right. Pass
+#    +show_persistence: true+ and/or +show_event_bus: true+ to enable the
+#    driven-port nodes.
 #
 #   include PortDiagram
-#   generate_ports  # => "flowchart LR\n    subgraph Driving Ports\n..."
+#   generate_ports               # => "flowchart LR\n    subgraph Driving…"
+#   generate_aggregate_ports     # => "flowchart LR\n    subgraph Pizza…"
 #
 module Hecks
   class DomainVisualizer
@@ -30,6 +38,35 @@ module Hecks
         domain_node(lines)
         driven_nodes(lines, driven)
         flow_arrows(lines, driving, driven)
+        lines.join("\n")
+      end
+
+      # Generate a Mermaid flowchart showing per-aggregate hexagonal ports.
+      # Commands appear as driving-port nodes (left), the aggregate sits in
+      # the centre, and optional persistence / event-bus nodes appear as
+      # driven-port nodes (right).
+      #
+      # @param show_persistence [Boolean] include a Persistence node (default false)
+      # @param show_event_bus   [Boolean] include an EventBus node (default false)
+      # @return [String] Mermaid flowchart source code
+      def generate_aggregate_ports(show_persistence: false, show_event_bus: false)
+        lines = ["flowchart LR"]
+
+        @domain.aggregates.each do |agg|
+          lines << "    subgraph #{agg.name}"
+          agg.commands.each do |cmd|
+            cmd_node = "#{agg.name}_#{cmd.name}_cmd"
+            lines << "        #{cmd_node}([#{cmd.name}])-->#{agg.name}"
+          end
+          if show_persistence
+            lines << "        #{agg.name}-->#{agg.name}_Persistence[(Persistence)]"
+          end
+          if show_event_bus
+            lines << "        #{agg.name}-->#{agg.name}_EventBus{{EventBus}}"
+          end
+          lines << "    end"
+        end
+
         lines.join("\n")
       end
 
