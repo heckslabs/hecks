@@ -56,6 +56,16 @@ module Hecks
           res.body = JSON.generate(discovery.apps)
         end
 
+        def serve_docs(res)
+          dir = File.join(@project_dir, "docs", "usage")
+          docs = File.directory?(dir) ? Dir[File.join(dir, "*.md")].sort.map { |f|
+            { path: "docs/usage/#{File.basename(f)}", label: File.basename(f, ".md").tr("_", " ") }
+          } : []
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          res.body = JSON.generate(docs: docs)
+        end
+
         def serve_sessions(res)
           sessions = SessionDiscovery.new(@project_dir).recent
           res.content_type = "application/json"

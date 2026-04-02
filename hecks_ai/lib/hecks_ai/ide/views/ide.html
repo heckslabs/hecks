@@ -220,6 +220,12 @@
     }
     .command-log:empty { display: none; }
     .command-log.collapsed { max-height: 0; padding: 0; border: none; overflow: hidden; }
+    .command-log-toggle {
+      font-family: var(--mono); font-size: 9px; color: var(--fg-dim); cursor: pointer;
+      padding: 2px 16px; border-top: 1px solid var(--border); user-select: none;
+    }
+    .command-log-toggle:hover { color: var(--fg); }
+    .command-log-toggle.open { color: var(--yellow); }
     .cmd-entry { display: flex; gap: 8px; padding: 1px 0; }
     .cmd-source { color: var(--fg-dim); min-width: 50px; }
     .cmd-source.server { color: var(--yellow); }
@@ -253,6 +259,7 @@
       <div class="tab-content active" id="tab-chat">
         <div class="messages" id="messages"></div>
       </div>
+      <div class="command-log-toggle" id="command-log-toggle" onclick="document.getElementById('command-log').classList.toggle('collapsed');this.classList.toggle('open')">&#9654; IDE commands log</div>
       <div class="command-log collapsed" id="command-log"></div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">

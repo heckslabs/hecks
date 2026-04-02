@@ -16,7 +16,7 @@ IDE.register({
   async loadDocs() {
     if (this.loaded) return;
     try {
-      const r = await fetch('/context');
+      const r = await fetch('/docs');
       const d = await r.json();
       this.docs = (d.docs || []).map(doc => ({
         path: doc.path,
@@ -24,7 +24,19 @@ IDE.register({
         keywords: doc.label.toLowerCase().split(/[\s_-]+/)
       }));
       this.loaded = true;
-    } catch (e) {}
+    } catch (e) {
+      // Fallback to context endpoint
+      try {
+        const r2 = await fetch('/context');
+        const d2 = await r2.json();
+        this.docs = (d2.docs || []).map(doc => ({
+          path: doc.path,
+          label: doc.label,
+          keywords: doc.label.toLowerCase().split(/[\s_-]+/)
+        }));
+        this.loaded = true;
+      } catch (e2) {}
+    }
   },
 
   currentContext() {

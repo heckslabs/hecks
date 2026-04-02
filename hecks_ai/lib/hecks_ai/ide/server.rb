@@ -58,6 +58,7 @@ module Hecks
           when ["GET", "/events"]            then serve_events(req, res)
           when ["GET", "/context"]           then serve_context(res)
           when ["GET", "/bluebooks"]         then serve_bluebooks(res)
+          when ["GET", "/docs"]              then serve_docs(res)
           when ["GET", "/sessions"]          then serve_sessions(res)
           when ["POST", "/prompt"]           then handle_prompt(req, res)
           when ["POST", "/workshop/open"]    then handle_workshop_open(req, res)
