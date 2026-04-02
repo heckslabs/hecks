@@ -88,11 +88,8 @@ module Hecks
 
           context_json = JSON.pretty_generate(build_context)
 
-          if body["screenshot"]
-            @screenshot_path ||= File.join(@project_dir, ".claude", "ide_screenshot.png")
-            FileUtils.mkdir_p(File.dirname(@screenshot_path))
-            File.binwrite(@screenshot_path, Base64.decode64(body["screenshot"]))
-            prompt = "#{prompt}\n\n[IDE screenshot at #{@screenshot_path} — use Read to view it]\n\n[IDE context]\n#{context_json}"
+          if @latest_screenshot
+            prompt = "#{prompt}\n\n[IDE screenshot at #{@latest_screenshot} — use Read to view it]\n\n[IDE context]\n#{context_json}"
           else
             prompt = "#{prompt}\n\n[IDE context]\n#{context_json}"
           end
@@ -159,14 +156,26 @@ module Hecks
 
         def handle_screenshot(req, res)
           body = JSON.parse(req.body)
-          @screenshot_path ||= File.join(@project_dir, ".claude", "ide_screenshot.png")
-          FileUtils.mkdir_p(File.dirname(@screenshot_path))
-          File.binwrite(@screenshot_path, Base64.decode64(body["data"]))
+          save_screenshot(Base64.decode64(body["data"]))
           res.content_type = "application/json"
           res.body = JSON.generate(ok: true)
         rescue => e
           res.status = 400
           res.body = JSON.generate(error: e.message)
+        end
+
+        def save_screenshot(png_data)
+          dir = File.join(@project_dir, ".claude", "ide", "screenshots")
+          FileUtils.mkdir_p(dir)
+          ts = Time.now.strftime("%Y%m%d_%H%M%S")
+          path = File.join(dir, "#{ts}.png")
+          File.binwrite(path, png_data)
+          # Also write latest for quick access
+          File.binwrite(File.join(dir, "latest.png"), png_data)
+          # Keep last 20
+          shots = Dir[File.join(dir, "*.png")].reject { |f| f.end_with?("latest.png") }.sort
+          shots[0...-20].each { |f| File.delete(f) } if shots.size > 20
+          @latest_screenshot = path
         end
 
         def handle_interrupt(res)
