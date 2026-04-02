@@ -138,6 +138,26 @@
     .book-hex-link { color: var(--purple); cursor: pointer; font-size: 10px; margin-left: 8px; }
     .book-hex-link:hover { text-decoration: underline; }
 
+    /* ── Workshop ── */
+    .ws-output { padding: 16px; font-family: var(--mono); font-size: 13px; line-height: 1.6; }
+    .ws-entry { margin-bottom: 12px; }
+    .ws-cmd { color: var(--green); }
+    .ws-cmd::before { content: '> '; color: var(--fg-dim); }
+    .ws-result { white-space: pre-wrap; word-wrap: break-word; margin-top: 4px; }
+    .ws-error { color: var(--red); }
+    .ws-mode { color: var(--fg-dim); font-size: 11px; }
+
+    .autocomplete {
+      position: absolute; bottom: 100%; left: 0; right: 80px;
+      background: var(--bg-msg); border: 1px solid var(--border);
+      border-radius: 6px; max-height: 150px; overflow-y: auto;
+      font-family: var(--mono); font-size: 13px; display: none; z-index: 20;
+    }
+    .autocomplete.visible { display: block; }
+    .ac-item { padding: 4px 12px; cursor: pointer; }
+    .ac-item:hover, .ac-item.selected { background: var(--bg-user); color: var(--blue); }
+    .input-area { position: relative; }
+
     /* ── Messages ── */
     .messages { padding: 16px; }
     .turn { margin-bottom: 20px; }
@@ -193,6 +213,7 @@
       </div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">
+        <div class="autocomplete" id="autocomplete"></div>
         <input id="prompt" type="text" placeholder="Type a message..." autofocus>
         <button id="send" onclick="sendPrompt()">Send</button>
         <span class="esc-hint hidden" id="esc-hint">esc to cancel</span>
@@ -507,7 +528,7 @@
           apps.forEach(app => {
             const id = app.path.replace(/[^a-zA-Z0-9]/g, '_');
             html += `<div class="book-app">`;
-            html += `<div class="book-app-name" onclick="toggleBookAggs('${id}')">`;
+            html += `<div class="book-app-name" onclick="toggleBookAggs('${id}');openWorkshop('${app.path}','${esc(app.name)}')">`;
             html += `<span class="book-chevron" id="chev-${id}">&#9654;</span> ${esc(app.name)}`;
             html += ` <span class="book-app-type">${app.type}</span>`;
             if (app.hecksagon) html += `<span class="book-hex-link" onclick="event.stopPropagation();openHecksagon('${app.hecksagon}')">&#x2B21;</span>`;
@@ -550,6 +571,131 @@
     }
 
     loadBluebooks();
+
+    /* ── Workshop ── */
+    let wsCompletions = [], wsActive = false, acIdx = -1;
+    const acEl = document.getElementById('autocomplete');
+
+    async function openWorkshop(path, name) {
+      const r = await fetch('/workshop/open', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      });
+      const d = await r.json();
+      wsCompletions = d.completions || [];
+      wsActive = true;
+
+      // Create or reuse workshop tab
+      const id = 'workshop';
+      if (!openTabs[id]) {
+        const tab = document.createElement('div');
+        tab.className = 'tab'; tab.dataset.tab = id;
+        tab.innerHTML = `<span class="tab-label" onclick="switchTab('${id}')">${esc(name)}</span><span class="tab-close" onclick="event.stopPropagation();closeWorkshop()">&#215;</span>`;
+        tab.onclick = () => switchTab(id);
+        tabBar.appendChild(tab);
+
+        const content = document.createElement('div');
+        content.className = 'tab-content'; content.id = 'tab-' + id;
+        content.innerHTML = '<div class="ws-output" id="ws-output"><div class="ws-entry"><span class="ws-mode">Workshop: ' + esc(d.domain) + ' (sketch mode)</span></div></div>';
+        document.querySelector('.main').insertBefore(content, document.querySelector('.thinking-bar'));
+        openTabs[id] = { tab, content, path };
+      } else {
+        openTabs[id].tab.querySelector('.tab-label').textContent = name;
+        document.getElementById('ws-output').innerHTML = '<div class="ws-entry"><span class="ws-mode">Workshop: ' + esc(d.domain) + ' (sketch mode)</span></div>';
+      }
+      switchTab(id);
+      promptEl.placeholder = `${d.domain} workshop > `;
+    }
+
+    function closeWorkshop() {
+      wsActive = false;
+      closeTab('workshop');
+      promptEl.placeholder = 'Type a message...';
+    }
+
+    async function sendWorkshopCommand(cmd) {
+      const out = document.getElementById('ws-output');
+      const entry = document.createElement('div');
+      entry.className = 'ws-entry';
+      entry.innerHTML = `<div class="ws-cmd">${esc(cmd)}</div>`;
+      out.appendChild(entry);
+      out.scrollTop = out.scrollHeight;
+
+      const r = await fetch('/workshop/command', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd })
+      });
+      const d = await r.json();
+      wsCompletions = d.completions || wsCompletions;
+
+      if (d.error) entry.innerHTML += `<div class="ws-result ws-error">${esc(d.error)}</div>`;
+      else if (d.output) entry.innerHTML += `<div class="ws-result">${esc(d.output)}</div>`;
+      out.scrollTop = out.scrollHeight;
+    }
+
+    // Autocomplete
+    promptEl.addEventListener('input', () => {
+      if (!wsActive) { acEl.classList.remove('visible'); return; }
+      const val = promptEl.value.trim().toLowerCase();
+      if (!val) { acEl.classList.remove('visible'); return; }
+      const matches = wsCompletions.filter(c => c.toLowerCase().startsWith(val)).slice(0, 8);
+      if (!matches.length) { acEl.classList.remove('visible'); return; }
+      acIdx = -1;
+      acEl.innerHTML = matches.map((m, i) => `<div class="ac-item" data-val="${esc(m)}" onclick="selectAc('${esc(m)}')">${esc(m)}</div>`).join('');
+      acEl.classList.add('visible');
+    });
+
+    function selectAc(val) {
+      promptEl.value = val;
+      acEl.classList.remove('visible');
+      promptEl.focus();
+    }
+
+    // Override Enter to route to workshop when active
+    const origKeydown = promptEl.onkeydown;
+    promptEl.addEventListener('keydown', e => {
+      if (e.key === 'Tab' && acEl.classList.contains('visible')) {
+        e.preventDefault();
+        const items = acEl.querySelectorAll('.ac-item');
+        if (items.length) selectAc(items[0].dataset.val);
+        return;
+      }
+      if (e.key === 'ArrowDown' && acEl.classList.contains('visible')) {
+        e.preventDefault();
+        const items = acEl.querySelectorAll('.ac-item');
+        acIdx = Math.min(acIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('selected', i === acIdx));
+        return;
+      }
+      if (e.key === 'ArrowUp' && acEl.classList.contains('visible')) {
+        e.preventDefault();
+        const items = acEl.querySelectorAll('.ac-item');
+        acIdx = Math.max(acIdx - 1, 0);
+        items.forEach((it, i) => it.classList.toggle('selected', i === acIdx));
+        return;
+      }
+      if (e.key === 'Enter' && acEl.classList.contains('visible') && acIdx >= 0) {
+        e.preventDefault();
+        const items = acEl.querySelectorAll('.ac-item');
+        if (items[acIdx]) selectAc(items[acIdx].dataset.val);
+        return;
+      }
+      if (e.key === 'Escape') { acEl.classList.remove('visible'); }
+    }, true);
+
+    // Intercept sendPrompt when workshop is active
+    const _origSend = sendPrompt;
+    sendPrompt = async function() {
+      if (wsActive && document.querySelector('.tab[data-tab="workshop"].active')) {
+        const text = promptEl.value.trim();
+        if (!text) return;
+        promptEl.value = '';
+        acEl.classList.remove('visible');
+        await sendWorkshopCommand(text);
+        return;
+      }
+      return _origSend();
+    };
 
     /* ── Markdown renderer ── */
     function renderMd(src) {

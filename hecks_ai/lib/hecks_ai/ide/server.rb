@@ -7,11 +7,13 @@
 #
 require "webrick"
 require "json"
-require "base64"
-require "fileutils"
 require_relative "claude_process"
 require_relative "bluebook_discovery"
 require_relative "context_builder"
+require_relative "workshop_session"
+require_relative "screenshot_handler"
+require_relative "view_watcher"
+require_relative "prompt_builder"
 
 module Hecks
   module AI
@@ -25,6 +27,9 @@ module Hecks
           @claude = nil
           @events = []
           @mutex = Mutex.new
+          @workshop = nil
+          @screenshots = ScreenshotHandler.new(project_dir)
+          @prompt_builder = PromptBuilder.new(ContextBuilder.new(project_dir), @screenshots)
         end
 
         def run
@@ -35,6 +40,7 @@ module Hecks
           )
           http.mount_proc("/") { |req, res| route(req, res) }
           trap("INT") { @claude&.stop; http.shutdown }
+          ViewWatcher.new(VIEWS_DIR, @events, @mutex).start
           Thread.new { sleep 0.5; open_browser("http://localhost:#{@port}") }
           puts "Hecks IDE: http://localhost:#{@port}"
           http.start
@@ -48,8 +54,11 @@ module Hecks
           when ["GET", "/events"]     then serve_events(req, res)
           when ["GET", "/context"]    then serve_context(res)
           when ["POST", "/prompt"]    then handle_prompt(req, res)
-          when ["GET", "/bluebooks"]   then serve_bluebooks(res)
-          when ["POST", "/interrupt"] then handle_interrupt(res)
+          when ["GET", "/bluebooks"]          then serve_bluebooks(res)
+          when ["POST", "/workshop/open"]    then handle_workshop_open(req, res)
+          when ["POST", "/workshop/command"] then handle_workshop_command(req, res)
+          when ["GET", "/workshop/state"]    then serve_workshop_state(res)
+          when ["POST", "/interrupt"]        then handle_interrupt(res)
           when ["POST", "/screenshot"] then handle_screenshot(req, res)
           else
             if req.request_method == "GET" && req.path.start_with?("/file/")
@@ -87,20 +96,7 @@ module Hecks
 
         def handle_prompt(req, res)
           body = JSON.parse(req.body)
-          prompt = body["prompt"]
-
-          context_json = JSON.pretty_generate(build_context)
-
-          file_ctx = body["file_context"]
-          if file_ctx
-            prompt = "#{prompt}\n\n[User is viewing #{file_ctx} in the IDE — reference it directly without needing the filename]"
-          end
-
-          if @latest_screenshot
-            prompt = "#{prompt}\n\n[IDE screenshot at #{@latest_screenshot} — use Read to view it]\n\n[IDE context]\n#{context_json}"
-          else
-            prompt = "#{prompt}\n\n[IDE context]\n#{context_json}"
-          end
+          prompt = @prompt_builder.build(body["prompt"], file_context: body["file_context"])
 
           @claude ||= ClaudeProcess.new(project_dir: @project_dir) do |json|
             @mutex.synchronize { @events << json }
@@ -114,14 +110,49 @@ module Hecks
         end
 
         def serve_context(res)
-          ctx = ContextBuilder.new(@project_dir).build
           res.content_type = "application/json"
           res["Cache-Control"] = "no-cache"
-          res.body = JSON.generate(ctx)
+          res.body = JSON.generate(ContextBuilder.new(@project_dir).build)
         end
 
-        def build_context
-          ContextBuilder.new(@project_dir).build
+        def handle_workshop_open(req, res)
+          body = JSON.parse(req.body)
+          @workshop = WorkshopSession.new(body["path"], project_dir: @project_dir)
+          res.content_type = "application/json"
+          res.body = JSON.generate(
+            domain: @workshop.domain_name,
+            state: @workshop.state,
+            completions: @workshop.completions
+          )
+        end
+
+        def handle_workshop_command(req, res)
+          body = JSON.parse(req.body)
+          unless @workshop
+            res.status = 400
+            res.body = JSON.generate(error: "No workshop session. Open a domain first.")
+            return
+          end
+          result = @workshop.execute(body["command"])
+          res.content_type = "application/json"
+          res.body = JSON.generate(
+            output: result[:output], error: result[:error],
+            state: @workshop.state, completions: @workshop.completions
+          )
+        end
+
+        def serve_workshop_state(res)
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          if @workshop
+            res.body = JSON.generate(
+              domain: @workshop.domain_name,
+              state: @workshop.state,
+              completions: @workshop.completions
+            )
+          else
+            res.body = JSON.generate(domain: nil)
+          end
         end
 
         def serve_bluebooks(res)
@@ -143,26 +174,12 @@ module Hecks
 
         def handle_screenshot(req, res)
           body = JSON.parse(req.body)
-          save_screenshot(Base64.decode64(body["data"]))
+          @screenshots.save(body["data"])
           res.content_type = "application/json"
           res.body = JSON.generate(ok: true)
         rescue => e
           res.status = 400
           res.body = JSON.generate(error: e.message)
-        end
-
-        def save_screenshot(png_data)
-          dir = File.join(@project_dir, ".claude", "ide", "screenshots")
-          FileUtils.mkdir_p(dir)
-          ts = Time.now.strftime("%Y%m%d_%H%M%S")
-          path = File.join(dir, "#{ts}.png")
-          File.binwrite(path, png_data)
-          # Also write latest for quick access
-          File.binwrite(File.join(dir, "latest.png"), png_data)
-          # Keep last 20
-          shots = Dir[File.join(dir, "*.png")].reject { |f| f.end_with?("latest.png") }.sort
-          shots[0...-20].each { |f| File.delete(f) } if shots.size > 20
-          @latest_screenshot = path
         end
 
         def handle_interrupt(res)
