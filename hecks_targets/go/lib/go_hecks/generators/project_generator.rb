@@ -55,6 +55,7 @@ module GoHecks
       gen = RuntimeGenerator.new
       write("runtime/eventbus.go", gen.generate_event_bus)
       write("runtime/commandbus.go", gen.generate_command_bus)
+      write("runtime/registry.go", RegistryGenerator.new.generate)
 
       app_gen = ApplicationGenerator.new(@domain, module_path: @module_path)
       write("runtime/application.go", app_gen.generate)
@@ -145,6 +146,10 @@ module GoHecks
       # Errors
       gen = ErrorsGenerator.new(package: @package)
       write("#{dir}/errors.go", gen.generate)
+
+      # Module registration
+      gen = RegisterGenerator.new(@domain, package: @package, module_path: @module_path)
+      write("#{dir}/register.go", gen.generate)
     end
 
     def generate_adapters

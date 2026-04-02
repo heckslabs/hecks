@@ -58,6 +58,7 @@ module GoHecks
       gen = RuntimeGenerator.new
       write("runtime/eventbus.go", gen.generate_event_bus)
       write("runtime/commandbus.go", gen.generate_command_bus)
+      write("runtime/registry.go", RegistryGenerator.new.generate)
     end
 
     def generate_domain_packages

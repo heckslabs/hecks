@@ -690,6 +690,10 @@
 - Go runtime interpreter: `Application` struct boots the domain, wires repos/buses, dispatches commands via `Run(name, json)`, returns `CommandResult` with aggregate + event
 - Events published on every command execution, event count live on config page
 - `go.mod` with only `google/uuid` dependency
+- Go module registry: domain packages self-register via `init()` for runtime discovery
+  - `runtime/registry.go` — thread-safe `Register(ModuleInfo)` and `Modules()` map
+  - `register.go` per domain package — `init()` with aggregate/command lists
+  - Multi-domain support: each subdomain package gets its own `init()` registration
 - Type mapping: String→string, Integer→int64, Float→float64, list_of→[]Type
 
 ### Multi-Domain Go Target (HEC-237)
