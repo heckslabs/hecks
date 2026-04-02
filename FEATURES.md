@@ -721,6 +721,14 @@
 - No `Object.const_get`, `respond_to?`, or `instance_variable_get` in the UI layer
 - Same IR structs consumed by Ruby, Go, and Rails generators now also drive the Web Explorer
 
+### Event Log Browser (HEC-262)
+- Browse all published domain events in a filterable HTML table at `/events`
+- `EventIntrospector` reads `EventBus#events` with `all_entries(type_filter:, aggregate_filter:)`, `event_types`, `aggregate_types`
+- Filter bar with dropdowns for event type and aggregate type
+- Table columns: timestamp, type (badge), aggregate, expandable payload details
+- Events displayed in reverse chronological order (newest first)
+- "Events" link in the sidebar nav under System group
+
 ## Implicit DSL (HEC-229)
 
 ### Infer Domain Concepts from Structure
