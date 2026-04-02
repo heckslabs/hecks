@@ -120,6 +120,24 @@
     .tool-input { color: var(--fg-dim); margin-top: 2px; max-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .tool-empty { color: var(--fg-dim); font-style: italic; }
 
+    .panel-books .panel-head { color: var(--red); }
+    .panel-hex .panel-head { color: var(--purple); }
+    .panel-dot-books { background: var(--red); color: var(--bg); }
+    .panel-dot-hex { background: var(--purple); color: var(--bg); }
+
+    .book-app { margin-bottom: 6px; }
+    .book-app-name { color: var(--fg); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+    .book-app-name:hover { color: var(--red); }
+    .book-app-type { font-size: 9px; color: var(--fg-dim); background: var(--border); border-radius: 4px; padding: 0 4px; }
+    .book-aggs { padding-left: 14px; }
+    .book-aggs.collapsed { display: none; }
+    .book-agg { color: var(--fg-dim); padding: 1px 0; cursor: pointer; }
+    .book-agg:hover { color: var(--fg); }
+    .book-chevron { font-size: 8px; transition: transform 0.15s; }
+    .book-chevron.open { transform: rotate(90deg); }
+    .book-hex-link { color: var(--purple); cursor: pointer; font-size: 10px; margin-left: 8px; }
+    .book-hex-link:hover { text-decoration: underline; }
+
     /* ── Messages ── */
     .messages { padding: 16px; }
     .turn { margin-bottom: 20px; }
@@ -184,6 +202,8 @@
     <div class="sidebar" id="sidebar">
       <div class="panel-nav" id="panel-nav">
         <div class="panel-dot panel-dot-ctx" onclick="showPanel('ctx')" title="Project Context">P</div>
+        <div class="panel-dot panel-dot-books" onclick="showPanel('books')" title="Bluebooks">B</div>
+        <div class="panel-dot panel-dot-hex inactive" onclick="showPanel('hex')" title="Hecksagon">H</div>
         <div class="panel-dot panel-dot-tools" onclick="showPanel('tools')" title="Tool Calls">T</div>
       </div>
       <div class="panel panel-ctx" id="panel-ctx">
@@ -192,6 +212,20 @@
           <div class="panel-actions"><span class="panel-x" onclick="hidePanel('ctx')">&#215;</span></div>
         </div>
         <div class="panel-body" id="context-body">Loading...</div>
+      </div>
+      <div class="panel panel-books" id="panel-books">
+        <div class="panel-head">
+          <span onclick="collapsePanel('books')">Bluebooks <span class="panel-chevron">&#9660;</span></span>
+          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('books')">&#215;</span></div>
+        </div>
+        <div class="panel-body" id="books-body">Loading...</div>
+      </div>
+      <div class="panel panel-hex hidden" id="panel-hex">
+        <div class="panel-head">
+          <span onclick="collapsePanel('hex')">Hecksagon <span class="panel-chevron">&#9660;</span></span>
+          <div class="panel-actions"><span class="panel-x" onclick="hidePanel('hex')">&#215;</span></div>
+        </div>
+        <div class="panel-body" id="hex-body"></div>
       </div>
       <div class="panel panel-tools" id="panel-tools">
         <div class="panel-head">
@@ -452,6 +486,70 @@
       }
     }
     loadContext(); setInterval(loadContext, 10000);
+
+    /* ── Bluebook panel ── */
+    async function loadBluebooks() {
+      try {
+        const r = await fetch('/bluebooks');
+        const d = await r.json();
+        const body = document.getElementById('books-body');
+        if (!d.apps?.length) { body.innerHTML = '<span class="tool-empty">No Bluebooks found.</span>'; return; }
+
+        const groups = {};
+        d.apps.forEach(app => {
+          const key = app.group || '_root';
+          (groups[key] ||= []).push(app);
+        });
+
+        let html = '';
+        for (const [group, apps] of Object.entries(groups)) {
+          if (group !== '_root') html += `<div class="ctx-section">${esc(group)}</div>`;
+          apps.forEach(app => {
+            const id = app.path.replace(/[^a-zA-Z0-9]/g, '_');
+            html += `<div class="book-app">`;
+            html += `<div class="book-app-name" onclick="toggleBookAggs('${id}')">`;
+            html += `<span class="book-chevron" id="chev-${id}">&#9654;</span> ${esc(app.name)}`;
+            html += ` <span class="book-app-type">${app.type}</span>`;
+            if (app.hecksagon) html += `<span class="book-hex-link" onclick="event.stopPropagation();openHecksagon('${app.hecksagon}')">&#x2B21;</span>`;
+            html += `</div>`;
+            html += `<div class="book-aggs collapsed" id="aggs-${id}">`;
+            app.aggregates.forEach(agg => {
+              html += `<div class="book-agg" onclick="openFile('${app.path}')">${esc(agg)}</div>`;
+            });
+            html += `<a class="ctx-link" onclick="openFile('${app.path}')" style="margin-top:4px;color:var(--red)">Open Bluebook</a>`;
+            html += `</div></div>`;
+          });
+        }
+        body.innerHTML = html;
+      } catch (e) {
+        document.getElementById('books-body').textContent = 'Failed to load.';
+      }
+    }
+
+    function toggleBookAggs(id) {
+      const el = document.getElementById('aggs-' + id);
+      const chev = document.getElementById('chev-' + id);
+      el.classList.toggle('collapsed');
+      chev.classList.toggle('open');
+    }
+
+    function openHecksagon(path) {
+      showPanel('hex');
+      document.querySelector('.panel-dot-hex').classList.remove('inactive');
+      loadHecksagonFile(path);
+      openFile(path);
+    }
+
+    async function loadHecksagonFile(path) {
+      const body = document.getElementById('hex-body');
+      try {
+        const r = await fetch('/file/' + encodeURIComponent(path));
+        const text = await r.text();
+        body.innerHTML = `<div class="file-view-path">${esc(path)}</div><pre style="font-size:11px;line-height:1.5;white-space:pre-wrap">${esc(text)}</pre>`;
+      } catch (e) { body.textContent = 'Failed to load.'; }
+    }
+
+    loadBluebooks();
 
     /* ── Markdown renderer ── */
     function renderMd(src) {

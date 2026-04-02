@@ -10,6 +10,8 @@ require "json"
 require "base64"
 require "fileutils"
 require_relative "claude_process"
+require_relative "bluebook_discovery"
+require_relative "context_builder"
 
 module Hecks
   module AI
@@ -46,6 +48,7 @@ module Hecks
           when ["GET", "/events"]     then serve_events(req, res)
           when ["GET", "/context"]    then serve_context(res)
           when ["POST", "/prompt"]    then handle_prompt(req, res)
+          when ["GET", "/bluebooks"]   then serve_bluebooks(res)
           when ["POST", "/interrupt"] then handle_interrupt(res)
           when ["POST", "/screenshot"] then handle_screenshot(req, res)
           else
@@ -111,42 +114,21 @@ module Hecks
         end
 
         def serve_context(res)
-          ctx = build_context
+          ctx = ContextBuilder.new(@project_dir).build
           res.content_type = "application/json"
           res["Cache-Control"] = "no-cache"
           res.body = JSON.generate(ctx)
         end
 
         def build_context
-          branch = `git -C #{@project_dir} rev-parse --abbrev-ref HEAD 2>/dev/null`.strip
-          story = branch[/hec-(\d+)/i] ? "HEC-#{$1}" : nil
+          ContextBuilder.new(@project_dir).build
+        end
 
-          bluebooks = Dir[File.join(@project_dir, "*Bluebook")] +
-                      Dir[File.join(@project_dir, "bluebook", "*Bluebook")]
-          hecksagons = Dir[File.join(@project_dir, "*Hecksagon")]
-          features = File.exist?(File.join(@project_dir, "FEATURES.md"))
-          claude_md = File.exist?(File.join(@project_dir, "CLAUDE.md"))
-
-          key_files = [
-            { path: "CLAUDE.md", label: "Project rules", exists: claude_md },
-            { path: "FEATURES.md", label: "Feature list", exists: features },
-            *bluebooks.map { |f| { path: f.sub("#{@project_dir}/", ""), label: "Domain DSL", exists: true } },
-            *hecksagons.map { |f| { path: f.sub("#{@project_dir}/", ""), label: "Hecksagon DSL", exists: true } }
-          ].select { |f| f[:exists] }
-
-          docs = Dir[File.join(@project_dir, "docs", "usage", "*.md")].map do |f|
-            { path: "docs/usage/#{File.basename(f)}", label: File.basename(f, ".md").tr("_", " ") }
-          end
-
-          status = `git -C #{@project_dir} status --short 2>/dev/null`.strip
-          recent_commits = `git -C #{@project_dir} log --oneline -5 2>/dev/null`.strip
-
-          {
-            branch: branch, story: story, key_files: key_files,
-            docs: docs.first(12),
-            git_status: status.empty? ? "clean" : status,
-            recent_commits: recent_commits
-          }
+        def serve_bluebooks(res)
+          discovery = BluebookDiscovery.new(@project_dir)
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          res.body = JSON.generate(discovery.apps)
         end
 
         def serve_file(req, res)
