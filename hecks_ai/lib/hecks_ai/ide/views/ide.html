@@ -319,6 +319,7 @@
       };
     });
 
+    console.log('IDE script loaded');
     const msgsEl = document.getElementById('messages');
     const promptEl = document.getElementById('prompt');
     const sendBtn = document.getElementById('send');
@@ -457,8 +458,7 @@
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        awes.close();
-        console.log('Enter pressed, calling sendPrompt, value:', promptEl.value);
+        if (awes) awes.close();
         sendPrompt();
       }
     });
@@ -758,6 +758,7 @@
     let wsCompletions = [], wsAggAttrs = {}, wsActive = false;
     const cmdHistory = [];
     let histIdx = -1;
+    let awes = null; // initialized after all keydown handlers
 
 
     async function openWorkshop(path, name) {
@@ -870,6 +871,19 @@
     // Override Enter to route to workshop when active
     const origKeydown = promptEl.onkeydown;
     promptEl.addEventListener('keydown', e => {
+      // Tab to autocomplete
+      if (e.key === 'Tab') {
+        const val = promptEl.value.trim().toLowerCase();
+        if (val) {
+          e.preventDefault();
+          const items = buildCompletions(val);
+          if (items.length) {
+            promptEl.value = items[0];
+            if (awes) awes.close();
+          }
+        }
+        return;
+      }
       // Command history — up/down when awesomplete is not open
       const awesOpen = document.querySelector('.awesomplete > ul[hidden]') === null;
       if (e.key === 'ArrowUp' && !awesOpen && cmdHistory.length) {
@@ -888,7 +902,7 @@
     }, true);
 
     // Awesomplete — init AFTER keydown handlers so Enter reaches us first
-    const awes = new Awesomplete(promptEl, {
+    awes = new Awesomplete(promptEl, {
       minChars: 1, maxItems: 10, autoFirst: false,
       filter: function() { return true; },
       list: []
@@ -920,13 +934,13 @@
       // Slash commands work everywhere
       if (text.startsWith('/') && handleSlashCommand(text)) {
         promptEl.value = '';
-        awes.close();
+        if (awes) awes.close();
         return;
       }
 
       if (wsActive && document.querySelector('.tab[data-tab="workshop"].active')) {
         promptEl.value = '';
-        awes.close();
+        if (awes) awes.close();
         await sendWorkshopCommand(text);
         return;
       }

@@ -25,7 +25,9 @@ module Hecks
         end
 
         def execute(input)
-          @parser.execute(input)
+          result = @parser.execute(input)
+          result[:output] = format_output(result[:output]) if result[:output]
+          result
         end
 
         def state
@@ -69,6 +71,20 @@ module Hecks
         end
 
         private
+
+        def format_output(text)
+          return text unless text.include?("#<")
+          # Replace raw inspect of command/event/aggregate objects with clean output
+          text.gsub(/#<(\w+::)*(\w+):0x[0-9a-f]+ ([^>]+)>/) do
+            klass = $2
+            body = $3
+            attrs = body.scan(/@(\w+)=([^,@>]+)/).map do |name, val|
+              next if %w[aggregate events event].include?(name)
+              "  #{name}: #{val.strip}"
+            end.compact
+            "#{klass}\n#{attrs.join("\n")}"
+          end
+        end
 
         def serialize_events(ws)
           return [] unless ws.play? && ws.playground
