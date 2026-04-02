@@ -428,7 +428,7 @@
 - Preview mode with `--preview` flag
 
 ## CLI Commands
-- `hecks new NAME` — scaffold a complete project with interactive world goals onboarding (opt-out by pressing Enter; skipped in non-interactive/CI)
+- `hecks new NAME` — scaffold a complete project with interactive world goals onboarding: 3-step prompt (yes/skip/doesn't apply), maps each goal to a real extension (`privacy→:pii`, `transparency→:audit`, `consent/security→:auth`, `equity→:tenancy`, `sustainability→:rate_limit`), deduplicates extensions, generates both `world_concerns` and `extend` calls in the Bluebook; `--no-world-goals` skips prompt for CI
 - `hecks build` — validate and generate versioned gem
 - `hecks build --gem` — produce a publishable `.gem` artifact after building (runs `gem build` on generated output); supported for `ruby` and `static` targets
 - `hecks serve [--rpc]` — start REST or JSON-RPC server

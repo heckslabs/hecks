@@ -68,20 +68,79 @@ RSpec.describe "hecks new CLI command" do
       $stdin = original
     end
 
-    it "includes selected goals, filters invalid input, and skips on opt-out" do
+    it "--no-world-goals flag skips prompt entirely and generates plain domain" do
       Dir.chdir(tmpdir) do
-        with_stdin("transparency bogus consent\n") do
-          Hecks::CLI.new.invoke(:new_project, ["with_goals"])
+        cli = Hecks::CLI.new([], { "no-world-goals": true })
+        cli.invoke(:new_project, ["ci_domain"])
+
+        bluebook = File.read(Dir["ci_domain/*Bluebook"].first)
+        expect(bluebook).not_to include("world_concerns")
+        expect(bluebook).not_to include("extend :")
+      end
+    end
+
+    it "choice 2 (skip) generates plain domain without world_concerns" do
+      Dir.chdir(tmpdir) do
+        with_stdin("2\n") do
+          Hecks::CLI.new.invoke(:new_project, ["skip_domain"])
         end
-        bluebook = File.read(Dir["with_goals/*Bluebook"].first)
+        bluebook = File.read(Dir["skip_domain/*Bluebook"].first)
+        expect(bluebook).not_to include("world_concerns")
+        expect(bluebook).not_to include("extend :")
+      end
+    end
+
+    it "choice 3 (doesn't apply) generates domain with commented stub" do
+      Dir.chdir(tmpdir) do
+        with_stdin("3\n") do
+          Hecks::CLI.new.invoke(:new_project, ["stub_domain"])
+        end
+        bluebook = File.read(Dir["stub_domain/*Bluebook"].first)
+        expect(bluebook).to include("# world_concerns :privacy, :consent  # add when ready")
+        expect(bluebook).not_to include("\n  world_concerns ")
+      end
+    end
+
+    it "choice 1 with privacy and consent generates world_concerns and deduped extend calls" do
+      Dir.chdir(tmpdir) do
+        with_stdin("1\nprivacy, consent\n") do
+          Hecks::CLI.new.invoke(:new_project, ["values_domain"])
+        end
+        bluebook = File.read(Dir["values_domain/*Bluebook"].first)
+        expect(bluebook).to include("world_concerns :privacy, :consent")
+        expect(bluebook).to include("extend :pii")
+        expect(bluebook).to include("extend :auth")
+        # auth appears only once even though consent and security both map to it
+        expect(bluebook.scan("extend :auth").length).to eq(1)
+      end
+    end
+
+    it "choice 1 filters invalid goal names and keeps valid ones" do
+      Dir.chdir(tmpdir) do
+        with_stdin("1\ntransparency bogus consent\n") do
+          Hecks::CLI.new.invoke(:new_project, ["filtered_domain"])
+        end
+        bluebook = File.read(Dir["filtered_domain/*Bluebook"].first)
         expect(bluebook).to include("world_concerns :transparency, :consent")
         expect(bluebook).not_to include("bogus")
+        expect(bluebook).to include("extend :audit")
+        expect(bluebook).to include("extend :auth")
+      end
+    end
 
-        with_stdin("\n") do
-          Hecks::CLI.new.invoke(:new_project, ["no_goals"])
+    it "choice 1 with all six goals deduplicates auth extension" do
+      Dir.chdir(tmpdir) do
+        with_stdin("1\nprivacy, transparency, consent, security, equity, sustainability\n") do
+          Hecks::CLI.new.invoke(:new_project, ["all_goals_domain"])
         end
-        bluebook = File.read(Dir["no_goals/*Bluebook"].first)
-        expect(bluebook).not_to include("world_concerns")
+        bluebook = File.read(Dir["all_goals_domain/*Bluebook"].first)
+        expect(bluebook).to include("world_concerns :privacy, :transparency, :consent, :security, :equity, :sustainability")
+        expect(bluebook).to include("extend :pii")
+        expect(bluebook).to include("extend :audit")
+        expect(bluebook).to include("extend :auth")
+        expect(bluebook).to include("extend :tenancy")
+        expect(bluebook).to include("extend :rate_limit")
+        expect(bluebook.scan("extend :auth").length).to eq(1)
       end
     end
 

@@ -116,15 +116,20 @@ module Hecks
       result.suggestions.each { |s| say "    - #{s}", :cyan }
     end
 
-    def domain_template(name, world_concerns: [])
-      concerns_line = if world_concerns.any?
-        "\n  world_concerns #{world_concerns.map { |g| ":#{g}" }.join(", ")}\n"
-      else
-        ""
+    def domain_template(name, world_concerns: [], extensions: [], stub: false)
+      header_lines = []
+
+      if stub
+        header_lines << "  # world_concerns :privacy, :consent  # add when ready"
+      elsif world_concerns.any?
+        header_lines << "  world_concerns #{world_concerns.map { |g| ":#{g}" }.join(", ")}"
+        extensions.each { |ext| header_lines << "  extend :#{ext}" }
       end
 
+      header = header_lines.any? ? "\n#{header_lines.join("\n")}\n" : ""
+
       <<~RUBY
-        Hecks.domain "#{name}" do#{concerns_line}
+        Hecks.domain "#{name}" do#{header}
           aggregate "Example" do
             attribute :name, String
             validation :name, presence: true

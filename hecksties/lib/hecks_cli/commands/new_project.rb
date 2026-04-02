@@ -1,5 +1,10 @@
+require_relative "../world_concerns_prompt"
+
 Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
-  args: ["NAME"]
+  args: ["NAME"],
+  options: {
+    "no-world-goals": { type: :boolean, desc: "Skip world concerns prompt (for CI)", default: false }
+  }
 ) do |name|
   pascal = Hecks::Utils.sanitize_constant(name)
   dir = name
@@ -9,18 +14,10 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
     next
   end
 
-  available_goals = %i[transparency consent privacy security]
-  selected_goals = []
-
-  if $stdin.tty?
-    say ""
-    say "World concerns are opt-in ethical validation rules for your domain.", :cyan
-    say "Available: #{available_goals.map { |g| ":#{g}" }.join(", ")}"
-    say "Enter concerns (space-separated), or press Enter to skip:"
-    input = $stdin.gets&.chomp
-    if input && !input.strip.empty?
-      selected_goals = input.strip.split(/\s+/).map(&:to_sym) & available_goals
-    end
+  world_result = if options[:"no-world-goals"]
+    { concerns: [], extensions: [], stub: false }
+  else
+    Hecks::WorldConcernsPrompt.new(say_method: method(:say)).run
   end
 
   app_template = lambda do
@@ -78,14 +75,25 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
 
   FileUtils.mkdir_p(File.join(dir, "spec"))
 
-  write_or_diff(File.join(dir, "#{pascal}Bluebook"), domain_template(pascal, world_concerns: selected_goals))
+  write_or_diff(
+    File.join(dir, "#{pascal}Bluebook"),
+    domain_template(pascal,
+      world_concerns: world_result[:concerns],
+      extensions:     world_result[:extensions],
+      stub:           world_result[:stub])
+  )
   write_or_diff(File.join(dir, "app.rb"), app_template.call)
   write_or_diff(File.join(dir, "Gemfile"), gemfile_template.call)
   write_or_diff(File.join(dir, "spec", "spec_helper.rb"), spec_helper_template.call)
   write_or_diff(File.join(dir, ".gitignore"), gitignore_template.call)
   write_or_diff(File.join(dir, ".rspec"), rspec_template.call)
 
-  say "Created #{dir}/", :green
+  if world_result[:concerns].any? || world_result[:stub]
+    say ""
+    say "Domain created. World concerns declared.", :green
+  else
+    say "Created #{dir}/", :green
+  end
   say "  #{pascal}Bluebook"
   say "  app.rb"
   say "  Gemfile"
