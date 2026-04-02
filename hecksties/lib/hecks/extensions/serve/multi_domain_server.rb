@@ -7,6 +7,7 @@ require_relative "csrf_helpers"
 require "hecks/extensions/web_explorer/renderer"
 require "hecks/extensions/web_explorer/ir_introspector"
 require "hecks/extensions/web_explorer/runtime_bridge"
+require "hecks/extensions/web_explorer/event_introspector"
 require_relative "multi_domain_ui_routes"
 
 module Hecks
@@ -87,6 +88,7 @@ module Hecks
             }
           end
         end
+        items << { label: "Events", href: "/events", group: "System" }
         items << { label: "Config", href: "/config", group: "System" }
         items
       end
@@ -100,6 +102,8 @@ module Hecks
         path = req.path
         if path == "/"
           serve_home(res)
+        elsif path == "/events"
+          serve_events(req, res)
         elsif path == "/config"
           serve_config(res)
         else
@@ -200,6 +204,9 @@ module Hecks
       def wildcard?(segment)
         segment.start_with?(":")
       end
+
+      # Minimal event bus adapter for merging events from multiple runtimes.
+      MergedEventBus = Struct.new(:events)
     end
   end
 end
