@@ -7,7 +7,7 @@
 
 require "hecks"
 
-# Boot the domain — loads, validates, builds, and wires everything in one call
+# Boot the domain — loads Bluebook + Hecksagon, validates, builds, wires
 app = Hecks.boot(__dir__)
 
 # Subscribe to events

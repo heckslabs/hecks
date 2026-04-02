@@ -183,6 +183,7 @@ module Hecks
       end
 
       @runtime = Runtime.new(@domain, event_bus: bus)
+      @runtime.capability(:crud)
     end
   end
   end

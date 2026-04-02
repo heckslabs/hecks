@@ -19,6 +19,8 @@ module Hecksagon
         @extensions = []
         @subscriptions = []
         @tenancy = nil
+        @capabilities = []
+        @aggregate_capabilities = {}
       end
 
       # Declare a gate (access control) for an aggregate + role.
@@ -59,6 +61,32 @@ module Hecksagon
         @subscriptions << domain_name.to_s
       end
 
+      # Declare domain-wide capabilities.
+      #
+      #   capabilities :crud, :audit
+      #
+      # @param names [Array<Symbol>] capability names
+      # @return [void]
+      def capabilities(*names)
+        @capabilities.concat(names.map(&:to_sym))
+      end
+
+      # Declare per-aggregate capabilities via a block. The block
+      # receives an AggregateCapabilityBuilder for fluent tagging.
+      #
+      #   aggregate "Pizza" do
+      #     capability.email.pii
+      #   end
+      #
+      # @param name [String] the aggregate name (must exist in domain)
+      # @yield block evaluated in AggregateCapabilityBuilder context
+      # @return [void]
+      def aggregate(name, &block)
+        builder = AggregateCapabilityBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @aggregate_capabilities[name.to_s] = builder.tags
+      end
+
       # Set the multi-tenancy strategy.
       #
       # @param strategy [Symbol] tenancy strategy (:row, :schema, etc.)
@@ -77,8 +105,62 @@ module Hecksagon
           adapter: @adapter,
           extensions: @extensions,
           subscriptions: @subscriptions,
-          tenancy: @tenancy
+          tenancy: @tenancy,
+          capabilities: @capabilities,
+          aggregate_capabilities: @aggregate_capabilities
         )
+      end
+    end
+
+    # Fluent builder for per-aggregate capability tags.
+    #
+    #   builder = AggregateCapabilityBuilder.new("Pizza")
+    #   builder.capability.email.pii
+    #   builder.tags  # => [{ attribute: "email", tag: :pii }]
+    #
+    class AggregateCapabilityBuilder
+      attr_reader :tags
+
+      def initialize(aggregate_name)
+        @aggregate_name = aggregate_name
+        @tags = []
+      end
+
+      # Start a capability chain. Returns an AttributeSelector.
+      #
+      #   capability.email.pii
+      #
+      # @return [AttributeSelector]
+      def capability
+        AttributeSelector.new(@tags)
+      end
+
+      # Fluent attribute selector for capability tagging.
+      class AttributeSelector
+        def initialize(tags)
+          @tags = tags
+        end
+
+        def method_missing(attr_name, *args)
+          TagApplier.new(@tags, attr_name.to_s)
+        end
+
+        def respond_to_missing?(_, _ = false) = true
+      end
+
+      # Applies a tag to the selected attribute.
+      class TagApplier
+        def initialize(tags, attribute)
+          @tags = tags
+          @attribute = attribute
+        end
+
+        def method_missing(tag_name, *args)
+          @tags << { attribute: @attribute, tag: tag_name.to_sym }
+          self
+        end
+
+        def respond_to_missing?(_, _ = false) = true
       end
     end
   end

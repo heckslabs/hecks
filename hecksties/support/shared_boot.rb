@@ -91,7 +91,8 @@ module BootedDomains
     key = domain.object_id
     return @cache[key] if @cache[key]
 
-    @cache[key] = true
-    Hecks.load(domain)
+    runtime = Hecks.load(domain)
+    runtime.capability(:crud)
+    @cache[key] = runtime
   end
 end

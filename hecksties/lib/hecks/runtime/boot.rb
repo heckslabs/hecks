@@ -65,6 +65,11 @@ module Hecks
       domain = Hecks.last_domain
       domain.source_path = bluebooks.first
 
+      # Auto-discover and load Hecksagon file (infrastructure capabilities)
+      hecksagons = Dir[File.join(dir, "*Hecksagon")].sort
+      hecksagons = Dir[File.join(dir, "bluebook", "*Hecksagon")].sort if hecksagons.empty?
+      hecksagons.each { |f| Kernel.load(f) }
+
       mod = load_domain(domain)
       load_stubs(dir, domain)
       mod.extend(Hecks::DomainConnections) unless mod.respond_to?(:connections)

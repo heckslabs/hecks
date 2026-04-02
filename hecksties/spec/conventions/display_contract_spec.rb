@@ -8,7 +8,8 @@ RSpec.describe Hecks::Conventions::DisplayContract do
     it "returns command_names as a humanized comma-separated string" do
       pizza = domain.aggregates.find { |a| a.name == "Pizza" }
       data = described_class.home_aggregate_data(pizza, "pizzas")
-      expect(data[:command_names]).to eq("Create Pizza, Add Topping")
+      expect(data[:command_names]).to include("Create Pizza")
+      expect(data[:command_names]).to include("Add Topping")
     end
 
     it "returns an empty string when there are no commands" do

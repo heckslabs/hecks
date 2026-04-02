@@ -25,6 +25,7 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
       require "hecks"
 
       app = Hecks.boot(__dir__)
+      app.capability(:crud)
 
       # Start building:
       #   Example.create(name: "Hello")
@@ -51,6 +52,7 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
     <<~RUBY
       require "hecks"
       app = Hecks.boot(File.join(__dir__, ".."))
+      app.capability(:crud)
 
       RSpec.configure do |config|
         config.order = :random

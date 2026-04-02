@@ -14,6 +14,7 @@ require_relative "hecks/set_registry"
 require_relative "hecks/module_dsl"
 require_relative "hecks/core_extensions"
 require_relative "hecks/registries/extension_registry"
+require_relative "hecks/registries/capability_registry"
 require_relative "hecks/registries/domain_registry"
 require_relative "hecks/registries/cross_domain"
 require_relative "hecks/registries/thread_context"
@@ -49,6 +50,7 @@ module Hecks
   extend DomainVisualizerMethods
   extend Boot
   extend ExtensionRegistryMethods
+  extend CapabilityRegistryMethods
   extend DomainRegistryMethods
   extend CrossDomainMethods
   extend ThreadContextMethods

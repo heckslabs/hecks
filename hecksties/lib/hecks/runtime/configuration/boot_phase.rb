@@ -16,6 +16,7 @@ module Hecks
         store_domain_object(domain_obj)
         generate_adapters(domain_obj) if @adapter_type == :sql
         app = create_runtime(d, domain_obj, domain_module)
+        app.capability(:crud)
         app.async(&@async_handler) if @async_handler
         @apps[d[:gem_name]] = app
         wire_event_sourcing(domain_obj, domain_module) if event_sourced?

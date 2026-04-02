@@ -49,8 +49,8 @@ module Hecks
     #
     # @param block [Proc] DSL block evaluated inside Hecksagon::DSL::HecksagonBuilder
     # @return [Hecksagon::Structure::Hecksagon] the fully built Hecksagon IR object
-    def hecksagon(&block)
-      builder = Hecksagon::DSL::HecksagonBuilder.new
+    def hecksagon(name = nil, &block)
+      builder = Hecksagon::DSL::HecksagonBuilder.new(name)
       builder.instance_eval(&block)
       result = builder.build
       Hecks.last_hecksagon = result

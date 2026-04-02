@@ -19,15 +19,19 @@ module Hecksagon
     #   )
     #
     class Hecksagon
-      attr_reader :name, :gates, :adapter, :extensions, :subscriptions, :tenancy
+      attr_reader :name, :gates, :adapter, :extensions, :subscriptions, :tenancy,
+                  :capabilities, :aggregate_capabilities
 
-      def initialize(name:, gates: [], adapter: nil, extensions: [], subscriptions: [], tenancy: nil)
+      def initialize(name:, gates: [], adapter: nil, extensions: [], subscriptions: [],
+                     tenancy: nil, capabilities: [], aggregate_capabilities: {})
         @name = name
         @gates = gates
         @adapter = adapter
         @extensions = extensions
         @subscriptions = subscriptions
         @tenancy = tenancy
+        @capabilities = capabilities
+        @aggregate_capabilities = aggregate_capabilities
       end
 
       # Returns gates for a specific aggregate.

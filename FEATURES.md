@@ -150,6 +150,12 @@
 - `SomeDomain.event_bus` — access the domain's event bus for cross-domain wiring
 - `Runtime#swap_adapter(name, repo)` — extension gems swap memory adapters for SQL
 
+## Capabilities
+- `app.capability(:crud)` — generate Create, Update, Delete command stubs for all aggregates; skips user-defined commands
+- Capability registry: `Hecks.register_capability(:name) { |runtime| ... }` — plug in custom capabilities
+- CRUD capability auto-enabled in Workshop play mode and Rails (`Hecks.configure`)
+- `hecks new` app.rb scaffold includes `app.capability(:crud)` by default
+
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
 - `Hecks.boot(__dir__, adapter: :sqlite)` — automatic SQL setup
