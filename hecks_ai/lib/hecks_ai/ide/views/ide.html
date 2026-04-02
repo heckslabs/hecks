@@ -454,7 +454,13 @@
 
     /* ── Input ── */
     promptEl.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        awes.close();
+        console.log('Enter pressed, calling sendPrompt, value:', promptEl.value);
+        sendPrompt();
+      }
     });
     document.addEventListener('keydown', async e => {
       if (e.key === 'Escape' && busy) {
@@ -467,7 +473,7 @@
       const text = promptEl.value.trim();
       if (!text || busy) return;
       promptEl.value = '';
-      acEl.classList.remove('visible');
+      awes.close();
 
       // Slash commands — IDE commands handled locally, rest to Claude
       if (text.startsWith('/') && handleSlashCommand(text)) return;
@@ -752,18 +758,7 @@
     let wsCompletions = [], wsAggAttrs = {}, wsActive = false;
     const cmdHistory = [];
     let histIdx = -1;
-    const acEl = document.getElementById('autocomplete');
 
-    // Awesomplete setup
-    const awes = new Awesomplete(promptEl, {
-      minChars: 1, maxItems: 10, autoFirst: true,
-      filter: function() { return true; },
-      list: []
-    });
-    // Prevent "no results" from showing
-    promptEl.addEventListener('awesomplete-open', () => {
-      if (!awes.ul.children.length) awes.close();
-    });
 
     async function openWorkshop(path, name) {
       const r = await fetch('/workshop/open', {
@@ -871,18 +866,6 @@
       return wsCompletions.filter(c => c.toLowerCase().startsWith(val));
     }
 
-    promptEl.addEventListener('input', () => {
-      const val = promptEl.value.trim().toLowerCase();
-      if (!val) { awes.close(); return; }
-      const items = buildCompletions(val);
-      awes.list = items;
-      awes.evaluate();
-    });
-
-    // When awesomplete selects, replace full input
-    promptEl.addEventListener('awesomplete-selectcomplete', (e) => {
-      promptEl.focus();
-    });
 
     // Override Enter to route to workshop when active
     const origKeydown = promptEl.onkeydown;
@@ -904,6 +887,24 @@
       }
     }, true);
 
+    // Awesomplete — init AFTER keydown handlers so Enter reaches us first
+    const awes = new Awesomplete(promptEl, {
+      minChars: 1, maxItems: 10, autoFirst: false,
+      filter: function() { return true; },
+      list: []
+    });
+
+    promptEl.addEventListener('input', () => {
+      const val = promptEl.value.trim().toLowerCase();
+      if (!val) { awes.close(); return; }
+      const inWorkshop = wsActive && document.querySelector('.tab[data-tab="workshop"].active');
+      if (!inWorkshop && !val.startsWith('/')) { awes.close(); return; }
+      const items = buildCompletions(val);
+      if (!items.length) { awes.close(); return; }
+      awes.list = items;
+      awes.evaluate();
+    });
+
     // Intercept sendPrompt when workshop is active
     const _origSend = sendPrompt;
     sendPrompt = async function() {
@@ -919,13 +920,13 @@
       // Slash commands work everywhere
       if (text.startsWith('/') && handleSlashCommand(text)) {
         promptEl.value = '';
-        acEl.classList.remove('visible');
+        awes.close();
         return;
       }
 
       if (wsActive && document.querySelector('.tab[data-tab="workshop"].active')) {
         promptEl.value = '';
-        acEl.classList.remove('visible');
+        awes.close();
         await sendWorkshopCommand(text);
         return;
       }
