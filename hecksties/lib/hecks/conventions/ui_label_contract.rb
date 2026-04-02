@@ -5,6 +5,7 @@
 # names, aggregate names). Pure Ruby — no ActiveSupport dependency.
 #
 #   Hecks::Conventions::UILabelContract.label(:effective_date)    # => "Effective Date"
+#   Hecks::Conventions::UILabelContract.label(:pizza_id)          # => "Pizza"
 #   Hecks::Conventions::UILabelContract.label("ReportIncident")   # => "Report Incident"
 #   Hecks::Conventions::UILabelContract.plural_label("GovernancePolicy")  # => "Governance Policies"
 #
@@ -12,11 +13,13 @@
 module Hecks::Conventions
   module UILabelContract
     # Convert any name (snake_case or PascalCase) to a display label.
+    # Strips trailing " Id" to remove foreign-key persistence leaks from UI.
     def self.label(name)
       s = name.to_s
       s = s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1 \2')
            .gsub(/([a-z\d])([A-Z])/, '\1 \2')
-      s.split(/[_ ]+/).map(&:capitalize).join(" ")
+      result = s.split(/[_ ]+/).map(&:capitalize).join(" ")
+      result.sub(/ Id$/, "")
     end
 
     # Humanized plural label for an aggregate or entity name.

@@ -22,6 +22,22 @@ RSpec.describe Hecks::Conventions::UILabelContract do
     it "handles consecutive capitals (e.g. UILabel)" do
       expect(described_class.label("UILabel")).to eq("Ui Label")
     end
+
+    it "strips trailing _id — pizza_id becomes Pizza" do
+      expect(described_class.label(:pizza_id)).to eq("Pizza")
+    end
+
+    it "strips trailing _id — restaurant_id becomes Restaurant" do
+      expect(described_class.label(:restaurant_id)).to eq("Restaurant")
+    end
+
+    it "strips trailing _id — multi-word pizza_topping_id becomes Pizza Topping" do
+      expect(described_class.label(:pizza_topping_id)).to eq("Pizza Topping")
+    end
+
+    it "does not strip Id in the middle of a name" do
+      expect(described_class.label("Provider")).to eq("Provider")
+    end
   end
 
   describe ".plural_label" do

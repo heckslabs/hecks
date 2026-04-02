@@ -68,6 +68,16 @@ RSpec.describe Hecks::Conventions::DisplayContract do
     end
   end
 
+  describe ".strip_id_suffix" do
+    it "removes _id from a reference field name" do
+      expect(described_class.strip_id_suffix("pizza_id")).to eq("pizza")
+    end
+
+    it "leaves non-_id names unchanged" do
+      expect(described_class.strip_id_suffix("name")).to eq("name")
+    end
+  end
+
   describe ".cell_expression with domain" do
     it "returns short-id fallback when no domain given for reference attr" do
       attr = attr_class.new(name: :model_id, type: String)

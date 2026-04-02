@@ -30,6 +30,16 @@ module Hecks::Conventions
       UILabelContract.label(base)
     end
 
+    # Strip the _id suffix from a name string.
+    #   strip_id_suffix("pizza_id") # => "pizza"
+    #   strip_id_suffix("name")     # => "name"
+    #
+    # @param name [String, Symbol] the name to strip
+    # @return [String] name without _id suffix
+    def self.strip_id_suffix(name)
+      name.to_s.sub(/_id\z/, "")
+    end
+
     # Find the aggregate referenced by a _id attribute within a domain.
     #
     # @param attr [Attribute] a reference attribute
