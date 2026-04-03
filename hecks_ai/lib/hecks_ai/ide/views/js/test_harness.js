@@ -186,7 +186,7 @@ IDETests.register('click: IDE Log panel closes', async () => {
   return ev.fired && ev.data === 'ide-log';
 });
 
-IDETests.register('key: Cmd+. opens command palette', async () => {
+IDETests.register('key: Ctrl+P opens command palette', async () => {
   IDE.bus.emit('palette:open');
   await IDETests.wait(100);
   const el = document.getElementById('command-palette');
@@ -195,7 +195,7 @@ IDETests.register('key: Cmd+. opens command palette', async () => {
   return pass;
 });
 
-IDETests.register('key: Cmd+O opens app-picker', async () => {
+IDETests.register('key: Ctrl+O opens app-picker', async () => {
   const ev = IDETests.listenOnce('app-picker:open');
   document.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'o', metaKey: true, bubbles: true
