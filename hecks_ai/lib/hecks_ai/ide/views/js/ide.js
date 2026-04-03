@@ -181,6 +181,15 @@ const IDE = {
         this.setBusy(false);
       } else if (e.type === 'error') {
         this.addTurn('system', e.message || 'Unknown error'); this.setBusy(false);
+      } else if (e.type === 'user_echo') {
+        const msg = e.message;
+        const text = typeof msg === 'string' ? msg
+          : typeof msg?.content === 'string' ? msg.content
+          : Array.isArray(msg?.content) ? msg.content.map(c => c.text).filter(Boolean).join('') : null;
+        if (text) {
+          const clean = text.split('\n\n[IDE').shift().trim();
+          if (clean) this.addTurn('user', clean);
+        }
       } else if (e.type === 'bus') {
         this.bus.emit(e.event, e.data);
       } else if (e.type === 'reload') {

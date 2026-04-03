@@ -125,7 +125,7 @@ async function pickSession(id) {
       body: JSON.stringify({ session_id: id })
     });
     localStorage.setItem('hecks-ide-session', id);
-    IDE.addTurn('system', `Resumed session ${id.slice(0, 8)}...`);
+    IDE.bus.emit('session:connected', { session_id: id });
   } catch (e) {
     IDE.addTurn('system', 'Failed to resume session');
   }

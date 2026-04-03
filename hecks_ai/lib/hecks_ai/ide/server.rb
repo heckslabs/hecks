@@ -14,6 +14,8 @@ require_relative "screenshot_handler"
 require_relative "session_discovery"
 require_relative "view_watcher"
 require_relative "prompt_builder"
+require_relative "session_watcher"
+require_relative "session_routes"
 require_relative "routes"
 
 module Hecks
@@ -31,6 +33,7 @@ module Hecks
           @events = []
           @mutex = Mutex.new
           @workshop = nil
+          @watcher = nil
           @screenshots = ScreenshotHandler.new(project_dir)
           @prompt_builder = PromptBuilder.new(ContextBuilder.new(project_dir), @screenshots)
         end
@@ -42,7 +45,7 @@ module Hecks
             AccessLog: []
           )
           http.mount_proc("/") { |req, res| route(req, res) }
-          trap("INT") { @claude&.stop; http.shutdown }
+          trap("INT") { @watcher&.stop; @claude&.stop; http.shutdown }
           ViewWatcher.new(VIEWS_DIR, @events, @mutex, screenshot_handler: @screenshots).start
           # Thread.new { sleep 0.5; open_browser("http://localhost:#{@port}") }
           puts "Hecks IDE: http://localhost:#{@port}"
@@ -65,6 +68,8 @@ module Hecks
           when ["POST", "/workshop/command"] then handle_workshop_command(req, res)
           when ["GET", "/workshop/state"]    then serve_workshop_state(res)
           when ["POST", "/session/resume"]   then handle_session_resume(req, res)
+          when ["POST", "/session/disconnect"] then handle_session_disconnect(res)
+          when ["GET", "/session/history"]  then serve_session_history(req, res)
           when ["POST", "/interrupt"]        then handle_interrupt(res)
           when ["POST", "/screenshot"]       then handle_screenshot(req, res)
           when ["POST", "/console"]          then handle_console(req, res)
