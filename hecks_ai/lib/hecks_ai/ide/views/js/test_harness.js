@@ -187,7 +187,7 @@ IDETests.register('click: IDE Log panel closes', async () => {
   return ev.fired && ev.data === 'ide-log';
 });
 
-IDETests.register('key: Cmd+P opens command palette', async () => {
+IDETests.register('key: Cmd+J opens command palette', async () => {
   IDE.bus.emit('palette:open');
   await IDETests.wait(100);
   const el = document.getElementById('command-palette');
@@ -211,10 +211,8 @@ IDETests.register('click: app-picker closes', async () => {
   return true;
 });
 
-IDETests.register('key: Cmd+J opens session-picker', async () => {
-  document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'j', metaKey: true, bubbles: true
-  }));
+IDETests.register('bus: session-picker opens', async () => {
+  IDE.bus.emit('session-picker:open');
   await IDETests.wait(100);
   const el = document.getElementById('session-picker');
   return el && el.style.display === 'flex';

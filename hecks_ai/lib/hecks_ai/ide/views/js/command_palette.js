@@ -1,7 +1,7 @@
 /* ── Cmd+P command palette ── */
 IDE.register({
   onKeydown(e, ide) {
-    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'p') {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
       e.preventDefault();
       ide.bus.emit('palette:open');
       return true;
@@ -36,7 +36,7 @@ IDE.register({
     document.body.appendChild(overlay);
 
     const commands = [
-      { name: 'Sessions',       hint: 'Cmd+J', action: () => ide.bus.emit('session-picker:open') },
+      { name: 'Sessions',       hint: '',       action: () => ide.bus.emit('session-picker:open') },
       { name: 'Open Bluebook',  hint: 'Cmd+O', action: () => ide.bus.emit('app-picker:open') },
       { name: 'Run Tests',      hint: '',       action: () => ide.bus.emit('test:run') },
       { name: 'Clear Chat',     hint: '',       action: () => { ide.el.msgs.innerHTML = ''; } },
