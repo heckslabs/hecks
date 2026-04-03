@@ -1,3 +1,5 @@
+require "bundler"
+
 module Hecks
   # Hecks::GemBuilder
   #
