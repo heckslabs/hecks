@@ -198,7 +198,7 @@ IDETests.register('key: Ctrl+P opens command palette', async () => {
 IDETests.register('key: Ctrl+O opens app-picker', async () => {
   const ev = IDETests.listenOnce('app-picker:open');
   document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'o', metaKey: true, bubbles: true
+    key: 'o', ctrlKey: true, bubbles: true
   }));
   ev.cleanup();
   return ev.fired;

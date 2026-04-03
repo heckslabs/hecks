@@ -92,6 +92,13 @@
 
     <!-- Main pane -->
     <div class="flex-1 flex flex-col min-w-0 main">
+      <!-- Menu bar -->
+      <div class="flex items-center gap-4 px-4 py-1 border-b border-border bg-bg font-mono text-[11px] text-fg-dim select-none">
+        <span class="cursor-pointer hover:text-fg" onclick="IDE.bus.emit('app-picker:open')">Apps <span class="text-[9px] opacity-50">Ctrl+O</span></span>
+        <span class="cursor-pointer hover:text-fg" onclick="IDE.bus.emit('session-picker:open')">Sessions <span class="text-[9px] opacity-50">Ctrl+S</span></span>
+        <span class="cursor-pointer hover:text-fg" onclick="IDE.bus.emit('palette:open')">Command Palette <span class="text-[9px] opacity-50">Ctrl+P</span></span>
+      </div>
+
       <!-- Tab bar -->
       <div class="flex border-b border-border bg-bg font-mono text-xs overflow-x-auto" id="tab-bar">
         <div class="px-4 py-2 cursor-pointer text-fg-dim border-r border-border whitespace-nowrap flex items-center gap-1.5 select-none tab tab-chat active text-accent-green font-semibold" data-tab="chat" onclick="switchTab('chat')">Chat</div>

@@ -215,6 +215,11 @@ const IDE = {
     try {
       const e = JSON.parse(raw);
       if (e.type === 'assistant' && e.message?.content) {
+        const msgId = e.message.id;
+        if (msgId && msgId !== this.state.lastMsgId) {
+          this.state.curEl = null;
+          this.state.lastMsgId = msgId;
+        }
         const texts = e.message.content.filter(c => c.type === 'text').map(c => c.text).join('');
         if (texts) {
           if (!this.state.curEl) this.state.curEl = this.addTurn('assistant', '');
