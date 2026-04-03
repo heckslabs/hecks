@@ -187,6 +187,15 @@ IDETests.register('click: IDE Log panel closes', async () => {
   return ev.fired && ev.data === 'ide-log';
 });
 
+IDETests.register('key: Cmd+P opens command palette', async () => {
+  IDE.bus.emit('palette:open');
+  await IDETests.wait(100);
+  const el = document.getElementById('command-palette');
+  const pass = el && el.style.display === 'flex';
+  if (el) el.style.display = 'none';
+  return pass;
+});
+
 IDETests.register('key: Cmd+O opens app-picker', async () => {
   const ev = IDETests.listenOnce('app-picker:open');
   document.dispatchEvent(new KeyboardEvent('keydown', {

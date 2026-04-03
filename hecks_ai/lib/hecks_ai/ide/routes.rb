@@ -19,9 +19,10 @@ module Hecks
           res["Cache-Control"] = "no-cache, no-store"
           js_dir = File.join(self.class::VIEWS_DIR, "js")
           files = %w[ide.js panels.js components.js autocomplete.js app_picker.js
-                     session_picker.js session_watcher.js command_log.js
-                     docs_panel.js markdown.js file_viewer.js hecksagon_viewer.js
-                     bluebook_explorer.js workshop.js test_harness.js boot.js]
+                     command_palette.js session_picker.js session_watcher.js
+                     command_log.js docs_panel.js markdown.js file_viewer.js
+                     hecksagon_viewer.js bluebook_explorer.js workshop.js
+                     test_harness.js boot.js]
           res.body = files.map { |f| File.read(File.join(js_dir, f)) }.join("\n")
         end
 
