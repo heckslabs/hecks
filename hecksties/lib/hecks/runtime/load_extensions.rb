@@ -20,7 +20,7 @@ module Hecks
   # Non-persistence extensions are auto-loaded at boot time.
   module LoadExtensions
     # Extensions loaded automatically at boot (non-persistence).
-    AUTO = %i[serve ai auth audit pii validations filesystem_store].freeze
+    AUTO = %i[serve ai auth audit pii validations filesystem_store metrics].freeze
 
     # Loads a single extension by name via the load path.
     # Silently does nothing if the extension cannot be loaded

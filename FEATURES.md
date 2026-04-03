@@ -132,6 +132,7 @@
 - Row-level authorization — `owned_by :field` on gates restricts `find`/`all`/`delete` to the current user; `tenancy: :row` isolates by `Hecks.tenant`
 - `Hecks.current_user` / `Hecks.with_user(user) { }` — thread-local current user context for ownership enforcement
 - `hecks_audit` — audit trail of every command execution
+- `hecks_metrics` — change tracking for metric-tagged aggregate attributes; `Hecks.metric_log` in-memory log; `Hecks.metric_sink=` pluggable sink for StatsD/Prometheus; `capability.login_count.metric` DSL tag in Hecksagon
 - `hecks_logging` — structured stdout logging with duration
 - `hecks_rate_limit` — sliding window rate limiting per actor
 - `hecks_idempotency` — command deduplication by fingerprint
