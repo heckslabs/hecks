@@ -1,4 +1,5 @@
 /* ── Hecksagon tab viewer with diagram ── */
+IDE.bus.on('hecksagon:open', (path) => openHecksagon(path));
 
 function openHecksagon(path) {
   IDE.showPanel('hex');

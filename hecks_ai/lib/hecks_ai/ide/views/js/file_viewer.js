@@ -13,7 +13,7 @@ IDE.register({
       if (chev) chev.classList.toggle('open');
     });
 
-    ide.bus.on('file:open', () => {}); // already emitted by openFile
+    ide.bus.on('file:request', (data) => openFile(data.path, data.opts));
   }
 });
 

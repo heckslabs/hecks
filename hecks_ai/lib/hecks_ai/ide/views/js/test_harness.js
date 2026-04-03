@@ -37,7 +37,7 @@ const IDETests = {
     if (this.overlay) this.overlay.style.display = 'none';
   },
 
-  totalTests: 22,
+  get totalTests() { return this._totalTests || '?'; },
 
   async runAll() {
     this.results = [];
@@ -170,6 +170,34 @@ const IDETests = {
       return opened;
     });
 
+    // Sidebar actions via bus
+    await this.test('workshop:open via bus', async () => {
+      IDE.bus.emit('workshop:open', { path: 'examples/pizzas/PizzasBluebook', name: 'Pizzas' });
+      await this.wait(1500);
+      const tab = document.querySelector('.tab[data-tab="workshop"]');
+      const opened = !!tab;
+      if (tab) { IDE.state.wsActive = false; IDE.closeTab('workshop'); IDE.el.prompt.placeholder = 'Type a message...'; }
+      return opened;
+    });
+
+    await this.test('hecksagon:open via bus', async () => {
+      IDE.bus.emit('hecksagon:open', 'examples/pizzas/PizzasHecksagon');
+      await this.wait(1500);
+      const tab = document.querySelector('.tab[data-tab="hecksagon"]');
+      const opened = !!tab;
+      if (tab) IDE.closeTab('hecksagon');
+      return opened;
+    });
+
+    await this.test('file:open via bus', async () => {
+      IDE.bus.emit('file:request', { path: 'CLAUDE.md' });
+      await this.wait(500);
+      const tabs = Object.keys(IDE.state.openTabs);
+      const opened = tabs.some(t => t.includes('CLAUDE'));
+      tabs.filter(t => t.includes('CLAUDE')).forEach(t => IDE.closeTab(t));
+      return opened;
+    });
+
     // Slash commands
     await this.test('/hecks-ide-commands via slash', async () => {
       IDE.el.msgs.innerHTML = '';
@@ -255,6 +283,9 @@ const IDETests = {
       return val === 'Pizza';
     });
 
+    this._totalTests = this.results.length;
+    this.showOverlay('Done!');
+    await this.wait(800);
     this.hideOverlay();
 
     // Restore state after tests

@@ -47,6 +47,9 @@ IDE.register({
   }
 });
 
+/* ── Workshop bus wiring ── */
+IDE.bus.on('workshop:open', (data) => openWorkshop(data.path, data.name));
+
 /* ── Workshop global functions (called from HTML onclick) ── */
 
 async function openWorkshop(path, name) {
