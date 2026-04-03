@@ -1,7 +1,7 @@
 /* ── Cmd+P command palette ── */
 IDE.register({
   onKeydown(e, ide) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    if ((e.metaKey || e.ctrlKey) && e.key === '.') {
       e.preventDefault();
       ide.bus.emit('palette:open');
       return true;

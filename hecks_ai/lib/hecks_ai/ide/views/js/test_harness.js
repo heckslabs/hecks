@@ -58,8 +58,7 @@ const IDETests = {
       console.error(`FAIL: ${name}: ${e.message}`);
     }
     this.updatePanel(name);
-    if (this.visual) await this.wait(500);
-    else await new Promise(r => requestAnimationFrame(r));
+    await new Promise(r => requestAnimationFrame(r));
   },
 
   wait(ms) { return new Promise(r => setTimeout(r, ms)); },
@@ -187,7 +186,7 @@ IDETests.register('click: IDE Log panel closes', async () => {
   return ev.fired && ev.data === 'ide-log';
 });
 
-IDETests.register('key: Cmd+K opens command palette', async () => {
+IDETests.register('key: Cmd+. opens command palette', async () => {
   IDE.bus.emit('palette:open');
   await IDETests.wait(100);
   const el = document.getElementById('command-palette');
