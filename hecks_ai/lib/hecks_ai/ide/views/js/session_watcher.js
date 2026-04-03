@@ -11,7 +11,14 @@ IDE.register({
         const r = await fetch(`/session/history?session_id=${encodeURIComponent(session_id)}&limit=30`);
         const d = await r.json();
         ide.el.msgs.innerHTML = '';
-        (d.turns || []).forEach(t => ide.addTurn(t.role, t.text));
+        const turns = d.turns || [];
+        let lastUserEl = null;
+        turns.forEach(t => {
+          const el = ide.addTurn(t.role, t.text);
+          if (t.role === 'user') lastUserEl = el;
+          else lastUserEl = null;
+        });
+        if (lastUserEl) lastUserEl.classList.add('thinking');
       } catch (e) {
         ide.addTurn('system', `Connected to ${session_id.slice(0, 8)}...`);
       }

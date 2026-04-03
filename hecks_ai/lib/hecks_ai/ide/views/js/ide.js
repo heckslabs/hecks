@@ -44,6 +44,27 @@ const IDE = {
     });
     this.components.forEach(c => { if (c.init) c.init(this); });
     setInterval(() => this.poll(), 250);
+
+    // Image drop — anywhere on the page
+    document.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    document.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith('image/'));
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const b64 = reader.result.split(',')[1];
+        try {
+          const r = await fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: b64 }) });
+          const j = await r.json();
+          if (j?.path) {
+            this.addTurn('system', `Image attached: ${j.path}`);
+            this.bus.emit('screenshot:saved', j.path);
+          }
+        } catch (err) { this.addTurn('system', 'Failed to upload image'); }
+      };
+      reader.readAsDataURL(file);
+    });
   },
 
   onKeydown(e) {
@@ -93,7 +114,6 @@ const IDE = {
 
   setBusy(busy) {
     this.state.busy = busy;
-    this.el.send.disabled = busy;
     this.el.escHint.classList.toggle('hidden', !busy);
     this.el.thinkingBar.classList.toggle('active', busy);
     if (!busy) {
@@ -245,7 +265,7 @@ const IDE = {
 
   async sendPrompt() {
     const text = this.el.prompt.value.trim();
-    if (!text || this.state.busy) return;
+    if (!text) return;
     this.el.prompt.value = '';
     if (!text.startsWith('/')) this.state.cmdHistory.push(text);
     this.state.histIdx = -1;

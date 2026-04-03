@@ -37,7 +37,7 @@ IDE.register({
 
     const commands = [
       { name: 'Sessions',       hint: 'Ctrl+S',  action: () => ide.bus.emit('session-picker:open') },
-      { name: 'Open Bluebook',  hint: 'Ctrl+O',  action: () => ide.bus.emit('app-picker:open') },
+      { name: 'Open App',       hint: 'Ctrl+O',  action: () => ide.bus.emit('app-picker:open') },
       { name: 'Run Tests',      hint: '',         action: () => ide.bus.emit('test:run') },
       { name: 'Clear Chat',     hint: '',         action: () => { ide.el.msgs.innerHTML = ''; } },
       { name: 'Reset Session',  hint: '',         action: () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; } },

@@ -41,6 +41,10 @@ module Hecks
           end
         end
 
+        def busy?
+          @mutex.synchronize { !@current_pid.nil? }
+        end
+
         def stop
           interrupt!
         end

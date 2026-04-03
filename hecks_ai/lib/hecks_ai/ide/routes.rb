@@ -22,7 +22,7 @@ module Hecks
                      command_palette.js session_picker.js session_watcher.js
                      command_log.js docs_panel.js markdown.js file_viewer.js
                      hecksagon_viewer.js bluebook_explorer.js workshop.js
-                     test_harness.js boot.js]
+                     test_harness.js tips.js boot.js]
           res.body = files.map { |f| File.read(File.join(js_dir, f)) }.join("\n")
         end
 
@@ -91,6 +91,7 @@ module Hecks
           @claude ||= ClaudeProcess.new(project_dir: @project_dir) do |json|
             @mutex.synchronize { @events << json }
           end
+          @claude.interrupt! if @claude.busy?
           @watcher&.mark_ide_prompt!
           @claude.send_prompt(prompt)
           res.content_type = "application/json"
