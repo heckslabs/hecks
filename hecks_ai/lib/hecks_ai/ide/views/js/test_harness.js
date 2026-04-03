@@ -16,7 +16,7 @@ const IDETests = {
       this.overlay.innerHTML =
         `<div style="background:var(--bg-msg);border:1px solid var(--border);border-radius:8px;width:500px;max-height:400px;padding:16px;overflow-y:auto">` +
         `<div style="color:var(--green);font-size:14px;font-weight:600;margin-bottom:8px">Testing</div>` +
-        `<div id="test-log" style="font-size:12px;line-height:1.8"></div>` +
+        `<div id="test-log" style="font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto"></div>` +
         `<div id="test-current" style="color:var(--fg-dim);font-size:11px;margin-top:8px;border-top:1px solid var(--border);padding-top:6px"></div>` +
         `</div>`;
     }
