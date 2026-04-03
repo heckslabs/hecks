@@ -97,6 +97,12 @@
         <div class="px-4 py-2 cursor-pointer text-fg-dim border-r border-border whitespace-nowrap flex items-center gap-1.5 select-none tab tab-chat active text-accent-green font-semibold" data-tab="chat" onclick="switchTab('chat')">Chat</div>
       </div>
 
+      <!-- Session banner -->
+      <div class="hidden font-mono text-[11px] text-fg-dim bg-bg-msg border-b border-border px-4 py-1.5 flex items-center justify-between" id="session-banner">
+        <span id="session-banner-text"></span>
+        <span class="cursor-pointer text-accent-red hover:opacity-80" onclick="IDE.bus.emit('session:disconnect')" title="Disconnect">&#10005;</span>
+      </div>
+
       <!-- Chat content -->
       <div class="flex-1 overflow-y-auto scroll-smooth tab-content active" id="tab-chat">
         <div class="p-4" id="messages"></div>
