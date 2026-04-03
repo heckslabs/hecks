@@ -104,7 +104,7 @@ IDE.register({
           active: s.id === currentId,
           action: () => connectSession(s)
         }));
-        items = [...sessions, ...staticCommands];
+        items = [...staticCommands, ...sessions];
         render();
       } catch (e) {}
     });
