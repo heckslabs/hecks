@@ -44,6 +44,9 @@ const IDETests = {
   async runAll() {
     this.results = [];
 
+    // Clear previous test overlay
+    if (this.overlay) { this.overlay.remove(); this.overlay = null; }
+
     // Snapshot state before tests
     const savedMsgs = IDE.el.msgs.innerHTML;
     const savedPrompt = IDE.el.prompt.value;
@@ -318,7 +321,7 @@ const IDETests = {
       this.results.push({ name, pass: false, error: e.message });
       console.error(`FAIL: ${name}: ${e.message}`);
     }
-    await this.wait(400);
+    await this.wait(50);
   },
 
   wait(ms) { return new Promise(r => setTimeout(r, ms)); },

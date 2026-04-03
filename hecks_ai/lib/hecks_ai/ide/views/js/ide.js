@@ -162,8 +162,6 @@ const IDE = {
       } else if (e.type === 'error') {
         this.addTurn('system', e.message || 'Unknown error'); this.setBusy(false);
       } else if (e.type === 'bus') {
-        if (e.event === 'test:run' && this._testRanThisSession) return;
-        if (e.event === 'test:run') this._testRanThisSession = true;
         this.bus.emit(e.event, e.data);
       } else if (e.type === 'reload') {
         this.state.nextIndex = 0; location.reload();
