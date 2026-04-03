@@ -3,59 +3,55 @@
 # Unit tests for session JSONL tailing: user echo, assistant forwarding,
 # tool result extraction, and IDE prompt deduplication.
 #
+# Uses IO.pipe to avoid filesystem I/O and sleep-based polling.
+#
 require "json"
-require "tempfile"
-require "fileutils"
 
-RSpec.describe "SessionWatcher", :slow do
+RSpec.describe "SessionWatcher" do
   let(:events) { [] }
   let(:mutex) { Mutex.new }
   let(:session_id) { "test-session-abc" }
   let(:tmpdir) { Dir.mktmpdir }
-  let(:jsonl_path) { File.join(tmpdir, "#{session_id}.jsonl") }
 
   before do
-    File.write(jsonl_path, "")
     $LOAD_PATH.unshift(File.expand_path("../../lib", __dir__)) unless $LOAD_PATH.any? { |p| p.include?("hecks_ai/lib") }
     require "hecks_ai/ide/session_watcher"
   end
 
   after { FileUtils.rm_rf(tmpdir) }
 
-  def build_watcher
-    Hecks::AI::IDE::SessionWatcher.new(session_id, events, mutex, session_dir: tmpdir)
+  def build_watcher(reader)
+    Hecks::AI::IDE::SessionWatcher.new(session_id, events, mutex, session_dir: tmpdir, io: reader, poll_interval: 0.005)
   end
 
-  def append_line(data)
-    File.open(jsonl_path, "a") { |f| f.puts(JSON.generate(data)) }
-  end
-
-  def wait_for_events(count, timeout: 2)
+  def wait_for_events(count, timeout: 0.3)
     deadline = Time.now + timeout
-    sleep 0.05 while events.size < count && Time.now < deadline
+    sleep 0.001 while events.size < count && Time.now < deadline
   end
 
   it "forwards assistant text entries" do
-    watcher = build_watcher
+    reader, writer = IO.pipe
+    watcher = build_watcher(reader)
     watcher.start
-    sleep 0.1
 
-    append_line(type: "assistant", message: { content: [{ type: "text", text: "hello" }] })
+    writer.puts(JSON.generate(type: "assistant", message: { content: [{ type: "text", text: "hello" }] }))
     wait_for_events(1)
     watcher.stop
+    writer.close
 
     parsed = JSON.parse(events.first)
     expect(parsed["type"]).to eq("assistant")
   end
 
   it "emits user_echo for user entries" do
-    watcher = build_watcher
+    reader, writer = IO.pipe
+    watcher = build_watcher(reader)
     watcher.start
-    sleep 0.1
 
-    append_line(type: "user", message: { role: "user", content: "test prompt" })
+    writer.puts(JSON.generate(type: "user", message: { role: "user", content: "test prompt" }))
     wait_for_events(1)
     watcher.stop
+    writer.close
 
     parsed = JSON.parse(events.first)
     expect(parsed["type"]).to eq("user_echo")
@@ -63,24 +59,25 @@ RSpec.describe "SessionWatcher", :slow do
   end
 
   it "suppresses user_echo after mark_ide_prompt!" do
-    watcher = build_watcher
+    reader, writer = IO.pipe
+    watcher = build_watcher(reader)
     watcher.start
-    sleep 0.1
 
     watcher.mark_ide_prompt!
-    append_line(type: "user", message: { role: "user", content: "from ide" })
-    sleep 0.3
+    writer.puts(JSON.generate(type: "user", message: { role: "user", content: "from ide" }))
+    sleep 0.02
 
     expect(events).to be_empty
     watcher.stop
+    writer.close
   end
 
   it "extracts tool_result from user entries" do
-    watcher = build_watcher
+    reader, writer = IO.pipe
+    watcher = build_watcher(reader)
     watcher.start
-    sleep 0.1
 
-    append_line(
+    writer.puts(JSON.generate(
       type: "user",
       message: {
         role: "user",
@@ -88,9 +85,10 @@ RSpec.describe "SessionWatcher", :slow do
           { type: "tool_result", tool_use_id: "toolu_abc", content: [{ type: "text", text: "command output" }] }
         ]
       }
-    )
+    ))
     wait_for_events(1)
     watcher.stop
+    writer.close
 
     parsed = JSON.parse(events.first)
     expect(parsed["type"]).to eq("tool_result")
@@ -99,11 +97,11 @@ RSpec.describe "SessionWatcher", :slow do
   end
 
   it "extracts tool_result with string content" do
-    watcher = build_watcher
+    reader, writer = IO.pipe
+    watcher = build_watcher(reader)
     watcher.start
-    sleep 0.1
 
-    append_line(
+    writer.puts(JSON.generate(
       type: "user",
       message: {
         role: "user",
@@ -111,9 +109,10 @@ RSpec.describe "SessionWatcher", :slow do
           { type: "tool_result", tool_use_id: "toolu_xyz", content: "simple output" }
         ]
       }
-    )
+    ))
     wait_for_events(1)
     watcher.stop
+    writer.close
 
     parsed = JSON.parse(events.first)
     expect(parsed["type"]).to eq("tool_result")

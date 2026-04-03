@@ -15,18 +15,20 @@ module Hecks
       class SessionWatcher
         attr_reader :session_id
 
-        def initialize(session_id, events, mutex, session_dir:)
+        def initialize(session_id, events, mutex, session_dir:, io: nil, poll_interval: 0.3)
           @session_id = session_id
           @events = events
           @mutex = mutex
           @path = File.join(session_dir, "#{session_id}.jsonl")
+          @io = io
+          @poll_interval = poll_interval
           @stop = false
           @thread = nil
           @ide_prompt_at = nil
         end
 
         def start
-          return unless File.exist?(@path)
+          return unless @io || File.exist?(@path)
           @stop = false
           @thread = Thread.new { tail_loop }
         end
@@ -48,24 +50,25 @@ module Hecks
         private
 
         def tail_loop
-          File.open(@path, "r") do |f|
-            f.seek(0, IO::SEEK_END)
-            buf = ""
-            until @stop
-              chunk = f.read(4096)
-              if chunk
-                buf += chunk
-                while (idx = buf.index("\n"))
-                  line = buf.slice!(0..idx).strip
-                  process_line(line) unless line.empty?
-                end
-              else
-                sleep 0.3
-              end
+          io = @io || File.open(@path, "r")
+          io.seek(0, IO::SEEK_END) unless @io
+          buf = ""
+          until @stop
+            ready = IO.select([io], nil, nil, @poll_interval)
+            next unless ready
+            chunk = io.read_nonblock(4096, exception: false)
+            next if chunk == :wait_readable
+            break if chunk.nil?
+            buf += chunk
+            while (idx = buf.index("\n"))
+              line = buf.slice!(0..idx).strip
+              process_line(line) unless line.empty?
             end
           end
         rescue => e
           emit(JSON.generate(type: "error", message: "Watcher: #{e.message}"))
+        ensure
+          io&.close unless @io
         end
 
         def process_line(line)
