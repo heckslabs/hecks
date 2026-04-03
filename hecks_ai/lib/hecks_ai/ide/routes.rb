@@ -124,12 +124,21 @@ module Hecks
 
         def handle_console(req, res)
           body = JSON.parse(req.body)
-          $stderr.puts "[IDE JS] #{body["level"]}: #{body["message"]}"
+          msg = "[IDE JS] #{body["level"]}: #{body["message"]}"
+          $stderr.puts msg
+          @mutex.synchronize { (@console_log ||= []) << msg; @console_log.shift if @console_log.size > 100 }
           res.content_type = "application/json"
           res.body = JSON.generate(ok: true)
         rescue => e
           res.status = 400
           res.body = e.message
+        end
+
+        def serve_console_log(res)
+          logs = @mutex.synchronize { (@console_log || []).dup }
+          res.content_type = "application/json"
+          res["Cache-Control"] = "no-cache"
+          res.body = JSON.generate(logs: logs)
         end
 
         def handle_session_resume(req, res)

@@ -44,8 +44,9 @@ const IDETests = {
   async runAll() {
     this.results = [];
 
-    // Clear previous test overlay
+    // Clear previous test state
     if (this.overlay) { this.overlay.remove(); this.overlay = null; }
+    document.getElementById('command-log').innerHTML = '';
 
     // Snapshot state before tests
     const savedMsgs = IDE.el.msgs.innerHTML;
