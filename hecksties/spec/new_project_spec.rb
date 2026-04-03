@@ -10,7 +10,7 @@ RSpec.describe "hecks new CLI command" do
 
   it "generates project files" do
     Dir.chdir(tmpdir) do
-      cli = Hecks::CLI.new
+      cli = Hecks::CLI.new([], { "no-world-goals": true })
       cli.invoke(:new_project, ["my_app"])
 
       expect(Dir["my_app/*Bluebook"].any?).to be true
@@ -24,7 +24,7 @@ RSpec.describe "hecks new CLI command" do
 
   it "uses PascalCase for the domain name" do
     Dir.chdir(tmpdir) do
-      cli = Hecks::CLI.new
+      cli = Hecks::CLI.new([], { "no-world-goals": true })
       cli.invoke(:new_project, ["my_cool_app"])
 
       bluebook = Dir["my_cool_app/*Bluebook"].first
@@ -36,7 +36,7 @@ RSpec.describe "hecks new CLI command" do
   it "refuses to overwrite an existing directory" do
     Dir.chdir(tmpdir) do
       FileUtils.mkdir_p("existing")
-      cli = Hecks::CLI.new
+      cli = Hecks::CLI.new([], { "no-world-goals": true })
       expect {
         cli.invoke(:new_project, ["existing"])
       }.not_to raise_error
@@ -46,7 +46,7 @@ RSpec.describe "hecks new CLI command" do
 
   it "generates a valid domain that can be booted" do
     Dir.chdir(tmpdir) do
-      cli = Hecks::CLI.new
+      cli = Hecks::CLI.new([], { "no-world-goals": true })
       cli.invoke(:new_project, ["bootable"])
     end
 
