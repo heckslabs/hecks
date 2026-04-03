@@ -34,7 +34,11 @@ const IDE = {
       const isGlobal = (e.metaKey || e.ctrlKey) || e.key === 'Escape';
       if (isGlobal || e.target === this.el.prompt) this.onKeydown(e);
     }, true);
-    this.el.prompt.addEventListener('input', () => this.onInput());
+    this.el.prompt.addEventListener('input', () => {
+      this.onInput();
+      this.el.prompt.style.height = 'auto';
+      this.el.prompt.style.height = Math.min(this.el.prompt.scrollHeight, 72) + 'px';
+    });
     this.el.sidebar.addEventListener('click', e => {
       const link = e.target.closest('.ctx-link, .book-app-name');
       if (link) {
@@ -58,7 +62,10 @@ const IDE = {
           const r = await fetch('/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: b64 }) });
           const j = await r.json();
           if (j?.path) {
-            this.addTurn('system', `Image attached: ${j.path}`);
+            const el = this.addTurn('system', '');
+            el.querySelector('.turn-body').innerHTML =
+              `<div style="font-size:11px;color:#8b949e;margin-bottom:4px">Image attached: ${this.esc(j.path)}</div>` +
+              `<img src="data:image/png;base64,${b64}" style="max-width:100%;max-height:200px;border-radius:6px;border:1px solid #30363d">`;
             this.bus.emit('screenshot:saved', j.path);
           }
         } catch (err) { this.addTurn('system', 'Failed to upload image'); }
@@ -81,6 +88,15 @@ const IDE = {
   },
 
   esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+
+  toolSummary(name, input) {
+    if (input.file_path) return input.file_path;
+    if (input.command) return input.command.slice(0, 80);
+    if (input.pattern) return input.pattern;
+    if (input.path) return input.path;
+    if (input.prompt) return input.prompt.slice(0, 60);
+    return JSON.stringify(input).slice(0, 80);
+  },
 
   // Tailwind class maps for dynamically created elements
   tw: {
@@ -220,14 +236,24 @@ const IDE = {
           this.state.curEl = null;
           this.state.lastMsgId = msgId;
         }
-        const texts = e.message.content.filter(c => c.type === 'text').map(c => c.text).join('');
-        if (texts) {
+        const texts = e.message.content.filter(c => c.type === 'text').map(c => c.text).join('').trim();
+        if (texts && texts !== 'No response requested.') {
           if (!this.state.curEl) this.state.curEl = this.addTurn('assistant', '');
-          this.state.curEl.querySelector('pre').textContent = texts;
+          const body = this.state.curEl.querySelector('.turn-body');
+          body.innerHTML = renderMd(texts);
           this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
         }
         e.message.content.forEach(c => {
-          if (c.type === 'tool_use') this.addToolCall(c.name, c.input, c.id);
+          if (c.type === 'tool_use') {
+            this.addToolCall(c.name, c.input, c.id);
+            const summary = this.toolSummary(c.name, c.input);
+            const d = document.createElement('div');
+            d.className = 'text-[11px] font-mono text-fg-dim py-1 px-3 my-1 rounded bg-bg-msg flex items-center gap-2 cursor-pointer hover:bg-bg-user';
+            d.innerHTML = `<span class="text-accent-yellow">&#9654;</span> <span class="text-accent-yellow">${this.esc(c.name)}</span> <span class="truncate opacity-70">${this.esc(summary)}</span>`;
+            d.onclick = () => this.showToolPopup(c.name, JSON.stringify(c.input, null, 2));
+            this.el.msgs.appendChild(d);
+            this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
+          }
         });
         if (e.message.stop_reason === 'end_turn' || e.message.stop_reason === 'stop_sequence') {
           this.state.curEl = null;
@@ -246,7 +272,10 @@ const IDE = {
           : Array.isArray(msg?.content) ? msg.content.map(c => c.text).filter(Boolean).join('') : null;
         if (text) {
           const clean = text.split('\n\n[IDE').shift().trim();
-          if (clean && clean !== this.state.lastPromptText) this.addTurn('user', clean);
+          if (!clean || clean === this.state.lastPromptText) { /* skip */ }
+          else if (/^\[Request interrupted/.test(clean)) { this.state.curEl = null; this.addTurn('system', 'Interrupted — what would you like to do?'); }
+          else if (/^\[Image|^<system-reminder|^<local-command|^<command-/.test(clean)) { /* skip internal */ }
+          else this.addTurn('user', clean);
           this.state.lastPromptText = null;
         }
       } else if (e.type === 'tool_result') {
@@ -278,7 +307,7 @@ const IDE = {
     if (text.startsWith('/')) {
       for (const c of this.components) { if (c.handleSlash && c.handleSlash(text, this)) return; }
     }
-    if (this.state.wsActive && document.querySelector('.tab[data-tab="workshop"].active')) {
+    if (this.state.wsActive) {
       for (const c of this.components) { if (c.handleWorkshop && c.handleWorkshop(text, this)) return; }
     }
 

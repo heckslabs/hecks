@@ -292,6 +292,64 @@ IDETests.register('key: ArrowDown navigates forward', async () => {
   return IDE.el.prompt.value === 'test-history-2';
 });
 
+IDETests.register('key: Ctrl+S opens session-picker', async () => {
+  const ev = IDETests.listenOnce('session-picker:open');
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 's', ctrlKey: true, bubbles: true
+  }));
+  ev.cleanup();
+  const el = document.getElementById('session-picker');
+  if (el) el.style.display = 'none';
+  return ev.fired;
+});
+
+IDETests.register('slash: /apps opens app-picker', async () => {
+  const ev = IDETests.listenOnce('app-picker:open');
+  IDE.el.prompt.value = '/apps';
+  document.getElementById('send').click();
+  await IDETests.wait(100);
+  ev.cleanup();
+  const el = document.getElementById('app-picker');
+  if (el) el.style.display = 'none';
+  return ev.fired;
+});
+
+IDETests.register('slash: /sessions opens session-picker', async () => {
+  const ev = IDETests.listenOnce('session-picker:open');
+  IDE.el.prompt.value = '/sessions';
+  document.getElementById('send').click();
+  await IDETests.wait(100);
+  ev.cleanup();
+  const el = document.getElementById('session-picker');
+  if (el) el.style.display = 'none';
+  return ev.fired;
+});
+
+IDETests.register('render: markdown in assistant turn', async () => {
+  const el = IDE.addTurn('assistant', '');
+  const body = el.querySelector('.turn-body');
+  body.innerHTML = renderMd('**bold** and `code`');
+  const pass = body.innerHTML.includes('<strong>') && body.innerHTML.includes('<code');
+  el.remove();
+  return pass;
+});
+
+IDETests.register('render: tips bar exists', async () => {
+  const el = document.getElementById('tip-text');
+  return el && el.textContent.length > 0;
+});
+
+IDETests.register('menu: Apps click emits app-picker:open', async () => {
+  const ev = IDETests.listenOnce('app-picker:open');
+  const btn = [...document.querySelectorAll('.cursor-pointer')].find(el => el.textContent.includes('Apps'));
+  if (btn) btn.click();
+  await IDETests.wait(100);
+  ev.cleanup();
+  const el = document.getElementById('app-picker');
+  if (el) el.style.display = 'none';
+  return ev.fired;
+});
+
 IDETests.register('handler: workshop:open', async () => {
   return (IDE.bus._subs['workshop:open'] || []).length > 0;
 });

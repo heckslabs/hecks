@@ -100,6 +100,12 @@ IDE.register({
       ide.sendPrompt();
       return true;
     }
+    if (e.ctrlKey && !e.metaKey && e.key === 'c') {
+      e.preventDefault();
+      ide.switchTab('chat');
+      ide.el.prompt.focus();
+      return true;
+    }
     if (e.key === 'Escape' && ide.state.busy) {
       fetch('/interrupt', { method: 'POST' });
       ide.setBusy(false);
@@ -118,7 +124,7 @@ IDE.register({
       '/hecks-ide-clear': () => { ide.el.msgs.innerHTML = ''; },
       '/hecks-ide-reset': () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; },
       '/hecks-ide-commands': () => {
-        const cmds = Object.keys(commands).join('\n');
+        const cmds = ['/apps', '/sessions', ...Object.keys(commands)].join('\n');
         ide.addTurn('system', cmds);
       },
       '/hecks-ide-log': () => {

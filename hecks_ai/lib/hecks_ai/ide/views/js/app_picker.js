@@ -9,6 +9,14 @@ IDE.register({
     return false;
   },
 
+  handleSlash(text, ide) {
+    if (text === '/apps') {
+      ide.bus.emit('app-picker:open');
+      return true;
+    }
+    return false;
+  },
+
   init(ide) {
     const overlay = document.createElement('div');
     overlay.id = 'app-picker';

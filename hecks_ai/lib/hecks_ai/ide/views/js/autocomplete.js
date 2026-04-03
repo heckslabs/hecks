@@ -5,11 +5,23 @@ IDE.register({
   init(ide) {
     this.ide = ide;
     this.awes = new Awesomplete(ide.el.prompt, {
-      minChars: 1, maxItems: 10, autoFirst: false,
-      filter: () => true, list: []
+      minChars: 1, maxItems: 30, autoFirst: false,
+      filter: () => true, sort: false, list: [],
+      item: (text, input) => {
+        const li = document.createElement('li');
+        if (text.value.startsWith('──')) {
+          li.textContent = text.value;
+          li.style.cssText = 'color:#7ee787;font-size:9px;padding:6px 12px 2px !important;pointer-events:none;text-transform:uppercase;letter-spacing:0.5px;';
+          li.setAttribute('aria-disabled', 'true');
+        } else {
+          li.textContent = text.value;
+        }
+        return li;
+      }
     });
 
     ide.bus.on('autocomplete:close', () => {
+      this.awes.list = [];
       this.awes.close();
       document.querySelectorAll('.awesomplete > ul').forEach(ul => ul.setAttribute('hidden', ''));
     });
@@ -27,7 +39,7 @@ IDE.register({
       const val = ide.el.prompt.value.trim().toLowerCase();
       if (val) {
         e.preventDefault();
-        const items = this.buildCompletions(val, ide);
+        const items = this.buildCompletions(val, ide).filter(c => !c.startsWith('──'));
         if (items.length) {
           ide.el.prompt.value = items[0];
           ide.bus.emit('autocomplete:close');
@@ -51,10 +63,15 @@ IDE.register({
     const inWs = s.wsActive && document.querySelector('.tab[data-tab="workshop"].active');
 
     if (val.startsWith('/')) {
-      const ideC = ['/hecks-ide-clear', '/hecks-ide-reset', '/hecks-ide-commands', '/hecks-ide-log', '/hecks-ide-test'];
+      const ideC = ['/apps', '/sessions', '/hecks-ide-clear', '/hecks-ide-reset', '/hecks-ide-commands', '/hecks-ide-log', '/hecks-ide-test'];
       const clC = ['/commit','/review','/help','/compact','/clear','/cost','/init',
         '/pr-comments','/release-notes','/security-review','/simplify'];
-      return [...ideC.filter(c => c.startsWith(val)), ...(inWs ? [] : clC.filter(c => c.startsWith(val)))];
+      const ideMatches = ideC.filter(c => c.startsWith(val));
+      const clMatches = inWs ? [] : clC.filter(c => c.startsWith(val));
+      const result = [];
+      if (clMatches.length) { result.push('── Hecks ──', ...clMatches); }
+      if (ideMatches.length) { result.push('── IDE ──', ...ideMatches); }
+      return result;
     }
     if (!s.wsActive) return [];
 
