@@ -142,9 +142,7 @@ const IDETests = {
       const panel = document.getElementById('panel-apps');
       const was = panel.classList.contains('closed');
       IDE.collapsePanel('apps');
-      const is = panel.classList.contains('closed');
-      IDE.collapsePanel('apps'); // restore
-      return was !== is;
+      return was !== panel.classList.contains('closed');
     });
 
     // Command log toggle — click
@@ -153,8 +151,8 @@ const IDETests = {
       const was = IDE.el.sidebar.classList.contains('collapsed');
       IDE.bus.emit('sidebar:toggle');
       const is = IDE.el.sidebar.classList.contains('collapsed');
-      IDE.bus.emit('sidebar:toggle'); // restore
       return was !== is;
+      // restored by snapshot at end
     });
 
     await this.test('panel:collapse via bus', async () => {
@@ -162,7 +160,6 @@ const IDETests = {
       const was = panel.classList.contains('closed');
       IDE.bus.emit('panel:collapse', 'apps');
       const is = panel.classList.contains('closed');
-      IDE.bus.emit('panel:collapse', 'apps'); // restore
       return was !== is;
     });
 
@@ -170,9 +167,7 @@ const IDETests = {
       const panel = document.getElementById('panel-hex');
       panel.classList.add('hidden', 'closed');
       IDE.bus.emit('panel:show', 'hex');
-      const shown = !panel.classList.contains('hidden') && !panel.classList.contains('closed');
-      panel.classList.add('hidden'); // restore
-      return shown;
+      return !panel.classList.contains('hidden') && !panel.classList.contains('closed');
     });
 
     await this.test('tests panel exists', async () => {
@@ -183,9 +178,7 @@ const IDETests = {
       const log = document.getElementById('command-log');
       log.classList.add('collapsed');
       IDE.bus.emit('command-log:toggle');
-      const opened = !log.classList.contains('collapsed');
-      IDE.bus.emit('command-log:toggle'); // close
-      return opened;
+      return !log.classList.contains('collapsed');
     });
 
     await this.test('tab:close via bus', async () => {
@@ -199,9 +192,7 @@ const IDETests = {
       const log = document.getElementById('command-log');
       log.classList.add('collapsed');
       IDE.bus.emit('command-log:toggle');
-      const opened = !log.classList.contains('collapsed');
-      IDE.bus.emit('command-log:toggle'); // close
-      return opened;
+      return !log.classList.contains('collapsed');
     });
 
     // Sidebar actions via bus — verify handlers are registered
