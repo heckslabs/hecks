@@ -1,5 +1,14 @@
-/* ── Session picker — via command palette or /sessions ── */
+/* ── Session picker — Ctrl+S or /sessions ── */
 IDE.register({
+  onKeydown(e, ide) {
+    if (e.ctrlKey && !e.metaKey && e.key === 's') {
+      e.preventDefault();
+      ide.bus.emit('session-picker:open');
+      return true;
+    }
+    return false;
+  },
+
   handleSlash(text, ide) {
     if (text === '/sessions') {
       ide.bus.emit('session-picker:open');
