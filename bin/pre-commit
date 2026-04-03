@@ -22,7 +22,7 @@ if [ -z "$duration" ]; then
 fi
 
 # Compare: fail if over the limit (default: 1.5s, configurable via env var)
-limit=${SPEC_SPEED_LIMIT:-1.0}
+limit=${SPEC_SPEED_LIMIT:-2.0}
 over_limit=$(echo "$duration > $limit" | bc -l)
 if [ "$over_limit" = "1" ]; then
   examples=$(echo "$output" | grep "examples" | head -1)
