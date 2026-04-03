@@ -1,4 +1,4 @@
-/* ── Cmd+P command palette ── */
+/* ── Ctrl+P command palette — commands + sessions from server ── */
 IDE.register({
   onKeydown(e, ide) {
     if (e.ctrlKey && !e.metaKey && e.key === 'p') {
@@ -35,17 +35,16 @@ IDE.register({
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    const commands = [
-      { name: 'Sessions',       hint: '',       action: () => ide.bus.emit('session-picker:open') },
-      { name: 'Open Bluebook',  hint: 'Cmd+O', action: () => ide.bus.emit('app-picker:open') },
-      { name: 'Run Tests',      hint: '',       action: () => ide.bus.emit('test:run') },
-      { name: 'Clear Chat',     hint: '',       action: () => { ide.el.msgs.innerHTML = ''; } },
-      { name: 'Reset Session',  hint: '',       action: () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; } },
-      { name: 'Toggle Sidebar', hint: '',       action: () => ide.bus.emit('sidebar:toggle') },
-      { name: 'IDE Log',        hint: '',       action: () => ide.bus.emit('panel:show', 'ide-log') },
-      { name: 'Screenshot',     hint: '',       action: () => ide.bus.emit('screenshot:capture') },
+    const staticCommands = [
+      { name: 'Open Bluebook',  hint: 'Ctrl+O', type: 'command', action: () => ide.bus.emit('app-picker:open') },
+      { name: 'Run Tests',      hint: '',        type: 'command', action: () => ide.bus.emit('test:run') },
+      { name: 'Clear Chat',     hint: '',        type: 'command', action: () => { ide.el.msgs.innerHTML = ''; } },
+      { name: 'Reset Session',  hint: '',        type: 'command', action: () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; } },
+      { name: 'Toggle Sidebar', hint: '',        type: 'command', action: () => ide.bus.emit('sidebar:toggle') },
+      { name: 'IDE Log',        hint: '',        type: 'command', action: () => ide.bus.emit('panel:show', 'ide-log') },
     ];
 
+    let items = [];
     let selectedIdx = 0;
 
     const close = () => {
@@ -53,9 +52,23 @@ IDE.register({
       ide.el.prompt.focus();
     };
 
+    const connectSession = async (session) => {
+      try {
+        await fetch('/session/resume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: session.id })
+        });
+        localStorage.setItem('hecks-ide-session', session.id);
+        ide.bus.emit('session:connected', { session_id: session.id });
+      } catch (e) {
+        ide.addTurn('system', 'Failed to connect');
+      }
+    };
+
     const filtered = () => {
       const q = input.value.toLowerCase();
-      return q ? commands.filter(c => c.name.toLowerCase().includes(q)) : commands;
+      return q ? items.filter(c => c.name.toLowerCase().includes(q)) : items;
     };
 
     const render = () => {
@@ -63,18 +76,37 @@ IDE.register({
       list.innerHTML = f.map((c, i) => {
         const sel = i === selectedIdx ? 'background:#1c2333;' : '';
         const hint = c.hint ? `<span style="color:#8b949e;font-size:10px">${c.hint}</span>` : '';
-        return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;${sel}"><span style="color:#c9d1d9">${IDE.esc(c.name)}</span>${hint}</div>`;
+        const color = c.type === 'session' ? '#7ee787' : '#c9d1d9';
+        const label = c.type === 'session'
+          ? `<span style="color:#7ee787;font-size:10px">${c.active ? 'active' : 'session'}</span>`
+          : hint;
+        return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;${sel}"><span style="color:${color}">${IDE.esc(c.name)}</span>${label}</div>`;
       }).join('') || '<div style="padding:12px 16px;color:#8b949e">No matches</div>';
       const selEl = list.querySelector(`[data-idx="${selectedIdx}"]`);
       if (selEl) selEl.scrollIntoView({ block: 'nearest' });
     };
 
-    ide.bus.on('palette:open', () => {
+    ide.bus.on('palette:open', async () => {
       overlay.style.display = 'flex';
       input.value = '';
       selectedIdx = 0;
+      items = [...staticCommands];
       render();
       input.focus();
+      try {
+        const r = await fetch('/sessions');
+        const d = await r.json();
+        const currentId = localStorage.getItem('hecks-ide-session');
+        const sessions = (d.sessions || []).map(s => ({
+          name: `${s.preview || s.id.slice(0,8)}  (${s.age})`,
+          hint: s.id.slice(0, 8),
+          type: 'session',
+          active: s.id === currentId,
+          action: () => connectSession(s)
+        }));
+        items = [...sessions, ...staticCommands];
+        render();
+      } catch (e) {}
     });
 
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
