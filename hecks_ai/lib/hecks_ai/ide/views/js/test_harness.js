@@ -95,8 +95,7 @@ const IDETests = {
     await this.test('app-picker:open via bus', async () => {
       const el = document.getElementById('app-picker');
       IDE.bus.emit('app-picker:open');
-      await this.wait(300);
-      const open = el.style.display === 'flex';
+            const open = el.style.display === 'flex';
       el.style.display = 'none';
       return open;
     });
@@ -113,8 +112,7 @@ const IDETests = {
     await this.test('session-picker:open via bus', async () => {
       const el = document.getElementById('session-picker');
       IDE.bus.emit('session-picker:open');
-      await this.wait(300);
-      const open = el.style.display === 'flex';
+            const open = el.style.display === 'flex';
       el.style.display = 'none';
       return open;
     });
@@ -209,8 +207,7 @@ const IDETests = {
     // Sidebar actions via bus
     await this.test('workshop:open via bus', async () => {
       IDE.bus.emit('workshop:open', { path: 'examples/pizzas/PizzasBluebook', name: 'Pizzas' });
-      await this.wait(1500);
-      const tab = document.querySelector('.tab[data-tab="workshop"]');
+            const tab = document.querySelector('.tab[data-tab="workshop"]');
       const opened = !!tab;
       if (tab) { IDE.state.wsActive = false; IDE.closeTab('workshop'); IDE.el.prompt.placeholder = 'Type a message...'; }
       return opened;
@@ -218,8 +215,7 @@ const IDETests = {
 
     await this.test('hecksagon:open via bus', async () => {
       IDE.bus.emit('hecksagon:open', 'examples/pizzas/PizzasHecksagon');
-      await this.wait(1500);
-      const tab = document.querySelector('.tab[data-tab="hecksagon"]');
+            const tab = document.querySelector('.tab[data-tab="hecksagon"]');
       const opened = !!tab;
       if (tab) IDE.closeTab('hecksagon');
       return opened;
@@ -227,8 +223,7 @@ const IDETests = {
 
     await this.test('file:open via bus', async () => {
       IDE.bus.emit('file:request', { path: 'CLAUDE.md' });
-      await this.wait(500);
-      const tabs = Object.keys(IDE.state.openTabs);
+            const tabs = Object.keys(IDE.state.openTabs);
       const opened = tabs.some(t => t.includes('CLAUDE'));
       tabs.filter(t => t.includes('CLAUDE')).forEach(t => IDE.closeTab(t));
       return opened;
@@ -243,8 +238,7 @@ const IDETests = {
       IDE.el.msgs.innerHTML = '';
       IDE.el.prompt.value = '/hecks-ide-commands';
       await IDE.sendPrompt();
-      await this.wait(100);
-      return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
+            return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
     });
 
     await this.test('/hecks-ide-log via slash', async () => {
@@ -252,16 +246,14 @@ const IDETests = {
       log.classList.add('collapsed');
       IDE.el.prompt.value = '/hecks-ide-log';
       await IDE.sendPrompt();
-      await this.wait(100);
-      return !log.classList.contains('collapsed');
+            return !log.classList.contains('collapsed');
     });
 
     await this.test('/hecks-ide-clear via slash', async () => {
       IDE.addTurn('system', 'test');
       IDE.el.prompt.value = '/hecks-ide-clear';
       await IDE.sendPrompt();
-      await this.wait(100);
-      return IDE.el.msgs.children.length === 0;
+            return IDE.el.msgs.children.length === 0;
     });
 
     await this.test('/hecks-ide-reset via slash', async () => {
@@ -269,8 +261,7 @@ const IDETests = {
       const oldIdx = IDE.state.nextIndex;
       IDE.el.prompt.value = '/hecks-ide-reset';
       await IDE.sendPrompt();
-      await this.wait(100);
-      return IDE.el.msgs.children.length === 0;
+            return IDE.el.msgs.children.length === 0;
     });
 
     // Escape — hotkey
@@ -278,8 +269,7 @@ const IDETests = {
       IDE.state.busy = true;
       IDE.el.send.disabled = true;
       this.simulateKey('Escape');
-      await this.wait(100);
-      return !IDE.state.busy;
+            return !IDE.state.busy;
     });
 
     // Command history — hotkey
@@ -289,8 +279,7 @@ const IDETests = {
       IDE.el.prompt.value = '';
       IDE.el.prompt.focus();
       this.simulateKey('ArrowUp', {}, IDE.el.prompt);
-      await this.wait(50);
-      const val = IDE.el.prompt.value;
+            const val = IDE.el.prompt.value;
       IDE.state.cmdHistory = [];
       IDE.state.histIdx = -1;
       return val === 'test-cmd-2';
@@ -302,8 +291,7 @@ const IDETests = {
       IDE.el.prompt.value = 'test-cmd-1';
       IDE.el.prompt.focus();
       this.simulateKey('ArrowDown', {}, IDE.el.prompt);
-      await this.wait(50);
-      const val = IDE.el.prompt.value;
+            const val = IDE.el.prompt.value;
       IDE.state.cmdHistory = [];
       IDE.state.histIdx = -1;
       return val === 'test-cmd-2';
@@ -316,8 +304,7 @@ const IDETests = {
       IDE.el.prompt.value = 'Piz';
       IDE.el.prompt.focus();
       this.simulateKey('Tab', {}, IDE.el.prompt);
-      await this.wait(50);
-      const val = IDE.el.prompt.value;
+            const val = IDE.el.prompt.value;
       IDE.state.wsActive = false;
       IDE.state.wsCompletions = [];
       return val === 'Pizza';
