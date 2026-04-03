@@ -98,8 +98,8 @@ IDE.register({
         const d = await r.json();
         const currentId = localStorage.getItem('hecks-ide-session');
         const sessions = (d.sessions || []).map(s => ({
-          name: `${s.preview || s.id.slice(0,8)}  (${s.age})`,
-          hint: s.id.slice(0, 8),
+          name: `${s.id.slice(0,8)}  ${s.preview || '(no preview)'}`,
+          hint: s.age,
           type: 'session',
           active: s.id === currentId,
           action: () => connectSession(s)
