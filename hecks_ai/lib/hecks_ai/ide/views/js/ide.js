@@ -68,6 +68,9 @@ const IDE = {
     turnLabelColor: { user: 'text-accent-blue', assistant: 'text-accent-green', system: 'text-fg-dim' },
     turnBody: 'font-mono text-sm leading-relaxed py-2.5 px-3.5 rounded-lg',
     turnBodyStyle: { user: 'bg-bg-user border-l-[3px] border-accent-blue', assistant: 'bg-bg-msg', system: 'bg-transparent text-fg-dim text-xs' },
+    tab: 'px-4 py-2 cursor-pointer text-fg-dim border-r border-border whitespace-nowrap flex items-center gap-1.5 select-none tab',
+    tabClose: 'text-sm text-fg-dim cursor-pointer leading-none hover:text-accent-red',
+    tabContent: 'flex-1 overflow-y-auto scroll-smooth tab-content',
     toolEntry: 'py-1.5 px-2 mb-1 rounded bg-[#1a1e2a] text-[11px] leading-snug',
     toolName: 'text-accent-yellow font-semibold',
     toolInput: 'text-fg-dim mt-0.5 max-h-10 overflow-hidden whitespace-nowrap text-ellipsis',
@@ -120,12 +123,12 @@ const IDE = {
   createTab(id, label, html) {
     if (this.state.openTabs[id]) this.closeTab(id);
     const tab = document.createElement('div');
-    tab.className = 'tab'; tab.dataset.tab = id;
-    tab.innerHTML = `<span class="tab-label">${this.esc(label)}</span><span class="tab-close" onclick="event.stopPropagation();IDE.closeTab('${id}')">&#215;</span>`;
+    tab.className = this.tw.tab; tab.dataset.tab = id;
+    tab.innerHTML = `<span class="tab-label">${this.esc(label)}</span><span class="${this.tw.tabClose}" onclick="event.stopPropagation();IDE.closeTab('${id}')">&#215;</span>`;
     tab.onclick = () => this.switchTab(id);
     this.el.tabBar.appendChild(tab);
     const content = document.createElement('div');
-    content.className = 'tab-content'; content.id = 'tab-' + id;
+    content.className = this.tw.tabContent; content.id = 'tab-' + id;
     content.innerHTML = html || '';
     document.querySelector('.main').insertBefore(content, this.el.thinkingBar);
     this.state.openTabs[id] = { tab, content };
