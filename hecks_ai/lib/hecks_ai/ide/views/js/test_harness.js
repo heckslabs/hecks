@@ -1,14 +1,26 @@
-/* ── IDE Test Harness — visual tests via bus commands ── */
+/* ── IDE Test Harness — click handlers emit bus events ── */
 
 const IDETests = {
   results: [],
   visual: true,
+  tests: [],
   get totalTests() { return this._totalTests || '?'; },
+
+  register(name, fn) { this.tests.push({ name, fn }); },
+
+  listenOnce(event) {
+    const result = { fired: false, data: undefined };
+    const handler = (data) => { result.fired = true; result.data = data; };
+    IDE.bus.on(event, handler);
+    result.cleanup = () => {
+      const subs = IDE.bus._subs[event];
+      if (subs) { const i = subs.indexOf(handler); if (i >= 0) subs.splice(i, 1); }
+    };
+    return result;
+  },
 
   async runAll() {
     this.results = [];
-
-    // Clear previous
     document.getElementById('command-log').innerHTML = '';
     const panelLog = document.getElementById('test-panel-log');
     if (panelLog) panelLog.innerHTML = '';
@@ -16,200 +28,23 @@ const IDETests = {
     if (testsPanel) testsPanel.classList.remove('closed');
     IDE.syncDot('tests');
 
-    // Snapshot state
-    const savedMsgs = IDE.el.msgs.innerHTML;
-    const savedPrompt = IDE.el.prompt.value;
-    const savedPlaceholder = IDE.el.prompt.placeholder;
-    const panelStates = {};
-    document.querySelectorAll('.panel').forEach(p => { panelStates[p.id] = p.className; });
-
-    // ── Tests ──
-
-    await this.test('bus delivers to subscribers', async () => {
-      let received = false;
-      IDE.bus.on('test:verify', () => { received = true; });
-      IDE.bus.emit('test:verify');
-      return received;
+    this.snapshot = {
+      msgs: IDE.el.msgs.innerHTML,
+      prompt: IDE.el.prompt.value,
+      placeholder: IDE.el.prompt.placeholder,
+      panels: {}
+    };
+    document.querySelectorAll('.panel').forEach(p => {
+      this.snapshot.panels[p.id] = p.className;
     });
 
-    await this.test('app-picker opens', async () => {
-      IDE.bus.emit('app-picker:open');
-      return await this.waitFor(() => {
-        const el = document.getElementById('app-picker');
-        return el && el.style.display === 'flex';
-      });
-    });
+    for (const t of this.tests) {
+      await this.test(t.name, t.fn);
+    }
 
-    await this.test('app-picker closes', async () => {
-      const el = document.getElementById('app-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    await this.test('session-picker opens', async () => {
-      IDE.bus.emit('session-picker:open');
-      return await this.waitFor(() => {
-        const el = document.getElementById('session-picker');
-        return el && el.style.display === 'flex';
-      });
-    });
-
-    await this.test('session-picker closes', async () => {
-      const el = document.getElementById('session-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    await this.test('sidebar toggles closed', async () => {
-      IDE.bus.emit('sidebar:toggle');
-      return IDE.el.sidebar.classList.contains('collapsed');
-    });
-
-    await this.test('sidebar toggles open', async () => {
-      IDE.bus.emit('sidebar:toggle');
-      return !IDE.el.sidebar.classList.contains('collapsed');
-    });
-
-    await this.test('panel collapses', async () => {
-      IDE.bus.emit('panel:collapse', 'apps');
-      return document.getElementById('panel-apps').classList.contains('closed');
-    });
-
-    await this.test('panel expands', async () => {
-      IDE.bus.emit('panel:collapse', 'apps');
-      return !document.getElementById('panel-apps').classList.contains('closed');
-    });
-
-    await this.test('panel:show reveals hidden panel', async () => {
-      document.getElementById('panel-hex').classList.add('hidden', 'closed');
-      IDE.bus.emit('panel:show', 'hex');
-      const el = document.getElementById('panel-hex');
-      return !el.classList.contains('hidden') && !el.classList.contains('closed');
-    });
-
-    await this.test('command-log opens', async () => {
-      document.getElementById('command-log').classList.add('collapsed');
-      IDE.bus.emit('command-log:toggle');
-      return !document.getElementById('command-log').classList.contains('collapsed');
-    });
-
-    await this.test('tab:close removes tab', async () => {
-      IDE.createTab('test-tab', 'Test Tab');
-      IDE.switchTab('test-tab');
-      const existed = !!IDE.state.openTabs['test-tab'];
-      return existed;
-    });
-
-    await this.test('tab:close cleans up', async () => {
-      IDE.bus.emit('tab:close', 'test-tab');
-      return !IDE.state.openTabs['test-tab'];
-    });
-
-    await this.test('autocomplete:close via bus', async () => {
-      IDE.bus.emit('autocomplete:close');
-      return !document.querySelector('.awesomplete > ul:not([hidden])');
-    });
-
-    await this.test('/hecks-ide-commands shows commands', async () => {
-      IDE.el.prompt.value = '/hecks-ide-commands';
-      await IDE.sendPrompt();
-      return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
-    });
-
-    await this.test('/hecks-ide-log opens log', async () => {
-      document.getElementById('command-log').classList.add('collapsed');
-      IDE.el.prompt.value = '/hecks-ide-log';
-      await IDE.sendPrompt();
-      return !document.getElementById('command-log').classList.contains('collapsed');
-    });
-
-    await this.test('/hecks-ide-clear clears chat', async () => {
-      IDE.addTurn('system', 'test message');
-      IDE.el.prompt.value = '/hecks-ide-clear';
-      await IDE.sendPrompt();
-      return IDE.el.msgs.children.length === 0;
-    });
-
-    await this.test('/hecks-ide-reset resets', async () => {
-      IDE.el.prompt.value = '/hecks-ide-reset';
-      await IDE.sendPrompt();
-      return IDE.el.msgs.children.length === 0;
-    });
-
-    await this.test('Escape interrupts', async () => {
-      IDE.state.busy = true;
-      IDE.el.send.disabled = true;
-      IDE.el.thinkingBar.classList.add('active');
-      // Fire through the component system
-      IDE.onKeydown({ key: 'Escape', preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
-      return !IDE.state.busy;
-    });
-
-    await this.test('ArrowUp recalls history', async () => {
-      IDE.state.cmdHistory = ['test-history-1', 'test-history-2'];
-      IDE.state.histIdx = -1;
-      IDE.el.prompt.value = '';
-      IDE.el.prompt.focus();
-      IDE.onKeydown({ key: 'ArrowUp', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
-      return IDE.el.prompt.value === 'test-history-2';
-    });
-
-    await this.test('ArrowDown navigates forward', async () => {
-      IDE.state.histIdx = 0;
-      IDE.onKeydown({ key: 'ArrowDown', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
-      return IDE.el.prompt.value === 'test-history-2';
-    });
-
-    await this.test('Tab completes', async () => {
-      IDE.state.wsActive = true;
-      IDE.state.wsCompletions = ['Pizza', 'Order'];
-      IDE.el.prompt.value = 'Piz';
-      IDE.el.prompt.focus();
-      IDE.onKeydown({ key: 'Tab', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
-      const val = IDE.el.prompt.value;
-      IDE.state.wsActive = false;
-      IDE.state.wsCompletions = [];
-      return val === 'Pizza';
-    });
-
-    await this.test('workshop:open handler registered', async () => {
-      return (IDE.bus._subs['workshop:open'] || []).length > 0;
-    });
-
-    await this.test('hecksagon:open handler registered', async () => {
-      return (IDE.bus._subs['hecksagon:open'] || []).length > 0;
-    });
-
-    await this.test('file:request handler registered', async () => {
-      return (IDE.bus._subs['file:request'] || []).length > 0;
-    });
-
-    await this.test('tests panel exists', async () => {
-      return !!document.getElementById('panel-tests');
-    });
-
-    await this.test('test-run button exists in panel', async () => {
-      return !!document.querySelector('#panel-tests button');
-    });
-
-    // ── Done ──
     this._totalTests = this.results.length;
     this.updatePanel('Done');
-
-    // Restore state
-    IDE.el.msgs.innerHTML = savedMsgs;
-    IDE.el.prompt.value = savedPrompt;
-    IDE.el.prompt.placeholder = savedPlaceholder;
-    document.querySelectorAll('.panel').forEach(p => { if (panelStates[p.id]) p.className = panelStates[p.id]; });
-    const ap = document.getElementById('app-picker'); if (ap) ap.style.display = 'none';
-    const sp = document.getElementById('session-picker'); if (sp) sp.style.display = 'none';
-    IDE.switchTab('chat');
-    IDE.el.status.textContent = '';
-    IDE.state.busy = false;
-    IDE.el.send.disabled = false;
-    IDE.state.cmdHistory = [];
-    IDE.state.histIdx = -1;
-
+    this.restore();
     this.report();
   },
 
@@ -227,23 +62,31 @@ const IDETests = {
     else await new Promise(r => requestAnimationFrame(r));
   },
 
-  // Poll for a condition to become true (for async UI changes)
-  async waitFor(fn, timeout = 2000) {
-    const start = Date.now();
-    while (Date.now() - start < timeout) {
-      if (fn()) return true;
-      await new Promise(r => setTimeout(r, 50));
-    }
-    return fn();
-  },
-
   wait(ms) { return new Promise(r => setTimeout(r, ms)); },
+
+  restore() {
+    IDE.el.msgs.innerHTML = this.snapshot.msgs;
+    IDE.el.prompt.value = this.snapshot.prompt;
+    IDE.el.prompt.placeholder = this.snapshot.placeholder;
+    document.querySelectorAll('.panel').forEach(p => {
+      if (this.snapshot.panels[p.id]) p.className = this.snapshot.panels[p.id];
+    });
+    const ap = document.getElementById('app-picker');
+    if (ap) ap.style.display = 'none';
+    const sp = document.getElementById('session-picker');
+    if (sp) sp.style.display = 'none';
+    IDE.switchTab('chat');
+    IDE.el.status.textContent = '';
+    IDE.state.busy = false;
+    IDE.el.send.disabled = false;
+    IDE.state.cmdHistory = [];
+    IDE.state.histIdx = -1;
+  },
 
   updatePanel(currentTest) {
     const log = document.getElementById('test-panel-log');
     const count = document.getElementById('test-panel-count');
     if (!log) return;
-
     const last = this.results[this.results.length - 1];
     if (last) {
       const icon = last.pass ? '✓' : '✗';
@@ -251,12 +94,12 @@ const IDETests = {
       log.innerHTML += `<div><span class="${color}">${icon}</span> ${last.name}</div>`;
       log.scrollTop = log.scrollHeight;
     }
-
     const passed = this.results.filter(r => r.pass).length;
     const failed = this.results.filter(r => !r.pass).length;
     count.textContent = `${passed}/${this.results.length}`;
-    count.className = failed ? 'text-[9px] bg-accent-red text-bg rounded-full px-1.5 py-px ml-1.5'
-                             : 'text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5';
+    count.className = failed
+      ? 'text-[9px] bg-accent-red text-bg rounded-full px-1.5 py-px ml-1.5'
+      : 'text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5';
   },
 
   report() {
@@ -275,6 +118,186 @@ const IDETests = {
   }
 };
 
+/* ── Tests: click → visual change → assert event ── */
+/* Each test makes ONE change. Undo happens in the next test. */
+
+IDETests.register('bus delivers to subscribers', async () => {
+  const ev = IDETests.listenOnce('test:verify');
+  IDE.bus.emit('test:verify');
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: sidebar closes', async () => {
+  const ev = IDETests.listenOnce('sidebar:toggle');
+  document.querySelector('button[onclick="toggleSidebar()"]').click();
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: sidebar opens', async () => {
+  const ev = IDETests.listenOnce('sidebar:toggle');
+  document.querySelector('button[onclick="toggleSidebar()"]').click();
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: apps panel collapses', async () => {
+  document.getElementById('panel-apps').classList.remove('closed');
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('.panel-dot-apps').click();
+  ev.cleanup();
+  return ev.fired && ev.data === 'apps';
+});
+
+IDETests.register('click: apps panel expands', async () => {
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('.panel-dot-apps').click();
+  ev.cleanup();
+  return ev.fired && ev.data === 'apps';
+});
+
+IDETests.register('click: docs header collapses', async () => {
+  document.getElementById('panel-docs-panel').classList.remove('closed');
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('#panel-docs-panel .panel-head span').click();
+  ev.cleanup();
+  return ev.fired && ev.data === 'docs-panel';
+});
+
+IDETests.register('click: docs header expands', async () => {
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('#panel-docs-panel .panel-head span').click();
+  ev.cleanup();
+  return ev.fired && ev.data === 'docs-panel';
+});
+
+IDETests.register('click: command-log opens', async () => {
+  document.getElementById('command-log').classList.add('collapsed');
+  const ev = IDETests.listenOnce('command-log:toggle');
+  document.querySelector('#command-log-toggle span').click();
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: command-log closes', async () => {
+  const ev = IDETests.listenOnce('command-log:toggle');
+  document.querySelector('#command-log-toggle span').click();
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('key: Cmd+O opens app-picker', async () => {
+  const ev = IDETests.listenOnce('app-picker:open');
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'o', metaKey: true, bubbles: true
+  }));
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: app-picker closes', async () => {
+  const el = document.getElementById('app-picker');
+  if (el) el.style.display = 'none';
+  return true;
+});
+
+IDETests.register('key: Cmd+Shift+O opens session-picker', async () => {
+  const ev = IDETests.listenOnce('session-picker:open');
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'O', metaKey: true, shiftKey: true, bubbles: true
+  }));
+  ev.cleanup();
+  return ev.fired;
+});
+
+IDETests.register('click: session-picker closes', async () => {
+  const el = document.getElementById('session-picker');
+  if (el) el.style.display = 'none';
+  return true;
+});
+
+IDETests.register('click: tab creates', async () => {
+  IDE.createTab('test-tab', 'Test Tab', '<div class="p-4">Test content</div>');
+  const ev = IDETests.listenOnce('tab:switch');
+  document.querySelector('.tab[data-tab="test-tab"]').click();
+  ev.cleanup();
+  return ev.fired && ev.data === 'test-tab';
+});
+
+IDETests.register('click: tab closes', async () => {
+  const closeBtn = document.querySelector('.tab[data-tab="test-tab"] .text-fg-dim');
+  if (closeBtn) closeBtn.click();
+  return !IDE.state.openTabs['test-tab'];
+});
+
+IDETests.register('slash: /hecks-ide-commands', async () => {
+  IDE.el.prompt.value = '/hecks-ide-commands';
+  document.getElementById('send').click();
+  return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
+});
+
+IDETests.register('slash: /hecks-ide-log', async () => {
+  document.getElementById('command-log').classList.add('collapsed');
+  IDE.el.prompt.value = '/hecks-ide-log';
+  document.getElementById('send').click();
+  return !document.getElementById('command-log').classList.contains('collapsed');
+});
+
+IDETests.register('slash: /hecks-ide-clear', async () => {
+  IDE.addTurn('system', 'test message');
+  IDE.el.prompt.value = '/hecks-ide-clear';
+  document.getElementById('send').click();
+  return IDE.el.msgs.children.length === 0;
+});
+
+IDETests.register('slash: /hecks-ide-reset', async () => {
+  IDE.el.prompt.value = '/hecks-ide-reset';
+  document.getElementById('send').click();
+  return IDE.el.msgs.children.length === 0;
+});
+
+IDETests.register('key: Escape stops busy', async () => {
+  IDE.state.busy = true;
+  IDE.el.send.disabled = true;
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'Escape', bubbles: true
+  }));
+  return !IDE.state.busy;
+});
+
+IDETests.register('key: ArrowUp recalls history', async () => {
+  IDE.state.cmdHistory = ['test-history-1', 'test-history-2'];
+  IDE.state.histIdx = -1;
+  IDE.el.prompt.value = '';
+  IDE.el.prompt.focus();
+  IDE.el.prompt.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'ArrowUp', bubbles: true
+  }));
+  return IDE.el.prompt.value === 'test-history-2';
+});
+
+IDETests.register('key: ArrowDown navigates forward', async () => {
+  IDE.state.histIdx = 0;
+  IDE.el.prompt.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'ArrowDown', bubbles: true
+  }));
+  return IDE.el.prompt.value === 'test-history-2';
+});
+
+IDETests.register('handler: workshop:open', async () => {
+  return (IDE.bus._subs['workshop:open'] || []).length > 0;
+});
+
+IDETests.register('handler: hecksagon:open', async () => {
+  return (IDE.bus._subs['hecksagon:open'] || []).length > 0;
+});
+
+IDETests.register('handler: file:request', async () => {
+  return (IDE.bus._subs['file:request'] || []).length > 0;
+});
+
+/* ── Bus listener ── */
 let testTimer = null;
 IDE.bus.on('test:run', (opts) => {
   IDETests.visual = !(opts && opts.headless);

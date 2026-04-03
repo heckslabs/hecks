@@ -15,11 +15,11 @@ IDE.register({
     overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;align-items:flex-start;justify-content:center;padding-top:15vh;';
 
     const box = document.createElement('div');
-    box.style.cssText = 'background:var(--bg-msg);border:1px solid var(--border);border-radius:8px;width:500px;max-height:450px;overflow-y:auto;font-family:var(--mono);font-size:13px;';
+    box.style.cssText = 'background:#161b22;border:1px solid #30363d;border-radius:8px;width:500px;max-height:450px;overflow-y:auto;font-family:SF Mono,Fira Code,Menlo,monospace;font-size:13px;';
 
     const header = document.createElement('div');
-    header.style.cssText = 'padding:12px 16px;border-bottom:1px solid var(--border);color:var(--green);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;display:flex;justify-content:space-between;';
-    header.innerHTML = '<span>Resume Session</span><span style="color:var(--fg-dim)">Cmd+Shift+O</span>';
+    header.style.cssText = 'padding:12px 16px;border-bottom:1px solid #30363d;color:#7ee787;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;display:flex;justify-content:space-between;';
+    header.innerHTML = '<span>Resume Session</span><span style="color:#8b949e">Cmd+Shift+O</span>';
 
     const list = document.createElement('div');
     box.appendChild(header);
@@ -46,17 +46,17 @@ IDE.register({
       });
 
       list.innerHTML = sorted.map((s, i) => {
-        const sel = i === selectedIdx ? 'background:var(--bg-user);' : '';
+        const sel = i === selectedIdx ? 'background:#1c2333;' : '';
         const isCurrent = s.id === currentId;
-        const border = isCurrent ? 'border-left:3px solid var(--green);' : '';
-        const badge = isCurrent ? '<span style="color:var(--green);font-size:9px;margin-left:6px;text-transform:uppercase">active</span>' : '';
+        const border = isCurrent ? 'border-left:3px solid #7ee787;' : '';
+        const badge = isCurrent ? '<span style="color:#7ee787;font-size:9px;margin-left:6px;text-transform:uppercase">active</span>' : '';
         const preview = IDE.esc(s.preview || '').slice(0, 60);
         return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;${sel}${border}" onclick="pickSession('${s.id}')">` +
-          `<div style="display:flex;justify-content:space-between"><span style="color:var(--fg)">${preview || '(empty)'}${badge}</span><span style="color:var(--fg-dim);font-size:10px">${s.age}</span></div>` +
-          `<div style="color:var(--fg-dim);font-size:10px;margin-top:2px">${s.id.slice(0,8)}...</div></div>`;
-      }).join('') || '<div style="padding:16px;color:var(--fg-dim)">No sessions found</div>';
+          `<div style="display:flex;justify-content:space-between"><span style="color:#c9d1d9">${preview || '(empty)'}${badge}</span><span style="color:#8b949e;font-size:10px">${s.age}</span></div>` +
+          `<div style="color:#8b949e;font-size:10px;margin-top:2px">${s.id.slice(0,8)}...</div></div>`;
+      }).join('') || '<div style="padding:16px;color:#8b949e">No sessions found</div>';
 
-      list.innerHTML += '<div style="padding:8px 16px;cursor:pointer;color:var(--blue);border-top:1px solid var(--border)" onclick="pickSession(\'new\')">+ New session</div>';
+      list.innerHTML += '<div style="padding:8px 16px;cursor:pointer;color:#58a6ff;border-top:1px solid #30363d" onclick="pickSession(\'new\')">+ New session</div>';
 
       const selEl = list.querySelector(`[data-idx="${selectedIdx}"]`);
       if (selEl) selEl.scrollIntoView({ block: 'nearest' });

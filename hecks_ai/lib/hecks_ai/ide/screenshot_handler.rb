@@ -41,7 +41,7 @@ module Hecks
         def prune
           shots = Dir[File.join(@dir, "*.png")]
             .reject { |f| f.end_with?("latest.png") }.sort
-          shots[0...-20].each { |f| File.delete(f) } if shots.size > 20
+          shots[0...-200].each { |f| File.delete(f) } if shots.size > 200
         end
       end
     end
