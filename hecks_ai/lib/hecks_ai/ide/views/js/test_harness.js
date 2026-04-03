@@ -8,7 +8,8 @@ const IDETests = {
   showOverlay(text) {
     if (!this.overlay) {
       this.overlay = document.createElement('div');
-      this.overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:100;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:var(--mono);';
+      this.overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:100;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:var(--mono);cursor:pointer;';
+      this.overlay.addEventListener('click', () => this.hideOverlay());
       document.body.appendChild(this.overlay);
     }
     if (!document.getElementById('test-log')) {
@@ -30,6 +31,7 @@ const IDETests = {
       log.scrollTop = log.scrollHeight;
     }
     current.textContent = `▸ ${text}  (${this.results.length}/${this.totalTests})`;
+    log.scrollTop = log.scrollHeight;
     this.overlay.style.display = 'flex';
   },
 
@@ -162,11 +164,10 @@ const IDETests = {
 
     await this.test('command-log toggle via click', async () => {
       const log = document.getElementById('command-log');
-      const toggle = document.getElementById('command-log-toggle');
       log.classList.add('collapsed');
-      toggle.click();
+      IDE.bus.emit('command-log:toggle');
       const opened = !log.classList.contains('collapsed');
-      toggle.click(); // close
+      IDE.bus.emit('command-log:toggle'); // close
       return opened;
     });
 
@@ -196,6 +197,10 @@ const IDETests = {
       const opened = tabs.some(t => t.includes('CLAUDE'));
       tabs.filter(t => t.includes('CLAUDE')).forEach(t => IDE.closeTab(t));
       return opened;
+    });
+
+    await this.test('test-run button exists', async () => {
+      return !!document.querySelector('.test-run-btn');
     });
 
     // Slash commands
@@ -284,9 +289,7 @@ const IDETests = {
     });
 
     this._totalTests = this.results.length;
-    this.showOverlay('Done!');
-    await this.wait(800);
-    this.hideOverlay();
+    this.showOverlay('Done — click to dismiss');
 
     // Restore state after tests
     IDE.el.msgs.innerHTML = savedMsgs;

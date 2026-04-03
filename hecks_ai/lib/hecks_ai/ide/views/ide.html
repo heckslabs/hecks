@@ -226,6 +226,8 @@
     }
     .command-log-toggle:hover { color: var(--fg); }
     .command-log-toggle.open { color: var(--yellow); }
+    .test-run-btn { cursor: pointer; color: var(--green); margin-left: 8px; font-size: 10px; }
+    .test-run-btn:hover { color: var(--fg); }
     .cmd-entry { display: flex; gap: 8px; padding: 1px 0; }
     .cmd-source { color: var(--fg-dim); min-width: 50px; }
     .cmd-source.server { color: var(--yellow); }
@@ -265,7 +267,7 @@
       <div class="tab-content active" id="tab-chat">
         <div class="messages" id="messages"></div>
       </div>
-      <div class="command-log-toggle" id="command-log-toggle" onclick="IDE.bus.emit('command-log:toggle')">&#9654; IDE commands log</div>
+      <div class="command-log-toggle" id="command-log-toggle"><span onclick="IDE.bus.emit('command-log:toggle')">&#9654; IDE commands log</span> <span class="test-run-btn" onclick="event.stopPropagation();IDE.bus.emit('test:run')" title="Run tests">&#9655;</span></div>
       <div class="command-log collapsed" id="command-log"></div>
       <div class="thinking-bar" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
       <div class="input-area">
