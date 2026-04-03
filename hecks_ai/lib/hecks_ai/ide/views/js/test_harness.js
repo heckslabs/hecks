@@ -187,7 +187,7 @@ IDETests.register('click: IDE Log panel closes', async () => {
   return ev.fired && ev.data === 'ide-log';
 });
 
-IDETests.register('key: Cmd+J opens command palette', async () => {
+IDETests.register('key: Cmd+K opens command palette', async () => {
   IDE.bus.emit('palette:open');
   await IDETests.wait(100);
   const el = document.getElementById('command-palette');
