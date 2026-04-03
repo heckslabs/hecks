@@ -105,7 +105,6 @@
       <!-- Command log -->
       <div class="font-mono text-[9px] text-fg-dim cursor-pointer py-0.5 px-4 border-t border-border select-none hover:text-fg" id="command-log-toggle">
         <span onclick="IDE.bus.emit('command-log:toggle')">&#9654; IDE commands log</span>
-        <span class="cursor-pointer text-accent-green ml-2 text-[10px] hover:text-fg" onclick="event.stopPropagation();IDE.bus.emit('test:run')" title="Run tests">&#9655;</span>
       </div>
       <div class="max-h-20 overflow-y-auto border-t border-border font-mono text-[10px] leading-relaxed px-4 scroll-smooth collapsed" id="command-log"></div>
 
@@ -131,6 +130,7 @@
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-green text-bg hover:opacity-80 panel-dot panel-dot-docs" onclick="toggleDotPanel('docs-panel')" title="Documentation">D</div>
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-purple text-bg hover:opacity-80 opacity-30 panel-dot panel-dot-hex inactive" onclick="toggleDotPanel('hex')" title="Hecksagon">H</div>
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-yellow text-bg hover:opacity-80 panel-dot panel-dot-tools" onclick="toggleDotPanel('tools')" title="Tool Calls">T</div>
+        <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-white text-bg hover:opacity-80 panel-dot panel-dot-tests" onclick="toggleDotPanel('tests')" title="Hecks IDE Tests">&#9655;</div>
       </div>
 
       <!-- Applications panel -->
@@ -155,6 +155,17 @@
           <span onclick="collapsePanel('hex')">Hecksagon <span class="transition-transform text-[9px] panel-chevron">&#9660;</span></span>
         </div>
         <div class="px-3.5 pb-3 pt-1 leading-relaxed overflow-y-auto panel-body" id="hex-body"></div>
+      </div>
+
+      <!-- Tests panel -->
+      <div class="border-b border-border panel panel-tests closed" id="panel-tests">
+        <div class="py-2 px-3.5 cursor-pointer select-none flex justify-between items-center text-[10px] uppercase tracking-wider font-semibold text-white hover:bg-bg-msg panel-head">
+          <span onclick="collapsePanel('tests')">Hecks IDE Tests <span class="text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5" id="test-panel-count">0</span> <span class="transition-transform text-[9px] panel-chevron">&#9660;</span></span>
+        </div>
+        <div class="px-3.5 pb-3 pt-1 leading-relaxed overflow-y-auto max-h-60 panel-body" id="test-panel-body">
+          <button class="bg-accent-green text-bg text-[11px] font-semibold px-3 py-1 rounded cursor-pointer hover:opacity-80 mb-2" onclick="IDE.bus.emit('test:run')">Run Tests</button>
+          <div id="test-panel-log" class="font-mono text-[11px] leading-relaxed"></div>
+        </div>
       </div>
 
       <!-- Tool Calls panel -->

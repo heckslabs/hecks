@@ -39,6 +39,27 @@ const IDETests = {
     if (this.overlay) this.overlay.style.display = 'none';
   },
 
+  updatePanel(currentTest) {
+    const log = document.getElementById('test-panel-log');
+    const count = document.getElementById('test-panel-count');
+    if (!log) return;
+
+    // Show last result
+    const last = this.results[this.results.length - 1];
+    if (last) {
+      const icon = last.pass ? '✓' : '✗';
+      const color = last.pass ? 'text-accent-green' : 'text-accent-red';
+      log.innerHTML += `<div><span class="${color}">${icon}</span> ${last.name}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    const passed = this.results.filter(r => r.pass).length;
+    const failed = this.results.filter(r => !r.pass).length;
+    count.textContent = `${passed}/${this.results.length}`;
+    count.className = failed ? 'text-[9px] bg-accent-red text-bg rounded-full px-1.5 py-px ml-1.5'
+                             : 'text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5';
+  },
+
   get totalTests() { return this._totalTests || '?'; },
 
   async runAll() {
@@ -47,6 +68,12 @@ const IDETests = {
     // Clear previous test state
     if (this.overlay) { this.overlay.remove(); this.overlay = null; }
     document.getElementById('command-log').innerHTML = '';
+    const panelLog = document.getElementById('test-panel-log');
+    if (panelLog) panelLog.innerHTML = '';
+    // Open the tests panel
+    const testsPanel = document.getElementById('panel-tests');
+    if (testsPanel) testsPanel.classList.remove('closed');
+    IDE.syncDot('tests');
 
     // Snapshot state before tests
     const savedMsgs = IDE.el.msgs.innerHTML;
@@ -148,6 +175,10 @@ const IDETests = {
       const shown = !panel.classList.contains('hidden') && !panel.classList.contains('closed');
       panel.classList.add('hidden'); // restore
       return shown;
+    });
+
+    await this.test('tests panel exists', async () => {
+      return !!document.getElementById('panel-tests');
     });
 
     await this.test('command-log:toggle via bus', async () => {
@@ -314,6 +345,7 @@ const IDETests = {
 
   async test(name, fn) {
     this.showOverlay(name);
+    this.updatePanel(name);
     try {
       const result = await fn();
       this.results.push({ name, pass: !!result });
