@@ -234,8 +234,8 @@ const IDETests = {
       return opened;
     });
 
-    await this.test('test-run button exists', async () => {
-      return !!document.querySelector('.test-run-btn');
+    await this.test('test-run button exists in panel', async () => {
+      return !!document.querySelector('#panel-tests button');
     });
 
     // Slash commands
@@ -324,7 +324,8 @@ const IDETests = {
     });
 
     this._totalTests = this.results.length;
-    this.showOverlay('Done — click to dismiss');
+    this.updatePanel('Done');
+    this.hideOverlay();
 
     // Restore state after tests
     IDE.el.msgs.innerHTML = savedMsgs;
