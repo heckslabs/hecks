@@ -122,8 +122,7 @@ IDE.register({
         ide.addTurn('system', cmds);
       },
       '/hecks-ide-log': () => {
-        document.getElementById('command-log').classList.remove('collapsed');
-        document.getElementById('command-log-toggle').classList.add('open');
+        IDE.bus.emit('panel:show', 'ide-log');
       },
       '/hecks-ide-test': () => { ide.bus.emit('test:run'); }
     };

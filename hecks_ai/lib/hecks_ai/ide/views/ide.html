@@ -76,9 +76,6 @@
     /* Events sidebar open state */
     .events-sidebar.open { width: 240px; display: block; }
 
-    /* Command log collapsed */
-    .command-log.collapsed, #command-log.collapsed { max-height: 0; padding: 0; border: none; overflow: hidden; }
-
     /* Sidebar collapsed */
     #sidebar.collapsed { width: 0; overflow: hidden; border: none; }
   </style>
@@ -105,12 +102,6 @@
         <div class="p-4" id="messages"></div>
       </div>
 
-      <!-- Command log -->
-      <div class="font-mono text-[9px] text-fg-dim cursor-pointer py-0.5 px-4 border-t border-border select-none hover:text-fg" id="command-log-toggle">
-        <span onclick="IDE.bus.emit('command-log:toggle')">&#9654; IDE commands log</span>
-      </div>
-      <div class="max-h-20 overflow-y-auto border-t border-border font-mono text-[10px] leading-relaxed px-4 scroll-smooth collapsed" id="command-log"></div>
-
       <!-- Thinking bar -->
       <div class="h-[3px] opacity-0 transition-opacity duration-500 overflow-hidden" id="thinking-bar"><div class="thinking-bar-inner"></div></div>
 
@@ -133,6 +124,7 @@
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-green text-bg hover:opacity-80 panel-dot panel-dot-docs" onclick="toggleDotPanel('docs-panel')" title="Documentation">D</div>
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-purple text-bg hover:opacity-80 opacity-30 panel-dot panel-dot-hex inactive" onclick="toggleDotPanel('hex')" title="Hecksagon">H</div>
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-yellow text-bg hover:opacity-80 panel-dot panel-dot-tools" onclick="toggleDotPanel('tools')" title="Tool Calls">T</div>
+        <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-accent-blue text-bg hover:opacity-80 panel-dot panel-dot-ide-log" onclick="toggleDotPanel('ide-log')" title="IDE Log">L</div>
         <div class="w-[22px] h-[22px] rounded-full flex items-center justify-center cursor-pointer text-[11px] transition-opacity bg-white text-bg hover:opacity-80 panel-dot panel-dot-tests" onclick="toggleDotPanel('tests')" title="Hecks IDE Tests">&#9655;</div>
       </div>
 
@@ -177,6 +169,14 @@
           <span onclick="collapsePanel('tools')">Tool Calls <span class="text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5" id="tool-count">0</span> <span class="transition-transform text-[9px] panel-chevron">&#9660;</span></span>
         </div>
         <div class="px-3.5 pb-3 pt-1 leading-relaxed overflow-y-auto panel-body" id="tool-log"><div class="text-fg-dim italic">No tool calls yet.</div></div>
+      </div>
+
+      <!-- IDE Log panel -->
+      <div class="border-b border-border panel panel-ide-log closed" id="panel-ide-log">
+        <div class="py-2 px-3.5 cursor-pointer select-none flex justify-between items-center text-[10px] uppercase tracking-wider font-semibold text-accent-blue hover:bg-bg-msg panel-head">
+          <span onclick="collapsePanel('ide-log')">IDE Log <span class="text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5" id="ide-log-count">0</span> <span class="transition-transform text-[9px] panel-chevron">&#9660;</span></span>
+        </div>
+        <div class="px-3.5 pb-3 pt-1 leading-relaxed overflow-y-auto max-h-60 panel-body font-mono text-[10px]" id="command-log"></div>
       </div>
     </div>
   </div>

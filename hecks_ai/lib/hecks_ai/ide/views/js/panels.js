@@ -42,8 +42,7 @@ IDE.register({
     });
 
     ide.bus.on('command-log:toggle', () => {
-      document.getElementById('command-log').classList.toggle('collapsed');
-      document.getElementById('command-log-toggle').classList.toggle('open');
+      IDE.bus.emit('panel:collapse', 'ide-log');
     });
 
     ide.bus.on('tab:close', (id) => {

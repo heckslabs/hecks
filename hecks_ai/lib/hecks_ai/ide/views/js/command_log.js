@@ -56,6 +56,9 @@ IDE.register({
 
     this.el.appendChild(entry);
     this.el.scrollTop = this.el.scrollHeight;
+    this.logCount = (this.logCount || 0) + 1;
+    const counter = document.getElementById('ide-log-count');
+    if (counter) counter.textContent = this.logCount;
   }
 });
 

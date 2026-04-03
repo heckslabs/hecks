@@ -172,19 +172,19 @@ IDETests.register('click: docs header expands', async () => {
   return ev.fired && ev.data === 'docs-panel';
 });
 
-IDETests.register('click: command-log opens', async () => {
-  document.getElementById('command-log').classList.add('collapsed');
-  const ev = IDETests.listenOnce('command-log:toggle');
-  document.querySelector('#command-log-toggle span').click();
+IDETests.register('click: IDE Log panel opens', async () => {
+  document.getElementById('panel-ide-log').classList.add('closed');
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('.panel-dot-ide-log').click();
   ev.cleanup();
-  return ev.fired;
+  return ev.fired && ev.data === 'ide-log';
 });
 
-IDETests.register('click: command-log closes', async () => {
-  const ev = IDETests.listenOnce('command-log:toggle');
-  document.querySelector('#command-log-toggle span').click();
+IDETests.register('click: IDE Log panel closes', async () => {
+  const ev = IDETests.listenOnce('panel:collapse');
+  document.querySelector('.panel-dot-ide-log').click();
   ev.cleanup();
-  return ev.fired;
+  return ev.fired && ev.data === 'ide-log';
 });
 
 IDETests.register('key: Cmd+O opens app-picker', async () => {
@@ -238,10 +238,10 @@ IDETests.register('slash: /hecks-ide-commands', async () => {
 });
 
 IDETests.register('slash: /hecks-ide-log', async () => {
-  document.getElementById('command-log').classList.add('collapsed');
+  document.getElementById('panel-ide-log').classList.add('closed');
   IDE.el.prompt.value = '/hecks-ide-log';
   document.getElementById('send').click();
-  return !document.getElementById('command-log').classList.contains('collapsed');
+  return !document.getElementById('panel-ide-log').classList.contains('closed');
 });
 
 IDETests.register('slash: /hecks-ide-clear', async () => {
