@@ -83,7 +83,7 @@ module Hecks
         end
 
         def ide_prompt_recent?
-          @ide_prompt_at && (Time.now - @ide_prompt_at) < 3
+          @ide_prompt_at && (Time.now - @ide_prompt_at) < 30
         end
 
         def emit(json)

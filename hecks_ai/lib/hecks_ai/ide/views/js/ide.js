@@ -3,7 +3,7 @@
 const IDE = {
   el: {},
   state: {
-    busy: false, nextIndex: 0, curEl: null, lastUserEl: null,
+    busy: false, paused: false, nextIndex: 0, curEl: null, lastUserEl: null,
     toolCount: 0, wsActive: false, wsCompletions: [], wsAggAttrs: {},
     activeFileCtx: null, openTabs: {}, cmdHistory: [], histIdx: -1
   },
@@ -155,6 +155,7 @@ const IDE = {
   },
 
   async poll() {
+    if (this.state.paused) return;
     try {
       const r = await fetch(`/events?after=${this.state.nextIndex}`);
       const d = await r.json();
@@ -175,6 +176,9 @@ const IDE = {
           }
           if (c.type === 'tool_use') this.addToolCall(c.name, c.input);
         });
+        if (e.message.stop_reason === 'end_turn' || e.message.stop_reason === 'stop_sequence') {
+          this.state.curEl = null;
+        }
       } else if (e.type === 'system' && e.subtype === 'init' && e.session_id) {
         localStorage.setItem('hecks-ide-session', e.session_id);
       } else if (e.type === 'result' && (e.subtype === 'success' || e.subtype === 'done')) {
@@ -214,6 +218,7 @@ const IDE = {
     }
 
     this.switchTab('chat');
+    this.state.paused = false;
     this.state.lastUserEl = this.addTurn('user', text);
     this.state.lastUserEl.classList.add('thinking');
     this.state.curEl = null;

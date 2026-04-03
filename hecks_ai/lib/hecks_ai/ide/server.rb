@@ -68,7 +68,7 @@ module Hecks
           when ["POST", "/workshop/command"] then handle_workshop_command(req, res)
           when ["GET", "/workshop/state"]    then serve_workshop_state(res)
           when ["POST", "/session/resume"]   then handle_session_resume(req, res)
-          when ["POST", "/session/disconnect"] then handle_session_disconnect(res)
+          when ["POST", "/session/reset"]      then handle_session_reset(res)
           when ["GET", "/session/history"]  then serve_session_history(req, res)
           when ["POST", "/interrupt"]        then handle_interrupt(res)
           when ["POST", "/screenshot"]       then handle_screenshot(req, res)

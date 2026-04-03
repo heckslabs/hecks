@@ -54,18 +54,22 @@ IDE.register({
         return 0;
       });
 
-      list.innerHTML = sorted.map((s, i) => {
-        const sel = i === selectedIdx ? 'background:#1c2333;' : '';
+      const newSel = selectedIdx === 0 ? 'background:#1c2333;' : '';
+      let html = `<div data-idx="0" style="padding:8px 16px;cursor:pointer;color:#58a6ff;border-bottom:1px solid #30363d;${newSel}" onclick="pickSession('new')">+ New session</div>`;
+
+      html += sorted.map((s, i) => {
+        const idx = i + 1;
+        const sel = idx === selectedIdx ? 'background:#1c2333;' : '';
         const isCurrent = s.id === currentId;
         const border = isCurrent ? 'border-left:3px solid #7ee787;' : '';
         const badge = isCurrent ? '<span style="color:#7ee787;font-size:9px;margin-left:6px;text-transform:uppercase">active</span>' : '';
         const preview = IDE.esc(s.preview || '').slice(0, 60);
-        return `<div data-idx="${i}" style="padding:8px 16px;cursor:pointer;${sel}${border}" onclick="pickSession('${s.id}')">` +
+        return `<div data-idx="${idx}" style="padding:8px 16px;cursor:pointer;${sel}${border}" onclick="pickSession('${s.id}')">` +
           `<div style="display:flex;justify-content:space-between"><span style="color:#c9d1d9">${preview || '(empty)'}${badge}</span><span style="color:#8b949e;font-size:10px">${s.age}</span></div>` +
           `<div style="color:#8b949e;font-size:10px;margin-top:2px">${s.id.slice(0,8)}...</div></div>`;
-      }).join('') || '<div style="padding:16px;color:#8b949e">No sessions found</div>';
+      }).join('');
 
-      list.innerHTML += '<div style="padding:8px 16px;cursor:pointer;color:#58a6ff;border-top:1px solid #30363d" onclick="pickSession(\'new\')">+ New session</div>';
+      list.innerHTML = html || '<div style="padding:16px;color:#8b949e">No sessions found</div>';
 
       const selEl = list.querySelector(`[data-idx="${selectedIdx}"]`);
       if (selEl) selEl.scrollIntoView({ block: 'nearest' });
@@ -88,13 +92,14 @@ IDE.register({
     overlay.setAttribute('tabindex', '-1');
     overlay.addEventListener('keydown', e => {
       if (e.key === 'Escape') { close(); return; }
-      if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, sessions.length); render(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, sorted.length); render(); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); render(); return; }
       if (e.key === 'Enter') {
-        if (selectedIdx < sorted.length) {
-          close(); pickSession(sorted[selectedIdx].id);
+        close();
+        if (selectedIdx === 0) {
+          pickSession('new');
         } else {
-          close(); pickSession('new');
+          pickSession(sorted[selectedIdx - 1].id);
         }
         return;
       }
@@ -122,8 +127,14 @@ async function pickSession(id) {
   document.getElementById('session-picker').style.display = 'none';
 
   if (id === 'new') {
+    await fetch('/session/reset', { method: 'POST' });
     localStorage.removeItem('hecks-ide-session');
-    IDE.addTurn('system', 'Starting new session');
+    IDE.el.msgs.innerHTML = '';
+    IDE.state.curEl = null;
+    IDE.state.nextIndex = 0;
+    IDE.state.paused = true;
+    IDE.addTurn('system', 'New session — send a prompt or pick a session to resume');
+    IDE.bus.emit('session:disconnected');
     return;
   }
 
@@ -134,6 +145,7 @@ async function pickSession(id) {
       body: JSON.stringify({ session_id: id })
     });
     localStorage.setItem('hecks-ide-session', id);
+    IDE.state.paused = false;
     IDE.bus.emit('session:connected', { session_id: id });
   } catch (e) {
     IDE.addTurn('system', 'Failed to resume session');

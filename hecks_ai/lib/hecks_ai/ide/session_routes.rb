@@ -29,9 +29,12 @@ module Hecks
           res.body = JSON.generate(ok: true, session_id: session_id, watching: @watcher&.watching?)
         end
 
-        def handle_session_disconnect(res)
+        def handle_session_reset(res)
+          @claude&.stop
+          @claude = nil
           @watcher&.stop
           @watcher = nil
+          @mutex.synchronize { @events.clear }
           res.content_type = "application/json"
           res.body = JSON.generate(ok: true)
         end
