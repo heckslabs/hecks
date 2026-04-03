@@ -57,6 +57,11 @@
     /* Mermaid pending */
     .mermaid-pending { visibility: hidden; }
 
+    /* Tab content visibility */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab.active { color: #c9d1d9; background: #161b22; border-bottom: 2px solid #58a6ff; }
+
     /* Book aggs collapse */
     .book-aggs.collapsed { display: none; }
     .book-chevron.open { transform: rotate(90deg); }
@@ -159,7 +164,7 @@
       </div>
 
       <!-- Chat content -->
-      <div class="flex-1 overflow-y-auto hidden scroll-smooth tab-content active" id="tab-chat">
+      <div class="flex-1 overflow-y-auto scroll-smooth tab-content active" id="tab-chat">
         <div class="p-4" id="messages"></div>
       </div>
 

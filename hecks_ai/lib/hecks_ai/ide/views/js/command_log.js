@@ -34,10 +34,10 @@ IDE.register({
     const errors = this.errors.splice(0); // drain errors
 
     const entry = document.createElement('div');
-    entry.className = 'cmd-entry';
+    entry.className = 'flex gap-2 py-px';
 
     let html =
-      `<span class="cmd-source ${source}">${source}</span>` +
+      `<span class="min-w-[50px] ${source === 'server' ? 'text-accent-yellow' : 'text-accent-blue'}">${source}</span>` +
       `<span class="cmd-event">${IDE.esc(event)}</span>`;
 
     if (detail) html += `<span style="color:var(--fg-dim)">${IDE.esc(detail)}</span>`;

@@ -61,11 +61,28 @@ const IDE = {
 
   esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
 
+  // Tailwind class maps for dynamically created elements
+  tw: {
+    turn: 'mb-5',
+    turnLabel: 'font-mono text-[11px] font-semibold uppercase tracking-wider mb-1.5',
+    turnLabelColor: { user: 'text-accent-blue', assistant: 'text-accent-green', system: 'text-fg-dim' },
+    turnBody: 'font-mono text-sm leading-relaxed py-2.5 px-3.5 rounded-lg',
+    turnBodyStyle: { user: 'bg-bg-user border-l-[3px] border-accent-blue', assistant: 'bg-bg-msg', system: 'bg-transparent text-fg-dim text-xs' },
+    toolEntry: 'py-1.5 px-2 mb-1 rounded bg-[#1a1e2a] text-[11px] leading-snug',
+    toolName: 'text-accent-yellow font-semibold',
+    toolInput: 'text-fg-dim mt-0.5 max-h-10 overflow-hidden whitespace-nowrap text-ellipsis',
+    eventItem: 'py-1.5 px-2 mb-1 rounded bg-bg-msg text-[11px] leading-snug',
+    eventType: 'text-accent-green font-semibold',
+    eventAttrs: 'text-fg-dim mt-0.5',
+  },
+
   addTurn(role, content) {
     const labels = { user: 'You', assistant: 'Claude', system: 'System' };
     const d = document.createElement('div');
-    d.className = `turn turn-${role}`;
-    d.innerHTML = `<div class="turn-label">${labels[role] || role}</div><div class="turn-body"><pre>${this.esc(content)}</pre></div>`;
+    d.className = `${this.tw.turn} turn turn-${role}`;
+    const lc = this.tw.turnLabelColor[role] || 'text-fg-dim';
+    const bc = this.tw.turnBodyStyle[role] || 'bg-bg-msg';
+    d.innerHTML = `<div class="${this.tw.turnLabel} ${lc}">${labels[role] || role}</div><div class="${this.tw.turnBody} ${bc} turn-body"><pre class="whitespace-pre-wrap break-words m-0">${this.esc(content)}</pre></div>`;
     this.el.msgs.appendChild(d);
     this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
     return d;
@@ -128,9 +145,9 @@ const IDE = {
     this.state.toolCount++;
     this.el.toolCount.textContent = this.state.toolCount;
     const d = document.createElement('div');
-    d.className = 'tool-entry';
+    d.className = this.tw.toolEntry;
     const s = typeof input === 'string' ? input : JSON.stringify(input);
-    d.innerHTML = `<span class="tool-name">${this.esc(name)}</span><div class="tool-input">${this.esc(s.slice(0, 200))}</div>`;
+    d.innerHTML = `<span class="${this.tw.toolName}">${this.esc(name)}</span><div class="${this.tw.toolInput}">${this.esc(s.slice(0, 200))}</div>`;
     this.el.toolLog.appendChild(d);
   },
 

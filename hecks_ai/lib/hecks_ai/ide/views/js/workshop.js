@@ -9,8 +9,8 @@ IDE.register({
     const out = document.getElementById('ws-output');
     const scroller = out.closest('.tab-content');
     const entry = document.createElement('div');
-    entry.className = 'ws-entry';
-    entry.innerHTML = `<div class="ws-cmd">${ide.esc(cmd)}</div>`;
+    entry.className = 'mb-3';
+    entry.innerHTML = `<div class="text-accent-green ws-cmd">${ide.esc(cmd)}</div>`;
     out.appendChild(entry);
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
 
@@ -27,8 +27,8 @@ IDE.register({
       });
     }
 
-    if (d.error) entry.innerHTML += `<div class="ws-result ws-error">${ide.esc(d.error)}</div>`;
-    else if (d.output) entry.innerHTML += `<div class="ws-result">${ide.esc(d.output)}</div>`;
+    if (d.error) entry.innerHTML += `<div class="whitespace-pre-wrap break-words mt-1 text-accent-red">${ide.esc(d.error)}</div>`;
+    else if (d.output) entry.innerHTML += `<div class="whitespace-pre-wrap break-words mt-1">${ide.esc(d.output)}</div>`;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
 
     console.log('workshop state:', d.state?.mode, 'events:', d.state?.events?.length);
@@ -40,7 +40,7 @@ IDE.register({
       } else {
         ide.el.eventList.innerHTML = events.map(ev => {
           const attrs = Object.entries(ev.attributes || {}).map(([k,v]) => `${k}: ${v}`).join(', ');
-          return `<div class="event-item"><span class="event-type">${ide.esc(ev.type)}</span><div class="event-attrs">${ide.esc(attrs)}</div></div>`;
+          return `<div class="${IDE.tw.eventItem}"><span class="${IDE.tw.eventType}">${ide.esc(ev.type)}</span><div class="${IDE.tw.eventAttrs}">${ide.esc(attrs)}</div></div>`;
         }).join('');
       }
     }
@@ -71,13 +71,13 @@ async function openWorkshop(path, name) {
   if (!IDE.state.openTabs[id]) {
     const content = IDE.createTab(id, name);
     content.innerHTML =
-      `<div class="ws-diagram"><div class="ws-diagram-title">${IDE.esc(d.domain)}</div><pre class="mermaid-pending">${IDE.esc(d.diagram || '')}</pre></div>` +
-      `<div class="ws-output" id="ws-output"><div class="ws-entry"><span class="ws-mode">Workshop: ${IDE.esc(d.domain)} (sketch mode)</span></div></div>`;
+      `<div class="p-4 text-center border-b border-border"><div class="font-mono text-[13px] text-accent-green font-semibold mb-3">${IDE.esc(d.domain)}</div><pre class="mermaid-pending">${IDE.esc(d.diagram || '')}</pre></div>` +
+      `<div class="p-4 font-mono text-[13px] leading-relaxed" id="ws-output"><div class="mb-3"><span class="text-fg-dim text-[11px]">Workshop: ${IDE.esc(d.domain)} (sketch mode)</span></div></div>`;
     IDE.state.openTabs[id].path = path;
   } else {
     IDE.state.openTabs[id].tab.querySelector('.tab-label').textContent = name;
     document.getElementById('ws-output').innerHTML =
-      `<div class="ws-entry"><span class="ws-mode">Workshop: ${IDE.esc(d.domain)} (sketch mode)</span></div>`;
+      `<div class="mb-3"><span class="text-fg-dim text-[11px]">Workshop: ${IDE.esc(d.domain)} (sketch mode)</span></div>`;
   }
   IDE.switchTab(id);
   IDE.el.prompt.placeholder = `${d.domain} workshop > `;

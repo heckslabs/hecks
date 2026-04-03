@@ -19,7 +19,7 @@ function openHecksagon(path) {
       IDE.state.openTabs['hecksagon'].path = path;
       const diagram = buildHecksagonDiagram(text, path);
       content.innerHTML =
-        '<div class="ws-diagram"><div class="ws-diagram-title">' + IDE.esc(name) + '</div>' +
+        '<div class="p-4 text-center border-b border-border"><div class="font-mono text-[13px] text-accent-green font-semibold mb-3">' + IDE.esc(name) + '</div>' +
         '<pre class="mermaid-pending">' + IDE.esc(diagram) + '</pre></div>' +
         '<div class="file-view"><div class="file-view-path">' + IDE.esc(path) + '</div>' +
         '<pre>' + IDE.esc(text) + '</pre></div>';
