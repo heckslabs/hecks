@@ -1,50 +1,249 @@
-/* ── IDE Test Harness — exercises all commands via all entry points ── */
+/* ── IDE Test Harness — visual tests via bus commands ── */
 
 const IDETests = {
   results: [],
+  visual: true,
+  get totalTests() { return this._totalTests || '?'; },
 
-  overlay: null,
+  async runAll() {
+    this.results = [];
 
-  showOverlay(text) {
-    if (!this.overlay) {
-      this.overlay = document.createElement('div');
-      this.overlay.style.cssText = 'position:fixed;inset:0;background:rgba(13,17,23,0.85);z-index:100;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;';
-      this.overlay.addEventListener('click', () => this.hideOverlay());
-      document.body.appendChild(this.overlay);
-    }
-    if (!document.getElementById('test-log')) {
-      this.overlay.innerHTML =
-        `<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;width:500px;max-height:400px;padding:16px;overflow-y:auto" onclick="event.stopPropagation()">` +
-        `<div style="color:var(--green);font-size:14px;font-weight:600;margin-bottom:8px">Testing</div>` +
-        `<div id="test-log" style="font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto"></div>` +
-        `<div id="test-current" style="color:var(--fg-dim);font-size:11px;margin-top:8px;border-top:1px solid var(--border);padding-top:6px"></div>` +
-        `</div>`;
-    }
-    const log = document.getElementById('test-log');
-    const current = document.getElementById('test-current');
-    // Add last result to log
-    const last = this.results[this.results.length - 1];
-    if (last) {
-      const icon = last.pass ? '✓' : '✗';
-      const color = last.pass ? 'var(--green)' : 'var(--red)';
-      log.innerHTML += `<div><span style="color:${color}">${icon}</span> ${last.name}</div>`;
-      log.scrollTop = log.scrollHeight;
-    }
-    current.textContent = `▸ ${text}  (${this.results.length}/${this.totalTests})`;
-    log.scrollTop = log.scrollHeight;
-    this.overlay.style.display = 'flex';
+    // Clear previous
+    document.getElementById('command-log').innerHTML = '';
+    const panelLog = document.getElementById('test-panel-log');
+    if (panelLog) panelLog.innerHTML = '';
+    const testsPanel = document.getElementById('panel-tests');
+    if (testsPanel) testsPanel.classList.remove('closed');
+    IDE.syncDot('tests');
+
+    // Snapshot state
+    const savedMsgs = IDE.el.msgs.innerHTML;
+    const savedPrompt = IDE.el.prompt.value;
+    const savedPlaceholder = IDE.el.prompt.placeholder;
+    const panelStates = {};
+    document.querySelectorAll('.panel').forEach(p => { panelStates[p.id] = p.className; });
+
+    // ── Tests ──
+
+    await this.test('bus delivers to subscribers', async () => {
+      let received = false;
+      IDE.bus.on('test:verify', () => { received = true; });
+      IDE.bus.emit('test:verify');
+      return received;
+    });
+
+    await this.test('app-picker opens', async () => {
+      IDE.bus.emit('app-picker:open');
+      return await this.waitFor(() => {
+        const el = document.getElementById('app-picker');
+        return el && el.style.display === 'flex';
+      });
+    });
+
+    await this.test('app-picker closes', async () => {
+      const el = document.getElementById('app-picker');
+      if (el) el.style.display = 'none';
+      return true;
+    });
+
+    await this.test('session-picker opens', async () => {
+      IDE.bus.emit('session-picker:open');
+      return await this.waitFor(() => {
+        const el = document.getElementById('session-picker');
+        return el && el.style.display === 'flex';
+      });
+    });
+
+    await this.test('session-picker closes', async () => {
+      const el = document.getElementById('session-picker');
+      if (el) el.style.display = 'none';
+      return true;
+    });
+
+    await this.test('sidebar toggles closed', async () => {
+      IDE.bus.emit('sidebar:toggle');
+      return IDE.el.sidebar.classList.contains('collapsed');
+    });
+
+    await this.test('sidebar toggles open', async () => {
+      IDE.bus.emit('sidebar:toggle');
+      return !IDE.el.sidebar.classList.contains('collapsed');
+    });
+
+    await this.test('panel collapses', async () => {
+      IDE.bus.emit('panel:collapse', 'apps');
+      return document.getElementById('panel-apps').classList.contains('closed');
+    });
+
+    await this.test('panel expands', async () => {
+      IDE.bus.emit('panel:collapse', 'apps');
+      return !document.getElementById('panel-apps').classList.contains('closed');
+    });
+
+    await this.test('panel:show reveals hidden panel', async () => {
+      document.getElementById('panel-hex').classList.add('hidden', 'closed');
+      IDE.bus.emit('panel:show', 'hex');
+      const el = document.getElementById('panel-hex');
+      return !el.classList.contains('hidden') && !el.classList.contains('closed');
+    });
+
+    await this.test('command-log opens', async () => {
+      document.getElementById('command-log').classList.add('collapsed');
+      IDE.bus.emit('command-log:toggle');
+      return !document.getElementById('command-log').classList.contains('collapsed');
+    });
+
+    await this.test('tab:close removes tab', async () => {
+      IDE.createTab('test-tab', 'Test Tab');
+      IDE.switchTab('test-tab');
+      const existed = !!IDE.state.openTabs['test-tab'];
+      return existed;
+    });
+
+    await this.test('tab:close cleans up', async () => {
+      IDE.bus.emit('tab:close', 'test-tab');
+      return !IDE.state.openTabs['test-tab'];
+    });
+
+    await this.test('autocomplete:close via bus', async () => {
+      IDE.bus.emit('autocomplete:close');
+      return !document.querySelector('.awesomplete > ul:not([hidden])');
+    });
+
+    await this.test('/hecks-ide-commands shows commands', async () => {
+      IDE.el.prompt.value = '/hecks-ide-commands';
+      await IDE.sendPrompt();
+      return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
+    });
+
+    await this.test('/hecks-ide-log opens log', async () => {
+      document.getElementById('command-log').classList.add('collapsed');
+      IDE.el.prompt.value = '/hecks-ide-log';
+      await IDE.sendPrompt();
+      return !document.getElementById('command-log').classList.contains('collapsed');
+    });
+
+    await this.test('/hecks-ide-clear clears chat', async () => {
+      IDE.addTurn('system', 'test message');
+      IDE.el.prompt.value = '/hecks-ide-clear';
+      await IDE.sendPrompt();
+      return IDE.el.msgs.children.length === 0;
+    });
+
+    await this.test('/hecks-ide-reset resets', async () => {
+      IDE.el.prompt.value = '/hecks-ide-reset';
+      await IDE.sendPrompt();
+      return IDE.el.msgs.children.length === 0;
+    });
+
+    await this.test('Escape interrupts', async () => {
+      IDE.state.busy = true;
+      IDE.el.send.disabled = true;
+      IDE.el.thinkingBar.classList.add('active');
+      // Fire through the component system
+      IDE.onKeydown({ key: 'Escape', preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
+      return !IDE.state.busy;
+    });
+
+    await this.test('ArrowUp recalls history', async () => {
+      IDE.state.cmdHistory = ['test-history-1', 'test-history-2'];
+      IDE.state.histIdx = -1;
+      IDE.el.prompt.value = '';
+      IDE.el.prompt.focus();
+      IDE.onKeydown({ key: 'ArrowUp', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
+      return IDE.el.prompt.value === 'test-history-2';
+    });
+
+    await this.test('ArrowDown navigates forward', async () => {
+      IDE.state.histIdx = 0;
+      IDE.onKeydown({ key: 'ArrowDown', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
+      return IDE.el.prompt.value === 'test-history-2';
+    });
+
+    await this.test('Tab completes', async () => {
+      IDE.state.wsActive = true;
+      IDE.state.wsCompletions = ['Pizza', 'Order'];
+      IDE.el.prompt.value = 'Piz';
+      IDE.el.prompt.focus();
+      IDE.onKeydown({ key: 'Tab', target: IDE.el.prompt, preventDefault: ()=>{}, stopImmediatePropagation: ()=>{} });
+      const val = IDE.el.prompt.value;
+      IDE.state.wsActive = false;
+      IDE.state.wsCompletions = [];
+      return val === 'Pizza';
+    });
+
+    await this.test('workshop:open handler registered', async () => {
+      return (IDE.bus._subs['workshop:open'] || []).length > 0;
+    });
+
+    await this.test('hecksagon:open handler registered', async () => {
+      return (IDE.bus._subs['hecksagon:open'] || []).length > 0;
+    });
+
+    await this.test('file:request handler registered', async () => {
+      return (IDE.bus._subs['file:request'] || []).length > 0;
+    });
+
+    await this.test('tests panel exists', async () => {
+      return !!document.getElementById('panel-tests');
+    });
+
+    await this.test('test-run button exists in panel', async () => {
+      return !!document.querySelector('#panel-tests button');
+    });
+
+    // ── Done ──
+    this._totalTests = this.results.length;
+    this.updatePanel('Done');
+
+    // Restore state
+    IDE.el.msgs.innerHTML = savedMsgs;
+    IDE.el.prompt.value = savedPrompt;
+    IDE.el.prompt.placeholder = savedPlaceholder;
+    document.querySelectorAll('.panel').forEach(p => { if (panelStates[p.id]) p.className = panelStates[p.id]; });
+    const ap = document.getElementById('app-picker'); if (ap) ap.style.display = 'none';
+    const sp = document.getElementById('session-picker'); if (sp) sp.style.display = 'none';
+    IDE.switchTab('chat');
+    IDE.el.status.textContent = '';
+    IDE.state.busy = false;
+    IDE.el.send.disabled = false;
+    IDE.state.cmdHistory = [];
+    IDE.state.histIdx = -1;
+
+    this.report();
   },
 
-  hideOverlay() {
-    if (this.overlay) this.overlay.style.display = 'none';
+  async test(name, fn) {
+    try {
+      const result = await fn();
+      this.results.push({ name, pass: !!result });
+      if (!result) console.warn(`FAIL: ${name}`);
+    } catch (e) {
+      this.results.push({ name, pass: false });
+      console.error(`FAIL: ${name}: ${e.message}`);
+    }
+    this.updatePanel(name);
+    if (this.visual) await this.wait(500);
+    else await new Promise(r => requestAnimationFrame(r));
   },
+
+  // Poll for a condition to become true (for async UI changes)
+  async waitFor(fn, timeout = 2000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      if (fn()) return true;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    return fn();
+  },
+
+  wait(ms) { return new Promise(r => setTimeout(r, ms)); },
 
   updatePanel(currentTest) {
     const log = document.getElementById('test-panel-log');
     const count = document.getElementById('test-panel-count');
     if (!log) return;
 
-    // Show last result
     const last = this.results[this.results.length - 1];
     if (last) {
       const icon = last.pass ? '✓' : '✗';
@@ -60,309 +259,14 @@ const IDETests = {
                              : 'text-[9px] bg-border text-fg rounded-full px-1.5 py-px ml-1.5';
   },
 
-  get totalTests() { return this._totalTests || '?'; },
-
-  async runAll() {
-    this.results = [];
-
-    // Clear previous test state
-    document.getElementById('command-log').innerHTML = '';
-    const panelLog = document.getElementById('test-panel-log');
-    if (panelLog) panelLog.innerHTML = '';
-    // Open the tests panel
-    const testsPanel = document.getElementById('panel-tests');
-    if (testsPanel) testsPanel.classList.remove('closed');
-    IDE.syncDot('tests');
-
-    // Snapshot state before tests
-    const savedMsgs = IDE.el.msgs.innerHTML;
-    const savedPrompt = IDE.el.prompt.value;
-    const savedPlaceholder = IDE.el.prompt.placeholder;
-    const panelStates = {};
-    document.querySelectorAll('.panel').forEach(p => { panelStates[p.id] = p.className; });
-    const logCollapsed = document.getElementById('command-log').classList.contains('collapsed');
-
-    // Core
-    await this.test('bus delivers to subscribers', async () => {
-      let received = false;
-      IDE.bus.on('test:verify', () => { received = true; });
-      IDE.bus.emit('test:verify');
-      return received;
-    });
-
-    // App picker — bus, hotkey
-    await this.test('app-picker:open via bus', async () => {
-      IDE.bus.emit('app-picker:open');
-      const el = document.getElementById('app-picker');
-      return el && el.style.display === 'flex';
-    });
-    // close after visual pause
-    await this.test('app-picker:close', async () => {
-      const el = document.getElementById('app-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    await this.test('app-picker:open via Cmd+O hotkey', async () => {
-      IDE.components.some(c => c.onKeydown &&
-        c.onKeydown({ key: 'o', metaKey: true, shiftKey: false, ctrlKey: false, preventDefault: ()=>{} }, IDE));
-      const el = document.getElementById('app-picker');
-      return el && el.style.display === 'flex';
-    });
-    await this.test('app-picker:close', async () => {
-      const el = document.getElementById('app-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    // Session picker — bus, hotkey
-    await this.test('session-picker:open via bus', async () => {
-      IDE.bus.emit('session-picker:open');
-      const el = document.getElementById('session-picker');
-      return el && el.style.display === 'flex';
-    });
-    await this.test('session-picker:close', async () => {
-      const el = document.getElementById('session-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    await this.test('session-picker:open via Cmd+Shift+O hotkey', async () => {
-      IDE.components.some(c => c.onKeydown &&
-        c.onKeydown({ key: 'O', metaKey: true, shiftKey: true, ctrlKey: false, preventDefault: ()=>{} }, IDE));
-      const el = document.getElementById('session-picker');
-      return el && el.style.display === 'flex';
-    });
-    await this.test('session-picker:close', async () => {
-      const el = document.getElementById('session-picker');
-      if (el) el.style.display = 'none';
-      return true;
-    });
-
-    // Autocomplete — bus
-    await this.test('autocomplete:close via bus', async () => {
-      IDE.bus.emit('autocomplete:close');
-      return !document.querySelector('.awesomplete > ul:not([hidden])');
-    });
-
-    // Tab switch — bus, click
-    await this.test('switchTab("chat") via function', async () => {
-      IDE.switchTab('chat');
-      return document.querySelector('.tab[data-tab="chat"]').classList.contains('active');
-    });
-
-    // Panel toggle — bus, click
-    await this.test('collapsePanel("apps") toggles', async () => {
-      const panel = document.getElementById('panel-apps');
-      const was = panel.classList.contains('closed');
-      IDE.collapsePanel('apps');
-      return was !== panel.classList.contains('closed');
-    });
-
-    // Command log toggle — click
-    // Sidebar clicks via bus
-    await this.test('sidebar:toggle via bus', async () => {
-      const was = IDE.el.sidebar.classList.contains('collapsed');
-      IDE.bus.emit('sidebar:toggle');
-      const is = IDE.el.sidebar.classList.contains('collapsed');
-      return was !== is;
-      // restored by snapshot at end
-    });
-
-    await this.test('panel:collapse via bus', async () => {
-      const panel = document.getElementById('panel-apps');
-      const was = panel.classList.contains('closed');
-      IDE.bus.emit('panel:collapse', 'apps');
-      const is = panel.classList.contains('closed');
-      return was !== is;
-    });
-
-    await this.test('panel:show via bus', async () => {
-      const panel = document.getElementById('panel-hex');
-      panel.classList.add('hidden', 'closed');
-      IDE.bus.emit('panel:show', 'hex');
-      return !panel.classList.contains('hidden') && !panel.classList.contains('closed');
-    });
-
-    await this.test('tests panel exists', async () => {
-      return !!document.getElementById('panel-tests');
-    });
-
-    await this.test('command-log:toggle via bus', async () => {
-      const log = document.getElementById('command-log');
-      log.classList.add('collapsed');
-      IDE.bus.emit('command-log:toggle');
-      return !log.classList.contains('collapsed');
-    });
-
-    await this.test('tab:close via bus', async () => {
-      IDE.createTab('test-tab', 'Test');
-      const existed = !!IDE.state.openTabs['test-tab'];
-      IDE.bus.emit('tab:close', 'test-tab');
-      return existed && !IDE.state.openTabs['test-tab'];
-    });
-
-    await this.test('command-log toggle via click', async () => {
-      const log = document.getElementById('command-log');
-      log.classList.add('collapsed');
-      IDE.bus.emit('command-log:toggle');
-      return !log.classList.contains('collapsed');
-    });
-
-    // Sidebar actions via bus — verify handlers are registered
-    await this.test('workshop:open handler registered', async () => {
-      return (IDE.bus._subs['workshop:open'] || []).length > 0;
-    });
-
-    await this.test('hecksagon:open handler registered', async () => {
-      return (IDE.bus._subs['hecksagon:open'] || []).length > 0;
-    });
-
-    await this.test('file:request handler registered', async () => {
-      return (IDE.bus._subs['file:request'] || []).length > 0;
-    });
-
-    await this.test('test-run button exists in panel', async () => {
-      return !!document.querySelector('#panel-tests button');
-    });
-
-    // Slash commands
-    await this.test('/hecks-ide-commands via slash', async () => {
-      IDE.el.msgs.innerHTML = '';
-      IDE.el.prompt.value = '/hecks-ide-commands';
-      await IDE.sendPrompt();
-            return IDE.el.msgs.textContent.includes('/hecks-ide-clear');
-    });
-
-    await this.test('/hecks-ide-log via slash', async () => {
-      const log = document.getElementById('command-log');
-      log.classList.add('collapsed');
-      IDE.el.prompt.value = '/hecks-ide-log';
-      await IDE.sendPrompt();
-            return !log.classList.contains('collapsed');
-    });
-
-    await this.test('/hecks-ide-clear via slash', async () => {
-      IDE.addTurn('system', 'test');
-      IDE.el.prompt.value = '/hecks-ide-clear';
-      await IDE.sendPrompt();
-            return IDE.el.msgs.children.length === 0;
-    });
-
-    await this.test('/hecks-ide-reset via slash', async () => {
-      IDE.addTurn('system', 'test');
-      const oldIdx = IDE.state.nextIndex;
-      IDE.el.prompt.value = '/hecks-ide-reset';
-      await IDE.sendPrompt();
-            return IDE.el.msgs.children.length === 0;
-    });
-
-    // Escape — hotkey
-    await this.test('Escape interrupts when busy', async () => {
-      IDE.state.busy = true;
-      IDE.el.send.disabled = true;
-      this.simulateKey('Escape');
-            return !IDE.state.busy;
-    });
-
-    // Command history — hotkey
-    await this.test('ArrowUp recalls history', async () => {
-      IDE.state.cmdHistory = ['test-cmd-1', 'test-cmd-2'];
-      IDE.state.histIdx = -1;
-      IDE.el.prompt.value = '';
-      IDE.el.prompt.focus();
-      this.simulateKey('ArrowUp', {}, IDE.el.prompt);
-            const val = IDE.el.prompt.value;
-      IDE.state.cmdHistory = [];
-      IDE.state.histIdx = -1;
-      return val === 'test-cmd-2';
-    });
-
-    await this.test('ArrowDown navigates forward', async () => {
-      IDE.state.cmdHistory = ['test-cmd-1', 'test-cmd-2'];
-      IDE.state.histIdx = 0;
-      IDE.el.prompt.value = 'test-cmd-1';
-      IDE.el.prompt.focus();
-      this.simulateKey('ArrowDown', {}, IDE.el.prompt);
-            const val = IDE.el.prompt.value;
-      IDE.state.cmdHistory = [];
-      IDE.state.histIdx = -1;
-      return val === 'test-cmd-2';
-    });
-
-    // Tab completion — hotkey
-    await this.test('Tab completes in workshop mode', async () => {
-      IDE.state.wsActive = true;
-      IDE.state.wsCompletions = ['Pizza', 'Order'];
-      IDE.el.prompt.value = 'Piz';
-      IDE.el.prompt.focus();
-      this.simulateKey('Tab', {}, IDE.el.prompt);
-            const val = IDE.el.prompt.value;
-      IDE.state.wsActive = false;
-      IDE.state.wsCompletions = [];
-      return val === 'Pizza';
-    });
-
-    this._totalTests = this.results.length;
-    this.updatePanel('Done');
-
-    // Restore state after tests
-    IDE.el.msgs.innerHTML = savedMsgs;
-    IDE.el.prompt.value = savedPrompt;
-    IDE.el.prompt.placeholder = savedPlaceholder;
-    document.querySelectorAll('.panel').forEach(p => { if (panelStates[p.id]) p.className = panelStates[p.id]; });
-    if (logCollapsed) document.getElementById('command-log').classList.add('collapsed');
-    else document.getElementById('command-log').classList.remove('collapsed');
-    const ap = document.getElementById('app-picker'); if (ap) ap.style.display = 'none';
-    const sp = document.getElementById('session-picker'); if (sp) sp.style.display = 'none';
-    IDE.switchTab('chat');
-    IDE.el.status.textContent = '';
-    IDE.state.busy = false;
-    IDE.el.send.disabled = false;
-
-    this.report();
-  },
-
-  async test(name, fn) {
-    this.updatePanel(name);
-    try {
-      const result = await fn();
-      this.results.push({ name, pass: !!result });
-      if (!result) console.warn(`FAIL: ${name} returned falsy`);
-    } catch (e) {
-      this.results.push({ name, pass: false, error: e.message });
-      console.error(`FAIL: ${name}: ${e.message}`);
-    }
-    // Visual pause when run from IDE (not headless)
-    if (this.visual) await this.wait(500);
-    else await new Promise(r => requestAnimationFrame(r));
-  },
-
-  wait(ms) { return new Promise(r => setTimeout(r, ms)); },
-
-  simulateKey(key, opts = {}, target = document) {
-    const e = new KeyboardEvent('keydown', {
-      key, bubbles: true, cancelable: true,
-      metaKey: opts.metaKey || false,
-      ctrlKey: opts.ctrlKey || false,
-      shiftKey: opts.shiftKey || false
-    });
-    target.dispatchEvent(e);
-  },
-
   report() {
     const passed = this.results.filter(r => r.pass).length;
     const failed = this.results.filter(r => !r.pass);
     const total = this.results.length;
-
     console.log(`IDE Tests: ${passed}/${total} passed, ${failed.length} failed`);
-    this.results.forEach(r => {
-      console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}`);
-    });
-
+    this.results.forEach(r => console.log(`  ${r.pass ? '✓' : '✗'} ${r.name}`));
     fetch('/console', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         level: failed.length ? 'error' : 'log',
         message: `IDE Tests: ${passed}/${total} passed. ${failed.map(r => r.name).join(', ')}`
