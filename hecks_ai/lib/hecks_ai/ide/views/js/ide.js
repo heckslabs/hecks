@@ -143,15 +143,42 @@ const IDE = {
 
   // panels.js provides: collapsePanel, toggleDotPanel, showPanel, syncDot, toggleSidebar
 
-  addToolCall(name, input) {
+  addToolCall(name, input, toolUseId) {
     if (this.state.toolCount === 0) this.el.toolLog.innerHTML = '';
     this.state.toolCount++;
     this.el.toolCount.textContent = this.state.toolCount;
     const d = document.createElement('div');
     d.className = this.tw.toolEntry;
+    d.style.cursor = 'pointer';
+    if (toolUseId) d.dataset.toolId = toolUseId;
     const s = typeof input === 'string' ? input : JSON.stringify(input);
     d.innerHTML = `<span class="${this.tw.toolName}">${this.esc(name)}</span><div class="${this.tw.toolInput}">${this.esc(s.slice(0, 200))}</div>`;
+    d.addEventListener('click', () => this.showToolPopup(name, s, d));
     this.el.toolLog.appendChild(d);
+  },
+
+  showToolPopup(name, input, entry) {
+    const existing = document.getElementById('tool-popup');
+    if (existing) existing.remove();
+    const resultPre = entry.querySelector('pre');
+    const result = resultPre ? resultPre.textContent : '';
+    const overlay = document.createElement('div');
+    overlay.id = 'tool-popup';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:60;display:flex;align-items:center;justify-content:center;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#161b22;border:1px solid #30363d;border-radius:8px;width:700px;max-height:80vh;overflow-y:auto;padding:16px;font-family:SF Mono,Fira Code,Menlo,monospace;font-size:12px;';
+    box.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:12px;">` +
+      `<span style="color:#7ee787;font-weight:bold;">${this.esc(name)}</span>` +
+      `<span style="color:#8b949e;cursor:pointer;" id="tool-popup-close">&#215;</span></div>` +
+      `<div style="color:#58a6ff;font-size:10px;margin-bottom:8px;">INPUT</div>` +
+      `<pre style="margin:0 0 12px;white-space:pre-wrap;color:#c9d1d9;">${this.esc(input)}</pre>` +
+      (result ? `<div style="color:#58a6ff;font-size:10px;margin-bottom:8px;">OUTPUT</div>` +
+        `<pre style="margin:0;white-space:pre-wrap;color:#8b949e;">${this.esc(result)}</pre>` : '');
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    box.querySelector('#tool-popup-close').addEventListener('click', () => overlay.remove());
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
   },
 
   async poll() {
@@ -168,13 +195,14 @@ const IDE = {
     try {
       const e = JSON.parse(raw);
       if (e.type === 'assistant' && e.message?.content) {
+        const texts = e.message.content.filter(c => c.type === 'text').map(c => c.text).join('');
+        if (texts) {
+          if (!this.state.curEl) this.state.curEl = this.addTurn('assistant', '');
+          this.state.curEl.querySelector('pre').textContent = texts;
+          this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
+        }
         e.message.content.forEach(c => {
-          if (c.type === 'text') {
-            if (!this.state.curEl) this.state.curEl = this.addTurn('assistant', '');
-            this.state.curEl.querySelector('pre').textContent += c.text;
-            this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
-          }
-          if (c.type === 'tool_use') this.addToolCall(c.name, c.input);
+          if (c.type === 'tool_use') this.addToolCall(c.name, c.input, c.id);
         });
         if (e.message.stop_reason === 'end_turn' || e.message.stop_reason === 'stop_sequence') {
           this.state.curEl = null;
@@ -194,6 +222,17 @@ const IDE = {
         if (text) {
           const clean = text.split('\n\n[IDE').shift().trim();
           if (clean) this.addTurn('user', clean);
+        }
+      } else if (e.type === 'tool_result') {
+        const out = (e.output || '').slice(0, 2000);
+        if (out && e.tool_use_id) {
+          const entry = this.el.toolLog.querySelector(`[data-tool-id="${e.tool_use_id}"]`);
+          if (entry) {
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'margin:4px 0 0;white-space:pre-wrap;color:#8b949e;font-size:10px;max-height:150px;overflow-y:auto;';
+            pre.textContent = out;
+            entry.appendChild(pre);
+          }
         }
       } else if (e.type === 'bus') {
         this.bus.emit(e.event, e.data);

@@ -75,10 +75,32 @@ module Hecks
           when "assistant"
             emit(line)
           when "user"
+            msg = data["message"]
+            emit_tool_results(msg)
             return if ide_prompt_recent?
-            emit(JSON.generate(type: "user_echo", message: data["message"]))
+            emit(JSON.generate(type: "user_echo", message: msg))
           when "result"
             emit(line)
+          end
+        end
+
+        def emit_tool_results(msg)
+          return unless msg.is_a?(Hash)
+          content = msg["content"]
+          return unless content.is_a?(Array)
+          content.each do |c|
+            next unless c["type"] == "tool_result"
+            text = extract_tool_text(c["content"])
+            next if text.nil? || text.empty?
+            emit(JSON.generate(type: "tool_result", tool_use_id: c["tool_use_id"], output: text))
+          end
+        end
+
+        def extract_tool_text(content)
+          case content
+          when String then content
+          when Array
+            content.select { |c| c["type"] == "text" }.map { |c| c["text"] }.join
           end
         end
 
