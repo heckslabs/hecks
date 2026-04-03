@@ -92,36 +92,51 @@ const IDETests = {
 
     // App picker — bus, hotkey
     await this.test('app-picker:open via bus', async () => {
-      const el = document.getElementById('app-picker');
       IDE.bus.emit('app-picker:open');
-            const open = el.style.display === 'flex';
-      el.style.display = 'none';
-      return open;
+      const el = document.getElementById('app-picker');
+      return el && el.style.display === 'flex';
+    });
+    // close after visual pause
+    await this.test('app-picker:close', async () => {
+      const el = document.getElementById('app-picker');
+      if (el) el.style.display = 'none';
+      return true;
     });
 
     await this.test('app-picker:open via Cmd+O hotkey', async () => {
-      const handled = IDE.components.some(c => c.onKeydown &&
+      IDE.components.some(c => c.onKeydown &&
         c.onKeydown({ key: 'o', metaKey: true, shiftKey: false, ctrlKey: false, preventDefault: ()=>{} }, IDE));
       const el = document.getElementById('app-picker');
+      return el && el.style.display === 'flex';
+    });
+    await this.test('app-picker:close', async () => {
+      const el = document.getElementById('app-picker');
       if (el) el.style.display = 'none';
-      return handled;
+      return true;
     });
 
     // Session picker — bus, hotkey
     await this.test('session-picker:open via bus', async () => {
-      const el = document.getElementById('session-picker');
       IDE.bus.emit('session-picker:open');
-            const open = el.style.display === 'flex';
-      el.style.display = 'none';
-      return open;
+      const el = document.getElementById('session-picker');
+      return el && el.style.display === 'flex';
+    });
+    await this.test('session-picker:close', async () => {
+      const el = document.getElementById('session-picker');
+      if (el) el.style.display = 'none';
+      return true;
     });
 
     await this.test('session-picker:open via Cmd+Shift+O hotkey', async () => {
-      const handled = IDE.components.some(c => c.onKeydown &&
+      IDE.components.some(c => c.onKeydown &&
         c.onKeydown({ key: 'O', metaKey: true, shiftKey: true, ctrlKey: false, preventDefault: ()=>{} }, IDE));
       const el = document.getElementById('session-picker');
+      return el && el.style.display === 'flex';
+    });
+    await this.test('session-picker:close', async () => {
+      const el = document.getElementById('session-picker');
       if (el) el.style.display = 'none';
-      return handled;
+      return true;
     });
 
     // Autocomplete — bus
