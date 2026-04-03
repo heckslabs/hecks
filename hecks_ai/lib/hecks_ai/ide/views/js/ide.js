@@ -221,7 +221,8 @@ const IDE = {
           : Array.isArray(msg?.content) ? msg.content.map(c => c.text).filter(Boolean).join('') : null;
         if (text) {
           const clean = text.split('\n\n[IDE').shift().trim();
-          if (clean) this.addTurn('user', clean);
+          if (clean && clean !== this.state.lastPromptText) this.addTurn('user', clean);
+          this.state.lastPromptText = null;
         }
       } else if (e.type === 'tool_result') {
         const out = (e.output || '').slice(0, 2000);
@@ -258,6 +259,7 @@ const IDE = {
 
     this.switchTab('chat');
     this.state.paused = false;
+    this.state.lastPromptText = text;
     this.state.lastUserEl = this.addTurn('user', text);
     this.state.lastUserEl.classList.add('thinking');
     this.state.curEl = null;
