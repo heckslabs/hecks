@@ -36,6 +36,7 @@ IDE.register({
     document.body.appendChild(overlay);
 
     let sessions = [];
+    let sorted = [];
     let selectedIdx = 0;
     const currentId = localStorage.getItem('hecks-ide-session');
 
@@ -47,7 +48,7 @@ IDE.register({
     const render = () => {
       const currentId = localStorage.getItem('hecks-ide-session');
       // Sort current session to top
-      const sorted = [...sessions].sort((a, b) => {
+      sorted = [...sessions].sort((a, b) => {
         if (a.id === currentId) return -1;
         if (b.id === currentId) return 1;
         return 0;
@@ -90,8 +91,8 @@ IDE.register({
       if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, sessions.length); render(); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); render(); return; }
       if (e.key === 'Enter') {
-        if (selectedIdx < sessions.length) {
-          close(); pickSession(sessions[selectedIdx].id);
+        if (selectedIdx < sorted.length) {
+          close(); pickSession(sorted[selectedIdx].id);
         } else {
           close(); pickSession('new');
         }

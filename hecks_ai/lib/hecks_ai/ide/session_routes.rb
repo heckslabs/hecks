@@ -52,10 +52,16 @@ module Hecks
             case data["type"]
             when "user"
               text = extract_message_text(data["message"])
-              turns << { role: "user", text: text } if text
+              next if text.nil? || text.empty?
+              turns << { role: "user", text: text }
             when "assistant"
               text = extract_assistant_text(data["message"])
-              turns << { role: "assistant", text: text } if text
+              next if text.nil? || text.empty?
+              if turns.last&.dig(:role) == "assistant"
+                turns.last[:text] += text
+              else
+                turns << { role: "assistant", text: text }
+              end
             end
           end
           res.content_type = "application/json"
@@ -71,7 +77,11 @@ module Hecks
             content = msg["content"]
             case content
             when String then content
-            when Array then content.map { |c| c["text"] }.compact.join
+            when Array
+              content
+                .select { |c| c["type"] == "text" }
+                .map { |c| c["text"] }
+                .compact.join
             end
           end
         end

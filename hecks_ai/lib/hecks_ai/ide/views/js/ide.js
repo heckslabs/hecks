@@ -182,6 +182,7 @@ const IDE = {
       } else if (e.type === 'error') {
         this.addTurn('system', e.message || 'Unknown error'); this.setBusy(false);
       } else if (e.type === 'user_echo') {
+        this.state.curEl = null;
         const msg = e.message;
         const text = typeof msg === 'string' ? msg
           : typeof msg?.content === 'string' ? msg.content
