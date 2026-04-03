@@ -42,11 +42,11 @@ async function loadFileInto(el, path) {
     const r = await fetch('/file/' + encodeURIComponent(path));
     const text = await r.text();
     if (path.endsWith('.md')) {
-      el.innerHTML = `<div class="md-view"><div class="file-view-path">${IDE.esc(path)}</div>${renderMd(text)}</div>`;
+      el.innerHTML = `<div class="p-4 px-6 font-sans text-[15px] leading-relaxed max-w-3xl md-view"><div class="text-fg-dim text-[11px] mb-3">${IDE.esc(path)}</div>${renderMd(text)}</div>`;
     } else {
-      el.innerHTML = `<div class="file-view"><div class="file-view-path">${IDE.esc(path)}</div><pre>${IDE.esc(text)}</pre></div>`;
+      el.innerHTML = `<div class="p-4 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words"><div class="text-fg-dim text-[11px] mb-3">${IDE.esc(path)}</div><pre>${IDE.esc(text)}</pre></div>`;
     }
   } catch (e) {
-    el.innerHTML = '<div class="file-view">Failed to load file.</div>';
+    el.innerHTML = '<div class="p-4 font-mono text-[13px]">Failed to load file.</div>';
   }
 }

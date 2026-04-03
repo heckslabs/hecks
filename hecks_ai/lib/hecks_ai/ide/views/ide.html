@@ -57,70 +57,19 @@
     /* Mermaid pending */
     .mermaid-pending { visibility: hidden; }
 
-    /* Tab content visibility */
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    /* Tab content — hidden by default, fills remaining space when active */
+    .tab-content { display: none; overflow-y: auto; scroll-behavior: smooth; }
+    .tab-content.active { display: block; flex: 1; }
     .tab.active { color: #c9d1d9; background: #161b22; border-bottom: 2px solid #58a6ff; }
 
     /* Book aggs collapse */
     .book-aggs.collapsed { display: none; }
     .book-chevron.open { transform: rotate(90deg); }
 
-    /* Dynamic classes used by JS components */
-    .turn { margin-bottom: 20px; }
-    .turn-label { font-family: 'SF Mono', monospace; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .turn-user .turn-label { color: #58a6ff; }
-    .turn-assistant .turn-label { color: #7ee787; }
-    .turn-system .turn-label { color: #8b949e; }
-    .turn-body { font-family: 'SF Mono', monospace; font-size: 14px; line-height: 1.6; padding: 10px 14px; border-radius: 8px; }
-    .turn-user .turn-body { background: #1c2333; border-left: 3px solid #58a6ff; }
-    .turn-assistant .turn-body { background: #161b22; }
-    .turn-system .turn-body { background: transparent; color: #8b949e; font-size: 12px; }
-    .turn-body pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; }
-
-    .tool-entry { padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; background: #1a1e2a; font-size: 11px; line-height: 1.4; }
-    .tool-name { color: #d29922; font-weight: 600; }
-    .tool-input { color: #8b949e; margin-top: 2px; max-height: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-
-    .event-item { padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; background: #161b22; font-size: 11px; line-height: 1.4; }
-    .event-type { color: #7ee787; font-weight: 600; }
-    .event-attrs { color: #8b949e; margin-top: 2px; }
-
-    .ws-diagram { padding: 16px; text-align: center; border-bottom: 1px solid #30363d; }
-    .ws-diagram-title { font-family: 'SF Mono', monospace; font-size: 13px; color: #7ee787; font-weight: 600; margin-bottom: 12px; }
-    .ws-diagram svg { max-width: 100%; }
-    .ws-output { padding: 16px; font-family: 'SF Mono', monospace; font-size: 13px; line-height: 1.6; }
-    .ws-entry { margin-bottom: 12px; }
-    .ws-cmd { color: #7ee787; }
-    .ws-result { white-space: pre-wrap; word-wrap: break-word; margin-top: 4px; }
-    .ws-error { color: #f85149; }
-    .ws-mode { color: #8b949e; font-size: 11px; }
-
-    .cmd-entry { display: flex; gap: 8px; padding: 1px 0; }
-    .cmd-source { color: #8b949e; min-width: 50px; }
-    .cmd-source.server { color: #d29922; }
-    .cmd-source.client { color: #58a6ff; }
-    .cmd-event { color: #c9d1d9; }
-    .cmd-time { color: #8b949e; margin-left: auto; }
-    .cmd-error { color: #f85149; cursor: pointer; }
-    .cmd-screenshot { cursor: pointer; opacity: 0.6; }
-    .cmd-screenshot:hover { opacity: 1; }
-    .cmd-errors { padding: 2px 0 2px 58px; }
-    .cmd-errors.hidden { display: none; }
-    .cmd-error-line { color: #f85149; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .book-app { margin-bottom: 6px; }
-    .book-app-name { color: #c9d1d9; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 0; }
-    .book-app-name:hover { color: #f85149; }
+    /* Remaining dynamic classes — used by JS for state toggles and pseudo-elements */
     .book-chevron { font-size: 8px; transition: transform 0.15s; }
     .book-aggs { padding-left: 14px; }
-
-    .ctx-link { display: block; color: #c9d1d9; text-decoration: none; padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-    .ctx-link:hover { color: #58a6ff; }
-    .ctx-link.active, .book-app-name.active { background: #1c2333; border-radius: 4px; }
-
-    .file-view { padding: 16px; font-family: 'SF Mono', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
-    .file-view-path { color: #8b949e; font-size: 11px; margin-bottom: 12px; }
+    .active.book-app-name, .active.ctx-link-hl { background: #1c2333; border-radius: 4px; }
 
     .md-view { padding: 16px 24px; font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.7; max-width: 800px; }
     .md-view h1 { font-size: 24px; margin: 20px 0 12px; color: #c9d1d9; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
@@ -157,7 +106,7 @@
     </div>
 
     <!-- Main pane -->
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 main">
       <!-- Tab bar -->
       <div class="flex border-b border-border bg-bg font-mono text-xs overflow-x-auto" id="tab-bar">
         <div class="px-4 py-2 cursor-pointer text-fg-dim border-r border-border whitespace-nowrap flex items-center gap-1.5 select-none tab tab-chat active text-accent-green font-semibold" data-tab="chat" onclick="switchTab('chat')">Chat</div>

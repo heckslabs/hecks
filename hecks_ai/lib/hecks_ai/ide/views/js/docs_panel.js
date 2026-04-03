@@ -58,7 +58,7 @@ IDE.register({
     }
 
     panel.innerHTML = matches.map(doc =>
-      `<a class="ctx-link" onclick="openFile('${doc.path}', {doc:true})">${IDE.esc(doc.label)}</a>`
+      `<a class="block text-fg py-px whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-accent-blue" onclick="openFile('${doc.path}', {doc:true})">${IDE.esc(doc.label)}</a>`
     ).join('');
   },
 
