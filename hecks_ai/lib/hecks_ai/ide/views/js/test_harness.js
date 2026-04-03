@@ -66,7 +66,6 @@ const IDETests = {
     this.results = [];
 
     // Clear previous test state
-    if (this.overlay) { this.overlay.remove(); this.overlay = null; }
     document.getElementById('command-log').innerHTML = '';
     const panelLog = document.getElementById('test-panel-log');
     if (panelLog) panelLog.innerHTML = '';
@@ -291,7 +290,6 @@ const IDETests = {
 
     this._totalTests = this.results.length;
     this.updatePanel('Done');
-    this.hideOverlay();
 
     // Restore state after tests
     IDE.el.msgs.innerHTML = savedMsgs;
@@ -311,7 +309,6 @@ const IDETests = {
   },
 
   async test(name, fn) {
-    this.showOverlay(name);
     this.updatePanel(name);
     try {
       const result = await fn();
