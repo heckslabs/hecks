@@ -118,9 +118,9 @@ module Hecks
           body = JSON.parse(req.body)
           event = JSON.generate(type: "bus", event: body["event"], data: body["data"])
           @mutex.synchronize { @events << event }
-          # Bus events are ephemeral — remove after 5s so they don't replay on reload
+          # Bus events are ephemeral — remove after 10s so they don't replay on reload
           Thread.new do
-            sleep 5
+            sleep 10
             @mutex.synchronize { @events.delete(event) }
           end
           res.content_type = "application/json"
