@@ -1,8 +1,16 @@
-/* ── Session picker — Cmd+Shift+O or /session ── */
+/* ── Session picker — Cmd+J or /sessions ── */
 IDE.register({
   onKeydown(e, ide) {
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'O') {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
       e.preventDefault();
+      ide.bus.emit('session-picker:open');
+      return true;
+    }
+    return false;
+  },
+
+  handleSlash(text, ide) {
+    if (text === '/sessions') {
       ide.bus.emit('session-picker:open');
       return true;
     }
@@ -19,7 +27,7 @@ IDE.register({
 
     const header = document.createElement('div');
     header.style.cssText = 'padding:12px 16px;border-bottom:1px solid #30363d;color:#7ee787;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;display:flex;justify-content:space-between;';
-    header.innerHTML = '<span>Resume Session</span><span style="color:#8b949e">Cmd+Shift+O</span>';
+    header.innerHTML = '<span>Resume Session</span><span style="color:#8b949e">Cmd+J</span>';
 
     const list = document.createElement('div');
     box.appendChild(header);

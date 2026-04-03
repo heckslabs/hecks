@@ -202,19 +202,20 @@ IDETests.register('click: app-picker closes', async () => {
   return true;
 });
 
-IDETests.register('key: Cmd+Shift+O opens session-picker', async () => {
-  const ev = IDETests.listenOnce('session-picker:open');
+IDETests.register('key: Cmd+J opens session-picker', async () => {
   document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'O', metaKey: true, shiftKey: true, bubbles: true
+    key: 'j', metaKey: true, bubbles: true
   }));
-  ev.cleanup();
-  return ev.fired;
+  await IDETests.wait(100);
+  const el = document.getElementById('session-picker');
+  return el && el.style.display === 'flex';
 });
 
 IDETests.register('click: session-picker closes', async () => {
   const el = document.getElementById('session-picker');
-  if (el) el.style.display = 'none';
-  return true;
+  if (el) el.click();
+  await IDETests.wait(100);
+  return !el || el.style.display === 'none';
 });
 
 IDETests.register('click: tab creates', async () => {
