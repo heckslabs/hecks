@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe "Saga / Process Manager (HEC-421)" do
+RSpec.describe "Saga / Process Manager (HEC-421)", :slow do
   let(:domain) do
     Hecks.domain "SagaTest" do
       aggregate "Order" do

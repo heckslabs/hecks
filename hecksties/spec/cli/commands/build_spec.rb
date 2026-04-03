@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks_cli"
 
-RSpec.describe "hecks build" do
+RSpec.describe "hecks build", :slow do
   before { allow($stdout).to receive(:puts) }
 
   it "builds a domain gem from Bluebook" do

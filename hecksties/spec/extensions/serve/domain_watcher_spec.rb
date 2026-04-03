@@ -3,7 +3,7 @@ require "hecks/extensions/serve/domain_watcher"
 require "tmpdir"
 require "fileutils"
 
-RSpec.describe Hecks::HTTP::DomainWatcher do
+RSpec.describe Hecks::HTTP::DomainWatcher, :slow do
   let(:tmpdir) { Dir.mktmpdir("watcher_test") }
   let(:changes) { [] }
   let(:watcher) do

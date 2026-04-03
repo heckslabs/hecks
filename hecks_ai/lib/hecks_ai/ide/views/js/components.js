@@ -116,13 +116,32 @@ IDE.register({
   }
 });
 
+/* ── Shell escape (! commands) ── */
+IDE.register({
+  handleSlash(text, ide) {
+    if (!text.startsWith('!')) return false;
+    const cmd = text.slice(1).trim();
+    if (!cmd) return false;
+    ide.addTurn('user', '! ' + cmd);
+    fetch('/shell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) })
+      .then(r => r.json())
+      .then(d => {
+        const el = ide.addTurn('system', '');
+        el.querySelector('.turn-body').innerHTML = `<pre class="whitespace-pre-wrap break-words m-0 text-fg-dim text-xs">${ide.esc(d.output || '')}</pre>`;
+        ide.el.chatScroller.scrollTo({ top: ide.el.chatScroller.scrollHeight, behavior: 'smooth' });
+      })
+      .catch(() => ide.addTurn('system', 'Shell command failed'));
+    return true;
+  }
+});
+
 /* ── Slash commands component ── */
 IDE.register({
   handleSlash(text, ide) {
     const cmd = text.split(/\s/)[0];
     const commands = {
-      '/hecks-ide-clear': () => { ide.el.msgs.innerHTML = ''; },
-      '/hecks-ide-reset': () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; },
+      '/hecks-ide-clear': () => { ide.el.msgs.innerHTML = ''; localStorage.removeItem('hecks-ide-chat'); },
+      '/hecks-ide-reset': () => { ide.el.msgs.innerHTML = ''; ide.state.nextIndex = 0; localStorage.removeItem('hecks-ide-chat'); },
       '/hecks-ide-commands': () => {
         const cmds = ['/apps', '/sessions', ...Object.keys(commands)].join('\n');
         ide.addTurn('system', cmds);

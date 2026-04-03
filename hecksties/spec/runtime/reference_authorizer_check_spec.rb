@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe Hecks::Runtime::ReferenceCoverageCheck do
+RSpec.describe Hecks::Runtime::ReferenceCoverageCheck, :slow do
   after { Hecks::Utils.cleanup_constants! }
 
   context "reference_to with default validate:true and no authorizer" do

@@ -118,6 +118,28 @@ module Hecks
           res.body = JSON.generate(error: e.message)
         end
 
+        def handle_shell(req, res)
+          body = JSON.parse(req.body)
+          cmd = body["command"]
+          output = `cd #{@project_dir} && #{cmd} 2>&1`.encode("UTF-8", invalid: :replace, undef: :replace)[0, 4000]
+          res.content_type = "application/json"
+          res.body = JSON.generate(output: output)
+        rescue => e
+          res.content_type = "application/json"
+          res.body = JSON.generate(output: e.message)
+        end
+
+        def handle_shell(req, res)
+          body = JSON.parse(req.body)
+          cmd = body["command"]
+          output = `cd #{@project_dir} && #{cmd} 2>&1`.encode("UTF-8", invalid: :replace, undef: :replace)[0, 4000]
+          res.content_type = "application/json"
+          res.body = JSON.generate(output: output)
+        rescue => e
+          res.content_type = "application/json"
+          res.body = JSON.generate(output: e.message)
+        end
+
         def handle_bus_emit(req, res)
           body = JSON.parse(req.body)
           event = JSON.generate(type: "bus", event: body["event"], data: body["data"])

@@ -38,6 +38,7 @@ const IDE = {
       this.onInput();
       this.el.prompt.style.height = 'auto';
       this.el.prompt.style.height = Math.min(this.el.prompt.scrollHeight, 72) + 'px';
+      this.el.prompt.style.color = this.el.prompt.value.startsWith('!') ? '#f85149' : '';
     });
     this.el.sidebar.addEventListener('click', e => {
       const link = e.target.closest('.ctx-link, .book-app-name');
@@ -47,7 +48,20 @@ const IDE = {
       }
     });
     this.components.forEach(c => { if (c.init) c.init(this); });
+
+    // Restore cached chat and scroll position
+    const cached = localStorage.getItem('hecks-ide-chat');
+    if (cached) {
+      this.el.msgs.innerHTML = cached;
+      const scroll = parseInt(localStorage.getItem('hecks-ide-scroll') || '0', 10);
+      setTimeout(() => this.el.chatScroller.scrollTop = scroll, 100);
+    }
+
     setInterval(() => this.poll(), 250);
+    setInterval(() => {
+      localStorage.setItem('hecks-ide-chat', this.el.msgs.innerHTML);
+      localStorage.setItem('hecks-ide-scroll', this.el.chatScroller.scrollTop);
+    }, 2000);
 
     // Image drop — anywhere on the page
     document.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
@@ -248,9 +262,16 @@ const IDE = {
             this.addToolCall(c.name, c.input, c.id);
             const summary = this.toolSummary(c.name, c.input);
             const d = document.createElement('div');
-            d.className = 'text-[11px] font-mono text-fg-dim py-1 px-3 my-1 rounded bg-bg-msg flex items-center gap-2 cursor-pointer hover:bg-bg-user';
-            d.innerHTML = `<span class="text-accent-yellow">&#9654;</span> <span class="text-accent-yellow">${this.esc(c.name)}</span> <span class="truncate opacity-70">${this.esc(summary)}</span>`;
-            d.onclick = () => this.showToolPopup(c.name, JSON.stringify(c.input, null, 2));
+            d.className = 'text-[11px] font-mono text-fg-dim my-1 rounded bg-bg-msg cursor-pointer hover:bg-bg-user';
+            const header = `<div class="flex items-center gap-2 py-1 px-3"><span class="text-accent-yellow tool-chevron" style="font-size:8px">&#9654;</span> <span class="text-accent-yellow">${this.esc(c.name)}</span> <span class="truncate opacity-70 tool-summary">${this.esc(summary)}</span></div>`;
+            const detail = `<pre class="hidden px-3 pb-2 whitespace-pre-wrap text-fg-dim opacity-70 text-[10px]" style="max-height:200px;overflow-y:auto">${this.esc(JSON.stringify(c.input, null, 2))}</pre>`;
+            d.innerHTML = header + detail;
+            d.querySelector('.flex').onclick = () => {
+              const pre = d.querySelector('pre');
+              const chev = d.querySelector('.tool-chevron');
+              pre.classList.toggle('hidden');
+              chev.innerHTML = pre.classList.contains('hidden') ? '&#9654;' : '&#9660;';
+            };
             this.el.msgs.appendChild(d);
             this.el.chatScroller.scrollTo({ top: this.el.chatScroller.scrollHeight, behavior: 'smooth' });
           }
@@ -304,7 +325,7 @@ const IDE = {
     if (!text.startsWith('/')) this.state.cmdHistory.push(text);
     this.state.histIdx = -1;
 
-    if (text.startsWith('/')) {
+    if (text.startsWith('/') || text.startsWith('!')) {
       for (const c of this.components) { if (c.handleSlash && c.handleSlash(text, this)) return; }
     }
     if (this.state.wsActive) {

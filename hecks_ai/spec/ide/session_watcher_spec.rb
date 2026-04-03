@@ -7,7 +7,7 @@ require "json"
 require "tempfile"
 require "fileutils"
 
-RSpec.describe "SessionWatcher" do
+RSpec.describe "SessionWatcher", :slow do
   let(:events) { [] }
   let(:mutex) { Mutex.new }
   let(:session_id) { "test-session-abc" }
