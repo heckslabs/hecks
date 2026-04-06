@@ -1,252 +1,36 @@
-Hecks.bluebook "Hecks" do
+# HecksBluebook
+#
+# Hecks describes itself as a Bluebook. Each gem is a chapter — a domain
+# defined using the same DSL that Hecks provides to its users.
+#
+# The chapter definitions live in each gem:
+#   bluebook/lib/hecks/chapters/bluebook.rb
+#   hecksties/lib/hecks/chapters/runtime.rb
+#   hecks_workshop/lib/hecks/chapters/workshop.rb
+#   hecksagon/lib/hecks/chapters/hecksagon.rb
+#   hecks_targets/lib/hecks/chapters/targets.rb
+#
+# This file composes them and wires cross-chapter policies.
 
-  chapter "Bluebook" do
-    aggregate "Domain" do
-      attribute :name, String
-      attribute :version, String
+require_relative "bluebook/lib/hecks/chapters/bluebook"
+require_relative "hecksties/lib/hecks/chapters/runtime"
+require_relative "hecks_workshop/lib/hecks/chapters/workshop"
+require_relative "hecksagon/lib/hecks/chapters/hecksagon"
+require_relative "hecks_targets/lib/hecks/chapters/targets"
 
-      command "DefineDomain" do
-        attribute :name, String
-        attribute :version, String
-      end
-
-      command "ValidateDomain" do
-        attribute :domain_id, String
-      end
-
-      command "GenerateCode" do
-        attribute :domain_id, String
-        attribute :target, String
-      end
-    end
-
-    aggregate "Aggregate" do
-      attribute :name, String
-      attribute :domain_name, String
-
-      command "AddAggregate" do
-        attribute :name, String
-        attribute :domain_name, String
-      end
-
-      command "AddAttribute" do
-        attribute :aggregate_id, String
-        attribute :name, String
-        attribute :type, String
-      end
-
-      command "AddCommand" do
-        attribute :aggregate_id, String
-        attribute :name, String
-      end
-
-      command "AddPolicy" do
-        attribute :aggregate_id, String
-        attribute :name, String
-        attribute :event_name, String
-        attribute :trigger_command, String
-      end
-    end
-
-    aggregate "Grammar" do
-      attribute :name, String
-
-      command "RegisterGrammar" do
-        attribute :name, String
-      end
-
-      command "ParseInput" do
-        attribute :grammar_id, String
-        attribute :input, String
-      end
-    end
-
-    policy "AutoEvent" do
-      on "AddedCommand"
-      trigger "InferEvent"
-    end
-  end
-
-  chapter "Runtime" do
-    aggregate "Runtime" do
-      attribute :domain_name, String
-      attribute :adapter, String
-
-      command "Boot" do
-        attribute :directory, String
-        attribute :adapter, String
-      end
-
-      command "LoadDomain" do
-        attribute :domain_id, String
-      end
-
-      command "SwapAdapter" do
-        attribute :runtime_id, String
-        attribute :aggregate_name, String
-        attribute :adapter, String
-      end
-    end
-
-    aggregate "EventBus" do
-      attribute :name, String
-
-      command "Publish" do
-        attribute :event_name, String
-      end
-
-      command "Subscribe" do
-        attribute :event_name, String
-      end
-    end
-
-    aggregate "CommandBus" do
-      attribute :name, String
-
-      command "Dispatch" do
-        attribute :command_name, String
-      end
-    end
-
-    aggregate "Repository" do
-      attribute :aggregate_name, String
-      attribute :adapter_type, String
-
-      command "Save" do
-        attribute :aggregate_id, String
-      end
-
-      command "Find" do
-        attribute :aggregate_id, String
-      end
-
-      command "Delete" do
-        attribute :aggregate_id, String
-      end
-    end
-
-    aggregate "Configuration" do
-      attribute :adapter_type, String
-
-      command "Configure" do
-        attribute :adapter_type, String
-      end
-
-      command "RegisterExtension" do
-        attribute :name, String
-      end
-
-      command "RegisterCapability" do
-        attribute :name, String
-      end
-    end
-
-    policy "WireExtensions" do
-      on "Booted"
-      trigger "RegisterExtension"
-    end
-
-    policy "WirePolicies" do
-      on "LoadedDomain"
-      trigger "Subscribe"
-    end
-  end
-
-  chapter "Workshop" do
-    aggregate "Workshop" do
-      attribute :name, String
-      attribute :mode, String
-
-      command "CreateWorkshop" do
-        attribute :name, String
-      end
-
-      command "Play" do
-        attribute :workshop_id, String
-      end
-
-      command "Sketch" do
-        attribute :workshop_id, String
-      end
-
-      command "Execute" do
-        attribute :workshop_id, String
-        attribute :command_name, String
-      end
-
-      command "Reset" do
-        attribute :workshop_id, String
-      end
-    end
-
-    aggregate "Playground" do
-      attribute :domain_name, String
-
-      command "Compile" do
-        attribute :domain_id, String
-      end
-
-      command "BootPlayground" do
-        attribute :playground_id, String
-      end
-    end
-
-    policy "CompileOnPlay" do
-      on "Played"
-      trigger "Compile"
-    end
-
-    policy "BootOnCompile" do
-      on "Compiled"
-      trigger "BootPlayground"
-    end
-  end
-
-  chapter "Hecksagon" do
-    aggregate "Gate" do
-      attribute :aggregate_name, String
-      attribute :role, String
-
-      command "DefineGate" do
-        attribute :aggregate_name, String
-        attribute :role, String
-      end
-
-      command "AllowMethod" do
-        attribute :gate_id, String
-        attribute :method_name, String
-      end
-    end
-
-    aggregate "Extension" do
-      attribute :name, String
-      attribute :adapter_type, String
-
-      command "RegisterExtension" do
-        attribute :name, String
-        attribute :adapter_type, String
-      end
-
-      command "ActivateExtension" do
-        attribute :extension_id, String
-      end
-    end
-  end
-
-  chapter "Targets" do
-    aggregate "Target" do
-      attribute :name, String
-      attribute :language, String
-
-      command "RegisterTarget" do
-        attribute :name, String
-        attribute :language, String
-      end
-
-      command "Build" do
-        attribute :target_id, String
-        attribute :domain_id, String
-      end
+module Hecks
+  module Chapters
+    def self.bluebook
+      @bluebook ||= DomainModel::Structure::BluebookStructure.new(
+        name: "Hecks",
+        chapters: [
+          Bluebook.definition,
+          Runtime.definition,
+          Workshop.definition,
+          Hecksagon.definition,
+          Targets.definition,
+        ]
+      )
     end
   end
 end
