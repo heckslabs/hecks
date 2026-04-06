@@ -122,8 +122,8 @@ module HecksTemplating
       def parse_csrf_cookie(response)
         set_cookie = Array(response.get_fields("Set-Cookie") || [])
         set_cookie.each do |cookie|
-          if (m = cookie.match(/\A_csrf_token=([^;]+)/))
-            return m[1]
+          if (cookie_match = cookie.match(/\A_csrf_token=([^;]+)/))
+            return cookie_match[1]
           end
         end
         nil

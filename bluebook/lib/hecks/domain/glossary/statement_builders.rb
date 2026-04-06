@@ -20,11 +20,11 @@ module Hecks
       # @param attr [Hecks::DomainModel::Attribute] the attribute to describe
       # @return [String] a plain-English sentence about this attribute
       def attribute_statement(agg_name, attr)
-        a = an(agg_name)
+        article_phrase = an(agg_name)
         if attr.list?
-          "#{a} has many #{pluralize(attr.type.to_s)}."
+          "#{article_phrase} has many #{pluralize(attr.type.to_s)}."
         else
-          "#{a} has #{article(attr.name.to_s)} #{attr.name} (#{attr.type})."
+          "#{article_phrase} has #{article(attr.name.to_s)} #{attr.name} (#{attr.type})."
         end
       end
 
@@ -39,7 +39,7 @@ module Hecks
       # @return [String] a plain-English sentence about this command flow
       def command_statement(agg_name, cmd, event)
         verb = cmd.name.split(/(?=[A-Z])/).first.downcase
-        attrs = cmd.attributes.map { |a| a.name.to_s.tr("_", " ") }
+        attrs = cmd.attributes.map { |attr| attr.name.to_s.tr("_", " ") }
         params = attrs.empty? ? "" : " with #{english_list(attrs)}"
         if event
           event_parts = event.name.split(/(?=[A-Z])/)

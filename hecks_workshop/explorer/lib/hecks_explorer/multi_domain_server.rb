@@ -152,7 +152,7 @@ module Hecks
       end
 
       def serve_domain_route(req, res, entry, sub_path)
-        route = entry[:routes].find { |r| r[:method] == req.request_method && match?(r[:path], sub_path) }
+        route = entry[:routes].find { |route_def| route_def[:method] == req.request_method && match?(route_def[:path], sub_path) }
         if route && req["Accept"]&.include?("application/json")
           wrapper = DomainServer::RequestWrapper.new(req)
           result = route[:handler].call(wrapper)

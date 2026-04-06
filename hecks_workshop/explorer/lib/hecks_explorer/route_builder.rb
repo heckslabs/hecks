@@ -71,9 +71,9 @@ module Hecks
 
         create_cmd = agg.commands.find { |c| c.name.start_with?("Create") }
         if create_cmd
-          m = derive_method(create_cmd.name, agg.name)
+          create_method = derive_method(create_cmd.name, agg.name)
           routes << { method: "POST", path: "/#{slug}", handler: ->(req) {
-            serialize(klass.send(m, **parse_body(req)))
+            serialize(klass.send(create_method, **parse_body(req)))
           }}
         end
 
@@ -106,8 +106,8 @@ module Hecks
           qn = domain_snake_name(query.name)
           params = query.block.parameters
           { method: "GET", path: "/#{slug}/#{qn}", handler: ->(req) {
-            results = params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *params.map { |_, n| req.params[n.to_s] })
-            results.respond_to?(:map) ? results.map { |r| serialize(r) } : results
+            results = params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *params.map { |_type, param_name| req.params[param_name.to_s] })
+            results.respond_to?(:map) ? results.map { |result| serialize(result) } : results
           }}
         end
       end

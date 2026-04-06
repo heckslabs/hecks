@@ -6,8 +6,8 @@ command = ARGV.shift
 
 case command
 when "serve", "ui"
-  port = ARGV.find { |a| a =~ /^\d+$/ }&.to_i || 9292
-  adapter = ARGV.find { |a| a =~ /^--adapter=/ }&.then { |a| a.split("=").last&.to_sym } || :memory
+  port = ARGV.find { |arg| arg =~ /^\d+$/ }&.to_i || 9292
+  adapter = ARGV.find { |arg| arg =~ /^--adapter=/ }&.then { |arg| arg.split("=").last&.to_sym } || :memory
   __MOD__.reboot(adapter: adapter) if adapter != :memory
   puts "__MOD__ on http://localhost:#{port} (adapter: #{adapter})"
   __MOD__.serve(port: port)

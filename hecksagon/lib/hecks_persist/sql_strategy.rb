@@ -102,7 +102,7 @@ module Hecks
 
         # Generate join tables for list value objects
         (change.details[:value_objects] || []).each do |vo|
-          list_attr = change.details[:attributes].find { |a| a.list? && a.type.to_s == vo.name }
+          list_attr = change.details[:attributes].find { |attr| attr.list? && attr.type.to_s == vo.name }
           next unless list_attr
           tables << generate_create_join_table_from_vo(change.aggregate, vo)
         end
@@ -163,14 +163,14 @@ module Hecks
       # @param change [Migrations::Change] the :add_attribute change
       # @return [String, nil] the ALTER TABLE SQL, or nil for list attributes
       def generate_add_column(change)
-        d = change.details
-        return nil if d[:list]
+        details = change.details
+        return nil if details[:list]
 
-        type = sql_type_for(d[:type])
-        parts = ["#{d[:name]} #{type}"]
-        parts << "NOT NULL" if d[:presence]
-        parts << "UNIQUE" if d[:uniqueness]
-        parts << "DEFAULT #{sql_literal(d[:default])}" if d[:default]
+        type = sql_type_for(details[:type])
+        parts = ["#{details[:name]} #{type}"]
+        parts << "NOT NULL" if details[:presence]
+        parts << "UNIQUE" if details[:uniqueness]
+        parts << "DEFAULT #{sql_literal(details[:default])}" if details[:default]
 
         "ALTER TABLE #{table_name(change.aggregate)} ADD COLUMN #{parts.join(" ")};"
       end

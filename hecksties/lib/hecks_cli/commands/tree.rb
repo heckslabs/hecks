@@ -16,7 +16,7 @@ Hecks::CLI.register_command(:tree, "Print all commands as a grouped tree",
   if options[:format] == "json"
     require "json"
     tree = groups.transform_values do |commands|
-      commands.sort_by { |c| c[:name] }.map do |cmd|
+      commands.sort_by { |cmd_entry| cmd_entry[:name] }.map do |cmd|
         entry = { name: cmd[:name].to_s, description: cmd[:description] }
         entry[:args] = cmd[:args] unless cmd[:args].empty?
         entry[:options] = cmd[:options].keys.map(&:to_s) unless cmd[:options].empty?
@@ -31,12 +31,12 @@ Hecks::CLI.register_command(:tree, "Print all commands as a grouped tree",
   say ""
   groups.each do |group_name, commands|
     say "#{group_name}/", :green
-    sorted = commands.sort_by { |c| c[:name] }
-    sorted.each_with_index do |cmd, i|
-      connector = i == sorted.length - 1 ? "\\-- " : "|-- "
+    sorted = commands.sort_by { |cmd_entry| cmd_entry[:name] }
+    sorted.each_with_index do |cmd, cmd_index|
+      connector = cmd_index == sorted.length - 1 ? "\\-- " : "|-- "
       name = cmd[:args].empty? ? cmd[:name].to_s : "#{cmd[:name]} #{cmd[:args].join(' ')}"
       opts = cmd[:options].keys
-      opt_str = opts.any? ? "  [#{opts.map { |o| "--#{o}" }.join(', ')}]" : ""
+      opt_str = opts.any? ? "  [#{opts.map { |opt| "--#{opt}" }.join(', ')}]" : ""
       say "  #{connector}#{name}#{opt_str}  # #{cmd[:description]}"
     end
     say ""

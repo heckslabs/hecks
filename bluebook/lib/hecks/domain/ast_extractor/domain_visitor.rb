@@ -63,13 +63,13 @@ module Hecks
         stmts = block_statements(scope)
         pol = { name: call_args(stmt).first, event_name: nil,
                 trigger_command: nil, async: false, attribute_map: {} }
-        stmts.each do |s|
-          m = call_method_name(s)
-          case m
-          when :on      then pol[:event_name] = call_args(s).first
-          when :trigger then pol[:trigger_command] = call_args(s).first
+        stmts.each do |policy_stmt|
+          method_name = call_method_name(policy_stmt)
+          case method_name
+          when :on      then pol[:event_name] = call_args(policy_stmt).first
+          when :trigger then pol[:trigger_command] = call_args(policy_stmt).first
           when :async   then pol[:async] = true
-          when :map     then pol[:attribute_map] = call_kwargs(s)
+          when :map     then pol[:attribute_map] = call_kwargs(policy_stmt)
           end
         end
         pol
@@ -80,11 +80,11 @@ module Hecks
         scope = stmt.children[1]
         stmts = block_statements(scope)
         svc = { name: name, attributes: [], coordinates: [] }
-        stmts.each do |s|
-          m = call_method_name(s)
-          case m
-          when :attribute   then svc[:attributes] << extract_attribute_hash(s)
-          when :coordinates then svc[:coordinates] = call_args(s).map(&:to_s)
+        stmts.each do |svc_stmt|
+          method_name = call_method_name(svc_stmt)
+          case method_name
+          when :attribute   then svc[:attributes] << extract_attribute_hash(svc_stmt)
+          when :coordinates then svc[:coordinates] = call_args(svc_stmt).map(&:to_s)
           end
         end
         svc
@@ -100,7 +100,7 @@ module Hecks
 
       def extract_world_goals(stmt, domain)
         args = call_args(stmt)
-        domain[:world_goals].concat(args.map { |a| a.is_a?(Symbol) ? a : a.to_sym })
+        domain[:world_goals].concat(args.map { |arg| arg.is_a?(Symbol) ? arg : arg.to_sym })
       end
 
       def extract_actor(stmt)

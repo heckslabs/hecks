@@ -74,7 +74,7 @@ module Hecks
         def delete(item)
           raw = item.respond_to?(:__raw__) ? item.__raw__ : item
           found = false
-          new_items = @items.reject { |i| !found && i == raw && (found = true) }
+          new_items = @items.reject { |item| !found && item == raw && (found = true) }
           rebuild_owner(new_items)
           item
         end
@@ -191,11 +191,11 @@ module Hecks
         def rebuild_owner(new_items)
           attrs = { id: @owner.id }
           if @owner.class.respond_to?(:hecks_attributes)
-            @owner.class.hecks_attributes.each do |a|
-              attrs[a.name] = a.name == @attr_name ? new_items : @owner.send(a.name)
+            @owner.class.hecks_attributes.each do |hattr|
+              attrs[hattr.name] = hattr.name == @attr_name ? new_items : @owner.send(hattr.name)
             end
           else
-            @owner.class.instance_method(:initialize).parameters.each do |_, name|
+            @owner.class.instance_method(:initialize).parameters.each do |_param_type, name|
               next unless name
               if name == @attr_name
                 attrs[name] = new_items

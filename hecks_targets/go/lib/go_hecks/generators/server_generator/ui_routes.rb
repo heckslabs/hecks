@@ -42,23 +42,23 @@ module GoHecks
         self_id = ac.self_ref_attr(cmd, agg_snake)
         lines = []
         lines << "\t\tfields := []FormField{"
-        cmd.attributes.each do |a|
-          if a == self_id
-            id_val = value_source == :form ? "r.FormValue(\"#{a.name}\")" : "r.URL.Query().Get(\"id\")"
-            lines << "\t\t\t{Type: \"hidden\", Name: \"#{a.name}\", Value: #{id_val}},"
+        cmd.attributes.each do |cmd_attr|
+          if cmd_attr == self_id
+            id_val = value_source == :form ? "r.FormValue(\"#{cmd_attr.name}\")" : "r.URL.Query().Get(\"id\")"
+            lines << "\t\t\t{Type: \"hidden\", Name: \"#{cmd_attr.name}\", Value: #{id_val}},"
           else
-            agg_attr = agg.attributes.find { |aa| aa.name == a.name }
+            agg_attr = agg.attributes.find { |aa| aa.name == cmd_attr.name }
             enum_values = agg_attr&.enum
-            label = HecksTemplating::UILabelContract.label(a.name)
+            label = HecksTemplating::UILabelContract.label(cmd_attr.name)
             if enum_values && !enum_values.empty?
-              opts = enum_values.map { |v| "FormOption{Value: \"#{v}\", Label: \"#{v}\"}" }.join(", ")
-              lines << "\t\t\t{Type: \"select\", Name: \"#{a.name}\", Label: \"#{label}\", Required: true, Options: []FormOption{#{opts}}},"
+              opts = enum_values.map { |enum_val| "FormOption{Value: \"#{enum_val}\", Label: \"#{enum_val}\"}" }.join(", ")
+              lines << "\t\t\t{Type: \"select\", Name: \"#{cmd_attr.name}\", Label: \"#{label}\", Required: true, Options: []FormOption{#{opts}}},"
             else
-              go_type = GoUtils.go_type(a)
+              go_type = GoUtils.go_type(cmd_attr)
               input_type = HecksTemplating::FormParsingContract.input_type(go_type)
               step = HecksTemplating::FormParsingContract.step?(go_type) ? ", Step: true" : ""
-              val = value_source == :form ? ", Value: r.FormValue(\"#{a.name}\")" : ""
-              lines << "\t\t\t{Type: \"input\", Name: \"#{a.name}\", Label: \"#{label}\", InputType: \"#{input_type}\", Required: true#{step}#{val}},"
+              val = value_source == :form ? ", Value: r.FormValue(\"#{cmd_attr.name}\")" : ""
+              lines << "\t\t\t{Type: \"input\", Name: \"#{cmd_attr.name}\", Label: \"#{label}\", InputType: \"#{input_type}\", Required: true#{step}#{val}},"
             end
           end
         end
@@ -113,7 +113,7 @@ module GoHecks
           lines << "\t\taggs[#{idx}].Count = #{agg.name.downcase}Count"
         end
         lines << "\t\trenderer.Render(w, \"config\", \"Config\", ConfigData{"
-        lines << "\t\t\tRoles: []string{#{all_roles.map { |r| "\"#{r}\"" }.join(', ')}},"
+        lines << "\t\t\tRoles: []string{#{all_roles.map { |role| "\"#{role}\"" }.join(', ')}},"
         lines << "\t\t\tCurrentRole: currentRole,"
         lines << "\t\t\tAdapters: []string{\"memory\", \"filesystem\"},"
         lines << "\t\t\tCurrentAdapter: \"memory\","

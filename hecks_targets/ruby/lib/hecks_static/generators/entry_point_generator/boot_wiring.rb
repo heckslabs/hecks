@@ -24,10 +24,10 @@ module HecksStatic
 
       def wire_queries(lines, agg)
         safe = domain_constant_name(agg.name)
-        agg.queries.each do |q|
-          method_name = domain_snake_name(q.name)
-          lines << "      #{safe}::Queries::#{q.name}.repository = #{safe}.repository"
-          lines << "      #{safe}.define_singleton_method(:#{method_name}) { |*args| #{safe}::Queries::#{q.name}.call(*args) }"
+        agg.queries.each do |query|
+          method_name = domain_snake_name(query.name)
+          lines << "      #{safe}::Queries::#{query.name}.repository = #{safe}.repository"
+          lines << "      #{safe}.define_singleton_method(:#{method_name}) { |*args| #{safe}::Queries::#{query.name}.call(*args) }"
         end
       end
 
@@ -48,7 +48,7 @@ module HecksStatic
           end
         end
         @domain.policies.each do |pol|
-          trigger_agg = @domain.aggregates.find { |a| a.commands.any? { |c| c.name == pol.trigger_command } }
+          trigger_agg = @domain.aggregates.find { |agg| agg.commands.any? { |cmd| cmd.name == pol.trigger_command } }
           next unless trigger_agg
           safe = domain_constant_name(trigger_agg.name)
           if pol.attribute_map && !pol.attribute_map.empty?
@@ -68,19 +68,19 @@ module HecksStatic
             cmd_snake = domain_snake_name(cmd.name)
             cmd_rules = {}
             cmd.attributes.each do |attr|
-              v = agg.validations.find { |val| val.field.to_s == attr.name.to_s }
-              if v
-                cmd_rules[attr.name.to_s] = v.rules.transform_keys(&:to_s)
+              validation = agg.validations.find { |val| val.field.to_s == attr.name.to_s }
+              if validation
+                cmd_rules[attr.name.to_s] = validation.rules.transform_keys(&:to_s)
                 next
               end
               agg.value_objects.each do |vo|
                 vo_attr = vo.attributes.find { |va| va.name.to_s == attr.name.to_s }
                 if vo_attr
-                  r = { "presence" => true }
+                  vo_rules = { "presence" => true }
                   vo.invariants.each do |inv|
-                    r["positive"] = true if inv.message.to_s =~ /#{attr.name}.*positive|#{attr.name}.*> ?0/i
+                    vo_rules["positive"] = true if inv.message.to_s =~ /#{attr.name}.*positive|#{attr.name}.*> ?0/i
                   end
-                  cmd_rules[attr.name.to_s] = r
+                  cmd_rules[attr.name.to_s] = vo_rules
                 end
               end
             end

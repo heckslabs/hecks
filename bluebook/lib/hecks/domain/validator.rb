@@ -55,13 +55,13 @@ module Hecks
     # @return [Boolean] true if no validation errors were found
     def valid?
       rules = Hecks.validation_rules
-      wc_rules, _other_rules = rules.partition { |r| world_concern_rule?(r) }
+      wc_rules, _other_rules = rules.partition { |rule| world_concern_rule?(rule) }
 
       @errors = rules.flat_map { |rule| rule.new(@domain).errors }
       @world_concerns_errors = wc_rules.flat_map { |rule| rule.new(@domain).errors }
       @warnings = rules.flat_map { |rule|
-        r = rule.new(@domain)
-        r.respond_to?(:warnings) ? r.warnings : []
+        rule_instance = rule.new(@domain)
+        rule_instance.respond_to?(:warnings) ? rule_instance.warnings : []
       }
       @errors.empty?
     end
@@ -92,7 +92,7 @@ module Hecks
 
     def concern_failing?(concern)
       label = concern.to_s.capitalize
-      @world_concerns_errors.any? { |e| e.start_with?("#{label}:") }
+      @world_concerns_errors.any? { |error_msg| error_msg.start_with?("#{label}:") }
     end
   end
 end

@@ -36,13 +36,13 @@ module NodeHecks
     private
 
     def attrs_interface
-      fields = @cmd.attributes.map { |a| "#{NodeUtils.camel_case(a.name)}: #{NodeUtils.ts_type(a)};" }
+      fields = @cmd.attributes.map { |attr| "#{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};" }
       NodeUtils.ts_interface("#{@cmd.name}Attrs", fields)
     end
 
     def event_interface
       fields = ["type: \"#{@event.name}\";", "aggregateId: string;"]
-      @cmd.attributes.each { |a| fields << "#{NodeUtils.camel_case(a.name)}: #{NodeUtils.ts_type(a)};" }
+      @cmd.attributes.each { |attr| fields << "#{NodeUtils.camel_case(attr.name)}: #{NodeUtils.ts_type(attr)};" }
       fields << "occurredAt: string;"
       NodeUtils.ts_interface(@event.name, fields)
     end
@@ -62,17 +62,17 @@ module NodeHecks
     end
 
     def create_body
-      agg_attrs = @agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+      agg_attrs = @agg.attributes.reject { |attr| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) }
       lines = []
       lines << "  const now = new Date().toISOString();"
       lines << "  const #{NodeUtils.camel_case(@agg.name)}: #{@agg.name} = {"
       lines << "    id: randomUUID(),"
-      agg_attrs.each do |a|
-        cmd_attr = @cmd.attributes.find { |c| c.name == a.name }
+      agg_attrs.each do |agg_attr|
+        cmd_attr = @cmd.attributes.find { |cmd_a| cmd_a.name == agg_attr.name }
         if cmd_attr
-          lines << "    #{NodeUtils.camel_case(a.name)}: attrs.#{NodeUtils.camel_case(a.name)},"
+          lines << "    #{NodeUtils.camel_case(agg_attr.name)}: attrs.#{NodeUtils.camel_case(agg_attr.name)},"
         else
-          lines << "    #{NodeUtils.camel_case(a.name)}: #{ts_default(a)},"
+          lines << "    #{NodeUtils.camel_case(agg_attr.name)}: #{ts_default(agg_attr)},"
         end
       end
       lines << "    createdAt: now,"
@@ -88,11 +88,11 @@ module NodeHecks
       lines << "  const existing = repo.find(attrs.#{NodeUtils.camel_case(@self_id.name)});"
       lines << "  if (!existing) { throw new Error(\"#{@agg.name} not found\"); }"
       lines << "  const now = new Date().toISOString();"
-      agg_attr_names = @agg.attributes.map { |a| a.name.to_s }
-      @cmd.attributes.each do |a|
-        next if a == @self_id
-        if agg_attr_names.include?(a.name.to_s)
-          lines << "  existing.#{NodeUtils.camel_case(a.name)} = attrs.#{NodeUtils.camel_case(a.name)};"
+      agg_attr_names = @agg.attributes.map { |attr| attr.name.to_s }
+      @cmd.attributes.each do |cmd_attr|
+        next if cmd_attr == @self_id
+        if agg_attr_names.include?(cmd_attr.name.to_s)
+          lines << "  existing.#{NodeUtils.camel_case(cmd_attr.name)} = attrs.#{NodeUtils.camel_case(cmd_attr.name)};"
         end
       end
       lines << "  existing.updatedAt = now;"
@@ -106,7 +106,7 @@ module NodeHecks
         ["type", "\"#{@event.name}\""],
         ["aggregateId", id_expr],
       ]
-      @cmd.attributes.each { |a| pairs << [NodeUtils.camel_case(a.name), "attrs.#{NodeUtils.camel_case(a.name)}"] }
+      @cmd.attributes.each { |attr| pairs << [NodeUtils.camel_case(attr.name), "attrs.#{NodeUtils.camel_case(attr.name)}"] }
       pairs << ["occurredAt", "now"]
       NodeUtils.ts_return_object("  ", pairs)
     end

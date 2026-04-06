@@ -66,15 +66,15 @@ module GoHecks
 
       # items.each do |item| → {{ range .Items }}
       go.gsub!(/<% (\w+)\.each do \|(\w+)\| %>/) do
-        collection, var = $1, $2
-        @loop_var_names << var
+        collection, loop_var = $1, $2
+        @loop_var_names << loop_var
         "{{ range .#{gn(collection)} }}"
       end
 
       # item[:cells].each do |cell| → {{ range .Cells }}
       go.gsub!(/<% (\w+)\[:(\w+)\]\.each do \|(\w+)\| %>/) do
-        _parent, field, var = $1, $2, $3
-        @loop_var_names << var
+        _parent_var, field, loop_var = $1, $2, $3
+        @loop_var_names << loop_var
         "{{ range .#{gn(field)} }}"
       end
 

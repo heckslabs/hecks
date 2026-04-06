@@ -161,7 +161,7 @@ module Hecks
       end
 
       def serve_domain_route(req, res, entry, sub_path)
-        route = entry[:routes].find { |r| r[:method] == req.request_method && route_matches_request_path?(r[:path], sub_path) }
+        route = entry[:routes].find { |route_def| route_def[:method] == req.request_method && route_matches_request_path?(route_def[:path], sub_path) }
         if route && req["Accept"]&.include?("application/json")
           if csrf_required?(req) && !valid_csrf_json?(req)
             res.status = 403

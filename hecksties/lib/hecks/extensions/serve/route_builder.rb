@@ -68,7 +68,7 @@ module Hecks
         routes = []
         routes << { method: "GET", path: "/#{slug}", handler: ->(_) {
           results = port ? port.read(klass, agg.name, :all) : klass.all
-          results.map { |r| serialize(r) }
+          results.map { |result| serialize(result) }
         }}
         routes << { method: "GET", path: "/#{slug}/:id", handler: ->(req) {
           id = req.path.split("/").last
@@ -134,7 +134,7 @@ module Hecks
             else
               params.empty? ? klass.send(qn.to_sym) : klass.send(qn.to_sym, *args)
             end
-            results.respond_to?(:map) ? results.map { |r| serialize(r) } : results
+            results.respond_to?(:map) ? results.map { |result| serialize(result) } : results
           }}
         end
       end
