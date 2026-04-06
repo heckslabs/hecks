@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Commands
   #
   # Groups command dispatch infrastructure: the CommandBus, CommandRunner,
@@ -22,6 +21,7 @@ module Hecks
   #   Commands.bind_shortcuts(agg_class, aggregate) { |cmd| executor_proc }
   #   # Creates shortcut methods using a custom executor
   #
+module Hecks
   module Commands
       autoload :CommandBus,     "hecks/ports/commands/command_bus"
       autoload :CommandRunner,  "hecks/ports/commands/command_runner"

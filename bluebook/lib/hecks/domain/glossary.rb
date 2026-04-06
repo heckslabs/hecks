@@ -1,7 +1,5 @@
 require_relative "glossary/text_helpers"
 require_relative "glossary/statement_builders"
-
-module Hecks
   # Hecks::DomainGlossary
   #
   # Walks the domain IR and produces plain-English statements that describe
@@ -17,6 +15,8 @@ module Hecks
   #   Hecks::DomainGlossary.new(domain).print      # prints to stdout
   #   domain.glossary                               # convenience method
   #
+
+module Hecks
   class DomainGlossary
     include TextHelpers
     include StatementBuilders

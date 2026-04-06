@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Validator
   #
   # Validates a domain model for DDD consistency. Runs all registered
@@ -23,6 +22,7 @@ module Hecks
   #   validator.valid?   # => true/false
   #   validator.errors   # => ["Order references unknown aggregate: Widget"]
   #
+module Hecks
   class Validator
     # Trigger autoloading of all validation rule modules so each rule
     # registers itself with Hecks.register_validation_rule.

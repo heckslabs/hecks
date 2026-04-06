@@ -1,6 +1,4 @@
 require_relative "../extensions/docs"
-
-module Hecks
   # Hecks::ReadmeGenerator
   #
   # Generates README.md from docs/readme_template.md by replacing {{tags}}
@@ -21,6 +19,8 @@ module Hecks
   #
   #   ReadmeGenerator.new(project_root).generate
   #
+
+module Hecks
   class ReadmeGenerator
     # @param root [String] absolute path to the project root directory
     def initialize(root)

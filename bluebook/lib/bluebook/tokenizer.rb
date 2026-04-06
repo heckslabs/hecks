@@ -1,4 +1,3 @@
-module BlueBook
   # BlueBook::Tokenizer
   #
   # Splits a command argument string into typed tokens. Handles symbols,
@@ -8,6 +7,7 @@ module BlueBook
   #   Tokenizer.tokenize(':name, String, presence: true')
   #   # => [":name", "String", "presence: true"]
   #
+module BlueBook
   module Tokenizer
     def self.tokenize(str)
       tokens = []

@@ -1,5 +1,3 @@
-
-module Hecks
   # Hecks::CrossDomainQuery
   #
   # A read-only query that spans multiple bounded contexts. Registered at
@@ -23,6 +21,8 @@ module Hecks
   #   result = Hecks.query("ComplianceCheck", model_id: "abc")
   #   # => { model: #<AiModel>, reviews: [#<ComplianceReview>, ...] }
   #
+
+module Hecks
   class CrossDomainQuery
     # @return [String] the registered name of this cross-domain query
     attr_reader :name

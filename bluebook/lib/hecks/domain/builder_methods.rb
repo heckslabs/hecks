@@ -1,5 +1,3 @@
-
-module Hecks
   # Hecks::DomainBuilderMethods
   #
   # DSL entry points for defining, validating, and previewing domains.
@@ -15,6 +13,8 @@ module Hecks
   #   Hecks.preview(domain, "Pizza")
   #   Hecks.workshop("Pizzas")
   #
+
+module Hecks
   module DomainBuilderMethods
     include HecksTemplating::NamingHelpers
     # Define a new domain using the Hecks DSL. Evaluates the given block

@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::WorkflowExecutor
   #
   # Executes workflow steps in order against the runtime's command bus.
@@ -9,6 +8,7 @@ module Hecks
   #   executor = WorkflowExecutor.new(workflow, command_bus, domain_mod)
   #   result = executor.call(principal: 75_000)
   #
+module Hecks
   class WorkflowExecutor
     CommandStep = DomainModel::Behavior::CommandStep
     BranchStep  = DomainModel::Behavior::BranchStep

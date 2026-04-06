@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::ViewBinding
   #
   # Wires read model projections to the event bus at runtime. For each
@@ -10,6 +9,7 @@ module Hecks
   #   # After events are published:
   #   PizzasDomain::OrderSummary.current  # => { total_orders: 5 }
   #
+module Hecks
   class ViewBinding
     extend HecksTemplating::NamingHelpers
     # Binds a view (read model) definition to the event bus and domain module.

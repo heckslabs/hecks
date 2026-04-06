@@ -36,9 +36,9 @@ Hecks.register_extension(:http) do |domain_mod, domain, _runtime|
     Hecks::HTTP::DomainServer.new(domain, gate: port).run
   end
 end
+  # HTTP server components for serving Hecks domains over REST and JSON-RPC.
 
 module Hecks
-  # HTTP server components for serving Hecks domains over REST and JSON-RPC.
   module HTTP
     autoload :DomainServer,       "hecks/extensions/serve/domain_server"
     autoload :MultiDomainServer,  "hecks/extensions/serve/multi_domain_server"

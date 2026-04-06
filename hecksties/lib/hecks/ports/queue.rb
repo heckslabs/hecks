@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Queue
   #
   # Abstract interface for command queues. Commands are dispatched through
@@ -17,6 +16,7 @@ module Hecks
   #   handle.completed?           # => true
   #   handle.result               # => the command's return value
   #
+module Hecks
   module Queue
     # Handle returned from +enqueue+. Wraps a deferred command execution.
     #

@@ -1,5 +1,3 @@
-module Hecks
-
   # Hecks::RuntimeAttributeDefinition
   #
   # Value object representing a declared attribute on a runtime model class.
@@ -12,5 +10,7 @@ module Hecks
   #   attr_def.default  # => nil
   #   attr_def[:freeze] # => false
   #
+module Hecks
+
   RuntimeAttributeDefinition = Struct.new(:name, :default, :freeze, keyword_init: true)
 end

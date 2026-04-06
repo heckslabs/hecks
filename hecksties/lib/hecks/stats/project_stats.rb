@@ -1,5 +1,3 @@
-module Hecks::Stats
-
   # Hecks::Stats::ProjectStats
   #
   # Collects metrics across all domains in a project directory.
@@ -8,6 +6,8 @@ module Hecks::Stats
   #   stats = ProjectStats.new("/path/to/project")
   #   puts stats.summary
   #
+module Hecks::Stats
+
   class ProjectStats
     def initialize(project_root)
       @root = project_root

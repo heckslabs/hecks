@@ -30,37 +30,37 @@ module Hecks
         def parse_line(line)
           result = {}
 
-          if (m = line.match(PATTERNS[:actor]))
-            result[:actor] = ParsedElement.new(type: :actor, name: m[1].strip, meta: {})
+          if (match = line.match(PATTERNS[:actor]))
+            result[:actor] = ParsedElement.new(type: :actor, name: match[1].strip, meta: {})
           end
 
-          if (m = line.match(PATTERNS[:policy]))
+          if (match = line.match(PATTERNS[:policy]))
             result[:policy] = ParsedElement.new(
-              type: :policy, name: normalize_name(m[2].strip),
-              meta: { event_name: normalize_name(m[1].strip), trigger: normalize_name(m[2].strip) }
+              type: :policy, name: normalize_name(match[2].strip),
+              meta: { event_name: normalize_name(match[1].strip), trigger: normalize_name(match[2].strip) }
             )
-          elsif (m = line.match(PATTERNS[:external]))
-            result[:external] = ParsedElement.new(type: :external, name: m[1].strip, meta: {})
+          elsif (match = line.match(PATTERNS[:external]))
+            result[:external] = ParsedElement.new(type: :external, name: match[1].strip, meta: {})
           end
 
-          if !result[:policy] && !result[:external] && (m = line.match(PATTERNS[:command]))
-            result[:command] = ParsedElement.new(type: :command, name: normalize_name(m[1].strip), meta: {})
+          if !result[:policy] && !result[:external] && (match = line.match(PATTERNS[:command]))
+            result[:command] = ParsedElement.new(type: :command, name: normalize_name(match[1].strip), meta: {})
           end
 
-          if (m = line.match(PATTERNS[:event]))
-            result[:event] = ParsedElement.new(type: :event, name: normalize_name(m[1].strip), meta: {})
+          if (match = line.match(PATTERNS[:event]))
+            result[:event] = ParsedElement.new(type: :event, name: normalize_name(match[1].strip), meta: {})
           end
 
-          if !result[:external] && (m = line.match(PATTERNS[:aggregate]))
-            result[:aggregate] = ParsedElement.new(type: :aggregate, name: normalize_name(m[1].strip), meta: {})
+          if !result[:external] && (match = line.match(PATTERNS[:aggregate]))
+            result[:aggregate] = ParsedElement.new(type: :aggregate, name: normalize_name(match[1].strip), meta: {})
           end
 
-          if !result[:external] && !result[:aggregate] && (m = line.match(PATTERNS[:read_model]))
-            result[:read_model] = ParsedElement.new(type: :read_model, name: m[1].strip, meta: {})
+          if !result[:external] && !result[:aggregate] && (match = line.match(PATTERNS[:read_model]))
+            result[:read_model] = ParsedElement.new(type: :read_model, name: match[1].strip, meta: {})
           end
 
-          if (m = line.match(PATTERNS[:hotspot]))
-            result[:hotspot] = ParsedElement.new(type: :hotspot, name: m[1].strip, meta: {})
+          if (match = line.match(PATTERNS[:hotspot]))
+            result[:hotspot] = ParsedElement.new(type: :hotspot, name: match[1].strip, meta: {})
           end
 
           result.empty? ? nil : result

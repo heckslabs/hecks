@@ -1,5 +1,3 @@
-
-module Hecks
   # Hecks::GateEnforcer
   #
   # Applies gate-based access restrictions to an aggregate class.
@@ -9,6 +7,8 @@ module Hecks
   #
   # When no gate is specified, all methods remain accessible.
   #
+
+module Hecks
   class GateEnforcer
     include HecksTemplating::NamingHelpers
       CLASS_METHODS    = %i[find all count delete where first last create].freeze

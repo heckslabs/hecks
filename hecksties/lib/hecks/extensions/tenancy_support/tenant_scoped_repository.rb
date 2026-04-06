@@ -1,4 +1,3 @@
-module HecksTenancy
   # HecksTenancy::TenantScopedRepository
   #
   # Repository proxy that isolates data per tenant. Wraps a repository class
@@ -15,6 +14,7 @@ module HecksTenancy
   #   Hecks.tenant = "beta"
   #   proxy.all             # => [] (beta has nothing)
   #
+module HecksTenancy
   class TenantScopedRepository
     # Create a new tenant-scoped proxy wrapping the given repository class.
     #

@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Migrations
   #
   # Schema migration infrastructure: diff detection, snapshot tracking,
@@ -15,6 +14,7 @@ module Hecks
   #   changes = Migrations::DomainDiff.call(old_domain, new_domain)
   #   Migrations::MigrationStrategy.run_all(changes)
   #
+module Hecks
   module Migrations
     autoload :DomainDiff,       "hecks/domain/migrations/domain_diff"
     autoload :DomainSnapshot,   "hecks/domain/migrations/domain_snapshot"

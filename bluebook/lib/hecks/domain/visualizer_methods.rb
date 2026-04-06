@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::DomainVisualizerMethods
   #
   # Top-level entry point for Mermaid diagram generation. Extended onto
@@ -7,6 +6,7 @@ module Hecks
   #
   #   Hecks.visualize(domain)  # => "```mermaid\nclassDiagram\n..."
   #
+module Hecks
   module DomainVisualizerMethods
     # Generate Mermaid diagrams (structure and behavior) for a domain.
     #

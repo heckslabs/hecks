@@ -1,6 +1,4 @@
 require "hecks/generators/built_in"
-
-module Hecks
   # Hecks::InMemoryLoader
   #
   # Fast domain loading without disk I/O. Uses the generator registry
@@ -8,6 +6,8 @@ module Hecks
   #
   #   InMemoryLoader.load(domain, "PizzasDomain")
   #
+
+module Hecks
   module InMemoryLoader
     extend HecksTemplating::NamingHelpers
 

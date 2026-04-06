@@ -1,4 +1,3 @@
-module Hecks
   # = Hecks::Utils
   #
   # Shared utility functions used across the Hecks framework. Provides constant
@@ -17,6 +16,7 @@ module Hecks
   #   Hecks::Utils.underscore("PizzaDomain")       # => "pizza_domain"
   #   Hecks::Utils.ruby_keyword?("class")          # => true
   #
+module Hecks
   module Utils
     # Ruby reserved keywords that cannot be used as bare keyword parameters
     # in method signatures (e.g. +def initialize(class:)+ is invalid syntax).

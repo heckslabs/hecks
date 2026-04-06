@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::DomainInspector
   #
   # Top-level introspection across all loaded domains. Provides summary
@@ -16,6 +15,7 @@ module Hecks
   #   Hecks.aggregates # => ["Pizza (name: String, size: String)"]
   #   Hecks.glossary   # prints full glossary to stdout
   #
+module Hecks
   module DomainInspector
     # List all commands across all loaded domains. Each entry shows the
     # aggregate, command name, parameters with types, and the resulting event.

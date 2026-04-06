@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::FlowGenerator
   #
   # Analyzes a domain's reactive chains and produces human-readable flow
@@ -14,6 +13,7 @@ module Hecks
   #   puts generator.generate_text
   #   puts generator.generate_mermaid
   #
+module Hecks
   class FlowGenerator
     # @param domain [Hecks::DomainModel::Structure::Domain] the domain to analyze
     def initialize(domain)

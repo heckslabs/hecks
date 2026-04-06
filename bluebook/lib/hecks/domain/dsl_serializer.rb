@@ -2,8 +2,6 @@ require_relative "dsl_serializer/type_helpers"
 require_relative "dsl_serializer/rule_serializer"
 require_relative "dsl_serializer/behavior_serializer"
 require_relative "dsl_serializer/aggregate_serializer"
-
-module Hecks
   # Hecks::DslSerializer
   #
   # Serializes a Domain IR back into DSL source code. The output is valid
@@ -12,6 +10,8 @@ module Hecks
   #   DslSerializer.new(domain).serialize
   #   # => 'Hecks.domain "Pizzas" do ...'
   #
+
+module Hecks
   class DslSerializer
     include TypeHelpers
     include RuleSerializer

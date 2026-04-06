@@ -78,14 +78,14 @@ module Hecks
 
         create_cmd = agg.commands.find { |c| c.name.start_with?("Create") }
         if create_cmd
-          m = derive_method(create_cmd.name, agg.name)
-          Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, m)
+          create_method = derive_method(create_cmd.name, agg.name)
+          Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, create_method)
           routes << { method: "POST", path: "/#{slug}", handler: ->(req) {
             if port
               serialize(port.dispatch(create_cmd.name, **parse_body(req)))
             else
-              m = derive_method(create_cmd.name, agg.name)
-              serialize(klass.send(m, **parse_body(req)))
+              dispatch_method = derive_method(create_cmd.name, agg.name)
+              serialize(klass.send(dispatch_method, **parse_body(req)))
             end
           }}
         end
@@ -128,7 +128,7 @@ module Hecks
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           { method: "GET", path: "/#{slug}/#{qn}", handler: ->(req) {
-            args = params.map { |_, n| req.params[n.to_s] }
+            args = params.map { |_type, param_name| req.params[param_name.to_s] }
             results = if port
               params.empty? ? port.read(klass, agg.name, qn.to_sym) : port.read(klass, agg.name, qn.to_sym, *args)
             else

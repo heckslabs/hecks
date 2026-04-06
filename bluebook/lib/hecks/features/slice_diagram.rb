@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::SliceDiagram
   #
   # Generates a Mermaid flowchart where each vertical slice is a labeled
@@ -9,6 +7,8 @@ module Hecks::Features
   #   diagram = SliceDiagram.new(domain).generate
   #   puts diagram  # => "flowchart LR\n  subgraph ..."
   #
+module Hecks::Features
+
   class SliceDiagram
     # @param domain [Hecks::DomainModel::Structure::Domain]
     def initialize(domain)

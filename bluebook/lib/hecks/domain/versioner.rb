@@ -1,6 +1,4 @@
 require "date"
-
-module Hecks
   # Hecks::Versioner
   #
   # Calendar-based versioning for domain gems. Each build stamps the current
@@ -19,6 +17,8 @@ module Hecks
   #   # next day:
   #   versioner.next      # => "2026.03.21.1"
   #
+
+module Hecks
   class Versioner
     # Filename used to persist the current version.
     VERSION_FILE = ".hecks_version"

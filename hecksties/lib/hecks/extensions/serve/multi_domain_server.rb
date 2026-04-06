@@ -39,9 +39,9 @@ module Hecks
 
       def run
         puts "Hecks serving #{@domains.size} domains on http://localhost:#{@port}"
-        @entries.each do |e|
-          ir = e[:ir]
-          puts "  #{ir.domain.name}: /#{e[:slug]}/ (#{ir.aggregate_names.size} aggregates)"
+        @entries.each do |entry|
+          ir = entry[:ir]
+          puts "  #{ir.domain.name}: /#{entry[:slug]}/ (#{ir.aggregate_names.size} aggregates)"
         end
         puts ""
 
@@ -56,8 +56,8 @@ module Hecks
       private
 
       def setup_domains
-        @domains.each_with_index do |domain, i|
-          runtime = @runtimes[i]
+        @domains.each_with_index do |domain, domain_index|
+          runtime = @runtimes[domain_index]
           slug = domain_slug(domain.name)
           mod = Object.const_get(domain_module_name(domain.name))
           ir = Hecks::WebExplorer::IRIntrospector.new(domain)
@@ -77,13 +77,13 @@ module Hecks
 
       def build_nav
         items = [{ label: "Home", href: "/" }]
-        @entries.each do |e|
-          ir = e[:ir]
+        @entries.each do |entry|
+          ir = entry[:ir]
           group = HecksTemplating::UILabelContract.label(ir.domain.name)
           ir.domain.aggregates.each do |agg|
             items << {
               label: HecksTemplating::UILabelContract.plural_label(agg.name),
-              href: "/#{e[:slug]}/#{plural(agg)}",
+              href: "/#{entry[:slug]}/#{plural(agg)}",
               group: group
             }
           end
@@ -107,7 +107,7 @@ module Hecks
         elsif path == "/config"
           serve_config(res)
         else
-          entry = @entries.find { |e| path.start_with?("/#{e[:slug]}/") || path == "/#{e[:slug]}" }
+          entry = @entries.find { |e_item| path.start_with?("/#{e_item[:slug]}/") || path == "/#{e_item[:slug]}" }
           if entry
             sub_path = path.sub("/#{entry[:slug]}", "")
             sub_path = "/" if sub_path.empty?
@@ -118,19 +118,19 @@ module Hecks
             res.body = "Not found"
           end
         end
-      rescue => e
+      rescue => error
         res.status = 500
         res["Content-Type"] = "text/html"
-        res.body = "Error: #{e.message}"
+        res.body = "Error: #{error.message}"
       end
 
       def serve_home(res)
-        agg_data = @entries.flat_map do |e|
-          ir = e[:ir]
+        agg_data = @entries.flat_map do |entry|
+          ir = entry[:ir]
           ir.domain.aggregates.map do |agg|
-            d = ir.home_aggregate_data(agg, "#{e[:slug]}/#{plural(agg)}")
-            { name: d[:name], href: d[:href], command_names: d[:command_names],
-              attributes: d[:attributes], policies: d[:policies] }
+            home_data = ir.home_aggregate_data(agg, "#{entry[:slug]}/#{plural(agg)}")
+            { name: home_data[:name], href: home_data[:href], command_names: home_data[:command_names],
+              attributes: home_data[:attributes], policies: home_data[:policies] }
           end
         end
         html = @renderer.render(:home,
@@ -141,15 +141,15 @@ module Hecks
       end
 
       def serve_config(res)
-        summaries = @entries.flat_map do |e|
-          ir = e[:ir]
+        summaries = @entries.flat_map do |entry|
+          ir = entry[:ir]
           ir.domain.aggregates.map do |agg|
-            s = ir.aggregate_summary(agg)
-            { name: agg.name, commands: s[:commands], ports: s[:ports] }
+            summary = ir.aggregate_summary(agg)
+            { name: agg.name, commands: summary[:commands], ports: summary[:ports] }
           end
         end
-        policies = @entries.flat_map { |e| e[:ir].policy_labels }
-        roles = @entries.flat_map { |e| e[:ir].available_roles }.uniq
+        policies = @entries.flat_map { |entry| entry[:ir].policy_labels }
+        roles = @entries.flat_map { |entry| entry[:ir].available_roles }.uniq
         diagrams = merge_diagrams
         html = @renderer.render(:config,
           title: "Config — #{@brand}", brand: @brand, nav_items: @nav,
@@ -180,11 +180,11 @@ module Hecks
 
       def merge_diagrams
         combined = { structure_diagram: "", behavior_diagram: "", flows_diagram: "" }
-        @entries.each do |e|
-          d = e[:ir].diagram_data
-          combined[:structure_diagram] += d[:structure_diagram] + "\n"
-          combined[:behavior_diagram]  += d[:behavior_diagram] + "\n"
-          combined[:flows_diagram]     += d[:flows_diagram] + "\n"
+        @entries.each do |entry|
+          diagram_data = entry[:ir].diagram_data
+          combined[:structure_diagram] += diagram_data[:structure_diagram] + "\n"
+          combined[:behavior_diagram]  += diagram_data[:behavior_diagram] + "\n"
+          combined[:flows_diagram]     += diagram_data[:flows_diagram] + "\n"
         end
         combined.transform_values(&:strip)
       end
