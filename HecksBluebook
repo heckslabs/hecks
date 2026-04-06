@@ -1,7 +1,10 @@
 # HecksBluebook
 #
-# Hecks describes itself as a Bluebook. Each gem is a chapter — a domain
-# defined using the same DSL that Hecks provides to its users.
+# Hecks describes itself as a Bluebook. The binding is the spine —
+# it holds the chapters together. Each chapter is a domain defined
+# using the same DSL that Hecks provides to its users.
+#
+# Hierarchy: bluebook > binding > chapters
 #
 # The chapter definitions live in each gem:
 #   bluebook/lib/hecks/chapters/bluebook.rb
@@ -9,6 +12,13 @@
 #   hecks_workshop/lib/hecks/chapters/workshop.rb
 #   hecksagon/lib/hecks/chapters/hecksagon.rb
 #   hecks_targets/lib/hecks/chapters/targets.rb
+#   hecksties/lib/hecks/chapters/cli.rb
+#   hecksties/lib/hecks/chapters/extensions.rb
+#   hecks_ai/lib/hecks/chapters/ai.rb
+#   hecks_on_rails/lib/hecks/chapters/rails.rb
+#
+# The binding definition lives at:
+#   hecksties/lib/hecks/binding.rb
 #
 # This file composes them and wires cross-chapter policies.
 
@@ -17,18 +27,28 @@ require_relative "hecksties/lib/hecks/chapters/runtime"
 require_relative "hecks_workshop/lib/hecks/chapters/workshop"
 require_relative "hecksagon/lib/hecks/chapters/hecksagon"
 require_relative "hecks_targets/lib/hecks/chapters/targets"
+require_relative "hecksties/lib/hecks/chapters/cli"
+require_relative "hecksties/lib/hecks/chapters/extensions"
+require_relative "hecks_ai/lib/hecks/chapters/ai"
+require_relative "hecks_on_rails/lib/hecks/chapters/rails"
+require_relative "hecksties/lib/hecks/binding"
 
 module Hecks
   module Chapters
     def self.bluebook
       @bluebook ||= DomainModel::Structure::BluebookStructure.new(
         name: "Hecks",
+        binding: Hecks::Binding.definition,
         chapters: [
           Bluebook.definition,
           Runtime.definition,
           Workshop.definition,
           Hecksagon.definition,
           Targets.definition,
+          Cli.definition,
+          Extensions.definition,
+          Ai.definition,
+          Rails.definition,
         ]
       )
     end

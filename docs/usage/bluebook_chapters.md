@@ -69,6 +69,51 @@ end
 workshop.play!   # boots all chapters with shared event bus
 ```
 
+## Binding (Spine)
+
+The binding is the spine that holds chapters together. It models bootstrap
+infrastructure: module wiring, registries, error hierarchies, and cross-chapter
+event routing.
+
+```ruby
+Hecks.bluebook "MyApp" do
+  binding "Infrastructure" do
+    aggregate "EventRouter" do
+      attribute :source_chapter, String
+      command("RouteEvent") { attribute :event_name, String }
+    end
+  end
+
+  chapter "Orders" do
+    aggregate "Order" do
+      attribute :name, String
+      command("PlaceOrder") { attribute :name, String }
+    end
+  end
+end
+```
+
+The binding is accessible on the IR: `bluebook.binding` returns a Domain, while
+`bluebook.chapters` returns the array of chapter Domains.
+
+Hierarchy: **bluebook > binding > chapters**
+
+## Self-Describing Architecture
+
+Hecks itself is a Bluebook. Every module is expressed as a chapter using the
+same DSL it provides to users:
+
+```ruby
+require "hecks"
+load "HecksBluebook"
+
+bb = Hecks::Chapters.bluebook
+bb.binding.name           # => "Binding"
+bb.chapters.map(&:name)
+# => ["Bluebook", "Runtime", "Workshop", "Hecksagon", "Targets",
+#     "Cli", "Extensions", "Ai", "Rails"]
+```
+
 ## Boot Detection
 
 `Hecks.boot(__dir__)` auto-detects Bluebook files. Place a single file using `Hecks.bluebook`:

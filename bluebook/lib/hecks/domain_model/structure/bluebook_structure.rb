@@ -18,6 +18,9 @@ module Hecks
       # @return [String] the system name (e.g., "PizzaShop")
       attr_reader :name
 
+      # @return [Domain, nil] the binding — bootstrap layer holding chapters together
+      attr_reader :binding
+
       # @return [Array<Domain>] the chapter domains composing this bluebook
       attr_reader :chapters
 
@@ -25,10 +28,12 @@ module Hecks
       attr_reader :version
 
       # @param name [String] the bluebook/system name
+      # @param binding [Domain, nil] the binding domain (spine/bootstrap)
       # @param chapters [Array<Domain>] the chapter domain IR objects
       # @param version [String, nil] optional version string
-      def initialize(name:, chapters: [], version: nil)
+      def initialize(name:, binding: nil, chapters: [], version: nil)
         @name = name
+        @binding = binding
         @chapters = chapters
         @version = version
       end

@@ -29,6 +29,7 @@ module Hecks
       def initialize(name, version: nil)
         @name = name
         @version = version
+        @binding_builder = nil
         @chapters = []
       end
 
@@ -42,6 +43,16 @@ module Hecks
       # @yield block evaluated in the context of DomainBuilder
       # @return [void]
       # @raise [ArgumentError] if a chapter with the same name already exists
+      # Define the binding (spine) for this bluebook.
+      #
+      # @param name [String] the binding domain name
+      # @yield block evaluated in the context of DomainBuilder
+      def binding(name = "Binding", &block)
+        builder = DomainBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @binding_builder = builder
+      end
+
       def chapter(name, version: nil, &block)
         if @chapters.any? { |ch| ch[:name] == name }
           raise ArgumentError, "Duplicate chapter name: #{name}"
@@ -55,9 +66,11 @@ module Hecks
       #
       # @return [DomainModel::Structure::BluebookStructure]
       def build
+        binding_domain = @binding_builder&.build
         domains = @chapters.map { |ch| ch[:builder].build }
         Structure::BluebookStructure.new(
           name: @name,
+          binding: binding_domain,
           chapters: domains,
           version: @version
         )
