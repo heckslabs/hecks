@@ -40,10 +40,6 @@ RSpec.describe GoHecks::GoCodeBuilder do
       expect(out).to include("\tSize int `json:\"size\"`")
     end
 
-    it "generates an empty struct" do
-      builder.struct("Marker") { |s| s.empty_struct }
-      expect(builder.to_s).to include("type Marker struct{}")
-    end
   end
 
   describe "#const_block" do
@@ -90,10 +86,4 @@ RSpec.describe GoHecks::GoCodeBuilder do
     end
   end
 
-  describe "#comment" do
-    it "adds a comment line" do
-      builder.comment("TODO: implement")
-      expect(builder.to_s).to include("// TODO: implement")
-    end
-  end
 end

@@ -10,8 +10,7 @@ module Hecks
   # glossary).
   #
   # Extended onto the top-level Hecks module alongside DomainBuilderMethods.
-  # Tests use InMemoryLoader for speed; production can use file-based loading
-  # via the private load_domain_from_files fallback.
+  # Tests use InMemoryLoader for speed.
   #
   #   Hecks.build(domain, version: "2026.03.23.1")
   #   Hecks.load_domain(domain)
@@ -134,26 +133,6 @@ module Hecks
       root
     end
 
-    # Build a multi-domain Go project where each bounded context
-    # gets its own Go package with shared runtime and combined server.
-    #
-    # @param domains [Array<Hecks::DomainModel::Domain>] domains to compile
-    # @param output_dir [String] parent directory for the generated project
-    # @param name [String] project name (default "multi_domain")
-    # @return [String] absolute path to the generated Go project root
-    def build_go_multi(domains, output_dir: ".", name: "multi_domain")
-      domains.each do |domain|
-        valid, errors = validate(domain)
-        unless valid
-          raise Hecks::ValidationError, "Domain '#{domain.name}' validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
-        end
-      end
-
-      require "go_hecks"
-      generator = GoHecks::MultiProjectGenerator.new(domains, output_dir: output_dir, name: name)
-      generator.generate
-    end
-
     # Build a Node.js/TypeScript project from the domain IR.
     #
     # @param domain [Hecks::DomainModel::Domain] the domain to compile
@@ -234,32 +213,5 @@ module Hecks
       Process.wait(pid) rescue nil if pid
     end
 
-    # Fallback file-based loading strategy. Generates the full gem to a tmpdir,
-    # manipulates $LOAD_PATH, and uses Kernel.load to evaluate each file.
-    # Not used by default -- InMemoryLoader is preferred for speed.
-    #
-    # @param domain [Hecks::DomainModel::Domain] the domain to load from files
-    # @return [void]
-    def load_domain_from_files(domain)
-      @tmp_roots ||= {}
-      gem_name = domain.gem_name
-      dir = @tmp_roots[gem_name] ||= Dir.mktmpdir("hecks-")
-      gem_dir = File.join(dir, gem_name)
-      FileUtils.rm_rf(gem_dir) if Dir.exist?(gem_dir)
-      gen = Generators::Infrastructure::DomainGemGenerator.new(domain, version: "0.0.0", output_dir: dir)
-      gem_root = gen.generate
-
-      lib_path = File.join(gem_root, "lib")
-      $LOAD_PATH.reject! { |p| p.include?("/#{gem_name}/lib") }
-      $LOAD_PATH.unshift(lib_path)
-      Kernel.load File.join(lib_path, "#{gem_name}.rb")
-
-      gem_lib = File.join(gem_root, "lib", gem_name)
-      files = Dir[File.join(gem_lib, "**/*.rb")].sort
-      files.reject! { |f| f.include?("/commands/") || f.include?("/queries/") }
-      ports, rest = files.partition { |f| f.include?("/ports/") }
-      adapters, rest = rest.partition { |f| f.include?("/adapters/") }
-      (ports + rest + adapters).each { |f| Kernel.load f }
-    end
   end
 end
