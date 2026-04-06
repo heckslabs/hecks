@@ -46,12 +46,6 @@ module GoHecks
       self
     end
 
-    # Add a comment line.
-    def comment(text)
-      @sections << "// #{text}"
-      self
-    end
-
     # Build a struct definition. Yields a StructBuilder for adding fields.
     def struct(name)
       sb = StructBuilder.new(name)
@@ -141,16 +135,6 @@ module GoHecks
         self
       end
 
-      def raw(line)
-        @fields << "\t#{line}"
-        self
-      end
-
-      def empty_struct
-        @fields.clear
-        self
-      end
-
       def to_lines
         if @fields.empty?
           ["type #{@name} struct{}"]
@@ -191,11 +175,6 @@ module GoHecks
 
       def lines(arr)
         arr.each { |l| @body << "\t#{l}" }
-        self
-      end
-
-      def raw(text)
-        @body << text
         self
       end
 
