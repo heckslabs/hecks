@@ -1,4 +1,3 @@
-module BlueBook
   # BlueBook::Grammar
   #
   # The domain command language grammar. Parses input strings into structured
@@ -11,6 +10,7 @@ module BlueBook
   #   BlueBook::Grammar.parse("describe")
   #   # => { target: nil, method: "describe", args: [], kwargs: {} }
   #
+module BlueBook
   module Grammar
     BARE_COMMANDS = %w[
       describe browse validate preview status aggregates diagram

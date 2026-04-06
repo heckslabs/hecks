@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::SliceStep
   #
   # Value object representing a single step in a reactive flow chain.
@@ -16,5 +14,7 @@ module Hecks::Features
   #   step.command   # => "IssueLoan"
   #   step[:aggregate] # => "Loan" (hash-style access also works)
   #
+module Hecks::Features
+
   SliceStep = Struct.new(:type, :command, :aggregate, :event, :policy, keyword_init: true)
 end

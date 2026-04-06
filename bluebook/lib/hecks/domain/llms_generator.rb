@@ -1,8 +1,6 @@
 require_relative "llms_generator/aggregate_describer"
 require_relative "llms_generator/validation_describer"
 require_relative "llms_generator/policy_describer"
-
-module Hecks
   # Hecks::LlmsGenerator
   #
   # Walks the domain IR and produces an AI-readable plain text summary suitable
@@ -14,6 +12,8 @@ module Hecks
   #   Hecks::LlmsGenerator.new(domain).generate  # => String (plain text)
   #   Hecks::LlmsGenerator.new(domain).print     # prints to stdout
   #
+
+module Hecks
   class LlmsGenerator
     include AggregateDescriber
     include ValidationDescriber

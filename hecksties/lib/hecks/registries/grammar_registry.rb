@@ -40,8 +40,8 @@ module Hecks
     end
 
     def grammar(name = :bluebook)
-      g = grammar_registry[name.to_sym]
-      return g if g
+      grammar_desc = grammar_registry[name.to_sym]
+      return grammar_desc if grammar_desc
       # Auto-register BlueBook on first access if available
       if name.to_sym == :bluebook && defined?(BlueBook)
         BlueBook.register!

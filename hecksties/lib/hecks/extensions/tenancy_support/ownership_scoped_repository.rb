@@ -1,4 +1,3 @@
-module HecksTenancy
   # HecksTenancy::OwnershipScopedRepository
   #
   # Repository proxy that enforces row-level ownership. Wraps an inner
@@ -17,6 +16,7 @@ module HecksTenancy
   #   repo.all           # => only alice's records
   #   repo.find(other_id) # => raises Hecks::GateAccessDenied
   #
+module HecksTenancy
   class OwnershipScopedRepository
     # @param inner_repo [Object] the underlying repository to wrap
     # @param ownership_field [Symbol] attribute name identifying the owner

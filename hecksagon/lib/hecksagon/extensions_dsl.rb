@@ -1,5 +1,3 @@
-module Hecksagon
-
   # Hecksagon::ExtensionsDSL
   #
   # Mixin for domain builders. Declares how the domain connects to
@@ -8,6 +6,8 @@ module Hecksagon
   #   driving_port :http, description: "REST API"
   #   driven_port :persistence, [:find, :save, :delete, :all]
   #
+module Hecksagon
+
   module ExtensionsDSL
     def self.included(base)
       base.class_eval do

@@ -2,8 +2,6 @@ require_relative "import/schema_parser"
 require_relative "import/model_parser"
 require_relative "import/domain_assembler"
 require_relative "import/model_only_assembler"
-
-module Hecks
   # Hecks::Import
   #
   # Reverse-engineers a Rails application into a Hecks domain definition.
@@ -13,6 +11,8 @@ module Hecks
   #   Hecks::Import.from_rails("/path/to/rails/app")
   #   # => "Hecks.domain \"Blog\" do\n  aggregate \"Post\" do\n    ..."
   #
+
+module Hecks
   module Import
     def self.from_rails(app_path, domain_name: nil)
       schema_path = File.join(app_path, "db", "schema.rb")

@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::SliceExtractor
   #
   # Extracts vertical slices from a domain by tracing reactive chains
@@ -11,6 +9,8 @@ module Hecks::Features
   #   slices.first.aggregates     # => ["Loan", "Account"]
   #   slices.first.cross_aggregate? # => true
   #
+module Hecks::Features
+
   class SliceExtractor
     # @param domain [Hecks::DomainModel::Structure::Domain]
     def initialize(domain)

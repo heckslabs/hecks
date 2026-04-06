@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Querying
   #
   # Groups all query-related services: the chainable QueryBuilder,
@@ -26,6 +25,7 @@ module Hecks
   #   Querying.bind(agg_class, aggregate)
   #   # Now Pizza.classics returns a QueryBuilder scoped to classic pizzas
   #
+module Hecks
   module Querying
       autoload :QueryBuilder,  "hecks/ports/queries/query_builder"
       autoload :AdHocQueries,  "hecks/ports/queries/ad_hoc_queries"

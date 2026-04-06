@@ -47,14 +47,14 @@ module Hecks::Conventions
       expected = rules(agg)
       missing = []
 
-      expected[:validations].each do |v|
-        found = generated_checks.any? { |gc| gc[:field] == v[:field] && gc[:check] == v[:check] }
-        missing << "#{v[:check]} on #{v[:field]}" unless found
+      expected[:validations].each do |validation|
+        found = generated_checks.any? { |gc| gc[:field] == validation[:field] && gc[:check] == validation[:check] }
+        missing << "#{validation[:check]} on #{validation[:field]}" unless found
       end
 
-      expected[:enums].each do |e|
-        found = generated_checks.any? { |gc| gc[:field] == e[:field] && gc[:check] == :enum }
-        missing << "enum on #{e[:field]}" unless found
+      expected[:enums].each do |enum_rule|
+        found = generated_checks.any? { |gc| gc[:field] == enum_rule[:field] && gc[:check] == :enum }
+        missing << "enum on #{enum_rule[:field]}" unless found
       end
 
       if expected[:lifecycle]
@@ -110,7 +110,7 @@ module Hecks::Conventions
     # For an update command, returns non-self references.
     def self.user_refs(cmd, agg_snake)
       self_ref = self_ref_attr(cmd, agg_snake)
-      (cmd.references || []).reject { |r| r == self_ref }
+      (cmd.references || []).reject { |ref| ref == self_ref }
     end
 
     # Is this a direct-action command? (update with no user-visible fields or refs)
@@ -132,8 +132,8 @@ module Hecks::Conventions
       end
 
       def extract_enums(agg)
-        attrs = agg.attributes.reject { |a|
-          Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s)
+        attrs = agg.attributes.reject { |attr|
+          Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s)
         }
         attrs.select(&:enum).map do |attr|
           { field: attr.name, values: attr.enum, type: attr.type.to_s }

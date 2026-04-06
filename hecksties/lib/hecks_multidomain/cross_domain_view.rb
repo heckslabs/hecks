@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::CrossDomainView
   #
   # An event-driven read model that projects events from multiple bounded
@@ -26,6 +25,7 @@ module Hecks
   #   view.state  # => { total: 5, incidents: 2 }
   #   view.reset  # => clears state back to {}
   #
+module Hecks
   class CrossDomainView
     # @return [String] the name of this view (e.g., "RiskDashboard")
     attr_reader :name

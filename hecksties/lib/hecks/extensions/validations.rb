@@ -35,9 +35,9 @@ Hecks.register_extension(:validations) do |domain_mod, domain, runtime|
 
       cmd.attributes.each do |attr|
         # Check aggregate-level validations
-        v = agg.validations.find { |val| val.field.to_s == attr.name.to_s }
-        if v
-          cmd_rules[attr.name.to_s] = v.rules.transform_keys(&:to_s)
+        validation = agg.validations.find { |val| val.field.to_s == attr.name.to_s }
+        if validation
+          cmd_rules[attr.name.to_s] = validation.rules.transform_keys(&:to_s)
           next
         end
 
@@ -45,11 +45,11 @@ Hecks.register_extension(:validations) do |domain_mod, domain, runtime|
         agg.value_objects.each do |vo|
           vo_attr = vo.attributes.find { |va| va.name.to_s == attr.name.to_s }
           if vo_attr
-            r = { "presence" => true }
+            vo_rules = { "presence" => true }
             vo.invariants.each do |inv|
-              r["positive"] = true if inv.message.to_s =~ /#{attr.name}.*positive|#{attr.name}.*> ?0/i
+              vo_rules["positive"] = true if inv.message.to_s =~ /#{attr.name}.*positive|#{attr.name}.*> ?0/i
             end
-            cmd_rules[attr.name.to_s] = r
+            cmd_rules[attr.name.to_s] = vo_rules
           end
         end
       end
@@ -88,7 +88,7 @@ Hecks.register_extension(:validations) do |domain_mod, domain, runtime|
 
     # Build params hash from command instance variables
     params = {}
-    command.class.instance_method(:initialize).parameters.each do |_, name|
+    command.class.instance_method(:initialize).parameters.each do |_param_type, name|
       params[name] = command.send(name) if command.respond_to?(name)
     end
 

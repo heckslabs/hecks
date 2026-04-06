@@ -1,5 +1,3 @@
-
-module Hecks
   # Hecks::DomainBuilderMethods
   #
   # DSL entry points for defining, validating, and previewing domains.
@@ -15,6 +13,8 @@ module Hecks
   #   Hecks.preview(domain, "Pizza")
   #   Hecks.workshop("Pizzas")
   #
+
+module Hecks
   module DomainBuilderMethods
     include HecksTemplating::NamingHelpers
     # Define a new domain using the Hecks DSL. Evaluates the given block
@@ -33,8 +33,8 @@ module Hecks
     #   Hecks.model "SpaceGame", grammar: :game_book do ... end
     #   Hecks.model "Pizzas" do ... end  # defaults to :bluebook
     def model(name, grammar: :bluebook, version: nil, &block)
-      g = Hecks.grammar(grammar)
-      builder_class = g&.builder || DSL::DomainBuilder
+      grammar_desc = Hecks.grammar(grammar)
+      builder_class = grammar_desc&.builder || DSL::DomainBuilder
       builder = builder_class.new(name, version: version)
       builder.instance_eval(&block)
       result = builder.build

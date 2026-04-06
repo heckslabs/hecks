@@ -1,6 +1,4 @@
 require "tmpdir"
-
-module Hecks
   # Hecks::DomainCompiler
   #
   # Generates domain gems (build) and loads domains into memory (load_domain).
@@ -15,6 +13,8 @@ module Hecks
   #   Hecks.build(domain, version: "2026.03.23.1")
   #   Hecks.load_domain(domain)
   #
+
+module Hecks
   module DomainCompiler
     include HecksTemplating::NamingHelpers
     # Build a complete domain gem on disk. Validates the domain first, then

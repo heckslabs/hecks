@@ -16,8 +16,6 @@ require_relative "runtime/reference_authorizer_check"
 require_relative "runtime/extension_dispatch"
 require_relative "runtime/configuration_dsl"
 require_relative "runtime/command_dispatch"
-
-module Hecks
   # Hecks::Runtime
   #
   # The runtime container that wires a domain to adapters, dispatches
@@ -28,6 +26,8 @@ module Hecks
   #   app["Pizza"].all
   #   Pizza.create(name: "Margherita")
   #
+
+module Hecks
   class Runtime
     include HecksTemplating::NamingHelpers
     include PortSetup

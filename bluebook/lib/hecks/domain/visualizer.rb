@@ -1,8 +1,6 @@
 require_relative "visualizer_parts/structure_diagram"
 require_relative "visualizer_parts/behavior_diagram"
 require_relative "visualizer_parts/port_diagram"
-
-module Hecks
   # Hecks::DomainVisualizer
   #
   # Generates Mermaid diagram strings from a domain IR. Produces two diagrams:
@@ -17,6 +15,8 @@ module Hecks
   #   Hecks::DomainVisualizer.new(domain).print      # prints to stdout
   #   Hecks.visualize(domain)                         # top-level shortcut
   #
+
+module Hecks
   class DomainVisualizer
     include StructureDiagram
     include BehaviorDiagram

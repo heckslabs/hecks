@@ -1,6 +1,4 @@
 require_relative "docs/readme_writer"
-
-module Hecks
   # Hecks::ExtensionDocs
   #
   # Metadata registry for all Hecks extensions. Each entry describes what an
@@ -19,6 +17,8 @@ module Hecks
   #   Hecks::ExtensionDocs.by_category            # => Hash grouped by category symbol
   #   Hecks::ExtensionDocs.generate_readmes(root) # => generates docs/extensions/*.md
   #
+
+module Hecks
   module ExtensionDocs
     # @return [Array<Hash>] frozen array of extension metadata hashes. Each hash
     #   contains keys:

@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::DomainMixin
   #
   # Adds vertical slice methods to Domain. Included automatically
@@ -8,6 +6,8 @@ module Hecks::Features
   #   domain.slices          # => [VerticalSlice, ...]
   #   domain.slices_diagram  # => Mermaid flowchart string
   #
+module Hecks::Features
+
   module DomainMixin
     # Extract all vertical slices from this domain's reactive chains.
     #

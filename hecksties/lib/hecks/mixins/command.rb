@@ -2,8 +2,6 @@ require_relative "command/lifecycle_steps"
 require_relative "command/reference_validation"
 require_relative "command/validation"
 require_relative "command/dispatch"
-
-module Hecks
   # Hecks::Command
   #
   # Mixin for generated command classes. Orchestrates the full command lifecycle:
@@ -43,6 +41,8 @@ module Hecks
   #   cmd.aggregate  # => #<Pizza>
   #   cmd.event      # => #<CreatedPizza>
   #
+
+module Hecks
   module Command
     # Hook called when a class includes +Hecks::Command+. Extends the class
     # with +ClassMethods+ and defines +aggregate+, +event+, and +events+ readers

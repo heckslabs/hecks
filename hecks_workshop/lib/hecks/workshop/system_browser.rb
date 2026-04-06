@@ -29,8 +29,8 @@ module Hecks
         else
           puts "#{@name} Domain"
           aggs = @aggregate_builders.values.map(&:build)
-          aggs.each_with_index do |agg, i|
-            puts browse_aggregate(agg, last: i == aggs.size - 1)
+          aggs.each_with_index do |agg, agg_index|
+            puts browse_aggregate(agg, last: agg_index == aggs.size - 1)
           end
         end
         nil
@@ -52,8 +52,8 @@ module Hecks
         indent = last ? "      " : "  \u2502   "
         lines = ["#{prefix}#{agg.name}"]
         sections = browse_sections(agg)
-        sections.each_with_index do |(label, items), i|
-          connector = i == sections.size - 1 ? "\u2514\u2500\u2500 " : "\u251c\u2500\u2500 "
+        sections.each_with_index do |(label, items), section_index|
+          connector = section_index == sections.size - 1 ? "\u2514\u2500\u2500 " : "\u251c\u2500\u2500 "
           lines << "#{indent}#{connector}#{label}: #{items}"
         end
         lines.join("\n")
@@ -69,7 +69,7 @@ module Hecks
       def browse_sections(agg)
         sections = []
         if agg.attributes.any?
-          sections << ["attributes", agg.attributes.map { |a| "#{a.name} (#{a.type})" }.join(", ")]
+          sections << ["attributes", agg.attributes.map { |attr| "#{attr.name} (#{attr.type})" }.join(", ")]
         end
         if agg.value_objects.any?
           sections << ["value objects", agg.value_objects.map(&:name).join(", ")]

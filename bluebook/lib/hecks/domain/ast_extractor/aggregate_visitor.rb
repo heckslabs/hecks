@@ -82,8 +82,8 @@ module Hecks
         stmts = block_statements(scope)
         result = { name: name, attributes: [], invariants: [] }
         stmts.each do |stmt|
-          m = call_method_name(stmt)
-          case m
+          method_name = call_method_name(stmt)
+          case method_name
           when :attribute then result[:attributes] << extract_attribute(stmt)
           when :invariant then result[:invariants] << extract_invariant(stmt)
           end
@@ -97,8 +97,8 @@ module Hecks
         stmts = block_statements(scope)
         cmd = { name: name, attributes: [], references: [] }
         stmts.each do |stmt|
-          m = call_method_name(stmt)
-          case m
+          method_name = call_method_name(stmt)
+          case method_name
           when :attribute    then cmd[:attributes] << extract_attribute(stmt)
           when :reference_to then cmd[:references] << extract_reference(stmt)
           end
@@ -112,8 +112,8 @@ module Hecks
         stmts = block_statements(scope)
         pol = { name: name, event_name: nil, trigger_command: nil, async: false }
         stmts.each do |stmt|
-          m = call_method_name(stmt)
-          case m
+          method_name = call_method_name(stmt)
+          case method_name
           when :on      then pol[:event_name] = call_args(stmt).first
           when :trigger then pol[:trigger_command] = call_args(stmt).first
           when :async   then pol[:async] = true

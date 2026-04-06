@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::ServiceSetup
   #
   # Wires domain services onto the domain module as callable class methods.
@@ -9,6 +8,7 @@ module Hecks
   #   ServiceSetup.bind(domain, mod, command_bus)
   #   Banking.transfer_money(source_id: "abc", target_id: "xyz", amount: 500)
   #
+module Hecks
   module ServiceSetup
     extend HecksTemplating::NamingHelpers
     # Binds all domain services as singleton methods on the domain module.

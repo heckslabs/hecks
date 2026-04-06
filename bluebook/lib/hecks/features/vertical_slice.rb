@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::VerticalSlice
   #
   # A vertical slice groups everything triggered by a single entry-point
@@ -15,6 +13,8 @@ module Hecks::Features
   #   )
   #   slice.cross_aggregate?  # => true
   #
+module Hecks::Features
+
   class VerticalSlice
     # @return [String] human-readable name derived from the reactive chain
     attr_reader :name

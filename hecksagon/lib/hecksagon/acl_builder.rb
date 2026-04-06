@@ -1,5 +1,3 @@
-module Hecksagon
-
   # Hecksagon::AclBuilder
   #
   # Collects translations for an anti-corruption layer.
@@ -8,6 +6,8 @@ module Hecksagon
   #     translate "Invoice", billing_id: :invoice_number
   #   end
   #
+module Hecksagon
+
   class AclBuilder
     def initialize(acl)
       @acl = acl

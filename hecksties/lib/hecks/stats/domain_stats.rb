@@ -1,5 +1,3 @@
-module Hecks::Stats
-
   # Hecks::Stats::DomainStats
   #
   # Collects metrics for a single Hecks domain.
@@ -8,6 +6,8 @@ module Hecks::Stats
   #   stats.to_h[:aggregates]  # => 5
   #   stats.to_h[:commands]    # => 14
   #
+module Hecks::Stats
+
   class DomainStats
     def initialize(domain)
       @domain = domain

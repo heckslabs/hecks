@@ -1,5 +1,3 @@
-module Hecks::Features
-
   # Hecks::Features::LeakySliceDetection
   #
   # Validation rule that warns when a vertical slice crosses aggregate
@@ -11,6 +9,8 @@ module Hecks::Features
   #   rule = LeakySliceDetection.new(domain)
   #   rule.warnings  # => ["Policy X in Aggregate Y triggers ..."]
   #
+module Hecks::Features
+
   class LeakySliceDetection < Hecks::ValidationRules::BaseRule
     def errors
       []

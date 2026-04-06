@@ -13,8 +13,6 @@ require_relative "workshop/workshop_runner"
 require_relative "workshop/playground"
 require_relative "workshop/tour"
 require_relative "workshop/web_runner"
-
-module Hecks
   # Hecks::Workshop
   #
   # Interactive domain-building workshop for REPL-driven development. Supports
@@ -38,6 +36,8 @@ module Hecks
   #   workshop.build
   #   workshop.play!
   #
+
+module Hecks
   class Workshop
     include HecksTemplating::NamingHelpers
     include BuildActions

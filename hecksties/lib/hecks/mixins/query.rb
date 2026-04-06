@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Query
   #
   # Mixin for generated query classes. Provides repository wiring and
@@ -31,6 +30,7 @@ module Hecks
   #   Classics.call          # => QueryBuilder (chainable)
   #   Classics.call.to_a     # => [#<Pizza>, ...]
   #
+module Hecks
   module Query
     # Hook called when a class includes +Hecks::Query+. Extends the class
     # with +ClassMethods+ for repository wiring.

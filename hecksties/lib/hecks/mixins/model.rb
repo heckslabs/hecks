@@ -1,7 +1,5 @@
 require "securerandom"
 require_relative "runtime_attribute_definition"
-
-module Hecks
   # Hecks::Model
   #
   # Mixin for generated aggregate classes. Declares attributes via a DSL,
@@ -40,6 +38,8 @@ module Hecks
   #   Pizza.hecks_attributes  # => [{name: :name, default: nil}, ...]
   #   Pizza.new(name: "Margherita").name  # => "Margherita"
   #
+
+module Hecks
   module Model
     extend HecksTemplating::NamingHelpers
 

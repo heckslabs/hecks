@@ -29,9 +29,9 @@ module Hecks
       # @param capitalize [Boolean] whether to capitalize the article (default true)
       # @return [String] the word with its article (e.g., "A Pizza" or "an order")
       def an(word, capitalize: true)
-        a = article(word)
-        a = a.capitalize if capitalize
-        "#{a} #{word}"
+        article_word = article(word)
+        article_word = article_word.capitalize if capitalize
+        "#{article_word} #{word}"
       end
 
       # Naive English pluralization. Handles words ending in "y" (-> "ies")

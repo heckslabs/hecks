@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Specification
   #
   # Base mixin that generated specification classes include. Specifications are
@@ -36,6 +35,7 @@ module Hecks
   #   # Class-level shortcut (no need to instantiate):
   #   HighRisk.satisfied_by?(loan)        # => true/false
   #
+module Hecks
   module Specification
     # Hook called when a class includes +Hecks::Specification+. Extends the
     # class with a class-level +satisfied_by?+ convenience method.

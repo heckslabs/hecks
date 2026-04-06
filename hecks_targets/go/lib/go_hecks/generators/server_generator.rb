@@ -53,10 +53,10 @@ module GoHecks
 
     def needs_strconv_import?
       @domain.aggregates.any? do |agg|
-        attr_index = agg.attributes.each_with_object({}) { |a, h| h[a.name.to_s] = a }
-        agg.queries.any? do |q|
-          q.block.parameters.any? do |_, n|
-            attr = attr_index[n.to_s]
+        attr_index = agg.attributes.each_with_object({}) { |attr, hash| hash[attr.name.to_s] = attr }
+        agg.queries.any? do |query|
+          query.block.parameters.any? do |_param_type, param_name|
+            attr = attr_index[param_name.to_s]
             attr && %w[int64 float64].include?(GoUtils.go_type(attr))
           end
         end
@@ -128,8 +128,8 @@ module GoHecks
     def home_route
       agg_data = @domain.aggregates.map do |agg|
         plural = GoUtils.snake_case(agg.name) + "s"
-        d = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural)
-        "{Name: \"#{d[:name]}\", Href: \"#{d[:href]}\", CommandNames: \"#{d[:command_names]}\", Attributes: #{d[:attributes]}, Policies: #{d[:policies]}}"
+        agg_display = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural)
+        "{Name: \"#{agg_display[:name]}\", Href: \"#{agg_display[:href]}\", CommandNames: \"#{agg_display[:command_names]}\", Attributes: #{agg_display[:attributes]}, Policies: #{agg_display[:policies]}}"
       end
       lines = []
       vc = HecksTemplating::ViewContract

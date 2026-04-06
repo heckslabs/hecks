@@ -63,8 +63,8 @@ class UIGenerator < Hecks::Generator
   end
 
   def user_attrs(agg)
-    agg.attributes.reject { |a|
-      Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+    agg.attributes.reject { |attr|
+      Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) || !attr.visible?
     }
   end
 
@@ -100,8 +100,8 @@ class UIGenerator < Hecks::Generator
       "",
       "      def read_csrf_cookie(req)",
       "        header = req[\"Cookie\"] || \"\"",
-      "        m = header.match(/(?:^|;\\s*)_csrf_token=([^;]+)/)",
-      "        m ? m[1] : nil",
+      "        cookie_match = header.match(/(?:^|;\\s*)_csrf_token=([^;]+)/)",
+      "        cookie_match ? cookie_match[1] : nil",
       "      end",
       "",
       "      def validate_csrf(req)",
@@ -114,8 +114,8 @@ class UIGenerator < Hecks::Generator
 
   def root_route(mod)
     agg_data = @domain.aggregates.map do |agg|
-      d = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural(agg))
-      "{ name: \"#{d[:name]}\", href: \"#{d[:href]}\", command_names: \"#{d[:command_names]}\", attributes: #{d[:attributes]}, policies: #{d[:policies]} }"
+      home_agg_data = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural(agg))
+      "{ name: \"#{home_agg_data[:name]}\", href: \"#{home_agg_data[:href]}\", command_names: \"#{home_agg_data[:command_names]}\", attributes: #{home_agg_data[:attributes]}, policies: #{home_agg_data[:policies]} }"
     end
     [
       "        server.mount_proc \"/\" do |req, res|",
@@ -137,8 +137,8 @@ class UIGenerator < Hecks::Generator
     dc = HecksTemplating::DisplayContract
     create_cmds, update_cmds = ac.partition_commands(agg)
 
-    columns = attrs.map { |a|
-      lbl = dc.reference_attr?(a) ? dc.reference_column_label(a) : humanize(a.name)
+    columns = attrs.map { |attr|
+      lbl = dc.reference_attr?(attr) ? dc.reference_column_label(attr) : humanize(attr.name)
       "{ label: \"#{lbl}\" }"
     }
     btns = create_cmds.map { |c| cm = domain_snake_name(c.name); "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href: \"/#{p}/#{cm}/new\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\") }" }
@@ -152,8 +152,8 @@ class UIGenerator < Hecks::Generator
       end
     end
 
-    cell_exprs = attrs.map { |a| dc.cell_expression(a, "obj", lang: :ruby, domain: @domain) }
-    cells_code = cell_exprs.map { |e| e }.join(", ")
+    cell_exprs = attrs.map { |attr| dc.cell_expression(attr, "obj", lang: :ruby, domain: @domain) }
+    cells_code = cell_exprs.join(", ")
 
     [
       "        server.mount_proc \"/#{p}\" do |req, res|",

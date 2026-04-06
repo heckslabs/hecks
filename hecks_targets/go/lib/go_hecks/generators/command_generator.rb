@@ -26,7 +26,7 @@ module GoHecks
       imports = ["\"time\""]
       imports << "\"fmt\"" unless @is_create
       lines << "import ("
-      imports.each { |i| lines << "\t#{i}" }
+      imports.each { |import| lines << "\t#{import}" }
       lines << ")"
       lines << ""
 
@@ -59,40 +59,40 @@ module GoHecks
     private
 
     def create_body
-      agg_attrs = @agg.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+      agg_attrs = @agg.attributes.reject { |attr| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) }
       lines = []
 
       # Check for VO append: command attrs match a value object's attrs
       vo_appends = {}
-      agg_attrs.each do |a|
-        next unless a.list?
-        vo = @agg.value_objects.find { |v| v.name == a.type.to_s }
+      agg_attrs.each do |agg_attr|
+        next unless agg_attr.list?
+        vo = @agg.value_objects.find { |vo_obj| vo_obj.name == agg_attr.type.to_s }
         next unless vo
         vo_attr_names = vo.attributes.map { |va| va.name.to_s }
         cmd_attr_names = @cmd.attributes.map { |ca| ca.name.to_s }
         matching = vo_attr_names & cmd_attr_names
         if matching.size >= vo_attr_names.size
-          vo_appends[a.name.to_s] = { vo: vo, attrs: matching }
+          vo_appends[agg_attr.name.to_s] = { vo: vo, attrs: matching }
         end
       end
 
       # Build VO items before constructing aggregate
       vo_appends.each do |attr_name, info|
         vo = info[:vo]
-        vo_args = info[:attrs].map { |n| "c.#{GoUtils.pascal_case(n)}" }.join(", ")
+        vo_args = info[:attrs].map { |attr_name_str| "c.#{GoUtils.pascal_case(attr_name_str)}" }.join(", ")
         var_name = GoUtils.camel_case(vo.name) + "Item"
         lines << "\t#{var_name}, err := New#{vo.name}(#{vo_args})"
         lines << "\tif err != nil { return nil, nil, err }"
       end
 
       # Map command attrs to constructor params
-      constructor_args = agg_attrs.map do |a|
-        if vo_appends[a.name.to_s]
-          vo = vo_appends[a.name.to_s][:vo]
+      constructor_args = agg_attrs.map do |agg_attr|
+        if vo_appends[agg_attr.name.to_s]
+          vo = vo_appends[agg_attr.name.to_s][:vo]
           "[]#{vo.name}{#{GoUtils.camel_case(vo.name)}Item}"
         else
-          cmd_attr = @cmd.attributes.find { |c| c.name == a.name }
-          cmd_attr ? "c.#{GoUtils.pascal_case(a.name)}" : GoUtils.go_zero_value(GoUtils.go_type(a))
+          cmd_attr = @cmd.attributes.find { |cmd_a| cmd_a.name == agg_attr.name }
+          cmd_attr ? "c.#{GoUtils.pascal_case(agg_attr.name)}" : GoUtils.go_zero_value(GoUtils.go_type(agg_attr))
         end
       end.join(", ")
 
@@ -110,8 +110,8 @@ module GoHecks
       lines << "\t}"
       lines << "\tevent := #{@go_event_name}{"
       lines << "\t\tAggregateID: agg.ID,"
-      @cmd.attributes.each do |a|
-        lines << "\t\t#{GoUtils.pascal_case(a.name)}: c.#{GoUtils.pascal_case(a.name)},"
+      @cmd.attributes.each do |cmd_attr|
+        lines << "\t\t#{GoUtils.pascal_case(cmd_attr.name)}: c.#{GoUtils.pascal_case(cmd_attr.name)},"
       end
       lines << "\t\tOccurredAt: time.Now(),"
       lines << "\t}"
@@ -129,23 +129,23 @@ module GoHecks
       lines << "\t\treturn nil, nil, fmt.Errorf(\"#{@agg.name} not found: %s\", c.#{GoUtils.pascal_case(@self_id.name)})"
       lines << "\t}"
       # Apply changes — only set fields that exist on the aggregate
-      agg_attr_names = @agg.attributes.map { |a| a.name.to_s }
-      @cmd.attributes.each do |a|
-        next if a == @self_id
-        if agg_attr_names.include?(a.name.to_s)
-          lines << "\texisting.#{GoUtils.pascal_case(a.name)} = c.#{GoUtils.pascal_case(a.name)}"
+      agg_attr_names = @agg.attributes.map { |attr| attr.name.to_s }
+      @cmd.attributes.each do |cmd_attr|
+        next if cmd_attr == @self_id
+        if agg_attr_names.include?(cmd_attr.name.to_s)
+          lines << "\texisting.#{GoUtils.pascal_case(cmd_attr.name)} = c.#{GoUtils.pascal_case(cmd_attr.name)}"
         end
       end
       # Apply lifecycle transition — from AggregateContract
       rules = HecksTemplating::AggregateContract.rules(@agg)
       if rules[:lifecycle]
-        transition = rules[:lifecycle][:transitions].find { |t| t[:command] == @cmd.name }
+        transition = rules[:lifecycle][:transitions].find { |trans| trans[:command] == @cmd.name }
         if transition
           field = GoUtils.pascal_case(rules[:lifecycle][:field])
           from = transition[:from]
           if from
             from_list = from.is_a?(Array) ? from : [from]
-            from_check = from_list.map { |f| "existing.#{field} != \"#{f}\"" }.join(" && ")
+            from_check = from_list.map { |from_state| "existing.#{field} != \"#{from_state}\"" }.join(" && ")
             lines << "\tif #{from_check} {"
             lines << "\t\treturn nil, nil, fmt.Errorf(\"cannot #{@cmd.name}: #{@agg.name} is in %s state\", existing.#{field})"
             lines << "\t}"
@@ -162,8 +162,8 @@ module GoHecks
       lines << "\t}"
       lines << "\tevent := #{@go_event_name}{"
       lines << "\t\tAggregateID: existing.ID,"
-      @cmd.attributes.each do |a|
-        lines << "\t\t#{GoUtils.pascal_case(a.name)}: c.#{GoUtils.pascal_case(a.name)},"
+      @cmd.attributes.each do |cmd_attr|
+        lines << "\t\t#{GoUtils.pascal_case(cmd_attr.name)}: c.#{GoUtils.pascal_case(cmd_attr.name)},"
       end
       lines << "\t\tOccurredAt: time.Now(),"
       lines << "\t}"

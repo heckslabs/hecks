@@ -4,8 +4,6 @@ require_relative "configuration/domain_loader"
 require_relative "configuration/domain_config_builder"
 require_relative "configuration/boot_phase"
 require "hecks_persist/sql_setup"
-
-module Hecks
   # Hecks::Configuration
   #
   # Wires Hecks into an application. Supports single or multiple domains with
@@ -20,6 +18,8 @@ module Hecks
   #     extension :http, port: 9292
   #   end
   #
+
+module Hecks
   class Configuration
     include HecksTemplating::NamingHelpers
     include DatabaseConnection

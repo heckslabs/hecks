@@ -35,14 +35,14 @@ Hecks.register_extension(:filesystem_store) do |domain_mod, domain, runtime|
     runtime.swap_adapter(agg.name, repo)
   end
 end
-
-module Hecks
   # Hecks::FilesystemRepository
   #
   # JSON file-based persistence. Each aggregate gets a directory, each
   # record is a JSON file named by ID. Implements the same interface as
   # the memory adapter: find, save, delete, all, count, query, clear.
   #
+
+module Hecks
   class FilesystemRepository
     def initialize(aggregate_name, aggregate_class, data_dir: "./data")
       @aggregate_name = aggregate_name

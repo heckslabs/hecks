@@ -1,5 +1,3 @@
-module Hecksagon
-
   # Hecksagon::AdapterRegistry
   #
   # Formalizes adapter registration. Adapters implement driven ports.
@@ -11,6 +9,8 @@ module Hecksagon
   #   Hecksagon.adapters_for(:persistence)  # => [:memory, :sqlite]
   #   Hecksagon.adapter(:sqlite)            # => { gate: :persistence, hook: Proc }
   #
+module Hecksagon
+
   module AdapterRegistry
     def adapter_registry
       @adapter_registry ||= {}

@@ -1,4 +1,3 @@
-module Hecks
   # Hecks::Persistence
   #
   # The top-level module for all persistence-related concerns in the Hecks framework.
@@ -27,6 +26,7 @@ module Hecks
   # - +ReferenceMethods+  -- Resolves reference_to attributes into aggregate lookups
   # - +EventRecorder+     -- SQL-backed event store for event-sourced aggregates
   #
+module Hecks
   module Persistence
       autoload :RepositoryMethods, "hecks/ports/repository/repository_methods"
       autoload :CollectionMethods, "hecks/ports/repository/collection_methods"

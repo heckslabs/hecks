@@ -1,10 +1,10 @@
-module Hecksagon
-
   # Hecksagon::StrategicDSL
   #
   # Mixin for domain builders. Adds strategic hexagonal patterns:
   # shared kernels, anti-corruption layers, published events.
   #
+module Hecksagon
+
   module StrategicDSL
     def self.included(base)
       base.class_eval do

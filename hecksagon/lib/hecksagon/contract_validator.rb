@@ -1,5 +1,3 @@
-module Hecksagon
-
   # Hecksagon::ContractValidator
   #
   # Validates that adapters satisfy their driven port contracts.
@@ -9,6 +7,8 @@ module Hecksagon
   #   # => ["Port :notifications has no adapter wired"]
   #   # => ["Adapter :sqlite missing method :query for port :persistence"]
   #
+module Hecksagon
+
   module ContractValidator
     def self.validate(domain)
       errors = []
