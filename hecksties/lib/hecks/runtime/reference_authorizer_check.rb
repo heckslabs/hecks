@@ -49,12 +49,16 @@ module Hecks
         end
       end
 
-      # Returns true if the command has at least one reference with validate: true.
+      # Returns true if the command has at least one local reference with validate: true.
+      # Cross-context references (targeting aggregates outside this domain) are skipped.
       #
       # @param cmd [DomainModel::Behavior::Command]
       # @return [Boolean]
       def has_auth_required_reference?(cmd)
-        cmd.references.any? { |ref| ref.validate == true }
+        local_agg_names = @domain.aggregates.map(&:name)
+        cmd.references.any? do |ref|
+          ref.validate == true && local_agg_names.include?(ref.type)
+        end
       end
 
       # Returns true if the resolved command class has a reference_authorizer set.

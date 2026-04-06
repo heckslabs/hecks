@@ -28,6 +28,14 @@ module Hecks
         return boot_multi(dir, multi_dir, adapter: adapter, &block)
       end
 
+      # Check for single-file Bluebook composition (Hecks.bluebook)
+      bluebook_ir = detect_bluebook_file(dir)
+      if bluebook_ir
+        runtimes = boot_domains(bluebook_ir.chapters)
+        autoload_services(dir)
+        return runtimes
+      end
+
       domain, mod = load_single_domain(dir)
       mod.instance_eval(&block) if block
       runtime = Runtime.new(domain)
@@ -41,6 +49,24 @@ module Hecks
 
     def persistence_extension?(name)
       Hecks.adapter?(name)
+    end
+
+    # Detect a single Bluebook file that uses Hecks.bluebook (not Hecks.domain).
+    # Returns the BluebookStructure IR if found, nil otherwise.
+    def detect_bluebook_file(dir)
+      bluebooks = Dir[File.join(dir, "*Bluebook")].sort
+      bluebooks = Dir[File.join(dir, "bluebook", "*Bluebook")].sort if bluebooks.empty?
+      return nil if bluebooks.empty?
+
+      # Check if the file content uses Hecks.bluebook
+      bluebooks.each do |f|
+        content = File.read(f)
+        next unless content.include?("Hecks.bluebook")
+        Hecks.last_bluebook = nil
+        Kernel.load(f)
+        return Hecks.last_bluebook if Hecks.last_bluebook
+      end
+      nil
     end
 
     def find_domains_dir(dir)
@@ -140,8 +166,22 @@ module Hecks
       raise Hecks::DomainLoadError, "No Bluebook or .rb files in #{domains_dir}" if domain_files.empty?
 
       domains = domain_files.map { |path| eval(File.read(path), nil, path, 1) }
+      domains.each { |d| load_stubs(dir, d) }
+      runtimes = boot_domains(domains)
+      autoload_services(dir)
+      runtimes
+    end
+
+    # Core multi-domain boot: takes an array of Domain IRs, validates,
+    # compiles, wires event buses and cross-domain queues, fires extensions.
+    # Used by boot_multi (file-based) and open (Bluebook IR-based).
+    #
+    # @param domains [Array<DomainModel::Structure::Domain>]
+    # @return [Array<Runtime>]
+    def boot_domains(domains)
+      require "hecks_multidomain"
       Hecks::MultiDomain::Validator.validate_no_cross_domain_references(domains)
-      domains.each { |d| load_domain(d); load_stubs(dir, d) }
+      domains.each { |d| load_domain(d) }
 
       shared_bus = EventBus.new
       @shared_event_bus = shared_bus
@@ -157,7 +197,6 @@ module Hecks
         fire_extensions(mod, domain, runtimes[i])
       end
 
-      autoload_services(dir)
       runtimes
     end
 

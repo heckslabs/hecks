@@ -60,6 +60,15 @@ RSpec.describe Hecks::Configuration do
     end
   end
 
+  describe "chapter alias for domain" do
+    it "chapter registers a domain entry the same as domain" do
+      config = Hecks::Configuration.new
+      config.chapter("pizzas_domain")
+      expect(config.instance_variable_get(:@domains).size).to eq(1)
+      expect(config.instance_variable_get(:@domains).first[:gem_name]).to eq("pizzas_domain")
+    end
+  end
+
   describe "gems DSL — extension gem loading" do
     let(:config) { Hecks::Configuration.new }
     let(:loaded) { [] }

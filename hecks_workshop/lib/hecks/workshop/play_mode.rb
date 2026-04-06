@@ -31,6 +31,10 @@ module Hecks
       #
       # @return [Session] self
       def play!
+        if bluebook?
+          return play_bluebook!
+        end
+
         domain = to_domain
         valid, errors = Hecks.validate(domain)
 
@@ -210,6 +214,30 @@ module Hecks
         else
           puts "#{mod_name} not found"
         end
+        self
+      end
+
+      # Boot all chapters as a composed bluebook and enter play mode.
+      def play_bluebook!
+        book = to_bluebook
+        book.chapters.each do |ch|
+          valid, errors = Hecks.validate(ch)
+          unless valid
+            puts "Can't enter play mode - chapter '#{ch.name}' is invalid:"
+            errors.each { |e| puts "  - #{e}" }
+            return self
+          end
+        end
+
+        @bluebook_runtimes = Hecks.open(book)
+        @mode = :play
+        chapter_names = book.chapters.map(&:name).join(", ")
+        puts "Entering play mode (chapters: #{chapter_names})"
+        puts ""
+        puts "  chapter('Name')   # switch chapter focus"
+        puts "  chapters          # list all chapters"
+        puts "  sketch!           # back to sketch mode"
+        puts ""
         self
       end
 

@@ -27,10 +27,12 @@ require_relative "hecks/registries/grammar_registry"
 # Default modules — loaded with require "hecks"
 require "bluebook"
 require "hecksagon"
+require_relative "hecks/bluebook_toggles"
 require_relative "hecks/deprecations"
 require_relative "hecks/stats"
 require_relative "hecks/event_sourcing"
 require "hecks/runtime/boot"
+require "hecks/runtime/boot_bluebook"
 require "hecks/workshop"
 
 # = Hecks
@@ -49,6 +51,7 @@ module Hecks
   extend EventStormImporter
   extend DomainVisualizerMethods
   extend Boot
+  extend BootBluebook
   extend ExtensionRegistryMethods
   extend CapabilityRegistryMethods
   extend DomainRegistryMethods

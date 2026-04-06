@@ -21,6 +21,14 @@ module Hecks
       @last_domain = domain
     end
 
+    def last_bluebook
+      @last_bluebook
+    end
+
+    def last_bluebook=(bluebook)
+      @last_bluebook = bluebook
+    end
+
     def last_hecksagon
       @last_hecksagon
     end

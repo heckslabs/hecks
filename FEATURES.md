@@ -11,6 +11,10 @@
 - Define value objects as immutable nested types within aggregates
 - Define entities within aggregates — sub-objects with identity (UUID), mutable, not frozen
 - Multi-domain support with shared event bus across domains
+- **Bluebook composes Chapters** — `Hecks.bluebook "Name" { chapter "X" { ... } }` defines a composed system of domains in a single file, with cross-chapter policies and shared event bus via `Hecks.open(book)`
+- Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
+- Toggle-based migration from multi-domain to Bluebook/Chapter via `Hecks::BluebookToggles`
+- `Hecks.configure { chapter "x" }` — chapter alias for domain in configuration DSL
 - Domain version pinning and local path loading in configuration
 
 ### Attributes & Types

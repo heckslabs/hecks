@@ -22,6 +22,7 @@ require_relative "hecks/dsl/workflow_builder"
 require_relative "hecks/dsl/aggregate_builder"
 require_relative "hecks/dsl/aggregate_rebuilder"
 require_relative "hecks/dsl/domain_builder"
+require_relative "hecks/dsl/bluebook_builder"
 
 # Grammar (after DSL so HANDLE_METHODS can introspect AggregateBuilder)
 require_relative "bluebook/grammar"

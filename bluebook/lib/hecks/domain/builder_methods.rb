@@ -57,6 +57,24 @@ module Hecks
       result
     end
 
+    # Define a composed system of domains (chapters) using the Bluebook DSL.
+    # Each chapter block delegates to DomainBuilder, so all standard domain
+    # DSL methods are available inside a chapter. The result is a BluebookStructure
+    # IR containing all chapters as Domain objects.
+    #
+    # @param name [String] the system name (e.g., "PizzaShop")
+    # @param version [String, nil] optional version string
+    # @param block [Proc] DSL block evaluated inside BluebookBuilder
+    # @return [Hecks::DomainModel::Structure::BluebookStructure]
+    def bluebook(name, version: nil, &block)
+      builder = DSL::BluebookBuilder.new(name, version: version)
+      builder.instance_eval(&block)
+      result = builder.build
+      result.chapters.each { |ch| ch.source_path = caller_locations(1, 1).first.absolute_path }
+      Hecks.last_bluebook = result
+      result
+    end
+
     # Create a new interactive session for the named domain. Sessions provide
     # a REPL-like environment for exploring aggregates, running commands, and
     # querying domain state.

@@ -69,6 +69,17 @@ module Hecks
       @domains << entry
     end
 
+    # Register a chapter (domain) to load at boot time.
+    # Alias for +domain+ using Bluebook terminology.
+    #
+    # @param gem_name [String] the domain gem name
+    # @param version [String, nil] optional version constraint
+    # @param path [String, nil] optional local path
+    # @yield optional block for listens_to/sends_to declarations
+    def chapter(gem_name, version: nil, path: nil, &block)
+      domain(gem_name, version: version, path: path, &block)
+    end
+
     # Set the persistence adapter for all domains.
     #
     # @param type [Symbol] :memory, :sqlite, :postgres, :mysql, :mysql2

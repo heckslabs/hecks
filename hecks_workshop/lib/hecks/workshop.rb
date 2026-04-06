@@ -12,6 +12,7 @@ require_relative "workshop/persistent_image"
 require_relative "workshop/workshop_runner"
 require_relative "workshop/playground"
 require_relative "workshop/tour"
+require_relative "workshop/bluebook_mode"
 require_relative "workshop/web_runner"
   # Hecks::Workshop
   #
@@ -46,6 +47,7 @@ module Hecks
     include DeepInspect
     include SystemBrowser
     include PersistentImage
+    include BluebookMode
 
     attr_reader :name, :playground, :aggregate_builders
 

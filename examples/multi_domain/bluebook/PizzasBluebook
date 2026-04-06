@@ -20,7 +20,7 @@ Hecks.domain "Pizzas" do
     attribute :quantity, Integer
 
     command "PlaceOrder" do
-      reference_to "Pizza"
+      reference_to "Pizza", validate: false
       attribute :quantity, Integer
     end
   end
