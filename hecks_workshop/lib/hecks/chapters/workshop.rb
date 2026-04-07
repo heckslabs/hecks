@@ -1,65 +1,202 @@
 # Hecks::Chapters::Workshop
 #
-# Self-describing domain definition for the Workshop chapter. The
-# interactive REPL layer models itself as a domain: Workshop manages
-# sessions and modes, Playground handles compilation and runtime.
+# Self-describing chapter definition for the hecks_workshop gem.
+# Enumerates every class and module under hecks_workshop/lib/ as
+# aggregates with their key commands.
 #
-#   domain = Hecks::Chapters::Workshop.definition
-#   domain.aggregates.map(&:name)  # => ["Workshop", "Playground"]
+#   domain = Hecks::Chapters::Workshop.domain
+#   domain.aggregates.map(&:name)
+#   # => ["Workshop", "AggregateHandle", "CommandHandle", ...]
 #
+require "bluebook"
+
 module Hecks
   module Chapters
     module Workshop
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Workshop").tap { |b|
-          b.instance_eval do
-            aggregate "Workshop" do
+        Hecks::DSL::DomainBuilder.new("Workshop").tap { |b|
+          b.aggregate "Workshop" do
+            description "Interactive domain-building session for REPL-driven development"
+            command "CreateSession" do
               attribute :name, String
-              attribute :mode, String
-
-              command "CreateWorkshop" do
-                attribute :name, String
-              end
-
-              command "Play" do
-                attribute :workshop_id, String
-              end
-
-              command "Sketch" do
-                attribute :workshop_id, String
-              end
-
-              command "Execute" do
-                attribute :workshop_id, String
-                attribute :command_name, String
-              end
-
-              command "Reset" do
-                attribute :workshop_id, String
-              end
             end
-
-            aggregate "Playground" do
-              attribute :domain_name, String
-
-              command "Compile" do
-                attribute :domain_id, String
-              end
-
-              command "BootPlayground" do
-                attribute :playground_id, String
-              end
+            command "AddAggregate" do
+              attribute :name, String
             end
-
-            policy "CompileOnPlay" do
-              on "Played"
-              trigger "Compile"
+            command "RemoveAggregate" do
+              attribute :aggregate_name, String
             end
-
-            policy "BootOnCompile" do
-              on "Compiled"
-              trigger "BootPlayground"
+            command "AddVerb" do
+              attribute :word, String
             end
+            command "Promote" do
+              attribute :aggregate_name, String
+            end
+            command "ActivateActiveHecks"
+          end
+
+          b.aggregate "AggregateHandle" do
+            description "Interactive handle for incrementally building a single aggregate in the REPL"
+            command "AddAttribute" do
+              attribute :name, String
+              attribute :type, String
+            end
+            command "AddCommand" do
+              attribute :name, String
+            end
+            command "AddPolicy" do
+              attribute :name, String
+            end
+            command "AddLifecycle" do
+              attribute :field, String
+            end
+            command "AddTransition" do
+              attribute :from, String
+              attribute :to, String
+            end
+          end
+
+          b.aggregate "CommandHandle" do
+            description "Interactive handle for adding attributes to a command after creation"
+            command "AddAttribute" do
+              attribute :name, String
+              attribute :type, String
+            end
+          end
+
+          b.aggregate "BuildActions" do
+            description "Session methods for validating, previewing, building, and saving the domain"
+            command "Validate"
+            command "Preview"
+            command "Build"
+            command "Save"
+            command "ToDsl"
+          end
+
+          b.aggregate "PlayMode" do
+            description "Session mixin for play mode: executing commands against a live compiled domain"
+            command "EnterPlay"
+            command "ExitPlay"
+            command "ResetPlayground"
+          end
+
+          b.aggregate "Presenter" do
+            description "Session mixin for human-readable output: describe, status, and inspect"
+            command "Describe"
+            command "ShowStatus"
+          end
+
+          b.aggregate "SystemBrowser" do
+            description "Smalltalk-inspired tree view of all domain elements"
+            command "Browse" do
+              attribute :aggregate_name, String
+            end
+          end
+
+          b.aggregate "DeepInspect" do
+            description "Detailed aggregate structure display using Navigator and Renderer"
+            command "Inspect" do
+              attribute :aggregate_name, String
+            end
+          end
+
+          b.aggregate "Navigator" do
+            description "Traverses domain IR and yields each element with depth and path context"
+            command "Walk" do
+              attribute :aggregate_name, String
+            end
+            command "WalkAll"
+          end
+
+          b.aggregate "Renderer" do
+            description "Formats domain IR elements into human-readable lines for deep_inspect"
+            command "RenderAttribute"
+            command "RenderCommand"
+          end
+
+          b.aggregate "SessionImage" do
+            description "Point-in-time snapshot of a Workshop state for save/restore"
+            command "Capture"
+            command "Restore"
+          end
+
+          b.aggregate "PersistentImage" do
+            description "File-based save/restore for SessionImage objects"
+            command "SaveImage" do
+              attribute :name, String
+            end
+            command "RestoreImage" do
+              attribute :name, String
+            end
+            command "ListImages"
+          end
+
+          b.aggregate "WorkshopRunner" do
+            description "Interactive IRB workshop that hoists constants for direct REPL use"
+            command "Run"
+          end
+
+          b.aggregate "ConstantHoister" do
+            description "Manages hoisting and cleanup of constants on WorkshopRunner"
+            command "HoistAggregate" do
+              attribute :const_name, String
+            end
+          end
+
+          b.aggregate "Playground" do
+            description "Live execution sandbox with memory adapters for rapid prototyping"
+            command "Execute" do
+              attribute :command_name, String
+            end
+            command "Reset"
+          end
+
+          b.aggregate "GemBootstrap" do
+            description "Loads domain into a Runtime via InMemoryLoader eval"
+            command "Compile"
+          end
+
+          b.aggregate "RuntimeResolver" do
+            description "Resolves generated command and event classes at runtime"
+            command "ResolveCommand" do
+              attribute :name, String
+            end
+          end
+
+          b.aggregate "Tour" do
+            description "Guided walkthrough of the sketch -> play -> build loop"
+            command "Start"
+          end
+
+          b.aggregate "VisualizeMode" do
+            description "Mermaid diagram visualization for the Workshop"
+            command "Visualize" do
+              attribute :format, String
+            end
+          end
+
+          b.aggregate "WebRunner" do
+            description "Browser-based REPL with WEBrick server for the Workshop"
+            command "Run"
+          end
+
+          b.aggregate "Evaluator" do
+            description "Safe eval-free command execution delegating to CommandParser"
+            command "Evaluate" do
+              attribute :input, String
+            end
+          end
+
+          b.aggregate "CommandParser" do
+            description "Safe command dispatcher using BlueBook Grammar for the web workshop"
+            command "Execute" do
+              attribute :input, String
+            end
+          end
+
+          b.aggregate "StateSerializer" do
+            description "Serializes workshop state into JSON for the browser console"
+            command "Serialize"
           end
         }.build
       end

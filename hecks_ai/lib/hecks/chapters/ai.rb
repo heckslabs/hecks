@@ -1,138 +1,180 @@
-# Hecks::Chapters::Ai
+# Hecks::Chapters::AI
 #
-# Self-describing Bluebook chapter for the hecks_ai module. Models the AI
-# subsystem -- MCP servers, IDE, LLM-driven domain generation, and governance
-# checking -- as a Hecks domain using the same DSL it provides to users.
+# Self-describing chapter definition for the hecks_ai gem.
+# Enumerates every class and module under hecks_ai/lib/ as
+# aggregates with their key commands. IDE aggregates are split
+# into ai_ide.rb to stay within the 200-line code limit.
 #
-# Aggregates mirror the real module structure:
-#   McpServer      — workshop-mode MCP server with tool groups
-#   DomainServer   — compiled-domain MCP server (command/query/repository)
-#   IdeServer      — browser-based IDE with Claude integration
-#   LlmClient      — Anthropic Messages API client for domain generation
-#   GovernanceGuard — world-concern validation engine
+#   domain = Hecks::Chapters::AI.domain
+#   domain.aggregates.map(&:name)
+#   # => ["McpServer", "DomainServer", "GovernanceGuard", ...]
 #
-#   Hecks::Chapters::Ai.definition
-#   # => #<Hecks::DomainModel::Structure::Domain name="Ai" ...>
-#
+require "bluebook"
+require_relative "ai_ide"
+
 module Hecks
   module Chapters
-    module Ai
+    module AI
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Ai").tap { |b|
-          b.instance_eval do
-            aggregate "McpServer" do
+        Hecks::DSL::DomainBuilder.new("AI").tap { |b|
+          b.aggregate "McpServer" do
+            description "MCP server exposing Workshop API as tools for AI agents"
+            command "Start"
+            command "RegisterTools"
+          end
+
+          b.aggregate "SessionTools" do
+            description "MCP tools for session management: create or load domain sessions"
+            command "CreateSession" do
               attribute :name, String
-              attribute :version, String
-
-              command "RegisterToolGroup" do
-                attribute :group_name, String
-              end
-
-              command "Run" do
-                attribute :transport, String
-              end
-
-              command "EnsureSession" do
-                attribute :session_id, String
-              end
-
-              command "ResolveType" do
-                attribute :type_str, String
-              end
             end
-
-            aggregate "DomainServer" do
-              attribute :domain_name, String
-
-              command "BootAndRegister" do
-                attribute :domain_name, String
-              end
-
-              command "RegisterCommandTools" do
-                attribute :domain_name, String
-              end
-
-              command "RegisterQueryTools" do
-                attribute :domain_name, String
-              end
-
-              command "RegisterRepositoryTools" do
-                attribute :domain_name, String
-              end
-            end
-
-            aggregate "IdeServer" do
-              attribute :project_dir, String
-              attribute :port, Integer
-
-              command "StartServer" do
-                attribute :port, Integer
-              end
-
-              command "SendPrompt" do
-                attribute :prompt, String
-              end
-
-              command "OpenWorkshop" do
-                attribute :bluebook_path, String
-              end
-
-              command "ExecuteWorkshopCommand" do
-                attribute :input, String
-              end
-
-              command "TakeScreenshot" do
-                attribute :path, String
-              end
-
-              command "RunShellCommand" do
-                attribute :command, String
-              end
-            end
-
-            aggregate "LlmClient" do
-              attribute :api_key, String
-              attribute :model, String
-
-              command "GenerateDomain" do
-                attribute :description, String
-              end
-            end
-
-            aggregate "DomainBuilder" do
-              attribute :domain_name, String
-
-              command "BuildFromJson" do
-                attribute :domain_name, String
-              end
-            end
-
-            aggregate "GovernanceGuard" do
-              attribute :domain_name, String
-
-              command "CheckGovernance" do
-                attribute :domain_name, String
-              end
-            end
-
-            aggregate "DomainSerializer" do
-              attribute :domain_name, String
-
-              command "Serialize" do
-                attribute :domain_name, String
-              end
-            end
-
-            aggregate "McpConnection" do
-              attribute :domain_name, String
-              attribute :transport, String
-
-              command "Connect" do
-                attribute :domain_name, String
-                attribute :transport, String
-              end
+            command "LoadDomain" do
+              attribute :path, String
             end
           end
+
+          b.aggregate "AggregateTools" do
+            description "MCP tools for building domain structure: aggregates, commands, value objects"
+            command "AddAggregate" do
+              attribute :name, String
+            end
+            command "AddAttribute" do
+              attribute :aggregate, String
+              attribute :name, String
+            end
+            command "AddCommand" do
+              attribute :aggregate, String
+              attribute :name, String
+            end
+          end
+
+          b.aggregate "AggregateLifecycleTools" do
+            description "MCP tools for lifecycle, transitions, computed attributes, and removal"
+            command "AddLifecycle" do
+              attribute :aggregate, String
+              attribute :field, String
+            end
+            command "AddTransition" do
+              attribute :aggregate, String
+            end
+          end
+
+          b.aggregate "InspectTools" do
+            description "MCP tools for read-only domain introspection"
+            command "DescribeDomain"
+            command "ListAggregates"
+            command "PreviewCode"
+          end
+
+          b.aggregate "BuildTools" do
+            description "MCP tools for domain lifecycle: validate, build gem, save DSL, serve"
+            command "Validate"
+            command "BuildGem"
+            command "SaveDsl"
+          end
+
+          b.aggregate "PlayTools" do
+            description "MCP tools for play mode: execute commands against in-memory runtime"
+            command "EnterPlayMode"
+            command "ExecuteCommand" do
+              attribute :command_name, String
+            end
+            command "ShowHistory"
+          end
+
+          b.aggregate "ServiceTools" do
+            description "MCP tool for adding cross-aggregate domain services"
+            command "AddService" do
+              attribute :name, String
+            end
+          end
+
+          b.aggregate "GovernanceTools" do
+            description "MCP wrapper around GovernanceGuard for governance checks"
+            command "GovernanceCheck"
+          end
+
+          b.aggregate "DomainServer" do
+            description "Generates MCP server from a compiled domain with command/query/repo tools"
+            command "Run"
+          end
+
+          b.aggregate "CommandTools" do
+            description "DomainServer mixin: registers MCP tools for domain commands"
+            command "RegisterCommandTools"
+          end
+
+          b.aggregate "QueryTools" do
+            description "DomainServer mixin: registers MCP tools for domain queries"
+            command "RegisterQueryTools"
+          end
+
+          b.aggregate "RepositoryTools" do
+            description "DomainServer mixin: registers Find/All/Count tools per aggregate"
+            command "RegisterRepositoryTools"
+          end
+
+          b.aggregate "GovernanceGuard" do
+            description "Entry-point agnostic governance checker against world concerns"
+            command "Check"
+          end
+
+          b.aggregate "ConcernChecks" do
+            description "Rule-based governance checks for transparency, consent, privacy, security"
+            command "CheckTransparency"
+            command "CheckConsent"
+            command "CheckPrivacy"
+            command "CheckSecurity"
+          end
+
+          b.aggregate "GovernanceResult" do
+            description "Immutable result object from a governance check with violations and suggestions"
+            command "Create" do
+              attribute :violations, String
+              attribute :suggestions, String
+            end
+          end
+
+          b.aggregate "DomainSerializer" do
+            description "Serializes a domain model into structured JSON for MCP tool responses"
+            command "Serialize"
+          end
+
+          b.aggregate "Connection" do
+            description "Wraps MCP server as a listens_to connection adapter"
+            command "Run"
+          end
+
+          b.aggregate "TypeResolver" do
+            description "Converts type strings to Ruby types or descriptor hashes"
+            command "Resolve" do
+              attribute :type_string, String
+            end
+          end
+
+          b.aggregate "LlmClient" do
+            description "Minimal net/http client for Anthropic Messages API with tool_use"
+            command "GenerateDomain" do
+              attribute :description, String
+            end
+          end
+
+          b.aggregate "DomainBuilder" do
+            description "Walks LLM JSON and replays through Workshop API to build a domain"
+            command "Build"
+          end
+
+          b.aggregate "DomainGeneration" do
+            description "System prompt with few-shot examples for LLM domain generation"
+            command "GetPrompt"
+          end
+
+          b.aggregate "DomainToolSchema" do
+            description "Anthropic tool_use schema for the define_domain tool"
+            command "GetSchema"
+          end
+
+          IdeAggregates.register(b)
         }.build
       end
     end

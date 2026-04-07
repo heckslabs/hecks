@@ -47,7 +47,7 @@ module Hecks
           Targets.definition,
           Cli.definition,
           Extensions.definition,
-          Ai.definition,
+          AI.definition,
           Rails.definition,
         ]
       )

@@ -1,97 +1,69 @@
 # Hecks::Chapters::Rails
 #
-# Self-describing Bluebook chapter for the hecks_on_rails (ActiveHecks)
-# module. Models the Rails integration layer as a domain: ActiveModel
-# compatibility mixins, validation wiring, persistence wrapping,
-# Railtie boot hooks, and Rails generators.
+# Self-describing chapter definition for the hecks_on_rails gem.
+# Enumerates every class and module under hecks_on_rails/lib/ as
+# aggregates with their key commands.
 #
-#   domain = Hecks::Chapters::Rails.definition
+#   domain = Hecks::Chapters::Rails.domain
 #   domain.aggregates.map(&:name)
-#   # => ["Activation", "AggregateCompat", "ValidationWiring",
-#   #     "PersistenceWrapper", "Railtie", "InitGenerator",
-#   #     "MigrationGenerator"]
+#   # => ["ActiveHecks", "DomainModelCompat", "AggregateCompat", ...]
 #
+require "bluebook"
+
 module Hecks
   module Chapters
     module Rails
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Rails").tap { |b|
-          b.instance_eval do
-            aggregate "Activation" do
-              command "Activate" do
-                attribute :domain_module, String
-                attribute :domain, String
-              end
+        Hecks::DSL::DomainBuilder.new("Rails").tap { |b|
+          b.aggregate "ActiveHecks" do
+            description "Adds full ActiveModel compatibility to generated domain objects for Rails"
+            command "Activate" do
+              attribute :domain_module, String
             end
+          end
 
-            aggregate "AggregateCompat" do
-              attribute :persisted, String
-              attribute :new_record, String
-              attribute :destroyed, String
+          b.aggregate "DomainModelCompat" do
+            description "Shared ActiveModel compatibility: naming, conversion, JSON serialization"
+            command "Include"
+          end
 
-              command "DefineCallbacks" do
-                attribute :target_class, String
-              end
+          b.aggregate "AggregateCompat" do
+            description "Aggregate-specific ActiveModel mixin: identity, validations, lifecycle callbacks"
+            command "Include"
+          end
+
+          b.aggregate "ValueObjectCompat" do
+            description "Value object-specific mixin: no identity, immutable semantics"
+            command "Include"
+          end
+
+          b.aggregate "ValidationWiring" do
+            description "Converts DSL validation rules into ActiveModel validates calls"
+            command "Bind" do
+              attribute :klass, String
             end
+          end
 
-            aggregate "ValidationWiring" do
-              command "Bind" do
-                attribute :target_class, String
-                attribute :domain, String
-              end
-
-              command "DisableConstructorValidation" do
-                attribute :target_class, String
-              end
-
-              command "WireValidations" do
-                attribute :target_class, String
-                attribute :domain, String
-              end
+          b.aggregate "PersistenceWrapper" do
+            description "Wraps save/destroy with validation checks and lifecycle callbacks"
+            command "Bind" do
+              attribute :klass, String
             end
+          end
 
-            aggregate "PersistenceWrapper" do
-              command "Bind" do
-                attribute :target_class, String
-              end
+          b.aggregate "Railtie" do
+            description "Rails integration hook: boots Hecks after initializers, provides rake tasks"
+            command "Boot"
+          end
 
-              command "WrapSave" do
-                attribute :target_class, String
-              end
+          b.aggregate "InitGenerator" do
+            description "Rails generator that sets up a Hecks domain gem in a Rails app"
+            command "Generate"
+          end
 
-              command "WrapDestroy" do
-                attribute :target_class, String
-              end
-            end
-
-            aggregate "Railtie" do
-              command "Setup"
-
-              command "GenerateMigrations" do
-                attribute :output_dir, String
-              end
-
-              command "RunMigrations" do
-                attribute :migration_dir, String
-              end
-            end
-
-            aggregate "InitGenerator" do
-              command "DetectDomainGem"
-
-              command "CreateInitializer" do
-                attribute :gem_name, String
-              end
-
-              command "SetupTestHelper"
-            end
-
-            aggregate "MigrationGenerator" do
-              command "GenerateMigration" do
-                attribute :domain, String
-                attribute :snapshot_path, String
-              end
-            end
+          b.aggregate "MigrationGenerator" do
+            description "Rails generator that produces SQL migration files from domain changes"
+            command "Generate"
           end
         }.build
       end
