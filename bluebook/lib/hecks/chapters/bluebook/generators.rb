@@ -178,6 +178,14 @@ module Hecks
           b.aggregate "ExampleBluebookWriter", "Writes example Bluebook DSL file for a domain" do
             command("WriteBluebook") { attribute :domain_id, String; attribute :output_dir, String }
           end
+
+          b.aggregate "CliGenerator", "Generates Thor CLI subcommands from chapter IR" do
+            command("GenerateCli") { attribute :domain_id, String }
+          end
+
+          b.aggregate "CliTypeMapper", "Maps IR attribute types to Thor option types" do
+            command("MapType") { attribute :type, String }
+          end
         end
       end
     end

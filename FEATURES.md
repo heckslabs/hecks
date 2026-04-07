@@ -238,6 +238,15 @@
 - Programmatic API via `SelfHostDiff.new(domain, gem_root:, mode: :framework).summary`
 - Hecksagon baseline: 93.3% coverage (28/30 files have partial matches from IR-derived skeletons)
 
+### Chapter CLI Generation
+- `CliGenerator` — generates Thor CLI subcommands from any Bluebook chapter definition
+- Aggregate commands become CLI verbs: `CreatePizza` -> `create_pizza --name X`
+- IR attribute types map to Thor option types (String->:string, Integer->:numeric, etc.)
+- Automatic collision handling: prefixes aggregate name when verbs overlap across aggregates
+- `build_thor_class` — evaluates generated source into a live Thor class for immediate use
+- Works with any chapter — not coupled to a specific domain
+- Optional `namespace:` wraps output in a Ruby module
+
 ### Self-Hosting DSL Extensions
 - `namespace "Hecksagon::DSL"` — declares the module nesting for an aggregate, used by skeleton generator
 - `inherits "Hecks::Generator"` — declares superclass for class-kind aggregates
