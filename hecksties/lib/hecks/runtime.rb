@@ -16,6 +16,7 @@ require_relative "runtime/reference_authorizer_check"
 require_relative "runtime/extension_dispatch"
 require_relative "runtime/configuration_dsl"
 require_relative "runtime/command_dispatch"
+require_relative "runtime/adapter_wiring"
   # Hecks::Runtime
   #
   # The runtime container that wires a domain to adapters, dispatches
@@ -48,6 +49,7 @@ module Hecks
     include ExtensionDispatch
     include ConfigurationDSL
     include CommandDispatch
+    include AdapterWiring
 
     attr_reader :domain, :event_bus, :command_bus
 
