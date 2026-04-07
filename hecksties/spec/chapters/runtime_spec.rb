@@ -11,7 +11,8 @@ RSpec.describe Hecks::Chapters::Runtime do
   it "includes key aggregates" do
     names = domain.aggregates.map(&:name)
     expect(names).to include("Runtime", "Configuration", "GateEnforcer",
-                             "DryRunResult", "SagaRunner")
+                             "DryRunResult", "SagaRunner",
+                             "Validations", "SmokeTest")
   end
 
   it "has commands on Runtime" do

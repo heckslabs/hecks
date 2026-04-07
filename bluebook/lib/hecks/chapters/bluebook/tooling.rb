@@ -30,6 +30,14 @@ module Hecks
           b.aggregate "SliceExtractor", "Extracts vertical slices from domain command flows" do
             command("ExtractSlices") { attribute :domain_id, String; attribute :entry_command, String }
           end
+
+          b.aggregate "DomainIntrospector", "Analyzes domain structure programmatically" do
+            command("Introspect") { attribute :domain_name, String }
+          end
+
+          b.aggregate "GemBuilder", "Packages a domain as a distributable Ruby gem" do
+            command("BuildGem") { attribute :domain_name, String }
+          end
         end
       end
     end

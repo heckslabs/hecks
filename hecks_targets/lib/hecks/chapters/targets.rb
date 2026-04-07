@@ -10,6 +10,7 @@
 require_relative "targets/go"
 require_relative "targets/node"
 require_relative "targets/ruby"
+require_relative "targets/schema"
 
 module Hecks
   module Chapters
@@ -34,6 +35,7 @@ module Hecks
           Go.define(b)
           Node.define(b)
           Ruby.define(b)
+          SchemaParagraph.define(b)
         }.build
       end
     end

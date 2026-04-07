@@ -42,10 +42,6 @@ module Hecks
             command("RenderView") { attribute :template, String }
           end
 
-          b.aggregate "Validations", "Domain validation rule enforcement" do
-            command("Validate") { attribute :aggregate, String }
-          end
-
           b.aggregate "Logging", "Structured logging for command dispatch" do
             command("Log") { attribute :message, String }
           end

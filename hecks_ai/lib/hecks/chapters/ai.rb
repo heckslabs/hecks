@@ -159,7 +159,7 @@ module Hecks
             end
           end
 
-          b.aggregate "DomainBuilder" do
+          b.aggregate "LlmDomainAssembler" do
             description "Walks LLM JSON and replays through Workshop API to build a domain"
             command "Build"
           end

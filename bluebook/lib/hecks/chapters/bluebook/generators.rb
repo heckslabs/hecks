@@ -87,24 +87,12 @@ module Hecks
             command("GenerateAutoload") { attribute :domain_id, String; attribute :output_dir, String }
           end
 
-          b.aggregate "RailsGenerator", "Generates Rails integration files (initializer, routes, controllers)" do
-            command("GenerateRails") { attribute :domain_id, String; attribute :output_dir, String }
+          b.aggregate "SinatraGenerator", "Generates Sinatra server wrapper for domain" do
+            command("GenerateSinatra") { attribute :domain_id, String; attribute :output_dir, String }
           end
 
-          b.aggregate "JsonSchemaGenerator", "Generates JSON Schema from domain aggregate structure" do
-            command("GenerateJsonSchema") { attribute :aggregate_id, String }
-          end
-
-          b.aggregate "OpenapiGenerator", "Generates OpenAPI 3.0 specification from domain IR" do
-            command("GenerateOpenapi") { attribute :domain_id, String }
-          end
-
-          b.aggregate "TypescriptGenerator", "Generates TypeScript type definitions from domain IR" do
-            command("GenerateTypescript") { attribute :domain_id, String; attribute :output_dir, String }
-          end
-
-          b.aggregate "RpcDiscovery", "Generates RPC service discovery manifest from domain commands" do
-            command("GenerateRpcDiscovery") { attribute :domain_id, String }
+          b.aggregate "ConfigGenerator", "Generates configuration initializer for domain" do
+            command("GenerateConfig") { attribute :domain_id, String; attribute :output_dir, String }
           end
         end
       end

@@ -10,12 +10,6 @@ module Hecks
     module Cli
       module CliTools
         def self.define(b)
-          b.aggregate "SmokeTest", "Browser-style HTTP smoke tests for domains" do
-            command("RunSmoke") { attribute :base_url, String }
-            command("CheckEvents") { attribute :event_log, String }
-            command("TestBehaviors") { attribute :domain_name, String }
-          end
-
           b.aggregate "DomainStats", "Aggregate/command/event/policy counts" do
             command("Calculate") { attribute :domain, String }
           end

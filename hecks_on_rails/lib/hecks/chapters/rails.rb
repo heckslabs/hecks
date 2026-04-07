@@ -65,6 +65,14 @@ module Hecks
             description "Rails generator that produces SQL migration files from domain changes"
             command "Generate"
           end
+
+          b.aggregate "RailsGenerator" do
+            description "Generates Rails integration files (initializer, routes, controllers)"
+            command "GenerateRails" do
+              attribute :domain_id, String
+              attribute :output_dir, String
+            end
+          end
         }.build
       end
     end

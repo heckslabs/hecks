@@ -7,7 +7,8 @@ RSpec.describe Hecks::Chapters::Bluebook::ToolingParagraph do
   let(:names) { domain.aggregates.map(&:name) }
 
   it "includes tooling aggregates" do
-    expect(names).to include("DomainCompiler", "InMemoryLoader", "DomainInspector")
+    expect(names).to include("DomainCompiler", "InMemoryLoader", "DomainInspector",
+                             "DomainIntrospector", "GemBuilder")
   end
 
   it "DomainCompiler has Compile and LoadDomain commands" do
@@ -21,10 +22,10 @@ RSpec.describe Hecks::Chapters::Bluebook::ToolingParagraph do
     expect(agg.commands.map(&:name)).to include("ExtractSlices")
   end
 
-  it "contributes at least 5 tooling aggregates" do
-    tooling = %w[DomainCompiler InMemoryLoader DomainInspector SliceDiagram SliceExtractor]
+  it "contributes at least 7 tooling aggregates" do
+    tooling = %w[DomainCompiler InMemoryLoader DomainInspector SliceDiagram SliceExtractor DomainIntrospector GemBuilder]
     present = tooling.select { |n| names.include?(n) }
-    expect(present.size).to be >= 5
+    expect(present.size).to be >= 7
   end
 
   it "every tooling aggregate has a description" do

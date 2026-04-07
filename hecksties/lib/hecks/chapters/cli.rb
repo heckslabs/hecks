@@ -28,10 +28,6 @@ module Hecks
             command("RunTour") { attribute :domain_name, String }
           end
 
-          b.aggregate "GemBuilder", "Packages a domain as a distributable Ruby gem" do
-            command("BuildGem") { attribute :domain_name, String }
-          end
-
           b.aggregate "WorldConcernsPrompt", "Prompts user for world concerns during init" do
             command("Prompt") { attribute :domain_name, String }
           end
@@ -42,10 +38,6 @@ module Hecks
 
           b.aggregate "DomainInspector", "Formats domain IR for terminal display" do
             command("InspectDomain") { attribute :domain_name, String }
-          end
-
-          b.aggregate "DomainIntrospector", "Analyzes domain structure programmatically" do
-            command("Introspect") { attribute :domain_name, String }
           end
 
           CliCommands.define(b)

@@ -9,6 +9,7 @@
 #   # => ["Workshop", "AggregateHandle", "CommandHandle", ...]
 #
 require "bluebook"
+require_relative "workshop/runners"
 
 module Hecks
   module Chapters
@@ -131,18 +132,6 @@ module Hecks
             command "ListImages"
           end
 
-          b.aggregate "WorkshopRunner" do
-            description "Interactive IRB workshop that hoists constants for direct REPL use"
-            command "Run"
-          end
-
-          b.aggregate "ConstantHoister" do
-            description "Manages hoisting and cleanup of constants on WorkshopRunner"
-            command "HoistAggregate" do
-              attribute :const_name, String
-            end
-          end
-
           b.aggregate "Playground" do
             description "Live execution sandbox with memory adapters for rapid prototyping"
             command "Execute" do
@@ -175,29 +164,7 @@ module Hecks
             end
           end
 
-          b.aggregate "WebRunner" do
-            description "Browser-based REPL with WEBrick server for the Workshop"
-            command "Run"
-          end
-
-          b.aggregate "Evaluator" do
-            description "Safe eval-free command execution delegating to CommandParser"
-            command "Evaluate" do
-              attribute :input, String
-            end
-          end
-
-          b.aggregate "CommandParser" do
-            description "Safe command dispatcher using BlueBook Grammar for the web workshop"
-            command "Execute" do
-              attribute :input, String
-            end
-          end
-
-          b.aggregate "StateSerializer" do
-            description "Serializes workshop state into JSON for the browser console"
-            command "Serialize"
-          end
+          RunnersParagraph.define(b)
         }.build
       end
     end

@@ -10,7 +10,7 @@ RSpec.describe Hecks::Chapters::Hecksagon do
 
   it "includes key aggregates" do
     names = domain.aggregates.map(&:name)
-    expect(names).to include("GateDefinition", "HecksagonBuilder")
+    expect(names).to include("GateDefinition", "HecksagonBuilder", "AclDefinition")
   end
 
   it "has commands on GateDefinition" do

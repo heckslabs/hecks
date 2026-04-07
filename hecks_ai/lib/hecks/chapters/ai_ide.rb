@@ -75,13 +75,6 @@ module Hecks
             end
           end
 
-          b.aggregate "WorkshopSession" do
-            description "Wraps Workshop WebRunner for IDE integration with safe command eval"
-            command "Execute" do
-              attribute :input, String
-            end
-            command "GetCompletions"
-          end
         end
       end
     end

@@ -17,7 +17,7 @@ RSpec.describe Hecks::Chapters::Rails do
     names = domain.aggregates.map(&:name)
     expect(names).to include(
       "ActiveHecks", "DomainModelCompat", "AggregateCompat",
-      "ValidationWiring", "Railtie"
+      "ValidationWiring", "Railtie", "RailsGenerator"
     )
   end
 

@@ -61,6 +61,16 @@ module Hecks
             command("DiffVersions") { attribute :from_version, String; attribute :to_version, String }
           end
 
+          b.aggregate "Validations", "Domain validation rule enforcement" do
+            command("Validate") { attribute :aggregate, String }
+          end
+
+          b.aggregate "SmokeTest", "Browser-style HTTP smoke tests for domains" do
+            command("RunSmoke") { attribute :base_url, String }
+            command("CheckEvents") { attribute :event_log, String }
+            command("TestBehaviors") { attribute :domain_name, String }
+          end
+
           Ports.define(b)
           EventSourcingChapter.define(b)
         }.build

@@ -10,7 +10,7 @@ RSpec.describe Hecks::Chapters::Workshop do
 
   it "includes key aggregates" do
     names = domain.aggregates.map(&:name)
-    expect(names).to include("Workshop", "Playground")
+    expect(names).to include("Workshop", "Playground", "WorkshopSession")
   end
 
   it "has commands on Workshop" do

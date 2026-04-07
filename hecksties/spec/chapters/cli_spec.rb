@@ -15,11 +15,11 @@ RSpec.describe Hecks::Chapters::Cli do
 
   it "includes key aggregates" do
     names = domain.aggregates.map(&:name)
-    expect(names).to include("CLI", "Interviewer", "GemBuilder", "InitCommand", "SmokeTest")
+    expect(names).to include("CLI", "Interviewer", "InitCommand")
   end
 
-  it "has at least 30 aggregates" do
-    expect(domain.aggregates.size).to be >= 30
+  it "has at least 27 aggregates" do
+    expect(domain.aggregates.size).to be >= 27
   end
 
   it "gives every aggregate at least one command" do

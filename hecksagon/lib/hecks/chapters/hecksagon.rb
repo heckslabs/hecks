@@ -43,14 +43,14 @@ module Hecks
             end
           end
 
-          b.aggregate "AclBuilder" do
+          b.aggregate "AclDefinition" do
             description "Collects translations for an anti-corruption layer"
             command "Translate" do
               attribute :entity, String
             end
           end
 
-          b.aggregate "AdapterRegistry" do
+          b.aggregate "DrivenPortRegistry" do
             description "Formalizes adapter registration for driven ports"
             command "RegisterAdapter" do
               attribute :name, String
