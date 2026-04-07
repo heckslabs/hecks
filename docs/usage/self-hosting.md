@@ -4,6 +4,53 @@ Hecks describes itself using its own DSL (Bluebook chapters). The self-hosting
 tools compare what generators *would* produce against what actually exists,
 quantifying the gap between "described" and "generated."
 
+## Bootstrap Architecture
+
+Hecks follows a three-stage bootstrap model:
+
+- **Stage 0** (current): Interpreted Ruby with `require_relative` for the
+  bootstrap kernel (~55 lines). Chapters load everything else.
+- **Stage 1**: The interpreted Hecks compiles itself into a binary/gem where
+  ALL loading is chapter-driven, including the kernel.
+- **Stage 2**: The Stage 1 binary compiles itself. If output matches Stage 1,
+  the compiler is self-consistent.
+
+### The Bootstrap Chapter
+
+The `Bootstrap` chapter (`bluebook/lib/hecks/chapters/bootstrap.rb`) describes the
+bootstrap infrastructure as aggregates: DSL builders, domain model IR,
+tokenizer, and the chapter system itself. These are the files that must load
+via `require_relative` before any chapter can describe itself.
+
+### Self-Compile Manifest
+
+The manifest (`bluebook/lib/hecks/self_compile.rb`) lists ALL chapters in
+load order, proving the Bluebook covers 100% of the framework:
+
+```ruby
+require "hecks"
+Kernel.load("HecksBluebook")
+require "hecks/self_compile"
+
+puts Hecks::SelfCompile.chapter_names
+# => ["Bootstrap", "Bluebook", "Runtime", "Binding", ...]
+
+puts Hecks::SelfCompile.total_aggregates
+# => 700+
+
+Hecks::SelfCompile.summary.each { |name, count| puts "#{name}: #{count}" }
+```
+
+### Coverage Verification
+
+The coverage verifier walks all `.rb` files in `lib/` directories and checks
+each is covered by at least one chapter aggregate. It runs as part of
+`bin/verify`:
+
+```bash
+bin/verify --verbose   # includes coverage phase
+```
+
 ## Two Modes
 
 ### Domain Mode (default)

@@ -76,6 +76,16 @@ module Hecks
       pass_count += runtime_result.pass_count
       errors.concat(runtime_result.errors)
 
+      # Phase 4: Coverage verification (every lib file covered by a chapter)
+      puts "" if format == :progress
+      require_relative "verify_coverage"
+      coverage_result = CoverageVerifier.run(format: format)
+      pass_count += coverage_result.pass_count
+      # Coverage gaps are warnings, not failures — tracked as uncovered count
+      if coverage_result.uncovered.any? && format == :documentation
+        puts "  \e[33m#{coverage_result.uncovered.size} uncovered files\e[0m"
+      end
+
       elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
       total = pass_count + errors.size
       puts "" if format == :progress
