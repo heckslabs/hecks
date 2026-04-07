@@ -1,102 +1,68 @@
-# Hecks::Chapters::Runtime
+# = Hecks::Chapters::Runtime
 #
-# Self-describing domain definition for the Runtime chapter. The boot,
-# event bus, command bus, repository, and configuration subsystems model
-# themselves as a domain with cross-cutting policies.
+# Self-describing chapter for the Hecks runtime layer. Covers the
+# runtime container, command/event dispatch, ports, mixins, event
+# sourcing, sagas, workflows, and domain versioning.
 #
-#   domain = Hecks::Chapters::Runtime.definition
+#   domain = Hecks::Chapters::Runtime.domain
 #   domain.aggregates.map(&:name)
-#   # => ["Runtime", "EventBus", "CommandBus", "Repository", "Configuration"]
 #
+require_relative "runtime/ports"
+require_relative "runtime/event_sourcing"
+
 module Hecks
   module Chapters
     module Runtime
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Runtime").tap { |b|
-          b.instance_eval do
-            aggregate "Runtime" do
-              attribute :domain_name, String
-              attribute :adapter, String
-
-              command "Boot" do
-                attribute :directory, String
-                attribute :adapter, String
-              end
-
-              command "LoadDomain" do
-                attribute :domain_id, String
-              end
-
-              command "SwapAdapter" do
-                attribute :runtime_id, String
-                attribute :aggregate_name, String
-                attribute :adapter, String
-              end
-            end
-
-            aggregate "EventBus" do
-              attribute :name, String
-
-              command "PublishEvent" do
-                attribute :event_name, String
-              end
-
-              command "SubscribeEvent" do
-                attribute :event_name, String
-              end
-            end
-
-            aggregate "CommandBus" do
-              attribute :name, String
-
-              command "DispatchCommand" do
-                attribute :command_name, String
-              end
-            end
-
-            aggregate "Repository" do
-              attribute :aggregate_name, String
-              attribute :adapter_type, String
-
-              command "SaveAggregate" do
-                attribute :aggregate_id, String
-              end
-
-              command "FindAggregate" do
-                attribute :aggregate_id, String
-              end
-
-              command "DeleteAggregate" do
-                attribute :aggregate_id, String
-              end
-            end
-
-            aggregate "Configuration" do
-              attribute :adapter_type, String
-
-              command "Configure" do
-                attribute :adapter_type, String
-              end
-
-              command "RegisterExtension" do
-                attribute :name, String
-              end
-
-              command "RegisterCapability" do
-                attribute :name, String
-              end
-            end
-
-            policy "WireExtensions" do
-              on "Booted"
-              trigger "RegisterExtension"
-            end
-
-            policy "WirePolicies" do
-              on "LoadedDomain"
-              trigger "SubscribeEvent"
-            end
+        DSL::DomainBuilder.new("Runtime").tap { |b|
+          b.aggregate "Runtime", "Wires domain IR to adapters, dispatches commands, publishes events" do
+            command("Boot") { attribute :domain_path, String }
+            command("Load") { attribute :domain_ir, String }
+            command("Configure") { attribute :config_block, String }
           end
+
+          b.aggregate "Configuration", "Application wiring: adapters, extensions, domain loading" do
+            command("SetAdapter") { attribute :adapter_name, String }
+            command("AddExtension") { attribute :extension_name, String }
+            command("LoadDomain") { attribute :domain_name, String }
+          end
+
+          b.aggregate "GateEnforcer", "Restricts aggregate access by gate role" do
+            command("EnforceGate") { attribute :gate_name, String; attribute :aggregate_name, String }
+          end
+
+          b.aggregate "DryRunResult", "Previews command execution without side effects" do
+            command("DryRun") { attribute :command_name, String }
+          end
+
+          b.aggregate "SagaRunner", "Executes multi-step sagas with compensation" do
+            command("StartSaga") { attribute :saga_name, String }
+          end
+
+          b.aggregate "SagaStore", "Persists saga state across steps" do
+            command("SaveState") { attribute :saga_id, String; attribute :state, String }
+          end
+
+          b.aggregate "WorkflowExecutor", "Runs multi-step workflows with branching" do
+            command("ExecuteWorkflow") { attribute :workflow_name, String }
+          end
+
+          b.aggregate "ViewBinding", "Wires read model projections to event bus" do
+            command("BindView") { attribute :view_name, String }
+          end
+
+          b.aggregate "Introspection", "Runtime inspection of aggregates, commands, events" do
+            command("Inspect") { attribute :aggregate_name, String }
+          end
+
+          b.aggregate "DomainVersioning", "Snapshot-based domain version management" do
+            command("TagVersion") { attribute :version, String }
+            command("LoadVersion") { attribute :version, String }
+            command("DiffVersions") { attribute :from_version, String; attribute :to_version, String }
+          end
+
+          Ports.define(b)
+          EventSourcingChapter.define(b)
         }.build
       end
     end

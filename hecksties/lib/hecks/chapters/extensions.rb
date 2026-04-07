@@ -1,162 +1,99 @@
-# Hecks::Chapters::Extensions
+# = Hecks::Chapters::Extensions
 #
-# Self-describing Bluebook chapter for the Extensions subsystem. Models
-# the extension infrastructure as a domain: HTTP serving, auth, audit,
-# PII, metrics, persistence, multi-tenancy, event queues, and
-# cross-domain wiring.
+# Self-describing chapter for Hecks extension infrastructure. Covers
+# all pluggable extensions: HTTP serving, persistence, auth, ACL,
+# web explorer, tenancy, metrics, PII, and more.
 #
-#   domain = Hecks::Chapters::Extensions.definition
+#   domain = Hecks::Chapters::Extensions.domain
 #   domain.aggregates.map(&:name)
-#   # => ["HttpServer", "Auth", "AuditTrail", "PiiProtection", ...]
 #
+require_relative "extensions/serve"
+require_relative "extensions/persistence"
+
 module Hecks
   module Chapters
     module Extensions
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Extensions").tap { |b|
-          b.instance_eval do
-            aggregate "HttpServer" do
-              attribute :port, Integer
-              attribute :rpc_enabled, :Boolean
-
-              command "StartServer" do
-                attribute :port, Integer
-              end
-
-              command "HandleRequest" do
-                attribute :method, String
-                attribute :path, String
-              end
-
-              command "GenerateOpenApi" do
-                attribute :domain_name, String
-              end
-            end
-
-            aggregate "Auth" do
-              attribute :enforce, :Boolean
-
-              command "Authenticate" do
-                attribute :actor_role, String
-              end
-
-              command "Authorize" do
-                attribute :command_name, String
-                attribute :required_roles, String
-              end
-
-              command "RegisterSentinel"
-            end
-
-            aggregate "AuditTrail" do
-              attribute :event_name, String
-              attribute :actor, String
-              attribute :timestamp, String
-
-              command "RecordEvent" do
-                attribute :event_name, String
-              end
-
-              command "ClearLog"
-            end
-
-            aggregate "PiiProtection" do
-              attribute :field_name, String
-              attribute :pii_marked, :Boolean
-
-              command "MaskValue" do
-                attribute :value, String
-              end
-
-              command "ErasePii" do
-                attribute :entity_id, String
-              end
-
-              command "IntrospectFields" do
-                attribute :aggregate_name, String
-              end
-            end
-
-            aggregate "Metrics" do
-              attribute :aggregate_name, String
-              attribute :attribute_name, String
-
-              command "CaptureChange" do
-                attribute :aggregate_name, String
-                attribute :attribute_name, String
-              end
-
-              command "RegisterSink" do
-                attribute :sink_name, String
-              end
-            end
-
-            aggregate "FilesystemStore" do
-              attribute :data_dir, String
-
-              command "SaveRecord" do
-                attribute :aggregate_name, String
-                attribute :record_id, String
-              end
-
-              command "LoadRecord" do
-                attribute :record_id, String
-              end
-
-              command "DeleteRecord" do
-                attribute :record_id, String
-              end
-            end
-
-            aggregate "Tenancy" do
-              attribute :strategy, String
-              attribute :tenant_id, String
-
-              command "SetTenant" do
-                attribute :tenant_id, String
-              end
-
-              command "WrapRepository" do
-                attribute :aggregate_name, String
-              end
-            end
-
-            aggregate "CommandMiddleware" do
-              attribute :middleware_name, String
-
-              command "EnableLogging"
-
-              command "EnableRetry" do
-                attribute :max_attempts, Integer
-                attribute :base_delay, Integer
-              end
-
-              command "EnableRateLimit" do
-                attribute :limit, Integer
-                attribute :period, Integer
-              end
-
-              command "EnableIdempotency" do
-                attribute :ttl, Integer
-              end
-
-              command "EnableOutbox"
-            end
-
-            aggregate "EventQueue" do
-              attribute :adapter_type, String
-
-              command "PublishEvent" do
-                attribute :event_name, String
-                attribute :domain_name, String
-              end
-
-              command "ResolveAdapter" do
-                attribute :adapter, String
-              end
-            end
-
+        DSL::DomainBuilder.new("Extensions").tap { |b|
+          b.aggregate "Auth", "Actor-based authentication and authorization" do
+            command("Authenticate") { attribute :actor, String }
+            command("Authorize") { attribute :command_name, String; attribute :role, String }
           end
+
+          b.aggregate "Audit", "Command execution audit trail" do
+            command("Record") { attribute :command_name, String; attribute :actor, String }
+          end
+
+          b.aggregate "Bubble", "Anti-Corruption Layer for legacy system translation" do
+            command("TranslateInbound") { attribute :legacy_data, String }
+            command("TranslateOutbound") { attribute :domain_data, String }
+          end
+
+          b.aggregate "AggregateMapper", "Maps legacy fields to domain attributes" do
+            command("MapFields") { attribute :source, String; attribute :target, String }
+          end
+
+          b.aggregate "BubbleContext", "Defines field renames and transforms per aggregate" do
+            command("MapAggregate") { attribute :aggregate_name, String }
+          end
+
+          b.aggregate "WebExplorer", "HTML UI for browsing aggregates and events" do
+            command("Browse") { attribute :domain_name, String }
+            command("RenderView") { attribute :template, String }
+          end
+
+          b.aggregate "Validations", "Domain validation rule enforcement" do
+            command("Validate") { attribute :aggregate, String }
+          end
+
+          b.aggregate "Logging", "Structured logging for command dispatch" do
+            command("Log") { attribute :message, String }
+          end
+
+          b.aggregate "Metrics", "Runtime metrics collection" do
+            command("Record") { attribute :metric_name, String; attribute :value, Integer }
+          end
+
+          b.aggregate "PII", "PII attribute marking, masking, and erasure" do
+            command("MarkPII") { attribute :field, String }
+            command("Erase") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "Tenancy", "Multi-tenant data isolation" do
+            command("SetTenant") { attribute :tenant_id, String }
+          end
+
+          b.aggregate "TenantScopedRepository", "Repo that filters by tenant" do
+            command("ScopeToTenant") { attribute :tenant_id, String }
+          end
+
+          b.aggregate "OwnershipScopedRepository", "Repo that filters by owner" do
+            command("ScopeToOwner") { attribute :owner_id, String }
+          end
+
+          b.aggregate "RateLimit", "Per-command rate limiting" do
+            command("Check") { attribute :command_name, String; attribute :actor, String }
+          end
+
+          b.aggregate "Retry", "Automatic command retry with backoff" do
+            command("RetryCommand") { attribute :command_name, String; attribute :max_retries, Integer }
+          end
+
+          b.aggregate "Idempotency", "Idempotency key tracking for commands" do
+            command("Check") { attribute :idempotency_key, String }
+          end
+
+          b.aggregate "Slack", "Slack notification integration" do
+            command("Notify") { attribute :channel, String; attribute :message, String }
+          end
+
+          b.aggregate "OutboxExtension", "Outbox pattern for reliable messaging" do
+            command("Enqueue") { attribute :message, String }
+            command("Poll") { attribute :batch_size, Integer }
+          end
+
+          ServeChapter.define(b)
+          PersistenceChapter.define(b)
         }.build
       end
     end
