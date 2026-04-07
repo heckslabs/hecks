@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.files         = Dir["lib/**/*.rb"] + ["README.md", "FEATURES.md", "hecks_logo.png"]
   spec.require_paths = ["lib"]
   spec.bindir        = "bin"
-  spec.executables   = ["hecks"]
+  spec.executables   = ["hecks", "hecks_claude"]
 
   spec.required_ruby_version = ">= 3.0"
 

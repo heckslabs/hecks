@@ -16,6 +16,8 @@ module Hecks
     require_paragraphs(__FILE__)
 
     module AI
+      def self.summary = "AI integration for Hecks"
+
       def self.definition
         Hecks::DSL::DomainBuilder.new("AI").tap { |b|
           b.aggregate "McpServer" do

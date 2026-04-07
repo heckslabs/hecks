@@ -40,7 +40,7 @@ Bluebook DSL  →  Builders  →  Hecksagon IR  →  Generators  →  Ruby/Go co
 2. **Parse**: `bluebook/lib/bluebook/` builders construct IR nodes
 3. **Build**: `hecksagon/lib/hecksagon/structure/` holds the IR types (Aggregate, ValueObject, Command, Event, etc.)
 4. **Validate**: `hecksagon/lib/hecksagon/contract_validator.rb` runs data contracts for cross-target consistency
-5. **Generate**: `hecks_targets/ruby/` or `hecks_targets/go/` emit static code from the IR
+5. **Generate**: `hecks_targets/hecks_static/` or `hecks_targets/go_hecks/` emit static code from the IR
 
 ## Key Modules
 
@@ -65,8 +65,8 @@ Bluebook DSL  →  Builders  →  Hecksagon IR  →  Generators  →  Ruby/Go co
 - `hecksties/lib/hecks_multidomain.rb` — multi-domain orchestration, FilteredEventBus
 
 ### Targets (Code Generation)
-- `hecks_targets/ruby/` — static Ruby target generator
-- `hecks_targets/go/` — static Go target generator
+- `hecks_targets/hecks_static/` — static Ruby target generator
+- `hecks_targets/go_hecks/` — static Go target generator
 - Generators use `HecksTemplating::Names` for naming conventions
 
 ### Workshop (Interactive UI)

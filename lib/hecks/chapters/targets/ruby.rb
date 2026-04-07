@@ -10,11 +10,9 @@ module Hecks
   module Chapters
     module Targets
       module Ruby
-        def self.define(b)
-          b.aggregate "GemGenerator", "Orchestrates full standalone Ruby gem: runtime, domain, server, UI" do
-            command("Generate") { attribute :domain_name, String; attribute :output_dir, String }
-          end
+        def self.summary = "Standalone domain generator for Hecks"
 
+        def self.define(b)
           b.aggregate "EntryPointGenerator", "Generates lib/<gem>.rb autoloads and boot.rb wiring" do
             command("Generate") { attribute :domain_name, String }
           end

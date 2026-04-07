@@ -109,6 +109,22 @@ module Hecks
           b.aggregate "CompileCommand", "Compiles Hecks into a self-contained binary" do
             command("Compile") { attribute :output, String }
           end
+
+          b.aggregate "ClaudeCommand", "Starts file watchers and launches Claude Code" do
+            command("Launch") { attribute :args, String }
+          end
+
+          b.aggregate "NewProjectCommand", "Scaffolds a new Hecks domain project" do
+            command("Create") { attribute :project_name, String }
+          end
+
+          b.aggregate "SelfDiffCommand", "Compares generated code against actual gem code" do
+            command("Diff") { attribute :chapter, String; attribute :framework, String }
+          end
+
+          b.aggregate "VerifyCommand", "Runs Bluebook self-verification" do
+            command("Verify") { attribute :format, String }
+          end
         end
       end
     end

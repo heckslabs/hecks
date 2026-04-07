@@ -15,6 +15,8 @@ module Hecks
     require_paragraphs(__FILE__)
 
     module Bluebook
+      def self.summary = "Domain command language, model types, DSL builders, and code generators for Hecks"
+
       def self.definition
         @definition ||= DSL::DomainBuilder.new("Bluebook").tap { |b|
           b.instance_eval do

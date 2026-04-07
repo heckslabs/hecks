@@ -41,31 +41,29 @@ module Hecks
   extend GrammarRegistryMethods
 end
 
-# Default modules — loaded with require "hecks"
-# Bluebook loads its implementation files from its chapter definition
-require "bluebook"
-require "hecksagon"
-require "hecks/stats"
-require "hecks/event_sourcing"
-require "hecks/runtime/boot"
-require "hecks/deprecations"
-require "hecks/runtime/boot_bluebook"
-require "hecks/workshop"
+# Chapter infrastructure — Chapters module defines require_paragraphs,
+# load_chapter, etc. needed by all chapter registrations.
+require "hecks/chapters"
 
-# Load Bluebook implementation files from its chapter definition.
-# Registry methods are already extended above, so validators can register.
-Hecks::Chapters.load_chapter(
-  Hecks::Chapters::Bluebook,
-  base_dirs: %w[
-    hecks/domain hecks/domain_model hecks/dsl hecks/generators
-    hecks/validation_rules hecks/event_storm hecks/features
-    hecks/extensions/docs bluebook hecks_persist hecks_mongodb
-  ].map { |d| File.join(__dir__, d) }
-)
+# Chapter selection — register all available chapters, then load
+require "hecks/chapter_loader"
+require "hecks/chapters/registry"
+
+# Load chapters from HecksChapters file if present, otherwise load all.
+# HecksChapters is a simple DSL file listing which chapters to include:
+#
+#   # HecksChapters
+#   chapter :bluebook
+#   chapter :runtime
+#   chapter :hecksagon
+#
+# When no HecksChapters file exists, all chapters are loaded (default).
+Hecks::ChapterLoader.load_from_file || Hecks.chapters(:all)
 
 # = Hecks
 #
-# Top-level entry point. Modules load lazily — require only what you use.
+# Top-level entry point. Chapters load selectively — configure via
+# HecksChapters file or Hecks.chapters in code.
 #
 # Hecks
 #
@@ -116,7 +114,7 @@ module Hecks
   }
 
   # Other targets (go, static, node, rails) self-register
-  # when their gems are required. See hecks_targets/ for each.
+  # when their chapters are loaded. See hecks_targets/ for each.
 
   # Built-in dump formats
   register_dump_format(:schema, desc: "JSON Schema") { |domain, say:| require "hecks_serve"; File.write("schema.json", JSON.pretty_generate(Hecks::HTTP::JsonSchemaGenerator.new(domain).generate)); say.call("Dumped schema.json", :green) }
@@ -125,19 +123,4 @@ module Hecks
   register_dump_format(:domain, desc: "domain gem") { |domain, say:| FileUtils.mkdir_p("domain"); say.call("Dumped domain gem to domain/#{File.basename(Hecks.build(domain, output_dir: "domain"))}/", :green) }
   register_dump_format(:glossary, desc: "plain-English glossary") { |domain, say:| File.write("glossary.md", Hecks::DomainGlossary.new(domain).generate.join("\n") + "\n"); say.call("Dumped glossary.md", :green) }
   register_dump_format(:types, desc: "TypeScript types (.d.ts)") { |domain, say:| File.write("types.d.ts", Hecks::HTTP::TypescriptGenerator.new(domain).generate); say.call("Dumped types.d.ts", :green) }
-
-  if defined?(::Rails::Railtie)
-    begin
-      require "active_hecks/railtie"
-    rescue LoadError
-    end
-  end
 end
-
-# Features (vertical slices) — loaded after Hecks module is fully defined
-require "hecks/features"
-
-# Sub-gems load lazily — only when required
-# require "hecks_multidomain"  # loads multi-domain support
-# require "hecks_explorer"     # loads web explorer
-# require "hecks_ai"           # loads MCP server

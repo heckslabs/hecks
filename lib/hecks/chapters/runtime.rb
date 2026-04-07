@@ -16,6 +16,8 @@ module Hecks
     # Bluebook chapter defining the Hecks runtime: command dispatch, ports, mixins, event sourcing, and sagas.
     #
     module Runtime
+      def self.summary = "Core kernel of the Hecks hexagonal DDD framework"
+
       def self.definition
         @definition ||= DSL::DomainBuilder.new("Runtime").tap { |b|
           b.aggregate "Runtime", "Wires domain IR to adapters, dispatches commands, publishes events" do

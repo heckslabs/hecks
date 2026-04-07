@@ -10,6 +10,8 @@ module Hecks
   module Chapters
     module Targets
       module Node
+        def self.summary = "Node.js/TypeScript domain generator for Hecks"
+
         def self.define(b)
           b.aggregate "NodeUtils", "Naming and type mapping: Ruby types to TypeScript types" do
             command("TsType") { attribute :attribute_name, String }

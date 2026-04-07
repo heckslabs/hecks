@@ -15,6 +15,8 @@ module Hecks
     # Bluebook chapter defining the CLI domain: all commands, tools, and workflow aggregates.
     #
     module Cli
+      def self.summary = "Thor-based command-line interface for Hecks"
+
       def self.definition
         DSL::DomainBuilder.new("Cli").tap { |b|
           b.aggregate "CLI", "Thor-based command-line interface entry point" do

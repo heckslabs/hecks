@@ -128,6 +128,9 @@ module Hecks
       base_dir: File.expand_path("..", __FILE__)
     )
 
+    # Load CLI internals that live outside commands/
+    require "hecks_cli/version_log_formatter"
+
     # Load commands from all hecks modules
     lib_root = File.expand_path("../..", __FILE__)
     Dir[File.join(lib_root, "**/commands/*.rb")].sort.each { |f| require f }

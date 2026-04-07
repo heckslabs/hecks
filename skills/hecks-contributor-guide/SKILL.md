@@ -63,7 +63,7 @@ examples/       — Working apps (pizzas, banking, multi_domain, governance)
 1. `bluebook/lib/hecks/domain_model/structure/` or `behavior/` — IR node
 2. `bluebook/lib/hecks/dsl/aggregate_builder.rb` — DSL method
 3. `bluebook/lib/hecks/generators/domain/` — Ruby generator
-4. `hecks_targets/ruby/` and `hecks_targets/go/` — static targets
+4. `hecks_targets/hecks_static/` and `hecks_targets/go_hecks/` — static targets
 5. `hecksties/lib/hecks/conventions/` — data contract (if cross-target)
 
 ### Modifying the command lifecycle

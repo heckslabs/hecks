@@ -14,6 +14,8 @@ module Hecks
     require_paragraphs(__FILE__)
 
     module HecksAppeal
+      def self.summary = "IDE capabilities for Hecks"
+
       def self.definition
         Hecks::DSL::DomainBuilder.new("HecksAppeal").tap { |b|
           b.aggregate "Project" do

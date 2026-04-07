@@ -107,8 +107,8 @@ The builder must also be listed in `HANDLE_METHODS` in the grammar if using the 
 ### 5. Update generators
 
 - `bluebook/lib/hecks/generators/domain/` — Ruby class generators
-- `hecks_targets/ruby/` — static Ruby target
-- `hecks_targets/go/` — static Go target
+- `hecks_targets/hecks_static/` — static Ruby target
+- `hecks_targets/go_hecks/` — static Go target
 - If the concept appears in the UI: `hecks_workshop/explorer/`
 
 ### 6. Add a data contract (if cross-target)

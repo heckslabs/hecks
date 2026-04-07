@@ -214,9 +214,9 @@ Each target has its own generator package:
 | Target | Package | Generator |
 |--------|---------|-----------|
 | Ruby gem | `bluebook` | `Generators::Infrastructure::DomainGemGenerator` |
-| Standalone Ruby | `hecks_targets/ruby` | `HecksStatic::GemGenerator` |
-| Go | `hecks_targets/go` | `GoHecks::ProjectGenerator` |
-| Node.js | `hecks_targets/node` | `NodeHecks::ProjectGenerator` |
+| Standalone Ruby | `hecks_targets/hecks_static` | `HecksStatic::GemGenerator` |
+| Go | `hecks_targets/go_hecks` | `GoHecks::ProjectGenerator` |
+| Node.js | `hecks_targets/node_hecks` | `NodeHecks::ProjectGenerator` |
 
 ### What stays the same
 
@@ -236,9 +236,9 @@ Language idioms differ. Go uses structs and interfaces; Ruby uses modules and mi
 
 **Where to look:**
 - `hecksties/lib/hecks/registries/target_registry.rb` — target registration
-- `hecks_targets/go/` — Go generator
-- `hecks_targets/ruby/` — standalone Ruby generator
-- `hecks_targets/node/` — Node.js/TypeScript generator
+- `hecks_targets/go_hecks/` — Go generator
+- `hecks_targets/hecks_static/` — standalone Ruby generator
+- `hecks_targets/node_hecks/` — Node.js/TypeScript generator
 
 ---
 

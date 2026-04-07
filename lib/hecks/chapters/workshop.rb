@@ -15,6 +15,8 @@ module Hecks
     require_paragraphs(__FILE__)
 
     module Workshop
+      def self.summary = "Interactive REPL and MCP server for Hecks"
+
       def self.definition
         Hecks::DSL::DomainBuilder.new("Workshop").tap { |b|
           b.aggregate "Workshop" do

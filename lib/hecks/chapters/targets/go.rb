@@ -10,6 +10,8 @@ module Hecks
   module Chapters
     module Targets
       module Go
+        def self.summary = "Go domain generator for Hecks"
+
         def self.define(b)
           b.aggregate "GoCodeBuilder", "Fluent builder for Go source files: packages, imports, structs, methods" do
             command("Struct") { attribute :name, String }

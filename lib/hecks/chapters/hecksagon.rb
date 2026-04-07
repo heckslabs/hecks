@@ -16,6 +16,8 @@ module Hecks
     require_paragraphs(__FILE__)
 
     module Hecksagon
+      def self.summary = "Hexagonal architecture wiring DSL for Hecks"
+
       def self.definition
         Hecks::DSL::DomainBuilder.new("Hecksagon").tap { |b|
           # Entry points — autoload files
