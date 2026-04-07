@@ -8,6 +8,10 @@
 #   app = Hecks.boot(__dir__, adapter: :sqlite)
 #
 module Hecks
+  # Hecks::Boot
+  #
+  # Loads a domain from a directory, validates, builds, and wires a Runtime for single or multi-domain setups.
+  #
   module Boot
     include HecksTemplating::NamingHelpers
 
@@ -59,11 +63,11 @@ module Hecks
       return nil if bluebooks.empty?
 
       # Check if the file content uses Hecks.bluebook
-      bluebooks.each do |f|
-        content = File.read(f)
+      bluebooks.each do |bluebook_file|
+        content = File.read(bluebook_file)
         next unless content.include?("Hecks.bluebook")
         Hecks.last_bluebook = nil
-        Kernel.load(f)
+        Kernel.load(bluebook_file)
         return Hecks.last_bluebook if Hecks.last_bluebook
       end
       nil
@@ -71,7 +75,7 @@ module Hecks
 
     def find_domains_dir(dir)
       candidates = [File.join(dir, "hecks_domains"), File.join(dir, "domains")]
-      found = candidates.find { |d| File.directory?(d) }
+      found = candidates.find { |domain_dir| File.directory?(domain_dir) }
       return found if found
 
       # bluebook/ subfolder with multiple Bluebook files = multi-domain
@@ -87,14 +91,14 @@ module Hecks
       bluebooks = Dir[File.join(dir, "bluebook", "*Bluebook")].sort if bluebooks.empty?
       raise Hecks::DomainLoadError, "No *Bluebook files found in #{dir} or #{dir}/bluebook/" if bluebooks.empty?
 
-      bluebooks.each { |f| Kernel.load(f) }
+      bluebooks.each { |bluebook_file| Kernel.load(bluebook_file) }
       domain = Hecks.last_domain
       domain.source_path = bluebooks.first
 
       # Auto-discover and load Hecksagon file (infrastructure capabilities)
       hecksagons = Dir[File.join(dir, "*Hecksagon")].sort
       hecksagons = Dir[File.join(dir, "bluebook", "*Hecksagon")].sort if hecksagons.empty?
-      hecksagons.each { |f| Kernel.load(f) }
+      hecksagons.each { |hecksagon_file| Kernel.load(hecksagon_file) }
 
       mod = load_domain(domain)
       load_stubs(dir, domain)
@@ -156,7 +160,7 @@ module Hecks
     def autoload_services(dir)
       services_dir = File.join(dir, "services")
       return unless File.directory?(services_dir)
-      Dir[File.join(services_dir, "*.rb")].sort.each { |f| require f }
+      Dir[File.join(services_dir, "*.rb")].sort.each { |service_file| require service_file }
     end
 
     def boot_multi(dir, domains_dir, adapter: :memory, &block)
@@ -166,7 +170,7 @@ module Hecks
       raise Hecks::DomainLoadError, "No Bluebook or .rb files in #{domains_dir}" if domain_files.empty?
 
       domains = domain_files.map { |path| eval(File.read(path), nil, path, 1) }
-      domains.each { |d| load_stubs(dir, d) }
+      domains.each { |domain| load_stubs(dir, domain) }
       runtimes = boot_domains(domains)
       autoload_services(dir)
       runtimes
@@ -186,15 +190,15 @@ module Hecks
       shared_bus = EventBus.new
       @shared_event_bus = shared_bus
       directionality = Hecks::MultiDomain::Directionality.build(domains)
-      runtimes = domains.map do |d|
-        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, domain_gem_name: d.gem_name, allowed_sources: directionality[d.gem_name]) : shared_bus
-        Runtime.new(d, event_bus: bus)
+      runtimes = domains.map do |domain|
+        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, domain_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
+        Runtime.new(domain, event_bus: bus)
       end
       Hecks::MultiDomain::QueueWiring.wire(domains, runtimes)
 
-      domains.each_with_index do |domain, i|
+      domains.each_with_index do |domain, idx|
         mod = Object.const_get(domain_module_name(domain.name))
-        fire_extensions(mod, domain, runtimes[i])
+        fire_extensions(mod, domain, runtimes[idx])
       end
 
       runtimes
@@ -203,7 +207,7 @@ module Hecks
     def load_stubs(dir, domain)
       stubs_dir = File.join(dir, "lib", domain.gem_name)
       return unless File.directory?(stubs_dir)
-      Dir[File.join(stubs_dir, "**/*.rb")].sort.each { |f| Kernel.load(f) }
+      Dir[File.join(stubs_dir, "**/*.rb")].sort.each { |stub_file| Kernel.load(stub_file) }
     end
 
     def filtered_bus(shared_bus, domain, all_domains)

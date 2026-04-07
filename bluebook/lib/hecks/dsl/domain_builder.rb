@@ -68,6 +68,7 @@ module Hecks
         @tenancy = nil
         @event_subscribers = []
         @world_concerns = []
+        @entry_points = []
       end
 
       # Declare world concerns that this domain aspires to uphold.
@@ -229,6 +230,16 @@ module Hecks
         @paragraphs << Structure::Paragraph.new(name: name, aggregates: added)
       end
 
+      # Declare an autoload entry point file for this domain.
+      # Entry points are the top-level .rb files that set up autoloads
+      # and namespace modules (e.g., "hecks_persist", "hecks_mongodb").
+      #
+      #   entry_point "hecks_persist"
+      #
+      def entry_point(name)
+        @entry_points << name.to_s
+      end
+
       # Define a cross-aggregate reactive policy.
       #
       # Domain-level policies react to events from one aggregate and trigger
@@ -303,7 +314,8 @@ module Hecks
           sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
           glossary_strict: @glossary_strict || false,
           world_concerns: @world_concerns,
-          description: @description
+          description: @description,
+          entry_points: @entry_points
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

@@ -11,6 +11,10 @@ require "erb"
 
 module Hecks
   module WebExplorer
+    # Hecks::WebExplorer::Renderer
+    #
+    # Renders ERB templates with a data binding for web explorer views, handling layout wrapping and escaping.
+    #
     class Renderer
       def initialize(views_dir)
         @views_dir = views_dir

@@ -20,6 +20,10 @@
   #   bus.clear   # empties the event log
   #
 module Hecks
+  # Hecks::EventBus
+  #
+  # Simple in-process publish/subscribe event bus with named and global subscriptions.
+  #
   class EventBus
       # @return [Array<Object>] ordered list of all published events
       attr_reader :events

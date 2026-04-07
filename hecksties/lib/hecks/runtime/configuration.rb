@@ -20,6 +20,10 @@ require "hecks_persist/sql_setup"
   #
 
 module Hecks
+  # Hecks::Configuration
+  #
+  # Wires Hecks into an application supporting single or multiple domains with pluggable adapters and extensions.
+  #
   class Configuration
     include HecksTemplating::NamingHelpers
     include DatabaseConnection

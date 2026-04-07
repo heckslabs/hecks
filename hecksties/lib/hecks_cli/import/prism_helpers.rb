@@ -18,17 +18,17 @@ module Hecks
 
       # Returns the string value of a keyword argument whose key matches +key+.
       def kwarg_symbol(call, key)
-        each_kwarg(call) do |k, v|
-          return v.unescaped if k == key.to_s && v.is_a?(Prism::SymbolNode)
+        each_kwarg(call) do |kwarg_key, kwarg_val|
+          return kwarg_val.unescaped if kwarg_key == key.to_s && kwarg_val.is_a?(Prism::SymbolNode)
         end
         nil
       end
 
       def kwarg_true?(call, key)
-        each_kwarg(call) do |k, v|
-          next unless k == key.to_s
-          return true if v.is_a?(Prism::TrueNode)
-          return true if v.is_a?(Prism::SymbolNode) || v.is_a?(Prism::HashNode)
+        each_kwarg(call) do |kwarg_key, kwarg_val|
+          next unless kwarg_key == key.to_s
+          return true if kwarg_val.is_a?(Prism::TrueNode)
+          return true if kwarg_val.is_a?(Prism::SymbolNode) || kwarg_val.is_a?(Prism::HashNode)
         end
         false
       end
@@ -41,12 +41,12 @@ module Hecks
           arg.elements.each do |el|
             next unless el.is_a?(Prism::AssocNode)
             key = el.key
-            k = case key
+            kwarg_key = case key
                 when Prism::SymbolNode then key.unescaped
                 when Prism::StringNode then key.unescaped
                 else nil
                 end
-            yield k, el.value if k
+            yield kwarg_key, el.value if kwarg_key
           end
         end
       end
@@ -54,7 +54,7 @@ module Hecks
       # Collect kwargs as { "key" => value_node } hash.
       def collect_kwargs(call)
         result = {}
-        each_kwarg(call) { |k, v| result[k] = v }
+        each_kwarg(call) { |kwarg_key, kwarg_val| result[kwarg_key] = kwarg_val }
         result
       end
 
@@ -64,7 +64,7 @@ module Hecks
         return [] unless block.is_a?(Prism::BlockNode)
         body = block.body
         return [] unless body.is_a?(Prism::StatementsNode)
-        body.body.select { |n| n.is_a?(Prism::CallNode) }
+        body.body.select { |node| node.is_a?(Prism::CallNode) }
       end
     end
   end

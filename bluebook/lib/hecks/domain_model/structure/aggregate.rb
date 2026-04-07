@@ -108,7 +108,8 @@ module Hecks
                      specifications: [], references: [],
                      factories: [], computed_attributes: [],
                      lifecycle: nil, metadata: {}, origin_domain: nil,
-                     identity_fields: nil, description: nil)
+                     identity_fields: nil, description: nil,
+                     namespace: nil, superclass: nil, mixins: [])
         @name = Names.aggregate_name(name)
         @attributes = attributes
         @value_objects = value_objects
@@ -130,9 +131,21 @@ module Hecks
         @origin_domain = origin_domain
         @identity_fields = identity_fields
         @description = description || @metadata[:description]
+        @namespace = namespace
+        @superclass = superclass
+        @mixins = mixins
       end
 
       attr_reader :metadata, :origin_domain, :description
+
+      # @return [String, nil] fully qualified namespace (e.g., "Hecksagon::DSL")
+      attr_reader :namespace
+
+      # @return [String, nil] superclass for class-kind aggregates (e.g., "Hecks::Generator")
+      attr_reader :superclass
+
+      # @return [Array<String>] modules mixed in via include (e.g., ["SqlBuilder", "NamingHelpers"])
+      attr_reader :mixins
 
     end
     end

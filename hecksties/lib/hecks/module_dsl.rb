@@ -10,6 +10,10 @@
 #   end
 #
 module Hecks
+  # Hecks::ModuleDSL
+  #
+  # Declarative helpers for module mixins providing lazy_registry for lazily-initialized registries.
+  #
   module ModuleDSL
     def lazy_registry(name, private: false, &default)
       default ||= -> { {} }

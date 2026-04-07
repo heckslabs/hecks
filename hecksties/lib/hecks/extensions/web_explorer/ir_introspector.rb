@@ -13,6 +13,10 @@
 #
 module Hecks
   module WebExplorer
+    # Hecks::WebExplorer::IRIntrospector
+    #
+    # Provides structural queries from the Bluebook IR for the Web Explorer.
+    #
     class IRIntrospector
       include HecksTemplating::NamingHelpers
 
@@ -27,16 +31,16 @@ module Hecks
       end
 
       def find_aggregate(name)
-        @domain.aggregates.find { |a| a.name == name }
+        @domain.aggregates.find { |agg| agg.name == name }
       end
 
       def find_aggregate_by_slug(slug)
-        @domain.aggregates.find { |a| domain_aggregate_slug(a.name) == slug }
+        @domain.aggregates.find { |agg| domain_aggregate_slug(agg.name) == slug }
       end
 
       def user_attributes(agg)
-        agg.attributes.reject { |a|
-          Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+        agg.attributes.reject { |attr|
+          Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) || !attr.visible?
         }
       end
 
@@ -55,23 +59,23 @@ module Hecks
       end
 
       def create_commands(agg)
-        agg.commands.select { |c| c.name.start_with?("Create") }
+        agg.commands.select { |cmd| cmd.name.start_with?("Create") }
       end
 
       def find_command(agg, cmd_snake)
-        agg.commands.find { |c| domain_snake_name(c.name) == cmd_snake }
+        agg.commands.find { |cmd| domain_snake_name(cmd.name) == cmd_snake }
       end
 
       def command_fields(cmd, params = {})
-        cmd.attributes.map do |a|
-          if a.enum
-            { type: :enum, name: a.name.to_s, label: humanize(a.name),
-              options: a.enum, required: false,
-              value: params[a.name.to_s] || "" }
+        cmd.attributes.map do |attr|
+          if attr.enum
+            { type: :enum, name: attr.name.to_s, label: humanize(attr.name),
+              options: attr.enum, required: false,
+              value: params[attr.name.to_s] || "" }
           else
-            { type: :input, name: a.name.to_s, label: humanize(a.name),
+            { type: :input, name: attr.name.to_s, label: humanize(attr.name),
               input_type: "text", step: false, required: false,
-              value: params[a.name.to_s] || "" }
+              value: params[attr.name.to_s] || "" }
           end
         end
       end
@@ -101,7 +105,7 @@ module Hecks
       end
 
       def filterable_attributes(agg)
-        user_attributes(agg).select { |a| a.type == String && !a.list? }
+        user_attributes(agg).select { |attr| attr.type == String && !attr.list? }
       end
 
       def policy_labels

@@ -11,6 +11,9 @@
   #   attr_def[:freeze] # => false
   #
 module Hecks
-
+  # Hecks::RuntimeAttributeDefinition
+  #
+  # Value object representing a declared attribute on a runtime model class with method and hash-style access.
+  #
   RuntimeAttributeDefinition = Struct.new(:name, :default, :freeze, keyword_init: true)
 end

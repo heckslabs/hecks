@@ -17,6 +17,10 @@
   #   repo.find(other_id) # => raises Hecks::GateAccessDenied
   #
 module HecksTenancy
+  # HecksTenancy::OwnershipScopedRepository
+  #
+  # Repository proxy that restricts find/all/delete to records whose ownership field matches the current identity.
+  #
   class OwnershipScopedRepository
     # @param inner_repo [Object] the underlying repository to wrap
     # @param ownership_field [Symbol] attribute name identifying the owner

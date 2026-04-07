@@ -26,6 +26,10 @@
 #   Hecks.metric_sink = ->(entry) { StatsD.gauge(entry[:attribute], entry[:new]) }
 #
 module Hecks; end
+# Hecks::Metrics
+#
+# Observability extension that tracks changes to metric-tagged aggregate attributes on every command execution.
+#
 module Hecks::Metrics
   # Extract the names of metric-tagged attributes from the Hecksagon IR
   # for a given aggregate name.

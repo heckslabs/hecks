@@ -21,6 +21,10 @@ require "securerandom"
 
 module Hecks
   module Outbox
+    # Hecks::Outbox::MemoryOutbox
+    #
+    # In-memory implementation of the outbox port suitable for development and testing.
+    #
     class MemoryOutbox
       # @return [Array<Hash>] all stored outbox entries
       attr_reader :entries

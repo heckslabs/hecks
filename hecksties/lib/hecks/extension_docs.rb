@@ -8,6 +8,10 @@
 #   # => [{ gem: "hecks_sqlite", name: "SQLite", ... }, ...]
 #
 module Hecks
+  # Hecks::ExtensionDocs
+  #
+  # Metadata registry for extension gems used by ReadmeGenerator to produce the connections section.
+  #
   module ExtensionDocs
     EXTENSIONS = [
       {

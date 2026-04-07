@@ -31,7 +31,7 @@ module Hecksagon
   autoload :StrategicDSL,     "hecksagon/strategic_dsl"
   autoload :DomainMixin,      "hecksagon/domain_mixin"
   autoload :ExtensionsDSL,    "hecksagon/extensions_dsl"
-  autoload :AclBuilder,       "hecksagon/acl_builder"
-  autoload :AdapterRegistry,  "hecksagon/adapter_registry"
+  autoload :AclDefinition,       "hecksagon/acl_definition"
+  autoload :DrivenPortRegistry,  "hecksagon/driven_port_registry"
   autoload :ContractValidator, "hecksagon/contract_validator"
 end

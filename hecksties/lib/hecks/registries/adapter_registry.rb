@@ -9,6 +9,10 @@
 #   Hecks.adapter?(:sqlite)    # => true
 #
 module Hecks
+  # Hecks::AdapterRegistryMethods
+  #
+  # Registry for persistence adapter types (memory, sqlite, etc.) extended onto the Hecks module.
+  #
   module AdapterRegistryMethods
     def registered_adapters
       adapter_registry.all

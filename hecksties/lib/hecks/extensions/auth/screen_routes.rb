@@ -20,6 +20,10 @@ require_relative "session_store"
 
 module Hecks
   module Auth
+    # Hecks::Auth::ScreenRoutes
+    #
+    # Mixin for DomainServer that adds login, signup, and logout HTTP routes when the auth extension is active.
+    #
     module ScreenRoutes
       include SessionStore
 

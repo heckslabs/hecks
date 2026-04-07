@@ -38,9 +38,9 @@ class Hecks::ContextMapGenerator
   def generate_text
     lines = []
     lines << "Bounded Contexts:"
-    @domains.each do |d|
-      aggs = d.aggregates.map(&:name).join(", ")
-      lines << "  [#{d.name}] Aggregates: #{aggs}"
+    @domains.each do |domain|
+      aggs = domain.aggregates.map(&:name).join(", ")
+      lines << "  [#{domain.name}] Aggregates: #{aggs}"
     end
     lines << ""
     lines << "Relationships:"
@@ -52,7 +52,7 @@ class Hecks::ContextMapGenerator
     kernels = shared_kernels
     if kernels.any?
       lines << "Shared Kernels:"
-      kernels.each { |k| lines << "  [#{k}]" }
+      kernels.each { |kernel_name| lines << "  [#{kernel_name}]" }
     end
     lines.join("\n")
   end
@@ -77,10 +77,10 @@ class Hecks::ContextMapGenerator
   private
 
   def subgraphs(lines)
-    @domains.each do |d|
-      node_id = safe_id(d.name)
-      lines << "    subgraph #{node_id}[#{d.name}]"
-      d.aggregates.each do |agg|
+    @domains.each do |domain|
+      node_id = safe_id(domain.name)
+      lines << "    subgraph #{node_id}[#{domain.name}]"
+      domain.aggregates.each do |agg|
         agg_id = "#{node_id}_#{safe_id(agg.name)}"
         lines << "        #{agg_id}[#{agg.name}]"
       end
@@ -120,19 +120,19 @@ class Hecks::ContextMapGenerator
         }
       end
     end
-    rels.uniq { |r| [r[:upstream], r[:downstream], r[:event]] }
+    rels.uniq { |rel| [rel[:upstream], rel[:downstream], rel[:event]] }
   end
 
   def all_reactive_policies(domain)
-    agg_policies = domain.aggregates.flat_map { |a| a.policies.select(&:reactive?) }
+    agg_policies = domain.aggregates.flat_map { |agg| agg.policies.select(&:reactive?) }
     domain_policies = domain.policies.select(&:reactive?)
     agg_policies + domain_policies
   end
 
   def find_event_source(event_name)
-    @domains.each do |d|
-      d.aggregates.each do |a|
-        return d.name if a.events.any? { |e| e.name == event_name }
+    @domains.each do |domain|
+      domain.aggregates.each do |agg|
+        return domain.name if agg.events.any? { |event| event.name == event_name }
       end
     end
     nil
@@ -140,16 +140,16 @@ class Hecks::ContextMapGenerator
 
   def find_shared_kernels
     agg_to_domain = {}
-    @domains.each do |d|
-      d.aggregates.each { |a| agg_to_domain[a.name] = d.name }
+    @domains.each do |domain|
+      domain.aggregates.each { |agg| agg_to_domain[agg.name] = domain.name }
     end
 
-    ref_counts = Hash.new { |h, k| h[k] = Set.new }
-    @domains.each do |d|
-      d.aggregates.each do |agg|
+    ref_counts = Hash.new { |hash, key| hash[key] = Set.new }
+    @domains.each do |domain|
+      domain.aggregates.each do |agg|
         agg.attributes.each do |attr|
           next unless attr.name.to_s.end_with?("_id")
-          check_attribute_references(attr, agg_to_domain, d.name, ref_counts)
+          check_attribute_references(attr, agg_to_domain, domain.name, ref_counts)
         end
       end
     end
@@ -161,7 +161,7 @@ class Hecks::ContextMapGenerator
       next if owner_domain == current_domain
       snake = domain_snake_name(agg_name)
       parts = snake.split("_")
-      matched = parts.each_index.any? { |i| attr.name.to_s == parts.drop(i).join("_") + "_id" }
+      matched = parts.each_index.any? { |idx| attr.name.to_s == parts.drop(idx).join("_") + "_id" }
       ref_counts[owner_domain].add(current_domain) if matched
     end
   end

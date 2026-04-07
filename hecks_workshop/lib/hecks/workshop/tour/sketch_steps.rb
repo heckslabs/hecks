@@ -10,6 +10,11 @@
 module Hecks
   class Workshop
     class Tour
+      # Hecks::Workshop::Tour::SketchSteps
+      #
+      # Tour step definitions for the sketch phase: creating aggregates,
+      # adding attributes, lifecycle, transitions, commands, and browsing.
+      #
       module SketchSteps
         def create_aggregate_step
           Step.new(
@@ -17,7 +22,7 @@ module Hecks
             explanation: "Aggregates are the main building blocks of your domain.\n" \
                          "Let's create a Post aggregate.",
             code: 'aggregate("Post")',
-            action: ->(r) { r.aggregate("Post") }
+            action: ->(runner) { runner.aggregate("Post") }
           )
         end
 
@@ -26,7 +31,7 @@ module Hecks
             title: "Add a title attribute",
             explanation: "Attributes define the data an aggregate holds.",
             code: "Post.title String",
-            action: ->(r) { r.aggregate("Post").attr(:title, String) }
+            action: ->(runner) { runner.aggregate("Post").attr(:title, String) }
           )
         end
 
@@ -35,7 +40,7 @@ module Hecks
             title: "Add a body attribute",
             explanation: "Add another attribute for the post content.",
             code: "Post.body String",
-            action: ->(r) { r.aggregate("Post").attr(:body, String) }
+            action: ->(runner) { runner.aggregate("Post").attr(:body, String) }
           )
         end
 
@@ -45,7 +50,7 @@ module Hecks
             explanation: "Lifecycles track state transitions.\n" \
                          "This adds a status field defaulting to \"draft\".",
             code: 'Post.lifecycle :status, default: "draft"',
-            action: ->(r) { r.aggregate("Post").lifecycle(:status, default: "draft") }
+            action: ->(runner) { runner.aggregate("Post").lifecycle(:status, default: "draft") }
           )
         end
 
@@ -55,7 +60,7 @@ module Hecks
             explanation: "Transitions define how status changes.\n" \
                          "PublishPost will move status to \"published\".",
             code: 'Post.transition "PublishPost" => "published"',
-            action: ->(r) { r.aggregate("Post").transition("PublishPost" => "published") }
+            action: ->(runner) { runner.aggregate("Post").transition("PublishPost" => "published") }
           )
         end
 
@@ -65,8 +70,8 @@ module Hecks
             explanation: "Commands represent actions users can take.\n" \
                          "CreatePost accepts title and body, and emits a CreatedPost event.",
             code: 'Post.command("CreatePost") { attribute :title, String; attribute :body, String }',
-            action: ->(r) {
-              r.aggregate("Post").command("CreatePost") do
+            action: ->(runner) {
+              runner.aggregate("Post").command("CreatePost") do
                 attribute :title, String
                 attribute :body, String
               end
@@ -79,7 +84,7 @@ module Hecks
             title: "Browse the domain",
             explanation: "The system browser shows a tree of your domain structure.",
             code: "browse",
-            action: ->(r) { r.browse }
+            action: ->(runner) { runner.browse }
           )
         end
 
@@ -88,8 +93,8 @@ module Hecks
             title: "Validate the domain",
             explanation: "Check that the domain is well-formed before going live.",
             code: "validate",
-            action: ->(r) {
-              result = r.validate
+            action: ->(runner) {
+              result = runner.validate
               puts result ? "Domain is valid!" : "Domain has errors."
             }
           )
@@ -100,7 +105,7 @@ module Hecks
             title: "Describe the domain",
             explanation: "See a full summary of aggregates, attributes, and commands.",
             code: "describe",
-            action: ->(r) { r.describe }
+            action: ->(runner) { runner.describe }
           )
         end
       end

@@ -11,6 +11,10 @@
 #   Hecks::EventSourcing::EventStore.new.append("Pizza-1", event)
 #
 module Hecks
+  # Hecks::EventSourcing
+  #
+  # Top-level module for event-sourcing concerns: concurrency, read models, snapshots, outbox, and process managers.
+  #
   module EventSourcing
     autoload :Concurrency,       "hecks/event_sourcing/concurrency"
     autoload :VersionCheckStep,  "hecks/event_sourcing/version_check_step"

@@ -22,6 +22,10 @@
 
 module Hecks
   module HTTP
+    # Hecks::HTTP::CorsHeaders
+    #
+    # Mixin providing ENV-driven CORS origin logic for Hecks HTTP servers.
+    #
     module CorsHeaders
       # Return the CORS origin value based on ENV configuration.
       #

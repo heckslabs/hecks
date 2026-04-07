@@ -32,6 +32,10 @@ module Hecks
     RouteContract = Hecks::Conventions::RouteContract
   end
 
+  # Hecks::Contracts
+  #
+  # Runtime registry that maps short contract names to their module implementations.
+  #
   module Contracts
     @registry = {}
     def self.register(name, contract) = @registry[name.to_sym] = contract

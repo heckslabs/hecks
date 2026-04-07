@@ -46,7 +46,7 @@ module Hecks
 
           def serialize_attrs(agg)
             refs = agg.references || []
-            attrs = agg.attributes.map { |a| format_attr(a) }
+            attrs = agg.attributes.map { |attr| format_attr(attr) }
             refs.each do |ref|
               attrs << { name: ref.name, type: "reference_to(#{ref.type})" }
             end
@@ -54,33 +54,33 @@ module Hecks
           end
 
           def serialize_commands(agg)
-            agg.commands.map do |c|
-              cmd_attrs = c.attributes.map { |a| { name: a.name, type: a.type.to_s } }
-              { name: c.name, attributes: cmd_attrs }
+            agg.commands.map do |cmd|
+              cmd_attrs = cmd.attributes.map { |attr| { name: attr.name, type: attr.type.to_s } }
+              { name: cmd.name, attributes: cmd_attrs }
             end
           end
 
           def serialize_nested(collection)
             collection.map do |item|
-              { name: item.name, attributes: item.attributes.map { |a| format_attr(a) } }
+              { name: item.name, attributes: item.attributes.map { |attr| format_attr(attr) } }
             end
           end
 
           def serialize_policies(agg)
-            agg.policies.map do |p|
-              { name: p.name, event: p.event_name, trigger: p.trigger_command }
+            agg.policies.map do |policy|
+              { name: policy.name, event: policy.event_name, trigger: policy.trigger_command }
             end
           end
 
           def serialize_references(agg)
-            (agg.references || []).map do |r|
-              { name: r[:name], type: r[:type], kind: r[:kind]&.to_s, domain: r[:domain] }
+            (agg.references || []).map do |ref|
+              { name: ref[:name], type: ref[:type], kind: ref[:kind]&.to_s, domain: ref[:domain] }
             end
           end
 
-          def format_attr(a)
-            type_str = a.list? ? "list_of(#{a.type})" : a.type.to_s
-            { name: a.name, type: type_str }
+          def format_attr(attr)
+            type_str = attr.list? ? "list_of(#{attr.type})" : attr.type.to_s
+            { name: attr.name, type: type_str }
           end
 
           def serialize_lifecycle(agg)
@@ -88,8 +88,8 @@ module Hecks
             lc = orig&.lifecycle
             return nil unless lc
 
-            transitions = lc.transitions.map do |cmd, t|
-              { command: cmd, target: t.target, from: t.from }
+            transitions = lc.transitions.map do |cmd, transition|
+              { command: cmd, target: transition.target, from: transition.from }
             end
             { field: lc.field.to_s, default: lc.default, states: lc.states, transitions: transitions }
           end
@@ -105,7 +105,7 @@ module Hecks
 
           def find_original_aggregate(name)
             @domains.each do |domain|
-              found = domain.aggregates.find { |a| a.name == name }
+              found = domain.aggregates.find { |agg| agg.name == name }
               return found if found
             end
             nil

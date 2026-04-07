@@ -11,6 +11,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::AuthCoverageCheck
+    #
+    # Validates at boot that domains with actor-protected commands have auth middleware registered.
+    #
     module AuthCoverageCheck
       # Scans the domain IR for commands with actor declarations and
       # verifies that auth middleware is registered on the command bus.

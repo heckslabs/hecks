@@ -78,6 +78,9 @@ module Hecks
       # @return [Array<DomainModel::SubscriberRegistration>] event subscriber registrations at the domain level
       attr_reader :event_subscribers
 
+      # @return [Array<String>] autoload entry point file names (e.g., ["hecks_persist", "hecks_mongodb"])
+      attr_reader :entry_points
+
       # @return [String, nil] the filesystem path where this domain's source files live.
       #   Set after compilation or when loading from a gem. Used by generators to know
       #   where to write output files.
@@ -106,7 +109,8 @@ module Hecks
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
-                     version: nil, world_concerns: [], description: nil)
+                     version: nil, world_concerns: [], description: nil,
+                     entry_points: [])
         validate_version!(version)
         @name = name
         @version = version
@@ -126,6 +130,7 @@ module Hecks
         @event_subscribers = event_subscribers
         @world_concerns = world_concerns.map(&:to_sym)
         @description = description
+        @entry_points = entry_points
       end
 
       # @return [String, nil] human-readable description of this domain

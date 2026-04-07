@@ -16,4 +16,10 @@ group :development, :test do
   gem "rdoc", ">= 6.4", "< 6.7"
   gem "sdoc"
   gem "mongo"
+  gem "reek"
+  gem "flay"
+  gem "flog"
+  gem "debride"
+  gem "fasterer"
+  gem "bundler-audit"
 end

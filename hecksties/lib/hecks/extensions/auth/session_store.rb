@@ -19,6 +19,10 @@ require "uri"
 
 module Hecks
   module Auth
+    # Hecks::Auth::SessionStore
+    #
+    # In-memory credential store and cookie-based session management for auth screens.
+    #
     module SessionStore
       SESSION_COOKIE = "_hecks_session".freeze
 

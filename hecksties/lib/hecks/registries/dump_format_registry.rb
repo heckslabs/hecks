@@ -11,6 +11,10 @@
 #   Hecks.dump_formats  # => Registry with { schema: { desc: ..., handler: ... } }
 #
 module Hecks
+  # Hecks::DumpFormatRegistryMethods
+  #
+  # Registry for dump/serialization formats (schema, swagger, rpc, etc.) extended onto the Hecks module.
+  #
   module DumpFormatRegistryMethods
     def dump_formats
       @dump_formats ||= Registry.new

@@ -9,6 +9,10 @@
 #   targets.keys    # => [:ruby]
 #
 module Hecks
+  # Hecks::Registry
+  #
+  # Hash-backed registry for named resources with symbol-coerced keys and Enumerable support.
+  #
   class Registry
     include Enumerable
 

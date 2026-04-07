@@ -16,6 +16,10 @@
 #   pm.handle(event)  # drives the state machine
 #
 class Hecks::EventSourcing::ProcessManager
+  # Hecks::EventSourcing::ProcessManager::Handler
+  #
+  # Registered event handler with correlation, state transition, and optional action for the process manager.
+  #
   Handler = Struct.new(:event_type, :correlate, :transition, :action, keyword_init: true)
 
   # @return [String] the process manager name

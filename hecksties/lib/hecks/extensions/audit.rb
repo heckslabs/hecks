@@ -21,6 +21,10 @@
 #   audit.log.last[:event_data]  # => { name: "Margherita" }
 #
 module Hecks; end
+# Hecks::Audit
+#
+# Audit trail extension that records an immutable log entry for every domain event published on the event bus.
+#
 class Hecks::Audit
   # @return [Array<Hash>] the immutable audit log; each entry is a Hash with
   #   keys :command, :actor, :tenant, :timestamp, :event_name, :event_data

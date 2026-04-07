@@ -13,6 +13,10 @@
 #   Hecks.grammar(:bluebook).parser.parse("Pizza.create")
 #
 module Hecks
+  # Hecks::GrammarDescriptor
+  #
+  # Descriptor holding parser, builder, entry point, and type map for a registered grammar vocabulary.
+  #
   class GrammarDescriptor
     attr_accessor :parser, :builder, :entry_point,
                   :bare_commands, :handle_methods, :type_map
@@ -28,6 +32,10 @@ module Hecks
     attr_reader :name
   end
 
+  # Hecks::GrammarRegistryMethods
+  #
+  # Grammar registration and lookup for modeling vocabularies (BlueBook, GameBook, etc.) extended onto Hecks.
+  #
   module GrammarRegistryMethods
     def grammar_registry
       @grammar_registry ||= {}

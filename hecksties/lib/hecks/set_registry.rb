@@ -8,6 +8,10 @@
 #   adapters.all                  # => [:memory, :sqlite, :postgres]
 #
 module Hecks
+  # Hecks::SetRegistry
+  #
+  # Array-backed registry for unique items with duplicate prevention and Enumerable support.
+  #
   class SetRegistry
     include Enumerable
 

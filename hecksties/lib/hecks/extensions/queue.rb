@@ -51,6 +51,10 @@ Hecks.register_extension(:queue) do |domain_mod, domain, runtime|
 end
 
 module Hecks; end
+# Hecks::Queue
+#
+# Message queue extension that publishes domain events as JSON to a queue adapter (RabbitMQ, file, or custom).
+#
 module Hecks::Queue
   # File-based queue adapter -- appends JSON lines to a file.
   # Useful for development and testing without a real broker.

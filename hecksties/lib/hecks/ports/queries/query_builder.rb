@@ -56,7 +56,7 @@ module Hecks
       #   literals (equality) or Operator instances (Gt, Lt, In, etc.)
       # @return [QueryBuilder] a new query with the additional conditions merged in
       def where(**conditions)
-        dup.tap { |q| q.instance_variable_set(:@condition_tree, q.instance_variable_get(:@condition_tree).merge(conditions)) }
+        dup.tap { |query| query.instance_variable_set(:@condition_tree, query.instance_variable_get(:@condition_tree).merge(conditions)) }
       end
 
       # Combines this query with another using OR logic.
@@ -67,12 +67,12 @@ module Hecks
       # @param other [QueryBuilder] another query to OR with
       # @return [QueryBuilder] a new query matching either this OR other
       def or(other)
-        dup.tap do |q|
+        dup.tap do |query|
           combined = ConditionNode.or(
-            q.instance_variable_get(:@condition_tree),
+            query.instance_variable_get(:@condition_tree),
             other.instance_variable_get(:@condition_tree)
           )
-          q.instance_variable_set(:@condition_tree, combined)
+          query.instance_variable_set(:@condition_tree, combined)
         end
       end
 
@@ -82,15 +82,15 @@ module Hecks
       #   (ascending by default) or a hash like +{ name: :desc }+
       # @return [QueryBuilder] a new query with the specified ordering
       def order(key_or_hash)
-        dup.tap do |q|
+        dup.tap do |query|
           if key_or_hash.is_a?(Hash)
             key = key_or_hash.keys.first
             dir = key_or_hash.values.first
-            q.instance_variable_set(:@order_key, key)
-            q.instance_variable_set(:@order_direction, dir)
+            query.instance_variable_set(:@order_key, key)
+            query.instance_variable_set(:@order_direction, dir)
           else
-            q.instance_variable_set(:@order_key, key_or_hash)
-            q.instance_variable_set(:@order_direction, :asc)
+            query.instance_variable_set(:@order_key, key_or_hash)
+            query.instance_variable_set(:@order_direction, :asc)
           end
         end
       end
@@ -100,7 +100,7 @@ module Hecks
       # @param n [Integer] maximum number of results to return
       # @return [QueryBuilder] a new query with the limit applied
       def limit(n)
-        dup.tap { |q| q.instance_variable_set(:@limit_value, n) }
+        dup.tap { |query| query.instance_variable_set(:@limit_value, n) }
       end
 
       # Returns a new query that skips the first +n+ results.
@@ -108,7 +108,7 @@ module Hecks
       # @param n [Integer] number of results to skip
       # @return [QueryBuilder] a new query with the offset applied
       def offset(n)
-        dup.tap { |q| q.instance_variable_set(:@offset_value, n) }
+        dup.tap { |query| query.instance_variable_set(:@offset_value, n) }
       end
 
       # --- Terminals ---
@@ -163,7 +163,7 @@ module Hecks
       # @return [Array<Object>, Array<Array<Object>>] extracted values
       def pluck(*keys)
         rows = execute
-        keys.size == 1 ? rows.map { |r| r.send(keys.first) } : rows.map { |r| keys.map { |k| r.send(k) } }
+        keys.size == 1 ? rows.map { |record| record.send(keys.first) } : rows.map { |record| keys.map { |attr_key| record.send(attr_key) } }
       end
 
       # Returns the sum of the given attribute across matching records.
@@ -171,21 +171,21 @@ module Hecks
       #
       # @param key [Symbol] the attribute to sum
       # @return [Numeric] the sum, or 0 if no non-nil values
-      def sum(key)     = execute.map { |r| r.send(key) }.compact.sum
+      def sum(key)     = execute.map { |record| record.send(key) }.compact.sum
 
       # Returns the minimum value of the given attribute across matching records.
       # Nil values are excluded.
       #
       # @param key [Symbol] the attribute to find the minimum of
       # @return [Comparable, nil] the minimum value, or nil if no results
-      def min(key)     = execute.map { |r| r.send(key) }.compact.min
+      def min(key)     = execute.map { |record| record.send(key) }.compact.min
 
       # Returns the maximum value of the given attribute across matching records.
       # Nil values are excluded.
       #
       # @param key [Symbol] the attribute to find the maximum of
       # @return [Comparable, nil] the maximum value, or nil if no results
-      def max(key)     = execute.map { |r| r.send(key) }.compact.max
+      def max(key)     = execute.map { |record| record.send(key) }.compact.max
 
       # Returns the arithmetic mean of the given attribute, or nil if empty.
       # Nil values are excluded before computing the average.
@@ -193,7 +193,7 @@ module Hecks
       # @param key [Symbol] the attribute to average
       # @return [Float, nil] the arithmetic mean, or nil if no non-nil values
       def average(key)
-        vals = execute.map { |r| r.send(key) }.compact
+        vals = execute.map { |record| record.send(key) }.compact
         vals.empty? ? nil : vals.sum.to_f / vals.size
       end
 
@@ -217,8 +217,8 @@ module Hecks
       # @return [void]
       def update_all(**attrs)
         execute.each do |obj|
-          init_params = obj.class.instance_method(:initialize).parameters.map { |_, n| n }
-          current = init_params.each_with_object({}) { |p, h| h[p] = obj.send(p) if obj.respond_to?(p) }
+          init_params = obj.class.instance_method(:initialize).parameters.map { |_, param_name| param_name }
+          current = init_params.each_with_object({}) { |param, hash| hash[param] = obj.send(param) if obj.respond_to?(param) }
           updated = obj.class.new(**current.merge(attrs))
           @repo.save(updated)
         end

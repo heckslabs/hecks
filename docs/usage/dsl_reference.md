@@ -123,6 +123,10 @@ Hecks.domain "Banking" do
   on_event "CreatedPizza" do |event|
     puts event.name
   end
+
+  # Entry point files (autoload setup files for self-hosting chapters)
+  entry_point "hecks_persist"
+  entry_point "hecks_mongodb"
 end
 ```
 
@@ -341,6 +345,19 @@ aggregate "Pizza" do
 end
 ```
 
+### Self-hosting metadata
+
+These methods enrich the IR for framework code generation (used by `hecks self_diff --framework`):
+
+```ruby
+aggregate "SqlAdapterGenerator" do
+  namespace "Hecks::Generators::SQL"     # module nesting path
+  inherits "Hecks::Generator"            # superclass declaration
+  includes "SqlBuilder"                  # mixin module
+  command "Generate"
+end
+```
+
 ### Shorthand syntax
 
 Inside an aggregate block, bare names with types become attributes, PascalCase with blocks become value objects, and snake_case with blocks become commands:
@@ -414,6 +431,9 @@ command "PlaceOrder" do
   call do
     # lightweight logic
   end
+
+  # Override generated method name (default: snake_case of command name)
+  method_name "place"   # generates `def place(...)` instead of `def place_order(...)`
 end
 ```
 

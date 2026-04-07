@@ -1,4 +1,4 @@
-  # Hecksagon::AclBuilder
+  # Hecksagon::AclDefinition
   #
   # Collects translations for an anti-corruption layer.
   #
@@ -8,7 +8,7 @@
   #
 module Hecksagon
 
-  class AclBuilder
+  class AclDefinition
     def initialize(acl)
       @acl = acl
     end

@@ -10,6 +10,10 @@
 #   domain_command_method("CreatePizza", "Pizza") # => :create
 #
 module HecksTemplating
+  # HecksTemplating::NamingHelpers
+  #
+  # Mixin providing naming convention helpers as regular methods for classes and modules that include it.
+  #
   module NamingHelpers
     private
 

@@ -57,6 +57,15 @@ module Hecks
         @preconditions = []
         @postconditions = []
         @emits = nil
+        @method_name = nil
+      end
+
+      # Override the generated Ruby method name.
+      # Default is snake_cased command name. Use when the actual method
+      # follows a different convention.
+      #   method_name "sql_type_for"
+      def method_name(name)
+        @method_name = name.to_s
       end
 
       # Set the call body block executed when the command runs.
@@ -230,7 +239,8 @@ module Hecks
           read_models: @read_models, external_systems: @external_systems, actors: @actors,
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
-          emits: @emits, description: @description
+          emits: @emits, description: @description,
+          method_name: @method_name
         )
       end
     end

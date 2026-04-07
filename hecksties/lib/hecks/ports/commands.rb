@@ -22,7 +22,12 @@
   #   # Creates shortcut methods using a custom executor
   #
 module Hecks
+  # Hecks::Commands
+  #
+  # Groups command dispatch infrastructure: CommandBus, CommandRunner, and CommandMethods wiring.
+  #
   module Commands
+      autoload :CommandResolver, "hecks/ports/commands/command_resolver"
       autoload :CommandBus,     "hecks/ports/commands/command_bus"
       autoload :CommandRunner,  "hecks/ports/commands/command_runner"
       autoload :CommandMethods, "hecks/ports/commands/command_methods"

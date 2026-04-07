@@ -4,6 +4,10 @@
 # Extracted from the Hecks module.
 #
 module Hecks
+  # Hecks::DomainRegistryMethods
+  #
+  # Domain caching, load strategy, and last_domain tracking extended onto the Hecks module.
+  #
   module DomainRegistryMethods
     def loaded_domains
       @loaded_domains ||= Registry.new

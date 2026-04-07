@@ -36,6 +36,10 @@
   #   HighRisk.satisfied_by?(loan)        # => true/false
   #
 module Hecks
+  # Hecks::Specification
+  #
+  # Base mixin for specification classes providing composable business rule predicates with and/or/not operators.
+  #
   module Specification
     # Hook called when a class includes +Hecks::Specification+. Extends the
     # class with a class-level +satisfied_by?+ convenience method.

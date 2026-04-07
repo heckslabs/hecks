@@ -11,6 +11,11 @@
 #
 module Hecks
   class Workshop
+    # Hecks::Workshop::Navigator
+    #
+    # Traverses a domain IR structure and yields each element with its depth
+    # and path context. Used by DeepInspect to walk the full aggregate tree.
+    #
     class Navigator
       # @param domain [DomainModel::Structure::Domain]
       def initialize(domain)
@@ -26,7 +31,7 @@ module Hecks
       # @yieldparam label [String] human-readable label for the node
       # @return [void]
       def walk(aggregate_name, &block)
-        agg = @domain.aggregates.find { |a| a.name == aggregate_name }
+        agg = @domain.aggregates.find { |aggregate| aggregate.name == aggregate_name }
         return unless agg
 
         walk_aggregate(agg, &block)
@@ -90,12 +95,12 @@ module Hecks
       end
 
       def walk_commands(agg, depth, &block)
-        agg.commands.each_with_index do |cmd, i|
-          event = agg.events[i]
+        agg.commands.each_with_index do |cmd, idx|
+          event = agg.events[idx]
           yield cmd, depth, "command"
           cmd.attributes.each { |attr| yield attr, depth + 1, "param" }
-          cmd.preconditions.each { |c| yield c, depth + 1, "precondition" }
-          cmd.postconditions.each { |c| yield c, depth + 1, "postcondition" }
+          cmd.preconditions.each { |cond| yield cond, depth + 1, "precondition" }
+          cmd.postconditions.each { |cond| yield cond, depth + 1, "postcondition" }
           yield event, depth + 1, "emits" if event
         end
       end
@@ -108,11 +113,11 @@ module Hecks
       end
 
       def walk_queries(agg, depth, &block)
-        agg.queries.each { |q| yield q, depth, "query" }
+        agg.queries.each { |query| yield query, depth, "query" }
       end
 
       def walk_validations(agg, depth, &block)
-        agg.validations.each { |v| yield v, depth, "validation" }
+        agg.validations.each { |validation| yield validation, depth, "validation" }
       end
 
       def walk_invariants(agg, depth, &block)
@@ -124,15 +129,15 @@ module Hecks
       end
 
       def walk_scopes(agg, depth, &block)
-        agg.scopes.each { |s| yield s, depth, "scope" }
+        agg.scopes.each { |scope| yield scope, depth, "scope" }
       end
 
       def walk_specifications(agg, depth, &block)
-        agg.specifications.each { |s| yield s, depth, "specification" }
+        agg.specifications.each { |spec| yield spec, depth, "specification" }
       end
 
       def walk_subscribers(agg, depth, &block)
-        agg.subscribers.each { |s| yield s, depth, "subscriber" }
+        agg.subscribers.each { |subscriber| yield subscriber, depth, "subscriber" }
       end
 
       def walk_references(agg, depth, &block)

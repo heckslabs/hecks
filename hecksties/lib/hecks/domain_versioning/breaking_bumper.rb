@@ -12,6 +12,10 @@
 #
 module Hecks
   module DomainVersioning
+    # Hecks::DomainVersioning::BreakingBumper
+    #
+    # Auto-bumps the domain CalVer version when breaking changes are detected between two domain snapshots.
+    #
     module BreakingBumper
       # Evaluate whether a version bump is needed based on breaking changes.
       #

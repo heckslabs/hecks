@@ -10,6 +10,10 @@
 
 module Hecks
   module Command
+    # Hecks::Command::Validation
+    #
+    # Pre/postcondition DSL and enforcement for command objects, included automatically via Hecks::Command.
+    #
     module Validation
       def self.included(base)
         base.extend(Validation::ClassMethods)

@@ -26,6 +26,10 @@
 #   CatsDomain.erase_pii(customer_id)
 #
 module Hecks; end
+# Hecks::PII
+#
+# PII protection extension providing masking, redaction, and GDPR-compliant erasure for pii-tagged attributes.
+#
 module Hecks::PII
   # Mask a string value for display, preserving the first and last characters
   # and replacing all middle characters with asterisks. Returns "[REDACTED]"

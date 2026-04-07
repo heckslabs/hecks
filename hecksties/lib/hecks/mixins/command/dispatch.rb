@@ -6,6 +6,10 @@
 
 module Hecks
   module Command
+    # Hecks::Command::Dispatch
+    #
+    # Event construction and persistence helpers included automatically via Hecks::Command.
+    #
     module Dispatch
       private
 

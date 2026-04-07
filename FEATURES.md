@@ -229,6 +229,21 @@
 - CalVer versioning (YYYY.MM.DD.N) auto-assigned at build time
 - Resolve domains from installed gems, not just local files
 
+### Self-Hosting Analysis
+- `hecks self_diff <chapter>` — compares what generators would produce from a chapter's Domain IR against the actual gem code
+- `hecks self_diff <chapter> --framework` — framework skeleton mode, generates method stubs + doc comments from IR, matches against actual files by name
+- `FrameworkGemGenerator` — locates actual files by aggregate name, generates skeletons with correct module nesting and method stubs from commands
+- Classifies every file as match, partial, uncovered, or extra with line overlap percentages
+- Programmatic API via `SelfHostDiff.new(domain, gem_root:, mode: :framework).summary`
+- Hecksagon baseline: 93.3% coverage (28/30 files have partial matches from IR-derived skeletons)
+
+### Self-Hosting DSL Extensions
+- `namespace "Hecksagon::DSL"` — declares the module nesting for an aggregate, used by skeleton generator
+- `inherits "Hecks::Generator"` — declares superclass for class-kind aggregates
+- `includes "SqlBuilder"` — declares module mixins included in the aggregate
+- `method_name "sql_type_for"` — overrides auto-generated method name on commands (default: snake_case of command name)
+- `entry_point "hecks_persist"` — declares autoload entry point files for the domain
+
 ## Persistence
 - Memory adapter for fast, zero-setup in-process storage
 - SQL adapter via Sequel ORM supporting MySQL, PostgreSQL, and SQLite

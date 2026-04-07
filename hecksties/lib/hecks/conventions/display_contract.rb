@@ -11,6 +11,10 @@
 #   Hecks::Conventions::DisplayContract.available_roles(domain)
 #
 module Hecks::Conventions
+  # Hecks::Conventions::DisplayContract
+  #
+  # Named display conventions shared by Ruby and Go generators for identical UI rendering.
+  #
   module DisplayContract
     # True when the attribute is a foreign-key reference (ends in _id, type String).
     #
@@ -48,8 +52,8 @@ module Hecks::Conventions
     def self.find_referenced_aggregate(attr, domain)
       base = attr.name.to_s.sub(/_id\z/, "")
       pascal = Hecks::Utils.sanitize_constant(base)
-      domain.aggregates.find { |a| a.name == pascal } ||
-        domain.aggregates.find { |a| a.name.end_with?(pascal) }
+      domain.aggregates.find { |agg| agg.name == pascal } ||
+        domain.aggregates.find { |agg| agg.name.end_with?(pascal) }
     end
 
     # Format a cell value for index table display.
@@ -110,8 +114,8 @@ module Hecks::Conventions
     # @return [Hash] { commands: "Cmd1, Cmd2", ports: "admin: find | guest: all" }
     def self.aggregate_summary(agg)
       cmds = agg.commands.map(&:name).join(", ")
-      ports = agg.ports.values.map { |p|
-        "#{p.name}: #{p.allowed_methods.join(", ")}"
+      ports = agg.ports.values.map { |port|
+        "#{port.name}: #{port.allowed_methods.join(", ")}"
       }.join(" | ")
       ports = "(none)" if ports.empty?
       { commands: cmds, ports: ports }
@@ -122,12 +126,12 @@ module Hecks::Conventions
     # @param domain [Domain] the domain IR
     # @return [Array<String>] formatted "EventName → PolicyName" strings
     def self.policy_labels(domain)
-      agg_policies = domain.aggregates.flat_map { |a|
-        a.policies.reject { |p| p.respond_to?(:guard?) && p.guard? }
-          .map { |p| "#{p.event_name} \u2192 #{p.name}" }
+      agg_policies = domain.aggregates.flat_map { |agg|
+        agg.policies.reject { |policy| policy.respond_to?(:guard?) && policy.guard? }
+          .map { |policy| "#{policy.event_name} \u2192 #{policy.name}" }
       }
-      domain_policies = domain.policies.map { |p|
-        "#{p.event_name} \u2192 #{p.trigger_command}"
+      domain_policies = domain.policies.map { |policy|
+        "#{policy.event_name} \u2192 #{policy.trigger_command}"
       }
       agg_policies + domain_policies
     end
@@ -138,7 +142,7 @@ module Hecks::Conventions
     # @param domain [Domain] the domain IR
     # @return [Array<String>] role names
     def self.available_roles(domain)
-      roles = domain.aggregates.flat_map { |a| a.ports.keys }.uniq.map(&:to_s)
+      roles = domain.aggregates.flat_map { |agg| agg.ports.keys }.uniq.map(&:to_s)
       roles.empty? ? ["admin"] : roles
     end
 
@@ -150,12 +154,12 @@ module Hecks::Conventions
     # Returns the field name to display in reference dropdowns.
     # Go callers should use go_reference_display_field for correct casing.
     def self.reference_display_field(ref_agg)
-      ref_agg.attributes.find { |a| a.name.to_s == "name" } ? "name" : "id"
+      ref_agg.attributes.find { |attr| attr.name.to_s == "name" } ? "name" : "id"
     end
 
     # Go-specific: returns PascalCase field name (ID not Id).
     def self.go_reference_display_field(ref_agg)
-      ref_agg.attributes.find { |a| a.name.to_s == "name" } ? "Name" : "ID"
+      ref_agg.attributes.find { |attr| attr.name.to_s == "name" } ? "Name" : "ID"
     end
 
     # Build home page aggregate card data.
@@ -164,13 +168,13 @@ module Hecks::Conventions
     # @param plural [String] the plural URL segment
     # @return [Hash] { name:, href:, command_names:, attributes:, policies: }
     def self.home_aggregate_data(agg, plural)
-      user_attrs = agg.attributes.reject { |a|
-        Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) || !a.visible?
+      user_attrs = agg.attributes.reject { |attr|
+        Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) || !attr.visible?
       }
       {
         name: UILabelContract.plural_label(agg.name),
         href: "/#{plural}",
-        command_names: agg.commands.map { |c| UILabelContract.label(c.name) }.join(", "),
+        command_names: agg.commands.map { |cmd| UILabelContract.label(cmd.name) }.join(", "),
         attributes: user_attrs.size,
         policies: agg.policies.size,
       }

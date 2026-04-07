@@ -17,6 +17,10 @@
 #   # => { name: "Pepperoni" }
 #
 module HecksBubble
+  # HecksBubble::Context
+  #
+  # DSL host for declaring aggregate-level field mappings in a Bubble anti-corruption layer context.
+  #
   class Context
     # Build a context by evaluating the given block.
     #

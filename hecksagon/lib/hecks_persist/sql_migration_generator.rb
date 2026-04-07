@@ -95,21 +95,7 @@ module Hecks
       # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_value_object_table(vo, parent_agg)
-        parent_table = table_name(parent_agg.name)
-        vo_table = "#{parent_table}_#{table_name(vo.name)}"
-
-        lines = []
-        lines << "CREATE TABLE #{vo_table} ("
-        lines << "  id VARCHAR(36) PRIMARY KEY,"
-        lines << "  #{domain_snake_name(domain_constant_name(parent_agg.name))}_id VARCHAR(36) NOT NULL REFERENCES #{parent_table}(id),"
-
-        vo.attributes.each_with_index do |attr, i|
-          comma = i < vo.attributes.size - 1 ? "," : ""
-          lines << "  #{attr.name} #{sql_type(attr)}#{comma}"
-        end
-
-        lines << ");"
-        lines.join("\n")
+        generate_child_table(vo, parent_agg)
       end
 
       # Generates a CREATE TABLE statement for an entity's join table.
@@ -121,16 +107,28 @@ module Hecks
       # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_entity_table(ent, parent_agg)
+        generate_child_table(ent, parent_agg)
+      end
+
+      # Generates a CREATE TABLE statement for a child object (value object or entity).
+      #
+      # Includes an id, a foreign key referencing the parent aggregate,
+      # and all child attributes.
+      #
+      # @param child [DomainModel::Structure::ValueObject, DomainModel::Structure::Entity]
+      # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
+      # @return [String] the CREATE TABLE SQL statement
+      def generate_child_table(child, parent_agg)
         parent_table = table_name(parent_agg.name)
-        ent_table = "#{parent_table}_#{table_name(ent.name)}"
+        child_table = "#{parent_table}_#{table_name(child.name)}"
 
         lines = []
-        lines << "CREATE TABLE #{ent_table} ("
+        lines << "CREATE TABLE #{child_table} ("
         lines << "  id VARCHAR(36) PRIMARY KEY,"
         lines << "  #{domain_snake_name(domain_constant_name(parent_agg.name))}_id VARCHAR(36) NOT NULL REFERENCES #{parent_table}(id),"
 
-        ent.attributes.each_with_index do |attr, i|
-          comma = i < ent.attributes.size - 1 ? "," : ""
+        child.attributes.each_with_index do |attr, idx|
+          comma = idx < child.attributes.size - 1 ? "," : ""
           lines << "  #{attr.name} #{sql_type(attr)}#{comma}"
         end
 

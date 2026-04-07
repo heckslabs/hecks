@@ -19,6 +19,10 @@
 #   end
 #
 module Hecks
+  # Hecks::Outbox
+  #
+  # Port interface for the transactional outbox pattern guaranteeing at-least-once event delivery.
+  #
   module Outbox
     autoload :MemoryOutbox,  "hecks/ports/outbox/memory_outbox"
     autoload :OutboxPoller,  "hecks/ports/outbox/outbox_poller"

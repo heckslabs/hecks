@@ -15,6 +15,10 @@
 #
 module Hecks
   module EventSourcing
+    # Hecks::EventSourcing::Concurrency
+    #
+    # Optimistic concurrency control that stamps version fields onto aggregates and enforces version checks.
+    #
     module Concurrency
       # Stamps a version number onto an aggregate instance.
       #

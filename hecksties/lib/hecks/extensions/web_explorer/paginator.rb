@@ -10,6 +10,10 @@
 #
 module Hecks
   module WebExplorer
+    # Hecks::WebExplorer::Paginator
+    #
+    # Simple offset-based paginator for web explorer list views.
+    #
     class Paginator
       DEFAULT_PER_PAGE = 25
 

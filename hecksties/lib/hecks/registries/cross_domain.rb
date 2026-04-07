@@ -4,6 +4,10 @@
 # Extracted from the Hecks module.
 #
 module Hecks
+  # Hecks::CrossDomainMethods
+  #
+  # Registry for cross-domain queries, views, and the shared event bus extended onto the Hecks module.
+  #
   module CrossDomainMethods
     def cross_domain_queries
       @cross_domain_queries ||= Registry.new

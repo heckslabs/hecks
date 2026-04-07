@@ -10,6 +10,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::CommandDispatch
+    #
+    # Public API for running commands, subscribing to events, and querying runtime state.
+    #
     module CommandDispatch
       # Retrieve the repository for a named aggregate.
       #

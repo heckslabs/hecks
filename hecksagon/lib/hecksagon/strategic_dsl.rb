@@ -34,7 +34,7 @@ module Hecksagon
     def anti_corruption_layer(domain_name, &block)
       init_strategic
       acl = { domain: domain_name.to_s, translations: [] }
-      Hecksagon::AclBuilder.new(acl).instance_eval(&block) if block
+      Hecksagon::AclDefinition.new(acl).instance_eval(&block) if block
       @anti_corruption_layers << acl
     end
 

@@ -33,6 +33,10 @@ module Hecks
       # @return [Array<Condition>] preconditions checked before command execution
       # @return [Array<Condition>] postconditions checked after command execution
       # @return [String, Array<String>, nil] explicit event name(s) declared via +emits+
+      # @return [String, nil] explicit Ruby method name override (e.g., "sql_type_for"
+      #   instead of the default snake_cased command name "map_type")
+      attr_reader :method_name
+
       attr_reader :name, :attributes, :references, :handler, :guard_name, :read_models,
                   :external_systems, :actors, :call_body, :sets,
                   :preconditions, :postconditions, :emits, :description
@@ -55,7 +59,7 @@ module Hecks
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
-                     description: nil)
+                     description: nil, method_name: nil)
         @name = Names.command_name(name)
         @attributes = attributes
         @references = references
@@ -70,6 +74,7 @@ module Hecks
         @postconditions = postconditions
         @emits = emits
         @description = description
+        @method_name = method_name
       end
 
       # Returns the event name(s) this command emits.

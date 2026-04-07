@@ -39,6 +39,10 @@ end
   # HTTP server components for serving Hecks domains over REST and JSON-RPC.
 
 module Hecks
+  # Hecks::HTTP
+  #
+  # Namespace for HTTP server components: DomainServer, RpcServer, RouteBuilder, and multi-domain support.
+  #
   module HTTP
     autoload :DomainServer,       "hecks/extensions/serve/domain_server"
     autoload :MultiDomainServer,  "hecks/extensions/serve/multi_domain_server"

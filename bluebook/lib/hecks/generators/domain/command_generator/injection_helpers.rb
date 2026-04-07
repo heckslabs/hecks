@@ -1,6 +1,10 @@
 module Hecks
   module Generators
     module Domain
+      # Hecks::Generators::Domain::CommandGenerator
+      #
+      # Generates CQRS command classes with event emission and handler wiring.
+      #
       class CommandGenerator < Hecks::Generator
         # Hecks::Generators::Domain::CommandGenerator::InjectionHelpers
         #
@@ -86,7 +90,7 @@ module Hecks
           def find_list_append(agg_attr)
             return nil unless agg_attr.list?
             singular = agg_attr.name.to_s.chomp("s")
-            @command.attributes.find { |c| c.name.to_s == singular }
+            @command.attributes.find { |cmd_attr| cmd_attr.name.to_s == singular }
           end
 
           # Detect when command attrs match a value object's attrs for list append.
@@ -96,12 +100,12 @@ module Hecks
           # @return [Array, nil] [vo, matching_cmd_attrs] or nil
           def find_vo_append(agg_attr)
             return nil unless agg_attr.list? && @aggregate
-            vo = @aggregate.value_objects.find { |v| v.name == agg_attr.type.to_s }
+            vo = @aggregate.value_objects.find { |value_object| value_object.name == agg_attr.type.to_s }
             return nil unless vo
-            vo_attr_names = vo.attributes.map { |a| a.name.to_s }
+            vo_attr_names = vo.attributes.map { |attr| attr.name.to_s }
             # Only reject self-referencing _id, not cross-aggregate refs that are VO data
             self_id = @self_ref&.name&.to_s
-            cmd_attr_names = @command.attributes.reject { |a| a.name.to_s == self_id }.map { |a| a.name.to_s }
+            cmd_attr_names = @command.attributes.reject { |attr| attr.name.to_s == self_id }.map { |attr| attr.name.to_s }
             matching = vo_attr_names & cmd_attr_names
             matching.size >= vo_attr_names.size ? [vo, matching] : nil
           end
@@ -128,22 +132,22 @@ module Hecks
           # Returns the aggregate's non-reserved attributes.
           def agg_attrs
             return [] unless @aggregate
-            @aggregate.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
+            @aggregate.attributes.reject { |attr| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) }
           end
 
           # Builds args for creating a new aggregate from scratch.
           def create_constructor_args
-            args = agg_attrs.each_with_object([]) do |a, parts|
-              cmd_attr = @command.attributes.find { |c| c.name == a.name }
+            args = agg_attrs.each_with_object([]) do |agg_attr, parts|
+              cmd_attr = @command.attributes.find { |cmd_a| cmd_a.name == agg_attr.name }
               if cmd_attr
-                parts << "#{a.name}: #{a.name}"
-              elsif (vo_match = find_vo_append(a))
+                parts << "#{agg_attr.name}: #{agg_attr.name}"
+              elsif (vo_match = find_vo_append(agg_attr))
                 vo, matching_attrs = vo_match
                 vo_args = matching_attrs.map { |attr| "#{attr}: #{attr}" }.join(", ")
-                parts << "#{a.name}: [#{vo.name}.new(#{vo_args})]"
-              elsif (append = find_list_append(a))
-                vo_class = a.type
-                parts << "#{a.name}: [#{vo_class}.new(name: #{append.name})]"
+                parts << "#{agg_attr.name}: [#{vo.name}.new(#{vo_args})]"
+              elsif (append = find_list_append(agg_attr))
+                vo_class = agg_attr.type
+                parts << "#{agg_attr.name}: [#{vo_class}.new(name: #{append.name})]"
               end
             end
             (@command.references || []).each do |ref|
@@ -157,20 +161,20 @@ module Hecks
           # Builds args for updating an existing aggregate.
           def update_constructor_args
             parts = ["id: existing.id"]
-            agg_attrs.each do |a|
-              cmd_attr = @command.attributes.find { |c| c.name == a.name }
+            agg_attrs.each do |agg_attr|
+              cmd_attr = @command.attributes.find { |cmd_a| cmd_a.name == agg_attr.name }
               if cmd_attr
-                parts << "#{a.name}: #{a.name}"
-              elsif (vo_match = find_vo_append(a))
+                parts << "#{agg_attr.name}: #{agg_attr.name}"
+              elsif (vo_match = find_vo_append(agg_attr))
                 vo, matching_attrs = vo_match
                 vo_args = matching_attrs.map { |attr| "#{attr}: #{attr}" }.join(", ")
-                parts << "#{a.name}: existing.#{a.name} + [#{vo.name}.new(#{vo_args})]"
-              elsif (append = find_list_append(a))
-                vo_class = a.type
+                parts << "#{agg_attr.name}: existing.#{agg_attr.name} + [#{vo.name}.new(#{vo_args})]"
+              elsif (append = find_list_append(agg_attr))
+                vo_class = agg_attr.type
                 cmd_name = append.name
-                parts << "#{a.name}: existing.#{a.name} + [#{vo_class}.new(name: #{cmd_name})]"
+                parts << "#{agg_attr.name}: existing.#{agg_attr.name} + [#{vo_class}.new(name: #{cmd_name})]"
               else
-                parts << "#{a.name}: existing.#{a.name}"
+                parts << "#{agg_attr.name}: existing.#{agg_attr.name}"
               end
             end
             (@command.references || []).each do |ref|

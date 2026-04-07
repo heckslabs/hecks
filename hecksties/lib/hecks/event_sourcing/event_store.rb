@@ -13,6 +13,10 @@
 #   store.all_events               # => [entry, ...]
 #
 class Hecks::EventSourcing::EventStore
+  # Hecks::EventSourcing::EventStore::Entry
+  #
+  # Immutable record representing a single appended event in an event store stream.
+  #
   Entry = Struct.new(:stream_id, :event_type, :data, :version, :schema_version,
                      :occurred_at, :global_position, keyword_init: true)
 

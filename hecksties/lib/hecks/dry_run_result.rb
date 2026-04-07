@@ -12,6 +12,10 @@
 #   result.triggers_policies? # => true
 #
 module Hecks
+  # Hecks::DryRunResult
+  #
+  # Value object returned by Runtime#dry_run containing the would-be aggregate, event, and reactive chain.
+  #
   class DryRunResult
     attr_reader :command, :aggregate, :event, :reactive_chain
 

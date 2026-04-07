@@ -29,6 +29,8 @@ module Hecks
       autoload :SpecGenerator,          "hecks/generators/infrastructure/spec_generator"
       autoload :SpecHelpers,            "hecks/generators/infrastructure/spec_helpers"
       autoload :DomainGemGenerator,     "hecks/generators/infrastructure/domain_gem_generator"
+      autoload :FrameworkGemGenerator, "hecks/generators/infrastructure/framework_gem_generator"
+      autoload :SelfHostDiff,          "hecks/generators/infrastructure/self_host_diff"
     end
   end
 end

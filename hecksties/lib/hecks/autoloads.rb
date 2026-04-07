@@ -151,6 +151,7 @@ module Hecks
   autoload :Persistence,       "hecks/ports/repository"
   autoload :Querying,          "hecks/ports/queries"
   autoload :Commands,          "hecks/ports/commands"
+  autoload :AggregateDescriber, "hecks/runtime/aggregate_describer"
   autoload :Introspection,     "hecks/runtime/introspection"
   autoload :Versioning,        "hecks/runtime/versioning"
   autoload :ViewBinding,       "hecks/runtime/view_binding"

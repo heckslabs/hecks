@@ -4,6 +4,10 @@
 # Extracted from the Hecks module.
 #
 module Hecks
+  # Hecks::ThreadContextMethods
+  #
+  # Thread-local tenant and actor context extended onto the Hecks module.
+  #
   module ThreadContextMethods
     def tenant
       Thread.current[:hecks_tenant]

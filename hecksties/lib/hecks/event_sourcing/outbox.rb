@@ -13,6 +13,10 @@
 #   outbox.published        # => [entry, ...]
 #
 class Hecks::EventSourcing::Outbox
+  # Hecks::EventSourcing::Outbox::Entry
+  #
+  # Immutable record representing a pending event in the transactional outbox.
+  #
   Entry = Struct.new(:id, :event, :stored_at, :published, keyword_init: true)
 
   # @return [Array<Entry>] all outbox entries

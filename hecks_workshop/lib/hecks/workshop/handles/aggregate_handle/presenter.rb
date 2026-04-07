@@ -15,99 +15,12 @@ module Hecks
       # Print a detailed summary of the aggregate's structure.
       #
       # Builds the aggregate from its builder and prints all sections:
-      # attributes, value objects (with invariants), entities (with invariants),
-      # commands (with event mappings), validations, invariants, policies,
-      # queries, scopes, subscribers, and specifications.
+      # attributes, value objects, entities, commands, validations,
+      # invariants, policies, queries, scopes, subscribers, and specifications.
       #
       # @return [nil]
       def describe
-        agg = @builder.build
-        lines = []
-        lines << @name
-        lines << ""
-
-        unless agg.attributes.empty?
-          lines << "  Attributes:"
-          agg.attributes.each do |attr|
-            lines << "    #{attr.name}: #{Hecks::Utils.type_label(attr)}"
-          end
-        end
-
-        unless agg.value_objects.empty?
-          lines << "  Value Objects:"
-          agg.value_objects.each do |vo|
-            attrs = vo.attributes.map { |a| "#{a.name}: #{Hecks::Utils.type_label(a)}" }.join(", ")
-            lines << "    #{vo.name} (#{attrs})"
-            vo.invariants.each do |inv|
-              lines << "      invariant: #{inv.message}"
-            end
-          end
-        end
-
-        unless agg.entities.empty?
-          lines << "  Entities:"
-          agg.entities.each do |ent|
-            attrs = ent.attributes.map { |a| "#{a.name}: #{Hecks::Utils.type_label(a)}" }.join(", ")
-            lines << "    #{ent.name} (#{attrs})"
-            ent.invariants.each do |inv|
-              lines << "      invariant: #{inv.message}"
-            end
-          end
-        end
-
-        unless agg.commands.empty?
-          lines << "  Commands:"
-          agg.commands.each_with_index do |cmd, i|
-            event = agg.events[i]
-            lines << "    #{cmd.name} -> #{event&.name}"
-            cmd.attributes.each do |a|
-              lines << "      #{a.name}: #{Hecks::Utils.type_label(a)}"
-            end
-          end
-        end
-
-        unless agg.validations.empty?
-          lines << "  Validations:"
-          agg.validations.each do |v|
-            lines << "    #{v.field}: #{v.rules.keys.join(', ')}"
-          end
-        end
-
-        unless agg.invariants.empty?
-          lines << "  Invariants:"
-          agg.invariants.each do |inv|
-            lines << "    #{inv.message}"
-          end
-        end
-
-        unless agg.policies.empty?
-          lines << "  Policies:"
-          agg.policies.each do |pol|
-            lines << "    #{pol.name} (on #{pol.event_name} -> #{pol.trigger_command})"
-          end
-        end
-
-        unless agg.queries.empty?
-          lines << "  Queries:"
-          agg.queries.each { |q| lines << "    #{q.name}" }
-        end
-
-        unless agg.scopes.empty?
-          lines << "  Scopes:"
-          agg.scopes.each { |s| lines << "    #{s.name}" }
-        end
-
-        unless agg.subscribers.empty?
-          lines << "  Subscribers:"
-          agg.subscribers.each { |s| lines << "    on #{s.event_name}" }
-        end
-
-        unless agg.specifications.empty?
-          lines << "  Specifications:"
-          agg.specifications.each { |s| lines << "    #{s.name}" }
-        end
-
-        puts lines.join("\n")
+        puts Hecks::AggregateDescriber.describe_lines(@builder.build).join("\n")
         nil
       end
 

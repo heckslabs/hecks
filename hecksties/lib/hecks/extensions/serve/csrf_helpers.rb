@@ -21,6 +21,10 @@
 
 module Hecks
   module HTTP
+    # Hecks::HTTP::CsrfHelpers
+    #
+    # Mixin for CSRF protection using the double-submit cookie pattern with Authorization-header exemption.
+    #
     module CsrfHelpers
       # Returns true when the request carries an Authorization header.
       # Browsers cannot auto-attach this header cross-site, so no CSRF risk.

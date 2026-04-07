@@ -17,6 +17,10 @@
 #   # => { pizza_nm: "Margherita" }
 #
 module HecksBubble
+  # HecksBubble::AggregateMapper
+  #
+  # Collects inbound and outbound field mappings for a single aggregate within a Bubble anti-corruption layer.
+  #
   class AggregateMapper
     def initialize
       @inbound  = {}

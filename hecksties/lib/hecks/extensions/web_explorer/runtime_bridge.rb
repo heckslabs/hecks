@@ -13,6 +13,10 @@
 #
 module Hecks
   module WebExplorer
+    # Hecks::WebExplorer::RuntimeBridge
+    #
+    # Isolates all runtime CRUD access behind a clean interface for the Web Explorer's data operations.
+    #
     class RuntimeBridge
       include HecksTemplating::NamingHelpers
 

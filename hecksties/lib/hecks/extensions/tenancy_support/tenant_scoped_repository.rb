@@ -15,6 +15,10 @@
   #   proxy.all             # => [] (beta has nothing)
   #
 module HecksTenancy
+  # HecksTenancy::TenantScopedRepository
+  #
+  # Repository proxy that maintains separate instances per tenant, isolating all data operations by tenant ID.
+  #
   class TenantScopedRepository
     # Create a new tenant-scoped proxy wrapping the given repository class.
     #

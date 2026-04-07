@@ -7,6 +7,10 @@
 #   Hecks.validation_rules  # => [UniqueAggregateNames, ...]
 #
 module Hecks
+  # Hecks::ValidationRegistryMethods
+  #
+  # Registry for domain validation rules discovered without a hardcoded constant list.
+  #
   module ValidationRegistryMethods
     def validation_rules
       validation_rule_registry.all

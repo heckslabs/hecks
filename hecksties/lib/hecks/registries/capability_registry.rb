@@ -9,6 +9,10 @@
 #   Hecks.capability_registry  # => { crud: #<Proc> }
 #
 module Hecks
+  # Hecks::CapabilityRegistryMethods
+  #
+  # Registry for domain capabilities that enrich the domain IR by generating constructs at runtime.
+  #
   module CapabilityRegistryMethods
     def capability_registry
       @capability_registry ||= Registry.new

@@ -40,6 +40,10 @@ require_relative "runtime_attribute_definition"
   #
 
 module Hecks
+  # Hecks::Model
+  #
+  # Mixin for generated aggregate classes providing attribute DSL, UUID identity, timestamps, and auto-discovery.
+  #
   module Model
     extend HecksTemplating::NamingHelpers
 

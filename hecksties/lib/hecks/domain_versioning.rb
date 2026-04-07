@@ -12,6 +12,10 @@ require_relative "domain_versioning/breaking_classifier"
 require_relative "domain_versioning/breaking_bumper"
 
 module Hecks
+  # Hecks::DomainVersioning
+  #
+  # Manages domain interface version snapshots stored in db/hecks_versions/ for diffing and tagging.
+  #
   module DomainVersioning
     VERSIONS_DIR = "db/hecks_versions"
 

@@ -14,6 +14,10 @@
 #   # => [#<Upcaster from=1 to=2>]
 #
 class Hecks::EventSourcing::UpcasterRegistry
+  # Hecks::EventSourcing::UpcasterRegistry::Upcaster
+  #
+  # Registered event schema transformation from one version to the next.
+  #
   Upcaster = Struct.new(:event_type, :from_version, :to_version, :transform, keyword_init: true)
 
   def initialize

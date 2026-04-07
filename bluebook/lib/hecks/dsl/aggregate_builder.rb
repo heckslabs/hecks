@@ -83,10 +83,32 @@ module Hecks
         @identity_fields = nil
         @metadata = {}
         @facet_data = {}
+        @namespace = nil
+        @superclass = nil
+        @mixins = []
         self.class.facet_registry.each do |facet_name, setup|
           @facet_data[facet_name] = []
           setup.call(self.class) unless self.class.method_defined?(facet_name)
         end
+      end
+
+      # Declare the module namespace this aggregate lives in.
+      #   namespace "Hecksagon::DSL"
+      def namespace(ns)
+        @namespace = ns.to_s
+      end
+
+      # Declare the superclass for class-kind aggregates.
+      #   inherits "Hecks::Generator"
+      def inherits(parent)
+        @superclass = parent.to_s
+      end
+
+      # Declare a module mixin included by this aggregate.
+      #   includes "SqlBuilder"
+      #   includes "NamingHelpers"
+      def includes(mod_name)
+        @mixins << mod_name.to_s
       end
 
       # Declare a computed (derived) attribute. The block body becomes a
@@ -192,7 +214,8 @@ module Hecks
           lifecycle: @lifecycle,
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields,
-          description: @description
+          description: @description,
+          namespace: @namespace, superclass: @superclass, mixins: @mixins
         )
       end
 

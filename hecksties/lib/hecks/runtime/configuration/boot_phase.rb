@@ -6,6 +6,10 @@
 #
 module Hecks
   class Configuration
+    # Hecks::Configuration::BootPhase
+    #
+    # Extracted boot logic handling per-domain booting: loading the gem, creating Runtime, wiring adapters.
+    #
     module BootPhase
       include HecksTemplating::NamingHelpers
 

@@ -10,6 +10,10 @@
 #
 module Hecks
   module DomainVersioning
+    # Hecks::DomainVersioning::BreakingClassifier
+    #
+    # Classifies domain diff changes as breaking or non-breaking for interface versioning decisions.
+    #
     module BreakingClassifier
       BREAKING_KINDS = %i[
         remove_aggregate

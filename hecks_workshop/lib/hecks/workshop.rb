@@ -14,22 +14,13 @@ require_relative "workshop/playground"
 require_relative "workshop/tour"
 require_relative "workshop/bluebook_mode"
 require_relative "workshop/web_runner"
+
+module Hecks
   # Hecks::Workshop
   #
   # Interactive domain-building workshop for REPL-driven development. Supports
   # two modes: "sketch" (define aggregates, commands, policies) and "play"
   # (execute commands and inspect events against a live compiled domain).
-  #
-  # A Session holds a collection of AggregateBuilder instances keyed by name,
-  # each wrapped in an AggregateHandle for interactive use. The workshop can
-  # validate the domain, compile it into a gem, switch into play mode for
-  # live execution, and serialize back to DSL source.
-  #
-  # Includes:
-  # - BuildActions  -- validate, preview, build, save, to_dsl
-  # - PlayMode      -- play!, sketch!, events, history, reset!
-  # - Presenter     -- describe, status, inspect
-  # - SystemBrowser -- browse (tree view of domain elements)
   #
   #   workshop = Hecks.workshop("Pizzas")
   #   workshop.aggregate("Pizza") { attribute :name, String }
@@ -37,8 +28,6 @@ require_relative "workshop/web_runner"
   #   workshop.build
   #   workshop.play!
   #
-
-module Hecks
   class Workshop
     include HecksTemplating::NamingHelpers
     include BuildActions

@@ -43,6 +43,10 @@ end
   #
 
 module Hecks
+  # Hecks::FilesystemRepository
+  #
+  # JSON file-based persistence adapter. Each aggregate record is a JSON file keyed by ID.
+  #
   class FilesystemRepository
     def initialize(aggregate_name, aggregate_class, data_dir: "./data")
       @aggregate_name = aggregate_name
@@ -68,8 +72,8 @@ module Hecks
     end
 
     def all
-      Dir.glob(File.join(@dir, "*.json")).map do |f|
-        deserialize(JSON.parse(File.read(f)))
+      Dir.glob(File.join(@dir, "*.json")).map do |file_path|
+        deserialize(JSON.parse(File.read(file_path)))
       end
     end
 
@@ -81,10 +85,10 @@ module Hecks
       results = all
       unless conditions.empty?
         results = results.select do |obj|
-          conditions.all? do |k, v|
-            next false unless obj.respond_to?(k)
-            actual = obj.send(k)
-            v.is_a?(Hecks::Querying::Operators::Operator) ? v.match?(actual) : actual == v
+          conditions.all? do |cond_key, cond_val|
+            next false unless obj.respond_to?(cond_key)
+            actual = obj.send(cond_key)
+            cond_val.is_a?(Hecks::Querying::Operators::Operator) ? cond_val.match?(actual) : actual == cond_val
           end
         end
       end
@@ -101,7 +105,7 @@ module Hecks
     end
 
     def clear
-      Dir.glob(File.join(@dir, "*.json")).each { |f| File.delete(f) }
+      Dir.glob(File.join(@dir, "*.json")).each { |file_path| File.delete(file_path) }
     end
 
     private
@@ -111,24 +115,24 @@ module Hecks
     end
 
     def serialize(obj)
-      h = { "id" => obj.id }
+      hash = { "id" => obj.id }
       if obj.class.respond_to?(:hecks_attributes)
         obj.class.hecks_attributes.each do |attr|
-          h[attr[:name].to_s] = serialize_value(obj.send(attr[:name]))
+          hash[attr[:name].to_s] = serialize_value(obj.send(attr[:name]))
         end
       end
-      h["created_at"] = obj.created_at&.iso8601 if obj.respond_to?(:created_at)
-      h["updated_at"] = obj.updated_at&.iso8601 if obj.respond_to?(:updated_at)
-      h
+      hash["created_at"] = obj.created_at&.iso8601 if obj.respond_to?(:created_at)
+      hash["updated_at"] = obj.updated_at&.iso8601 if obj.respond_to?(:updated_at)
+      hash
     end
 
     def serialize_value(val)
       case val
-      when Array then val.map { |v| serialize_value(v) }
-      when ->(v) { v.class.respond_to?(:hecks_attributes) }
-        h = {}
-        val.class.hecks_attributes.each { |a| h[a.name.to_s] = serialize_value(val.send(a.name)) }
-        h
+      when Array then val.map { |item| serialize_value(item) }
+      when ->(value) { value.class.respond_to?(:hecks_attributes) }
+        result = {}
+        val.class.hecks_attributes.each { |attr| result[attr.name.to_s] = serialize_value(val.send(attr.name)) }
+        result
       else val
       end
     end

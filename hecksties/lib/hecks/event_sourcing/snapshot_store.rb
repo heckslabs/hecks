@@ -11,6 +11,10 @@
 #   store.load("Pizza-1")  # => { version: 10, state: { name: "Margherita" } }
 #
 class Hecks::EventSourcing::SnapshotStore
+  # Hecks::EventSourcing::SnapshotStore::Snapshot
+  #
+  # Immutable record storing a serialized aggregate state at a specific version for fast reconstitution.
+  #
   Snapshot = Struct.new(:stream_id, :version, :state, :taken_at, keyword_init: true)
 
   def initialize

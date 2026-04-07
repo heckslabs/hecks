@@ -13,6 +13,10 @@
 #
 module Hecks
   module WebExplorer
+    # Hecks::WebExplorer::EventIntrospector
+    #
+    # Reads events from EventBus instances and provides filtering, sorting, and type discovery for the web explorer.
+    #
     class EventIntrospector
       def initialize(event_buses)
         @event_buses = Array(event_buses)

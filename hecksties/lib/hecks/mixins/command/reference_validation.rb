@@ -21,6 +21,10 @@
 #
 module Hecks
   module Command
+    # Hecks::Command::ReferenceValidation
+    #
+    # Validates reference_to fields before command execution to prevent IDOR attacks.
+    #
     module ReferenceValidation
       # Validates all reference fields on this command instance.
       # Called by ValidateReferencesStep in the lifecycle pipeline.

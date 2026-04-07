@@ -7,6 +7,10 @@
 #   Hecks.target_registry[:go].call(domain)
 #
 module Hecks
+  # Hecks::TargetRegistryMethods
+  #
+  # Registry for build targets (ruby, static, go, rails) extended onto the Hecks module.
+  #
   module TargetRegistryMethods
     def target_registry
       @target_registry ||= Registry.new

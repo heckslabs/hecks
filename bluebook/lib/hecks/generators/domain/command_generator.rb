@@ -55,7 +55,7 @@ module Hecks
         @aggregate = aggregate
         @event = event
         @mixin_prefix = mixin_prefix
-        @has_keyword_attrs = @command.attributes.any? { |a| Hecks::Utils.ruby_keyword?(a.name) }
+        @has_keyword_attrs = @command.attributes.any? { |attr| Hecks::Utils.ruby_keyword?(attr.name) }
         agg_snake = domain_snake_name(aggregate_name)
         @self_ref = find_self_ref(agg_snake)
         @is_create = @self_ref.nil?
@@ -76,18 +76,18 @@ module Hecks
           if event_names.length == 1
             lines << "        emits \"#{event_names.first}\""
           else
-            names_str = event_names.map { |n| "\"#{n}\"" }.join(", ")
+            names_str = event_names.map { |name| "\"#{name}\"" }.join(", ")
             lines << "        emits #{names_str}"
           end
         end
         lines.concat(condition_declarations)
         lines << ""
-        attr_syms = @command.attributes.map { |a| ":#{a.name}" } +
-                    (@command.references || []).map { |r| ":#{r.name}" }
+        attr_syms = @command.attributes.map { |attr| ":#{attr.name}" } +
+                    (@command.references || []).map { |ref| ":#{ref.name}" }
         if attr_syms.size <= 2
           lines << "        attr_reader #{attr_syms.join(", ")}"
         else
-          attr_syms.each { |s| lines << "        attr_reader #{s}" }
+          attr_syms.each { |sym| lines << "        attr_reader #{sym}" }
         end
         lines << ""
         lines.concat(initializer_lines)
@@ -111,8 +111,8 @@ module Hecks
       # @return [Array<String>] comment lines prefixed with "# precondition:" or "# postcondition:",
       #   or an empty array if no conditions are defined
       def condition_declarations
-        conds = @command.preconditions.map { |c| "        # precondition: #{c.message}" } +
-                @command.postconditions.map { |c| "        # postcondition: #{c.message}" }
+        conds = @command.preconditions.map { |cond| "        # precondition: #{cond.message}" } +
+                @command.postconditions.map { |cond| "        # postcondition: #{cond.message}" }
         conds.any? ? [""] + conds : []
       end
 
@@ -122,7 +122,7 @@ module Hecks
       def custom_call_lines
         source = Hecks::Utils.block_source(@command.call_body)
         lines = ["        def call"]
-        source.split("\n").each { |l| lines << "          #{l}" }
+        source.split("\n").each { |line| lines << "          #{line}" }
         lines << "        end"
         lines
       end
@@ -149,9 +149,9 @@ module Hecks
             lines << "        def initialize(#{params.join(", ")})"
           else
             lines << "        def initialize("
-            params.each_with_index do |p, i|
-              suffix = i < params.size - 1 ? "," : ""
-              lines << "          #{p}#{suffix}"
+            params.each_with_index do |param, idx|
+              suffix = idx < params.size - 1 ? "," : ""
+              lines << "          #{param}#{suffix}"
             end
             lines << "        )"
           end
@@ -230,8 +230,8 @@ module Hecks
           ["#{indent}#{@aggregate_name}.new(#{args.join(", ")})"]
         else
           lines = ["#{indent}#{@aggregate_name}.new("]
-          args.each_with_index do |arg, i|
-            comma = i < args.size - 1 ? "," : ""
+          args.each_with_index do |arg, idx|
+            comma = idx < args.size - 1 ? "," : ""
             lines << "#{indent}  #{arg}#{comma}"
           end
           lines << "#{indent})"

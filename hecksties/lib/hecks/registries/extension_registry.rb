@@ -15,6 +15,10 @@
 #   Hecks.driving_extensions # => [:http, :slack, ...]
 #
 module Hecks
+  # Hecks::ExtensionRegistryMethods
+  #
+  # Extension hook and metadata storage for driven/driving extensions, extended onto the Hecks module.
+  #
   module ExtensionRegistryMethods
     def extension_registry
       @extension_registry ||= Registry.new

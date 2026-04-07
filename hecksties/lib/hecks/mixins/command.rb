@@ -43,6 +43,10 @@ require_relative "command/dispatch"
   #
 
 module Hecks
+  # Hecks::Command
+  #
+  # Mixin for generated command classes orchestrating the full lifecycle: guard, validate, call, persist, emit event.
+  #
   module Command
     # Hook called when a class includes +Hecks::Command+. Extends the class
     # with +ClassMethods+ and defines +aggregate+, +event+, and +events+ readers

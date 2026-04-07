@@ -1,18 +1,18 @@
-# Hecks::DomainModel::Behavior::WorkflowStep
-#
-# Base class and value objects for workflow steps. Subclasses represent
-# commands, branches, and scheduled tasks within a workflow definition.
-#
-#   step = CommandStep.new(command: "ScoreLoan", mapping: { score: :principal })
-#   step.command      # => "ScoreLoan"
-#   step.is_a?(WorkflowStep)  # => true
-#
 module Hecks
   module DomainModel
     module Behavior
+      # Hecks::DomainModel::Behavior::WorkflowStep
+      #
+      # Base class for workflow steps. Subclasses represent commands, branches,
+      # and scheduled tasks within a workflow definition.
+      #
       class WorkflowStep
       end
 
+      # Hecks::DomainModel::Behavior::CommandStep
+      #
+      # A workflow step that dispatches a named command with an optional attribute mapping.
+      #
       class CommandStep < WorkflowStep
         attr_reader :command, :mapping
 
@@ -22,6 +22,10 @@ module Hecks
         end
       end
 
+      # Hecks::DomainModel::Behavior::BranchStep
+      #
+      # A workflow step that conditionally routes to if_steps or else_steps based on a spec.
+      #
       class BranchStep < WorkflowStep
         attr_reader :spec, :if_steps, :else_steps
 
@@ -32,6 +36,10 @@ module Hecks
         end
       end
 
+      # Hecks::DomainModel::Behavior::ScheduledStep
+      #
+      # A workflow step that finds aggregates matching a query or spec and triggers a command.
+      #
       class ScheduledStep < WorkflowStep
         attr_reader :name, :find_aggregate, :find_spec, :find_query, :trigger
 
