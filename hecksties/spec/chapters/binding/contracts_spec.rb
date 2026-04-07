@@ -26,8 +26,15 @@ RSpec.describe Hecks::Binding::ContractsChapter do
     contract_names = %w[Contracts TypeContract AggregateContract CommandContract
                         EventContract EventLogContract RouteContract DisplayContract
                         ViewContract FormParsingContract UILabelContract MigrationContract
-                        DispatchContract ExtensionContract CsrfContract NamingContract]
+                        DispatchContract ExtensionContract CsrfContract NamingContract
+                        DispatchNotAllowed]
     present = contract_names.select { |n| names.include?(n) }
     expect(present.size).to be >= 12
+  end
+
+  it "includes DispatchNotAllowed with Raise command" do
+    agg = domain.aggregates.find { |a| a.name == "DispatchNotAllowed" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Raise")
   end
 end

@@ -38,4 +38,12 @@ RSpec.describe Hecks::Chapters::Hecksagon do
       expect(agg.description).not_to be_nil, "#{agg.name} missing description"
     end
   end
+
+  it "includes capabilities paragraph aggregates" do
+    names = domain.aggregates.map(&:name)
+    expect(names).to include(
+      "AggregateCapabilityBuilder", "AttributeSelector",
+      "TagApplier", "HecksagonModule"
+    )
+  end
 end

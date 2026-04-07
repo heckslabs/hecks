@@ -10,7 +10,7 @@ module Hecks
     module AI
       module IdeAggregates
         def self.register(b)
-          b.aggregate "IdeServer" do
+          b.aggregate "Server" do
             description "WEBrick server for the Hecks IDE with Claude streaming"
             command "Run"
           end

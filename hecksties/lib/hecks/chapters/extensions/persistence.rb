@@ -8,6 +8,10 @@
 module Hecks
   module Chapters
     module Extensions
+      # Hecks::Chapters::Extensions::PersistenceChapter
+      #
+      # Bluebook sub-chapter for persistence extension variants: filesystem and repository-backed stores.
+      #
       module PersistenceChapter
         def self.define(b)
           b.aggregate "FilesystemRepository", "JSON file-based persistence" do

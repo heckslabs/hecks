@@ -8,6 +8,10 @@
 module Hecks
   module Chapters
     module Cli
+      # Hecks::Chapters::Cli::CliTools
+      #
+      # Bluebook sub-chapter defining CLI support tools: smoke testing, stats, and stub generation.
+      #
       module CliTools
         def self.define(b)
           b.aggregate "DomainStats", "Aggregate/command/event/policy counts" do

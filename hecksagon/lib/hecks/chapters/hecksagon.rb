@@ -10,6 +10,7 @@
 #   # => ["HecksagonBuilder", "GateBuilder", "AclDefinition", ...]
 #
 require "bluebook"
+require_relative "hecksagon/capabilities"
 
 module Hecks
   module Chapters
@@ -191,6 +192,7 @@ module Hecks
             description "CLI command for generating SQL migrations from domain changes"
             command "GenerateMigrations"
           end
+          CapabilitiesParagraph.define(b)
         }.build
       end
     end

@@ -140,8 +140,8 @@ module Hecks
             command "Serialize"
           end
 
-          b.aggregate "Connection" do
-            description "Wraps MCP server as a listens_to connection adapter"
+          b.aggregate "McpConnection" do
+            description "MCP protocol connection adapter bridging listens_to declarations to DomainServer"
             command "Run"
           end
 
@@ -159,8 +159,8 @@ module Hecks
             end
           end
 
-          b.aggregate "LlmDomainAssembler" do
-            description "Walks LLM JSON and replays through Workshop API to build a domain"
+          b.aggregate "DomainBuilder" do
+            description "Walks LLM JSON and replays through Workshop API to build a validated domain"
             command "Build"
           end
 

@@ -9,6 +9,10 @@
 module Hecks
   module Chapters
     module Runtime
+      # Hecks::Chapters::Runtime::Ports
+      #
+      # Bluebook sub-chapter for runtime ports: commands, queries, repository, event bus, and domain mixins.
+      #
       module Ports
         def self.define(b)
           b.aggregate "EventBus", "Publish-subscribe event dispatch" do

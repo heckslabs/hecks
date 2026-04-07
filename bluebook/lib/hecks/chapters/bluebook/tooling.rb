@@ -38,6 +38,22 @@ module Hecks
           b.aggregate "GemBuilder", "Packages a domain as a distributable Ruby gem" do
             command("BuildGem") { attribute :domain_name, String }
           end
+
+          b.aggregate "StatementBuilders", "Builds plain-English statements from domain IR objects" do
+            command("BuildStatement") { attribute :ir_object, String }
+          end
+
+          b.aggregate "TextHelpers", "English text utilities for glossary generation" do
+            command("Humanize") { attribute :text, String }
+          end
+
+          b.aggregate "DomainConnections", "Declares what crosses the domain boundary via extend verb" do
+            command("Extend") { attribute :extension_name, String }
+          end
+
+          b.aggregate "Tokenizer", "Splits command argument strings into typed tokens" do
+            command("Tokenize") { attribute :input, String }
+          end
         end
       end
     end

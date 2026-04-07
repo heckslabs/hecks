@@ -13,6 +13,15 @@ RSpec.describe Hecks::Chapters::Workshop do
     expect(names).to include("Workshop", "Playground", "WorkshopSession")
   end
 
+  it "includes internals paragraph aggregates" do
+    names = domain.aggregates.map(&:name)
+    expect(names).to include(
+      "MermaidBuilder", "EventSerializer", "ServiceSerializer",
+      "PolicyFlowBuilder", "SketchSteps", "PlaySteps",
+      "MessageNotUnderstood", "BluebookMode"
+    )
+  end
+
   it "has commands on Workshop" do
     agg = domain.aggregates.find { |a| a.name == "Workshop" }
     cmds = agg.commands.map(&:name)

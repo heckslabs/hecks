@@ -8,10 +8,20 @@
 #   domain.aggregates.map(&:name)
 #
 require_relative "extensions/serve"
+require_relative "extensions/serve_routes"
 require_relative "extensions/persistence"
+require_relative "extensions/web_explorer"
+require_relative "extensions/auth"
+require_relative "extensions/bubble"
+require_relative "extensions/tenancy"
+require_relative "extensions/queue"
 
 module Hecks
   module Chapters
+    # Hecks::Chapters::Extensions
+    #
+    # Bluebook chapter defining all pluggable Hecks extensions: HTTP serving, persistence, auth, tenancy, and more.
+    #
     module Extensions
       def self.definition
         DSL::DomainBuilder.new("Extensions").tap { |b|
@@ -27,14 +37,6 @@ module Hecks
           b.aggregate "Bubble", "Anti-Corruption Layer for legacy system translation" do
             command("TranslateInbound") { attribute :legacy_data, String }
             command("TranslateOutbound") { attribute :domain_data, String }
-          end
-
-          b.aggregate "AggregateMapper", "Maps legacy fields to domain attributes" do
-            command("MapFields") { attribute :source, String; attribute :target, String }
-          end
-
-          b.aggregate "BubbleContext", "Defines field renames and transforms per aggregate" do
-            command("MapAggregate") { attribute :aggregate_name, String }
           end
 
           b.aggregate "WebExplorer", "HTML UI for browsing aggregates and events" do
@@ -59,14 +61,6 @@ module Hecks
             command("SetTenant") { attribute :tenant_id, String }
           end
 
-          b.aggregate "TenantScopedRepository", "Repo that filters by tenant" do
-            command("ScopeToTenant") { attribute :tenant_id, String }
-          end
-
-          b.aggregate "OwnershipScopedRepository", "Repo that filters by owner" do
-            command("ScopeToOwner") { attribute :owner_id, String }
-          end
-
           b.aggregate "RateLimit", "Per-command rate limiting" do
             command("Check") { attribute :command_name, String; attribute :actor, String }
           end
@@ -88,8 +82,18 @@ module Hecks
             command("Poll") { attribute :batch_size, Integer }
           end
 
+          b.aggregate "ReadmeWriter", "Generates per-extension Markdown README files from metadata" do
+            command("Generate") { attribute :root, String }
+          end
+
           ServeChapter.define(b)
+          ServeRoutesChapter.define(b)
           PersistenceChapter.define(b)
+          WebExplorerChapter.define(b)
+          AuthChapter.define(b)
+          BubbleChapter.define(b)
+          TenancyChapter.define(b)
+          QueueChapter.define(b)
         }.build
       end
     end

@@ -70,6 +70,22 @@ module Hecks
           b.aggregate "Paragraph", "Named group of aggregates within a chapter" do
             command("DefineParagraph") { attribute :name, String }
           end
+
+          b.aggregate "Validation", "Validation rule IR node for aggregate attribute constraints" do
+            command("DefineValidationRule") { attribute :attribute_name, String; attribute :rule, String }
+          end
+
+          b.aggregate "CommandStep", "Workflow step that dispatches a named command" do
+            command("DefineCommandStep") { attribute :command, String; attribute :mapping, String }
+          end
+
+          b.aggregate "BranchStep", "Workflow step that conditionally routes based on a spec" do
+            command("DefineBranchStep") { attribute :spec, String }
+          end
+
+          b.aggregate "ScheduledStep", "Workflow step that finds aggregates and triggers a command" do
+            command("DefineScheduledStep") { attribute :name, String; attribute :trigger, String }
+          end
         end
       end
     end

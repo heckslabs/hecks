@@ -8,6 +8,10 @@
 module Hecks
   module Chapters
     module Cli
+      # Hecks::Chapters::Cli::CliCommands
+      #
+      # Bluebook sub-chapter defining all individual CLI commands as aggregates.
+      #
       module CliCommands
         def self.define(b)
           b.aggregate "InitCommand", "Scaffolds a new Hecks domain project" do

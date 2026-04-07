@@ -9,6 +9,10 @@
 module Hecks
   module Chapters
     module Extensions
+      # Hecks::Chapters::Extensions::ServeChapter
+      #
+      # Bluebook sub-chapter for HTTP serving infrastructure: domain server, RPC server, route builder, and multi-domain server.
+      #
       module ServeChapter
         def self.define(b)
           b.aggregate "DomainServer", "WEBrick REST server for a single domain" do

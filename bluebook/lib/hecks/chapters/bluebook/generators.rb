@@ -94,6 +94,42 @@ module Hecks
           b.aggregate "ConfigGenerator", "Generates configuration initializer for domain" do
             command("GenerateConfig") { attribute :domain_id, String; attribute :output_dir, String }
           end
+
+          b.aggregate "LlmAggregateDescriber", "Renders aggregate sections as plain text for llms.txt" do
+            command("Describe") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "LlmPolicyDescriber", "Renders policies and reactive flows as plain text for llms.txt" do
+            command("Describe") { attribute :domain_id, String }
+          end
+
+          b.aggregate "LlmValidationDescriber", "Renders validation rules and invariants as plain text for llms.txt" do
+            command("Describe") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "ConstructorGeneration", "Generates initialize method with keyword args for aggregates" do
+            command("GenerateConstructor") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "InvariantGeneration", "Generates check_invariants! method for aggregate classes" do
+            command("GenerateInvariants") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "ValidationGeneration", "Generates validate! method for aggregate classes" do
+            command("GenerateValidations") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "OpenApiPathBuilder", "Builds OpenAPI path entries from domain aggregates" do
+            command("BuildPaths") { attribute :aggregate_id, String }
+          end
+
+          b.aggregate "OpenApiResponseHelpers", "Shared OpenAPI response and parameter helpers" do
+            command("BuildResponse") { attribute :response_type, String }
+          end
+
+          b.aggregate "OpenApiSchemaBuilder", "Builds OpenAPI component schemas from domain aggregates" do
+            command("BuildSchema") { attribute :aggregate_id, String }
+          end
         end
       end
     end

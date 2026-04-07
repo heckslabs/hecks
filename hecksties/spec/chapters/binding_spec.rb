@@ -27,4 +27,21 @@ RSpec.describe Hecks::Binding do
       expect(agg.commands).not_to be_empty, "#{agg.name} has no commands"
     end
   end
+
+  it "includes Registry and SetRegistry" do
+    names = domain.aggregates.map(&:name)
+    expect(names).to include("Registry", "SetRegistry")
+  end
+
+  it "includes Stats" do
+    agg = domain.aggregates.find { |a| a.name == "Stats" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Compute")
+  end
+
+  it "includes HecksDeprecations" do
+    agg = domain.aggregates.find { |a| a.name == "HecksDeprecations" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Register")
+  end
 end

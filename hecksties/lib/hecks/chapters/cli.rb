@@ -9,9 +9,16 @@
 #
 require_relative "cli/commands"
 require_relative "cli/tools"
+require_relative "cli/import"
+require_relative "cli/formatters"
+require_relative "cli/internals"
 
 module Hecks
   module Chapters
+    # Hecks::Chapters::Cli
+    #
+    # Bluebook chapter defining the CLI domain: all commands, tools, and workflow aggregates.
+    #
     module Cli
       def self.definition
         DSL::DomainBuilder.new("Cli").tap { |b|
@@ -42,6 +49,9 @@ module Hecks
 
           CliCommands.define(b)
           CliTools.define(b)
+          CliImport.define(b)
+          CliFormatters.define(b)
+          CliInternals.define(b)
         }.build
       end
     end

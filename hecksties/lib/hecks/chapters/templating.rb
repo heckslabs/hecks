@@ -10,6 +10,10 @@ require "bluebook"
 
 module Hecks
   module Chapters
+    # Hecks::Chapters::Templating
+    #
+    # Bluebook chapter defining the HecksTemplating component: naming helpers and HTTP smoke testing.
+    #
     module Templating
       def self.definition
         DSL::DomainBuilder.new("Templating").tap { |b|

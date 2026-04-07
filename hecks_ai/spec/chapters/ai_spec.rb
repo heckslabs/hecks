@@ -15,7 +15,12 @@ RSpec.describe Hecks::Chapters::AI do
 
   it "includes key aggregates" do
     names = domain.aggregates.map(&:name)
-    expect(names).to include("McpServer", "GovernanceGuard", "IdeServer", "LlmClient")
+    expect(names).to include("McpServer", "GovernanceGuard", "Server", "LlmClient")
+  end
+
+  it "includes McpConnection and DomainBuilder" do
+    names = domain.aggregates.map(&:name)
+    expect(names).to include("McpConnection", "DomainBuilder")
   end
 
   it "has at least 25 aggregates" do

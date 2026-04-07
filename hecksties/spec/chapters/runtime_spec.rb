@@ -21,8 +21,8 @@ RSpec.describe Hecks::Chapters::Runtime do
     expect(cmds).to include("Boot", "Load", "Configure")
   end
 
-  it "has at least 20 aggregates (including sub-chapters)" do
-    expect(domain.aggregates.size).to be >= 20
+  it "has at least 70 aggregates (including sub-chapters)" do
+    expect(domain.aggregates.size).to be >= 70
   end
 
   it "every aggregate has at least one command" do

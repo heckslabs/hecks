@@ -10,6 +10,7 @@
 #
 require "bluebook"
 require_relative "workshop/runners"
+require_relative "workshop/internals"
 
 module Hecks
   module Chapters
@@ -165,6 +166,7 @@ module Hecks
           end
 
           RunnersParagraph.define(b)
+          InternalsParagraph.define(b)
         }.build
       end
     end

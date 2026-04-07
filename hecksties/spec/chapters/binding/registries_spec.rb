@@ -30,4 +30,34 @@ RSpec.describe Hecks::Binding::RegistriesChapter do
     present = registry_names.select { |n| names.include?(n) }
     expect(present.size).to be >= 10
   end
+
+  it "includes registry method modules" do
+    expect(names).to include(
+      "AdapterRegistryMethods", "CapabilityRegistryMethods", "DomainRegistryMethods",
+      "ExtensionRegistryMethods", "TargetRegistryMethods", "ValidationRegistryMethods",
+      "DumpFormatRegistryMethods", "GrammarRegistryMethods"
+    )
+  end
+
+  it "includes GrammarDescriptor" do
+    agg = domain.aggregates.find { |a| a.name == "GrammarDescriptor" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Configure")
+  end
+
+  it "includes CrossDomainMethods" do
+    agg = domain.aggregates.find { |a| a.name == "CrossDomainMethods" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("RegisterQuery")
+  end
+
+  it "includes ThreadContextMethods" do
+    agg = domain.aggregates.find { |a| a.name == "ThreadContextMethods" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("SetContext")
+  end
+
+  it "contributes at least 21 registry aggregates total" do
+    expect(names.count { |n| n =~ /Registry|Methods|Descriptor|Context|CrossDomain/ }).to be >= 21
+  end
 end

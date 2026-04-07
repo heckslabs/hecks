@@ -9,6 +9,10 @@
 module Hecks
   module Chapters
     module Runtime
+      # Hecks::Chapters::Runtime::EventSourcingChapter
+      #
+      # Bluebook sub-chapter for event sourcing: event store, snapshots, upcasting, projections, and process managers.
+      #
       module EventSourcingChapter
         def self.define(b)
           b.aggregate "EventStore", "Append-only event log per aggregate stream" do
