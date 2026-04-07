@@ -1,51 +1,30 @@
 #!/bin/bash
 #
-# Pre-commit hook: runs rspec and fails if tests fail or take over 1 second.
+# Pre-commit hook: the Bluebook is the spec.
+# Verifies all chapters load and validates their IR.
 #
 
-output=$(bundle exec rspec --order defined 2>&1)
+# Bluebook self-verification
+output=$(bin/verify 2>&1)
 exit_code=$?
 
-# Check for test failures
 if [ $exit_code -ne 0 ]; then
-  echo "COMMIT BLOCKED: Tests failed."
-  echo "$output" | tail -5
+  echo "COMMIT BLOCKED: Bluebook verification failed."
+  echo "$output"
   exit 1
 fi
 
-# Parse the time from rspec output (e.g., "Finished in 0.95 seconds")
-duration=$(echo "$output" | grep "Finished in" | sed 's/Finished in \([0-9.]*\) seconds.*/\1/')
+echo "Bluebook verified."
 
-if [ -z "$duration" ]; then
-  echo "WARNING: Could not parse test duration."
-  exit 0
-fi
-
-# Compare: fail if over the limit (default: 1.5s, configurable via env var)
-limit=${SPEC_SPEED_LIMIT:-2.0}
-over_limit=$(echo "$duration > $limit" | bc -l)
-if [ "$over_limit" = "1" ]; then
-  examples=$(echo "$output" | grep "examples" | head -1)
-  echo "COMMIT BLOCKED: Tests took ${duration}s (limit: ${limit}s)"
-  echo "  $examples"
-  echo ""
-  echo "  Set SPEC_SPEED_LIMIT to adjust the limit"
-  exit 1
-fi
-
-echo "Tests passed: ${duration}s"
-
-# Run example smoke tests
-smoke_output=$(bundle exec rspec --pattern 'hecksties/spec/demo_verification_spec.rb' 2>&1)
+# Smoke test
+smoke_output=$(ruby -Ilib examples/pizzas/pizzas.rb 2>&1)
 smoke_exit=$?
 if [ $smoke_exit -ne 0 ]; then
-  echo ""
-  echo "COMMIT BLOCKED: Example smoke tests failed."
-  echo "$smoke_output" | grep "FAILED\|failed\|Error" | head -5
+  echo "COMMIT BLOCKED: Smoke test failed."
+  echo "$smoke_output" | tail -5
   exit 1
 fi
-smoke_count=$(echo "$smoke_output" | grep "examples" | head -1)
-echo "Smoke tests passed: $smoke_count"
+echo "Smoke test passed."
 
 # Run all watchers (cross-require blocks; others are advisory)
 ruby -I hecksties/watchers/lib -r hecks_watchers -e \

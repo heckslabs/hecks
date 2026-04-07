@@ -110,6 +110,14 @@ module Hecks
           b.aggregate "Security", "Validates domain design supports security concern" do
             command("CheckSecurity") { attribute :domain_id, String }
           end
+
+          b.aggregate "BoundaryAdvisor", "Warns when aggregates are suspiciously thin (single attribute, no VOs)" do
+            command("Advise") { attribute :domain_id, String }
+          end
+
+          b.aggregate "WorldConcerns", "Validates that aggregate world concerns are permitted by domain policy" do
+            command("CheckConcerns") { attribute :domain_id, String }
+          end
         end
       end
     end

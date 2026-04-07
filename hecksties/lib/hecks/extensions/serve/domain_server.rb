@@ -2,12 +2,18 @@ require "webrick"
 require "json"
 require "stringio"
 require "tmpdir"
-require_relative "route_builder"
-require_relative "cors_headers"
-require_relative "command_bus_port"
-require_relative "csrf_helpers"
-require_relative "../auth/screen_routes"
-require_relative "domain_watcher"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeChapter,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::AuthChapter,
+  base_dir: File.expand_path("../auth", __dir__)
+)
 
 module Hecks
   module HTTP

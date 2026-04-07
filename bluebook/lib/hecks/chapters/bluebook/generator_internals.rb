@@ -50,6 +50,18 @@ module Hecks
           b.aggregate "FrameworkGemGenerator", "Generates framework gem skeletons with gemspec and structure" do
             command("GenerateFrameworkGem") { attribute :name, String; attribute :output_dir, String }
           end
+
+          b.aggregate "Registry", "Generator registry for pluggable code generation" do
+            command("RegisterGenerator") { attribute :name, String }
+          end
+
+          b.aggregate "Infrastructure", "Parent module for infrastructure generators" do
+            command("Generate") { attribute :domain_id, String }
+          end
+
+          b.aggregate "BuiltIn", "Registers all built-in generators with the registry" do
+            command("RegisterAll") { attribute :domain_id, String }
+          end
         end
       end
     end

@@ -1,5 +1,11 @@
-require_relative "condition_node"
-require_relative "query_builder/in_memory_executor"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::PortInternals,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::PortInternals,
+  base_dir: File.expand_path("query_builder", __dir__)
+)
 
 module Hecks
   module Querying

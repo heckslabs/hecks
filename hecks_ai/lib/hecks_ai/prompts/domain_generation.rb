@@ -8,7 +8,10 @@
 #   Hecks::AI::Prompts::DomainGeneration::SYSTEM_PROMPT  # => String
 #   Hecks::AI::Prompts::DomainGeneration::TOOL_SCHEMA    # => Hash
 #
-require_relative "domain_tool_schema"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::AI::PromptsParagraph,
+  base_dir: __dir__
+)
 
 module Hecks
   module AI

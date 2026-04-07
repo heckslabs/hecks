@@ -15,8 +15,7 @@
 #   gem "cats_domain"
 #   gem "hecks_sqlite"   # that's it -- SQLite auto-wires
 #
-require_relative "../../hecks_persist"
-require_relative "../../hecks_persist/sql_boot"
+require "hecks_persist"
 
 Hecks.describe_extension(:sqlite,
   description: "SQLite persistence via Sequel",

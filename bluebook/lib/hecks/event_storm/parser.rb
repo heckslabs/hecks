@@ -1,5 +1,7 @@
-require_relative "parser/pattern_matching"
-require_relative "parser/context_grouping"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::AstParagraph,
+  base_dir: File.expand_path("parser", __dir__)
+)
 
 module Hecks
   module EventStorm

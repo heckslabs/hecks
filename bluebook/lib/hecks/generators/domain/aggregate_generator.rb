@@ -1,5 +1,7 @@
-require_relative "aggregate_generator/validation_generation"
-require_relative "aggregate_generator/invariant_generation"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorsParagraph,
+  base_dir: File.expand_path("aggregate_generator", __dir__)
+)
 
 module Hecks
   module Generators

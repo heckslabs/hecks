@@ -1,5 +1,7 @@
-require_relative "framework_gem_generator/file_locator"
-require_relative "framework_gem_generator/skeleton_generator"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  base_dir: File.expand_path("framework_gem_generator", __dir__)
+)
 
 module Hecks
   module Generators

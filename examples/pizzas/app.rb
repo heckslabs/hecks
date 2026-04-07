@@ -1,66 +1,79 @@
 #!/usr/bin/env ruby
 #
-# Example: Building and using a Pizzas domain with Hecks
+# Pizzas domain — generated from PizzasBluebook
 #
-# Run from the hecks project root:
-#   ruby -Ilib examples/pizzas/app.rb
+# Run:  ruby -Ilib examples/pizzas/app.rb
+#
 
 require "hecks"
 
-# Boot the domain — loads Bluebook + Hecksagon, validates, builds, wires
 app = Hecks.boot(__dir__)
+
 
 # Subscribe to events
 app.on("CreatedPizza") do |event|
   puts "  [event] CreatedPizza: #{event.name}"
 end
 
-app.on("PlacedOrder") do |event|
-  puts "  [event] PlacedOrder: quantity=#{event.quantity}"
+app.on("AddedTopping") do |event|
+  puts "  [event] AddedTopping: #{event.name}"
 end
 
-# 7. Run commands using the short API
+app.on("PlacedOrder") do |event|
+  puts "  [event] PlacedOrder: #{event.customer_name}"
+end
+
+app.on("CanceledOrder") do |event|
+  puts "  [event] CanceledOrder"
+end
+
 puts "\n--- Running commands ---"
 
 puts "\nCreating pizzas..."
-margherita = Pizza.create(name: "Margherita", description: "Classic")
-pepperoni = Pizza.create(name: "Pepperoni", description: "Spicy")
+pizza = Pizza.create(name: "Margherita", description: "Classic")
 
-puts "\nPlacing an order..."
-Order.place(pizza: margherita.id, customer_name: "Alice", quantity: 3)
+puts "\nAdd a measured topping via collection proxy..."
+pizza.toppings.create(name: "Mozzarella", amount: 1)
 
-# 8. Use collection proxies for toppings
+puts "\nCreating orders..."
+order = Order.place(customer_name: "Margherita", quantity: 1)
+
+puts "\nCancel a pending order, transitioning status to cancelled..."
+Order.cancel(order: order.id)
+
 puts "\n--- Collection proxies ---"
-margherita.toppings.create(name: "Mozzarella", amount: 2)
-margherita.toppings.create(name: "Basil", amount: 1)
-puts "Margherita toppings: #{margherita.toppings.count}"
-margherita.toppings.each do |t|
-  puts "  - #{t.name} x#{t.amount}"
+pizza.toppings.create(name: "Margherita", amount: 1)
+pizza.toppings.create(name: "Pepperoni", amount: 2)
+puts "Pizza toppings: #{pizza.toppings.count}"
+pizza.toppings.each do |item|
+  puts "  - #{item.name} x#{item.amount}"
+end
+order.items.create(quantity: 1)
+order.items.create(quantity: 2)
+puts "Order items: #{order.items.count}"
+order.items.each do |item|
+  puts "  - x#{item.quantity}"
 end
 
-# 9. Use repository methods on the aggregate class
 puts "\n--- Repository methods ---"
 puts "Total pizzas: #{Pizza.count}"
-found = Pizza.find(margherita.id)
+found = Pizza.find(pizza.id)
 puts "Found: #{found.name}"
 
-Pizza.all.each do |p|
-  puts "  #{p.name}: #{p.description}"
+Pizza.all.each do |item|
+  puts "  #{item.name}: #{item.description}"
 end
 
-# 10. DSL query objects
 puts "\n--- Query objects ---"
-classics = Pizza.by_description("Classic")
-puts "Classic pizzas: #{classics.map(&:name).join(", ")}"
+results = Pizza.by_description("Margherita")
+puts "ByDescription: #{results.map(&:name).join(", ")}"
+results = Order.pending
+puts "Pending: #{results.map(&:customer_name).join(", ")}"
 
-spicy = Pizza.by_description("Spicy")
-puts "Spicy pizzas: #{spicy.map(&:name).join(", ")}"
+# Value objects are immutable
+item = PizzasDomain::Pizza::Topping.new(name: "Margherita", amount: 1)
+puts "\nTopping: #{item.name} (frozen: #{item.frozen?})"
 
-# 12. Value objects
-topping = PizzasDomain::Pizza::Topping.new(name: "Pineapple", amount: 3)
-puts "\nTopping: #{topping.name} x#{topping.amount} (frozen: #{topping.frozen?})"
-
-# 13. Show event history
 puts "\n--- Event history ---"
 app.events.each_with_index do |event, i|
   name = event.class.name.split("::").last

@@ -16,7 +16,10 @@
 #   # then call handle_auth_route(req, res) from the server dispatch
 #
 require "erb"
-require_relative "session_store"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::AuthChapter,
+  base_dir: __dir__
+)
 
 module Hecks
   module Auth

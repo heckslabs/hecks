@@ -1,6 +1,12 @@
 require "fileutils"
-require_relative "runtime_writer"
-require_relative "gem_generator/domain_writer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: File.expand_path("gem_generator", __dir__)
+)
 
 module HecksStatic
 # HecksStatic::GemGenerator

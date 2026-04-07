@@ -178,7 +178,7 @@ module GoHecks
       gen = ViewGenerator.new
       Dir.glob(File.join(erb_dir, "*.erb")).each do |erb_file|
         name = File.basename(erb_file, ".erb")
-        next if %w[show form index].include?(name) # Generated directly
+        next if %w[show form index events].include?(name) # Generated directly or no contract
         erb_source = File.read(erb_file)
         write("views/#{name}.html", gen.convert(name.to_sym, erb_source))
       end

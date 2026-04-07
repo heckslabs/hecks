@@ -13,8 +13,11 @@ module Hecks
     private
 
     def find_domain_file
-      path = Dir[File.join(Dir.pwd, "*Bluebook")].first
-      File.exist?(path) ? path : nil
+      %w[*.hec Bluebook *Bluebook].each do |pattern|
+        files = Dir[File.join(Dir.pwd, pattern)].reject { |f| File.basename(f).match?(/hecksagon/i) }
+        return files.first if files.any?
+      end
+      nil
     end
 
     def resolve_domain_option
@@ -28,7 +31,7 @@ module Hecks
           installed = find_installed_domains
           case installed.size
           when 0
-            abort "No domain found. Create a Bluebook file or install a domain gem."
+            abort "No domain found. Create a .hec file or install a domain gem."
           when 1
             name, _ = installed.first
             say "Auto-selected domain: #{name}", :green
@@ -53,14 +56,15 @@ module Hecks
         return nil unless file
         load_domain_file(file)
       elsif File.directory?(path_or_name)
-        file = Dir[File.join(path_or_name, "*Bluebook")].first
-        return nil unless File.exist?(file)
+        file = find_domain_in(path_or_name)
+        return nil unless file
         load_domain_file(file)
       elsif File.exist?(path_or_name)
         load_domain_file(path_or_name)
       else
-        local = File.join(Dir.pwd, path_or_name, "Bluebook")
-        File.exist?(local) ? load_domain_file(local) : nil
+        local_dir = File.join(Dir.pwd, path_or_name)
+        file = File.directory?(local_dir) ? find_domain_in(local_dir) : nil
+        file ? load_domain_file(file) : nil
       end
     end
 
@@ -71,9 +75,18 @@ module Hecks
       domain
     end
 
+    def find_domain_in(dir)
+      %w[*.hec Bluebook *Bluebook].each do |pattern|
+        files = Dir[File.join(dir, pattern)].reject { |f| File.basename(f).match?(/hecksagon/i) }
+        return files.first if files.any?
+      end
+      nil
+    end
+
     def find_installed_domains
-      ::Gem::Specification.select { |spec| Dir[File.join(spec.full_gem_path, "*Bluebook")].any? }
-        .group_by(&:name).map { |name, specs| [name, specs.map(&:version).sort.reverse] }
+      ::Gem::Specification.select { |spec|
+        Dir[File.join(spec.full_gem_path, "*.hec")].any? || Dir[File.join(spec.full_gem_path, "*Bluebook")].any?
+      }.group_by(&:name).map { |name, specs| [name, specs.map(&:version).sort.reverse] }
     end
 
     def print_world_concerns_report(validator)

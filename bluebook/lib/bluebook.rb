@@ -1,13 +1,21 @@
-# Tokenizer (no dependencies)
-require_relative "bluebook/tokenizer"
+# = BlueBook
+#
+# The domain command language for Hecks. Named for Evans' DDD Blue Book
+# and Smalltalk's Blue Book — the two traditions this grammar descends from.
+#
+# Loaded from its own Bluebook chapter — the chapter lists every aggregate,
+# and load_aggregates derives the require tree from naming conventions.
+# The Bluebook IS the Bluebook.
+#
+#   ast = BlueBook::Grammar.parse("Pizza.attr :name, String")
+#
 
-# Domain model IR namespace modules (declare autoloads for IR node classes)
+# Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run DomainBuilder.
+# These must load before any chapter can describe aggregates.
+require_relative "bluebook/tokenizer"
 require_relative "hecks/domain_model/behavior"
 require_relative "hecks/domain_model/structure"
 require_relative "hecks/domain_model/names"
-
-# DSL builders (loaded in dependency order, before grammar so HANDLE_METHODS
-# can be derived from AggregateBuilder introspection)
 require_relative "hecks/dsl/describable"
 require_relative "hecks/dsl/attribute_collector"
 require_relative "hecks/dsl/event_builder"
@@ -24,64 +32,15 @@ require_relative "hecks/dsl/aggregate_rebuilder"
 require_relative "hecks/dsl/domain_builder"
 require_relative "hecks/dsl/bluebook_builder"
 
-# Grammar (after DSL so HANDLE_METHODS can introspect AggregateBuilder)
-require_relative "bluebook/grammar"
+# Chapter infrastructure (must load before any chapter files)
+require_relative "hecks/chapters"
 
-# Domain tools
-require_relative "hecks/domain/inspector"
-require_relative "hecks/domain/builder_methods"
-require_relative "hecks/domain/compiler"
-require_relative "hecks/domain/in_memory_loader"
-require_relative "hecks/domain/ast_extractor"
-require_relative "hecks/domain/event_storm_importer"
-require_relative "hecks/domain/visualizer_methods"
+# Load the Bluebook chapter (paragraphs describe all aggregates)
+require_relative "hecks/chapters/bluebook"
 
-# Generators (parent namespace files with autoloads, then built-in registrations)
-require_relative "hecks/generators/registry"
-require_relative "hecks/generators/domain"
-require_relative "hecks/generators/infrastructure"
-require_relative "hecks/generators/built_in"
-
-# BlueBook
-#
-# The domain command language for Hecks. Named for Evans' DDD Blue Book
-# and Smalltalk's Blue Book — the two traditions this grammar descends from.
-#
-# Parses domain modeling commands into structured ASTs. No eval — the grammar
-# defines what's expressible, and anything outside the grammar is rejected.
-#
-#   ast = BlueBook::Grammar.parse("Pizza.attr :name, String")
-#   # => { target: "Pizza", method: "attr", args: [:name], kwargs: {}, type_args: [String] }
-#
-module Hecks
-  module Chapters
-    # Require all paragraph files in a chapter's subdirectory.
-    # Call this at the top of a chapter file to eagerly load paragraphs.
-    #
-    # Convention: chapter file at `chapters/foo.rb`, paragraphs in `chapters/foo/*.rb`.
-    #
-    #   # At the top of chapters/runtime.rb:
-    #   Chapters.require_paragraphs(__FILE__)
-    #
-    def self.require_paragraphs(chapter_file)
-      paragraph_dir = chapter_file.sub(/\.rb$/, "")
-      return unless File.directory?(paragraph_dir)
-      Dir.glob(File.join(paragraph_dir, "*.rb")).sort.each { |f| require f }
-    end
-
-    # Call .define(builder) on each paragraph module in the chapter.
-    # Call this inside a chapter's .definition method after defining inline aggregates.
-    #
-    #   Chapters.define_paragraphs(Runtime, builder)
-    #
-    def self.define_paragraphs(chapter_module, builder)
-      chapter_module.constants.each do |const|
-        mod = chapter_module.const_get(const)
-        mod.define(builder) if mod.respond_to?(:define)
-      end
-    end
-  end
-end
+# Implementation files are loaded by Hecks::Chapters.load_chapter
+# after the full framework infrastructure is available.
+# See hecksties/lib/hecks.rb for the boot sequence.
 
 module BlueBook
   VERSION = "2026.03.29.1"

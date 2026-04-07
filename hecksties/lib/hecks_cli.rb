@@ -20,6 +20,7 @@
 # This is a separate entry point (future gem: +hecks_cli+) to keep the
 # CLI dependencies (Thor) isolated from the core framework.
 #
-require_relative "hecks_cli/cli"
-require_relative "hecks_cli/import"
-require_relative "hecks_cli/architecture_tour"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("hecks_cli", __dir__)
+)

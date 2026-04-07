@@ -1,4 +1,7 @@
-require_relative "../import"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 Hecks::CLI.register_command(:import, "Import a Rails app as a Hecks domain",
   args: %w[SOURCE PATH],

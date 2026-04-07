@@ -1,4 +1,3 @@
-require_relative "../extensions/docs"
   # Hecks::ReadmeGenerator
   #
   # Generates README.md from docs/readme_template.md by replacing {{tags}}

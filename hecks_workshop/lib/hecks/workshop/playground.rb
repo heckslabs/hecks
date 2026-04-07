@@ -1,5 +1,7 @@
-require_relative "playground/gem_bootstrap"
-require_relative "playground/runtime_resolver"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::SandboxParagraph,
+  base_dir: File.expand_path("playground", __dir__)
+)
 
 module Hecks
   class Workshop

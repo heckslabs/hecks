@@ -33,7 +33,8 @@ Hecks::CLI.register_command(:serve, "Serve a domain as HTTP (default) or JSON-RP
   serve_static = lambda do |domain, port|
     require "tmpdir"
     dir = Dir.mktmpdir("hecks-serve-")
-    output = Hecks.build_static(domain, output_dir: dir)
+    require "hecks_static"
+    output = Hecks.target_registry[:static].call(domain, output_dir: dir)
     lib_path = File.join(output, "lib")
     $LOAD_PATH.unshift(lib_path)
     gem_name = domain.gem_name

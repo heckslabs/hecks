@@ -1,4 +1,7 @@
-require_relative "domain_diff/behavior_diff"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::MigrationsParagraph,
+  base_dir: File.expand_path("domain_diff", __dir__)
+)
 
 module Hecks
   module Migrations

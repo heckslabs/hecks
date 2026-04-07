@@ -1,8 +1,9 @@
 require "mcp"
 
-require_relative "domain_server/command_tools"
-require_relative "domain_server/query_tools"
-require_relative "domain_server/repository_tools"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::AI::DomainServerParagraph,
+  base_dir: File.expand_path("domain_server", __dir__)
+)
 
 module Hecks
   module MCP

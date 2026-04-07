@@ -1,8 +1,14 @@
 require "webrick"
 require "json"
 require "tmpdir"
-require_relative "cors_headers"
-require_relative "command_bus_port"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeChapter,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  base_dir: __dir__
+)
 
 module Hecks
   module HTTP

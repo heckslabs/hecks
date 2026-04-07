@@ -1,8 +1,8 @@
 # = NodeHecks
 #
-# Node.js/TypeScript domain generator for Hecks. Produces a complete
-# Express + TypeScript project from the same domain IR the Ruby and
-# Go generators read. Same DSL, TypeScript output.
+# Node.js/TypeScript domain generator for Hecks. Loaded from the
+# Targets::Node Bluebook chapter — the chapter lists every aggregate,
+# and load_aggregates derives the require tree from naming conventions.
 #
 # == Usage
 #
@@ -13,6 +13,7 @@
 #   # Or via CLI:
 #   hecks build --target node
 #
+
 # Register Node.js/TypeScript type mappings with the TypeContract registry
 Hecks::Conventions::TypeContract.register_target(:node, {
   "String"   => "string",
@@ -26,10 +27,15 @@ Hecks::Conventions::TypeContract.register_target(:node, {
   "JSON"     => "Record<string, unknown>",
 }, default: "string")
 
-require_relative "node_hecks/node_utils"
-require_relative "node_hecks/generators/aggregate_generator"
-require_relative "node_hecks/generators/command_generator"
-require_relative "node_hecks/generators/repository_generator"
-require_relative "node_hecks/generators/server_generator"
-require_relative "node_hecks/generators/project_generator"
-require_relative "node_hecks/generators/node_generator"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Node,
+  base_dir: File.expand_path("node_hecks", __dir__)
+)
+
+# Self-register Node target when loaded
+Hecks.register_target(:node) do |domain, output_dir: ".", **|
+  valid, errors = Hecks.validate(domain)
+  raise Hecks::ValidationError.for_domain(errors) unless valid
+
+  NodeHecks::ProjectGenerator.new(domain, output_dir: output_dir).generate
+end

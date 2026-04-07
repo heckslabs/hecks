@@ -11,8 +11,10 @@
 #
 #   Tour.new(runner).start
 #
-require_relative "tour/sketch_steps"
-require_relative "tour/play_steps"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::TourStepsParagraph,
+  base_dir: File.expand_path("tour", __dir__)
+)
 
 module Hecks
   class Workshop

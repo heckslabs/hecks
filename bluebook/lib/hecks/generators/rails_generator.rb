@@ -156,3 +156,13 @@ module Hecks
     end
   end
 end
+
+# Self-register Rails target when loaded
+if defined?(Hecks) && Hecks.respond_to?(:register_target)
+  Hecks.register_target(:rails) do |domain, output_dir: ".", **|
+    valid, errors = Hecks.validate(domain)
+    raise Hecks::ValidationError.for_domain(errors) unless valid
+
+    Hecks::Generators::RailsGenerator.new(domain).generate(output_dir: output_dir)
+  end
+end

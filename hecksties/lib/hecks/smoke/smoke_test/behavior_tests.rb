@@ -7,12 +7,11 @@
 #     include BehaviorTests  # pulls in query, scope, lifecycle, etc.
 #   end
 #
-require_relative "behavior_tests/query_tests"
-require_relative "behavior_tests/policy_tests"
-require_relative "behavior_tests/lifecycle_tests"
-require_relative "behavior_tests/negative_tests"
-require_relative "behavior_tests/endpoint_tests"
-require_relative "behavior_tests/domain_lookups"
+require_relative "../../chapters/templating/behavior_tests_children"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Templating::BehaviorTestsChildren,
+  base_dir: File.expand_path("behavior_tests", __dir__)
+)
 
 module HecksTemplating
   class SmokeTest

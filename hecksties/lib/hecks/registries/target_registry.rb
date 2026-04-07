@@ -3,7 +3,8 @@
 # Registry for build targets. Each target (ruby, static, go, rails) registers
 # a callable that receives a domain and options, and returns the build output.
 #
-#   Hecks.register_target(:go) { |domain, **opts| Hecks.build_go(domain, **opts) }
+#   # Targets self-register when their gem is required:
+#   require "go_hecks"  # registers :go and :binary
 #   Hecks.target_registry[:go].call(domain)
 #
 module Hecks

@@ -16,12 +16,9 @@
 #   runner = HecksWatchers::Runner.new(project_root: Dir.pwd)
 #   runner.start
 #
-require_relative "hecks_watchers/logger"
-require_relative "hecks_watchers/watcher_registry"
-require_relative "hecks_watchers/file_size"
-require_relative "hecks_watchers/cross_require"
-require_relative "hecks_watchers/spec_coverage"
-require_relative "hecks_watchers/doc_reminder"
-require_relative "hecks_watchers/runner"
-require_relative "hecks_watchers/pre_commit"
-require_relative "hecks_watchers/log_reader"
+# Load watcher implementation files from the Watchers chapter definition.
+require_relative "hecks/chapters/watchers"
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::Watchers,
+  base_dir: File.expand_path("hecks_watchers", __dir__)
+)

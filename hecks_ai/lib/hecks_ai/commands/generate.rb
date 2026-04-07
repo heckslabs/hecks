@@ -15,10 +15,6 @@ Hecks::CLI.register_command(:generate, "Generate Bluebook DSL from a natural lan
   }
 ) do |description|
   require "hecks_ai"
-  require_relative "../type_resolver"
-  require_relative "../llm_client"
-  require_relative "../domain_builder"
-  require_relative "../prompts/domain_generation"
 
   unless description && !description.strip.empty?
     say "Usage: hecks generate \"describe your domain here\"", :red

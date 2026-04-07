@@ -1,4 +1,7 @@
-require_relative "collection_item"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::PortInternals,
+  base_dir: __dir__
+)
 
 module Hecks
   module Persistence

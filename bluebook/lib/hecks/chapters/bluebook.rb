@@ -86,12 +86,6 @@ module Hecks
               command("GenerateReadme") { attribute :root, String }
             end
 
-            aggregate "VerticalSlice", "Cross-cutting slice through command/event chain" do
-              attribute :name, String
-              attribute :entry_command, String
-              command("ExtractSlices") { attribute :domain_id, String }
-            end
-
             aggregate "EventStorm", "Imports event storming sessions into domain IR" do
               attribute :source, String
               command("ParseEventStorm") { attribute :source, String }

@@ -24,24 +24,41 @@ require_relative "hecks/registries/validation_registry"
 require_relative "hecks/registries/dump_format_registry"
 require_relative "hecks/registries/grammar_registry"
 
+# Extend registry methods early — Bluebook's chapter loading needs them
+module Hecks
+  extend ExtensionRegistryMethods
+  extend CapabilityRegistryMethods
+  extend DomainRegistryMethods
+  extend CrossDomainMethods
+  extend ThreadContextMethods
+  extend TargetRegistryMethods
+  extend AdapterRegistryMethods
+  extend ValidationRegistryMethods
+  extend DumpFormatRegistryMethods
+  extend GrammarRegistryMethods
+end
+
 # Default modules — loaded with require "hecks"
+# Bluebook loads its implementation files from its chapter definition
 require "bluebook"
 require "hecksagon"
-require_relative "hecks/deprecations"
 require_relative "hecks/stats"
 require_relative "hecks/event_sourcing"
 require "hecks/runtime/boot"
+require_relative "hecks/deprecations"
 require "hecks/runtime/boot_bluebook"
 require "hecks/workshop"
+
+# Load Bluebook implementation files from its chapter definition.
+# Registry methods are already extended above, so validators can register.
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::Bluebook,
+  base_dir: File.expand_path("../../bluebook/lib", __dir__)
+)
 
 # = Hecks
 #
 # Top-level entry point. Modules load lazily — require only what you use.
-#
-#   require "hecks"                  # core DSL + registries
-#   require "hecks_multidomain"      # multi-domain boot + filtered bus
-#   require "hecks_explorer"         # web explorer + HTTP server
-#   require "hecks_ai"               # MCP server + AI tools
 #
 # Hecks
 #
@@ -55,16 +72,6 @@ module Hecks
   extend DomainVisualizerMethods
   extend Boot
   extend BootBluebook
-  extend ExtensionRegistryMethods
-  extend CapabilityRegistryMethods
-  extend DomainRegistryMethods
-  extend CrossDomainMethods
-  extend ThreadContextMethods
-  extend TargetRegistryMethods
-  extend AdapterRegistryMethods
-  extend ValidationRegistryMethods
-  extend DumpFormatRegistryMethods
-  extend GrammarRegistryMethods
 
   def self.configure(&block)
     @configuration = Configuration.new
@@ -92,12 +99,11 @@ module Hecks
     Runtime.new(domain, **opts, &config)
   end
 
-  # Built-in build targets
+  # Core build target — always available
   register_target(:ruby) { |domain, **opts| Hecks.build(domain, **opts) }
-  register_target(:static) { |domain, **opts| Hecks.build_static(domain, **opts) }
-  register_target(:go) { |domain, **opts| Hecks.build_go(domain, **opts) }
-  register_target(:node) { |domain, **opts| Hecks.build_node(domain, **opts) }
-  register_target(:rails) { |domain, **opts| Hecks.build_rails(domain, **opts) }
+
+  # Other targets (go, static, node, rails, binary) self-register
+  # when their gems are required. See hecks_targets/ for each.
 
   # Built-in dump formats
   register_dump_format(:schema, desc: "JSON Schema") { |domain, say:| require "hecks_serve"; File.write("schema.json", JSON.pretty_generate(Hecks::HTTP::JsonSchemaGenerator.new(domain).generate)); say.call("Dumped schema.json", :green) }

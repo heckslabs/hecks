@@ -1,6 +1,7 @@
-require_relative "visualizer_parts/structure_diagram"
-require_relative "visualizer_parts/behavior_diagram"
-require_relative "visualizer_parts/port_diagram"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::VisualizersParagraph,
+  base_dir: File.expand_path("visualizer_parts", __dir__)
+)
   # Hecks::DomainVisualizer
   #
   # Generates Mermaid diagram strings from a domain IR. Produces two diagrams:

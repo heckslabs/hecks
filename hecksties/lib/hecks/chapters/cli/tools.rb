@@ -35,6 +35,19 @@ module Hecks
           b.aggregate "DomainHelpers", "Shared helpers for CLI domain loading" do
             command("LoadDomain") { attribute :domain_path, String }
           end
+
+          b.aggregate "GemBuilder", "Builds and installs Hecks component gems" do
+            command("Build") { attribute :root, String }
+          end
+
+          b.aggregate "DomainIntrospector", "Analyzes cross-domain connections and extension wiring" do
+            command("Introspect") { attribute :domains, String }
+          end
+
+          b.aggregate "ConflictHandler", "Handles file conflicts during generation" do
+            command("Resolve") { attribute :file_path, String }
+          end
+
         end
       end
     end

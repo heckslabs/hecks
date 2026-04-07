@@ -1,6 +1,7 @@
-require_relative "openapi_generator/response_helpers"
-require_relative "openapi_generator/schema_builder"
-require_relative "openapi_generator/path_builder"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorsParagraph,
+  base_dir: File.expand_path("openapi_generator", __dir__)
+)
 
 module Hecks
   module HTTP

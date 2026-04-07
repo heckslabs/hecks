@@ -58,8 +58,8 @@ module Hecks
     # Detect a single Bluebook file that uses Hecks.bluebook (not Hecks.domain).
     # Returns the BluebookStructure IR if found, nil otherwise.
     def detect_bluebook_file(dir)
-      bluebooks = Dir[File.join(dir, "*Bluebook")].sort
-      bluebooks = Dir[File.join(dir, "bluebook", "*Bluebook")].sort if bluebooks.empty?
+      bluebooks = find_domain_files(dir)
+      bluebooks = find_domain_files(File.join(dir, "bluebook")) if bluebooks.empty?
       return nil if bluebooks.empty?
 
       # Check if the file content uses Hecks.bluebook
@@ -78,26 +78,26 @@ module Hecks
       found = candidates.find { |domain_dir| File.directory?(domain_dir) }
       return found if found
 
-      # bluebook/ subfolder with multiple Bluebook files = multi-domain
+      # bluebook/ subfolder with multiple domain files = multi-domain
       bluebook_dir = File.join(dir, "bluebook")
-      return bluebook_dir if File.directory?(bluebook_dir) && Dir[File.join(bluebook_dir, "*Bluebook")].size > 1
+      return bluebook_dir if File.directory?(bluebook_dir) && find_domain_files(bluebook_dir).size > 1
 
       nil
     end
 
     def load_single_domain(dir)
-      # Look for *Bluebook files at root, then in bluebook/ subfolder
-      bluebooks = Dir[File.join(dir, "*Bluebook")].sort
-      bluebooks = Dir[File.join(dir, "bluebook", "*Bluebook")].sort if bluebooks.empty?
-      raise Hecks::DomainLoadError, "No *Bluebook files found in #{dir} or #{dir}/bluebook/" if bluebooks.empty?
+      # Look for .hec files or *Bluebook at root, then in bluebook/ subfolder
+      bluebooks = find_domain_files(dir)
+      bluebooks = find_domain_files(File.join(dir, "bluebook")) if bluebooks.empty?
+      raise Hecks::DomainLoadError, "No .hec or Bluebook found in #{dir}" if bluebooks.empty?
 
       bluebooks.each { |bluebook_file| Kernel.load(bluebook_file) }
       domain = Hecks.last_domain
       domain.source_path = bluebooks.first
 
-      # Auto-discover and load Hecksagon file (infrastructure capabilities)
-      hecksagons = Dir[File.join(dir, "*Hecksagon")].sort
-      hecksagons = Dir[File.join(dir, "bluebook", "*Hecksagon")].sort if hecksagons.empty?
+      # Auto-discover and load Hecksagon file
+      hecksagons = find_hecksagon_files(dir)
+      hecksagons = find_hecksagon_files(File.join(dir, "bluebook")) if hecksagons.empty?
       hecksagons.each { |hecksagon_file| Kernel.load(hecksagon_file) }
 
       mod = load_domain(domain)
@@ -164,10 +164,10 @@ module Hecks
     end
 
     def boot_multi(dir, domains_dir, adapter: :memory, &block)
-      # Support both *.rb (legacy) and *Bluebook files
-      domain_files = Dir[File.join(domains_dir, "*Bluebook")].sort
+      # Support .hec, *Bluebook, and .rb files
+      domain_files = find_domain_files(domains_dir)
       domain_files = Dir[File.join(domains_dir, "*.rb")].sort if domain_files.empty?
-      raise Hecks::DomainLoadError, "No Bluebook or .rb files in #{domains_dir}" if domain_files.empty?
+      raise Hecks::DomainLoadError, "No .hec or .rb files in #{domains_dir}" if domain_files.empty?
 
       domains = domain_files.map { |path| eval(File.read(path), nil, path, 1) }
       domains.each { |domain| load_stubs(dir, domain) }
@@ -218,6 +218,28 @@ module Hecks
         domain_gem_name: domain.gem_name,
         allowed_sources: @_directionality[domain.gem_name]
       )
+    end
+
+    # Find domain files: *.hec (excluding hecksagon) > *Bluebook
+    def find_domain_files(dir)
+      hec = Dir[File.join(dir, "*.hec")].reject { |f| File.basename(f).match?(/hecksagon/i) }.sort
+      return hec unless hec.empty?
+      find_by_patterns(dir, "Bluebook", "*Bluebook")
+    end
+
+    # Find hecksagon files: *hecksagon.hec > *Hecksagon > Hexagon
+    def find_hecksagon_files(dir)
+      hec = Dir[File.join(dir, "*hecksagon.hec")].sort
+      return hec unless hec.empty?
+      find_by_patterns(dir, "*Hecksagon", "Hexagon")
+    end
+
+    def find_by_patterns(dir, *patterns)
+      patterns.each do |pattern|
+        files = Dir[File.join(dir, pattern)].sort
+        return files unless files.empty?
+      end
+      []
     end
 
     def normalize_adapter(adapter)

@@ -20,5 +20,8 @@ module HecksDeprecations
   end
 end
 
-require_relative "deprecations/workflow_step_compat"
-require_relative "deprecations/connection_config_compat"
+require_relative "chapters/runtime/mixins"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::Mixins,
+  base_dir: File.expand_path("deprecations", __dir__)
+)

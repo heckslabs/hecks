@@ -1,19 +1,11 @@
 require "fileutils"
-require_relative "workshop/build_actions"
-require_relative "workshop/play_mode"
-require_relative "workshop/presenter"
-require_relative "workshop/navigator"
-require_relative "workshop/renderer"
-require_relative "workshop/deep_inspect"
-require_relative "workshop/handles/aggregate_handle"
-require_relative "workshop/system_browser"
-require_relative "workshop/session_image"
-require_relative "workshop/persistent_image"
-require_relative "workshop/workshop_runner"
-require_relative "workshop/playground"
-require_relative "workshop/tour"
-require_relative "workshop/bluebook_mode"
-require_relative "workshop/web_runner"
+
+# Load workshop implementation files from the Workshop chapter definition.
+require_relative "chapters/workshop"
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::Workshop,
+  base_dir: __dir__
+)
 
 module Hecks
   # Hecks::Workshop

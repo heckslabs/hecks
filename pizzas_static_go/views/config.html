@@ -1,0 +1,79 @@
+{{ define "config" }}
+<h1>Configuration</h1>
+<div class="detail">
+  <dl>
+    <dt>Role</dt>
+    <dd>
+      <form class="inline" method="post" action="/config/role">
+        <select class="inline" name="role">
+          {{ range .Roles }}
+            <option value="{{ . }}"{{ if eq . $.CurrentRole }} selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+        <button class="btn btn-sm" type="submit">Switch</button>
+      </form>
+    </dd>
+    <dt>Adapter</dt>
+    <dd>
+      <form class="inline" method="post" action="/config/reboot">
+        <select class="inline" name="adapter">
+          {{ range .Adapters }}
+            <option value="{{ . }}"{{ if eq . $.CurrentAdapter }} selected{{ end }}>{{ . }}</option>
+          {{ end }}
+        </select>
+        <button class="btn btn-sm" type="submit">Switch</button>
+      </form>
+    </dd>
+    <dt>Events</dt>
+    <dd>{{ .EventCount }} total</dd>
+    <dt>Booted</dt>
+    <dd>{{ .BootedAt }}</dd>
+    <dt>Reset</dt>
+    <dd>
+      <form class="inline" method="post" action="/_reset">
+        <button class="btn btn-sm" type="submit">Clear All Data</button>
+      </form>
+    </dd>
+    <dt>Policies</dt>
+    <dd>
+      {{ if not .Policies }}
+        (none)
+      {{ else }}
+        <ul>
+          {{ range .Policies }}
+            <li class="mono">{{ . }}</li>
+          {{ end }}
+        </ul>
+      {{ end }}
+    </dd>
+  </dl>
+</div>
+<h2>Aggregates</h2>
+<table>
+  <thead>
+    <tr><th>Aggregate</th><th>Count</th><th>Commands</th><th>Ports</th></tr>
+  </thead>
+  <tbody>
+    {{ range .Aggregates }}
+      <tr>
+        <td><a href="{{ .Href }}">{{ .Name }}</a></td>
+        <td>{{ .Count }}</td>
+        <td class="mono">{{ .Commands }}</td>
+        <td class="mono">{{ .Ports }}</td>
+      </tr>
+    {{ end }}
+  </tbody>
+</table>
+{{ if .StructureDiagram }}
+<h2>Domain Wiring</h2>
+<details open><summary>Structure</summary>
+  <pre class="mermaid">{{ .StructureDiagram }}</pre>
+</details>
+<details><summary>Behavior</summary>
+  <pre class="mermaid">{{ .BehaviorDiagram }}</pre>
+</details>
+<details><summary>Flows</summary>
+  <pre class="mermaid">{{ .FlowsDiagram }}</pre>
+</details>
+{{ end }}
+{{ end }}

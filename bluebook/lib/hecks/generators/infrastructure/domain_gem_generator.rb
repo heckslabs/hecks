@@ -1,7 +1,8 @@
 require "fileutils"
-require_relative "domain_gem_generator/file_writer"
-require_relative "domain_gem_generator/llms_txt_writer"
-require_relative "domain_gem_generator/spec_writer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  base_dir: File.expand_path("domain_gem_generator", __dir__)
+)
 
 module Hecks
   module Generators

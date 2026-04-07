@@ -1,7 +1,8 @@
 # = GoHecks
 #
-# Go domain generator for Hecks. Produces a complete Go project from
-# the same domain IR the Ruby generators read. Same DSL, Go output.
+# Go domain generator for Hecks. Loaded from the Targets::Go
+# Bluebook chapter — the chapter lists every aggregate, and
+# load_aggregates derives the require tree from naming conventions.
 #
 # == Usage
 #
@@ -12,29 +13,21 @@
 #   # Or via CLI:
 #   hecks build --target go
 #
-require_relative "go_hecks/go_utils"
-require_relative "go_hecks/go_code_builder"
-require_relative "go_hecks/generators/aggregate_generator"
-require_relative "go_hecks/generators/value_object_generator"
-require_relative "go_hecks/generators/command_generator"
-require_relative "go_hecks/generators/event_generator"
-require_relative "go_hecks/generators/port_generator"
-require_relative "go_hecks/generators/memory_adapter_generator"
-require_relative "go_hecks/generators/errors_generator"
-require_relative "go_hecks/generators/lifecycle_generator"
-require_relative "go_hecks/generators/query_generator"
-require_relative "go_hecks/generators/specification_generator"
-require_relative "go_hecks/generators/policy_generator"
-require_relative "go_hecks/generators/view_generator"
-require_relative "go_hecks/generators/runtime_generator"
-require_relative "go_hecks/generators/registry_generator"
-require_relative "go_hecks/generators/register_generator"
-require_relative "go_hecks/generators/application_generator"
-require_relative "go_hecks/generators/renderer_generator"
-require_relative "go_hecks/generators/server_generator"
-require_relative "go_hecks/generators/show_template"
-require_relative "go_hecks/generators/form_template"
-require_relative "go_hecks/generators/index_template"
-require_relative "go_hecks/generators/project_generator"
-require_relative "go_hecks/generators/multi_server_generator"
-require_relative "go_hecks/generators/multi_project_generator"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Go,
+  base_dir: File.expand_path("go_hecks", __dir__)
+)
+
+# Self-register Go targets when loaded
+Hecks.register_target(:go) do |domain, output_dir: ".", smoke_test: true, **|
+  generator = GoHecks::ProjectGenerator.new(domain, output_dir: output_dir)
+  root = generator.generate
+  if smoke_test
+    Hecks.send(:run_smoke_test, root, domain) rescue nil
+  end
+  root
+end
+
+Hecks.register_target(:binary) do |domain, output_dir: "bin", **|
+  GoHecks::BinaryBuilder.build(domain, output_dir: output_dir)
+end

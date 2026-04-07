@@ -13,6 +13,11 @@ module Hecks
           b.aggregate "DomainCompiler", "Generates domain gems and loads domains into memory" do
             command("Compile") { attribute :domain_id, String; attribute :output_dir, String }
             command("LoadDomain") { attribute :domain_id, String }
+            command("BuildStatic") { attribute :domain_id, String; attribute :output_dir, String }
+            command("BuildGo") { attribute :domain_id, String; attribute :output_dir, String }
+            command("BuildNode") { attribute :domain_id, String; attribute :output_dir, String }
+            command("BuildRails") { attribute :domain_id, String; attribute :output_dir, String }
+            command("BuildBinary") { attribute :domain_id, String; attribute :output_dir, String }
           end
 
           b.aggregate "InMemoryLoader", "Fast domain loading without disk I/O via in-memory eval" do
@@ -21,14 +26,6 @@ module Hecks
 
           b.aggregate "DomainInspector", "Top-level introspection across all loaded domains" do
             command("InspectDomain") { attribute :domain_id, String }
-          end
-
-          b.aggregate "SliceDiagram", "Generates vertical slice diagrams from domain IR" do
-            command("GenerateSliceDiagram") { attribute :domain_id, String }
-          end
-
-          b.aggregate "SliceExtractor", "Extracts vertical slices from domain command flows" do
-            command("ExtractSlices") { attribute :domain_id, String; attribute :entry_command, String }
           end
 
           b.aggregate "DomainIntrospector", "Analyzes domain structure programmatically" do
@@ -53,6 +50,14 @@ module Hecks
 
           b.aggregate "Tokenizer", "Splits command argument strings into typed tokens" do
             command("Tokenize") { attribute :input, String }
+          end
+
+          b.aggregate "ExtensionDocs", "Metadata registry describing all Hecks extensions" do
+            command("ListExtensions") { attribute :category, String }
+          end
+
+          b.aggregate "ReadmeWriter", "Generates per-extension Markdown README files from metadata" do
+            command("GenerateReadmes") { attribute :root, String }
           end
         end
       end

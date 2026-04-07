@@ -100,45 +100,9 @@ module Hecks
             command "Run"
           end
 
-          b.aggregate "CommandTools" do
-            description "DomainServer mixin: registers MCP tools for domain commands"
-            command "RegisterCommandTools"
-          end
-
-          b.aggregate "QueryTools" do
-            description "DomainServer mixin: registers MCP tools for domain queries"
-            command "RegisterQueryTools"
-          end
-
-          b.aggregate "RepositoryTools" do
-            description "DomainServer mixin: registers Find/All/Count tools per aggregate"
-            command "RegisterRepositoryTools"
-          end
-
           b.aggregate "GovernanceGuard" do
             description "Entry-point agnostic governance checker against world concerns"
             command "Check"
-          end
-
-          b.aggregate "ConcernChecks" do
-            description "Rule-based governance checks for transparency, consent, privacy, security"
-            command "CheckTransparency"
-            command "CheckConsent"
-            command "CheckPrivacy"
-            command "CheckSecurity"
-          end
-
-          b.aggregate "GovernanceResult" do
-            description "Immutable result object from a governance check with violations and suggestions"
-            command "Create" do
-              attribute :violations, String
-              attribute :suggestions, String
-            end
-          end
-
-          b.aggregate "DomainSerializer" do
-            description "Serializes a domain model into structured JSON for MCP tool responses"
-            command "Serialize"
           end
 
           b.aggregate "McpConnection" do
@@ -168,11 +132,6 @@ module Hecks
           b.aggregate "DomainGeneration" do
             description "System prompt with few-shot examples for LLM domain generation"
             command "GetPrompt"
-          end
-
-          b.aggregate "DomainToolSchema" do
-            description "Anthropic tool_use schema for the define_domain tool"
-            command "GetSchema"
           end
 
           Chapters.define_paragraphs(AI, b)

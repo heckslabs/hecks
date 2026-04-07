@@ -17,7 +17,7 @@
 #   gem "cats_domain"
 #   gem "hecks_postgres"   # auto-wires Postgres
 #
-require_relative "../../hecks_persist"
+require "hecks_persist"
 
 Hecks.describe_extension(:postgres,
   description: "PostgreSQL persistence via Sequel",

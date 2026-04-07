@@ -1,7 +1,7 @@
-require_relative "import/schema_parser"
-require_relative "import/model_parser"
-require_relative "import/domain_assembler"
-require_relative "import/model_only_assembler"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliImport,
+  base_dir: File.expand_path("import", __dir__)
+)
   # Hecks::Import
   #
   # Reverse-engineers a Rails application into a Hecks domain definition.

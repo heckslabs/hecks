@@ -1,4 +1,7 @@
-require_relative "docs/readme_writer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::ToolingParagraph,
+  base_dir: File.expand_path("docs", __dir__)
+)
   # Hecks::ExtensionDocs
   #
   # Metadata registry for all Hecks extensions. Each entry describes what an

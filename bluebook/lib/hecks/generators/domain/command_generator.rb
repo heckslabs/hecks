@@ -1,4 +1,7 @@
-require_relative "command_generator/injection_helpers"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  base_dir: File.expand_path("command_generator", __dir__)
+)
 
 module Hecks
   module Generators

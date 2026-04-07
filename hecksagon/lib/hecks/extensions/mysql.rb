@@ -17,7 +17,7 @@
 #   gem "cats_domain"
 #   gem "hecks_mysql"   # auto-wires MySQL
 #
-require_relative "../../hecks_persist"
+require "hecks_persist"
 
 Hecks.describe_extension(:mysql,
   description: "MySQL persistence via Sequel",

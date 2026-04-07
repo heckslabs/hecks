@@ -1,6 +1,7 @@
-require_relative "llms_generator/aggregate_describer"
-require_relative "llms_generator/validation_describer"
-require_relative "llms_generator/policy_describer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorsParagraph,
+  base_dir: File.expand_path("llms_generator", __dir__)
+)
   # Hecks::LlmsGenerator
   #
   # Walks the domain IR and produces an AI-readable plain text summary suitable

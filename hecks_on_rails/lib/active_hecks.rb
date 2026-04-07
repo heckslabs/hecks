@@ -25,11 +25,13 @@
 #   PersistenceWrapper  — wraps save/destroy with validation + callbacks
 #
 require "active_model"
-require_relative "active_hecks/domain_model_compat"
-require_relative "active_hecks/aggregate_compat"
-require_relative "active_hecks/value_object_compat"
-require_relative "active_hecks/validation_wiring"
-require_relative "active_hecks/persistence_wrapper"
+
+# Load ActiveHecks implementation files from the Rails chapter definition.
+require_relative "hecks/chapters/rails"
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::Rails,
+  base_dir: File.expand_path("active_hecks", __dir__)
+)
 
 module ActiveHecks
   # Activate ActiveModel compatibility on all aggregates and value objects

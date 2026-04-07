@@ -22,7 +22,10 @@
 #   Hecks.tenant = "beta"
 #   Cat.all                        # => [] (beta has no cats)
 #
-require_relative "tenancy_support/tenant_scoped_repository"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::TenancyChapter,
+  base_dir: File.expand_path("tenancy_support", __dir__)
+)
 
 Hecks.describe_extension(:tenancy,
   description: "Multi-tenant column-scoped data isolation",

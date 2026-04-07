@@ -1,4 +1,7 @@
-require_relative "server_generator/domain_routes"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: File.expand_path("server_generator", __dir__)
+)
 
 module HecksStatic
 # HecksStatic::ServerGenerator

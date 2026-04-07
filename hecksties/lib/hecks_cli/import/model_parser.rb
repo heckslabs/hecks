@@ -8,7 +8,10 @@
 #   # => { "Pizza" => { associations: [...], validations: [...], enums: {...}, state_machine: {...} } }
 #
 require "prism"
-require_relative "prism_helpers"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliImport,
+  base_dir: __dir__
+)
 
 module Hecks
   module Import

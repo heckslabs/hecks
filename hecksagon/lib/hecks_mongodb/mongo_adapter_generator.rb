@@ -8,7 +8,10 @@
 #   gen = MongoAdapterGenerator.new(agg, domain_module: "PizzasDomain")
 #   gen.generate  # => Ruby source string
 #
-require_relative "mongo_adapter_generator/serialization_lines"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Hecksagon::MongoAdapterParagraph,
+  base_dir: File.expand_path("mongo_adapter_generator", __dir__)
+)
 
 module Hecks
   class MongoAdapterGenerator

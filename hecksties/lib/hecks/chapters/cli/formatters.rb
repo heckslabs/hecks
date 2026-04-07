@@ -37,6 +37,10 @@ module Hecks
           b.aggregate "SecondaryFormatters", "Formats scopes, specifications, subscribers, references, computed attributes" do
             command("Format") { attribute :aggregate, String }
           end
+
+          b.aggregate "DomainInspector", "Formats domain IR for terminal display" do
+            command("InspectDomain") { attribute :domain_name, String }
+          end
         end
       end
     end

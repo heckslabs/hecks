@@ -1,4 +1,7 @@
-require_relative "entry_point_generator/boot_wiring"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: File.expand_path("entry_point_generator", __dir__)
+)
 
 # HecksStatic::EntryPointGenerator
 #

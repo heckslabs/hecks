@@ -19,8 +19,6 @@
 #   Hecks.outbox.pending_count    # => 0 (poller drained it)
 #   app.events.size               # => 1 (delivered via poller)
 #
-require_relative "../ports/outbox/outbox"
-
 Hecks.describe_extension(:outbox,
   description: "Reliable event publishing via transactional outbox pattern",
   adapter_type: :driven,

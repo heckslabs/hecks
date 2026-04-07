@@ -1,5 +1,4 @@
 require "fileutils"
-require_relative "sql_helpers"
 
 module Hecks
   module Migrations

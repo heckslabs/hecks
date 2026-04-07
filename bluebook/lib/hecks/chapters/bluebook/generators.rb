@@ -130,6 +130,54 @@ module Hecks
           b.aggregate "OpenApiSchemaBuilder", "Builds OpenAPI component schemas from domain aggregates" do
             command("BuildSchema") { attribute :aggregate_id, String }
           end
+
+          b.aggregate "SqlAdapterGenerator", "Generates Sequel-based persistence adapter class" do
+            command("GenerateSqlAdapter") { attribute :aggregate_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "SqlMigrationGenerator", "Generates SQL CREATE/ALTER TABLE migration files from domain diffs" do
+            command("GenerateSqlMigration") { attribute :domain_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "RailsGenerator", "Generates a complete Rails app wired to the domain gem" do
+            command("GenerateRailsApp") { attribute :domain_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "JsonSchemaGenerator", "Generates JSON Schema for aggregate commands and value objects" do
+            command("GenerateJsonSchema") { attribute :aggregate_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "OpenApiGenerator", "Generates OpenAPI 3.0 spec with paths, request bodies, and schemas" do
+            command("GenerateOpenApi") { attribute :domain_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "TypescriptGenerator", "Generates TypeScript interfaces for aggregates, commands, and value objects" do
+            command("GenerateTypeScript") { attribute :domain_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "RouteBuilder", "Generates HTTP route definitions from domain commands and queries" do
+            command("BuildRoutes") { attribute :domain_id, String }
+          end
+
+          b.aggregate "RpcDiscovery", "Generates machine-readable RPC manifest of commands and queries" do
+            command("GenerateRpcManifest") { attribute :domain_id, String }
+          end
+
+          b.aggregate "CallPreservation", "Preserves hand-written call method bodies during code regeneration" do
+            command("PreserveCalls") { attribute :source, String; attribute :generated, String }
+          end
+
+          b.aggregate "PathTraversal", "Validates output paths to prevent directory traversal attacks" do
+            command("ValidatePath") { attribute :path, String }
+          end
+
+          b.aggregate "ExampleAppWriter", "Writes example application demonstrating domain usage" do
+            command("WriteApp") { attribute :domain_id, String; attribute :output_dir, String }
+          end
+
+          b.aggregate "ExampleBluebookWriter", "Writes example Bluebook DSL file for a domain" do
+            command("WriteBluebook") { attribute :domain_id, String; attribute :output_dir, String }
+          end
         end
       end
     end

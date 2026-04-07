@@ -1,13 +1,11 @@
 require "mcp"
-require_relative "type_resolver"
-require_relative "session_tools"
-require_relative "aggregate_tools"
-require_relative "aggregate_lifecycle_tools"
-require_relative "inspect_tools"
-require_relative "build_tools"
-require_relative "play_tools"
-require_relative "service_tools"
-require_relative "governance_tools"
+
+# Load MCP server implementation files from the AI chapter definition.
+require_relative "../hecks/chapters/ai"
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::AI,
+  base_dir: __dir__
+)
 
 module Hecks
   # Hecks::McpServer

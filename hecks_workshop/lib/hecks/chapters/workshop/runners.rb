@@ -15,35 +15,9 @@ module Hecks
             command "Run"
           end
 
-          b.aggregate "ConstantHoister" do
-            description "Manages hoisting and cleanup of constants on WorkshopRunner"
-            command "HoistAggregate" do
-              attribute :const_name, String
-            end
-          end
-
           b.aggregate "WebRunner" do
             description "Browser-based REPL with WEBrick server for the Workshop"
             command "Run"
-          end
-
-          b.aggregate "Evaluator" do
-            description "Safe eval-free command execution delegating to CommandParser"
-            command "Evaluate" do
-              attribute :input, String
-            end
-          end
-
-          b.aggregate "CommandParser" do
-            description "Safe command dispatcher using BlueBook Grammar for the web workshop"
-            command "Execute" do
-              attribute :input, String
-            end
-          end
-
-          b.aggregate "StateSerializer" do
-            description "Serializes workshop state into JSON for the browser console"
-            command "Serialize"
           end
 
           b.aggregate "WorkshopSession" do

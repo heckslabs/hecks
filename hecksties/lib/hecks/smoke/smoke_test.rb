@@ -12,9 +12,11 @@
 require "net/http"
 require "uri"
 require "json"
-require_relative "smoke_test/event_checks"
-require_relative "smoke_test/behavior_tests"
-require_relative "smoke_test/form_submission"
+require_relative "../chapters/templating/smoke_test_children"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Templating::SmokeTestChildren,
+  base_dir: File.expand_path("smoke_test", __dir__)
+)
 
 module HecksTemplating
   # HecksTemplating::SmokeTest

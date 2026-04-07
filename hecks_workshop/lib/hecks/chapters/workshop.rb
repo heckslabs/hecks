@@ -82,12 +82,6 @@ module Hecks
             command "ResetPlayground"
           end
 
-          b.aggregate "Presenter" do
-            description "Session mixin for human-readable output: describe, status, and inspect"
-            command "Describe"
-            command "ShowStatus"
-          end
-
           b.aggregate "SystemBrowser" do
             description "Smalltalk-inspired tree view of all domain elements"
             command "Browse" do
@@ -139,18 +133,6 @@ module Hecks
               attribute :command_name, String
             end
             command "Reset"
-          end
-
-          b.aggregate "GemBootstrap" do
-            description "Loads domain into a Runtime via InMemoryLoader eval"
-            command "Compile"
-          end
-
-          b.aggregate "RuntimeResolver" do
-            description "Resolves generated command and event classes at runtime"
-            command "ResolveCommand" do
-              attribute :name, String
-            end
           end
 
           b.aggregate "Tour" do

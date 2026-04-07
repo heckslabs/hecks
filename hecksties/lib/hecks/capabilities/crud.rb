@@ -124,7 +124,10 @@ module Hecks
       end
 
       # Load is delegated to CommandLoader (extracted for file size).
-      require_relative "crud/command_loader"
+      Hecks::Chapters.load_aggregates(
+        Hecks::Chapters::Runtime::Setup,
+        base_dir: File.expand_path("crud", __dir__)
+      )
 
       # Re-wire command and persistence ports after injecting new commands.
       #

@@ -4,7 +4,7 @@ Hecks::CLI.register_command(:regenerate_examples, "Regenerate all example output
 
   Dir.chdir(pizzas) do
     say "Loading pizzas domain...", :green
-    Dir["*Bluebook"].each { |f| Kernel.load(f) }
+    Kernel.load("pizzas.hec")
     domain = Hecks.last_domain
 
     say "Building domain gem...", :green
@@ -13,11 +13,13 @@ Hecks::CLI.register_command(:regenerate_examples, "Regenerate all example output
     FileUtils.mv("pizzas_domain", File.join(root, "examples", "pizzas_domain"))
 
     say "Building static Ruby...", :green
-    Hecks.build_static(domain, output_dir: ".", smoke_test: false)
+    require "hecks_static"
+    Hecks.target_registry[:static].call(domain, output_dir: ".", smoke_test: false)
 
     say "Building Go binary...", :green
     FileUtils.rm_rf("pizzas_static_go")
-    Hecks.build_go(domain, output_dir: ".", smoke_test: false)
+    require "go_hecks"
+    Hecks.target_registry[:go].call(domain, output_dir: ".", smoke_test: false)
 
     say "Building Rails app...", :green
     FileUtils.rm_rf(File.join(root, "examples", "pizzas_rails"))

@@ -1,4 +1,7 @@
-require_relative "../world_concerns_prompt"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
   args: ["NAME"],

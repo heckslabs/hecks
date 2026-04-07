@@ -1,8 +1,10 @@
 require "webrick"
 require "json"
-require_relative "web_runner/evaluator"
-require_relative "web_runner/command_parser"
-require_relative "web_runner/state_serializer"
+
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::WebComponentsParagraph,
+  base_dir: File.expand_path("web_runner", __dir__)
+)
 
 module Hecks
   class Workshop

@@ -10,7 +10,10 @@
 #
 #   Hecks::ArchitectureTour.new.start
 #
-require_relative "architecture_tour/steps"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("architecture_tour", __dir__)
+)
 
 module Hecks
   # Hecks::ArchitectureTour

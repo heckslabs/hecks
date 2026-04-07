@@ -1,6 +1,7 @@
-require_relative "ui_generator/form_routes"
-require_relative "ui_generator/config_routes"
-require_relative "ui_generator/show_route"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: File.expand_path("ui_generator", __dir__)
+)
 
 module HecksStatic
 # HecksStatic::UIGenerator

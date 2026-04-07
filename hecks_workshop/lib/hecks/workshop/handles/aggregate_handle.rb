@@ -1,9 +1,7 @@
-require_relative "aggregate_handle/presenter"
-require_relative "aggregate_handle/behavior_methods"
-require_relative "aggregate_handle/constraint_methods"
-require_relative "aggregate_handle/query_methods"
-require_relative "aggregate_handle/implicit_syntax"
-require_relative "command_handle"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::HandlesParagraph,
+  base_dir: File.expand_path("aggregate_handle", __dir__)
+)
 
 module Hecks
   class Workshop

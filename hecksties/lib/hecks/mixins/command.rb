@@ -1,7 +1,7 @@
-require_relative "command/lifecycle_steps"
-require_relative "command/reference_validation"
-require_relative "command/validation"
-require_relative "command/dispatch"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::Mixins,
+  base_dir: File.expand_path("command", __dir__)
+)
   # Hecks::Command
   #
   # Mixin for generated command classes. Orchestrates the full command lifecycle:

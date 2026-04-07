@@ -9,7 +9,10 @@
 #   inspector.generate                    # => String
 #   inspector.generate(aggregate: "Order") # => String (single aggregate)
 #
-require_relative "domain_inspector/aggregate_formatter"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliFormatters,
+  base_dir: File.expand_path("domain_inspector", __dir__)
+)
 
 module Hecks
   class CLI

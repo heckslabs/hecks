@@ -10,11 +10,14 @@
 #   formatter = AggregateFormatter.new(aggregate)
 #   formatter.format  # => Array<String>
 #
-require_relative "secondary_formatters"
-require_relative "aggregate_formatter/structure_formatters"
-require_relative "aggregate_formatter/behavior_formatters"
-require_relative "aggregate_formatter/rule_formatters"
-require_relative "aggregate_formatter/lifecycle_formatter"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliFormatters,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliFormatters,
+  base_dir: File.expand_path("aggregate_formatter", __dir__)
+)
 
 module Hecks
   class CLI

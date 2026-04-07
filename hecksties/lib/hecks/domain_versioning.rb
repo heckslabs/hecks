@@ -8,8 +8,10 @@
 #   versions = Hecks::DomainVersioning.log(base_dir: Dir.pwd)
 #   domain   = Hecks::DomainVersioning.load_version("2.1.0", base_dir: Dir.pwd)
 #
-require_relative "domain_versioning/breaking_classifier"
-require_relative "domain_versioning/breaking_bumper"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::Mixins,
+  base_dir: File.expand_path("domain_versioning", __dir__)
+)
 
 module Hecks
   # Hecks::DomainVersioning

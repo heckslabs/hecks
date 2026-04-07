@@ -1,5 +1,7 @@
-require_relative "glossary/text_helpers"
-require_relative "glossary/statement_builders"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::ToolingParagraph,
+  base_dir: File.expand_path("glossary", __dir__)
+)
   # Hecks::DomainGlossary
   #
   # Walks the domain IR and produces plain-English statements that describe

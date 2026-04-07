@@ -12,16 +12,16 @@ module Hecks
     module Bluebook
       module AstParagraph
         def self.define(b)
+          b.aggregate "NodeReaders", "Shared AST node reading helpers for visitor classes" do
+            command("ReadNode") { attribute :node_type, String }
+          end
+
           b.aggregate "AggregateVisitor", "Prism AST visitor that extracts aggregate definitions from Ruby source" do
             command("VisitAggregate") { attribute :source, String }
           end
 
           b.aggregate "DomainVisitor", "Prism AST visitor that extracts domain-level definitions from Ruby source" do
             command("VisitDomain") { attribute :source, String }
-          end
-
-          b.aggregate "NodeReaders", "Shared AST node reading helpers for visitor classes" do
-            command("ReadNode") { attribute :node_type, String }
           end
 
           b.aggregate "EventStormImporter", "Imports YAML event storming sessions into domain IR" do
@@ -48,6 +48,9 @@ module Hecks
             command("GroupByContext") { attribute :items, String }
           end
 
+          b.aggregate "EventNameValidation", "Warns when event storm names don't match command inference convention" do
+            command("ValidateEventNames") { attribute :source, String }
+          end
         end
       end
     end

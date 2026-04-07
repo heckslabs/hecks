@@ -3,12 +3,13 @@
 # Vertical slice architecture. Extracts vertical slices from domain
 # reactive chains, validates slice boundaries, and generates diagrams.
 #
-require_relative "features/slice_step"
-require_relative "features/vertical_slice"
-require_relative "features/slice_extractor"
-require_relative "features/leaky_slice_detection"
-require_relative "features/slice_diagram"
-require_relative "features/domain_mixin"
+# Implementation files loaded from the FeaturesParagraph chapter definition.
+# Uses narrow base_dir to avoid parent-child filter excluding these files.
+#
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::FeaturesParagraph,
+  base_dir: File.expand_path("features", __dir__)
+)
 
 Hecks::DomainModel::Structure::Domain.include(Hecks::Features::DomainMixin)
 

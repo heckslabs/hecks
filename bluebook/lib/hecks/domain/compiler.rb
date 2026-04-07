@@ -7,8 +7,9 @@ require "tmpdir"
   # full gem to disk with documentation artifacts (OpenAPI, RPC, JSON Schema,
   # glossary).
   #
-  # Extended onto the top-level Hecks module alongside DomainBuilderMethods.
-  # Tests use InMemoryLoader for speed.
+  # Target-specific build methods (Go, Node, Rails, binary) live in their
+  # respective target gems and self-register via Hecks.register_target when
+  # required. See hecks_targets/ for implementations.
   #
   #   Hecks.build(domain, version: "2026.03.23.1")
   #   Hecks.load_domain(domain)
@@ -17,13 +18,13 @@ require "tmpdir"
 module Hecks
   module DomainCompiler
     include HecksTemplating::NamingHelpers
+
     # Build a complete domain gem on disk. Validates the domain first, then
     # generates all Ruby source files, specs, and documentation artifacts
     # (OpenAPI JSON, RPC discovery, JSON Schema, glossary markdown).
     #
     # @param domain [Hecks::DomainModel::Domain] the domain to compile
-    # @param version [String] gem version string (default "0.1.0"); typically
-    #   a CalVer string from Versioner (e.g., "2026.03.23.1")
+    # @param version [String] gem version string (default "0.1.0")
     # @param output_dir [String] parent directory for the generated gem (default ".")
     # @return [String] absolute path to the generated gem root directory
     # @raise [Hecks::ValidationError] if domain validation fails
@@ -40,10 +41,6 @@ module Hecks
       generator = Generators::Infrastructure::DomainGemGenerator.new(domain, version: version, output_dir: output_dir)
       gem_path = generator.generate
 
-      require_relative "../generators/docs/openapi_generator"
-      require_relative "../generators/docs/rpc_discovery"
-      require_relative "../generators/docs/json_schema_generator"
-      require_relative "../generators/docs/typescript_generator"
       docs_dir = File.join(gem_path, "docs")
       FileUtils.mkdir_p(docs_dir)
       File.write(File.join(docs_dir, "openapi.json"), JSON.pretty_generate(HTTP::OpenapiGenerator.new(domain).generate))
@@ -59,10 +56,6 @@ module Hecks
     # available as a Ruby constant. Uses InMemoryLoader to compile generated
     # source without writing to disk. Caches the loaded module by domain
     # object_id to avoid redundant reloads unless +force+ is true.
-    #
-    # If the domain module already exists and was loaded from the same domain
-    # object, returns the cached constant immediately. Otherwise, removes
-    # the old constant, regenerates, and loads fresh.
     #
     # @param domain [Hecks::DomainModel::Domain] the domain to load
     # @param force [Boolean] reload even if already cached (default false)
@@ -92,126 +85,5 @@ module Hecks
       domain_objects[mod] = domain
       Object.const_get(mod)
     end
-
-    # Build a standalone domain gem with zero runtime dependency on hecks.
-    # The output includes an inlined runtime/ directory with Model, Command,
-    # EventBus, QueryBuilder, etc. namespaced under the domain module.
-    #
-    # @param domain [Hecks::DomainModel::Domain] the domain to compile
-    # @param version [String] gem version string (default "0.1.0")
-    # @param output_dir [String] parent directory for the generated gem (default ".")
-    # @return [String] absolute path to the generated standalone gem root
-    # @raise [Hecks::ValidationError] if domain validation fails
-    def build_static(domain, version: "0.1.0", output_dir: ".", smoke_test: true)
-      valid, errors = validate(domain)
-      unless valid
-        raise Hecks::ValidationError.for_domain(errors)
-      end
-
-      require "hecks_static"
-      generator = HecksStatic::GemGenerator.new(domain, version: version, output_dir: output_dir)
-      root = generator.generate
-      run_ruby_smoke_test(root, domain) if smoke_test
-      root
-    end
-
-    # Build a Go project from the domain IR. Same DSL, Go output.
-    #
-    # @param domain [Hecks::DomainModel::Domain] the domain to compile
-    # @param output_dir [String] parent directory for the generated project
-    # @return [String] absolute path to the generated Go project root
-    def build_go(domain, output_dir: ".", smoke_test: true)
-      valid, errors = validate(domain)
-      unless valid
-        raise Hecks::ValidationError.for_domain(errors)
-      end
-
-      require "go_hecks"
-      generator = GoHecks::ProjectGenerator.new(domain, output_dir: output_dir)
-      root = generator.generate
-      run_smoke_test(root, domain) if smoke_test
-      root
-    end
-
-    # Build a Node.js/TypeScript project from the domain IR.
-    #
-    # @param domain [Hecks::DomainModel::Domain] the domain to compile
-    # @param output_dir [String] parent directory for the generated project
-    # @return [String] absolute path to the generated Node project root
-    def build_node(domain, output_dir: ".")
-      valid, errors = validate(domain)
-      unless valid
-        raise Hecks::ValidationError.for_domain(errors)
-      end
-
-      require "node_hecks"
-      generator = NodeHecks::ProjectGenerator.new(domain, output_dir: output_dir)
-      generator.generate
-    end
-
-    # Generate a bootstrapped Rails app with the domain loaded.
-    #
-    # @param domain [Hecks::DomainModel::Domain] the domain to compile
-    # @param output_dir [String] parent directory for the generated Rails app
-    # @return [String] path to the generated Rails app root
-    def build_rails(domain, output_dir: ".")
-      valid, errors = validate(domain)
-      unless valid
-        raise Hecks::ValidationError.for_domain(errors)
-      end
-
-      require "hecks/generators/rails_generator"
-      Generators::RailsGenerator.new(domain).generate(output_dir: output_dir)
-    end
-
-    private
-
-    # Start, smoke-test, and stop a static Ruby server.
-    def run_ruby_smoke_test(root, domain)
-      require "hecks_templating"
-      name = domain_snake_name(domain.name)
-      bin = File.join(root, "bin", name)
-      return unless File.exist?(bin)
-
-      port = rand(10_000..60_000)
-      pid = spawn(RbConfig.ruby, bin, "serve", port.to_s,
-                  out: "/dev/null", err: "/dev/null")
-      sleep 2
-
-      smoke = HecksTemplating::SmokeTest.new("http://localhost:#{port}", domain)
-      results = smoke.run
-      failed = results.count { |r| r.status == :fail }
-      raise "Smoke test: #{failed} failures" if failed > 0
-    ensure
-      Process.kill("TERM", pid) rescue nil if pid
-      Process.wait(pid) rescue nil if pid
-    end
-
-    # Build, start, smoke-test, and stop a Go server.
-    def run_smoke_test(root, domain)
-      require "hecks_templating"
-      name = domain_snake_name(domain.name)
-      cmd_dir = File.join(root, "cmd", name)
-      return unless File.directory?(cmd_dir)
-
-      # Build
-      system("cd #{root} && go mod tidy && go build ./...") or return
-
-      # Start on a random port
-      port = rand(10_000..60_000)
-      pid = spawn("cd #{root} && go run ./cmd/#{name}/ #{port}",
-                   out: "/dev/null", err: "/dev/null")
-      sleep 2
-
-      # Run smoke test
-      smoke = HecksTemplating::SmokeTest.new("http://localhost:#{port}", domain)
-      results = smoke.run
-      failed = results.count { |r| r.status == :fail }
-      raise "Smoke test: #{failed} failures" if failed > 0
-    ensure
-      Process.kill("TERM", pid) rescue nil if pid
-      Process.wait(pid) rescue nil if pid
-    end
-
   end
 end

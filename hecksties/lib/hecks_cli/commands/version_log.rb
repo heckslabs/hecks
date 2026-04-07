@@ -1,4 +1,7 @@
-require_relative "version_log_formatter"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: __dir__
+)
 
 Hecks::CLI.register_command(:version_log, "List all tagged domain version snapshots",
   options: {

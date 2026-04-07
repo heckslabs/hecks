@@ -86,6 +86,14 @@ module Hecks
           b.aggregate "ScheduledStep", "Workflow step that finds aggregates and triggers a command" do
             command("DefineScheduledStep") { attribute :name, String; attribute :trigger, String }
           end
+
+          b.aggregate "JsonAttribute", "JSON type accepted as attribute type, round-trips through SQL generation" do
+            command("DefineJsonAttribute") { attribute :name, String; attribute :aggregate_id, String }
+          end
+
+          b.aggregate "DateTypes", "Date and DateTime types stored correctly in attribute IR" do
+            command("DefineDateType") { attribute :name, String; attribute :type, String }
+          end
         end
       end
     end

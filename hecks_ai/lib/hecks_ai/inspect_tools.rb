@@ -1,4 +1,7 @@
-require_relative "domain_serializer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::AI::InspectParagraph,
+  base_dir: __dir__
+)
 
 module Hecks
   module MCP

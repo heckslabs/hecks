@@ -1,22 +1,12 @@
-require_relative "runtime/port_setup"
-require_relative "runtime/gate_enforcer"
-require_relative "runtime/repository_setup"
-require_relative "runtime/policy_setup"
-require_relative "runtime/subscriber_setup"
-require_relative "runtime/view_setup"
-require_relative "runtime/workflow_setup"
-require_relative "runtime/saga_store"
-require_relative "runtime/saga_runner"
-require_relative "runtime/saga_setup"
-require_relative "runtime/constant_hoisting"
-require_relative "runtime/connection_setup"
-require_relative "runtime/service_setup"
-require_relative "runtime/auth_coverage_check"
-require_relative "runtime/reference_authorizer_check"
-require_relative "runtime/extension_dispatch"
-require_relative "runtime/configuration_dsl"
-require_relative "runtime/command_dispatch"
-require_relative "runtime/adapter_wiring"
+# Load runtime implementation files from the Runtime chapter definition.
+# The chapter's aggregate list drives which files are required — no
+# hand-written require tree needed.
+require_relative "chapters/runtime"
+Hecks::Chapters.load_chapter(
+  Hecks::Chapters::Runtime,
+  base_dir: __dir__
+)
+
   # Hecks::Runtime
   #
   # The runtime container that wires a domain to adapters, dispatches

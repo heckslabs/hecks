@@ -1,4 +1,7 @@
-require_relative "../stub_generator"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliTools,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 Hecks::CLI.register_command(:generate_stub, "Scaffold a domain file for hand-editing",
   options: {

@@ -1,4 +1,7 @@
-require_relative "workshop_runner/constant_hoister"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::RunnerSupportParagraph,
+  base_dir: File.expand_path("workshop_runner", __dir__)
+)
 
 module Hecks
   class Workshop

@@ -27,7 +27,31 @@ module Hecks
             command("Generate") { attribute :domain_name, String }
           end
 
+          b.aggregate "DomainRoutes", "Mixin generating query, scope, specification, and event log routes" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
           b.aggregate "RubyUIGenerator", "Generates route handlers that prepare data and render ERB templates" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "FormRoutes", "Mixin generating new/create form routes for each aggregate command" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "ConfigRoutes", "Mixin generating config and reboot UI routes" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "ShowRoute", "Mixin generating show page route for individual aggregates" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "DomainWriter", "Mixin generating domain aggregate and command files for static gem" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "BootWiring", "Mixin generating boot method and command/query/policy wiring" do
             command("Generate") { attribute :domain_name, String }
           end
         end

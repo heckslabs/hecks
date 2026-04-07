@@ -38,6 +38,11 @@ module Hecks
     end
   end
 
+  module Boot
+    autoload :SqlBoot,            "hecks_persist/sql_boot"
+    autoload :DatabaseConnection, "hecks_persist/database_connection"
+  end
+
   module Migrations
     module Strategies
       # = Hecks::Migrations::Strategies::SqlStrategy
@@ -46,6 +51,7 @@ module Hecks
       # Reads migration files from +db/hecks_migrate/+ and executes them
       # in order against the configured database connection.
       autoload :SqlStrategy, "hecks_persist/sql_strategy"
+      autoload :SqlHelpers, "hecks_persist/sql_helpers"
     end
   end
 end

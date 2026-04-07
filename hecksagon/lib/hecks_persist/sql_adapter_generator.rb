@@ -1,5 +1,3 @@
-require_relative "sql_builder"
-
 module Hecks
   module Generators
     module SQL

@@ -1,7 +1,7 @@
-require_relative "server_generator/data_routes"
-require_relative "server_generator/html_routes"
-require_relative "server_generator/ui_routes"
-require_relative "server_generator/domain_behavior_routes"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Go,
+  base_dir: File.expand_path("server_generator", __dir__)
+)
 
 # GoHecks::ServerGenerator
 #

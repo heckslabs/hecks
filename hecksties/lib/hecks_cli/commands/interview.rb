@@ -1,4 +1,7 @@
-require_relative "../interviewer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 Hecks::CLI.register_command(:interview, "Conversational onboarding to define a domain interactively",
   options: {

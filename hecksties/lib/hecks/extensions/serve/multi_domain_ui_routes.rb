@@ -1,9 +1,7 @@
-
-require_relative "ui_routes/event_routes"
-require_relative "ui_routes/route_dispatcher"
-require_relative "ui_routes/index_route"
-require_relative "ui_routes/show_route"
-require_relative "ui_routes/form_route"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  base_dir: File.expand_path("ui_routes", __dir__)
+)
 
 module Hecks
   module HTTP

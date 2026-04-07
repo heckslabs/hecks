@@ -1,0 +1,277 @@
+Hecks.domain "HecksAppeal" do
+  aggregate "Project" do
+    description "A domain project workspace. Loads, creates, and manages domain directories."
+    attribute :name, String
+    attribute :path, String
+    attribute :status, String, default: "closed"
+
+    command "OpenProject" do
+      description "Load an existing domain from a directory"
+      attribute :path, String
+    end
+
+    command "CreateProject" do
+      description "Initialize a new domain with a name"
+      attribute :name, String
+      attribute :path, String
+    end
+
+    command "CloseProject" do
+      description "Close the current project and release resources"
+      reference_to "Project", validate: :exists
+    end
+
+    validation :name, presence: true
+    validation :path, presence: true
+  end
+
+  aggregate "Session" do
+    description "IDE session with sketch/play modes. Sketch edits structure, play executes commands."
+    attribute :mode, String, default: "sketch" do
+      transition "EnterPlay" => "play", from: "sketch"
+      transition "EnterSketch" => "sketch", from: "play"
+    end
+
+    reference_to "Project"
+
+    command "EnterSketch" do
+      description "Switch to sketch mode for editing domain structure"
+      reference_to "Session", validate: :exists
+    end
+
+    command "EnterPlay" do
+      description "Switch to play mode for executing domain commands"
+      reference_to "Session", validate: :exists
+    end
+  end
+
+  aggregate "Document" do
+    description "A source file open for editing. Tracks content, parse state, and dirty status."
+    attribute :filename, String
+    attribute :content, String
+    attribute :dirty, String, default: "false"
+    attribute :diagnostics, list_of("Diagnostic")
+
+    value_object "Diagnostic" do
+      description "A validation finding at a source location"
+      attribute :line, Integer
+      attribute :column, Integer
+      attribute :severity, String
+      attribute :message, String
+    end
+
+    reference_to "Project"
+
+    command "OpenDocument" do
+      description "Load a .hec file into the editor"
+      reference_to "Project", validate: :exists
+      attribute :filename, String
+    end
+
+    command "EditDocument" do
+      description "Apply a text change to the document"
+      reference_to "Document", validate: :exists
+      attribute :content, String
+    end
+
+    command "SaveDocument" do
+      description "Persist the document back to disk"
+      reference_to "Document", validate: :exists
+    end
+
+    command "ValidateDocument" do
+      description "Parse and validate the document, producing diagnostics"
+      reference_to "Document", validate: :exists
+    end
+
+    validation :filename, presence: true
+  end
+
+  aggregate "Explorer" do
+    description "Browse and inspect parsed domain structure — aggregates, commands, references."
+    attribute :domain_name, String
+    attribute :aggregate_names, list_of("ExplorerEntry")
+
+    value_object "ExplorerEntry" do
+      description "A named item in the domain structure"
+      attribute :name, String
+      attribute :kind, String
+    end
+
+    reference_to "Project"
+
+    command "LoadDomain" do
+      description "Parse the project domain and populate the explorer tree"
+      reference_to "Project", validate: :exists
+    end
+
+    command "InspectAggregate" do
+      description "Show details of an aggregate"
+      attribute :aggregate_name, String
+    end
+
+    command "InspectCommand" do
+      description "Show details of a command"
+      attribute :aggregate_name, String
+      attribute :command_name, String
+    end
+
+    query "ByKind" do |kind|
+      where(kind: kind)
+    end
+  end
+
+  aggregate "Generator" do
+    description "Build domain code for a target language. Preview output, diff against existing."
+    attribute :target, String
+    attribute :status, String, default: "idle"
+    attribute :output_path, String
+    attribute :artifacts, list_of("Artifact")
+
+    value_object "Artifact" do
+      description "A generated file with its content and diff status"
+      attribute :filename, String
+      attribute :content, String
+      attribute :changed, String, default: "true"
+    end
+
+    reference_to "Project"
+
+    command "SelectTarget" do
+      description "Choose a build target — ruby, go, rails, sinatra"
+      reference_to "Project", validate: :exists
+      attribute :target, String
+    end
+
+    command "BuildTarget" do
+      description "Generate all code for the selected target"
+      reference_to "Generator", validate: :exists
+    end
+
+    command "PreviewArtifact" do
+      description "Show the content of a single generated file"
+      reference_to "Generator", validate: :exists
+      attribute :filename, String
+    end
+
+    command "DiffArtifact" do
+      description "Compare generated output against existing file on disk"
+      reference_to "Generator", validate: :exists
+      attribute :filename, String
+    end
+
+    validation :target, presence: true
+  end
+
+  aggregate "Playground" do
+    description "Interactive sandbox for running domain commands and inspecting state."
+    attribute :events, list_of("PlaygroundEvent")
+    attribute :state_snapshot, String
+
+    value_object "PlaygroundEvent" do
+      description "A recorded event from command execution"
+      attribute :name, String
+      attribute :payload, String
+      attribute :timestamp, String
+    end
+
+    reference_to "Project"
+
+    command "ExecuteCommand" do
+      description "Run a domain command in the sandbox"
+      reference_to "Project", validate: :exists
+      attribute :aggregate_name, String
+      attribute :command_name, String
+      attribute :attributes, String
+    end
+
+    command "InspectState" do
+      description "View current aggregate state in the sandbox"
+      reference_to "Project", validate: :exists
+      attribute :aggregate_name, String
+    end
+
+    command "ResetPlayground" do
+      description "Clear all sandbox state and events"
+      reference_to "Project", validate: :exists
+    end
+
+    query "RecentEvents" do
+      where(timestamp: "recent")
+    end
+  end
+
+  aggregate "Timeline" do
+    description "Edit history with undo/redo. Tracks document changes as a linear sequence."
+    attribute :entries, list_of("TimelineEntry")
+    attribute :cursor, Integer, default: 0
+
+    value_object "TimelineEntry" do
+      description "A recorded change with before/after content"
+      attribute :action, String
+      attribute :detail, String
+      attribute :timestamp, String
+    end
+
+    reference_to "Document"
+
+    command "RecordChange" do
+      description "Append a change to the timeline"
+      reference_to "Document", validate: :exists
+      attribute :action, String
+      attribute :detail, String
+    end
+
+    command "Undo" do
+      description "Move the cursor back one step and revert the change"
+      reference_to "Timeline", validate: :exists
+    end
+
+    command "Redo" do
+      description "Move the cursor forward and reapply the change"
+      reference_to "Timeline", validate: :exists
+    end
+  end
+
+  aggregate "Notification" do
+    description "Feedback messages — errors, warnings, success confirmations, progress updates."
+    attribute :severity, String
+    attribute :message, String
+    attribute :context, String
+    attribute :dismissed, String, default: "false"
+
+    command "Notify" do
+      description "Create a notification for the user"
+      attribute :severity, String
+      attribute :message, String
+      attribute :context, String
+    end
+
+    command "DismissNotification" do
+      description "Mark a notification as seen"
+      reference_to "Notification", validate: :exists
+    end
+
+    query "Active" do
+      where(dismissed: "false")
+    end
+  end
+
+  policy "ValidateOnEdit" do
+    on "EditedDocument"
+    trigger "ValidateDocument"
+    map document_id: :document_id
+  end
+
+  policy "RefreshExplorerOnSave" do
+    on "SavedDocument"
+    trigger "LoadDomain"
+    map project_id: :project_id
+  end
+
+  policy "NotifyOnBuildComplete" do
+    on "BuiltTarget"
+    trigger "Notify"
+    map severity: "success", message: "Build complete"
+  end
+end

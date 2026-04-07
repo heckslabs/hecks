@@ -79,6 +79,18 @@ module Hecks
             command("Precondition") { attribute :message, String }
             command("Postcondition") { attribute :message, String }
           end
+
+          b.aggregate "RuntimeAttributeDefinition", "Struct wrapping a single model attribute's name, default, and freeze flag" do
+            command("Define") { attribute :name, String; attribute :default, String }
+          end
+
+          b.aggregate "WorkflowStepCompat", "Deprecation shim for legacy workflow_step API" do
+            command("Register") { attribute :target_class, String }
+          end
+
+          b.aggregate "ConnectionConfigCompat", "Deprecation shim for legacy connection_config API" do
+            command("Register") { attribute :target_class, String }
+          end
         end
       end
     end

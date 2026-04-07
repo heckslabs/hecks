@@ -244,12 +244,14 @@
 - `method_name "sql_type_for"` — overrides auto-generated method name on commands (default: snake_case of command name)
 - `entry_point "hecks_persist"` — declares autoload entry point files for the domain
 
-## HecksCode Language Specification
-- `HecksCode` module exposes the full language as inspectable components: syntax, compiler, runtime, type system, module system, IO model
-- `HecksCode.syntax` — 58 keywords across 5 contexts (domain, aggregate, command, value_object, entity)
-- `HecksCode.compiler` — Bluebook DSL frontend, DomainModel IR, multiple backends
-- `HecksCode.self_hosting` — live chapter/aggregate/command counts from Hecks's own Bluebook definitions
-- `HecksCode.describe` — prints a human-readable summary of the entire language
+## HecksUL Language Specification
+- `HecksUL` (Ubiquitous Language) — every Hecks domain is its own executable business language
+- `HecksUL.syntax` — 58 keywords across 5 contexts (domain, aggregate, command, value_object, entity)
+- `HecksUL.compiler` — Bluebook DSL frontend, DomainModel IR, multiple backends
+- `HecksUL.self_hosting` — live chapter/aggregate/command counts from Hecks's own Bluebook definitions
+- `HecksUL.describe` — prints a human-readable summary of the entire language
+- `ChapterSpecGenerator` — generates exhaustive RSpec specs from chapter IR (chapter + paragraph level)
+- Generated specs cover every aggregate and command across all 15 chapters — the language spec IS the test suite
 
 ## Persistence
 - Memory adapter for fast, zero-setup in-process storage

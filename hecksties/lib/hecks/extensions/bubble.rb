@@ -46,8 +46,10 @@ module HecksBubble
   end
 end
 
-require_relative "bubble/aggregate_mapper"
-require_relative "bubble/context"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::BubbleChapter,
+  base_dir: File.expand_path("bubble", __dir__)
+)
 
 Hecks.describe_extension(:bubble,
   description: "Anti-corruption layer for legacy data translation",

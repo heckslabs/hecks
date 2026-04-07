@@ -115,6 +115,14 @@ module Hecks
           b.aggregate "QueryContext", "Read-only cross-domain query execution context" do
             command("Execute") { attribute :query_name, String }
           end
+
+          b.aggregate "AdapterWiring", "Wires command adapters into the runtime" do
+            command("Adapt") { attribute :aggregate_name, String; attribute :adapter_module, String }
+          end
+
+          b.aggregate "ReferenceAuthorizerCheck", "Validates reference_to authorizers exist at boot" do
+            command("Check") { attribute :domain_name, String }
+          end
         end
       end
     end

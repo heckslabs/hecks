@@ -58,6 +58,14 @@ module Hecks
           b.aggregate "WorkflowStep", "Single step within a workflow, with optional condition" do
             command("DefineWorkflowStep") { attribute :workflow_id, String; attribute :command_name, String }
           end
+
+          b.aggregate "Behavior", "Namespace module for behavior IR nodes: commands, events, policies" do
+            command("Define") { attribute :name, String }
+          end
+
+          b.aggregate "BidirectionalReferences", "Detects and rejects domains where two aggregates reference each other" do
+            command("DetectBidirectional") { attribute :domain_id, String }
+          end
         end
       end
     end

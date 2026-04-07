@@ -1,18 +1,11 @@
-require_relative "spec_helpers"
-require_relative "spec_generator/aggregate_spec"
-require_relative "spec_generator/value_object_spec"
-require_relative "spec_generator/command_spec"
-require_relative "spec_generator/event_spec"
-require_relative "spec_generator/entity_spec"
-require_relative "spec_generator/query_spec"
-require_relative "spec_generator/policy_spec"
-require_relative "spec_generator/lifecycle_spec"
-require_relative "spec_generator/specification_spec"
-require_relative "spec_generator/scope_spec"
-require_relative "spec_generator/view_spec"
-require_relative "spec_generator/workflow_spec"
-require_relative "spec_generator/service_spec"
-require_relative "spec_generator/port_spec"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::SpecGeneratorsParagraph,
+  base_dir: File.expand_path("spec_generator", __dir__)
+)
 
 module Hecks
   module Generators

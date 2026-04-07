@@ -1,4 +1,7 @@
-require_relative "../gem_builder"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliTools,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 module Hecks
   class CLI < Thor

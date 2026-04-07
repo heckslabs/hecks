@@ -10,7 +10,10 @@
 #   hecks inspect --domain path/to/domain  # explicit domain path
 #   hecks inspect --format json            # JSON output for tooling
 #
-require_relative "../domain_inspector"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliFormatters,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 Hecks::CLI.register_command(:inspect, "Show full domain definition including business logic",
   options: {

@@ -88,6 +88,22 @@ module Hecks
             command("Generate") { attribute :domain_name, String; attribute :module_path, String }
           end
 
+          b.aggregate "DataRoutes", "Mixin generating Go JSON API CRUD routes for each aggregate" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "HtmlRoutes", "Mixin generating Go HTML index/show routes for each aggregate" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "UIRoutes", "Mixin generating Go form submission and new-entity routes" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
+          b.aggregate "DomainBehaviorRoutes", "Mixin generating Go event, query, scope, and specification routes" do
+            command("Generate") { attribute :domain_name, String }
+          end
+
           b.aggregate "GoRendererGenerator", "Generates Go template renderer with layout wrapping" do
             command("Generate")
           end
@@ -118,6 +134,10 @@ module Hecks
 
           b.aggregate "GoMultiServerGenerator", "Generates combined Go HTTP server routing across bounded contexts" do
             command("Generate") { attribute :module_path, String }
+          end
+
+          b.aggregate "BinaryBuilder", "Compiles domain into native binary via Go target" do
+            command("Build") { attribute :domain_id, String; attribute :output_dir, String }
           end
         end
       end

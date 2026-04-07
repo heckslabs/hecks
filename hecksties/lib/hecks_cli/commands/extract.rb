@@ -1,4 +1,7 @@
-require_relative "../import"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliInternals,
+  base_dir: File.expand_path("..", __dir__)
+)
 
 # Hecks CLI — extract command
 #

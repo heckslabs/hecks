@@ -9,8 +9,10 @@ rescue LoadError
   raise LoadError, "The hecks CLI requires thor. Add gem 'thor' to your Gemfile."
 end
 require "fileutils"
-require_relative "conflict_handler"
-require_relative "domain_helpers"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Cli::CliTools,
+  base_dir: __dir__
+)
 
 module Hecks
   # Hecks::CLI

@@ -1,8 +1,9 @@
 require "fileutils"
 require "hecks_persist/database_connection"
-require_relative "configuration/domain_loader"
-require_relative "configuration/domain_config_builder"
-require_relative "configuration/boot_phase"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::Setup,
+  base_dir: File.expand_path("configuration", __dir__)
+)
 require "hecks_persist/sql_setup"
   # Hecks::Configuration
   #

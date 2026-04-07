@@ -11,14 +11,15 @@
 module Hecks
   module Generators
     class ExampleBluebookWriter
-      def initialize(domain, aggregates)
+      def initialize(domain, aggregates, name: nil)
         @domain = domain
         @aggregates = aggregates
+        @name = name || domain.name
       end
 
       def generate_bluebook
         lines = []
-        lines << "Hecks.domain #{@domain.name.inspect} do"
+        lines << "Hecks.domain #{@name.inspect} do"
         @aggregates.each { |agg| lines << aggregate_block(agg) }
         lines << "end"
         lines.join("\n")
@@ -27,13 +28,13 @@ module Hecks
       def generate_hecksagon
         agg_names = @aggregates.map(&:name)
         lines = []
-        lines << "# #{@domain.name} Hecksagon"
+        lines << "# #{@name} Hecksagon"
         lines << "#"
         lines << "# A Hecksagon configures cross-cutting capabilities for your domain."
         lines << "# Capabilities are IR visitors that add behavior to all aggregates"
         lines << "# at boot time — CRUD, audit trails, PII tagging, and more."
         lines << "#"
-        lines << "Hecks.hecksagon #{@domain.name.inspect} do"
+        lines << "Hecks.hecksagon #{@name.inspect} do"
         lines << "  # Enable CRUD operations for all aggregates"
         lines << "  capabilities :crud"
         lines << ""
@@ -71,7 +72,7 @@ module Hecks
           lines << "    validation :#{v.field}, #{rules}"
         end
         agg.commands.each { |cmd| lines << command_block(cmd) }
-        agg.queries.each { |q| lines << "    query #{q.name.inspect}" }
+        agg.queries.each { |q| lines << query_block(q) }
         lines << "  end\n"
         lines.join("\n")
       end
@@ -87,22 +88,60 @@ module Hecks
         lines << "\n    value_object #{vo.name.inspect} do"
         lines << "      description #{vo.description.inspect}" if vo.description
         vo.attributes.each { |a| lines << attribute_line(a, "      ") }
-        vo.invariants.each { |inv| lines << "      invariant #{inv.message.inspect}" }
+        vo.invariants.each do |inv|
+          body = extract_block_body(inv.block, "        ")
+          lines << "      invariant #{inv.message.inspect} do"
+          lines << body
+          lines << "      end"
+        end
         lines << "    end"
         lines.join("\n")
       end
 
       def command_block(cmd)
         attrs = cmd.attributes.reject { |a| a.name.to_s == "aggregate_id" }
-        if attrs.empty? && !cmd.description
+        refs = cmd.respond_to?(:references) ? cmd.references : []
+        if attrs.empty? && refs.empty? && !cmd.description
           return "    command #{cmd.name.inspect}"
         end
         lines = []
         lines << "    command #{cmd.name.inspect} do"
         lines << "      description #{cmd.description.inspect}" if cmd.description
+        refs.each { |r| lines << "      reference_to #{r.type.inspect}, validate: :exists" }
         attrs.each { |a| lines << attribute_line(a, "      ") }
         lines << "    end"
         lines.join("\n")
+      end
+
+      def query_block(query)
+        return "    query #{query.name.inspect}" unless query.block
+        header = extract_block_header(query.block)
+        body = extract_block_body(query.block, "      ")
+        "    query #{query.name.inspect} do#{header}\n#{body}\n    end"
+      end
+
+      def extract_block_header(block)
+        params = block.parameters.map { |_, n| n }.compact
+        params.any? ? " |#{params.join(", ")}|" : ""
+      end
+
+      def extract_block_body(block, indent)
+        return "#{indent}true" unless block
+        file, line = block.source_location
+        return "#{indent}true" unless file && File.exist?(file)
+        source_lines = File.readlines(file)
+        # The block starts on `line` (1-indexed). Body starts on line+1.
+        # Read until we hit the closing `end` at or less than the opening indent.
+        start = line # 0-indexed: line number is 1-based, so source_lines[line] is the next line
+        opening = source_lines[line - 1]
+        open_indent = opening[/\A\s*/].length
+        body_lines = []
+        (start...source_lines.size).each do |i|
+          l = source_lines[i]
+          break if l.strip == "end" && l[/\A\s*/].length <= open_indent
+          body_lines << l
+        end
+        body_lines.map { |l| "#{indent}#{l.strip}" }.join("\n")
       end
 
       def lifecycle_block(agg, lines)

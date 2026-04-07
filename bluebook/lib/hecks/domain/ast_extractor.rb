@@ -14,9 +14,10 @@
 #   result[:name]        # => "Pizzas"
 #   result[:aggregates]  # => [{ name: "Pizza", attributes: [...], ... }, ...]
 #
-require_relative "ast_extractor/node_readers"
-require_relative "ast_extractor/aggregate_visitor"
-require_relative "ast_extractor/domain_visitor"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::AstParagraph,
+  base_dir: File.expand_path("ast_extractor", __dir__)
+)
 
 module Hecks
   class AstExtractor

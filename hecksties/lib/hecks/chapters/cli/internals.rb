@@ -25,6 +25,26 @@ module Hecks
           b.aggregate "SinatraAppGenerator", "Generates Sinatra app scaffold from domain IR" do
             command("Generate") { attribute :domain_path, String }
           end
+
+          b.aggregate "Interviewer", "Interactive domain definition wizard" do
+            command("Interview") { attribute :domain_name, String }
+          end
+
+          b.aggregate "WorldConcernsPrompt", "Prompts user for world concerns during init" do
+            command("Prompt") { attribute :domain_name, String }
+          end
+
+          b.aggregate "Cli", "Thor-based command-line interface entry point" do
+            command("Start") { attribute :argv, String }
+          end
+
+          b.aggregate "ArchitectureTour", "Guided walkthrough of a domain" do
+            command("RunTour") { attribute :domain_name, String }
+          end
+
+          b.aggregate "Import", "Reverse-engineers Rails apps into Hecks domain definitions" do
+            command("FromRails") { attribute :app_path, String }
+          end
         end
       end
     end

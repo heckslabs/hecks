@@ -1,3 +1,0 @@
-Hecks.hecksagon "Pizzas" do
-  capabilities :crud
-end

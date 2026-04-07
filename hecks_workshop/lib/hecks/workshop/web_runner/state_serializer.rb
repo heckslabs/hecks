@@ -1,8 +1,7 @@
-require_relative "state_serializer/aggregate_serializer"
-require_relative "state_serializer/event_serializer"
-require_relative "state_serializer/mermaid_builder"
-require_relative "state_serializer/policy_flow_builder"
-require_relative "state_serializer/service_serializer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Workshop::SerializersParagraph,
+  base_dir: File.expand_path("state_serializer", __dir__)
+)
 
 module Hecks
   class Workshop

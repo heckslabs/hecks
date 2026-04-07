@@ -1,14 +1,18 @@
 require "webrick"
 require "json"
 require "tmpdir"
-require_relative "route_builder"
-require_relative "cors_headers"
-require_relative "csrf_helpers"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeChapter,
+  base_dir: __dir__
+)
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  base_dir: __dir__
+)
 require "hecks/extensions/web_explorer/renderer"
 require "hecks/extensions/web_explorer/ir_introspector"
 require "hecks/extensions/web_explorer/runtime_bridge"
 require "hecks/extensions/web_explorer/event_introspector"
-require_relative "multi_domain_ui_routes"
 
 module Hecks
   module HTTP

@@ -1,5 +1,8 @@
 require "securerandom"
-require_relative "runtime_attribute_definition"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Runtime::Mixins,
+  base_dir: __dir__
+)
   # Hecks::Model
   #
   # Mixin for generated aggregate classes. Declares attributes via a DSL,

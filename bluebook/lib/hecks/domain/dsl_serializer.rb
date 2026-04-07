@@ -1,7 +1,7 @@
-require_relative "dsl_serializer/type_helpers"
-require_relative "dsl_serializer/rule_serializer"
-require_relative "dsl_serializer/behavior_serializer"
-require_relative "dsl_serializer/aggregate_serializer"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::SerializersParagraph,
+  base_dir: File.expand_path("dsl_serializer", __dir__)
+)
   # Hecks::DslSerializer
   #
   # Serializes a Domain IR back into DSL source code. The output is valid

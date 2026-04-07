@@ -15,8 +15,10 @@
 #   result.violations   # => [{ concern: :privacy, message: "..." }]
 #   result.suggestions  # => ["Add visible: false to PII attributes"]
 #
-require_relative "governance_guard/result"
-require_relative "governance_guard/concern_checks"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::AI::GovernanceParagraph,
+  base_dir: File.expand_path("governance_guard", __dir__)
+)
 
 module Hecks
   class GovernanceGuard
