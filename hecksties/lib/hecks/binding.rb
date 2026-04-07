@@ -10,6 +10,8 @@
 #   domain = Hecks::Binding.definition
 #   domain.aggregates.map(&:name)
 #
+require_relative "binding/errors"
+require_relative "binding/errors"
 require_relative "binding/registries"
 require_relative "binding/contracts"
 require_relative "binding/multi_domain"
@@ -36,9 +38,7 @@ module Hecks
           command("SanitizeConstant") { attribute :string, String }
         end
 
-        b.aggregate "Errors", "Custom error hierarchy for Hecks" do
-          command("Raise") { attribute :error_class, String; attribute :message, String }
-        end
+        ErrorsParagraph.define(b)
 
         b.aggregate "Deprecations", "Deprecated API shim registry" do
           command("Register") { attribute :target_class, String; attribute :method_name, String }
