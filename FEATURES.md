@@ -14,6 +14,8 @@
 - **Bluebook composes Chapters** — `Hecks.bluebook "Name" { chapter "X" { ... } }` defines a composed system of domains in a single file, with cross-chapter policies and shared event bus via `Hecks.open(book)`
 - **Binding (spine)** — `binding "Name" { ... }` in the BluebookBuilder DSL defines the bootstrap layer that holds chapters together: module wiring, registries, errors, utilities, and cross-chapter event routing
 - **Self-describing architecture** — Hecks itself is a Bluebook. Every module (DSL, Runtime, Workshop, Hecksagon, Targets, CLI, Extensions, AI, Rails) is expressed as a chapter using the same DSL it provides to users. The Binding spine models cross-chapter wiring. 9 chapters, 141 commands total.
+- **Paragraphs** — `paragraph "Ports" { aggregate "EventBus" do ... end }` groups aggregates into named sections within a chapter. Paragraphs are first-class IR nodes (`Structure::Paragraph`) tracked on the domain, enabling organizational splitting without creating separate domains.
+- **Bluebook glossary** — `bluebook.glossary` prints the Ubiquitous Language for the entire composed system, walking binding + all chapters and listing every aggregate and command with descriptions.
 - Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
 - `Hecks.configure { chapter "x" }` — chapter alias for domain in configuration DSL
 - Domain version pinning and local path loading in configuration

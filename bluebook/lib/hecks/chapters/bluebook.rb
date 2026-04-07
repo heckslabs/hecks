@@ -2,187 +2,122 @@
 #
 # Self-describing domain definition for the Bluebook chapter. Models the
 # DSL, IR, compiler, generators, validation, and tooling as aggregates.
+# Organized into paragraphs: Structure, Behavior, Names, Tooling.
 #
 #   domain = Hecks::Chapters::Bluebook.definition
 #   domain.aggregates.map(&:name)
 #
+require_relative "bluebook/structure"
+require_relative "bluebook/behavior"
+require_relative "bluebook/names"
+require_relative "bluebook/tooling"
+
 module Hecks
   module Chapters
     module Bluebook
       def self.definition
         @definition ||= DSL::DomainBuilder.new("Bluebook").tap { |b|
           b.instance_eval do
-            aggregate "Domain" do
+            aggregate "Domain", "Root of the domain model IR, holds aggregates and policies" do
               attribute :name, String
               attribute :version, String
-              command "DefineDomain" do
-                attribute :name, String
-                attribute :version, String
-              end
-              command "ValidateDomain" do
-                attribute :domain_id, String
-              end
-              command "GenerateCode" do
-                attribute :domain_id, String
-                attribute :target, String
-              end
+              command("DefineDomain") { attribute :name, String; attribute :version, String }
+              command("ValidateDomain") { attribute :domain_id, String }
+              command("GenerateCode") { attribute :domain_id, String; attribute :target, String }
             end
 
-            aggregate "Aggregate" do
+            aggregate "Aggregate", "DDD aggregate root with commands, events, and lifecycle" do
               attribute :name, String
               attribute :domain_name, String
-              command "AddAggregate" do
-                attribute :name, String
-                attribute :domain_name, String
-              end
-              command "AddAttribute" do
-                attribute :aggregate_id, String
-                attribute :name, String
-                attribute :type, String
-              end
-              command "AddCommand" do
-                attribute :aggregate_id, String
-                attribute :name, String
-              end
-              command "AddPolicy" do
-                attribute :aggregate_id, String
-                attribute :name, String
-                attribute :event_name, String
-                attribute :trigger_command, String
-              end
+              command("AddAggregate") { attribute :name, String; attribute :domain_name, String }
+              command("AddAttribute") { attribute :aggregate_id, String; attribute :name, String; attribute :type, String }
+              command("AddCommand") { attribute :aggregate_id, String; attribute :name, String }
+              command("AddPolicy") { attribute :aggregate_id, String; attribute :name, String; attribute :event_name, String; attribute :trigger_command, String }
             end
 
-            aggregate "Grammar" do
+            aggregate "Grammar", "DSL grammar definition for parsing domain definitions" do
               attribute :name, String
-              command "RegisterGrammar" do
-                attribute :name, String
-              end
-              command "ParseInput" do
-                attribute :grammar_id, String
-                attribute :input, String
-              end
+              command("RegisterGrammar") { attribute :name, String }
+              command("ParseInput") { attribute :grammar_id, String; attribute :input, String }
             end
 
-            aggregate "Compiler" do
+            aggregate "Compiler", "Builds domain gems from IR and loads domains" do
               attribute :domain_id, String
-              command "BuildDomain" do
-                attribute :domain_id, String
-                attribute :output_dir, String
-              end
-              command "LoadDomain" do
-                attribute :domain_id, String
-              end
+              command("BuildDomain") { attribute :domain_id, String; attribute :output_dir, String }
             end
 
-            aggregate "Validator" do
+            aggregate "Validator", "Runs validation rules against domain IR" do
               attribute :domain_id, String
-              command "RunValidation" do
-                attribute :domain_id, String
-              end
+              command("RunValidation") { attribute :domain_id, String }
             end
 
-            aggregate "Visualizer" do
+            aggregate "Visualizer", "Generates Mermaid diagrams from domain IR" do
               attribute :domain_id, String
-              command "GenerateDiagram" do
-                attribute :domain_id, String
-              end
+              command("GenerateDiagram") { attribute :domain_id, String }
             end
 
-            aggregate "Glossary" do
+            aggregate "Glossary", "Generates Ubiquitous Language glossary from domain IR" do
               attribute :domain_id, String
-              command "GenerateGlossary" do
-                attribute :domain_id, String
-              end
+              command("GenerateGlossary") { attribute :domain_id, String }
             end
 
-            aggregate "DslSerializer" do
+            aggregate "DslSerializer", "Serializes domain IR back to DSL source" do
               attribute :domain_id, String
-              command "SerializeDomain" do
-                attribute :domain_id, String
-              end
+              command("SerializeDomain") { attribute :domain_id, String }
             end
 
-            aggregate "AstExtractor" do
+            aggregate "AstExtractor", "Extracts domain definitions from Ruby AST" do
               attribute :source, String
-              command "ExtractDomain" do
-                attribute :source, String
-              end
+              command("ExtractDomain") { attribute :source, String }
             end
 
-            aggregate "FlowGenerator" do
+            aggregate "FlowGenerator", "Traces reactive event flows across policies" do
               attribute :domain_id, String
-              command "TraceFlows" do
-                attribute :domain_id, String
-              end
+              command("TraceFlows") { attribute :domain_id, String }
             end
 
-            aggregate "LlmsGenerator" do
+            aggregate "LlmsGenerator", "Generates llms.txt from domain IR" do
               attribute :domain_id, String
-              command "GenerateLlmsTxt" do
-                attribute :domain_id, String
-              end
+              command("GenerateLlmsTxt") { attribute :domain_id, String }
             end
 
-            aggregate "ReadmeGenerator" do
+            aggregate "ReadmeGenerator", "Generates README from domain IR" do
               attribute :root, String
-              command "GenerateReadme" do
-                attribute :root, String
-              end
+              command("GenerateReadme") { attribute :root, String }
             end
 
-            aggregate "VerticalSlice" do
+            aggregate "VerticalSlice", "Cross-cutting slice through command/event chain" do
               attribute :name, String
               attribute :entry_command, String
-              command "ExtractSlices" do
-                attribute :domain_id, String
-              end
-              command "GenerateSliceDiagram" do
-                attribute :domain_id, String
-              end
+              command("ExtractSlices") { attribute :domain_id, String }
             end
 
-            aggregate "EventStorm" do
+            aggregate "EventStorm", "Imports event storming sessions into domain IR" do
               attribute :source, String
-              command "ParseEventStorm" do
-                attribute :source, String
-              end
-              command "ImportEventStorm" do
-                attribute :source, String
-                attribute :name, String
-              end
+              command("ParseEventStorm") { attribute :source, String }
+              command("ImportEventStorm") { attribute :source, String; attribute :name, String }
             end
 
-            aggregate "Migration" do
+            aggregate "Migration", "Diffs domain versions and generates migrations" do
               attribute :domain_id, String
-              command "DiffDomains" do
-                attribute :domain_id, String
-              end
-              command "RunMigration" do
-                attribute :domain_id, String
-              end
+              command("DiffDomains") { attribute :domain_id, String }
+              command("RunMigration") { attribute :domain_id, String }
             end
 
-            aggregate "ContextMap" do
+            aggregate "ContextMap", "Generates context map across multiple domains" do
               attribute :domains, String
-              command "GenerateContextMap" do
-                attribute :domains, String
-              end
+              command("GenerateContextMap") { attribute :domains, String }
             end
 
-            aggregate "ValidationRule" do
+            aggregate "ValidationRule", "Single validation rule within the validator" do
               attribute :name, String
               attribute :category, String
-              command "CheckRule" do
-                attribute :domain_id, String
-                attribute :rule_name, String
-              end
+              command("CheckRule") { attribute :domain_id, String; attribute :rule_name, String }
             end
 
-            aggregate "Versioner" do
+            aggregate "Versioner", "Computes CalVer version from git history" do
               attribute :path, String
-              command "ComputeVersion" do
-                attribute :path, String
-              end
+              command("ComputeVersion") { attribute :path, String }
             end
 
             policy "AutoEvent" do
@@ -190,6 +125,11 @@ module Hecks
               trigger "InferEvent"
             end
           end
+
+          StructureParagraph.define(b)
+          BehaviorParagraph.define(b)
+          NamesParagraph.define(b)
+          ToolingParagraph.define(b)
         }.build
       end
     end

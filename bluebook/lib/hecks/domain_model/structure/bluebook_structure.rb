@@ -66,6 +66,35 @@ module Hecks
       def chapter_for_command(command_name)
         chapters.find { |ch| ch.aggregate_for_command(command_name) }
       end
+
+      # All domains in this bluebook (binding + chapters).
+      #
+      # @return [Array<Domain>]
+      def all_domains
+        [binding, *chapters].compact
+      end
+
+      # Print the Ubiquitous Language glossary for the entire bluebook.
+      # Walks binding + all chapters, printing each domain's terms.
+      #
+      #   Hecks::Chapters.bluebook.glossary
+      #
+      # @return [nil]
+      def glossary
+        all_domains.each do |domain|
+          puts "── #{domain.name} ──"
+          domain.aggregates.each do |agg|
+            desc = agg.respond_to?(:description) ? agg.description : nil
+            puts "  #{agg.name}#{desc ? " — #{desc}" : ""}"
+            agg.commands.each do |cmd|
+              cmd_desc = cmd.respond_to?(:description) ? cmd.description : nil
+              puts "    #{cmd.name}#{cmd_desc ? " — #{cmd_desc}" : ""}"
+            end
+          end
+          puts
+        end
+        nil
+      end
     end
     end
   end
