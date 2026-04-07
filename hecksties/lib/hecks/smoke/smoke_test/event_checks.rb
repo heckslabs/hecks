@@ -8,6 +8,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::EventChecks
+    #
+    # Mixin that fetches /_events and validates that expected event names appear in the log.
+    #
     module EventChecks
       private
 

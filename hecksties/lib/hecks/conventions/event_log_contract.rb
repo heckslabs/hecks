@@ -9,6 +9,10 @@
 #   Hecks::Conventions::EventLogContract.ruby_mapper  # => Ruby event-to-hash code
 #
 module Hecks::Conventions
+  # Hecks::Conventions::EventLogContract
+  #
+  # JSON shape contract for the /_events HTTP endpoint across Ruby and Go targets.
+  #
   module EventLogContract
     # Every entry in GET /_events must have these fields.
     FIELDS = %i[name occurred_at].freeze

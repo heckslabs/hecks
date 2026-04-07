@@ -17,6 +17,10 @@
   #   Hecks::Utils.ruby_keyword?("class")          # => true
   #
 module Hecks
+  # Hecks::Utils
+  #
+  # Shared utility functions: constant sanitization, underscore conversion, keyword detection, and serialization.
+  #
   module Utils
     # Ruby reserved keywords that cannot be used as bare keyword parameters
     # in method signatures (e.g. +def initialize(class:)+ is invalid syntax).

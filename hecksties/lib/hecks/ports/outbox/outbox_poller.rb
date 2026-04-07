@@ -20,6 +20,10 @@
 #
 module Hecks
   module Outbox
+    # Hecks::Outbox::OutboxPoller
+    #
+    # Synchronous poller that reads unpublished outbox entries and delivers them to the event bus.
+    #
     class OutboxPoller
       # @return [Object] the outbox to poll from (responds to poll, mark_published)
       attr_reader :outbox

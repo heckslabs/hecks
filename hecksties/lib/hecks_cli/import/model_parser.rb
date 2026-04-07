@@ -12,6 +12,10 @@ require_relative "prism_helpers"
 
 module Hecks
   module Import
+    # Hecks::Import::ModelParser
+    #
+    # Parses Rails model files with Prism to extract associations, validations, enums, and state machines.
+    #
     class ModelParser
       include PrismHelpers
 

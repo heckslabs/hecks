@@ -17,11 +17,19 @@ require_relative "smoke_test/behavior_tests"
 require_relative "smoke_test/form_submission"
 
 module HecksTemplating
+  # HecksTemplating::SmokeTest
+  #
+  # Browser-style HTTP smoke test: exercises every web explorer page, submits forms, and validates the event log.
+  #
   class SmokeTest
     include EventChecks
     include BehaviorTests
     include FormSubmission
 
+    # HecksTemplating::SmokeTest::Result
+    #
+    # Value object representing the pass/fail outcome of a single smoke test HTTP request.
+    #
     Result = Struct.new(:status, :method, :path, :http_code, :error, keyword_init: true)
 
     def initialize(base_url, domain)

@@ -13,6 +13,10 @@
 #
 module Hecks
   module Capabilities
+    # Hecks::Capabilities::Crud
+    #
+    # CRUD capability that generates Create/Read/Update/Delete command stubs and binds repository methods.
+    #
     module Crud
       extend HecksTemplating::NamingHelpers
       Structure = DomainModel::Structure

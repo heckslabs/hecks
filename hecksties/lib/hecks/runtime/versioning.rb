@@ -8,6 +8,10 @@
   #   Widget.at_version(id, 1)  # => snapshot hash
   #
 module Hecks
+  # Hecks::Versioning
+  #
+  # Binds version history tracking to aggregates, snapshotting state before each save for history and rollback.
+  #
   module Versioning
     # Binds version tracking to an aggregate class and its repository.
     #

@@ -8,6 +8,10 @@
   #
 module Hecks::Stats
 
+  # Hecks::Stats::ProjectStats
+  #
+  # Collects and summarizes metrics across all domains in a project directory.
+  #
   class ProjectStats
     def initialize(project_root)
       @root = project_root

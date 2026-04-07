@@ -9,6 +9,10 @@
 #
 module Hecks
   module MultiDomain
+    # Hecks::MultiDomain::Validator
+    #
+    # Validates cross-domain references: allows qualified paths, rejects unqualified foreign aggregate refs.
+    #
     module Validator
       extend HecksTemplating::NamingHelpers
       module_function

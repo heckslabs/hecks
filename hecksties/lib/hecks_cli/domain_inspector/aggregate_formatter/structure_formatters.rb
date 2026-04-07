@@ -9,6 +9,10 @@ module Hecks
   class CLI
     class DomainInspector
       class AggregateFormatter
+        # Hecks::CLI::DomainInspector::AggregateFormatter::StructureFormatters
+        #
+        # Formats structural aggregate elements: attributes, value objects, and entities.
+        #
         module StructureFormatters
           private
 

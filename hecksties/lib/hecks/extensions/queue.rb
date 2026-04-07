@@ -50,6 +50,10 @@ Hecks.register_extension(:queue) do |domain_mod, domain, runtime|
   end
 end
 
+# Hecks
+#
+# Top-level Hecks module — reopened here to establish namespace before Hecks::Queue definition.
+#
 module Hecks; end
 # Hecks::Queue
 #

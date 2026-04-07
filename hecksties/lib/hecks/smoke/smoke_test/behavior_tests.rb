@@ -16,6 +16,10 @@ require_relative "behavior_tests/domain_lookups"
 
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::BehaviorTests
+    #
+    # Aggregates all domain behavior smoke test mixins: queries, scopes, policies, lifecycles, and endpoints.
+    #
     module BehaviorTests
       include QueryTests
       include PolicyTests

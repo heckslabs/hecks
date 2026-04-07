@@ -10,6 +10,10 @@
 #
 module Hecks::Conventions
 
+  # Hecks::Conventions::Names
+  #
+  # Single source of truth for all naming conventions: module names, slugs, FQNs, and route paths.
+  #
     module Names
       module_function
 

@@ -9,6 +9,10 @@
 module Hecks
   class CLI
     class DomainInspector
+      # Hecks::CLI::DomainInspector::SecondaryFormatters
+      #
+      # Formatting helpers for less-common aggregate sections: scopes, specifications, subscribers, and references.
+      #
       module SecondaryFormatters
         private
 

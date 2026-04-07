@@ -9,6 +9,10 @@
 #
 module Hecks
   module Import
+    # Hecks::Import::PrismHelpers
+    #
+    # Mixin providing low-level Prism AST node accessors shared by ModelParser extraction methods.
+    #
     module PrismHelpers
       def first_symbol_arg(call)
         args = call.arguments&.arguments || []

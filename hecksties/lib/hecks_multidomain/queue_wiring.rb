@@ -6,6 +6,10 @@
 #
 module Hecks
   module MultiDomain
+    # Hecks::MultiDomain::QueueWiring
+    #
+    # Wires a MemoryQueue with a cross-domain command resolver for routing commands across domain boundaries.
+    #
     module QueueWiring
       extend HecksTemplating::NamingHelpers
       module_function

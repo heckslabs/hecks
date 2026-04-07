@@ -10,6 +10,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::SagaSetup
+    #
+    # Wires saga definitions as start_<saga_name> methods on the domain module at boot time.
+    #
     module SagaSetup
       include HecksTemplating::NamingHelpers
       private

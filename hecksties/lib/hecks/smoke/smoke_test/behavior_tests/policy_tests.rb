@@ -8,6 +8,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::PolicyTests
+    #
+    # Smoke tests for reactive policies: triggers commands and verifies expected events appear in the log.
+    #
     module PolicyTests
       private
 

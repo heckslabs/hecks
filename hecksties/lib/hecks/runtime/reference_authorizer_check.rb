@@ -12,6 +12,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::ReferenceCoverageCheck
+    #
+    # Validates at boot that commands with reference_to have a reference_authorizer to prevent IDOR gaps.
+    #
     module ReferenceCoverageCheck
       # Scans the domain IR for commands with reference_to declarations that
       # require authorization (validate: true, the default) and verifies that

@@ -14,6 +14,10 @@
 #   rules[:standard_fields] # => [{ name: :id, type: "string" }, ...]
 #
 module Hecks::Conventions
+  # Hecks::Conventions::AggregateContract
+  #
+  # Single source of truth for aggregate shape, validation, lifecycle, and invariant rules.
+  #
   module AggregateContract
     # Every aggregate must have these fields.
     STANDARD_FIELDS = [

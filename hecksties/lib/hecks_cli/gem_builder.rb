@@ -11,6 +11,10 @@ require "bundler"
   #
 
 module Hecks
+  # Hecks::GemBuilder
+  #
+  # Builds and installs all Hecks component gems from their subdirectories, then the meta-gem.
+  #
   class GemBuilder
     # Discover components by finding directories with gemspecs
     def self.discover_components(root)

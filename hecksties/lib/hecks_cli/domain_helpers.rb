@@ -5,6 +5,10 @@
 # Included in CLI so all registered commands can use them.
 #
 module Hecks
+  # Hecks::DomainHelpers
+  #
+  # Shared CLI helpers for resolving domain files, loading domains, and finding installed gems.
+  #
   module DomainHelpers
     private
 

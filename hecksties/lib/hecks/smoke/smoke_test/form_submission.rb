@@ -7,6 +7,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::FormSubmission
+    #
+    # Browser-style form submission mixin: GETs form pages, parses HTML, fills fields, and POSTs submissions.
+    #
     module FormSubmission
       private
 

@@ -10,6 +10,10 @@
 #   # => { missing: [], extra: [], valid: true }
 #
 module Hecks::Conventions
+  # Hecks::Conventions::EventContract
+  #
+  # Event interface, required fields, and validation for cross-target event parity.
+  #
   module EventContract
     # Every generated event must respond to these methods.
     INTERFACE = %i[event_name occurred_at].freeze

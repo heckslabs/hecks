@@ -19,6 +19,10 @@ require_relative "aggregate_formatter/lifecycle_formatter"
 module Hecks
   class CLI
     class DomainInspector
+      # Hecks::CLI::DomainInspector::AggregateFormatter
+      #
+      # Formats a single aggregate from the domain IR into readable terminal output covering all IR sections.
+      #
       class AggregateFormatter
         include SecondaryFormatters
         include StructureFormatters

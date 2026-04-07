@@ -10,6 +10,10 @@
 #   result[:state]  # => :completed
 #
 module Hecks
+  # Hecks::SagaRunner
+  #
+  # Executes a saga definition step-by-step through the command bus with compensation on failure.
+  #
   class SagaRunner
     # @return [Hecks::DomainModel::Behavior::Saga] the saga definition
     attr_reader :saga

@@ -8,6 +8,10 @@
 #
 module Hecks
   module Binding
+    # Hecks::Binding::MultiDomainChapter
+    #
+    # Bluebook sub-chapter for multi-domain infrastructure: filtered event bus, cross-domain queries, and queue wiring.
+    #
       module MultiDomainChapter
         def self.define(b)
           b.aggregate "FilteredEventBus", "Event bus scoped to specific event types" do

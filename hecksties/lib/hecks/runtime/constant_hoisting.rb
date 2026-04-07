@@ -5,6 +5,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::ConstantHoisting
+    #
+    # Promotes aggregate classes to top-level Object constants and defines unload! for clean teardown.
+    #
       module ConstantHoisting
         private
 

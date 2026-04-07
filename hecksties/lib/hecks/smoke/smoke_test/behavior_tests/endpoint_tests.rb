@@ -9,6 +9,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::EndpointTests
+    #
+    # Smoke tests for domain views, workflows, and services over HTTP.
+    #
     module EndpointTests
       private
 

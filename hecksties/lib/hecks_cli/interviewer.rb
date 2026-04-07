@@ -10,6 +10,10 @@
 #   dsl_source  = interviewer.run
 #
 module Hecks
+  # Hecks::Interviewer
+  #
+  # Conversational CLI onboarding wizard for defining a new domain interactively.
+  #
   class Interviewer
     def initialize(ask:, say:)
       @ask = ask

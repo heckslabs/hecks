@@ -8,6 +8,10 @@
 #
 module Hecks
   module Binding
+    # Hecks::Binding::ErrorsParagraph
+    #
+    # Bluebook sub-chapter modeling the Hecks error hierarchy as aggregates with Raise commands.
+    #
     module ErrorsParagraph
       def self.define(b)
         b.aggregate "Error", "Base error class for all Hecks domain errors" do

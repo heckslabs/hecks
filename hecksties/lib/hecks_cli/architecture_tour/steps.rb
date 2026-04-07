@@ -8,6 +8,10 @@
 #
 module Hecks
   class ArchitectureTour
+    # Hecks::ArchitectureTour::Steps
+    #
+    # Step definitions for the architecture tour: each method returns a Step with title, explanation, and paths.
+    #
     module Steps
       def monorepo_layout_step
         Step.new(

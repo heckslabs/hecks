@@ -10,6 +10,10 @@
 #   Hecks::Conventions::FormParsingContract.spec("time.Time")      # => { input: "date", ... }
 #
 module Hecks::Conventions
+  # Hecks::Conventions::FormParsingContract
+  #
+  # Maps Go types to HTML input specs and parsing code for both Ruby and Go server generators.
+  #
   module FormParsingContract
     SPECS = {
       "int64"          => { input: "number", parse: :sscanf, fmt: "%d", step: false },

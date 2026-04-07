@@ -10,6 +10,10 @@
 #
 module Hecks
   class CLI < Thor
+    # Hecks::CLI::VersionLogFormatter
+    #
+    # Formats version log entries with diff summaries between consecutive domain versions.
+    #
     module VersionLogFormatter
       # Format log entries with change summaries.
       #

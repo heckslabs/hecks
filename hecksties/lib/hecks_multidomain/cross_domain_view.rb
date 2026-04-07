@@ -26,6 +26,10 @@
   #   view.reset  # => clears state back to {}
   #
 module Hecks
+  # Hecks::CrossDomainView
+  #
+  # Event-driven read model that projects events from multiple bounded contexts into a single in-memory state.
+  #
   class CrossDomainView
     # @return [String] the name of this view (e.g., "RiskDashboard")
     attr_reader :name

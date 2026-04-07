@@ -12,6 +12,10 @@
 #   })
 #
 module Hecks::Conventions
+  # Hecks::Conventions::TypeContract
+  #
+  # Registry-based type mapping: translates Ruby domain types to Go, SQL, JSON, and other targets.
+  #
   module TypeContract
     @targets = {}
     @defaults = {}

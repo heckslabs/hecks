@@ -13,7 +13,15 @@
 require_relative "architecture_tour/steps"
 
 module Hecks
+  # Hecks::ArchitectureTour
+  #
+  # Interactive CLI walkthrough of Hecks internals for contributors, stepping through monorepo layout and pipeline.
+  #
   class ArchitectureTour
+    # Hecks::ArchitectureTour::Step
+    #
+    # Value object representing a single step in the architecture tour with title, explanation, and file paths.
+    #
     Step = Struct.new(:title, :explanation, :paths, keyword_init: true)
 
     include Steps

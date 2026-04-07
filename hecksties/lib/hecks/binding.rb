@@ -17,6 +17,10 @@ require_relative "binding/contracts"
 require_relative "binding/multi_domain"
 
 module Hecks
+  # Hecks::Binding
+  #
+  # Holds chapters together: module wiring, error hierarchy, registries, contracts, and event routing.
+  #
   module Binding
     def self.definition
       @definition ||= DSL::DomainBuilder.new("Binding").tap { |b|
@@ -42,6 +46,23 @@ module Hecks
 
         b.aggregate "Deprecations", "Deprecated API shim registry" do
           command("Register") { attribute :target_class, String; attribute :method_name, String }
+        end
+
+        b.aggregate "HecksDeprecations", "Top-level deprecated API shim module that prepends warning methods onto target classes" do
+          command("Register") { attribute :target_class, String; attribute :method_name, String }
+        end
+
+        b.aggregate "Registry", "Hash-backed registry for named resources with symbol-coerced keys and Enumerable support" do
+          command("Register") { attribute :key, String; attribute :value, String }
+          command("Lookup") { attribute :key, String }
+        end
+
+        b.aggregate "SetRegistry", "Array-backed registry for unique items with duplicate prevention and Enumerable support" do
+          command("Register") { attribute :item, String }
+        end
+
+        b.aggregate "Stats", "Framework usage statistics: aggregate counts, attribute counts, command/event/policy metrics" do
+          command("Compute") { attribute :domain_name, String }
         end
 
         b.aggregate "ExtensionDocs", "Metadata registry for extension gems" do

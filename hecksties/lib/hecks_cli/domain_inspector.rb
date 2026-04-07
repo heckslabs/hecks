@@ -13,6 +13,10 @@ require_relative "domain_inspector/aggregate_formatter"
 
 module Hecks
   class CLI
+    # Hecks::CLI::DomainInspector
+    #
+    # Formats a Domain IR into comprehensive, readable terminal output covering all aggregates and domain elements.
+    #
     class DomainInspector
       # @param domain [Hecks::DomainModel::Structure::Domain]
       def initialize(domain)

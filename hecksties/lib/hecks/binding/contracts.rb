@@ -8,6 +8,10 @@
 #
 module Hecks
   module Binding
+    # Hecks::Binding::ContractsChapter
+    #
+    # Bluebook chapter defining the Contracts aggregate for cross-target data contract registration.
+    #
       module ContractsChapter
         def self.define(b)
           b.aggregate "Contracts", "Contract registry for cross-target parity" do
@@ -73,6 +77,10 @@ module Hecks
 
           b.aggregate "NamingContract", "Domain naming conventions" do
             command("Validate") { attribute :name, String }
+          end
+
+          b.aggregate "DispatchNotAllowed", "Raised when dispatch target is not a declared command, query, or CRUD builtin" do
+            command("Raise") { attribute :agg_name, String; attribute :method_name, String }
           end
         end
       end

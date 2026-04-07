@@ -11,6 +11,10 @@
 #
 
 module Hecks::Conventions
+  # Hecks::Conventions::UILabelContract
+  #
+  # Converts snake_case and PascalCase names to human-readable display labels.
+  #
   module UILabelContract
     # Convert any name (snake_case or PascalCase) to a display label.
     # Strips trailing " Id" to remove foreign-key persistence leaks from UI.

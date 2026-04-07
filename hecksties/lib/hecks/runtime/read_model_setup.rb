@@ -10,6 +10,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::ReadModelSetup
+    #
+    # Wires read model projections to the event bus at boot time so each read model has a .current method.
+    #
     module ReadModelSetup
       private
 

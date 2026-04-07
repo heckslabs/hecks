@@ -10,6 +10,10 @@
   #   PizzasDomain::OrderSummary.current  # => { total_orders: 5 }
   #
 module Hecks
+  # Hecks::ViewBinding
+  #
+  # Wires read model projections to the event bus so .current state is updated as events are published.
+  #
   class ViewBinding
     extend HecksTemplating::NamingHelpers
     # Binds a view (read model) definition to the event bus and domain module.

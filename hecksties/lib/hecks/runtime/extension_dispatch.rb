@@ -8,6 +8,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::ExtensionDispatch
+    #
+    # Applies extensions and capabilities to a live runtime without rebooting.
+    #
     module ExtensionDispatch
       # Apply an extension to the live runtime without rebooting.
       #

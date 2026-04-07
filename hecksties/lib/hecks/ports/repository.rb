@@ -27,6 +27,10 @@
   # - +EventRecorder+     -- SQL-backed event store for event-sourced aggregates
   #
 module Hecks
+  # Hecks::Persistence
+  #
+  # Wiring layer attaching CRUD, collection proxy, reference, and event recording methods onto aggregate classes.
+  #
   module Persistence
       autoload :RepositoryMethods, "hecks/ports/repository/repository_methods"
       autoload :CollectionMethods, "hecks/ports/repository/collection_methods"

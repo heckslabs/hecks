@@ -8,6 +8,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::NegativeTests
+    #
+    # Smoke tests for validation: submits blank forms and expects 422 or re-rendered form with errors.
+    #
     module NegativeTests
       private
 

@@ -8,6 +8,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::DomainLookups
+    #
+    # Helper mixin for looking up commands and events in the domain IR for cross-reference resolution.
+    #
     module DomainLookups
       private
 

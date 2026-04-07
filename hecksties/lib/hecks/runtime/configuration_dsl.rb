@@ -11,6 +11,10 @@
 #
 module Hecks
   class Runtime
+    # Hecks::Runtime::ConfigurationDSL
+    #
+    # DSL evaluated inside the runtime boot block for adapter overrides, middleware, and option flags.
+    #
     module ConfigurationDSL
       # Register command bus middleware.
       #

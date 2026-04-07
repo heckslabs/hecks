@@ -11,6 +11,10 @@
 #   result[:stub]       # => false
 #
 module Hecks
+  # Hecks::WorldConcernsPrompt
+  #
+  # Interactive prompt for declaring world concerns that map to Hecks extensions during domain init.
+  #
   class WorldConcernsPrompt
     GOAL_TO_EXTENSION = {
       privacy:       :pii,

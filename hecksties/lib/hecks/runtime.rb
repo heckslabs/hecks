@@ -28,6 +28,10 @@ require_relative "runtime/command_dispatch"
   #
 
 module Hecks
+  # Hecks::Runtime
+  #
+  # The runtime container that wires a domain to adapters, dispatches commands, publishes events, and runs policies.
+  #
   class Runtime
     include HecksTemplating::NamingHelpers
     include PortSetup

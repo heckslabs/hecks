@@ -11,6 +11,10 @@
 #   CommandContract.method_name("CreatePizza", "Pizza")               # => :create
 #
 module Hecks::Conventions
+  # Hecks::Conventions::CommandContract
+  #
+  # Derives short method names from command names by stripping aggregate name suffixes.
+  #
   module CommandContract
     # Derives the short Ruby method name for a command on an aggregate.
     # Strips the longest matching right-suffix of the aggregate name.

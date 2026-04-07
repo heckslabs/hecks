@@ -28,6 +28,10 @@
   #   end
   #
 module Hecks
+  # Hecks::TestHelper
+  #
+  # Test support module that resets Hecks runtime state between tests for a clean slate.
+  #
   module TestHelper
     # Resets all runtime state for a clean test environment. Clears every
     # aggregate's repository (memory adapter store) and the event bus history.

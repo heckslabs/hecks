@@ -10,6 +10,10 @@ module Hecks
   class CLI
     class DomainInspector
       class AggregateFormatter
+        # Hecks::CLI::DomainInspector::AggregateFormatter::RuleFormatters
+        #
+        # Formats aggregate constraint and rule elements: validations, invariants, and policies.
+        #
         module RuleFormatters
           private
 

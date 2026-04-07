@@ -10,6 +10,10 @@ module Hecks
   class CLI
     class DomainInspector
       class AggregateFormatter
+        # Hecks::CLI::DomainInspector::AggregateFormatter::LifecycleFormatter
+        #
+        # Formats lifecycle (state machine) sections of an aggregate including states and transitions.
+        #
         module LifecycleFormatter
           private
 

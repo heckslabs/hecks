@@ -10,6 +10,10 @@
 #   Hecks::Conventions::ViewContract.go_name(:short_id)  # => "ShortId"
 #
 module Hecks::Conventions
+  # Hecks::Conventions::ViewContract
+  #
+  # Data shape contracts for web explorer views shared between Ruby and Go generators.
+  #
   module ViewContract
     # Maps a snake_case field name to a Go PascalCase name.
     # Centralizes the naming rule so templates and structs agree.

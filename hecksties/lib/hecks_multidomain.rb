@@ -13,6 +13,10 @@ module Hecks
   autoload :CrossDomainQuery,  "hecks_multidomain/cross_domain_query"
   autoload :CrossDomainView,   "hecks_multidomain/cross_domain_view"
 
+  # Hecks::MultiDomain
+  #
+  # Multi-domain support: filtered event buses, cross-domain validation, directionality, and queue wiring.
+  #
   module MultiDomain
     autoload :Directionality, "hecks_multidomain/directionality"
     autoload :Validator,      "hecks_multidomain/validator"

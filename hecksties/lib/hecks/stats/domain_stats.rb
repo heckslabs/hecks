@@ -8,6 +8,10 @@
   #
 module Hecks::Stats
 
+  # Hecks::Stats::DomainStats
+  #
+  # Collects aggregate, command, event, and policy metrics for a single Hecks domain.
+  #
   class DomainStats
     def initialize(domain)
       @domain = domain

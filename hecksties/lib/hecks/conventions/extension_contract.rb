@@ -17,6 +17,10 @@
 #   result[:missing] # => ["describe_extension not called for :bogus", ...]
 #
 module Hecks::Conventions
+  # Hecks::Conventions::ExtensionContract
+  #
+  # Validates that extension modules conform to the required describe/register interface.
+  #
   module ExtensionContract
     # Required keys in the metadata hash returned by describe_extension.
     REQUIRED_META_KEYS = %i[description adapter_type wires_to].freeze

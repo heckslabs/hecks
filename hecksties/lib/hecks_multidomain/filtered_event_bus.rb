@@ -26,6 +26,10 @@
   #   bus.subscribe("Foo") { |e| ... }  # only fires for events from inventory_domain
   #
 module Hecks
+  # Hecks::FilteredEventBus
+  #
+  # Event bus decorator that enforces cross-domain directionality by tagging events with their source domain.
+  #
   class FilteredEventBus
     # @return [Array<Object>] delegated to the inner bus's event log
     attr_reader :events

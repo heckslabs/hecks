@@ -9,6 +9,10 @@ module Hecks
   class CLI
     class DomainInspector
       class AggregateFormatter
+        # Hecks::CLI::DomainInspector::AggregateFormatter::BehaviorFormatters
+        #
+        # Formats behavioral aggregate elements: commands, events, and queries for terminal output.
+        #
         module BehaviorFormatters
           private
 

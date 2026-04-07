@@ -9,6 +9,10 @@
 #   result[:issues]  # => []
 #
 module Hecks::Conventions
+  # Hecks::Conventions::MigrationContract
+  #
+  # Validates round-trip serialization fidelity by diffing original vs. restored domain IRs.
+  #
   module MigrationContract
     # Attribute properties that must survive round-trip serialization.
     ATTRIBUTE_PROPS = %i[name type list?].freeze

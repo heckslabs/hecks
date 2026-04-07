@@ -10,6 +10,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::QueryTests
+    #
+    # Smoke tests for domain queries, scopes, and specifications over HTTP GET requests.
+    #
     module QueryTests
       private
 

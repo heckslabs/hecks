@@ -43,6 +43,10 @@ require "hecks/workshop"
 #   require "hecks_explorer"         # web explorer + HTTP server
 #   require "hecks_ai"               # MCP server + AI tools
 #
+# Hecks
+#
+# Top-level framework module: DSL entry point, registry methods, and configuration for all domain components.
+#
 module Hecks
   extend DomainInspector
   extend DomainBuilderMethods

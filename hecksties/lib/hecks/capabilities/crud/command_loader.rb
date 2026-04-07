@@ -8,6 +8,10 @@
 module Hecks
   module Capabilities
     module Crud
+      # Hecks::Capabilities::Crud::CommandLoader
+      #
+      # Generates and evaluates Ruby command and event classes for CRUD stubs.
+      #
       module CommandLoader
         # Generate and eval Ruby command classes for the new stubs.
         #

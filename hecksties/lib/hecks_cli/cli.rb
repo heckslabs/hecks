@@ -13,6 +13,10 @@ require_relative "conflict_handler"
 require_relative "domain_helpers"
 
 module Hecks
+  # Hecks::CLI
+  #
+  # Thor-based CLI entry point with grouped commands registered by each sub-gem.
+  #
   class CLI < Thor
     include ConflictHandler
     include DomainHelpers
@@ -89,9 +93,17 @@ module Hecks
     end
 
     # Subcommands
+    # Hecks::CLI::Gem
+    #
+    # Thor subcommand group for gem packaging commands (build, install).
+    #
     class Gem < Thor
     end
 
+    # Hecks::CLI::Docs
+    #
+    # Thor subcommand group for documentation update commands.
+    #
     class Docs < Thor
       desc "update", "Update all doc headers and markdown files"
       def update

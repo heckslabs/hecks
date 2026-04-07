@@ -9,6 +9,10 @@
 #
 module HecksTemplating
   class SmokeTest
+    # HecksTemplating::SmokeTest::LifecycleTests
+    #
+    # Smoke tests for aggregate lifecycle transitions: creates, walks each transition, and validates events.
+    #
     module LifecycleTests
       private
 

@@ -8,6 +8,10 @@
 #   store.find("abc-123")  # => { state: :running, completed: [0] }
 #
 module Hecks
+  # Hecks::SagaStore
+  #
+  # In-memory persistence for saga instances keyed by saga_id, swappable for Redis/SQL in production.
+  #
   class SagaStore
     # @return [Hash{String => Hash}] all stored saga instances
     attr_reader :instances

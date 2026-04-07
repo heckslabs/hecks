@@ -11,6 +11,10 @@
 #   DispatchContract.validate!(whitelist, "Pizza", :eval)    # => raises DispatchNotAllowed
 #
 module Hecks::Conventions
+  # Hecks::Conventions::DispatchContract
+  #
+  # Runtime dispatch whitelist: validates .send() targets against declared commands, queries, and CRUD builtins.
+  #
   module DispatchContract
     # Standard CRUD methods present on every generated aggregate class.
     CRUD_BUILTINS = %i[all find delete count update create].freeze

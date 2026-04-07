@@ -10,6 +10,10 @@
 #   domain_command_method("CreatePizza", "Pizza") # => :create
 #
 module Hecks::Conventions
+  # Hecks::Conventions::NamingHelpers
+  #
+  # Mixin delegating all naming convention methods to Hecks::Conventions::Names for include chains.
+  #
   module NamingHelpers
     private
 

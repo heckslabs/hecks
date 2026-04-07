@@ -13,6 +13,10 @@
 require "securerandom"
 
 module Hecks::Conventions
+  # Hecks::Conventions::CsrfContract
+  #
+  # Double-submit cookie constants and token generation for stateless CSRF protection.
+  #
   module CsrfContract
     COOKIE_NAME      = "_csrf_token"
     FIELD_NAME       = "_csrf_token"

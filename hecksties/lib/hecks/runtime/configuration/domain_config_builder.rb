@@ -10,6 +10,10 @@
 #
 module Hecks
   class Configuration
+    # Hecks::Configuration::DomainConfigBuilder
+    #
+    # DSL helper for domain configuration blocks collecting listens_to and sends_to declarations.
+    #
     class DomainConfigBuilder
       attr_reader :listens, :sends
 

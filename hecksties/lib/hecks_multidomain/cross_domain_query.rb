@@ -23,6 +23,10 @@
   #
 
 module Hecks
+  # Hecks::CrossDomainQuery
+  #
+  # Read-only query that spans multiple bounded contexts via registered from-helper blocks.
+  #
   class CrossDomainQuery
     # @return [String] the registered name of this cross-domain query
     attr_reader :name

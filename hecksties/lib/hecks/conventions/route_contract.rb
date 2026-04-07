@@ -9,6 +9,10 @@
 #   RouteContract.query_path("pizzas", "by_name")        # => "/pizzas/queries/by_name"
 #
 module Hecks::Conventions
+  # Hecks::Conventions::RouteContract
+  #
+  # Single source of truth for URL patterns used by Ruby and Go generators and smoke tests.
+  #
   module RouteContract
     def self.form_path(plural, cmd_snake)    = "/#{plural}/#{cmd_snake}/new"
     def self.submit_path(plural, cmd_snake)  = "/#{plural}/#{cmd_snake}/submit"
