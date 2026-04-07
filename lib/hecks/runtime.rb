@@ -1,7 +1,7 @@
 # Load runtime implementation files from the Runtime chapter definition.
 # The chapter's aggregate list drives which files are required — no
 # hand-written require tree needed.
-require_relative "chapters/runtime"
+require "hecks/chapters/runtime"
 Hecks::Chapters.load_chapter(
   Hecks::Chapters::Runtime,
   base_dir: __dir__

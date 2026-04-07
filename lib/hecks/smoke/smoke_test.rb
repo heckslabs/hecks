@@ -12,7 +12,7 @@
 require "net/http"
 require "uri"
 require "json"
-require_relative "../chapters/templating/smoke_test_children"
+require "hecks/chapters/templating/smoke_test_children"
 Hecks::Chapters.load_aggregates(
   Hecks::Chapters::Templating::SmokeTestChildren,
   base_dir: File.expand_path("smoke_test", __dir__)

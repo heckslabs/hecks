@@ -1,5 +1,7 @@
-require_relative "event_builder"
-require_relative "domain_builder/strategic_builders"
+# Bootstrap: EventBuilder and StrategicBuilders are used at class-body
+# time. Cannot use chapter-driven loading.
+require "hecks/dsl/event_builder"
+require "hecks/dsl/domain_builder/strategic_builders"
 
 module Hecks
   module DSL

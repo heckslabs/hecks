@@ -1,7 +1,7 @@
 require "fileutils"
 
 # Load workshop implementation files from the Workshop chapter definition.
-require_relative "chapters/workshop"
+require "hecks/chapters/workshop"
 Hecks::Chapters.load_chapter(
   Hecks::Chapters::Workshop,
   base_dir: __dir__

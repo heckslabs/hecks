@@ -4,7 +4,9 @@
 # Merged from hecks_templating/. Provides short aliases on the Hecks module
 # so consumers don't need verbose includes or qualified names.
 #
-require_relative "conventions/naming_helpers"
+# Bootstrap: NamingHelpers must load before chapter system since builders
+# include NamingHelpers.
+require "hecks/conventions/naming_helpers"
 
 # Load all contract files
 Dir[File.join(__dir__, "conventions", "*_contract.rb")].sort.each { |f| require f }

@@ -1,7 +1,7 @@
 require "mcp"
 
 # Load MCP server implementation files from the AI chapter definition.
-require_relative "../hecks/chapters/ai"
+require "hecks/chapters/ai"
 Hecks::Chapters.load_chapter(
   Hecks::Chapters::AI,
   base_dir: __dir__

@@ -27,7 +27,7 @@
 require "active_model"
 
 # Load ActiveHecks implementation files from the Rails chapter definition.
-require_relative "hecks/chapters/rails"
+require "hecks/chapters/rails"
 Hecks::Chapters.load_chapter(
   Hecks::Chapters::Rails,
   base_dir: File.expand_path("active_hecks", __dir__)

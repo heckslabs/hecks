@@ -7,7 +7,7 @@
 #     include BehaviorTests  # pulls in query, scope, lifecycle, etc.
 #   end
 #
-require_relative "../../chapters/templating/behavior_tests_children"
+require "hecks/chapters/templating/behavior_tests_children"
 Hecks::Chapters.load_aggregates(
   Hecks::Chapters::Templating::BehaviorTestsChildren,
   base_dir: File.expand_path("behavior_tests", __dir__)

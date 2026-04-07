@@ -23,7 +23,7 @@ module Hecks
     # @yield optional block on domain module for declaring connections
     # @return [Hecks::Runtime, Array<Hecks::Runtime>]
     def boot(dir = Dir.pwd, adapter: :memory, &block)
-      require_relative "load_extensions"
+      require "hecks/runtime/load_extensions"
       LoadExtensions.require_auto
 
       multi_dir = find_domains_dir(dir)

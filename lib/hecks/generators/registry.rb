@@ -8,7 +8,7 @@
 #   Hecks::Generators.register(:value_object, Generators::Domain::ValueObjectGenerator, scope: :child)
 #   Hecks::Generators.register(:workflow, Generators::Domain::WorkflowGenerator, scope: :domain)
 #
-require_relative "../generator"
+require "hecks/generator"
 
 module Hecks
   module Generators

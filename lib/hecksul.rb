@@ -11,7 +11,7 @@
 #   HecksUL.compiler      # => { frontend: "DSL", ir: "DomainModel", ... }
 #   HecksUL.self_hosting  # => { chapters: 15, aggregates: 670, commands: 836 }
 #
-require_relative "hecks"
+require "hecks"
 
 module HecksUL
   HECKSTIES_ROOT = File.expand_path("..", __dir__)

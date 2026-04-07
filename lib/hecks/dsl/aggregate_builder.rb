@@ -1,8 +1,10 @@
-require_relative "event_builder"
-require_relative "aggregate_builder/behavior_methods"
-require_relative "aggregate_builder/constraint_methods"
-require_relative "aggregate_builder/query_methods"
-require_relative "aggregate_builder/implicit_syntax"
+# Bootstrap: These modules are included at class-body time, so they must
+# load before AggregateBuilder is defined. Cannot use chapter-driven loading.
+require "hecks/dsl/event_builder"
+require "hecks/dsl/aggregate_builder/behavior_methods"
+require "hecks/dsl/aggregate_builder/constraint_methods"
+require "hecks/dsl/aggregate_builder/query_methods"
+require "hecks/dsl/aggregate_builder/implicit_syntax"
 
 module Hecks
   module DSL

@@ -154,7 +154,7 @@ module Hecks
       return if @extensions_loaded
 
       @extensions_loaded = true
-      require_relative "load_extensions"
+      require "hecks/runtime/load_extensions"
 
       if @gem_overrides.nil?
         LoadExtensions.require_auto

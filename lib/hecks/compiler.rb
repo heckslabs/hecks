@@ -12,7 +12,7 @@ module Hecks
   end
 end
 
-require_relative "compiler/source_collector"
-require_relative "compiler/forward_declarations"
-require_relative "compiler/bundle_writer"
-require_relative "compiler/binary_compiler"
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Bluebook::ToolingParagraph,
+  base_dir: File.expand_path("compiler", __dir__)
+)

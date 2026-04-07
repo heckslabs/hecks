@@ -11,32 +11,34 @@
 #
 
 # Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run DomainBuilder.
-# These must load before any chapter can describe aggregates.
-require_relative "bluebook/tokenizer"
-require_relative "hecks/domain_model/behavior"
-require_relative "hecks/domain_model/structure"
-require_relative "hecks/domain_model/names"
-require_relative "hecks/dsl/describable"
-require_relative "hecks/dsl/attribute_collector"
-require_relative "hecks/dsl/event_builder"
-require_relative "hecks/dsl/command_builder"
-require_relative "hecks/dsl/value_object_builder"
-require_relative "hecks/dsl/entity_builder"
-require_relative "hecks/dsl/policy_builder"
-require_relative "hecks/dsl/lifecycle_builder"
-require_relative "hecks/dsl/read_model_builder"
-require_relative "hecks/dsl/service_builder"
-require_relative "hecks/dsl/workflow_builder"
-require_relative "hecks/dsl/aggregate_builder"
-require_relative "hecks/dsl/aggregate_rebuilder"
-require_relative "hecks/dsl/domain_builder"
-require_relative "hecks/dsl/bluebook_builder"
+# These must load before any chapter can describe aggregates, so they
+# cannot use chapter-driven loading. They define the types and builders
+# that DomainBuilder.new("tmp") needs inside every chapter .define method.
+require "bluebook/tokenizer"
+require "hecks/domain_model/behavior"
+require "hecks/domain_model/structure"
+require "hecks/domain_model/names"
+require "hecks/dsl/describable"
+require "hecks/dsl/attribute_collector"
+require "hecks/dsl/event_builder"
+require "hecks/dsl/command_builder"
+require "hecks/dsl/value_object_builder"
+require "hecks/dsl/entity_builder"
+require "hecks/dsl/policy_builder"
+require "hecks/dsl/lifecycle_builder"
+require "hecks/dsl/read_model_builder"
+require "hecks/dsl/service_builder"
+require "hecks/dsl/workflow_builder"
+require "hecks/dsl/aggregate_builder"
+require "hecks/dsl/aggregate_rebuilder"
+require "hecks/dsl/domain_builder"
+require "hecks/dsl/bluebook_builder"
 
 # Chapter infrastructure (must load before any chapter files)
-require_relative "hecks/chapters"
+require "hecks/chapters"
 
 # Load the Bluebook chapter (paragraphs describe all aggregates)
-require_relative "hecks/chapters/bluebook"
+require "hecks/chapters/bluebook"
 
 # Implementation files are loaded by Hecks::Chapters.load_chapter
 # after the full framework infrastructure is available.

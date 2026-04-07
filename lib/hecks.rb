@@ -4,25 +4,28 @@ require "ostruct"
 
 JSON::Validator.use_multi_json = false if defined?(JSON::Validator)
 
-require_relative "hecks/errors"
-require_relative "hecks/conventions"
-require_relative "hecks/autoloads"
+# Bootstrap — must load before chapter system (errors, naming, autoloads,
+# registries). These define the module infrastructure that Chapters and
+# DomainBuilder depend on, so they cannot be chapter-driven.
+require "hecks/errors"
+require "hecks/conventions"
+require "hecks/autoloads"
 
 # Module infrastructure — DSL, registries, discovery
-require_relative "hecks/registry"
-require_relative "hecks/set_registry"
-require_relative "hecks/module_dsl"
-require_relative "hecks/core_extensions"
-require_relative "hecks/registries/extension_registry"
-require_relative "hecks/registries/capability_registry"
-require_relative "hecks/registries/domain_registry"
-require_relative "hecks/registries/cross_domain"
-require_relative "hecks/registries/thread_context"
-require_relative "hecks/registries/target_registry"
-require_relative "hecks/registries/adapter_registry"
-require_relative "hecks/registries/validation_registry"
-require_relative "hecks/registries/dump_format_registry"
-require_relative "hecks/registries/grammar_registry"
+require "hecks/registry"
+require "hecks/set_registry"
+require "hecks/module_dsl"
+require "hecks/core_extensions"
+require "hecks/registries/extension_registry"
+require "hecks/registries/capability_registry"
+require "hecks/registries/domain_registry"
+require "hecks/registries/cross_domain"
+require "hecks/registries/thread_context"
+require "hecks/registries/target_registry"
+require "hecks/registries/adapter_registry"
+require "hecks/registries/validation_registry"
+require "hecks/registries/dump_format_registry"
+require "hecks/registries/grammar_registry"
 
 # Extend registry methods early — Bluebook's chapter loading needs them
 module Hecks
@@ -42,10 +45,10 @@ end
 # Bluebook loads its implementation files from its chapter definition
 require "bluebook"
 require "hecksagon"
-require_relative "hecks/stats"
-require_relative "hecks/event_sourcing"
+require "hecks/stats"
+require "hecks/event_sourcing"
 require "hecks/runtime/boot"
-require_relative "hecks/deprecations"
+require "hecks/deprecations"
 require "hecks/runtime/boot_bluebook"
 require "hecks/workshop"
 

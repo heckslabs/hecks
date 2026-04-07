@@ -64,14 +64,14 @@ module Hecks
       # Phase 2: Contract verification
       puts "" if format == :progress
       puts "\e[1mContracts\e[0m" if format == :documentation
-      require_relative "verify_contracts"
+      require "hecks/chapters/verify_contracts"
       contract_result = ContractVerifier.run(format: format)
       pass_count += contract_result.pass_count
       errors.concat(contract_result.errors)
 
       # Phase 3: Runtime verification (boot + execute + round-trip)
       puts "" if format == :progress
-      require_relative "verify_runtime"
+      require "hecks/chapters/verify_runtime"
       runtime_result = RuntimeVerifier.run(format: format)
       pass_count += runtime_result.pass_count
       errors.concat(runtime_result.errors)

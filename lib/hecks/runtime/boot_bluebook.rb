@@ -18,7 +18,7 @@ module Hecks
     # @param bluebook [DomainModel::Structure::BluebookStructure]
     # @return [Array<Runtime>]
     def open(bluebook)
-      require_relative "load_extensions"
+      require "hecks/runtime/load_extensions"
       LoadExtensions.require_auto
 
       boot_domains(bluebook.chapters)

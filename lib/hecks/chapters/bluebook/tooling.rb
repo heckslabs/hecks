@@ -59,6 +59,22 @@ module Hecks
           b.aggregate "ReadmeWriter", "Generates per-extension Markdown README files from metadata" do
             command("GenerateReadmes") { attribute :root, String }
           end
+
+          b.aggregate "SourceCollector", "Collects framework source files in load order for binary compilation" do
+            command("Collect") { attribute :lib_root, String }
+          end
+
+          b.aggregate "ForwardDeclarations", "Generates module forward declarations for the bundled binary" do
+            command("Write") { attribute :io, String }
+          end
+
+          b.aggregate "BundleWriter", "Concatenates source files into a single self-contained script" do
+            command("Write") { attribute :files, String; attribute :output, String }
+          end
+
+          b.aggregate "BinaryCompiler", "Orchestrates compilation into a self-contained Ruby script" do
+            command("Compile") { attribute :output, String }
+          end
         end
       end
     end
