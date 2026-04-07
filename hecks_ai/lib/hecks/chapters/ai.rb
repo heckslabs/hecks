@@ -5,7 +5,7 @@
 # aggregates with their key commands. IDE aggregates are split
 # into ai_ide.rb to stay within the 200-line code limit.
 #
-#   domain = Hecks::Chapters::AI.domain
+#   domain = Hecks::Chapters::AI.definition
 #   domain.aggregates.map(&:name)
 #   # => ["McpServer", "DomainServer", "GovernanceGuard", ...]
 #

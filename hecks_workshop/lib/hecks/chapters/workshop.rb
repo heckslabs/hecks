@@ -4,7 +4,7 @@
 # Enumerates every class and module under hecks_workshop/lib/ as
 # aggregates with their key commands.
 #
-#   domain = Hecks::Chapters::Workshop.domain
+#   domain = Hecks::Chapters::Workshop.definition
 #   domain.aggregates.map(&:name)
 #   # => ["Workshop", "AggregateHandle", "CommandHandle", ...]
 #

@@ -4,7 +4,7 @@
 # all pluggable extensions: HTTP serving, persistence, auth, ACL,
 # web explorer, tenancy, metrics, PII, and more.
 #
-#   domain = Hecks::Chapters::Extensions.domain
+#   domain = Hecks::Chapters::Extensions.definition
 #   domain.aggregates.map(&:name)
 #
 require_relative "extensions/serve"

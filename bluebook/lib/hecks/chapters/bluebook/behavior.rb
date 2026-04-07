@@ -11,7 +11,7 @@ module Hecks
     module Bluebook
       module BehaviorParagraph
         def self.define(b)
-          b.aggregate "CommandNode", "Intent to change aggregate state, carries attributes" do
+          b.aggregate "Command", "Intent to change aggregate state, carries attributes" do
             command("DefineCommand") { attribute :name, String; attribute :aggregate_id, String }
           end
 
@@ -19,15 +19,15 @@ module Hecks
             command("DefineEvent") { attribute :name, String; attribute :aggregate_id, String }
           end
 
-          b.aggregate "QueryNode", "Read-side request returning data without side effects" do
+          b.aggregate "Query", "Read-side request returning data without side effects" do
             command("DefineQuery") { attribute :name, String; attribute :return_type, String }
           end
 
-          b.aggregate "PolicyNode", "Reactive rule triggered by an event, dispatches a command" do
+          b.aggregate "Policy", "Reactive rule triggered by an event, dispatches a command" do
             command("DefinePolicy") { attribute :name, String; attribute :event_name, String; attribute :trigger_command, String }
           end
 
-          b.aggregate "ServiceNode", "Stateless domain operation spanning multiple aggregates" do
+          b.aggregate "Service", "Stateless domain operation spanning multiple aggregates" do
             command("DefineService") { attribute :name, String; attribute :operation, String }
           end
 
@@ -43,7 +43,7 @@ module Hecks
             command("DefineSpecification") { attribute :name, String; attribute :predicate, String }
           end
 
-          b.aggregate "SagaNode", "Multi-step distributed process with compensation" do
+          b.aggregate "Saga", "Multi-step distributed process with compensation" do
             command("DefineSaga") { attribute :name, String; attribute :aggregate_id, String }
           end
 
@@ -51,7 +51,7 @@ module Hecks
             command("DefineSagaStep") { attribute :saga_id, String; attribute :action, String; attribute :compensate, String }
           end
 
-          b.aggregate "WorkflowNode", "Multi-step process with branching and conditions" do
+          b.aggregate "Workflow", "Multi-step process with branching and conditions" do
             command("DefineWorkflow") { attribute :name, String; attribute :aggregate_id, String }
           end
 

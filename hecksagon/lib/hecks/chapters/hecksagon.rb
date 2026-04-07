@@ -4,7 +4,7 @@
 # Enumerates every class and module under hecksagon/lib/ as
 # aggregates with their key commands.
 #
-#   domain = Hecks::Chapters::Hecksagon.domain
+#   domain = Hecks::Chapters::Hecksagon.definition
 #   domain.aggregates.map(&:name)
 #   # => ["HecksagonBuilder", "GateBuilder", "AclBuilder", ...]
 #

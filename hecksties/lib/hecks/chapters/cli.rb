@@ -4,7 +4,7 @@
 # all CLI commands, domain tools (interviewer, architecture tour, smoke
 # tests, import, stats), and code generation helpers.
 #
-#   domain = Hecks::Chapters::Cli.domain
+#   domain = Hecks::Chapters::Cli.definition
 #   domain.aggregates.map(&:name)
 #
 require_relative "cli/commands"

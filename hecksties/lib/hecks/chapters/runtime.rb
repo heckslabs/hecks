@@ -4,7 +4,7 @@
 # runtime container, command/event dispatch, ports, mixins, event
 # sourcing, sagas, workflows, and domain versioning.
 #
-#   domain = Hecks::Chapters::Runtime.domain
+#   domain = Hecks::Chapters::Runtime.definition
 #   domain.aggregates.map(&:name)
 #
 require_relative "runtime/ports"

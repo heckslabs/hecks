@@ -4,7 +4,7 @@
 # Enumerates every class and module under hecks_on_rails/lib/ as
 # aggregates with their key commands.
 #
-#   domain = Hecks::Chapters::Rails.domain
+#   domain = Hecks::Chapters::Rails.definition
 #   domain.aggregates.map(&:name)
 #   # => ["ActiveHecks", "DomainModelCompat", "AggregateCompat", ...]
 #
