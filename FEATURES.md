@@ -479,12 +479,19 @@
 - Skips Rails internal tables (schema_migrations, active_storage_*, etc.)
 - Preview mode with `--preview` flag
 
-## Binary Compiler (Hecks v0)
+## Autophagy: Self-Hosting Compiler (Hecks v0)
 - `hecks compile` — compile the entire Hecks framework into a single self-contained Ruby script
 - `hecks compile --plan` — show compilation plan (file count and list) without writing
 - `hecks compile --output NAME` — specify output file name (default: `hecks_v0`)
-- The compiled binary bundles all 400+ source files in load order with zero `require_relative`
-- Strips internal requires, chapter loading calls, and Dir[] glob requires
+- `hecks compile --trace` — emit auditable trace of every compiler decision to stderr
+- **Prism AST analysis** — uses Ruby's built-in Prism parser for dependency resolution
+- **Bluebook IR consultation** — resolves method-call dependencies via chapter definitions
+- **Two-layer dependency graph**: Layer 1 = Prism (constant refs, inheritance, mixins), Layer 2 = Bluebook (method-call edges)
+- **Source files are require-free** — all internal requires stripped, Bluebook defines load order
+- **SourceTransformer** — strips requires and expands compact class syntax at compile time
+- **ConstantResolver** — namespace-aware constant resolution across all source files
+- **CycleSorter** — greedy topo sort within dependency cycles, respecting wiring file order
+- The compiled binary bundles all source files in load order with zero internal requires
 - Injects forward declarations for load-order dependencies
 - Pre-registers all bundled files in `$LOADED_FEATURES` to prevent double-loading
 - The binary supports `boot`, `version`, and `self-test` commands

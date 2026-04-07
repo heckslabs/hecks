@@ -75,6 +75,34 @@ module Hecks
           b.aggregate "BinaryCompiler", "Orchestrates compilation into a self-contained Ruby script" do
             command("Compile") { attribute :output, String }
           end
+
+          b.aggregate "SourceAnalyzer", "Prism AST analysis of source files for dependency resolution" do
+            command("Analyze") { attribute :lib_root, String }
+          end
+
+          b.aggregate "ConstantResolver", "Resolves constant references to defining files" do
+            command("Resolve") { attribute :ref, String }
+          end
+
+          b.aggregate "DependencyGraph", "Builds file-level dependency graph and topological sort" do
+            command("Sort") { attribute :lib_root, String }
+          end
+
+          b.aggregate "CycleSorter", "Greedy topological sort within dependency cycles" do
+            command("SortCycle") { attribute :files, String }
+          end
+
+          b.aggregate "SourceTransformer", "Strips requires and expands compact class syntax" do
+            command("Transform") { attribute :source, String }
+          end
+
+          b.aggregate "ReferenceExtractor", "Extracts constant references from Prism AST" do
+            command("Extract") { attribute :source, String }
+          end
+
+          b.aggregate "DefinitionExtractor", "Extracts constant definitions from Prism AST" do
+            command("Extract") { attribute :source, String }
+          end
         end
       end
     end

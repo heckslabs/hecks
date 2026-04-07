@@ -1,8 +1,9 @@
 # Hecks::Compiler::BundleWriter
 #
 # Takes an ordered list of source files and concatenates them into a
-# single self-contained Ruby script. Strips require_relative calls,
-# neutralizes chapter loading, and guards require via $LOADED_FEATURES.
+# single self-contained Ruby script. Strips all require/require_relative
+# calls, neutralizes chapter loading, and guards external class
+# inheritance with defined?() checks.
 #
 #   Hecks::Compiler::BundleWriter.write(files, output: "hecks_v0")
 #
@@ -22,17 +23,17 @@ module Hecks
 
       # Writes the bundled script to the output path.
       def self.write(files, output:, lib_root:)
+        last_registry_idx = find_last_registry_index(files)
+
         File.open(output, "w") do |f|
           write_header(f, files.size)
           write_stdlib_requires(f)
           ForwardDeclarations.write(f)
           write_loaded_features(f, files)
-          registry_injected = false
-          files.each do |path|
+          files.each_with_index do |path, idx|
             write_file(f, path, lib_root)
-            if !registry_injected && path.include?("grammar_registry")
+            if idx == last_registry_idx
               ForwardDeclarations.write_registry_extends(f)
-              registry_injected = true
             end
           end
           write_entrypoint(f)
@@ -41,9 +42,19 @@ module Hecks
         output
       end
 
+      # Finds the index of the last registries/ file so we inject
+      # extends after all registry modules are defined.
+      def self.find_last_registry_index(files)
+        last = nil
+        files.each_with_index do |path, idx|
+          last = idx if path.include?("/registries/")
+        end
+        last
+      end
+
       def self.write_header(io, count)
         io.puts SHEBANG
-        io.puts format(BANNER, timestamp: Time.now.iso8601, count: count)
+        io.puts format(BANNER, timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S%z"), count: count)
       end
 
       def self.write_stdlib_requires(io)
@@ -63,7 +74,6 @@ module Hecks
         io.puts "$LOAD_PATH.reject! { |p| p.include?(\"hecks\") }"
         io.puts ""
         io.puts "# Pre-register bundled files so require() skips them."
-        io.puts "# Add both absolute and lib-relative paths."
         files.each do |f|
           io.puts "$LOADED_FEATURES << #{f.inspect}"
           rel = f.sub(%r{.*/lib/}, "")
@@ -76,57 +86,8 @@ module Hecks
         rel = path.sub("#{lib_root}/", "")
         io.puts "# --- #{rel} ---"
         content = File.read(path)
-        cleaned = strip_bundled_lines(content)
-        io.puts cleaned
+        io.puts SourceTransformer.transform(content)
         io.puts
-      end
-
-      # Comments out require_relative, internal require, chapter loading,
-      # and Dir[] loading calls that reference bundled code.
-      def self.strip_bundled_lines(source)
-        lines = source.lines
-        result = []
-        skip_depth = 0
-
-        lines.each do |line|
-          stripped = line.strip
-          if skip_depth > 0
-            skip_depth += line.count("(") - line.count(")")
-            result << "# [v0] #{line.chomp}\n"
-            skip_depth = 0 if skip_depth <= 0
-          elsif should_strip?(stripped)
-            result << "# [v0] #{stripped}\n"
-            if multiline_call?(stripped)
-              skip_depth = stripped.count("(") - stripped.count(")")
-            end
-          else
-            result << line
-          end
-        end
-        result.join
-      end
-
-      def self.should_strip?(line)
-        line.match?(/\Arequire_relative\s/) ||
-          hecks_require?(line) ||
-          chapter_load?(line) ||
-          dir_glob_require?(line)
-      end
-
-      def self.hecks_require?(line)
-        line.match?(/\Arequire\s+["'](?:hecks|bluebook|hecksagon|hecks_cli|hecks_persist|hecks_mongodb|hecksul|heckscode|hecks_serve|hecks_multidomain|hecks_targets|go_hecks|node_hecks|hecks_ai|active_hecks|hecks_live|hecks_static)/)
-      end
-
-      def self.chapter_load?(line)
-        line.match?(/(?:Hecks::)?Chapters\.(load_chapter|load_aggregates|require_paragraphs)\b/)
-      end
-
-      def self.dir_glob_require?(line)
-        line.match?(/\ADir\[.*\].*\.each\s*\{.*require/)
-      end
-
-      def self.multiline_call?(line)
-        line.include?("(") && line.count("(") > line.count(")")
       end
 
       def self.write_entrypoint(io)
@@ -162,10 +123,7 @@ module Hecks
 
       private_class_method :write_header, :write_stdlib_requires,
                            :write_loaded_features, :write_file,
-                           :strip_bundled_lines, :should_strip?,
-                           :hecks_require?, :chapter_load?,
-                           :dir_glob_require?, :multiline_call?,
-                           :write_entrypoint
+                           :write_entrypoint, :find_last_registry_index
     end
   end
 end
