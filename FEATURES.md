@@ -244,8 +244,16 @@
 - `method_name "sql_type_for"` — overrides auto-generated method name on commands (default: snake_case of command name)
 - `entry_point "hecks_persist"` — declares autoload entry point files for the domain
 
+## HecksCode Language Specification
+- `HecksCode` module exposes the full language as inspectable components: syntax, compiler, runtime, type system, module system, IO model
+- `HecksCode.syntax` — 58 keywords across 5 contexts (domain, aggregate, command, value_object, entity)
+- `HecksCode.compiler` — Bluebook DSL frontend, DomainModel IR, multiple backends
+- `HecksCode.self_hosting` — live chapter/aggregate/command counts from Hecks's own Bluebook definitions
+- `HecksCode.describe` — prints a human-readable summary of the entire language
+
 ## Persistence
 - Memory adapter for fast, zero-setup in-process storage
+- PStore adapter — file-based object store using Ruby stdlib, zero dependencies, supports query with conditions/ordering/pagination
 - SQL adapter via Sequel ORM supporting MySQL, PostgreSQL, and SQLite
 - Repository pattern: `find`, `all`, `count`, `save`, `delete` on aggregates
 - Instance-level `save`, `destroy`, `update` methods
