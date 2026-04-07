@@ -2,7 +2,8 @@
 #
 # Self-describing domain definition for the Bluebook chapter. Models the
 # DSL, IR, compiler, generators, validation, and tooling as aggregates.
-# Organized into paragraphs: Structure, Behavior, Names, Tooling.
+# Organized into paragraphs: Structure, Behavior, Names, Tooling,
+# Builders, Generators, ValidationRules.
 #
 #   domain = Hecks::Chapters::Bluebook.definition
 #   domain.aggregates.map(&:name)
@@ -11,6 +12,9 @@ require_relative "bluebook/structure"
 require_relative "bluebook/behavior"
 require_relative "bluebook/names"
 require_relative "bluebook/tooling"
+require_relative "bluebook/builders"
+require_relative "bluebook/generators"
+require_relative "bluebook/validation_rules"
 
 module Hecks
   module Chapters
@@ -130,6 +134,9 @@ module Hecks
           BehaviorParagraph.define(b)
           NamesParagraph.define(b)
           ToolingParagraph.define(b)
+          BuildersParagraph.define(b)
+          GeneratorsParagraph.define(b)
+          ValidationRulesParagraph.define(b)
         }.build
       end
     end
