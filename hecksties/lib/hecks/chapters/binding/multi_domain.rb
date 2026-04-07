@@ -7,7 +7,8 @@
 #   Hecks::Binding::MultiDomainChapter.define(builder)
 #
 module Hecks
-  module Binding
+  module Chapters
+    module Binding
     # Hecks::Binding::MultiDomainChapter
     #
     # Bluebook sub-chapter for multi-domain infrastructure: filtered event bus, cross-domain queries, and queue wiring.
@@ -38,6 +39,7 @@ module Hecks
           b.aggregate "MultiDomainValidator", "Validates multi-domain configuration" do
             command("Validate") { attribute :domains, String }
           end
+        end
         end
       end
     end

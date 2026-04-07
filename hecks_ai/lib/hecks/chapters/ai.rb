@@ -10,10 +10,11 @@
 #   # => ["McpServer", "DomainServer", "GovernanceGuard", ...]
 #
 require "bluebook"
-require_relative "ai_ide"
 
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     module AI
       def self.definition
         Hecks::DSL::DomainBuilder.new("AI").tap { |b|
@@ -174,7 +175,7 @@ module Hecks
             command "GetSchema"
           end
 
-          IdeAggregates.register(b)
+          Chapters.define_paragraphs(AI, b)
         }.build
       end
     end

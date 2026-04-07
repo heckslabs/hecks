@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecks/binding"
+require "hecks/chapters/binding"
 
-RSpec.describe Hecks::Binding do
+RSpec.describe Hecks::Chapters::Binding do
   subject(:domain) { described_class.definition }
 
   it "returns a Domain named Binding" do
@@ -43,5 +43,11 @@ RSpec.describe Hecks::Binding do
     agg = domain.aggregates.find { |a| a.name == "HecksDeprecations" }
     expect(agg).not_to be_nil
     expect(agg.commands.map(&:name)).to include("Register")
+  end
+
+  it "includes BindingSpine" do
+    agg = domain.aggregates.find { |a| a.name == "BindingSpine" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Define")
   end
 end

@@ -48,7 +48,7 @@ module Hecks
           end
 
           b.aggregate "DomainConnections", "Declares what crosses the domain boundary via extend verb" do
-            command("Extend") { attribute :extension_name, String }
+            command("Apply") { attribute :extension_name, String }
           end
 
           b.aggregate "Tokenizer", "Splits command argument strings into typed tokens" do

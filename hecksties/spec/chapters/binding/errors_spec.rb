@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecks/binding"
+require "hecks/chapters/binding"
 
-RSpec.describe Hecks::Binding::ErrorsParagraph do
-  subject(:domain) { Hecks::Binding.definition }
+RSpec.describe Hecks::Chapters::Binding::ErrorsParagraph do
+  subject(:domain) { Hecks::Chapters::Binding.definition }
 
   let(:names) { domain.aggregates.map(&:name) }
 
@@ -13,13 +13,13 @@ RSpec.describe Hecks::Binding::ErrorsParagraph do
 
   it "Error has Raise command" do
     agg = domain.aggregates.find { |a| a.name == "Error" }
-    expect(agg.commands.map(&:name)).to include("Raise")
+    expect(agg.commands.map(&:name)).to include("Throw")
   end
 
   it "GateAccessDenied has Raise command" do
     agg = domain.aggregates.find { |a| a.name == "GateAccessDenied" }
     expect(agg).not_to be_nil
-    expect(agg.commands.map(&:name)).to include("Raise")
+    expect(agg.commands.map(&:name)).to include("Throw")
   end
 
   it "contributes at least 15 error aggregates" do

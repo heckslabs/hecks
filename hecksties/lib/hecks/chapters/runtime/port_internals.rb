@@ -101,12 +101,16 @@ module Hecks
             command("Compare") { attribute :field, String; attribute :value, String }
           end
 
-          b.aggregate "In", "Inclusion query operator" do
+          b.aggregate "InOp", "Inclusion query operator" do
             command("Compare") { attribute :field, String; attribute :values, String }
           end
 
           b.aggregate "NotEq", "Not-equal query operator" do
             command("Compare") { attribute :field, String; attribute :value, String }
+          end
+
+          b.aggregate "CommandHandle", "Deferred command execution handle with wait/completed?/result" do
+            command("Wait") { attribute :timeout, Integer }
           end
         end
       end

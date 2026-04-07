@@ -10,10 +10,11 @@
 #   # => ["HecksagonBuilder", "GateBuilder", "AclDefinition", ...]
 #
 require "bluebook"
-require_relative "hecksagon/capabilities"
 
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     module Hecksagon
       def self.definition
         Hecks::DSL::DomainBuilder.new("Hecksagon").tap { |b|
@@ -192,7 +193,7 @@ module Hecks
             description "CLI command for generating SQL migrations from domain changes"
             command "GenerateMigrations"
           end
-          CapabilitiesParagraph.define(b)
+          Chapters.define_paragraphs(Hecksagon, b)
         }.build
       end
     end

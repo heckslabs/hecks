@@ -7,17 +7,9 @@
 #   domain = Hecks::Chapters::Extensions.definition
 #   domain.aggregates.map(&:name)
 #
-require_relative "extensions/serve"
-require_relative "extensions/serve_routes"
-require_relative "extensions/persistence"
-require_relative "extensions/web_explorer"
-require_relative "extensions/auth"
-require_relative "extensions/bubble"
-require_relative "extensions/tenancy"
-require_relative "extensions/queue"
-
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
     # Hecks::Chapters::Extensions
     #
     # Bluebook chapter defining all pluggable Hecks extensions: HTTP serving, persistence, auth, tenancy, and more.
@@ -65,7 +57,7 @@ module Hecks
             command("Check") { attribute :command_name, String; attribute :actor, String }
           end
 
-          b.aggregate "Retry", "Automatic command retry with backoff" do
+          b.aggregate "RetryPolicy", "Automatic command retry with backoff" do
             command("RetryCommand") { attribute :command_name, String; attribute :max_retries, Integer }
           end
 
@@ -86,14 +78,7 @@ module Hecks
             command("Generate") { attribute :root, String }
           end
 
-          ServeChapter.define(b)
-          ServeRoutesChapter.define(b)
-          PersistenceChapter.define(b)
-          WebExplorerChapter.define(b)
-          AuthChapter.define(b)
-          BubbleChapter.define(b)
-          TenancyChapter.define(b)
-          QueueChapter.define(b)
+          Chapters.define_paragraphs(Extensions, b)
         }.build
       end
     end

@@ -29,11 +29,29 @@ RSpec.describe Hecks::Chapters::Runtime::Mixins do
     expect(cmds).to include("Transition")
   end
 
-  it "contributes at least 9 mixin aggregates" do
+  it "includes core mixin aggregates" do
+    expect(names).to include("Command", "Model", "Query", "Specification",
+                             "Dispatch", "Validation")
+  end
+
+  it "Command has Emits and Call" do
+    agg = domain.aggregates.find { |a| a.name == "Command" }
+    cmds = agg.commands.map(&:name)
+    expect(cmds).to include("Emits", "Call")
+  end
+
+  it "Validation has Precondition and Postcondition" do
+    agg = domain.aggregates.find { |a| a.name == "Validation" }
+    cmds = agg.commands.map(&:name)
+    expect(cmds).to include("Precondition", "Postcondition")
+  end
+
+  it "contributes at least 15 mixin aggregates" do
     mixin_names = %w[ModelMixinInternal DispatchMixin ReferenceValidation
                      LifecycleSteps AndSpecification OrSpecification
-                     NotSpecification BreakingBumper BreakingClassifier]
+                     NotSpecification BreakingBumper BreakingClassifier
+                     Command Model Query Specification Dispatch Validation]
     present = mixin_names.select { |n| names.include?(n) }
-    expect(present.size).to be >= 9
+    expect(present.size).to be >= 15
   end
 end

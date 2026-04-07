@@ -53,6 +53,36 @@ require_relative "hecks/generators/built_in"
 #   ast = BlueBook::Grammar.parse("Pizza.attr :name, String")
 #   # => { target: "Pizza", method: "attr", args: [:name], kwargs: {}, type_args: [String] }
 #
+module Hecks
+  module Chapters
+    # Require all paragraph files in a chapter's subdirectory.
+    # Call this at the top of a chapter file to eagerly load paragraphs.
+    #
+    # Convention: chapter file at `chapters/foo.rb`, paragraphs in `chapters/foo/*.rb`.
+    #
+    #   # At the top of chapters/runtime.rb:
+    #   Chapters.require_paragraphs(__FILE__)
+    #
+    def self.require_paragraphs(chapter_file)
+      paragraph_dir = chapter_file.sub(/\.rb$/, "")
+      return unless File.directory?(paragraph_dir)
+      Dir.glob(File.join(paragraph_dir, "*.rb")).sort.each { |f| require f }
+    end
+
+    # Call .define(builder) on each paragraph module in the chapter.
+    # Call this inside a chapter's .definition method after defining inline aggregates.
+    #
+    #   Chapters.define_paragraphs(Runtime, builder)
+    #
+    def self.define_paragraphs(chapter_module, builder)
+      chapter_module.constants.each do |const|
+        mod = chapter_module.const_get(const)
+        mod.define(builder) if mod.respond_to?(:define)
+      end
+    end
+  end
+end
+
 module BlueBook
   VERSION = "2026.03.29.1"
 

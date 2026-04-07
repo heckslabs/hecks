@@ -7,13 +7,10 @@
 #   domain = Hecks::Chapters::Targets.definition
 #   domain.aggregates.map(&:name)
 #
-require_relative "targets/go"
-require_relative "targets/node"
-require_relative "targets/ruby"
-require_relative "targets/schema"
-
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     module Targets
       def self.definition
         @definition ||= DSL::DomainBuilder.new("Targets").tap { |b|
@@ -32,10 +29,7 @@ module Hecks
             end
           end
 
-          Go.define(b)
-          Node.define(b)
-          Ruby.define(b)
-          SchemaParagraph.define(b)
+          Chapters.define_paragraphs(Targets, b)
         }.build
       end
     end

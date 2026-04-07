@@ -9,11 +9,11 @@
 #   # => ["Workshop", "AggregateHandle", "CommandHandle", ...]
 #
 require "bluebook"
-require_relative "workshop/runners"
-require_relative "workshop/internals"
 
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     module Workshop
       def self.definition
         Hecks::DSL::DomainBuilder.new("Workshop").tap { |b|
@@ -165,8 +165,7 @@ module Hecks
             end
           end
 
-          RunnersParagraph.define(b)
-          InternalsParagraph.define(b)
+          Chapters.define_paragraphs(Workshop, b)
         }.build
       end
     end

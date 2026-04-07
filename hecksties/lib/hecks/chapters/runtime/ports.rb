@@ -64,6 +64,28 @@ module Hecks
           b.aggregate "AttachmentMethods", "File attachment support for aggregates" do
             command("Attach") { attribute :field, String; attribute :file, String }
           end
+
+          b.aggregate "Commands", "Wires command dispatch infrastructure onto aggregate classes at boot" do
+            command("Bind") { attribute :klass, String; attribute :aggregate, String }
+            command("BindShortcuts") { attribute :klass, String; attribute :aggregate, String }
+          end
+
+          b.aggregate "Querying", "Wires query services (scopes, ad-hoc queries, operators) onto aggregate classes" do
+            command("Bind") { attribute :klass, String; attribute :aggregate, String }
+          end
+
+          b.aggregate "Persistence", "Wires CRUD, collection proxy, reference, and event recording onto aggregates" do
+            command("Bind") { attribute :klass, String; attribute :aggregate, String; attribute :repo, String }
+            command("BindEventRecorder") { attribute :klass, String; attribute :recorder, String }
+          end
+
+          b.aggregate "Outbox", "Reliable event publishing via transactional outbox pattern" do
+            command("Enable") { attribute :enabled, String }
+          end
+
+          b.aggregate "Queue", "Event queue publishing (RabbitMQ, file, custom adapter)" do
+            command("Enable") { attribute :adapter, String }
+          end
         end
       end
     end

@@ -7,21 +7,17 @@
 #   domain = Hecks::Chapters::Runtime.definition
 #   domain.aggregates.map(&:name)
 #
-require_relative "runtime/ports"
-require_relative "runtime/event_sourcing"
-require_relative "runtime/setup"
-require_relative "runtime/port_internals"
-require_relative "runtime/mixins"
-
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     # Hecks::Chapters::Runtime
     #
     # Bluebook chapter defining the Hecks runtime: command dispatch, ports, mixins, event sourcing, and sagas.
     #
     module Runtime
       def self.definition
-        DSL::DomainBuilder.new("Runtime").tap { |b|
+        @definition ||= DSL::DomainBuilder.new("Runtime").tap { |b|
           b.aggregate "Runtime", "Wires domain IR to adapters, dispatches commands, publishes events" do
             command("Boot") { attribute :domain_path, String }
             command("Load") { attribute :domain_ir, String }
@@ -78,11 +74,7 @@ module Hecks
             command("TestBehaviors") { attribute :domain_name, String }
           end
 
-          Ports.define(b)
-          EventSourcingChapter.define(b)
-          Setup.define(b)
-          PortInternals.define(b)
-          Mixins.define(b)
+          Chapters.define_paragraphs(Runtime, b)
         }.build
       end
     end

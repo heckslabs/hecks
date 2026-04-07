@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecks/binding"
+require "hecks/chapters/binding"
 
-RSpec.describe Hecks::Binding::ContractsChapter do
-  subject(:domain) { Hecks::Binding.definition }
+RSpec.describe Hecks::Chapters::Binding::ContractsChapter do
+  subject(:domain) { Hecks::Chapters::Binding.definition }
 
   let(:names) { domain.aggregates.map(&:name) }
 
@@ -32,9 +32,9 @@ RSpec.describe Hecks::Binding::ContractsChapter do
     expect(present.size).to be >= 12
   end
 
-  it "includes DispatchNotAllowed with Raise command" do
+  it "includes DispatchNotAllowed with Throw command" do
     agg = domain.aggregates.find { |a| a.name == "DispatchNotAllowed" }
     expect(agg).not_to be_nil
-    expect(agg.commands.map(&:name)).to include("Raise")
+    expect(agg.commands.map(&:name)).to include("Throw")
   end
 end

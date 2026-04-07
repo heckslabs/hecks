@@ -51,6 +51,34 @@ module Hecks
           b.aggregate "BreakingClassifier", "Classifies domain changes as breaking/non-breaking" do
             command("Classify") { attribute :diff, String }
           end
+
+          b.aggregate "Command", "Mixin orchestrating command lifecycle: guard, validate, call, persist, emit event" do
+            command("Emits") { attribute :event_names, String }
+            command("Call") { attribute :attrs, String }
+          end
+
+          b.aggregate "Model", "Mixin for aggregate classes providing attribute DSL, UUID identity, and auto-discovery" do
+            command("Attribute") { attribute :name, String; attribute :default, String }
+            command("RebuildInitializer") { }
+          end
+
+          b.aggregate "Query", "Mixin for query classes providing repository wiring and QueryBuilder delegation" do
+            command("Call") { attribute :params, String }
+          end
+
+          b.aggregate "Specification", "Mixin for composable business rule predicates with and/or/not operators" do
+            command("SatisfiedBy") { attribute :candidate, String }
+          end
+
+          b.aggregate "Dispatch", "Event construction and persistence helpers for command execution" do
+            command("EmitEvent") { }
+            command("PersistAggregate") { }
+          end
+
+          b.aggregate "Validation", "Pre/postcondition DSL and enforcement for command objects" do
+            command("Precondition") { attribute :message, String }
+            command("Postcondition") { attribute :message, String }
+          end
         end
       end
     end

@@ -22,11 +22,17 @@ RSpec.describe Hecks::Chapters::Runtime::EventSourcingChapter do
     expect(agg.commands.map(&:name)).to include("Register")
   end
 
-  it "contributes at least 10 event sourcing aggregates" do
+  it "includes EventSourcing namespace aggregate" do
+    agg = domain.aggregates.find { |a| a.name == "EventSourcing" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Autoload")
+  end
+
+  it "contributes at least 12 event sourcing aggregates" do
     es_names = %w[EventStore SnapshotStore UpcasterRegistry UpcasterEngine
                   ProjectionRebuilder Reconstitution TimeTravel ProcessManager
-                  OutboxES OutboxPoller Concurrency]
+                  OutboxES OutboxPoller Concurrency EventSourcing]
     present = es_names.select { |n| names.include?(n) }
-    expect(present.size).to be >= 10
+    expect(present.size).to be >= 12
   end
 end

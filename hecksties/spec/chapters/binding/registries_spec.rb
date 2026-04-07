@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecks/binding"
+require "hecks/chapters/binding"
 
-RSpec.describe Hecks::Binding::RegistriesChapter do
-  subject(:domain) { Hecks::Binding.definition }
+RSpec.describe Hecks::Chapters::Binding::RegistriesChapter do
+  subject(:domain) { Hecks::Chapters::Binding.definition }
 
   let(:names) { domain.aggregates.map(&:name) }
 

@@ -1,56 +1,38 @@
 # HecksBluebook
 #
-# Hecks describes itself as a Bluebook. The binding is the spine —
-# it holds the chapters together. Each chapter is a domain defined
-# using the same DSL that Hecks provides to its users.
+# Hecks describes itself as a Bluebook. Every gem defines a chapter
+# under Hecks::Chapters with a .definition method. This file
+# auto-discovers all chapters by convention — no manual registration.
 #
-# Hierarchy: bluebook > binding > chapters
+# Convention:
+#   **/lib/hecks/chapters/*.rb  → chapter with .definition
+#   **/lib/hecks/chapters/foo/  → paragraphs with .define(builder)
 #
-# The chapter definitions live in each gem:
-#   bluebook/lib/hecks/chapters/bluebook.rb
-#   hecksties/lib/hecks/chapters/runtime.rb
-#   hecks_workshop/lib/hecks/chapters/workshop.rb
-#   hecksagon/lib/hecks/chapters/hecksagon.rb
-#   hecks_targets/lib/hecks/chapters/targets.rb
-#   hecksties/lib/hecks/chapters/cli.rb
-#   hecksties/lib/hecks/chapters/extensions.rb
-#   hecks_ai/lib/hecks/chapters/ai.rb
-#   hecks_on_rails/lib/hecks/chapters/rails.rb
-#
-# The binding definition lives at:
-#   hecksties/lib/hecks/binding.rb
-#
-# This file composes them and wires cross-chapter policies.
+# Usage:
+#   ruby -Ilib HecksBluebook
+#   book = Hecks::Chapters.bluebook
+#   book.chapters.each { |ch| puts "#{ch.name}: #{ch.aggregates.size}" }
 
-require_relative "bluebook/lib/hecks/chapters/bluebook"
-require_relative "hecksties/lib/hecks/chapters/runtime"
-require_relative "hecks_workshop/lib/hecks/chapters/workshop"
-require_relative "hecksagon/lib/hecks/chapters/hecksagon"
-require_relative "hecks_targets/lib/hecks/chapters/targets"
-require_relative "hecksties/lib/hecks/chapters/cli"
-require_relative "hecksties/lib/hecks/chapters/extensions"
-require_relative "hecks_ai/lib/hecks/chapters/ai"
-require_relative "hecks_on_rails/lib/hecks/chapters/rails"
-require_relative "hecksties/lib/hecks/binding"
+# Auto-discover and require all chapter definitions
+root = File.dirname(__FILE__)
+chapter_files = Dir.glob(File.join(root, "**/lib/hecks/chapters/*.rb"))
+  .reject { |f| f.include?("/.claude/") }
+
+chapter_files.each { |f| require f }
 
 module Hecks
   module Chapters
     def self.bluebook
-      @bluebook ||= DomainModel::Structure::BluebookStructure.new(
-        name: "Hecks",
-        binding: Hecks::Binding.definition,
-        chapters: [
-          Bluebook.definition,
-          Runtime.definition,
-          Workshop.definition,
-          Hecksagon.definition,
-          Targets.definition,
-          Cli.definition,
-          Extensions.definition,
-          AI.definition,
-          Rails.definition,
-        ]
-      )
+      @bluebook ||= begin
+        chapter_modules = constants
+          .map { |c| const_get(c) }
+          .select { |m| m.respond_to?(:definition) }
+
+        DomainModel::Structure::BluebookStructure.new(
+          name: "Hecks",
+          chapters: chapter_modules.map(&:definition)
+        )
+      end
     end
   end
 end

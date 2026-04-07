@@ -7,14 +7,9 @@
 #   domain = Hecks::Chapters::Cli.definition
 #   domain.aggregates.map(&:name)
 #
-require_relative "cli/commands"
-require_relative "cli/tools"
-require_relative "cli/import"
-require_relative "cli/formatters"
-require_relative "cli/internals"
-
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
     # Hecks::Chapters::Cli
     #
     # Bluebook chapter defining the CLI domain: all commands, tools, and workflow aggregates.
@@ -47,11 +42,7 @@ module Hecks
             command("InspectDomain") { attribute :domain_name, String }
           end
 
-          CliCommands.define(b)
-          CliTools.define(b)
-          CliImport.define(b)
-          CliFormatters.define(b)
-          CliInternals.define(b)
+          Chapters.define_paragraphs(Cli, b)
         }.build
       end
     end

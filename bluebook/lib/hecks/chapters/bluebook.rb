@@ -10,24 +10,10 @@
 #   domain = Hecks::Chapters::Bluebook.definition
 #   domain.aggregates.map(&:name)
 #
-require_relative "bluebook/structure"
-require_relative "bluebook/behavior"
-require_relative "bluebook/names"
-require_relative "bluebook/tooling"
-require_relative "bluebook/builders"
-require_relative "bluebook/generators"
-require_relative "bluebook/generator_internals"
-require_relative "bluebook/spec_generators"
-require_relative "bluebook/validation_rules"
-require_relative "bluebook/dsl_internals"
-require_relative "bluebook/serializers"
-require_relative "bluebook/visualizers"
-require_relative "bluebook/ast"
-require_relative "bluebook/migrations"
-require_relative "bluebook/features"
-
 module Hecks
   module Chapters
+    require_paragraphs(__FILE__)
+
     module Bluebook
       def self.definition
         @definition ||= DSL::DomainBuilder.new("Bluebook").tap { |b|
@@ -140,21 +126,7 @@ module Hecks
             end
           end
 
-          StructureParagraph.define(b)
-          BehaviorParagraph.define(b)
-          NamesParagraph.define(b)
-          ToolingParagraph.define(b)
-          BuildersParagraph.define(b)
-          GeneratorsParagraph.define(b)
-          GeneratorInternalsParagraph.define(b)
-          SpecGeneratorsParagraph.define(b)
-          ValidationRulesParagraph.define(b)
-          DslInternalsParagraph.define(b)
-          SerializersParagraph.define(b)
-          VisualizersParagraph.define(b)
-          AstParagraph.define(b)
-          MigrationsParagraph.define(b)
-          FeaturesParagraph.define(b)
+          Chapters.define_paragraphs(Bluebook, b)
         }.build
       end
     end

@@ -47,6 +47,7 @@ module Hecks
           b.aggregate "ContextGrouping", "Groups event storm items by bounded context" do
             command("GroupByContext") { attribute :items, String }
           end
+
         end
       end
     end

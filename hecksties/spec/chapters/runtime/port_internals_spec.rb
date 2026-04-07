@@ -28,7 +28,7 @@ RSpec.describe Hecks::Chapters::Runtime::PortInternals do
 
   it "includes operator aggregates" do
     expect(names).to include("Operators", "Operator", "Gt", "Gte", "Lt",
-                             "Lte", "In", "NotEq")
+                             "Lte", "InOp", "NotEq")
   end
 
   it "RepositoryMethods has CRUD commands" do
@@ -37,14 +37,20 @@ RSpec.describe Hecks::Chapters::Runtime::PortInternals do
     expect(cmds).to include("Create", "Read", "Update", "Delete")
   end
 
-  it "contributes at least 22 port internal aggregates" do
+  it "includes CommandHandle" do
+    agg = domain.aggregates.find { |a| a.name == "CommandHandle" }
+    expect(agg).not_to be_nil
+    expect(agg.commands.map(&:name)).to include("Wait")
+  end
+
+  it "contributes at least 23 port internal aggregates" do
     pi_names = %w[CommandMethods CommandResolver CollectionItem
                   CollectionMethods CollectionProxy EventRecorder
                   ReferenceMethods RepositoryMethods MemoryOutbox
                   MemoryQueue AdHocQueries ConditionNode InMemoryExecutor
                   ScopeMethods Operators Operator Gt Gte Lt
-                  Lte In NotEq]
+                  Lte InOp NotEq CommandHandle]
     present = pi_names.select { |n| names.include?(n) }
-    expect(present.size).to be >= 22
+    expect(present.size).to be >= 23
   end
 end

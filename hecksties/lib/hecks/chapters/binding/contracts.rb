@@ -7,7 +7,8 @@
 #   Hecks::Binding::ContractsChapter.define(builder)
 #
 module Hecks
-  module Binding
+  module Chapters
+    module Binding
     # Hecks::Binding::ContractsChapter
     #
     # Bluebook chapter defining the Contracts aggregate for cross-target data contract registration.
@@ -80,8 +81,9 @@ module Hecks
           end
 
           b.aggregate "DispatchNotAllowed", "Raised when dispatch target is not a declared command, query, or CRUD builtin" do
-            command("Raise") { attribute :agg_name, String; attribute :method_name, String }
+            command("Throw") { attribute :agg_name, String; attribute :method_name, String }
           end
+        end
         end
       end
     end

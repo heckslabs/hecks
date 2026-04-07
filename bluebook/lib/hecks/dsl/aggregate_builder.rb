@@ -231,7 +231,12 @@ module Hecks
       def infer_events
         aggregate_id_attr = Structure::Attribute.new(name: :aggregate_id, type: String)
         @commands.flat_map do |command|
-          event_attrs = [aggregate_id_attr] + command.attributes.dup
+          cmd_attrs = command.attributes.dup
+          event_attrs = if cmd_attrs.any? { |a| a.name.to_s == "aggregate_id" }
+                          cmd_attrs
+                        else
+                          [aggregate_id_attr] + cmd_attrs
+                        end
           @attributes.each do |agg_attr|
             next if event_attrs.any? { |a| a.name == agg_attr.name }
             event_attrs << agg_attr

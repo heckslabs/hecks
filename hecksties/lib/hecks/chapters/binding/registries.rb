@@ -7,7 +7,8 @@
 #   Hecks::Binding::RegistriesChapter.define(builder)
 #
 module Hecks
-  module Binding
+  module Chapters
+    module Binding
     # Hecks::Binding::RegistriesChapter
     #
     # Bluebook sub-chapter defining all Hecks registry aggregates: domain, adapter, extension, capability, and more.
@@ -104,6 +105,7 @@ module Hecks
           b.aggregate "ThreadContextMethods", "Thread-local tenant, actor, and current_user context methods extended onto Hecks" do
             command("SetContext") { attribute :key, String; attribute :value, String }
           end
+        end
         end
       end
     end

@@ -60,6 +60,10 @@ module Hecks
           b.aggregate "Concurrency", "Optimistic concurrency version stamps" do
             command("Stamp") { attribute :aggregate, String; attribute :version, Integer }
           end
+
+          b.aggregate "EventSourcing", "Top-level module for event sourcing concerns with autoload registry" do
+            command("Autoload") { attribute :const_name, String; attribute :path, String }
+          end
         end
       end
     end
