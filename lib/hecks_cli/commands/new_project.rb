@@ -28,12 +28,15 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
       require "hecks"
 
       app = Hecks.boot(__dir__)
-      app.capability(:crud)
-
-      # Start building:
-      #   Example.create(name: "Hello")
-      #   Example.all
     RUBY
+  end
+
+  hecksagon_template = lambda do
+    <<~HEC
+      Hecks.hecksagon "#{pascal}" do
+        capabilities :crud
+      end
+    HEC
   end
 
   gemfile_template = lambda do
@@ -81,13 +84,14 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
   FileUtils.mkdir_p(File.join(dir, "spec"))
 
   write_or_diff(
-    File.join(dir, "#{pascal}Bluebook"),
+    File.join(dir, "bluebook.hec"),
     domain_template(pascal,
       world_concerns: world_result[:concerns],
       extensions:     world_result[:extensions],
       stub:           world_result[:stub])
   )
-  write_or_diff(File.join(dir, "app.rb"), app_template.call)
+  write_or_diff(File.join(dir, "hecksagon.hec"), hecksagon_template.call)
+  write_or_diff(File.join(dir, "#{name}.rb"), app_template.call)
   write_or_diff(File.join(dir, "Gemfile"), gemfile_template.call)
   write_or_diff(File.join(dir, "spec", "spec_helper.rb"), spec_helper_template.call)
   write_or_diff(File.join(dir, ".gitignore"), gitignore_template.call)
@@ -99,8 +103,9 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
   else
     say "Created #{dir}/", :green
   end
-  say "  #{pascal}Bluebook"
-  say "  app.rb"
+  say "  bluebook.hec"
+  say "  hecksagon.hec"
+  say "  #{name}.rb"
   say "  Gemfile"
   say "  spec/spec_helper.rb"
   say "  .gitignore"
@@ -109,5 +114,5 @@ Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
   say "Get started:"
   say "  cd #{dir}"
   say "  bundle install"
-  say "  ruby app.rb"
+  say "  ruby #{name}.rb"
 end

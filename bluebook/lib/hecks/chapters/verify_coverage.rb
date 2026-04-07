@@ -16,7 +16,7 @@ module Hecks
       # Directories that contain framework implementation files.
       LIB_DIRS = %w[
         bluebook/lib hecksties/lib hecksagon/lib hecks_workshop/lib
-        hecks_ai/lib hecks_appeal/lib hecks_on_rails/lib
+        hecks_ai/lib hecks_on_rails/lib
         hecks_targets/ruby/lib hecks_targets/go/lib hecks_targets/node/lib
         hecksties/watchers/lib examples/lib
       ].freeze
@@ -25,7 +25,7 @@ module Hecks
       SKIP_PATTERNS = %w[
         /chapters/ /version.rb boot.rb boot_bluebook.rb features.rb
         bluebook.rb hecksagon.rb hecks_workshop.rb hecks_ai.rb
-        hecks_appeal.rb hecks_on_rails.rb hecks_serve.rb
+        hecks_on_rails.rb hecks_serve.rb
         hecks_targets.rb hecks_multidomain.rb
         self_compile.rb
       ].freeze

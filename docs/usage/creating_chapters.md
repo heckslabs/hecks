@@ -7,26 +7,25 @@ the self-hosting pattern.
 ## Directory Layout
 
 ```
-hecks_appeal/
-  hecks_appeal.gemspec
+hecks_workshop/
+  hecks_workshop.gemspec
   lib/
     hecks/
       chapters/
-        hecks_appeal.rb              # Chapter definition (IR)
-        hecks_appeal/
-          editing.rb                 # Paragraph (optional)
-          generation.rb             # Paragraph (optional)
-      hecks_appeal.rb               # Main module (behavior)
-      hecks_appeal/
-        project.rb                  # Implementation files
-        document.rb
-        explorer.rb
+        hecks_workshop.rb              # Chapter definition (IR)
+        hecks_workshop/
+          internals.rb                 # Paragraph (optional)
+          runners.rb                   # Paragraph (optional)
+      hecks_workshop.rb               # Main module (behavior)
+      hecks_workshop/
+        session.rb                    # Implementation files
+        runner.rb
   spec/
-    spec_helper.rb                  # Or use root spec_helper
+    spec_helper.rb                    # Or use root spec_helper
     chapters/
-      hecks_appeal_spec.rb          # Generated chapter spec
-      hecks_appeal/
-        editing_paragraph_spec.rb   # Generated paragraph spec
+      hecks_workshop_spec.rb          # Generated chapter spec
+      hecks_workshop/
+        internals_paragraph_spec.rb   # Generated paragraph spec
 ```
 
 ## Gemspec
@@ -35,13 +34,13 @@ hecks_appeal/
 require_relative "../hecksties/lib/hecks/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "hecks_appeal"
+  spec.name          = "hecks_workshop"
   spec.version       = Hecks::VERSION
   spec.authors       = ["Christopher Young"]
   spec.license       = "MIT"
   spec.homepage      = "https://github.com/chrisyoung/hecks"
-  spec.summary       = "IDE capabilities for Hecks"
-  spec.description   = "IDE capabilities for Hecks"
+  spec.summary       = "Interactive workshop for Hecks"
+  spec.description   = "Interactive workshop for Hecks"
 
   spec.required_ruby_version = ">= 3.0"
   spec.require_paths = ["lib"]
@@ -64,22 +63,20 @@ module Hecks
   module Chapters
     require_paragraphs(__FILE__)  # auto-requires paragraph files
 
-    module HecksAppeal
+    module HecksWorkshop
       def self.definition
-        Hecks::DSL::DomainBuilder.new("HecksAppeal").tap { |b|
+        Hecks::DSL::DomainBuilder.new("HecksWorkshop").tap { |b|
           # Inline aggregates (appear in the chapter spec)
-          b.aggregate "Project" do
-            description "A domain project workspace"
-            command "OpenProject" do
-              attribute :path, String
-            end
-            command "CreateProject" do
+          b.aggregate "Session" do
+            description "An interactive workshop session"
+            command "StartSession" do
               attribute :name, String
             end
+            command "EndSession"
           end
 
           # Paragraph aggregates (appear in paragraph specs)
-          Chapters.define_paragraphs(HecksAppeal, b)
+          Chapters.define_paragraphs(HecksWorkshop, b)
         }.build
       end
     end
@@ -89,7 +86,7 @@ end
 
 Key methods:
 - `require_paragraphs(__FILE__)` — auto-requires all `.rb` files in the
-  same-named subdirectory (e.g. `chapters/hecks_appeal/*.rb`)
+  same-named subdirectory (e.g. `chapters/hecks_workshop/*.rb`)
 - `define_paragraphs(ModuleName, builder)` — calls `.define(builder)` on
   every constant in the module that responds to it
 
@@ -99,28 +96,18 @@ Paragraphs are modules in a subdirectory matching the chapter name. Each
 defines a `.define(builder)` class method that adds aggregates to the builder:
 
 ```ruby
-# lib/hecks/chapters/hecks_appeal/editing.rb
+# lib/hecks/chapters/hecks_workshop/internals.rb
 module Hecks
   module Chapters
-    module HecksAppeal
-      module EditingParagraph
+    module HecksWorkshop
+      module InternalsParagraph
         def self.define(b)
-          b.aggregate "Document" do
-            description "A source file open for editing"
-            command "OpenDocument" do
-              attribute :filename, String
+          b.aggregate "Runner" do
+            description "Executes domain commands interactively"
+            command "RunCommand" do
+              attribute :command_name, String
             end
-            command "SaveDocument"
-            command "ValidateDocument"
-          end
-
-          b.aggregate "Timeline" do
-            description "Edit history with undo/redo"
-            command "RecordChange" do
-              attribute :action, String
-            end
-            command "Undo"
-            command "Redo"
+            command "ShowResult"
           end
         end
       end
@@ -136,7 +123,7 @@ Naming convention: module is `<Name>Paragraph`, file is `<name>.rb`.
 Add to `Gemfile`:
 
 ```ruby
-%w[hecksties hecks_workshop hecks_ai hecks_appeal bluebook hecksagon].each do |component|
+%w[hecksties hecks_workshop hecks_ai bluebook hecksagon].each do |component|
   gemspec path: component if File.exist?("#{component}/#{component}.gemspec")
 end
 ```
@@ -148,16 +135,16 @@ Then `bundle install`.
 Specs are auto-generated by `ChapterSpecGenerator`. To generate:
 
 ```ruby
-require "hecks/chapters/hecks_appeal"
+require "hecks/chapters/hecks_workshop"
 
 # ChapterSpecGenerator lives in bluebook but isn't autoloaded.
 # Load it directly:
 load "bluebook/lib/hecks/generators/infrastructure/chapter_spec_generator.rb"
 
-gen = Hecks::Generators::ChapterSpecGenerator.new(Hecks::Chapters::HecksAppeal)
+gen = Hecks::Generators::ChapterSpecGenerator.new(Hecks::Chapters::HecksWorkshop)
 
 gen.generate.each do |filename, content|
-  path = "hecks_appeal/spec/chapters/#{filename}"
+  path = "hecks_workshop/spec/chapters/#{filename}"
   FileUtils.mkdir_p(File.dirname(path))
   File.write(path, content)
 end

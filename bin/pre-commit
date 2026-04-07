@@ -27,5 +27,5 @@ fi
 echo "Smoke test passed."
 
 # Run all watchers (cross-require blocks; others are advisory)
-ruby -I hecksties/watchers/lib -r hecks_watchers -e \
+ruby -Ilib -I hecksties/watchers/lib -r hecks_watchers -e \
   'exit(HecksWatchers::PreCommit.new(project_root: Dir.pwd).call ? 0 : 1)'
