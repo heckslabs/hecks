@@ -64,6 +64,10 @@ module Hecks
       # @return [Boolean] true if glossary violations are treated as errors instead of warnings
       attr_reader :glossary_strict
 
+      # @return [Array<Paragraph>] named groups of aggregates within this domain.
+      #   Paragraphs organize a chapter's aggregates into focused sections.
+      attr_reader :paragraphs
+
       # @return [Array<Hash>] logical module groupings within this domain
       attr_reader :modules
 
@@ -98,7 +102,7 @@ module Hecks
       SEMVER_RE  = /\A\d+\.\d+\.\d+\z/.freeze
       CALVER_RE  = /\A\d{4}\.\d{2}\.\d{2}\.\d+\z/.freeze
 
-      def initialize(name:, aggregates: [], policies: [], services: [], views: [],
+      def initialize(name:, aggregates: [], paragraphs: [], policies: [], services: [], views: [],
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
@@ -107,6 +111,7 @@ module Hecks
         @name = name
         @version = version
         @aggregates = aggregates
+        @paragraphs = paragraphs
         @policies = policies
         @services = services
         @views = views

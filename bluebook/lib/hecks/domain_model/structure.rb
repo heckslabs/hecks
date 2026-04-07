@@ -57,6 +57,7 @@ module Hecks
       autoload :StateTransition, "hecks/domain_model/structure/state_transition"
       autoload :Reference,         "hecks/domain_model/structure/reference"
       autoload :ComputedAttribute, "hecks/domain_model/structure/computed_attribute"
+      autoload :Paragraph,         "hecks/domain_model/structure/paragraph"
       autoload :BluebookStructure, "hecks/domain_model/structure/bluebook_structure"
     end
   end

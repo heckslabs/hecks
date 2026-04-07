@@ -55,6 +55,7 @@ module Hecks
         @name = name
         @version = version
         @aggregates = []
+        @paragraphs = []
         @policies = []
         @services = []
         @views = []
@@ -208,6 +209,26 @@ module Hecks
         @aggregates << builder.build
       end
 
+      # Define a paragraph — a named group of aggregates within a chapter.
+      #
+      # Paragraphs organize a chapter's aggregates into focused sections.
+      # The block receives the builder so aggregates can be defined inside it.
+      #
+      #   paragraph "Ports" do
+      #     aggregate "EventBus" do ... end
+      #     aggregate "CommandBus" do ... end
+      #   end
+      #
+      # @param name [String] the paragraph name (e.g. "Ports")
+      # @yield block evaluated in the context of DomainBuilder (self)
+      # @return [void]
+      def paragraph(name, &block)
+        before = @aggregates.dup
+        instance_eval(&block) if block
+        added = @aggregates - before
+        @paragraphs << Structure::Paragraph.new(name: name, aggregates: added)
+      end
+
       # Define a cross-aggregate reactive policy.
       #
       # Domain-level policies react to events from one aggregate and trigger
@@ -275,7 +296,7 @@ module Hecks
       # @return [DomainModel::Structure::Domain] the fully built domain IR object
       def build
         domain = Structure::Domain.new(
-          name: @name, version: @version, aggregates: @aggregates, policies: @policies,
+          name: @name, version: @version, aggregates: @aggregates, paragraphs: @paragraphs, policies: @policies,
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,
