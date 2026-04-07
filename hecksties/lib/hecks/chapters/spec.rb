@@ -102,12 +102,13 @@ module Hecks
           end
 
           b.aggregate "Pizza" do
-            description "Canonical test aggregate: exercises value objects, lists, validations, queries"
+            description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
             attribute :name, String
             attribute :description, String
             attribute :toppings, list_of("Topping")
 
             value_object "Topping" do
+              description "A measured ingredient on a pizza. Immutable once created."
               attribute :name, String
               attribute :amount, Integer
 
@@ -120,6 +121,7 @@ module Hecks
             validation :description, presence: true
 
             command "CreatePizza" do
+              description "Add a new pizza to the menu with a name and description"
               attribute :name, String
               attribute :description, String
             end
@@ -129,6 +131,7 @@ module Hecks
             end
 
             command "AddTopping" do
+              description "Add a measured topping to an existing pizza"
               reference_to "Pizza", validate: :exists
               attribute :name, String
               attribute :amount, Integer
@@ -136,7 +139,7 @@ module Hecks
           end
 
           b.aggregate "Order" do
-            description "Canonical test aggregate: exercises references, transitions, collection proxies"
+            description "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies."
             attribute :customer_name, String
             attribute :items, list_of("OrderItem")
             reference_to "Pizza"
@@ -146,6 +149,7 @@ module Hecks
             end
 
             value_object "OrderItem" do
+              description "A line item in an order with a quantity"
               attribute :quantity, Integer
 
               invariant "quantity must be positive" do
@@ -156,12 +160,14 @@ module Hecks
             validation :customer_name, presence: true
 
             command "PlaceOrder" do
+              description "Place a new order for a pizza"
               attribute :customer_name, String
               reference_to "Pizza", validate: :exists
               attribute :quantity, Integer
             end
 
             command "CancelOrder" do
+              description "Cancel a pending order, transitioning status to cancelled"
               reference_to "Order", validate: :exists
             end
 
