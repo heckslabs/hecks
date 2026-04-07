@@ -106,7 +106,13 @@ module Hecks
   # Core build target — always available
   register_target(:ruby) { |domain, **opts| Hecks.build(domain, **opts) }
 
-  # Other targets (go, static, node, rails, binary) self-register
+  # Binary target — compiles Hecks into a single bundled script
+  register_target(:binary) { |_domain, **opts|
+    require "hecks/compiler"
+    Hecks::Compiler::BinaryCompiler.new.compile(output: opts[:output] || "hecks_v0")
+  }
+
+  # Other targets (go, static, node, rails) self-register
   # when their gems are required. See hecks_targets/ for each.
 
   # Built-in dump formats

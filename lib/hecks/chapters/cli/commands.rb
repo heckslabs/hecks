@@ -105,6 +105,10 @@ module Hecks
           b.aggregate "InfoCommand", "Shows domain metadata and stats" do
             command("Show") { attribute :domain_path, String }
           end
+
+          b.aggregate "CompileCommand", "Compiles Hecks into a self-contained binary" do
+            command("Compile") { attribute :output, String }
+          end
         end
       end
     end

@@ -479,6 +479,18 @@
 - Skips Rails internal tables (schema_migrations, active_storage_*, etc.)
 - Preview mode with `--preview` flag
 
+## Binary Compiler (Hecks v0)
+- `hecks compile` — compile the entire Hecks framework into a single self-contained Ruby script
+- `hecks compile --plan` — show compilation plan (file count and list) without writing
+- `hecks compile --output NAME` — specify output file name (default: `hecks_v0`)
+- The compiled binary bundles all 400+ source files in load order with zero `require_relative`
+- Strips internal requires, chapter loading calls, and Dir[] glob requires
+- Injects forward declarations for load-order dependencies
+- Pre-registers all bundled files in `$LOADED_FEATURES` to prevent double-loading
+- The binary supports `boot`, `version`, and `self-test` commands
+- Binary target also available via `hecks build --target binary`
+- Self-hosting: compiled Hecks can boot domains identically to interpreted Hecks
+
 ## CLI Commands
 - `hecks new NAME` — scaffold a complete project with interactive world goals onboarding: 3-step prompt (yes/skip/doesn't apply), maps each goal to a real extension (`privacy→:pii`, `transparency→:audit`, `consent/security→:auth`, `equity→:tenancy`, `sustainability→:rate_limit`), deduplicates extensions, generates both `world_concerns` and `extend` calls in the Bluebook; `--no-world-goals` skips prompt for CI
 - `hecks build` — validate and generate versioned gem
