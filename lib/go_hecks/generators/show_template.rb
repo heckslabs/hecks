@@ -1,0 +1,57 @@
+# GoHecks::ShowTemplate
+#
+# Generates the Go html/template for the show page directly from
+# ViewContract, without ERB conversion or regex patching. Handles
+# lifecycle fields, direct-action buttons, list fields, and
+# transitions — all contract-driven.
+#
+module GoHecks
+  class ShowTemplate
+    def generate
+      <<~GO
+        {{ define "show" }}
+        <h1>{{ .AggregateName }}</h1>
+        <div class="detail">
+          <dl>
+            <dt>ID</dt>
+            <dd class="mono">{{ .Id }}</dd>
+            {{ range .Fields }}
+              <dt>{{ .Label }}</dt>
+              <dd>
+                {{ if eq .Type "list" }}
+                  {{ if .Items }}
+                    <ul>{{ range .Items }}<li>{{ . }}</li>{{ end }}</ul>
+                  {{ else }}(none){{ end }}
+                {{ else if eq .Type "lifecycle" }}
+                  <span class="badge">{{ .Value }}</span>
+                  {{ if .Transitions }}
+                    <span class="hint">{{ range $i, $t := .Transitions }}{{ if $i }} | {{ end }}{{ $t }}{{ end }}</span>
+                  {{ end }}
+                {{ else }}
+                  {{ .Value }}
+                {{ end }}
+              </dd>
+            {{ end }}
+          </dl>
+        </div>
+        <div class="actions">
+          <a href="{{ .BackHref }}" class="btn btn-sm">Back</a>
+          {{ $aggId := .Id }}
+          {{ $csrf := .CsrfToken }}
+          {{ range .Buttons }}
+            {{ if .Direct }}
+              <form class="inline" method="post" action="{{ .Href }}">
+                <input type="hidden" name="_csrf_token" value="{{ $csrf }}">
+                <input type="hidden" name="{{ .IdField }}" value="{{ $aggId }}">
+                <button class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}" type="submit">{{ .Label }}</button>
+              </form>
+            {{ else }}
+              <a class="btn btn-sm{{ if not .Allowed }} btn-faded{{ end }}" href="{{ .Href }}">{{ .Label }}</a>
+            {{ end }}
+          {{ end }}
+        </div>
+        {{ end }}
+      GO
+    end
+  end
+end

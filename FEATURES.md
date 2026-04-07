@@ -537,8 +537,8 @@
 - No Ruby namespace changes — only gem directory ownership changed during consolidation
 
 ## Packaging
-- Core, ActiveModel, real-time, and persistence ship as separate packages
-- `hecks_on_rails` bundles everything for Rails apps
+- **Mono-gem** — all framework code lives in a single `lib/` directory, organized by chapter: `ruby -Ilib` is all you need
+- `Chapters.load_chapter` supports `base_dirs:` for scoped multi-directory loading
 - Extensions auto-wire when present — no configuration needed
 - See [Packaging](docs/usage/packaging.md) for the full breakdown
 

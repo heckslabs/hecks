@@ -1,0 +1,177 @@
+Hecks::Chapters.load_aggregates(
+  Hecks::Chapters::Targets::Ruby,
+  base_dir: File.expand_path("ui_generator", __dir__)
+)
+
+module HecksStatic
+# HecksStatic::UIGenerator
+#
+# Generates route handlers that prepare data and render ERB templates.
+# Each route builds a locals hash and calls renderer.render(:template, locals).
+#
+class UIGenerator < Hecks::Generator
+  include FormRoutes
+  include ConfigRoutes
+  include ShowRoute
+
+  def initialize(domain)
+    @domain = domain
+  end
+
+  def generate(mod, gem_name)
+    lines = []
+    lines << "require \"erb\""
+    lines << "require_relative \"renderer\""
+    lines << ""
+    lines << "module #{mod}"
+    lines << "  module Server"
+    lines << "    module UIRoutes"
+    lines << ""
+    lines << "      def mount_ui_routes(server)"
+    lines << "        views = File.expand_path(\"views\", __dir__)"
+    lines << "        renderer = Renderer.new(views)"
+    lines << "        nav = #{nav_items.inspect}"
+    lines << "        brand = \"#{mod}\""
+    lines << ""
+    lines.concat(root_route(mod))
+    @domain.aggregates.each { |agg| lines.concat(index_route(agg, mod)) }
+    @domain.aggregates.each { |agg| lines.concat(show_route(agg, mod)) }
+    @domain.aggregates.each { |agg| lines.concat(new_routes(agg, mod)) }
+    lines.concat(config_route(mod))
+    lines.concat(reboot_route(mod))
+    lines << "      end"
+    lines << ""
+    lines.concat(csrf_helpers)
+    lines << "    end"
+    lines << "  end"
+    lines << "end"
+    lines.join("\n") + "\n"
+  end
+
+  private
+
+  def nav_items
+    items = [{ label: "Home", href: "/" }]
+    @domain.aggregates.each do |agg|
+      items << { label: HecksTemplating::UILabelContract.plural_label(agg.name), href: "/#{plural(agg)}" }
+    end
+    items << { label: "Config", href: "/config" }
+    items
+  end
+
+  def plural(agg)
+    domain_aggregate_slug(agg.name)
+  end
+
+  def user_attrs(agg)
+    agg.attributes.reject { |attr|
+      Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(attr.name.to_s) || !attr.visible?
+    }
+  end
+
+  def self_ref?(cmd, agg_snake)
+    Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg_snake) != nil
+  end
+
+  def find_self_ref_attr(cmd, agg)
+    Hecks::Conventions::CommandContract.find_self_ref(cmd.attributes, agg.name)
+  end
+
+  def required_field?(agg, attr_name)
+    return true if agg.validations.any? { |v| v.field.to_s == attr_name.to_s && v.rules[:presence] }
+    agg.value_objects.any? { |vo| vo.attributes.any? { |va| va.name.to_s == attr_name.to_s } }
+  end
+
+  def humanize(name)
+    name.to_s.split("_").map(&:capitalize).join(" ")
+  end
+
+  def csrf_helpers
+    [
+      "      private",
+      "",
+      "      def ensure_csrf_cookie(req, res)",
+      "        existing = read_csrf_cookie(req)",
+      "        return existing if existing && !existing.empty?",
+      "        require \"securerandom\"",
+      "        token = SecureRandom.hex(32)",
+      "        res[\"Set-Cookie\"] = \"_csrf_token=\#{token}; SameSite=Strict; HttpOnly\"",
+      "        token",
+      "      end",
+      "",
+      "      def read_csrf_cookie(req)",
+      "        header = req[\"Cookie\"] || \"\"",
+      "        cookie_match = header.match(/(?:^|;\\s*)_csrf_token=([^;]+)/)",
+      "        cookie_match ? cookie_match[1] : nil",
+      "      end",
+      "",
+      "      def validate_csrf(req)",
+      "        cookie = read_csrf_cookie(req)",
+      "        form  = req.query[\"_csrf_token\"]",
+      "        cookie && !cookie.empty? && cookie == form",
+      "      end",
+    ]
+  end
+
+  def root_route(mod)
+    agg_data = @domain.aggregates.map do |agg|
+      home_agg_data = HecksTemplating::DisplayContract.home_aggregate_data(agg, plural(agg))
+      "{ name: \"#{home_agg_data[:name]}\", href: \"#{home_agg_data[:href]}\", command_names: \"#{home_agg_data[:command_names]}\", attributes: #{home_agg_data[:attributes]}, policies: #{home_agg_data[:policies]} }"
+    end
+    [
+      "        server.mount_proc \"/\" do |req, res|",
+      "          next unless req.path == \"/\"",
+      "          html = renderer.render(:home, title: \"#{mod}\", brand: brand, nav_items: nav,",
+      "            domain_name: \"#{mod}\", aggregates: [#{agg_data.join(', ')}])",
+      "          res[\"Content-Type\"] = \"text/html\"; res.body = html",
+      "        end",
+      ""
+    ]
+  end
+
+  def index_route(agg, mod)
+    safe = domain_constant_name(agg.name)
+    p = plural(agg)
+    attrs = user_attrs(agg)
+    agg_snake = domain_snake_name(agg.name)
+    ac = HecksTemplating::AggregateContract
+    dc = HecksTemplating::DisplayContract
+    create_cmds, update_cmds = ac.partition_commands(agg)
+
+    columns = attrs.map { |attr|
+      lbl = dc.reference_attr?(attr) ? dc.reference_column_label(attr) : humanize(attr.name)
+      "{ label: \"#{lbl}\" }"
+    }
+    btns = create_cmds.map { |c| cm = domain_snake_name(c.name); "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href: \"/#{p}/#{cm}/new\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\") }" }
+    row_acts = update_cmds.map do |c|
+      cm = domain_snake_name(c.name)
+      if ac.direct_action?(c, agg_snake)
+        self_id = ac.self_ref_attr(c, agg_snake)
+        "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href_prefix: \"/#{p}/#{cm}/submit\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\"), direct: true, id_field: \"#{self_id&.name}\" }"
+      else
+        "{ label: \"#{HecksTemplating::UILabelContract.label(c.name)}\", href_prefix: \"/#{p}/#{cm}/new?id=\", allowed: #{mod}.role_allows?(\"#{safe}\", \"#{cm}\") }"
+      end
+    end
+
+    cell_exprs = attrs.map { |attr| dc.cell_expression(attr, "obj", lang: :ruby, domain: @domain) }
+    cells_code = cell_exprs.join(", ")
+
+    [
+      "        server.mount_proc \"/#{p}\" do |req, res|",
+      "          next unless req.path == \"/#{p}\"",
+      "          all_items = #{safe}.all",
+      "          items = all_items.map { |obj| { id: obj.id, short_id: #{HecksTemplating::ViewContract.ruby_short_id('obj.id')}, show_href: \"/#{p}/show?id=\" + obj.id, cells: [#{cells_code}] } }",
+      "          html = renderer.render(:index, title: \"#{safe}s — #{mod}\", brand: brand, nav_items: nav,",
+      "            aggregate_name: \"#{safe}\", items: items,",
+      "            csrf_token: ensure_csrf_cookie(req, res),",
+      "            columns: [#{columns.join(', ')}],",
+      "            buttons: [#{btns.join(', ')}],",
+      "            row_actions: [#{row_acts.join(', ')}])",
+      "          res[\"Content-Type\"] = \"text/html\"; res.body = html",
+      "        end",
+      ""
+    ]
+  end
+
+end
+end

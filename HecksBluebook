@@ -1,12 +1,12 @@
 # HecksBluebook
 #
-# Hecks describes itself as a Bluebook. Every gem defines a chapter
-# under Hecks::Chapters with a .definition method. This file
+# Hecks describes itself as a Bluebook. Every implementation file lives
+# under lib/hecks/chapters/ with a .definition method. This file
 # auto-discovers all chapters by convention — no manual registration.
 #
 # Convention:
-#   **/lib/hecks/chapters/*.rb  → chapter with .definition
-#   **/lib/hecks/chapters/foo/  → paragraphs with .define(builder)
+#   lib/hecks/chapters/*.rb  → chapter with .definition
+#   lib/hecks/chapters/foo/  → paragraphs with .define(builder)
 #
 # Usage:
 #   ruby -Ilib HecksBluebook
@@ -15,8 +15,10 @@
 
 # Auto-discover and require all chapter definitions
 root = File.dirname(__FILE__)
-chapter_files = Dir.glob(File.join(root, "**/lib/hecks/chapters/*.rb"))
+chapter_files = Dir.glob(File.join(root, "lib/hecks/chapters/*.rb"))
+  .concat(Dir.glob(File.join(root, "**/lib/hecks/chapters/*.rb")))
   .reject { |f| f.include?("/.claude/") }
+  .uniq
 
 chapter_files.each { |f| require f }
 

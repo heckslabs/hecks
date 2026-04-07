@@ -8,12 +8,7 @@
 #   bin/verify --verbose # prints each chapter summary
 #
 
-$LOAD_PATH.unshift(*Dir.glob(File.join(__dir__, "../*/lib")))
-$LOAD_PATH.unshift(File.join(__dir__, "../hecks_targets/ruby/lib"))
-$LOAD_PATH.unshift(File.join(__dir__, "../hecks_targets/go/lib"))
-$LOAD_PATH.unshift(File.join(__dir__, "../hecks_targets/node/lib"))
-$LOAD_PATH.unshift(File.join(__dir__, "../hecksties/watchers/lib"))
-$LOAD_PATH.unshift(File.join(__dir__, "../examples/lib"))
+$LOAD_PATH.unshift(File.join(__dir__, "../lib"))
 
 require "hecks"
 Kernel.load(File.join(__dir__, "../HecksBluebook"))
