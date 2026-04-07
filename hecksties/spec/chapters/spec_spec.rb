@@ -13,7 +13,8 @@ RSpec.describe Hecks::Chapters::Spec do
     expect(names).to include(
       "TestHelper", "InMemoryLoader", "MemoryAdapter",
       "MemoryOutbox", "EventBus", "InMemoryExecutor",
-      "SpecGenerator", "SpecHelpers", "SpecWriter", "ServerHelpers"
+      "SpecGenerator", "SpecHelpers", "SpecWriter", "ServerHelpers",
+      "Pizza", "Order"
     )
   end
 
@@ -35,6 +36,26 @@ RSpec.describe Hecks::Chapters::Spec do
   it "every aggregate has at least one command" do
     domain.aggregates.each do |agg|
       expect(agg.commands).not_to be_empty, "#{agg.name} has no commands"
+    end
+  end
+
+  describe "Pizza aggregate" do
+    let(:pizza) { domain.aggregates.find { |a| a.name == "Pizza" } }
+
+    it "has value objects, validations, queries, and commands" do
+      expect(pizza.commands.map(&:name)).to include("CreatePizza", "AddTopping")
+      expect(pizza.value_objects.map(&:name)).to include("Topping")
+      expect(pizza.queries.map(&:name)).to include("ByDescription")
+    end
+  end
+
+  describe "Order aggregate" do
+    let(:order) { domain.aggregates.find { |a| a.name == "Order" } }
+
+    it "has references, transitions, value objects, and commands" do
+      expect(order.commands.map(&:name)).to include("PlaceOrder", "CancelOrder")
+      expect(order.value_objects.map(&:name)).to include("OrderItem")
+      expect(order.queries.map(&:name)).to include("Pending")
     end
   end
 end

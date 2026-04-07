@@ -18,10 +18,6 @@
 4. Check file sizes — `find lib -name "*.rb" -exec wc -l {} + | sort -rn | head -5`
 5. Smoke test — `ruby -Ilib examples/pizzas/app.rb`
 
-## After every feature
-
-Show the user real running examples with real output. Don't just summarize.
-
 ## Conventions
 
 - Memory adapters for tests — fast and isolated

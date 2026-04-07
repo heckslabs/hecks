@@ -2,7 +2,8 @@
 #
 # Self-describing chapter for Hecks' testing infrastructure.
 # Covers spec generation, in-memory loading, memory adapters,
-# test helpers, and server test support.
+# test helpers, server test support, and the canonical Pizza/Order
+# test domain used across the test suite.
 #
 #   domain = Hecks::Chapters::Spec.definition
 #   domain.aggregates.map(&:name)
@@ -97,6 +98,75 @@ module Hecks
             command "SubmitForm" do
               attribute :base_url, String
               attribute :form_path, String
+            end
+          end
+
+          b.aggregate "Pizza" do
+            description "Canonical test aggregate: exercises value objects, lists, validations, queries"
+            attribute :name, String
+            attribute :description, String
+            attribute :toppings, list_of("Topping")
+
+            value_object "Topping" do
+              attribute :name, String
+              attribute :amount, Integer
+
+              invariant "amount must be positive" do
+                amount > 0
+              end
+            end
+
+            validation :name, presence: true
+            validation :description, presence: true
+
+            command "CreatePizza" do
+              attribute :name, String
+              attribute :description, String
+            end
+
+            query "ByDescription" do |desc|
+              where(description: desc)
+            end
+
+            command "AddTopping" do
+              reference_to "Pizza", validate: :exists
+              attribute :name, String
+              attribute :amount, Integer
+            end
+          end
+
+          b.aggregate "Order" do
+            description "Canonical test aggregate: exercises references, transitions, collection proxies"
+            attribute :customer_name, String
+            attribute :items, list_of("OrderItem")
+            reference_to "Pizza"
+
+            attribute :status, String, default: "pending" do
+              transition "CancelOrder" => "cancelled"
+            end
+
+            value_object "OrderItem" do
+              attribute :quantity, Integer
+
+              invariant "quantity must be positive" do
+                quantity > 0
+              end
+            end
+
+            validation :customer_name, presence: true
+
+            command "PlaceOrder" do
+              attribute :customer_name, String
+              reference_to "Pizza", validate: :exists
+              attribute :quantity, Integer
+            end
+
+            command "CancelOrder" do
+              reference_to "Order", validate: :exists
+            end
+
+            query "Pending" do
+              where(status: "pending")
             end
           end
 
