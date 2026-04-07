@@ -31,6 +31,14 @@ module Hecks
       autoload :DomainGemGenerator,     "hecks/generators/infrastructure/domain_gem_generator"
       autoload :FrameworkGemGenerator, "hecks/generators/infrastructure/framework_gem_generator"
       autoload :SelfHostDiff,          "hecks/generators/infrastructure/self_host_diff"
+      autoload :RuntimeGenerator,      "hecks/generators/infrastructure/runtime_generator"
+      autoload :RepositoryWiringGenerator, "hecks/generators/infrastructure/runtime_generator/repository_wiring_generator"
+      autoload :PortWiringGenerator,       "hecks/generators/infrastructure/runtime_generator/port_wiring_generator"
+      autoload :SubscriberWiringGenerator, "hecks/generators/infrastructure/runtime_generator/subscriber_wiring_generator"
+      autoload :PolicyWiringGenerator,     "hecks/generators/infrastructure/runtime_generator/policy_wiring_generator"
+      autoload :ServiceWiringGenerator,    "hecks/generators/infrastructure/runtime_generator/service_wiring_generator"
+      autoload :WorkflowWiringGenerator,   "hecks/generators/infrastructure/runtime_generator/workflow_wiring_generator"
+      autoload :SagaWiringGenerator,       "hecks/generators/infrastructure/runtime_generator/saga_wiring_generator"
     end
   end
 end

@@ -498,6 +498,20 @@
 - Binary target also available via `hecks build --target binary`
 - Self-hosting: compiled Hecks can boot domains identically to interpreted Hecks
 
+## Runtime Code Generation
+- **RuntimeGenerator** — generates Ruby wiring modules from Bluebook + Hecksagon IR
+- 7 sub-generators produce `Hecks::Runtime::Generated::*` modules that shadow hand-written mixins:
+  - **RepositoryWiring** — per-aggregate memory repository instantiation
+  - **PortWiring** — Persistence/Commands/Querying/Introspection bind calls per aggregate
+  - **SubscriberWiring** — event bus subscriptions from aggregate subscribers
+  - **PolicyWiring** — reactive policy subscriptions with re-entrancy guards
+  - **ServiceWiring** — domain service singleton method definitions
+  - **WorkflowWiring** — workflow executor method definitions
+  - **SagaWiring** — saga runner method definitions
+- Framework code (CommandBus, EventBus, port adapters, mixins) stays hand-written
+- Generators replace only the orchestration loops — same behavior, no runtime IR traversal
+- Called explicitly via `RuntimeGenerator.new(domain, domain_module:).generate`
+
 ## CLI Commands
 - `hecks new NAME` — scaffold a complete project with interactive world goals onboarding: 3-step prompt (yes/skip/doesn't apply), maps each goal to a real extension (`privacy→:pii`, `transparency→:audit`, `consent/security→:auth`, `equity→:tenancy`, `sustainability→:rate_limit`), deduplicates extensions, generates both `world_concerns` and `extend` calls in the Bluebook; `--no-world-goals` skips prompt for CI
 - `hecks build` — validate and generate versioned gem

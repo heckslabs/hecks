@@ -76,6 +76,13 @@ module Hecks
       pass_count += runtime_result.pass_count
       errors.concat(runtime_result.errors)
 
+      # Phase 4: Generator verification (runtime wiring generators)
+      puts "" if format == :progress
+      require "hecks/chapters/verify_generators"
+      generator_result = GeneratorVerifier.run(format: format)
+      pass_count += generator_result.pass_count
+      errors.concat(generator_result.errors)
+
       elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
       total = pass_count + errors.size
       puts "" if format == :progress

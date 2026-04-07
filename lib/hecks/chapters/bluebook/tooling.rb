@@ -103,6 +103,10 @@ module Hecks
           b.aggregate "DefinitionExtractor", "Extracts constant definitions from Prism AST" do
             command("Extract") { attribute :source, String }
           end
+
+          b.aggregate "RuntimeGenerator", "Generates runtime wiring modules from domain IR" do
+            command("Generate") { attribute :domain_module, String }
+          end
         end
       end
     end
