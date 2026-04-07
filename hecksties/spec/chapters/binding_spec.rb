@@ -1,0 +1,30 @@
+require "spec_helper"
+require "hecks/binding"
+
+RSpec.describe Hecks::Binding do
+  subject(:domain) { described_class.definition }
+
+  it "returns a Domain named Binding" do
+    expect(domain.name).to eq("Binding")
+  end
+
+  it "includes key aggregates" do
+    names = domain.aggregates.map(&:name)
+    expect(names).to include("NamingHelpers", "Utils", "Error", "ModuleDSL")
+  end
+
+  it "has commands on ModuleDSL" do
+    agg = domain.aggregates.find { |a| a.name == "ModuleDSL" }
+    expect(agg.commands.map(&:name)).to include("DefineRegistry")
+  end
+
+  it "has at least 20 aggregates (including sub-chapters)" do
+    expect(domain.aggregates.size).to be >= 20
+  end
+
+  it "every aggregate has at least one command" do
+    domain.aggregates.each do |agg|
+      expect(agg.commands).not_to be_empty, "#{agg.name} has no commands"
+    end
+  end
+end
