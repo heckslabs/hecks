@@ -92,8 +92,8 @@ class Hecks::ContextMapGenerator
     relationships.each do |rel|
       from_id = safe_id(rel[:upstream])
       to_id = safe_id(rel[:downstream])
-      label = rel[:trigger] ? "#{rel[:event]}::#{rel[:trigger]}" : rel[:event]
-      lines << "    #{from_id} -->|#{label}| #{to_id}"
+      label = rel[:trigger] ? "#{rel[:event]} → #{rel[:trigger]}" : rel[:event]
+      lines << "    #{from_id} -->|\"#{label}\"| #{to_id}"
     end
   end
 
