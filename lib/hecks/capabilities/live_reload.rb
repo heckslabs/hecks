@@ -19,6 +19,7 @@
 #     end
 #   end
 #
+require_relative "dsl"
 require_relative "live_reload/watcher"
 
 module Hecks
@@ -55,11 +56,13 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:live_reload) { |runtime| Hecks::Capabilities::LiveReload.apply(runtime) }
-
-Hecks.describe_capability(:live_reload,
-  description: "Hot-reload domain on .bluebook file changes",
-  config: {
-    watch_dirs: { default: ["hecks"], desc: "Directories to watch" },
-    debounce: { default: 0.5, desc: "Debounce interval in seconds" }
-  })
+Hecks.capability :live_reload do
+  description "Hot-reload domain on .bluebook file changes"
+  config do
+    watch_dirs ["hecks"], desc: "Directories to watch"
+    debounce 0.5, desc: "Debounce interval in seconds"
+  end
+  on_apply do |runtime|
+    Hecks::Capabilities::LiveReload.apply(runtime)
+  end
+end

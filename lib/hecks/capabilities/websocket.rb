@@ -10,13 +10,14 @@
 #     capabilities :websocket
 #   end
 #
-# Wire protocol (client → server):
+# Wire protocol (client -> server):
 #   { "type": "command", "aggregate": "Layout", "command": "ToggleSidebar", "args": {} }
 #
-# Wire protocol (server → client):
+# Wire protocol (server -> client):
 #   { "type": "event", "event": "SidebarToggled", "aggregate": "Layout", "data": {...} }
 #
 require "json"
+require_relative "dsl"
 require_relative "websocket/port"
 require_relative "websocket/adapter"
 
@@ -30,13 +31,6 @@ module Hecks
       # Apply the WebSocket capability to a runtime.
       # Reads config from the world file's websocket block, creates the
       # port + adapter, and subscribes to all domain events.
-      #
-      # World config:
-      #   Hecks.world "MyApp" do
-      #     websocket do
-      #       port 4568
-      #     end
-      #   end
       #
       # @param runtime [Hecks::Runtime] the booted runtime
       # @return [Hecks::Capabilities::Websocket::Port]
@@ -63,10 +57,12 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:websocket) { |runtime| Hecks::Capabilities::Websocket.apply(runtime) }
-
-Hecks.describe_capability(:websocket,
-  description: "Bidirectional WebSocket command/event bridge",
-  config: {
-    port: { default: 4568, desc: "WebSocket listen port" }
-  })
+Hecks.capability :websocket do
+  description "Bidirectional WebSocket command/event bridge"
+  config do
+    port 4568, desc: "WebSocket listen port"
+  end
+  on_apply do |runtime|
+    Hecks::Capabilities::Websocket.apply(runtime)
+  end
+end

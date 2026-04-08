@@ -11,6 +11,7 @@
 #     capabilities :client_commands
 #   end
 #
+require_relative "dsl"
 require_relative "client_commands/js_generator"
 require_relative "client_commands/router"
 
@@ -82,8 +83,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:client_commands) { |runtime| Hecks::Capabilities::ClientCommands.apply(runtime) }
-
-Hecks.describe_capability(:client_commands,
-  description: "Browser-side command dispatch generated from domain IR",
-  config: {})
+Hecks.capability :client_commands do
+  description "Browser-side command dispatch generated from domain IR"
+  on_apply do |runtime|
+    Hecks::Capabilities::ClientCommands.apply(runtime)
+  end
+end

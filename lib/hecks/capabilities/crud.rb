@@ -11,6 +11,8 @@
 # User-defined commands always take precedence -- if a "CreatePizza" already
 # exists in the Bluebook, the capability will not generate a duplicate.
 #
+require_relative "dsl"
+
 module Hecks
   module Capabilities
     # Hecks::Capabilities::Crud
@@ -158,4 +160,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:crud) { |runtime| Hecks::Capabilities::Crud.apply(runtime) }
+Hecks.capability :crud do
+  description "Generate Create/Read/Update/Delete command stubs and bind repository methods"
+  on_apply do |runtime|
+    Hecks::Capabilities::Crud.apply(runtime)
+  end
+end

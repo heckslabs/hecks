@@ -13,6 +13,8 @@
 #   # At runtime:
 #   runtime.capability(:chat_agent)
 #
+require_relative "dsl"
+
 module Hecks
   module Capabilities
     module ChatAgent
@@ -84,4 +86,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:chat_agent) { |runtime| Hecks::Capabilities::ChatAgent.apply(runtime) }
+Hecks.capability :chat_agent do
+  description "AI chat agent wired to domain commands via ai_responder annotations"
+  on_apply do |runtime|
+    Hecks::Capabilities::ChatAgent.apply(runtime)
+  end
+end

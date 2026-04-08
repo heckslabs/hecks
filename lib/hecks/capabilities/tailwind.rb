@@ -16,6 +16,8 @@
 #     end
 #   end
 #
+require_relative "dsl"
+
 module Hecks
   module Capabilities
     # Hecks::Capabilities::Tailwind
@@ -59,12 +61,14 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:tailwind) { |runtime| Hecks::Capabilities::Tailwind.apply(runtime) }
-
-Hecks.describe_capability(:tailwind,
-  description: "CSS compilation via tailwindcss --watch",
-  config: {
-    input: { default: "assets/css/app.css", desc: "Tailwind input CSS" },
-    output: { default: "assets/css/tailwind.css", desc: "Compiled output CSS" },
-    content: { default: ["views/**/*.html", "assets/js/**/*.js"], desc: "Content paths to scan" }
-  })
+Hecks.capability :tailwind do
+  description "CSS compilation via tailwindcss --watch"
+  config do
+    input "assets/css/app.css", desc: "Tailwind input CSS"
+    output "assets/css/tailwind.css", desc: "Compiled output CSS"
+    content ["views/**/*.html", "assets/js/**/*.js"], desc: "Content paths to scan"
+  end
+  on_apply do |runtime|
+    Hecks::Capabilities::Tailwind.apply(runtime)
+  end
+end

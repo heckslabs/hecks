@@ -11,6 +11,7 @@
 #
 # Generates: HECKS_README.md in Dir.pwd
 #
+require_relative "dsl"
 require_relative "readme/generator"
 
 module Hecks
@@ -31,8 +32,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:readme) { |runtime| Hecks::Capabilities::Readme.apply(runtime) }
-
-Hecks.describe_capability(:readme,
-  description: "Auto-generate HECKS_README.md from domain IR on boot",
-  config: {})
+Hecks.capability :readme do
+  description "Auto-generate HECKS_README.md from domain IR on boot"
+  on_apply do |runtime|
+    Hecks::Capabilities::Readme.apply(runtime)
+  end
+end

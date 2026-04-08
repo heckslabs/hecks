@@ -8,6 +8,7 @@
 #     capabilities :project_discovery
 #   end
 #
+require_relative "dsl"
 require_relative "project_discovery/bridge"
 
 module Hecks
@@ -27,8 +28,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:project_discovery) { |runtime| Hecks::Capabilities::ProjectDiscovery.apply(runtime) }
-
-Hecks.describe_capability(:project_discovery,
-  description: "Discover and boot Hecks projects from the filesystem",
-  config: {})
+Hecks.capability :project_discovery do
+  description "Discover and boot Hecks projects from the filesystem"
+  on_apply do |runtime|
+    Hecks::Capabilities::ProjectDiscovery.apply(runtime)
+  end
+end

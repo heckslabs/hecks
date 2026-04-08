@@ -14,8 +14,6 @@
 #     end
 #   end
 #
-require "ostruct"
-
 module Hecks
   module Capabilities
     # Hecks::Capabilities::DSL
@@ -54,21 +52,6 @@ module Hecks
         end
 
         Hecks.describe_capability(name, description: @description, config: schema)
-      end
-
-      def self.resolve_config(name, schema)
-        world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
-        world_values = world ? world.config_for(name) : {}
-
-        merged = {}
-        schema.each do |key, opts|
-          merged[key] = world_values.key?(key) ? world_values[key] : opts[:default]
-        end
-
-        # Also include any world keys not in schema
-        world_values.each { |k, v| merged[k] = v unless merged.key?(k) }
-
-        OpenStruct.new(merged)
       end
     end
 

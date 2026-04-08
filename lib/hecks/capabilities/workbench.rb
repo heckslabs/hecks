@@ -16,6 +16,7 @@
 #     Pizza.show_workbench.workbench
 #   end
 #
+require_relative "dsl"
 require_relative "workbench/repl_generator"
 require_relative "workbench/query_handler"
 
@@ -102,8 +103,9 @@ module Hecks
   end
 end
 
-Hecks.register_capability(:workbench) { |runtime| Hecks::Capabilities::Workbench.apply(runtime) }
-
-Hecks.describe_capability(:workbench,
-  description: "Interactive domain REPL — attach to commands via hecksagon annotations",
-  config: {})
+Hecks.capability :workbench do
+  description "Interactive domain REPL — attach to commands via hecksagon annotations"
+  on_apply do |runtime|
+    Hecks::Capabilities::Workbench.apply(runtime)
+  end
+end
