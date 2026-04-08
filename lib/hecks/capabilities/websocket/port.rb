@@ -2,13 +2,12 @@
 #
 # Runtime-facing WebSocket port. Dispatches incoming commands
 # through the command bus and broadcasts domain events to all
-# connected clients. Transport-agnostic — the actual WS library
-# is provided by a swappable adapter.
+# connected clients. Supports multi-runtime dispatch — commands
+# can target project runtimes by including a "project" field.
 #
 #   port = Websocket::Port.new(runtime)
-#   port.handle_open(client)
-#   port.handle_message(client, '{"type":"command",...}')
-#   port.broadcast_event(domain_event)
+#   port.add_runtime("pizzas", pizzas_runtime)
+#   port.handle_message(client, '{"type":"command","project":"pizzas",...}')
 #
 require "json"
 
@@ -17,50 +16,56 @@ module Hecks
     module Websocket
       # Hecks::Capabilities::Websocket::Port
       #
-      # Transport-agnostic WebSocket port for the runtime command/event buses.
+      # Multi-runtime WebSocket port for command dispatch and event broadcast.
       #
       class Port
         attr_reader :clients
 
         def initialize(runtime)
           @runtime = runtime
+          @project_runtimes = {}
           @clients = []
           @on_connect_hooks = []
         end
 
-        # Register a hook called when a new client connects.
+        # Register a project runtime for play-mode dispatch.
         #
-        # @yield [client] called with the new connection
+        # @param name [String] project name
+        # @param runtime [Hecks::Runtime] the booted runtime
+        def add_runtime(name, runtime)
+          @project_runtimes[name] = runtime
+          runtime.event_bus.on_any { |event| broadcast_event(event, project: name) }
+        end
+
         def on_connect(&block)
           @on_connect_hooks << block
         end
 
-        # A client connected.
-        #
-        # @param client [Object] must respond to #send(string)
         def handle_open(client)
           @clients << client
           @on_connect_hooks.each { |hook| hook.call(client) }
         end
 
-        # A client disconnected.
-        #
-        # @param client [Object]
         def handle_close(client)
           @clients.delete(client)
         end
 
         # Parse and dispatch an incoming command frame.
-        #
-        # @param client [Object] the sending connection
-        # @param raw [String] raw JSON string
+        # If "project" is set, dispatch to that project's runtime.
+        # Otherwise dispatch to the IDE runtime.
         def handle_message(client, raw)
           msg = JSON.parse(raw, symbolize_names: true)
           return unless msg[:type] == "command"
 
           command_name = msg[:command].to_s
           args = (msg[:args] || {}).transform_keys(&:to_sym)
-          @runtime.command_bus.dispatch(command_name, **args)
+          project = msg[:project]&.to_s
+
+          if project && @project_runtimes[project]
+            @project_runtimes[project].command_bus.dispatch(command_name, **args)
+          else
+            @runtime.command_bus.dispatch(command_name, **args)
+          end
         rescue JSON::ParserError
           send_json(client, { type: "error", message: "Invalid JSON" })
         rescue => e
@@ -68,24 +73,19 @@ module Hecks
         end
 
         # Push a domain event to all connected clients.
-        #
-        # @param event [Object] a domain event instance
-        def broadcast_event(event)
+        def broadcast_event(event, project: nil)
           event_name = Hecks::Utils.const_short_name(event)
           agg_name = infer_aggregate(event)
           payload = JSON.generate({
             type: "event",
             event: event_name,
             aggregate: agg_name,
+            project: project,
             data: event_to_hash(event)
           })
           @clients.each { |c| c.send(payload) rescue nil }
         end
 
-        # Send a JSON message to a single client.
-        #
-        # @param client [Object]
-        # @param hash [Hash]
         def send_json(client, hash)
           client.send(JSON.generate(hash))
         rescue

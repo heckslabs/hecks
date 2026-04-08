@@ -11,6 +11,54 @@ module Hecks
     module Appeal
       module WorkbenchSessionParagraph
         def self.define(b)
+          b.aggregate "Workbench" do
+            description "Live domain interaction. Select a project, execute commands, inspect state."
+            attribute :active_project, String
+            attribute :active_aggregate, String
+
+            command "ShowWorkbench" do
+              description "Open the workbench REPL for this domain"
+              emits "WorkbenchShown"
+            end
+
+            command "SelectProject" do
+              description "Set the active project for command dispatch"
+              attribute :project_name, String
+              emits "ProjectSelected"
+            end
+
+            command "SelectAggregate" do
+              description "Set the active aggregate for inspection"
+              attribute :aggregate_name, String
+              emits "AggregateSelected"
+            end
+
+            command "ExecuteCommand" do
+              description "Dispatch a command against the active project's runtime"
+              attribute :command_name, String
+              attribute :args, String
+              emits "CommandExecuted"
+            end
+
+            command "InspectRepository" do
+              description "List all records in an aggregate's repository"
+              attribute :aggregate_name, String
+              emits "RepositoryInspected"
+            end
+
+            command "FindRecord" do
+              description "Find a single record by ID"
+              attribute :aggregate_name, String
+              attribute :record_id, String
+              emits "RecordFound"
+            end
+
+            command "ShowEventHistory" do
+              description "Show all events for the active project"
+              emits "EventHistoryShown"
+            end
+          end
+
           b.aggregate "Session" do
             description "IDE session with sketch/play modes and WebSocket connection state."
             attribute :mode, String, default: "sketch"

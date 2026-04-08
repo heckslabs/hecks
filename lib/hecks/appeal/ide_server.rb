@@ -44,8 +44,19 @@ module Hecks
         return unless runtime.respond_to?(:websocket)
         port = runtime.websocket
         port.on_connect { |client| push_state(port, client) }
+        register_project_runtimes(port)
         runtime.websocket_adapter.start_async
         puts "WebSocket on ws://localhost:#{runtime.websocket_adapter.instance_variable_get(:@listen_port) rescue "?"}"
+      end
+
+      def register_project_runtimes(port)
+        return unless @bridge
+        @bridge.projects.each do |_path, project|
+          (project[:runtimes] || []).each do |rt|
+            port.add_runtime(project[:name], rt)
+            puts "  [play] #{project[:name]}/#{rt.domain.name} — #{rt.domain.aggregates.size} aggregates"
+          end
+        end
       end
 
       def start_live_reload(runtime)
