@@ -49,26 +49,31 @@ module Hecks
 
         compile_css
 
-        port = Integer(ENV["PORT"] || 4567)
-        server = IdeServer.new(bridge, runtimes, port: port)
+        server = IdeServer.new(bridge, runtimes)
         server.run
       end
 
       def self.boot_appeal(dir)
-        Hecks.load_domain(
+        Hecks.load_bluebook(
           Hecks::Chapters::Appeal.definition,
           skip_validation: true,
           source_dir: dir
         )
         domain = Hecks::Chapters::Appeal.definition
-        runtime = Hecks::Runtime.new(domain)
+
+        # Set root before Runtime.new so capabilities resolve paths correctly
+        appeal_root = File.expand_path("../appeal", __dir__)
+        runtime = Hecks::Runtime.new(domain) do
+          @root = appeal_root
+          define_singleton_method(:root) { @root }
+        end
 
         # Wire the hecksagon's adapter (sqlite) if declared
         hecksagon = runtime.instance_variable_get(:@hecksagon)
         if hecksagon&.persistence
           adapter_type = hecksagon.persistence[:type]
           hook = Hecks.extension_registry[adapter_type]
-          mod = Object.const_get("HecksAppealDomain")
+          mod = Object.const_get("HecksAppealBluebook")
           hook.call(mod, domain, runtime) if hook
         end
 

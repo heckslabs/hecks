@@ -7,4 +7,15 @@ Hecks.world "HecksAppeal" do
   websocket do
     port 4568
   end
+
+  static_assets do
+    port 4567
+    views "views"
+    assets "assets"
+  end
+
+  live_reload do
+    watch_dirs "hecks"
+    debounce 0.5
+  end
 end
