@@ -37,10 +37,16 @@ module Hecks
       # @param name [Symbol] the registered capability name
       # @return [void]
       def capability(name)
-        require "hecks/capabilities/#{name}"
+        load_capability(name)
         hook = Hecks.capability_registry[name.to_sym]
         raise "Unknown capability: #{name}. Available: #{Hecks.capability_registry.keys.join(', ')}" unless hook
         hook.call(self)
+      end
+
+      def load_capability(name)
+        require "hecks/capabilities/#{name}"
+      rescue LoadError
+        require "hecks/concerns/#{name}"
       end
 
       private
