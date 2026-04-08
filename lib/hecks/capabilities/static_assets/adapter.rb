@@ -2,12 +2,12 @@
 #
 # Default HTTP transport adapter using WEBrick. Mounts routes
 # that delegate to the port for file lookup and content-type
-# resolution. Swappable — replace with Puma, Rack, or any
-# server that calls the port methods.
+# resolution. Other capabilities can mount additional routes
+# via the mount method before the server starts.
 #
 #   adapter = StaticAssets::Adapter.new(port)
-#   adapter.start       # blocks, serving requests
-#   adapter.start_async # starts in background thread
+#   adapter.mount("/hecks/docs") { |req, res| res.body = "..." }
+#   adapter.start
 #
 require "webrick"
 
@@ -16,18 +16,28 @@ module Hecks
     module StaticAssets
       # Hecks::Capabilities::StaticAssets::Adapter
       #
-      # Default WEBrick transport. Swappable for Puma, Rack, etc.
+      # Default WEBrick transport with extensible routing.
       #
       class Adapter
         def initialize(port)
           @port = port
+          @extra_routes = {}
         end
 
-        # Start serving static files. Blocks the calling thread.
+        # Mount an additional route on the HTTP server.
+        # Must be called before start.
+        #
+        # @param path [String] URL path (e.g. "/hecks/docs")
+        # @yield [req, res] WEBrick request handler
+        def mount(path, &handler)
+          @extra_routes[path] = handler
+        end
+
+        # Start serving. Blocks the calling thread.
         def start
-          server = build_server
-          trap("INT") { server.shutdown }
-          server.start
+          @server = build_server
+          trap("INT") { @server.shutdown }
+          @server.start
         end
 
         # Start in a background thread.
@@ -46,8 +56,13 @@ module Hecks
             AccessLog: []
           )
 
-          mount_layout(server)
+          # Extra routes first (more specific paths)
+          @extra_routes.each do |path, handler|
+            server.mount_proc(path) { |req, res| handler.call(req, res) }
+          end
+
           mount_assets(server)
+          mount_layout(server)
           server
         end
 
