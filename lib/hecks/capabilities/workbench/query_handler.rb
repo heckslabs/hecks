@@ -17,18 +17,27 @@ module Hecks
       class QueryHandler
         def initialize(runtime)
           @runtime = runtime
+          @project_runtimes = {}
+        end
+
+        # Register a project runtime for workbench queries.
+        def add_runtime(name, runtime)
+          @project_runtimes[name] = runtime
         end
 
         def handle(msg)
+          target = resolve_runtime(msg[:project])
           case msg[:action]&.to_s
           when "inspect"
-            inspect_repo(msg[:aggregate])
+            inspect_repo(target, msg[:aggregate])
           when "find"
-            find_record(msg[:aggregate], msg[:id])
+            find_record(target, msg[:aggregate], msg[:id])
           when "events"
-            event_history
+            event_history(target)
           when "aggregates"
-            list_aggregates
+            list_aggregates(target)
+          when "projects"
+            list_projects
           else
             { error: "Unknown workbench action: #{msg[:action]}" }
           end
@@ -36,8 +45,21 @@ module Hecks
 
         private
 
-        def inspect_repo(aggregate_name)
-          repo = @runtime[aggregate_name]
+        def resolve_runtime(project_name)
+          return @project_runtimes[project_name] if project_name && @project_runtimes[project_name]
+          @project_runtimes.values.first || @runtime
+        end
+
+        def list_projects
+          {
+            projects: @project_runtimes.map { |name, rt|
+              { name: name, domain: rt.domain.name, aggregates: rt.domain.aggregates.size }
+            }
+          }
+        end
+
+        def inspect_repo(target, aggregate_name)
+          repo = target[aggregate_name]
           return { error: "No repository for #{aggregate_name}" } unless repo
           records = repo.respond_to?(:all) ? repo.all : []
           {
@@ -49,8 +71,8 @@ module Hecks
           { error: "#{aggregate_name}: #{e.message}" }
         end
 
-        def find_record(aggregate_name, id)
-          repo = @runtime[aggregate_name]
+        def find_record(target, aggregate_name, id)
+          repo = target[aggregate_name]
           return { error: "No repository for #{aggregate_name}" } unless repo
           record = repo.respond_to?(:find) ? repo.find(id) : nil
           return { error: "Not found: #{aggregate_name}##{id}" } unless record
@@ -59,10 +81,10 @@ module Hecks
           { error: "#{aggregate_name}##{id}: #{e.message}" }
         end
 
-        def event_history
-          events = @runtime.event_bus.events.last(50).reverse
+        def event_history(target)
+          events = target.event_bus.events.last(50).reverse
           {
-            count: @runtime.event_bus.events.size,
+            count: target.event_bus.events.size,
             events: events.map { |e|
               {
                 name: Hecks::Utils.const_short_name(e),
@@ -73,10 +95,10 @@ module Hecks
           }
         end
 
-        def list_aggregates
+        def list_aggregates(target)
           {
-            domain: @runtime.domain.name,
-            aggregates: @runtime.domain.aggregates.map { |a|
+            domain: target.domain.name,
+            aggregates: target.domain.aggregates.map { |a|
               {
                 name: a.name,
                 commands: a.commands.map(&:name),

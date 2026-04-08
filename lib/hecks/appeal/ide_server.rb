@@ -51,9 +51,12 @@ module Hecks
 
       def register_project_runtimes(port)
         return unless @bridge
+        runtime = @runtimes.first
         @bridge.projects.each do |_path, project|
           (project[:runtimes] || []).each do |rt|
             port.add_runtime(project[:name], rt)
+            # Also register with workbench handler if available
+            runtime.workbench.add_runtime(project[:name], rt) if runtime&.respond_to?(:workbench)
             puts "  [play] #{project[:name]}/#{rt.domain.name} — #{rt.domain.aggregates.size} aggregates"
           end
         end
