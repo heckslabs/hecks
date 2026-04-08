@@ -59,9 +59,9 @@ module Hecksagon
         @values = {}
       end
 
-      def method_missing(key, value = nil)
-        @values[key.to_sym] = value
-        value
+      def method_missing(key, *values)
+        @values[key.to_sym] = values.size == 1 ? values.first : values
+        @values[key.to_sym]
       end
 
       def respond_to_missing?(_, _ = false) = true

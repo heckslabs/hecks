@@ -37,9 +37,15 @@ module Hecks
             end
 
             command "DiscoverProjects" do
-              description "Scan a directory for hecks apps -- looks for bluebook.hec files"
+              description "Scan a directory for hecks apps -- looks for hecks/*.bluebook"
               attribute :search_path, String
               emits "ProjectsDiscovered"
+            end
+
+            command "LoadProjects" do
+              description "Discover and open all projects in a directory"
+              attribute :search_path, String
+              emits "ProjectsLoaded"
             end
 
             validation :name, presence: true

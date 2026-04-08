@@ -16,25 +16,40 @@ module Hecks
     # @return [Hecks::EventBus, nil] the shared bus from the last boot
     attr_reader :shared_event_bus
 
+    # Boot from a directory (hecks/*.bluebook) or a pre-built domain.
+    #
     # @param dir [String] project directory containing hecks/ subdirectory
-    # @return [Array<Hecks::Runtime>]
-    def boot(dir = Dir.pwd)
+    # @param domain [BluebookModel::Structure::Bluebook] pre-built domain IR (skips file discovery)
+    # @param root [String] root path for capabilities to resolve relative paths
+    # @param source_dir [String] directory for companion files (hecksagon.hec, world.hec)
+    # @return [Hecks::Runtime, Array<Hecks::Runtime>]
+    def boot(dir = Dir.pwd, domain: nil, root: nil, source_dir: nil)
       require "hecks/runtime/load_extensions"
       LoadExtensions.require_auto
 
-      hecks_dir = File.join(dir, "hecks")
-      raise Hecks::BluebookLoadError, "No hecks/ directory in #{dir}" unless File.directory?(hecks_dir)
+      if domain
+        # Boot from pre-built domain (chapter-based)
+        load_bluebook(domain, source_dir: source_dir)
+        domains = [domain]
+      else
+        # Boot from hecks/*.bluebook files
+        hecks_dir = File.join(dir, "hecks")
+        raise Hecks::BluebookLoadError, "No hecks/ directory in #{dir}" unless File.directory?(hecks_dir)
 
-      bluebooks = find_domain_files(hecks_dir)
-      raise Hecks::BluebookLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
+        bluebooks = find_domain_files(hecks_dir)
+        raise Hecks::BluebookLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
 
-      find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
-      find_world_files(hecks_dir).each { |f| Kernel.load(f) }
+        find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
+        find_world_files(hecks_dir).each { |f| Kernel.load(f) }
 
-      domains = bluebooks.map { |path| Kernel.load(path); Hecks.last_domain }
-      domains.each { |d| load_stubs(dir, d) }
-      runtimes = boot_domains(domains)
-      autoload_services(dir)
+        domains = bluebooks.map { |path| Kernel.load(path); Hecks.last_domain }
+        domains.each { |d| load_stubs(dir, d) }
+      end
+
+      boot_root = root || dir
+      runtimes = boot_domains(domains, root: boot_root)
+      wire_persistence(runtimes)
+      autoload_services(dir) unless domain
       runtimes.size == 1 ? runtimes.first : runtimes
     end
 
@@ -88,7 +103,7 @@ module Hecks
     #
     # @param domains [Array<BluebookModel::Structure::Domain>]
     # @return [Array<Runtime>]
-    def boot_domains(domains)
+    def boot_domains(domains, root: nil)
       require "hecks_multidomain"
       Hecks::MultiDomain::Validator.validate_no_cross_domain_references(domains)
       domains.each { |d| load_bluebook(d) }
@@ -98,7 +113,13 @@ module Hecks
       directionality = Hecks::MultiDomain::Directionality.build(domains)
       runtimes = domains.map do |domain|
         bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, bluebook_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
-        Runtime.new(domain, event_bus: bus)
+        rt_root = root
+        Runtime.new(domain, event_bus: bus) {
+          if rt_root
+            @root = rt_root
+            define_singleton_method(:root) { @root }
+          end
+        }
       end
       Hecks::MultiDomain::QueueWiring.wire(domains, runtimes)
 
@@ -108,6 +129,19 @@ module Hecks
       end
 
       runtimes
+    end
+
+    # Wire persistence from hecksagon if declared.
+    def wire_persistence(runtimes)
+      runtimes.each do |rt|
+        hecksagon = rt.instance_variable_get(:@hecksagon)
+        next unless hecksagon&.persistence
+        hook = Hecks.extension_registry[hecksagon.persistence[:type]]
+        next unless hook
+        mod_name = bluebook_module_name(rt.domain.name)
+        mod = Object.const_get(mod_name)
+        hook.call(mod, rt.domain, rt)
+      end
     end
 
     def load_stubs(dir, domain)
