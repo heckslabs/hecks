@@ -1,22 +1,25 @@
-Hecks.domain "Billing" do
-  aggregate "Invoice" do
+Hecks.domain "Shipping" do
+  aggregate "Shipment" do
     attribute :pizza, String
     attribute :quantity, Integer
     attribute :status, String
 
-    query "Pending" do
+    query "ReadyToShip" do
       where(status: "pending")
     end
 
-    command "CreateInvoice" do
+    command "CreateShipment" do
       attribute :pizza, String
       attribute :quantity, Integer
     end
 
-    policy "BillOnOrder" do
+    command "ShipShipment" do
+      reference_to "Shipment"
+      end
+
+    policy "ShipOnOrder" do
       on "PlacedOrder"
-      trigger "CreateInvoice"
+      trigger "CreateShipment"
     end
   end
 end
-

@@ -1,0 +1,10 @@
+Hecks.world "HecksAppeal" do
+  claude do
+    model "sonnet"
+    max_tokens 4096
+  end
+
+  websocket do
+    port 4568
+  end
+end

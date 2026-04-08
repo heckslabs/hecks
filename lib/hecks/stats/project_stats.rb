@@ -86,7 +86,7 @@ module Hecks::Stats
     private
 
     def find_domain_files
-      Dir[File.join(@root, "**/Bluebook")].sort
+      Dir[File.join(@root, "**/hecks/*.bluebook")].sort
     end
 
     def aggregate_references(domain_data)

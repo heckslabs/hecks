@@ -19,7 +19,7 @@ Hecks.domain "RiskAssessment" do
       attribute :status, String
 
       invariant "severity must be valid" do
-        
+
       end
     end
 

@@ -50,9 +50,24 @@ module Hecks
     # @return [Hecksagon::Structure::Hecksagon] the fully built Hecksagon IR object
     def hecksagon(name = nil, &block)
       builder = Hecksagon::DSL::HecksagonBuilder.new(name)
-      builder.instance_eval(&block)
+      with_annotation_constants(builder) { builder.instance_eval(&block) }
       result = builder.build
       Hecks.last_hecksagon = result
+      result
+    end
+
+    # Define runtime configuration for extensions and adapters. Evaluates the
+    # given block inside a WorldBuilder, which collects per-extension config
+    # hashes. The World file sits alongside the Bluebook and Hecksagon files.
+    #
+    # @param name [String, nil] the domain name
+    # @param block [Proc] DSL block evaluated inside Hecksagon::DSL::WorldBuilder
+    # @return [Hecksagon::Structure::World] the fully built World IR object
+    def world(name = nil, &block)
+      builder = Hecksagon::DSL::WorldBuilder.new(name)
+      builder.instance_eval(&block)
+      result = builder.build
+      Hecks.last_world = result
       result
     end
 
@@ -107,6 +122,30 @@ module Hecks
       agg = domain.aggregates.find { |a| a.name == aggregate_name }
       raise "Unknown aggregate: #{aggregate_name}" unless agg
       Generators::Domain::AggregateGenerator.new(agg, domain_module: mod).generate
+    end
+
+    private
+
+    # Temporarily intercept constant resolution so PascalCase names in
+    # hecksagon blocks (e.g. Collaboration.Agent.content) resolve as
+    # annotation selectors instead of raising NameError.
+    def with_annotation_constants(builder)
+      annotations = builder.instance_variable_get(:@annotations)
+      selector_class = Hecksagon::DSL::AnnotationSelector
+      saved = Object.method(:const_missing) rescue nil
+      Object.define_singleton_method(:const_missing) do |name|
+        if Thread.current[:_hecksagon_eval]
+          selector_class.new(annotations, name.to_s)
+        elsif saved
+          saved.call(name)
+        else
+          super(name)
+        end
+      end
+      Thread.current[:_hecksagon_eval] = true
+      yield
+    ensure
+      Thread.current[:_hecksagon_eval] = false
     end
   end
 end

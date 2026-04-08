@@ -1,0 +1,21 @@
+Hecks.domain "Billing" do
+  aggregate "Invoice" do
+    attribute :pizza, String
+    attribute :quantity, Integer
+    attribute :status, String
+
+    query "Pending" do
+      where(status: "pending")
+    end
+
+    command "CreateInvoice" do
+      attribute :pizza, String
+      attribute :quantity, Integer
+    end
+
+    policy "BillOnOrder" do
+      on "PlacedOrder"
+      trigger "CreateInvoice"
+    end
+  end
+end

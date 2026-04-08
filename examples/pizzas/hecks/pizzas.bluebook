@@ -22,7 +22,7 @@ Hecks.domain "Pizzas" do
     end
     command "AddTopping" do
       description "Add a measured topping to an existing pizza"
-      reference_to "Pizza", validate: :exists
+      reference_to "Pizza"
       attribute :name, String
       attribute :amount, Integer
     end
@@ -50,14 +50,14 @@ Hecks.domain "Pizzas" do
     validation :customer_name, presence: true
     command "PlaceOrder" do
       description "Place a new order for a pizza"
-      reference_to "Pizza", validate: :exists
+      reference_to "Pizza"
       attribute :customer_name, String
       attribute :quantity, Integer
     end
     command "CancelOrder" do
       description "Cancel a pending order, transitioning status to cancelled"
-      reference_to "Order", validate: :exists
-    end
+      reference_to "Order"
+      end
     query "Pending" do
       where(status: "pending")
     end

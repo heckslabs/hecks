@@ -31,7 +31,7 @@ book = Hecks.bluebook "PizzaShop" do
       attribute :quantity, Integer
 
       command "PlaceOrder" do
-        reference_to "Pizza", validate: false
+        reference_to "Pizza"
         attribute :quantity, Integer
       end
     end

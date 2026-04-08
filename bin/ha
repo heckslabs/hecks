@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+# ha -- HecksAppeal IDE launcher
+#
+# Boots the HecksAppeal web IDE. Discovers hecks projects in the
+# given directory (or current directory) and opens the browser.
+#
+#   ha                    # serve current directory
+#   ha /path/to/project   # serve specific project
+#   ha setup              # symlink to /usr/local/bin
+#
+
+ha_root = File.expand_path("../../", __FILE__)
+
+if ARGV[0] == "setup"
+  target = "/usr/local/bin/ha"
+  source = File.expand_path(__FILE__)
+  if File.exist?(target)
+    puts "ha is already installed at #{target}"
+  else
+    File.symlink(source, target)
+    puts "Installed ha -> #{target}"
+    puts "You can now run 'ha' from any directory"
+  end
+  exit
+end
+
+# Use appeal's own Gemfile for websocket, tailwind, etc.
+appeal_gemfile = File.join(ha_root, "lib", "hecks", "appeal", "Gemfile")
+ENV["BUNDLE_GEMFILE"] = appeal_gemfile if File.exist?(appeal_gemfile)
+require "bundler/setup"
+
+# Load .env if present
+env_file = File.join(ha_root, ".env")
+if File.exist?(env_file)
+  File.readlines(env_file).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+    key, value = line.split("=", 2)
+    ENV[key] = value unless ENV.key?(key)
+  end
+end
+
+# Boot the server
+$LOAD_PATH.unshift(File.join(ha_root, "lib"))
+require "hecks/appeal/server"
+Hecks::Appeal::Server.run(ARGV)

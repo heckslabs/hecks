@@ -114,6 +114,10 @@ module Hecks
             command("Launch") { attribute :args, String }
           end
 
+          b.aggregate "AppealCommand", "Launches the HecksAppeal IDE server" do
+            command("Launch") { attribute :path, String }
+          end
+
           b.aggregate "NewProjectCommand", "Scaffolds a new Hecks domain project" do
             command("Create") { attribute :project_name, String }
           end

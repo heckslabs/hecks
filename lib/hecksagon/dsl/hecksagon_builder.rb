@@ -8,19 +8,20 @@ module Hecksagon
     #
     #   builder = HecksagonBuilder.new("Pizzas")
     #   builder.gate("Pizza", :admin) { allow :find, :all }
-    #   builder.adapter :sqlite, database: "app.db"
+    #   builder.persistence :sqlite, database: "app.db"
     #   hex = builder.build
     #
     class HecksagonBuilder
       def initialize(name = nil)
         @name = name
         @gates = []
-        @adapter = nil
+        @persistence = nil
         @extensions = []
         @subscriptions = []
         @tenancy = nil
         @capabilities = []
         @aggregate_capabilities = {}
+        @annotations = []
       end
 
       # Declare a gate (access control) for an aggregate + role.
@@ -37,11 +38,11 @@ module Hecksagon
 
       # Configure the persistence adapter.
       #
-      # @param type [Symbol] adapter type (:memory, :sqlite, :postgres, etc.)
+      # @param type [Symbol] adapter type (:sqlite, :postgres, etc.)
       # @param options [Hash] adapter-specific options (e.g., database:, host:)
       # @return [void]
-      def adapter(type, **options)
-        @adapter = { type: type }.merge(options)
+      def persistence(type, **options)
+        @persistence = { type: type }.merge(options)
       end
 
       # Register an extension.
@@ -95,6 +96,22 @@ module Hecksagon
         @tenancy = strategy.to_sym
       end
 
+      # Handle PascalCase names as aggregate annotation chains.
+      # Enables: Chat.prompt.ai_responder adapter: :claude
+      #
+      # @return [AnnotationSelector]
+      def method_missing(name, *args, &block)
+        if name.to_s.match?(/\A[A-Z]/)
+          AnnotationSelector.new(@annotations, name.to_s)
+        else
+          super
+        end
+      end
+
+      def respond_to_missing?(name, _ = false)
+        name.to_s.match?(/\A[A-Z]/) || super
+      end
+
       # Build and return the Hecksagon IR object.
       #
       # @return [Hecksagon::Structure::Hecksagon]
@@ -102,12 +119,13 @@ module Hecksagon
         Structure::Hecksagon.new(
           name: @name,
           gates: @gates,
-          adapter: @adapter,
+          persistence: @persistence,
           extensions: @extensions,
           subscriptions: @subscriptions,
           tenancy: @tenancy,
           capabilities: @capabilities,
-          aggregate_capabilities: @aggregate_capabilities
+          aggregate_capabilities: @aggregate_capabilities,
+          annotations: @annotations
         )
       end
     end

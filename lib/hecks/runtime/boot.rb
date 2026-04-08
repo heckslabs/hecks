@@ -1,127 +1,47 @@
-
 # Hecks::Boot
 #
-# Loads a domain from a directory, validates, builds, and wires a Runtime.
-# Single domain: expects Bluebook. Multi-domain: expects hecks_domains/.
+# Loads all .bluebook domains from a hecks/ directory, validates, builds,
+# and wires Runtimes with shared event bus and extensions.
 #
-#   app = Hecks.boot(__dir__)
-#   app = Hecks.boot(__dir__, adapter: :sqlite)
+#   runtimes = Hecks.boot(__dir__)
 #
 module Hecks
   # Hecks::Boot
   #
-  # Loads a domain from a directory, validates, builds, and wires a Runtime for single or multi-domain setups.
+  # Boots all domains from the hecks/ directory in a project.
   #
   module Boot
     include HecksTemplating::NamingHelpers
 
-    # @return [Hecks::EventBus, nil] the shared bus from the last multi-domain boot
+    # @return [Hecks::EventBus, nil] the shared bus from the last boot
     attr_reader :shared_event_bus
 
-    # @param dir [String] directory containing Bluebook or hecks_domains/
-    # @param adapter [Symbol, Hash] persistence adapter (:memory, :sqlite, etc.)
-    # @yield optional block on domain module for declaring connections
-    # @return [Hecks::Runtime, Array<Hecks::Runtime>]
-    def boot(dir = Dir.pwd, adapter: :memory, &block)
+    # @param dir [String] project directory containing hecks/ subdirectory
+    # @return [Array<Hecks::Runtime>]
+    def boot(dir = Dir.pwd)
       require "hecks/runtime/load_extensions"
       LoadExtensions.require_auto
 
-      multi_dir = find_domains_dir(dir)
-      if multi_dir
-        require "hecks_multidomain"
-        return boot_multi(dir, multi_dir, adapter: adapter, &block)
-      end
+      hecks_dir = File.join(dir, "hecks")
+      raise Hecks::DomainLoadError, "No hecks/ directory in #{dir}" unless File.directory?(hecks_dir)
 
-      # Check for single-file Bluebook composition (Hecks.bluebook)
-      bluebook_ir = detect_bluebook_file(dir)
-      if bluebook_ir
-        runtimes = boot_domains(bluebook_ir.chapters)
-        autoload_services(dir)
-        return runtimes
-      end
+      bluebooks = find_domain_files(hecks_dir)
+      raise Hecks::DomainLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
 
-      domain, mod = load_single_domain(dir)
-      mod.instance_eval(&block) if block
-      runtime = Runtime.new(domain)
-      wire_persistence(mod, domain, runtime, adapter)
-      fire_extensions(mod, domain, runtime)
+      find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
+      find_world_files(hecks_dir).each { |f| Kernel.load(f) }
+
+      domains = bluebooks.map { |path| Kernel.load(path); Hecks.last_domain }
+      domains.each { |d| load_stubs(dir, d) }
+      runtimes = boot_domains(domains)
       autoload_services(dir)
-      runtime
+      runtimes.size == 1 ? runtimes.first : runtimes
     end
 
     private
 
     def persistence_extension?(name)
       Hecks.adapter?(name)
-    end
-
-    # Detect a single Bluebook file that uses Hecks.bluebook (not Hecks.domain).
-    # Returns the BluebookStructure IR if found, nil otherwise.
-    def detect_bluebook_file(dir)
-      bluebooks = find_domain_files(dir)
-      bluebooks = find_domain_files(File.join(dir, "bluebook")) if bluebooks.empty?
-      return nil if bluebooks.empty?
-
-      # Check if the file content uses Hecks.bluebook
-      bluebooks.each do |bluebook_file|
-        content = File.read(bluebook_file)
-        next unless content.include?("Hecks.bluebook")
-        Hecks.last_bluebook = nil
-        Kernel.load(bluebook_file)
-        return Hecks.last_bluebook if Hecks.last_bluebook
-      end
-      nil
-    end
-
-    def find_domains_dir(dir)
-      candidates = [File.join(dir, "hecks_domains"), File.join(dir, "domains")]
-      found = candidates.find { |domain_dir| File.directory?(domain_dir) }
-      return found if found
-
-      # bluebook/ subfolder with multiple domain files = multi-domain
-      bluebook_dir = File.join(dir, "bluebook")
-      return bluebook_dir if File.directory?(bluebook_dir) && find_domain_files(bluebook_dir).size > 1
-
-      nil
-    end
-
-    def load_single_domain(dir)
-      # Look for .hec files or *Bluebook at root, then in bluebook/ subfolder
-      bluebooks = find_domain_files(dir)
-      bluebooks = find_domain_files(File.join(dir, "bluebook")) if bluebooks.empty?
-      raise Hecks::DomainLoadError, "No .hec or Bluebook found in #{dir}" if bluebooks.empty?
-
-      bluebooks.each { |bluebook_file| Kernel.load(bluebook_file) }
-      domain = Hecks.last_domain
-      domain.source_path = bluebooks.first
-
-      # Auto-discover and load Hecksagon file
-      hecksagons = find_hecksagon_files(dir)
-      hecksagons = find_hecksagon_files(File.join(dir, "bluebook")) if hecksagons.empty?
-      hecksagons.each { |hecksagon_file| Kernel.load(hecksagon_file) }
-
-      mod = load_domain(domain)
-      load_stubs(dir, domain)
-      mod.extend(Hecks::DomainConnections) unless mod.respond_to?(:connections)
-      [domain, mod]
-    end
-
-    def wire_persistence(mod, domain, runtime, adapter)
-      persist = mod.connections[:persist] || {}
-      boot_cfg = adapter == :memory ? nil : normalize_adapter(adapter)
-      effective = persist[:default] || persist.values.first || boot_cfg
-      return unless effective
-
-      hook = Hecks.extension_registry[effective[:type]]
-      if hook
-        hook.call(mod, domain, runtime)
-      elsif effective[:type] == :mongodb
-        require "hecks_mongodb"
-        boot_with_mongo(domain, effective, runtime)
-      elsif sql_adapter_type?(effective[:type])
-        require "hecks_persist/sql_boot"
-        boot_with_sql(domain, effective, runtime)
-      end
     end
 
     def fire_extensions(mod, domain, runtime)
@@ -163,22 +83,8 @@ module Hecks
       Dir[File.join(services_dir, "*.rb")].sort.each { |service_file| require service_file }
     end
 
-    def boot_multi(dir, domains_dir, adapter: :memory, &block)
-      # Support .hec, *Bluebook, and .rb files
-      domain_files = find_domain_files(domains_dir)
-      domain_files = Dir[File.join(domains_dir, "*.rb")].sort if domain_files.empty?
-      raise Hecks::DomainLoadError, "No .hec or .rb files in #{domains_dir}" if domain_files.empty?
-
-      domains = domain_files.map { |path| eval(File.read(path), nil, path, 1) }
-      domains.each { |domain| load_stubs(dir, domain) }
-      runtimes = boot_domains(domains)
-      autoload_services(dir)
-      runtimes
-    end
-
-    # Core multi-domain boot: takes an array of Domain IRs, validates,
-    # compiles, wires event buses and cross-domain queues, fires extensions.
-    # Used by boot_multi (file-based) and open (Bluebook IR-based).
+    # Boot all domains: validates, compiles, wires event buses and
+    # cross-domain queues, fires extensions.
     #
     # @param domains [Array<DomainModel::Structure::Domain>]
     # @return [Array<Runtime>]
@@ -220,46 +126,20 @@ module Hecks
       )
     end
 
-    # Find domain files: *.hec (excluding hecksagon) > *Bluebook
+    # Find domain definition files: *.bluebook
     def find_domain_files(dir)
-      hec = Dir[File.join(dir, "*.hec")].reject { |f| File.basename(f).match?(/hecksagon/i) }.sort
-      return hec unless hec.empty?
-      find_by_patterns(dir, "Bluebook", "*Bluebook")
+      Dir[File.join(dir, "*.bluebook")].sort
     end
 
-    # Find hecksagon files: *hecksagon.hec > *Hecksagon > Hexagon
+    # Find hecksagon files: hecksagon.hec
     def find_hecksagon_files(dir)
-      hec = Dir[File.join(dir, "*hecksagon.hec")].sort
-      return hec unless hec.empty?
-      find_by_patterns(dir, "*Hecksagon", "Hexagon")
+      Dir[File.join(dir, "hecksagon.hec")].sort
     end
 
-    def find_by_patterns(dir, *patterns)
-      patterns.each do |pattern|
-        files = Dir[File.join(dir, pattern)].sort
-        return files unless files.empty?
-      end
-      []
+    # Find world files: world.hec
+    def find_world_files(dir)
+      Dir[File.join(dir, "world.hec")].sort
     end
 
-    def normalize_adapter(adapter)
-      adapter.respond_to?(:to_hash) ? adapter : { type: adapter }
-    end
-
-    def sql_adapter_type?(type)
-      %i[sqlite postgres mysql mysql2].include?(type)
-    end
-
-    def boot_with_sql(domain, adapter_config, runtime)
-      db = SqlBoot.connect(adapter_config)
-      adapters = SqlBoot.setup(domain, db)
-      adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
-    end
-
-    def boot_with_mongo(domain, adapter_config, runtime)
-      client = MongoBoot.connect(adapter_config)
-      adapters = MongoBoot.setup(domain, client)
-      adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
-    end
   end
 end

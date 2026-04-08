@@ -21,6 +21,7 @@ module Hecksagon
         @tenancy = nil
         @capabilities = []
         @aggregate_capabilities = {}
+        @annotations = []
       end
 
       # Declare a gate (access control) for an aggregate + role.
@@ -95,6 +96,22 @@ module Hecksagon
         @tenancy = strategy.to_sym
       end
 
+      # Handle PascalCase names as aggregate annotation chains.
+      # Enables: Chat.prompt.ai_responder adapter: :claude
+      #
+      # @return [AnnotationSelector]
+      def method_missing(name, *args, &block)
+        if name.to_s.match?(/\A[A-Z]/)
+          AnnotationSelector.new(@annotations, name.to_s)
+        else
+          super
+        end
+      end
+
+      def respond_to_missing?(name, _ = false)
+        name.to_s.match?(/\A[A-Z]/) || super
+      end
+
       # Build and return the Hecksagon IR object.
       #
       # @return [Hecksagon::Structure::Hecksagon]
@@ -107,7 +124,8 @@ module Hecksagon
           subscriptions: @subscriptions,
           tenancy: @tenancy,
           capabilities: @capabilities,
-          aggregate_capabilities: @aggregate_capabilities
+          aggregate_capabilities: @aggregate_capabilities,
+          annotations: @annotations
         )
       end
     end

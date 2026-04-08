@@ -33,6 +33,10 @@ doc/
 bad_domain/
 screenshots/
 .agents/
+.env
+lib/hecks/appeal/Gemfile.lock
+lib/hecks/appeal/assets/css/tailwind.css
 .claude/skills/
 .claude/ide/screenshots/
 hecks_v0
+.hecks_appeal_state.json

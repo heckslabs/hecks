@@ -9,7 +9,7 @@ A standalone Hecks domain with three runnable scripts demonstrating different fr
 - **`sql_app.rb`** — SQL schema and adapter generation with a live SQLite demo
 
 ```bash
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 ruby -Ilib examples/pizzas/repl_session.rb
 ruby -Ilib examples/pizzas/sql_app.rb
 ```

@@ -11,7 +11,7 @@
 
 require "hecks"
 
-# Boot all domains from bluebook/ subfolder with shared event bus
+# Boot all domains from hecks/ subfolder with shared event bus
 apps = Hecks.boot(__dir__)
 
 # Access the shared inner bus for cross-domain event observation

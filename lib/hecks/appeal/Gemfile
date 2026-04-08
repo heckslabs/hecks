@@ -1,0 +1,8 @@
+source "https://rubygems.org"
+
+gem "hecks", path: "../../.."
+gem "websocket", ">= 1.2"
+gem "tailwindcss-ruby", ">= 4.0"
+gem "webrick"
+gem "sequel"
+gem "sqlite3"

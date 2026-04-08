@@ -60,10 +60,13 @@ module Hecks
     # @param domain [Hecks::DomainModel::Domain] the domain to load
     # @param force [Boolean] reload even if already cached (default false)
     # @param skip_validation [Boolean] skip validation before loading (default false)
+    # @param source_dir [String, nil] directory to auto-discover hecksagon.hec and
+    #   world.hec files from. When provided, loads these companion files the same
+    #   way Hecks.boot does for directory-based projects.
     # @return [Module] the loaded domain module constant (e.g., PizzasDomain)
     # @raise [Hecks::ValidationError] if validation fails and skip_validation is false
     # @raise [Hecks::DomainLoadError] if generated code has syntax or naming errors
-    def load_domain(domain, force: false, skip_validation: false)
+    def load_domain(domain, force: false, skip_validation: false, source_dir: nil)
       mod = domain_module_name(domain.name)
       key = domain.object_id
       return Object.const_get(mod) if !force && loaded_domains[mod] == key && Object.const_defined?(mod)
@@ -75,6 +78,8 @@ module Hecks
         end
       end
 
+      load_companion_files(source_dir) if source_dir
+
       Hecks::Utils.remove_constant(mod.to_sym)
       begin
         InMemoryLoader.load(domain, mod)
@@ -84,6 +89,21 @@ module Hecks
       loaded_domains[mod] = key
       domain_objects[mod] = domain
       Object.const_get(mod)
+    end
+
+    private
+
+    # Load hecksagon and world files from a directory, mirroring the
+    # auto-discovery that Hecks.boot performs for file-based projects.
+    def load_companion_files(dir)
+      hecks_dir = File.directory?(File.join(dir, "hecks")) ? File.join(dir, "hecks") : dir
+      hecksagon = File.join(hecks_dir, "hecksagon.hec")
+      world = File.join(hecks_dir, "world.hec")
+      return unless File.exist?(hecksagon) || File.exist?(world)
+
+      require "hecksagon" unless defined?(Hecksagon)
+      Kernel.load(hecksagon) if File.exist?(hecksagon)
+      Kernel.load(world) if File.exist?(world)
     end
   end
 end

@@ -4,15 +4,13 @@
 #
 # Run from the hecks project root:
 #   ruby -Ilib examples/banking/app.rb
-#   ruby -Ilib examples/banking/app.rb --sqlite
 #
 require "hecks"
 require "ostruct"
 
-adapter = ARGV.include?("--sqlite") ? :sqlite : :memory
-app = Hecks.boot(__dir__, adapter: adapter)
+app = Hecks.boot(__dir__)
 
-puts "=== Banking Domain (#{adapter}) ==="
+puts "=== Banking Domain ==="
 
 # --- Event subscriptions ---
 

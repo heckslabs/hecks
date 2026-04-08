@@ -12,26 +12,28 @@ module Hecksagon
     #   hex = Hecksagon.new(
     #     name: "Pizzas",
     #     gates: [GateDefinition.new(aggregate: "Pizza", role: :admin, allowed_methods: [:find])],
-    #     adapter: { type: :sqlite, database: "app.db" },
+    #     persistence: { type: :sqlite, database: "app.db" },
     #     extensions: [{ name: :audit }],
     #     subscriptions: ["Billing"],
     #     tenancy: :row
     #   )
     #
     class Hecksagon
-      attr_reader :name, :gates, :adapter, :extensions, :subscriptions, :tenancy,
-                  :capabilities, :aggregate_capabilities
+      attr_reader :name, :gates, :persistence, :extensions, :subscriptions, :tenancy,
+                  :capabilities, :aggregate_capabilities, :annotations
 
-      def initialize(name:, gates: [], adapter: nil, extensions: [], subscriptions: [],
-                     tenancy: nil, capabilities: [], aggregate_capabilities: {})
+      def initialize(name:, gates: [], persistence: nil, extensions: [], subscriptions: [],
+                     tenancy: nil, capabilities: [], aggregate_capabilities: {},
+                     annotations: [])
         @name = name
         @gates = gates
-        @adapter = adapter
+        @persistence = persistence
         @extensions = extensions
         @subscriptions = subscriptions
         @tenancy = tenancy
         @capabilities = capabilities
         @aggregate_capabilities = aggregate_capabilities
+        @annotations = annotations
       end
 
       # Returns gates for a specific aggregate.

@@ -1,0 +1,14 @@
+Hecks.hecksagon "HecksAppeal" do
+  persistence :sqlite
+  capabilities :crud, :chat_agent, :websocket
+
+  # AI responder wiring — adapter resolved from World file
+  Collaboration.Agent.content.ai_responder emits: "AgentMessageReceived"
+
+  # Cross-domain event subscriptions
+  subscribe "Authoring"
+  subscribe "Modeling"
+  subscribe "Testing"
+  subscribe "Collaboration"
+  subscribe "Workbench"
+end

@@ -18,13 +18,16 @@
 #
 module Hecksagon
   module DSL
-    autoload :HecksagonBuilder, "hecksagon/dsl/hecksagon_builder"
-    autoload :GateBuilder,      "hecksagon/dsl/gate_builder"
+    autoload :HecksagonBuilder,    "hecksagon/dsl/hecksagon_builder"
+    autoload :GateBuilder,         "hecksagon/dsl/gate_builder"
+    autoload :WorldBuilder,        "hecksagon/dsl/world_builder"
+    autoload :AnnotationSelector,  "hecksagon/dsl/annotation_selector"
   end
 
   module Structure
     autoload :Hecksagon,      "hecksagon/structure/hecksagon"
     autoload :GateDefinition, "hecksagon/structure/gate_definition"
+    autoload :World,          "hecksagon/structure/world"
   end
 
   # Legacy heksagons functionality (merged from heksagons/ gem)

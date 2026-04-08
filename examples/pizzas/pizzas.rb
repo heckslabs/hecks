@@ -2,7 +2,7 @@
 #
 # Pizzas domain — generated from PizzasBluebook
 #
-# Run:  ruby -Ilib examples/pizzas/app.rb
+# Run:  ruby -Ilib examples/pizzas/pizzas.rb
 #
 
 require "hecks"

@@ -44,6 +44,15 @@ module Hecks
     requires: %w[hecks_ai]
   )
 
+  ChapterLoader.register(:appeal,
+    requires: %w[hecks/appeal]
+  ) do
+    Chapters.load_chapter(
+      Chapters::Appeal,
+      base_dirs: [File.expand_path("../../appeal", __dir__)]
+    )
+  end
+
   ChapterLoader.register(:cli,
     requires: %w[hecks_cli/cli]
   )

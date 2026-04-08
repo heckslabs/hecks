@@ -13,12 +13,12 @@ A complete Hecks domain with Pizza and Order aggregates, value objects, commands
 
 All scripts run from the hecks project root:
 
-### app.rb — Application Container
+### pizzas.rb — Application Container
 
 The full workflow: load domain, build gem (CalVer auto-stamped), wire the Application container with memory adapters, use the ActiveRecord-style API, and collection proxies.
 
 ```
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 ```
 
 What it demonstrates:

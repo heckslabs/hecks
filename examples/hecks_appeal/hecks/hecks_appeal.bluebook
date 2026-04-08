@@ -18,8 +18,8 @@ Hecks.domain "HecksAppeal" do
 
     command "CloseProject" do
       description "Close the current project and release resources"
-      reference_to "Project", validate: :exists
-    end
+      reference_to "Project"
+      end
 
     validation :name, presence: true
     validation :path, presence: true
@@ -36,13 +36,13 @@ Hecks.domain "HecksAppeal" do
 
     command "EnterSketch" do
       description "Switch to sketch mode for editing domain structure"
-      reference_to "Session", validate: :exists
-    end
+      reference_to "Session"
+      end
 
     command "EnterPlay" do
       description "Switch to play mode for executing domain commands"
-      reference_to "Session", validate: :exists
-    end
+      reference_to "Session"
+      end
   end
 
   aggregate "Document" do
@@ -64,25 +64,25 @@ Hecks.domain "HecksAppeal" do
 
     command "OpenDocument" do
       description "Load a .hec file into the editor"
-      reference_to "Project", validate: :exists
+      reference_to "Project"
       attribute :filename, String
     end
 
     command "EditDocument" do
       description "Apply a text change to the document"
-      reference_to "Document", validate: :exists
+      reference_to "Document"
       attribute :content, String
     end
 
     command "SaveDocument" do
       description "Persist the document back to disk"
-      reference_to "Document", validate: :exists
-    end
+      reference_to "Document"
+      end
 
     command "ValidateDocument" do
       description "Parse and validate the document, producing diagnostics"
-      reference_to "Document", validate: :exists
-    end
+      reference_to "Document"
+      end
 
     validation :filename, presence: true
   end
@@ -102,8 +102,8 @@ Hecks.domain "HecksAppeal" do
 
     command "LoadDomain" do
       description "Parse the project domain and populate the explorer tree"
-      reference_to "Project", validate: :exists
-    end
+      reference_to "Project"
+      end
 
     command "InspectAggregate" do
       description "Show details of an aggregate"
@@ -139,24 +139,24 @@ Hecks.domain "HecksAppeal" do
 
     command "SelectTarget" do
       description "Choose a build target — ruby, go, rails, sinatra"
-      reference_to "Project", validate: :exists
+      reference_to "Project"
       attribute :target, String
     end
 
     command "BuildTarget" do
       description "Generate all code for the selected target"
-      reference_to "Generator", validate: :exists
-    end
+      reference_to "Generator"
+      end
 
     command "PreviewArtifact" do
       description "Show the content of a single generated file"
-      reference_to "Generator", validate: :exists
+      reference_to "Generator"
       attribute :filename, String
     end
 
     command "DiffArtifact" do
       description "Compare generated output against existing file on disk"
-      reference_to "Generator", validate: :exists
+      reference_to "Generator"
       attribute :filename, String
     end
 
@@ -179,7 +179,7 @@ Hecks.domain "HecksAppeal" do
 
     command "ExecuteCommand" do
       description "Run a domain command in the sandbox"
-      reference_to "Project", validate: :exists
+      reference_to "Project"
       attribute :aggregate_name, String
       attribute :command_name, String
       attribute :attributes, String
@@ -187,14 +187,14 @@ Hecks.domain "HecksAppeal" do
 
     command "InspectState" do
       description "View current aggregate state in the sandbox"
-      reference_to "Project", validate: :exists
+      reference_to "Project"
       attribute :aggregate_name, String
     end
 
     command "ResetPlayground" do
       description "Clear all sandbox state and events"
-      reference_to "Project", validate: :exists
-    end
+      reference_to "Project"
+      end
 
     query "RecentEvents" do
       where(timestamp: "recent")
@@ -217,20 +217,20 @@ Hecks.domain "HecksAppeal" do
 
     command "RecordChange" do
       description "Append a change to the timeline"
-      reference_to "Document", validate: :exists
+      reference_to "Document"
       attribute :action, String
       attribute :detail, String
     end
 
     command "Undo" do
       description "Move the cursor back one step and revert the change"
-      reference_to "Timeline", validate: :exists
-    end
+      reference_to "Timeline"
+      end
 
     command "Redo" do
       description "Move the cursor forward and reapply the change"
-      reference_to "Timeline", validate: :exists
-    end
+      reference_to "Timeline"
+      end
   end
 
   aggregate "Notification" do
@@ -249,8 +249,8 @@ Hecks.domain "HecksAppeal" do
 
     command "DismissNotification" do
       description "Mark a notification as seen"
-      reference_to "Notification", validate: :exists
-    end
+      reference_to "Notification"
+      end
 
     query "Active" do
       where(dismissed: "false")
