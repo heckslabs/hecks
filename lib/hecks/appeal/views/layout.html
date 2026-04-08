@@ -124,8 +124,7 @@
       <!-- Right Panel -->
       <aside id="right-panel" role="complementary" aria-label="Right Panel" class="bg-surface border-l border-white/[.12] flex flex-col flex-shrink-0" style="width: 20rem;">
         <div role="tablist" aria-label="Right Panel Tabs" class="h-9 flex bg-surface border-b border-white/[.12]" data-tabgroup="right">
-          <button role="tab" aria-selected="false" aria-controls="panel-agent" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-right-tab="agent">Agent</button>
-          <button role="tab" aria-selected="true" aria-controls="panel-commands" class="px-4 h-9 text-sm text-white/[.87] border-b-2 border-accent bg-white/[.04]" data-right-tab="commands">HA Tests</button>
+          <button role="tab" aria-selected="true" aria-controls="panel-agent" class="px-4 h-9 text-sm text-white/[.87] border-b-2 border-accent bg-white/[.04]" data-right-tab="agent">Agent</button>
         </div>
         <div id="panel-agent" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
           <div class="px-3 py-1.5 border-b border-white/[.12] flex items-center">
@@ -136,11 +135,6 @@
             <label for="agent-input-field" class="sr-only">Message to Claude</label>
             <input type="text" id="agent-input-field" placeholder="Ask about your domain..." aria-label="Message" autocomplete="off" class="flex-1 bg-elevated border border-white/[.12] rounded px-3 py-1.5 text-sm text-white/[.87] placeholder-white/[.38] focus:outline-none focus:border-accent">
             <button aria-label="Send Message" class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="send-message">Send</button>
-          </div>
-        </div>
-        <div id="panel-commands" class="flex-1 flex flex-col overflow-hidden">
-          <div id="command-tester" class="flex-1 overflow-auto p-3 space-y-3">
-            <p class="text-white/[.38] text-sm">Loading commands...</p>
           </div>
         </div>
       </aside>
@@ -184,7 +178,6 @@
 
   <script src="/assets/js/renderer.js?v=4"></script>
   <script src="/assets/js/renderer_panels.js?v=2"></script>
-  <script src="/assets/js/status_indicators.js?v=1"></script>
   <script src="/hecks/client.js"></script>
   <script src="/hecks/workbench.js"></script>
   <script src="/assets/js/app.js?v=3"></script>
@@ -194,8 +187,6 @@
   <script src="/assets/js/panels.js?v=2"></script>
   <script src="/assets/js/animation.js?v=2"></script>
   <script src="/assets/js/keyboard.js?v=2"></script>
-  <script src="/assets/js/command_tester.js?v=2"></script>
   <script src="/assets/js/resize.js?v=1"></script>
-  <script src="/assets/js/screenshots.js?v=2"></script>
 </body>
 </html>

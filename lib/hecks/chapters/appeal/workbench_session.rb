@@ -222,6 +222,30 @@ module Hecks
               emits "MenuItemSelected"
             end
           end
+
+          b.aggregate "KeyboardShortcut" do
+            description "Keyboard shortcut binding. Maps key combinations to domain commands."
+            attribute :key, String
+            attribute :modifiers, String
+            attribute :command_aggregate, String
+            attribute :command_name, String
+
+            command "BindShortcut" do
+              description "Register a keyboard shortcut for a command"
+              attribute :key, String
+              attribute :modifiers, String
+              attribute :command_aggregate, String
+              attribute :command_name, String
+              emits "ShortcutBound"
+            end
+
+            command "TriggerShortcut" do
+              description "Fire the command associated with a key combination"
+              attribute :key, String
+              attribute :modifiers, String
+              emits "ShortcutTriggered"
+            end
+          end
         end
       end
     end
