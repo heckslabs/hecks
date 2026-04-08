@@ -58,6 +58,11 @@ module Hecks
               attribute :aggregate_name, String
               emits "DiagramFiltered"
             end
+
+            command "RunAnalysis" do
+              description "Analyze domain patterns — coupling, cohesion, naming issues"
+              emits "AnalysisCompleted"
+            end
           end
 
           b.aggregate "EventStorm" do
@@ -114,6 +119,11 @@ module Hecks
               attribute :definition, String
               attribute :category, String
               attribute :aliases, String
+            end
+
+            command "ShowGlossary" do
+              description "Display the full glossary of domain terms"
+              emits "GlossaryShown"
             end
 
             command "DefineTerm" do

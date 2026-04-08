@@ -94,6 +94,12 @@ module Hecks
               emits "LastOpenedReturned"
             end
 
+            command "ExportBluebook" do
+              description "Export the current domain as a .bluebook file"
+              attribute :format, String
+              emits "BluebookExported"
+            end
+
             query "ByKind" do |kind|
               where(kind: kind)
             end
