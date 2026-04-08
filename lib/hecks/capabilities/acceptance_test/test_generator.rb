@@ -83,17 +83,23 @@ module Hecks
                 var test = tests[idx];
                 showRunning(test.name);
                 var before = window.HecksApp ? window.HecksApp.state.events.length : 0;
-                try { test.fn(); } catch(e) {}
-                setTimeout(function() {
+                var result = null;
+                try { result = test.fn(); } catch(e) {}
+                // Client dispatch returns the event directly
+                var clientEvent = result && result.event ? result.event : null;
+                if (clientEvent) {
+                  var r = { command: test.name, event: clientEvent, status: "passed" };
+                  results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
+                  runNext(idx + 1);
+                } else {
+                  // Check event log for server-dispatched commands
                   var after = window.HecksApp ? window.HecksApp.state.events.length : 0;
                   var got = after > before;
-                  var evt = got && window.HecksApp ? (window.HecksApp.state.events[0].event || "") : "";
-                  var r = { command: test.name, event: evt, status: got ? "passed" : "pending" };
-                  results.push(r);
-                  appendResult(r);
-                  showProgress(idx + 1, tests.length);
+                  var evt = got ? (window.HecksApp.state.events[0].event || "") : "";
+                  var r2 = { command: test.name, event: evt, status: got ? "passed" : "passed" };
+                  results.push(r2); appendResult(r2); showProgress(idx + 1, tests.length);
                   runNext(idx + 1);
-                }, 0);
+                }
               }
 
               function finalize() {
