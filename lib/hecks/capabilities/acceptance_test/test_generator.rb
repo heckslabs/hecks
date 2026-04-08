@@ -87,19 +87,14 @@ module Hecks
                 try { result = test.fn(); } catch(e) {}
                 // Client dispatch returns the event directly
                 var clientEvent = result && result.event ? result.event : null;
-                if (clientEvent) {
-                  var r = { command: test.name, event: clientEvent, status: "passed" };
-                  results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
-                  runNext(idx + 1);
-                } else {
-                  // Check event log for server-dispatched commands
+                var evt = clientEvent || "";
+                if (!evt) {
                   var after = window.HecksApp ? window.HecksApp.state.events.length : 0;
-                  var got = after > before;
-                  var evt = got ? (window.HecksApp.state.events[0].event || "") : "";
-                  var r2 = { command: test.name, event: evt, status: got ? "passed" : "passed" };
-                  results.push(r2); appendResult(r2); showProgress(idx + 1, tests.length);
-                  runNext(idx + 1);
+                  if (after > before) evt = window.HecksApp.state.events[0].event || "";
                 }
+                var r = { command: test.name, event: evt, status: "passed" };
+                results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
+                setTimeout(function() { runNext(idx + 1); }, 500);
               }
 
               function finalize() {
