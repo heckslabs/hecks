@@ -1,8 +1,7 @@
 # Hecks::Appeal::IdeServer
 #
 # Boots the HecksAppeal IDE by starting capabilities from the runtime.
-# Static assets, WebSocket, and live reload are all wired through the
-# hecksagon — no hand-rolled servers needed.
+# Everything is capability-driven — no hand-rolled infrastructure.
 #
 #   server = IdeServer.new(bridge, runtimes)
 #   server.run
@@ -18,14 +17,11 @@ module Hecks
       end
 
       # Start all capabilities and block on the static assets server.
-      #
-      # @return [void]
       def run
         runtime = @runtimes.first
         return puts("[Appeal] No runtime — cannot start IDE") unless runtime
 
-        print_projects
-
+        print_projects if @bridge
         start_websocket(runtime)
         start_live_reload(runtime)
         start_static_assets(runtime)
@@ -34,6 +30,7 @@ module Hecks
       private
 
       def print_projects
+        return unless @bridge.respond_to?(:projects)
         @bridge.projects.each do |_path, project|
           puts "  #{project[:name]}/"
           project[:domains]&.each do |d|
@@ -69,7 +66,7 @@ module Hecks
 
       def push_state(port, client)
         world = Hecks.respond_to?(:last_world) ? Hecks.last_world&.to_h : nil
-        state = @bridge.to_state.merge(cwd: Dir.pwd, world: world)
+        state = @bridge ? @bridge.to_state.merge(cwd: Dir.pwd, world: world) : { cwd: Dir.pwd, world: world }
         port.send_json(client, { type: "state", data: state })
       end
     end
