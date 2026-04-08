@@ -30,6 +30,7 @@
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-editor">Editor<span class="text-white/[.38] text-xs ml-4">Ctrl+1</span></button>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-diagrams">Diagrams<span class="text-white/[.38] text-xs ml-4">Ctrl+2</span></button>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-console">Console<span class="text-white/[.38] text-xs ml-4">Ctrl+3</span></button>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-workbench">Workbench<span class="text-white/[.38] text-xs ml-4">Ctrl+4</span></button>
           </div>
         </div>
         <div class="relative">
@@ -40,6 +41,13 @@
             <div class="border-t border-white/[.12] my-1" role="separator"></div>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08]" data-action="menu-action" data-menu-action="export-bluebook">Export Bluebook</button>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08]" data-action="menu-action" data-menu-action="view-glossary">View Glossary</button>
+            <div class="border-t border-white/[.12] my-1" role="separator"></div>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08]" data-action="menu-action" data-menu-action="start-event-storm">Start Event Storm</button>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08]" data-action="menu-action" data-menu-action="list-patterns">List Patterns</button>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08]" data-action="menu-action" data-menu-action="generate-code">Generate Code</button>
+            <div class="border-t border-white/[.12] my-1" role="separator"></div>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="undo">Undo<span class="text-white/[.38] text-xs ml-4">Ctrl+Z</span></button>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="redo">Redo<span class="text-white/[.38] text-xs ml-4">Ctrl+Shift+Z</span></button>
           </div>
         </div>
       </div>
@@ -61,6 +69,10 @@
           <button aria-label="Toggle Projects" class="text-white/[.54] hover:text-white/[.87] transition-colors" data-action="toggle-projects">
             <span aria-hidden="true">&laquo;</span>
           </button>
+        </div>
+        <div class="px-2 py-1.5">
+          <input type="text" id="search-input" placeholder="Search domain..."
+            class="w-full bg-elevated border border-white/[.12] rounded px-2 py-1 text-xs text-white/[.87] placeholder-white/[.38] focus:outline-none focus:border-accent">
         </div>
         <div id="sidebar-content" class="flex-1 overflow-auto p-2">
           <!-- Server-pushed content -->
@@ -127,8 +139,12 @@
           <button role="tab" aria-selected="true" aria-controls="panel-agent" class="px-4 h-9 text-sm text-white/[.87] border-b-2 border-accent bg-white/[.04]" data-right-tab="agent">Agent</button>
         </div>
         <div id="panel-agent" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
-          <div class="px-3 py-1.5 border-b border-white/[.12] flex items-center">
+          <div class="px-3 py-1.5 border-b border-white/[.12] flex items-center justify-between">
             <span class="text-xs text-white/[.38]">Agent</span>
+            <div class="flex gap-1">
+              <button aria-label="Clear Conversation" class="px-2 py-0.5 text-xs text-white/[.54] hover:text-white/[.87] hover:bg-white/[.08] rounded transition-colors" data-action="clear-conversation">Clear</button>
+              <button aria-label="Review Domain" class="px-2 py-0.5 text-xs text-white/[.54] hover:text-white/[.87] hover:bg-white/[.08] rounded transition-colors" data-action="request-review">Review</button>
+            </div>
           </div>
           <div id="agent-messages" class="flex-1 overflow-auto p-3 space-y-2" role="log" aria-label="Agent Messages" aria-live="polite"></div>
           <div class="p-3 border-t border-white/[.12] flex gap-2">
@@ -147,6 +163,8 @@
     <section id="events-panel" class="bg-surface border-t border-white/[.12]" aria-label="Events" style="height: 10rem;">
       <div class="h-8 flex items-center justify-between px-3 border-b border-white/[.12]">
         <h2 class="text-xs font-semibold text-white/[.87]">Events</h2>
+        <input type="text" id="event-filter-input" placeholder="Filter events..."
+          class="bg-elevated border border-white/[.12] rounded px-2 py-0.5 text-xs text-white/[.87] placeholder-white/[.38] focus:outline-none focus:border-accent mx-2" style="width: 10rem;">
         <div class="flex gap-1">
           <button aria-label="Pause Event Stream" class="px-2 py-0.5 text-xs text-white/[.54] hover:text-white/[.87] hover:bg-white/[.08] rounded transition-colors" data-action="pause-stream">Pause</button>
           <button aria-label="Clear Events" class="px-2 py-0.5 text-xs text-white/[.54] hover:text-white/[.87] hover:bg-white/[.08] rounded transition-colors" data-action="clear-events">Clear</button>
@@ -182,7 +200,7 @@
   <script src="/hecks/workbench.js"></script>
   <script src="/assets/js/app.js?v=3"></script>
   <script src="/assets/js/socket.js?v=2"></script>
-  <script src="/assets/js/menus.js?v=2"></script>
+  <script src="/assets/js/menus.js?v=3"></script>
   <script src="/assets/js/actions.js?v=2"></script>
   <script src="/assets/js/panels.js?v=2"></script>
   <script src="/assets/js/animation.js?v=2"></script>
