@@ -70,3 +70,11 @@ module Hecks
 end
 
 Hecks.register_capability(:static_assets) { |runtime| Hecks::Capabilities::StaticAssets.apply(runtime) }
+
+Hecks.describe_capability(:static_assets,
+  description: "Serve HTML/CSS/JS from project directories",
+  config: {
+    port: { default: 4567, desc: "HTTP listen port" },
+    views: { default: "views", desc: "Views directory" },
+    assets: { default: "assets", desc: "Assets directory" }
+  })

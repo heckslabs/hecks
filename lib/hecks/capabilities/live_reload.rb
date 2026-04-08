@@ -56,3 +56,10 @@ module Hecks
 end
 
 Hecks.register_capability(:live_reload) { |runtime| Hecks::Capabilities::LiveReload.apply(runtime) }
+
+Hecks.describe_capability(:live_reload,
+  description: "Hot-reload domain on .bluebook file changes",
+  config: {
+    watch_dirs: { default: ["hecks"], desc: "Directories to watch" },
+    debounce: { default: 0.5, desc: "Debounce interval in seconds" }
+  })

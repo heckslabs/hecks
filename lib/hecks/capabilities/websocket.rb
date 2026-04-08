@@ -64,3 +64,9 @@ module Hecks
 end
 
 Hecks.register_capability(:websocket) { |runtime| Hecks::Capabilities::Websocket.apply(runtime) }
+
+Hecks.describe_capability(:websocket,
+  description: "Bidirectional WebSocket command/event bridge",
+  config: {
+    port: { default: 4568, desc: "WebSocket listen port" }
+  })
