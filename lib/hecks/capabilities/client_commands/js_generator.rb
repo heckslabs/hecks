@@ -21,7 +21,7 @@ module Hecks
         end
 
         def generate
-          [header, state_init, dispatch_fn, client_handlers, footer].join("\n")
+          [header, state_init, dispatch_fn, client_handlers, docs_section, footer].join("\n")
         end
 
         private
@@ -162,6 +162,41 @@ module Hecks
           end
         end
 
+        def docs_section
+          play_cmds = []
+          sketch_cmds = []
+
+          @domain.aggregates.each do |agg|
+            agg.commands.each do |cmd|
+              next if cmd.name =~ /^(Create|Update|Delete|Read)#{agg.name}$/
+              attrs = cmd.attributes.map { |a| "#{a.name}:value" }.join(" ")
+              line = "#{agg.name}.#{cmd.name}#{attrs.empty? ? "" : " #{attrs}"}"
+              desc = cmd.respond_to?(:description) && cmd.description ? cmd.description : ""
+
+              if @router.client_side?(agg.name)
+                sketch_cmds << { line: line, desc: desc }
+              else
+                play_cmds << { line: line, desc: desc }
+              end
+            end
+          end
+
+          play_lines = play_cmds.map { |c| "    { cmd: #{c[:line].inspect}, desc: #{c[:desc].inspect} }" }
+          sketch_lines = sketch_cmds.map { |c| "    { cmd: #{c[:line].inspect}, desc: #{c[:desc].inspect} }" }
+
+          <<~JS
+
+              var docs = {
+                play: [
+            #{play_lines.join(",\n")}
+                ],
+                sketch: [
+            #{sketch_lines.join(",\n")}
+                ]
+              };
+          JS
+        end
+
         def footer
           <<~JS
 
@@ -169,6 +204,7 @@ module Hecks
               window.Hecks.dispatch = dispatch;
               window.Hecks.state = state;
               window.Hecks.handlers = handlers;
+              window.Hecks.docs = docs;
             })();
           JS
         end
