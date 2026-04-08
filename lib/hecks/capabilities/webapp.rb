@@ -15,7 +15,7 @@ module Hecks
     # Bundles static_assets + websocket + live_reload into one capability.
     #
     module Webapp
-      BUNDLED = %i[static_assets websocket live_reload client_commands].freeze
+      BUNDLED = %i[static_assets websocket live_reload client_commands readme].freeze
 
       # Apply all bundled capabilities to the runtime.
       #
