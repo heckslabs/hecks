@@ -85,37 +85,6 @@ module Hecks
             validation :target, presence: true
           end
 
-          b.aggregate "Import" do
-            description "Reverse-engineer existing code or database schema into Bluebook DSL."
-            attribute :source_type, String
-            attribute :source_path, String
-            attribute :status, String, default: "pending"
-            attribute :preview, String
-
-            reference_to "Project"
-
-            command "ImportSchema" do
-              description "Parse a database schema and generate Bluebook aggregates"
-              reference_to "Project"
-              attribute :source_path, String
-              attribute :format, String
-            end
-
-            command "ImportCode" do
-              description "Parse existing Ruby/Go source and extract domain structure"
-              reference_to "Project"
-              attribute :source_path, String
-              attribute :language, String
-            end
-
-            command "PreviewImport" do
-              description "Show what the import would produce without applying it"
-              reference_to "Import"
-              end
-
-            validation :source_type, presence: true
-          end
-
           b.aggregate "Pattern" do
             description "Reusable domain pattern library -- CRUD, event-sourced, saga, process manager."
             attribute :name, String
