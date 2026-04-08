@@ -1,6 +1,6 @@
 Hecks.hecksagon "HecksAppeal" do
   persistence :sqlite
-  capabilities :crud, :chat_agent, :websocket, :static_assets, :live_reload
+  capabilities :crud, :chat_agent, :webapp
 
   # AI responder wiring — adapter resolved from World file
   Collaboration.Agent.content.ai_responder emits: "AgentMessageReceived"
