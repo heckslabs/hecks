@@ -4,25 +4,11 @@
 # Boots the HecksAppeal web IDE. Discovers hecks projects in the
 # given directory (or current directory) and opens the browser.
 #
-#   appeal                    # serve current directory
-#   appeal /path/to/project   # serve specific project
-#   appeal setup              # symlink to /usr/local/bin
+#   hecks appeal                    # serve current directory
+#   hecks appeal /path/to/project   # serve specific project
 #
 
 appeal_root = File.expand_path("../../", __FILE__)
-
-if ARGV[0] == "setup"
-  target = "/usr/local/bin/appeal"
-  source = File.expand_path(__FILE__)
-  if File.exist?(target)
-    puts "appeal is already installed at #{target}"
-  else
-    File.symlink(source, target)
-    puts "Installed appeal -> #{target}"
-    puts "You can now run 'appeal' from any directory"
-  end
-  exit
-end
 
 # Use appeal's own Gemfile for websocket, tailwind, etc.
 appeal_gemfile = File.join(appeal_root, "lib", "hecks", "appeal", "Gemfile")
