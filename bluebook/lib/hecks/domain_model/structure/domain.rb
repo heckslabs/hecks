@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Domain
+    # Hecks::BluebookModel::Structure::Domain
     #
     # The root of the domain model intermediate representation. A domain holds
     # aggregates and domain-level policies, and provides helpers for naming
@@ -11,7 +11,7 @@ module Hecks
     # Domain-level policies are cross-aggregate reactive policies that don't
     # belong to any single aggregate.
     #
-    # Part of the DomainModel IR layer. Built by DomainBuilder, consumed by every
+    # Part of the BluebookModel IR layer. Built by BluebookBuilder, consumed by every
     # generator and by the Application/Session at runtime.
     #
     #   domain = Domain.new(name: "Pizzas", aggregates: [pizza_agg, order_agg])
@@ -75,7 +75,7 @@ module Hecks
       #   (e.g. :transparency, :consent, :privacy, :security)
       attr_reader :world_concerns
 
-      # @return [Array<DomainModel::SubscriberRegistration>] event subscriber registrations at the domain level
+      # @return [Array<BluebookModel::SubscriberRegistration>] event subscriber registrations at the domain level
       attr_reader :event_subscribers
 
       # @return [Array<String>] autoload entry point file names (e.g., ["hecks_persist", "hecks_mongodb"])
@@ -149,7 +149,7 @@ module Hecks
       #
       # @return [String] the gem name (e.g., "pizzas_domain", "online_store_domain")
       def gem_name
-        Hecks::Utils.underscore(module_name) + "_domain"
+        Hecks::Utils.underscore(module_name) + "_bluebook"
       end
 
       # Prints a human-readable tree of the domain's aggregates, commands,
@@ -255,7 +255,7 @@ module Hecks
 
       # All events across all aggregates.
       #
-      # @return [Array<Behavior::DomainEvent>]
+      # @return [Array<Behavior::BluebookEvent>]
       def all_events
         aggregates.flat_map(&:events)
       end

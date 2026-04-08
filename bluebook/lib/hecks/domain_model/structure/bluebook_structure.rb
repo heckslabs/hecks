@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::BluebookStructure
+    # Hecks::BluebookModel::Structure::BluebookStructure
     #
     # Container IR node representing a composed system of domains (chapters).
     # A Bluebook is the top-level composition unit — it holds multiple Chapter
@@ -54,7 +54,7 @@ module Hecks
 
       # All events across all chapters.
       #
-      # @return [Array<Behavior::DomainEvent>]
+      # @return [Array<Behavior::BluebookEvent>]
       def all_events
         chapters.flat_map(&:all_events)
       end

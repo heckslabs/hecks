@@ -11,7 +11,7 @@ module Hecks
     #   builder.transition "SuspendModel" => "suspended"
     #   lifecycle = builder.build
     #
-    # Builds a DomainModel::Structure::Lifecycle from transition declarations.
+    # Builds a BluebookModel::Structure::Lifecycle from transition declarations.
     #
     # LifecycleBuilder defines a state machine on a single aggregate field.
     # Each transition maps a command name to a target state, with an optional
@@ -20,7 +20,7 @@ module Hecks
     #
     # Used inside +AggregateBuilder#lifecycle+ blocks.
     class LifecycleBuilder
-      Structure = DomainModel::Structure
+      Structure = BluebookModel::Structure
 
       include Describable
 
@@ -63,9 +63,9 @@ module Hecks
         end
       end
 
-      # Build and return the DomainModel::Structure::Lifecycle IR object.
+      # Build and return the BluebookModel::Structure::Lifecycle IR object.
       #
-      # @return [DomainModel::Structure::Lifecycle] the fully built lifecycle IR object
+      # @return [BluebookModel::Structure::Lifecycle] the fully built lifecycle IR object
       def build
         Structure::Lifecycle.new(
           field: @field, default: @default, transitions: @transitions,

@@ -29,15 +29,15 @@ Hecks::CLI.register_command(:generate_sinatra, "Scaffold a Sinatra app from a do
   end
 
   sinatra_app_rb = lambda do |d|
-    mod = domain_module_name(d.name)
+    mod = bluebook_module_name(d.name)
     routes = []
 
     d.aggregates.each do |agg|
-      slug = domain_aggregate_slug(agg.name)
+      slug = bluebook_aggregate_slug(agg.name)
       klass = "#{agg.name}"
 
       agg.queries.each do |query|
-        qn = domain_snake_name(query.name)
+        qn = bluebook_snake_name(query.name)
         params = query.block.parameters
         if params.empty?
           routes << "  get '/#{slug}/#{qn}' do\n    json #{klass}.#{qn}.map { |r| serialize(r) }\n  end"
@@ -108,13 +108,13 @@ Hecks::CLI.register_command(:generate_sinatra, "Scaffold a Sinatra app from a do
       # Uncomment for SQL persistence:
       # Hecks.configure do
       #   domain "#{d.gem_name}"
-      #   adapter :sql, database: :sqlite, name: "#{domain_snake_name(d.module_name)}.db"
+      #   adapter :sql, database: :sqlite, name: "#{bluebook_snake_name(d.module_name)}.db"
       #   include_ad_hoc_queries
       # end
     RUBY
   end
 
-  app_name = options[:dir] || "#{domain_snake_name(domain.module_name)}_app"
+  app_name = options[:dir] || "#{bluebook_snake_name(domain.module_name)}_app"
 
   FileUtils.mkdir_p(app_name)
   FileUtils.mkdir_p(File.join(app_name, "config"))

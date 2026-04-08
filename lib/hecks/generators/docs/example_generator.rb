@@ -35,7 +35,7 @@ module Hecks
         app = ExampleAppWriter.new(@domain, aggs, name: @name)
         dsl = ExampleBluebookWriter.new(@domain, aggs, name: @name)
         {
-          "#{domain_snake_name(@name)}.rb" => app.generate,
+          "#{bluebook_snake_name(@name)}.rb" => app.generate,
           "bluebook.hec" => dsl.generate_bluebook,
           "hecksagon.hec" => dsl.generate_hecksagon
         }

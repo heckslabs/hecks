@@ -25,7 +25,7 @@ Exposes all domain commands and queries as AI agent tools via the Model Context 
 ### Seed data
 
 ```bash
-ruby -I../hecks/lib -e "require 'hecks'; %w[identity model_registry risk_assessment compliance operations].each { |n| eval(File.read(\"domains/#{n}.rb\")) }; domains = (1..5).map { Hecks.domains.pop }; bus = Hecks::EventBus.new; domains.each { |d| Hecks::Runtime.new(d, event_bus: bus) }; load 'seeds.rb'"
+ruby -I../hecks/lib -e "require 'hecks'; %w[identity model_registry risk_assessment compliance operations].each { |n| eval(File.read(\"domains/#{n}.rb\")) }; domains = (1..5).map { Hecks.bluebooks.pop }; bus = Hecks::EventBus.new; domains.each { |d| Hecks::Runtime.new(d, event_bus: bus) }; load 'seeds.rb'"
 ```
 
 Seeds 3 regulatory frameworks (EU AI Act, NIST AI RMF, ISO 42001), 5 governance policies, and 5 stakeholder roles.

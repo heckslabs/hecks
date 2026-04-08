@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::ExternalSystem
+    # Hecks::BluebookModel::Structure::ExternalSystem
     #
     # Represents an external system that a command interacts with. Captured
     # during Event Storming as pink stickies -- third-party services, APIs,
@@ -13,7 +13,7 @@ module Hecks
     # and integration planning. Examples include payment gateways (Stripe),
     # email services (SendGrid), or legacy ERP systems.
     #
-    # Part of the DomainModel IR layer. Does not generate code -- serves as
+    # Part of the BluebookModel IR layer. Does not generate code -- serves as
     # metadata for documentation and integration planning.
     #
     #   external = ExternalSystem.new(name: "Stripe")

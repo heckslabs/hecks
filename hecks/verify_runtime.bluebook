@@ -1,0 +1,5 @@
+Hecks.bluebook "VerifyRuntime" do
+  # The runtime verifier boots the Pizzas domain and exercises the full
+  # pipeline: DSL -> IR -> runtime -> memory adapter -> command bus ->
+  # event bus. It does not define its own domain aggregates.
+end

@@ -43,7 +43,7 @@ module Hecks
 
     attr_reader :domain, :event_bus, :command_bus
 
-    # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+    # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
     # @param gate [Symbol, nil] optional gate name
     # @param event_bus [Hecks::EventBus, nil] optional shared event bus
     # @param hecksagon [Hecksagon::Structure::Hecksagon, nil] optional hecksagon IR
@@ -53,9 +53,9 @@ module Hecks
       @domain = domain
       @gate_name = gate
       @hecksagon = hecksagon || Hecks.last_hecksagon
-      @mod_name = domain_module_name(domain.name)
+      @mod_name = bluebook_module_name(domain.name)
       @mod = Object.const_get(@mod_name)
-      @mod.extend(Hecks::DomainConnections) unless @mod.respond_to?(:connections)
+      @mod.extend(Hecks::BluebookConnections) unless @mod.respond_to?(:connections)
       @event_bus = event_bus || EventBus.new
       @repositories = {}
       @adapter_overrides = {}

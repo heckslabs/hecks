@@ -15,7 +15,7 @@
   #
 module Hecks
   class FlowGenerator
-    # @param domain [Hecks::DomainModel::Structure::Domain] the domain to analyze
+    # @param domain [Hecks::BluebookModel::Structure::Domain] the domain to analyze
     def initialize(domain)
       @domain = domain
     end

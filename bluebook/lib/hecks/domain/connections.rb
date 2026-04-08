@@ -1,5 +1,5 @@
 module Hecks
-  # Hecks::DomainConnections
+  # Hecks::BluebookConnections
   #
   # Mixin extended onto generated domain modules (e.g., PizzasDomain) to declare
   # what crosses the domain boundary. One verb: `extend`.
@@ -11,7 +11,7 @@ module Hecks
   #     extend CommentsDomain                    # listen to domain events
   #   end
   #
-  module DomainConnections
+  module BluebookConnections
     # Unified extension method. Dispatches based on argument type:
     #
     #   extend CommentsDomain              # Module → listen to their events

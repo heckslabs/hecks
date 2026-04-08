@@ -219,10 +219,10 @@ module Hecks
       return if base.const_defined?(type, false)
 
       mod = Module.new
-      type_dir = domain_snake_name(type.to_s)
+      type_dir = bluebook_snake_name(type.to_s)
       mixin_proc = MIXINS[type]
 
-      snake = method(:domain_snake_name)
+      snake = method(:bluebook_snake_name)
       mod.define_singleton_method(:const_missing) do |name|
         parts = base.name.split("::")
         gem_name = snake.call(parts.first)

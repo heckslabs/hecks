@@ -19,8 +19,8 @@ module Hecks
     module BreakingBumper
       # Evaluate whether a version bump is needed based on breaking changes.
       #
-      # @param old_domain [Hecks::DomainModel::Domain, nil] previous snapshot (nil = first build)
-      # @param new_domain [Hecks::DomainModel::Domain] current domain
+      # @param old_domain [Hecks::BluebookModel::Domain, nil] previous snapshot (nil = first build)
+      # @param new_domain [Hecks::BluebookModel::Domain] current domain
       # @param versioner [Hecks::Versioner] CalVer versioner instance
       # @return [Hash] with :version, :breaking_changes, :bumped keys
       def self.call(old_domain, new_domain, versioner)

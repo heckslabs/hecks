@@ -43,11 +43,11 @@ module Hecks
 
       # Initializes the command generator.
       #
-      # @param command [Hecks::DomainModel::Behavior::Command] the command model object;
+      # @param command [Hecks::BluebookModel::Behavior::Command] the command model object;
       #   provides +name+, +attributes+, +preconditions+, +postconditions+, +call_body+, and +sets+
       # @param domain_module [String] the Ruby module name to wrap the generated class in
       # @param aggregate_name [String] the name of the parent aggregate class (e.g., "Pizza")
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate, nil] the aggregate model object,
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate, nil] the aggregate model object,
       #   used to map command attributes to aggregate constructor args; nil if not available
       # @param event [Object, nil] the associated domain event; if present, an +emits+ declaration
       #   is added and the +call+ method constructs the aggregate
@@ -59,7 +59,7 @@ module Hecks
         @event = event
         @mixin_prefix = mixin_prefix
         @has_keyword_attrs = @command.attributes.any? { |attr| Hecks::Utils.ruby_keyword?(attr.name) }
-        agg_snake = domain_snake_name(aggregate_name)
+        agg_snake = bluebook_snake_name(aggregate_name)
         @self_ref = find_self_ref(agg_snake)
         @is_create = @self_ref.nil?
       end

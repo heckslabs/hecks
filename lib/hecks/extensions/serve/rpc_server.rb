@@ -120,7 +120,7 @@ module Hecks
       #
       # @return [void]
       def boot_domain
-        mod_name = domain_module_name(@domain.name)
+        mod_name = bluebook_module_name(@domain.name)
         unless Object.const_defined?(mod_name)
           tmpdir = Dir.mktmpdir("hecks_rpc")
           gem_path = Hecks.build(@domain, output_dir: tmpdir)
@@ -142,7 +142,7 @@ module Hecks
       # @return [void]
       def register_methods
         @domain.aggregates.each do |agg|
-          klass = @mod.const_get(domain_constant_name(agg.name))
+          klass = @mod.const_get(bluebook_constant_name(agg.name))
           register_commands(agg, klass)
           register_queries(agg, klass)
           register_crud(agg, klass)
@@ -155,7 +155,7 @@ module Hecks
       # The handler converts string-keyed params to symbol-keyed and calls
       # the derived method on the aggregate class.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_commands(agg, klass)
@@ -175,13 +175,13 @@ module Hecks
       # "Pizza.by_topping"). The handler maps parameter names from the
       # query block's parameter list to values in the params hash.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_queries(agg, klass)
         port = @port
         agg.queries.each do |query|
-          qn = domain_snake_name(query.name)
+          qn = bluebook_snake_name(query.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           @methods["#{agg.name}.#{qn}"] = ->(p) {
@@ -200,7 +200,7 @@ module Hecks
       # - "AggregateName.count" -- return entity count
       # - "AggregateName.delete" -- delete by ID, returns confirmation
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_crud(agg, klass)

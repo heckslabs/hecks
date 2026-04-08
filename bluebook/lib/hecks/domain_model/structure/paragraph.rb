@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Structure::Paragraph
+# Hecks::BluebookModel::Structure::Paragraph
 #
 # A named group of aggregates within a chapter (domain). Paragraphs
 # organize a chapter's aggregates into focused sections — ports,
@@ -11,7 +11,7 @@
 #   # => ["EventBus", "CommandBus", "Repository"]
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
       class Paragraph
         # @return [String] the paragraph name (e.g., "Ports")

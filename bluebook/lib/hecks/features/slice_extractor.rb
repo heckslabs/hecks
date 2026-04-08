@@ -12,7 +12,7 @@
 module Hecks::Features
 
   class SliceExtractor
-    # @param domain [Hecks::DomainModel::Structure::Domain]
+    # @param domain [Hecks::BluebookModel::Structure::Domain]
     def initialize(domain)
       @domain = domain
     end

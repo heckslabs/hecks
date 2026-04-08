@@ -14,7 +14,7 @@ Hecks::CLI.register_command(:promote, "Extract an aggregate into its own domain"
   end
 
   # Build a standalone domain for the promoted aggregate
-  new_domain = Hecks::DomainModel::Structure::Domain.new(
+  new_domain = Hecks::BluebookModel::Structure::Domain.new(
     name: agg_name, aggregates: [agg], custom_verbs: []
   )
   new_file = "#{domain_snake_name(agg_name)}_domain.rb"
@@ -23,7 +23,7 @@ Hecks::CLI.register_command(:promote, "Extract an aggregate into its own domain"
 
   # Re-save the original domain without the promoted aggregate
   remaining = domain.aggregates.reject { |a| a.name == agg_name }
-  updated = Hecks::DomainModel::Structure::Domain.new(
+  updated = Hecks::BluebookModel::Structure::Domain.new(
     name: domain.name, aggregates: remaining, custom_verbs: domain.custom_verbs
   )
   source_file = find_domain_file || "Bluebook"

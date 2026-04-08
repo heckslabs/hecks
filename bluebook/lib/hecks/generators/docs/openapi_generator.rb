@@ -21,7 +21,7 @@ module Hecks
 
       # Creates a new OpenapiGenerator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       def initialize(domain)
         @domain = domain
       end

@@ -23,7 +23,7 @@ module Hecks
     include BehaviorDiagram
     include PortDiagram
 
-    # @param domain [Hecks::DomainModel::Domain] the domain IR to visualize
+    # @param domain [Hecks::BluebookModel::Domain] the domain IR to visualize
     def initialize(domain)
       @domain = domain
     end

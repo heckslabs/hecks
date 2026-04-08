@@ -1,0 +1,1005 @@
+Hecks.bluebook "Bluebook" do
+  # --- Core Domain ---
+
+  aggregate "Domain", "Root of the domain model IR, holds aggregates and policies" do
+    attribute :name, String
+    attribute :version, String
+    command("DefineDomain") { attribute :name, String; attribute :version, String }
+    command("ValidateDomain") { attribute :domain_id, String }
+    command("GenerateCode") { attribute :domain_id, String; attribute :target, String }
+  end
+
+  aggregate "Aggregate", "DDD aggregate root with commands, events, and lifecycle" do
+    attribute :name, String
+    attribute :domain_name, String
+    command("AddAggregate") { attribute :name, String; attribute :domain_name, String }
+    command("AddAttribute") { attribute :aggregate_id, String; attribute :name, String; attribute :type, String }
+    command("AddCommand") { attribute :aggregate_id, String; attribute :name, String }
+    command("AddPolicy") { attribute :aggregate_id, String; attribute :name, String; attribute :event_name, String; attribute :trigger_command, String }
+  end
+
+  aggregate "Grammar", "DSL grammar definition for parsing domain definitions" do
+    attribute :name, String
+    command("RegisterGrammar") { attribute :name, String }
+    command("ParseInput") { attribute :grammar_id, String; attribute :input, String }
+  end
+
+  aggregate "Compiler", "Builds domain gems from IR and loads domains" do
+    attribute :domain_id, String
+    command("BuildDomain") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "Validator", "Runs validation rules against domain IR" do
+    attribute :domain_id, String
+    command("RunValidation") { attribute :domain_id, String }
+  end
+
+  aggregate "Visualizer", "Generates Mermaid diagrams from domain IR" do
+    attribute :domain_id, String
+    command("GenerateDiagram") { attribute :domain_id, String }
+  end
+
+  aggregate "Glossary", "Generates Ubiquitous Language glossary from domain IR" do
+    attribute :domain_id, String
+    command("GenerateGlossary") { attribute :domain_id, String }
+  end
+
+  aggregate "DslSerializer", "Serializes domain IR back to DSL source" do
+    attribute :domain_id, String
+    command("SerializeDomain") { attribute :domain_id, String }
+  end
+
+  aggregate "AstExtractor", "Extracts domain definitions from Ruby AST" do
+    attribute :source, String
+    command("ExtractDomain") { attribute :source, String }
+  end
+
+  aggregate "FlowGenerator", "Traces reactive event flows across policies" do
+    attribute :domain_id, String
+    command("TraceFlows") { attribute :domain_id, String }
+  end
+
+  aggregate "LlmsGenerator", "Generates llms.txt from domain IR" do
+    attribute :domain_id, String
+    command("GenerateLlmsTxt") { attribute :domain_id, String }
+  end
+
+  aggregate "ReadmeGenerator", "Generates README from domain IR" do
+    attribute :root, String
+    command("GenerateReadme") { attribute :root, String }
+  end
+
+  aggregate "EventStorm", "Imports event storming sessions into domain IR" do
+    attribute :source, String
+    command("ParseEventStorm") { attribute :source, String }
+    command("ImportEventStorm") { attribute :source, String; attribute :name, String }
+  end
+
+  aggregate "Migration", "Diffs domain versions and generates migrations" do
+    attribute :domain_id, String
+    command("DiffDomains") { attribute :domain_id, String }
+    command("RunMigration") { attribute :domain_id, String }
+  end
+
+  aggregate "ContextMap", "Generates context map across multiple domains" do
+    attribute :domains, String
+    command("GenerateContextMap") { attribute :domains, String }
+  end
+
+  aggregate "ValidationRule", "Single validation rule within the validator" do
+    attribute :name, String
+    attribute :category, String
+    command("CheckRule") { attribute :domain_id, String; attribute :rule_name, String }
+  end
+
+  aggregate "Versioner", "Computes CalVer version from git history" do
+    attribute :path, String
+    command("ComputeVersion") { attribute :path, String }
+  end
+
+  policy "AutoEvent" do
+    on "AddedCommand"
+    trigger "InferEvent"
+  end
+
+  # --- Structure Paragraph ---
+
+  aggregate "BluebookStructure", "Root container for composed system of chapters" do
+    command("BuildStructure") { attribute :domain_id, String }
+  end
+
+  aggregate "Actor", "External person or system that initiates commands" do
+    command("DefineActor") { attribute :name, String; attribute :role, String }
+  end
+
+  aggregate "Attribute", "Typed field on an aggregate, entity, or value object" do
+    command("DefineAttribute") { attribute :name, String; attribute :type, String }
+  end
+
+  aggregate "ComputedAttribute", "Derived field calculated from other attributes" do
+    command("DefineComputedAttribute") { attribute :name, String; attribute :expression, String }
+  end
+
+  aggregate "Entity", "Identity-bearing object within an aggregate boundary" do
+    command("DefineEntity") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "ExternalSystem", "Third-party system integrated via anti-corruption layer" do
+    command("DefineExternalSystem") { attribute :name, String; attribute :adapter, String }
+  end
+
+  aggregate "Invariant", "Business rule that must hold true for aggregate consistency" do
+    command("DefineInvariant") { attribute :name, String; attribute :expression, String }
+  end
+
+  aggregate "Lifecycle", "State machine defining aggregate lifecycle transitions" do
+    command("DefineLifecycle") { attribute :aggregate_id, String; attribute :initial_state, String }
+  end
+
+  aggregate "ReadModel", "Denormalized projection optimized for queries" do
+    command("DefineReadModel") { attribute :name, String; attribute :source_aggregate, String }
+  end
+
+  aggregate "Reference", "Association between aggregates (composition or aggregation)" do
+    command("DefineReference") { attribute :from, String; attribute :to, String; attribute :kind, String }
+  end
+
+  aggregate "Scope", "Named query scope on an aggregate or read model" do
+    command("DefineScope") { attribute :name, String; attribute :filter, String }
+  end
+
+  aggregate "StateTransition", "Named edge in a lifecycle state machine" do
+    command("DefineStateTransition") { attribute :from_state, String; attribute :to_state, String; attribute :event, String }
+  end
+
+  aggregate "ValidationNode", "Declarative validation rule on an attribute or aggregate" do
+    command("DefineValidation") { attribute :name, String; attribute :rule, String }
+  end
+
+  aggregate "ValueObject", "Immutable, identity-less domain concept defined by its attributes" do
+    command("DefineValueObject") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "Paragraph", "Named group of aggregates within a chapter" do
+    command("DefineParagraph") { attribute :name, String }
+  end
+
+  aggregate "Validation", "Validation rule IR node for aggregate attribute constraints" do
+    command("DefineValidationRule") { attribute :attribute_name, String; attribute :rule, String }
+  end
+
+  aggregate "CommandStep", "Workflow step that dispatches a named command" do
+    command("DefineCommandStep") { attribute :command, String; attribute :mapping, String }
+  end
+
+  aggregate "BranchStep", "Workflow step that conditionally routes based on a spec" do
+    command("DefineBranchStep") { attribute :spec, String }
+  end
+
+  aggregate "ScheduledStep", "Workflow step that finds aggregates and triggers a command" do
+    command("DefineScheduledStep") { attribute :name, String; attribute :trigger, String }
+  end
+
+  aggregate "JsonAttribute", "JSON type accepted as attribute type, round-trips through SQL generation" do
+    command("DefineJsonAttribute") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "DateTypes", "Date and DateTime types stored correctly in attribute IR" do
+    command("DefineDateType") { attribute :name, String; attribute :type, String }
+  end
+
+  # --- Behavior Paragraph ---
+
+  aggregate "Command", "Intent to change aggregate state, carries attributes" do
+    command("DefineCommand") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "DomainEvent", "Fact that something happened, emitted after command execution" do
+    command("DefineEvent") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "Query", "Read-side request returning data without side effects" do
+    command("DefineQuery") { attribute :name, String; attribute :return_type, String }
+  end
+
+  aggregate "Policy", "Reactive rule triggered by an event, dispatches a command" do
+    command("DefinePolicy") { attribute :name, String; attribute :event_name, String; attribute :trigger_command, String }
+  end
+
+  aggregate "Service", "Stateless domain operation spanning multiple aggregates" do
+    command("DefineService") { attribute :name, String; attribute :operation, String }
+  end
+
+  aggregate "Condition", "Predicate guard on a command or workflow step" do
+    command("DefineCondition") { attribute :name, String; attribute :expression, String }
+  end
+
+  aggregate "EventSubscriber", "Handler that reacts to domain events" do
+    command("DefineSubscriber") { attribute :name, String; attribute :event_name, String }
+  end
+
+  aggregate "Specification", "Composable boolean predicate for domain rules" do
+    command("DefineSpecification") { attribute :name, String; attribute :predicate, String }
+  end
+
+  aggregate "Saga", "Multi-step distributed process with compensation" do
+    command("DefineSaga") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "SagaStep", "Single step within a saga, with action and compensate" do
+    command("DefineSagaStep") { attribute :saga_id, String; attribute :action, String; attribute :compensate, String }
+  end
+
+  aggregate "Workflow", "Multi-step process with branching and conditions" do
+    command("DefineWorkflow") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "WorkflowStep", "Single step within a workflow, with optional condition" do
+    command("DefineWorkflowStep") { attribute :workflow_id, String; attribute :command_name, String }
+  end
+
+  aggregate "Behavior", "Namespace module for behavior IR nodes: commands, events, policies" do
+    command("Define") { attribute :name, String }
+  end
+
+  aggregate "BidirectionalReferences", "Detects and rejects domains where two aggregates reference each other" do
+    command("DetectBidirectional") { attribute :domain_id, String }
+  end
+
+  # --- Names Paragraph ---
+
+  aggregate "BaseName", "Root name object with inflection and formatting methods" do
+    command("CreateName") { attribute :raw, String }
+  end
+
+  aggregate "AggregateName", "Name specialization for aggregates (singular, plural, module)" do
+    command("CreateAggregateName") { attribute :raw, String }
+  end
+
+  aggregate "CommandName", "Name specialization for commands (past tense, event form)" do
+    command("CreateCommandName") { attribute :raw, String }
+  end
+
+  aggregate "EventName", "Name specialization for domain events (past participle)" do
+    command("CreateEventName") { attribute :raw, String }
+  end
+
+  aggregate "StateName", "Name specialization for lifecycle states (snake, label)" do
+    command("CreateStateName") { attribute :raw, String }
+  end
+
+  # --- Tooling Paragraph ---
+
+  aggregate "DomainCompiler", "Generates domain gems and loads domains into memory" do
+    command("Compile") { attribute :domain_id, String; attribute :output_dir, String }
+    command("LoadDomain") { attribute :domain_id, String }
+    command("BuildStatic") { attribute :domain_id, String; attribute :output_dir, String }
+    command("BuildGo") { attribute :domain_id, String; attribute :output_dir, String }
+    command("BuildNode") { attribute :domain_id, String; attribute :output_dir, String }
+    command("BuildRails") { attribute :domain_id, String; attribute :output_dir, String }
+    command("BuildBinary") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "InMemoryLoader", "Fast domain loading without disk I/O via in-memory eval" do
+    command("LoadInMemory") { attribute :domain_id, String }
+  end
+
+  aggregate "DomainInspector", "Top-level introspection across all loaded domains" do
+    command("InspectDomain") { attribute :domain_id, String }
+  end
+
+  aggregate "DomainIntrospector", "Analyzes domain structure programmatically" do
+    command("Introspect") { attribute :domain_name, String }
+  end
+
+  aggregate "GemBuilder", "Packages a domain as a distributable Ruby gem" do
+    command("BuildGem") { attribute :domain_name, String }
+  end
+
+  aggregate "StatementBuilders", "Builds plain-English statements from domain IR objects" do
+    command("BuildStatement") { attribute :ir_object, String }
+  end
+
+  aggregate "TextHelpers", "English text utilities for glossary generation" do
+    command("Humanize") { attribute :text, String }
+  end
+
+  aggregate "DomainConnections", "Declares what crosses the domain boundary via extend verb" do
+    command("Apply") { attribute :extension_name, String }
+  end
+
+  aggregate "Tokenizer", "Splits command argument strings into typed tokens" do
+    command("Tokenize") { attribute :input, String }
+  end
+
+  aggregate "ExtensionDocs", "Metadata registry describing all Hecks extensions" do
+    command("ListExtensions") { attribute :category, String }
+  end
+
+  aggregate "ReadmeWriter", "Generates per-extension Markdown README files from metadata" do
+    command("GenerateReadmes") { attribute :root, String }
+  end
+
+  aggregate "SourceCollector", "Collects framework source files in load order for binary compilation" do
+    command("Collect") { attribute :lib_root, String }
+  end
+
+  aggregate "ForwardDeclarations", "Generates module forward declarations for the bundled binary" do
+    command("Write") { attribute :io, String }
+  end
+
+  aggregate "BundleWriter", "Concatenates source files into a single self-contained script" do
+    command("Write") { attribute :files, String; attribute :output, String }
+  end
+
+  aggregate "BinaryCompiler", "Orchestrates compilation into a self-contained Ruby script" do
+    command("Compile") { attribute :output, String }
+  end
+
+  aggregate "SourceAnalyzer", "Prism AST analysis of source files for dependency resolution" do
+    command("Analyze") { attribute :lib_root, String }
+  end
+
+  aggregate "ConstantResolver", "Resolves constant references to defining files" do
+    command("Resolve") { attribute :ref, String }
+  end
+
+  aggregate "DependencyGraph", "Builds file-level dependency graph and topological sort" do
+    command("Sort") { attribute :lib_root, String }
+  end
+
+  aggregate "CycleSorter", "Greedy topological sort within dependency cycles" do
+    command("SortCycle") { attribute :files, String }
+  end
+
+  aggregate "SourceTransformer", "Strips requires and expands compact class syntax" do
+    command("Transform") { attribute :source, String }
+  end
+
+  aggregate "ReferenceExtractor", "Extracts constant references from Prism AST" do
+    command("Extract") { attribute :source, String }
+  end
+
+  aggregate "DefinitionExtractor", "Extracts constant definitions from Prism AST" do
+    command("Extract") { attribute :source, String }
+  end
+
+  aggregate "RuntimeGenerator", "Generates runtime wiring modules from domain IR" do
+    command("Generate") { attribute :domain_module, String }
+  end
+
+  # --- Builders Paragraph ---
+
+  aggregate "BluebookBuilder", "Top-level DSL builder that collects aggregates, policies, and services into a Domain IR" do
+    command("BuildDomain") { attribute :name, String; attribute :version, String }
+  end
+
+  aggregate "AggregateBuilder", "DSL builder for aggregate roots with commands, events, and lifecycle" do
+    command("BuildAggregate") { attribute :name, String }
+  end
+
+  aggregate "CommandBuilder", "DSL builder for command definitions with typed attributes" do
+    command("BuildCommand") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "EntityBuilder", "DSL builder for identity-bearing entities within an aggregate" do
+    command("BuildEntity") { attribute :name, String; attribute :aggregate_id, String }
+  end
+
+  aggregate "EventBuilder", "DSL builder for domain event definitions" do
+    command("BuildEvent") { attribute :name, String }
+  end
+
+  aggregate "ValueObjectBuilder", "DSL builder for immutable value objects with attributes and invariants" do
+    command("BuildValueObject") { attribute :name, String }
+  end
+
+  aggregate "PolicyBuilder", "DSL builder for reactive policies triggered by events" do
+    command("BuildPolicy") { attribute :name, String; attribute :event_name, String }
+  end
+
+  aggregate "ServiceBuilder", "DSL builder for stateless domain services spanning aggregates" do
+    command("BuildService") { attribute :name, String }
+  end
+
+  aggregate "WorkflowBuilder", "DSL builder for multi-step workflows with branching" do
+    command("BuildWorkflow") { attribute :name, String }
+  end
+
+  aggregate "LifecycleBuilder", "DSL builder for state machine lifecycle definitions" do
+    command("BuildLifecycle") { attribute :aggregate_id, String; attribute :initial_state, String }
+  end
+
+  aggregate "ReadModelBuilder", "DSL builder for denormalized read model projections" do
+    command("BuildReadModel") { attribute :name, String }
+  end
+
+  aggregate "SagaBuilder", "DSL builder for long-running sagas with compensation" do
+    command("BuildSaga") { attribute :name, String }
+  end
+
+  aggregate "SagaStepBuilder", "DSL builder for individual saga steps with action and compensate" do
+    command("BuildSagaStep") { attribute :saga_id, String; attribute :action, String }
+  end
+
+  aggregate "GlossaryBuilder", "DSL builder for ubiquitous language glossary rules" do
+    command("BuildGlossary") { attribute :domain_id, String }
+  end
+
+  aggregate "ModuleBuilder", "DSL builder for logical sub-groupings within a domain" do
+    command("BuildModule") { attribute :name, String }
+  end
+
+  aggregate "AclBuilder", "DSL builder for anti-corruption layer definitions" do
+    command("BuildAcl") { attribute :name, String; attribute :external_system, String }
+  end
+
+  aggregate "BranchBuilder", "DSL builder for conditional branches within workflows" do
+    command("BuildBranch") { attribute :condition, String }
+  end
+
+  aggregate "ScheduledStepBuilder", "DSL builder for time-triggered workflow steps" do
+    command("BuildScheduledStep") { attribute :interval, String }
+  end
+
+  # --- Generators Paragraph ---
+
+  aggregate "AggregateGenerator", "Generates aggregate root Ruby class from IR" do
+    command("GenerateAggregate") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "CommandGenerator", "Generates command class with typed attributes and validations" do
+    command("GenerateCommand") { attribute :command_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "EntityGenerator", "Generates entity class within an aggregate boundary" do
+    command("GenerateEntity") { attribute :entity_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "EventGenerator", "Generates domain event class from command inference" do
+    command("GenerateEvent") { attribute :event_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ValueObjectGenerator", "Generates immutable value object class" do
+    command("GenerateValueObject") { attribute :value_object_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "PolicyGenerator", "Generates reactive policy wiring event to command" do
+    command("GeneratePolicy") { attribute :policy_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ServiceGenerator", "Generates domain service class spanning aggregates" do
+    command("GenerateService") { attribute :service_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "QueryGenerator", "Generates query scope method on aggregate" do
+    command("GenerateQuery") { attribute :query_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "QueryObjectGenerator", "Generates standalone query object class" do
+    command("GenerateQueryObject") { attribute :query_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "WorkflowGenerator", "Generates multi-step workflow orchestration class" do
+    command("GenerateWorkflow") { attribute :workflow_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "LifecycleGenerator", "Generates state machine lifecycle module" do
+    command("GenerateLifecycle") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SubscriberGenerator", "Generates event subscriber handler class" do
+    command("GenerateSubscriber") { attribute :subscriber_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SpecificationGenerator", "Generates composable specification predicate class" do
+    command("GenerateSpecification") { attribute :spec_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ViewGenerator", "Generates read model view projection class" do
+    command("GenerateView") { attribute :view_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "DomainGemGenerator", "Generates complete domain gem with gemspec and structure" do
+    command("GenerateDomainGem") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SpecGenerator", "Generates RSpec test files for domain constructs" do
+    command("GenerateSpec") { attribute :construct_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "PortGenerator", "Generates port interface for aggregate persistence" do
+    command("GeneratePort") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "MemoryAdapterGenerator", "Generates in-memory adapter for fast testing" do
+    command("GenerateMemoryAdapter") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "AutoloadGenerator", "Generates autoload manifest for domain gem modules" do
+    command("GenerateAutoload") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SinatraGenerator", "Generates Sinatra server wrapper for domain" do
+    command("GenerateSinatra") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ConfigGenerator", "Generates configuration initializer for domain" do
+    command("GenerateConfig") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "LlmAggregateDescriber", "Renders aggregate sections as plain text for llms.txt" do
+    command("Describe") { attribute :aggregate_id, String }
+  end
+
+  aggregate "LlmPolicyDescriber", "Renders policies and reactive flows as plain text for llms.txt" do
+    command("Describe") { attribute :domain_id, String }
+  end
+
+  aggregate "LlmValidationDescriber", "Renders validation rules and invariants as plain text for llms.txt" do
+    command("Describe") { attribute :aggregate_id, String }
+  end
+
+  aggregate "ConstructorGeneration", "Generates initialize method with keyword args for aggregates" do
+    command("GenerateConstructor") { attribute :aggregate_id, String }
+  end
+
+  aggregate "InvariantGeneration", "Generates check_invariants! method for aggregate classes" do
+    command("GenerateInvariants") { attribute :aggregate_id, String }
+  end
+
+  aggregate "ValidationGeneration", "Generates validate! method for aggregate classes" do
+    command("GenerateValidations") { attribute :aggregate_id, String }
+  end
+
+  aggregate "OpenApiPathBuilder", "Builds OpenAPI path entries from domain aggregates" do
+    command("BuildPaths") { attribute :aggregate_id, String }
+  end
+
+  aggregate "OpenApiResponseHelpers", "Shared OpenAPI response and parameter helpers" do
+    command("BuildResponse") { attribute :response_type, String }
+  end
+
+  aggregate "OpenApiSchemaBuilder", "Builds OpenAPI component schemas from domain aggregates" do
+    command("BuildSchema") { attribute :aggregate_id, String }
+  end
+
+  aggregate "SqlAdapterGenerator", "Generates Sequel-based persistence adapter class" do
+    command("GenerateSqlAdapter") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SqlMigrationGenerator", "Generates SQL CREATE/ALTER TABLE migration files from domain diffs" do
+    command("GenerateSqlMigration") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "RailsGenerator", "Generates a complete Rails app wired to the domain gem" do
+    command("GenerateRailsApp") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "JsonSchemaGenerator", "Generates JSON Schema for aggregate commands and value objects" do
+    command("GenerateJsonSchema") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "OpenApiGenerator", "Generates OpenAPI 3.0 spec with paths, request bodies, and schemas" do
+    command("GenerateOpenApi") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "TypescriptGenerator", "Generates TypeScript interfaces for aggregates, commands, and value objects" do
+    command("GenerateTypeScript") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "RouteBuilder", "Generates HTTP route definitions from domain commands and queries" do
+    command("BuildRoutes") { attribute :domain_id, String }
+  end
+
+  aggregate "RpcDiscovery", "Generates machine-readable RPC manifest of commands and queries" do
+    command("GenerateRpcManifest") { attribute :domain_id, String }
+  end
+
+  aggregate "CallPreservation", "Preserves hand-written call method bodies during code regeneration" do
+    command("PreserveCalls") { attribute :source, String; attribute :generated, String }
+  end
+
+  aggregate "PathTraversal", "Validates output paths to prevent directory traversal attacks" do
+    command("ValidatePath") { attribute :path, String }
+  end
+
+  aggregate "ExampleAppWriter", "Writes example application demonstrating domain usage" do
+    command("WriteApp") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ExampleBluebookWriter", "Writes example Bluebook DSL file for a domain" do
+    command("WriteBluebook") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  # --- Generator Internals Paragraph ---
+
+  aggregate "Generator", "Base generator class with shared IR walking and file emission" do
+    command("Generate") { attribute :construct_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "FileWriter", "Writes generated source files to disk with diff support" do
+    command("WriteFile") { attribute :path, String; attribute :content, String }
+  end
+
+  aggregate "SpecWriter", "Writes generated RSpec files for domain constructs" do
+    command("WriteSpec") { attribute :construct_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "LlmsTxtWriter", "Generates llms.txt documentation files from domain IR" do
+    command("WriteLlmsTxt") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SpecHelpers", "Shared helpers for spec file generation across construct types" do
+    command("GenerateHelper") { attribute :construct_type, String }
+  end
+
+  aggregate "InjectionHelpers", "Dependency injection helpers for command generator wiring" do
+    command("InjectDependency") { attribute :command_id, String; attribute :dependency, String }
+  end
+
+  aggregate "FileLocator", "Locates actual source files on disk by aggregate name" do
+    command("LocateFile") { attribute :aggregate_name, String; attribute :root, String }
+  end
+
+  aggregate "SkeletonGenerator", "Generates skeleton file structures from domain IR" do
+    command("GenerateSkeleton") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SelfHostDiff", "Compares generated files against actual source for self-hosting" do
+    command("DiffSelfHost") { attribute :domain_id, String }
+  end
+
+  aggregate "FrameworkGemGenerator", "Generates framework gem skeletons with gemspec and structure" do
+    command("GenerateFrameworkGem") { attribute :name, String; attribute :output_dir, String }
+  end
+
+  aggregate "Registry", "Generator registry for pluggable code generation" do
+    command("RegisterGenerator") { attribute :name, String }
+  end
+
+  aggregate "Infrastructure", "Parent module for infrastructure generators" do
+    command("Generate") { attribute :domain_id, String }
+  end
+
+  aggregate "BuiltIn", "Registers all built-in generators with the registry" do
+    command("RegisterAll") { attribute :domain_id, String }
+  end
+
+  # --- Spec Generators Paragraph ---
+
+  aggregate "AggregateSpec", "Generates RSpec file for aggregate root classes" do
+    command("GenerateAggregateSpec") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "CommandSpec", "Generates RSpec file for command classes" do
+    command("GenerateCommandSpec") { attribute :command_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "EntitySpec", "Generates RSpec file for entity classes" do
+    command("GenerateEntitySpec") { attribute :entity_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "EventSpec", "Generates RSpec file for domain event classes" do
+    command("GenerateEventSpec") { attribute :event_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "LifecycleSpec", "Generates RSpec file for lifecycle state machines" do
+    command("GenerateLifecycleSpec") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "PolicySpec", "Generates RSpec file for reactive policy classes" do
+    command("GeneratePolicySpec") { attribute :policy_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "PortSpec", "Generates RSpec file for port interface classes" do
+    command("GeneratePortSpec") { attribute :aggregate_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "QuerySpec", "Generates RSpec file for query scope methods" do
+    command("GenerateQuerySpec") { attribute :query_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ScopeSpec", "Generates RSpec file for named scope classes" do
+    command("GenerateScopeSpec") { attribute :scope_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ServiceSpec", "Generates RSpec file for domain service classes" do
+    command("GenerateServiceSpec") { attribute :service_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "SpecificationSpec", "Generates RSpec file for specification predicate classes" do
+    command("GenerateSpecificationSpec") { attribute :spec_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ValueObjectSpec", "Generates RSpec file for value object classes" do
+    command("GenerateValueObjectSpec") { attribute :vo_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "ViewSpec", "Generates RSpec file for read model view classes" do
+    command("GenerateViewSpec") { attribute :view_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "WorkflowSpec", "Generates RSpec file for workflow classes" do
+    command("GenerateWorkflowSpec") { attribute :workflow_id, String; attribute :output_dir, String }
+  end
+
+  # --- Validation Rules Paragraph ---
+
+  aggregate "BaseRule", "Abstract base class for all domain validation rules" do
+    command("RunRule") { attribute :domain_id, String }
+  end
+
+  aggregate "ValidationMessage", "Structured validation result with severity and context" do
+    command("CreateMessage") { attribute :message, String; attribute :severity, String }
+  end
+
+  aggregate "CommandNaming", "Validates command names follow verb-noun convention" do
+    command("CheckCommandNaming") { attribute :domain_id, String }
+  end
+
+  aggregate "UniqueAggregateNames", "Validates no duplicate aggregate names in domain" do
+    command("CheckUniqueNames") { attribute :domain_id, String }
+  end
+
+  aggregate "SafeIdentifierNames", "Validates names are safe Ruby/Go identifiers" do
+    command("CheckIdentifiers") { attribute :domain_id, String }
+  end
+
+  aggregate "ReservedNames", "Validates names do not clash with language reserved words" do
+    command("CheckReservedNames") { attribute :domain_id, String }
+  end
+
+  aggregate "NameCollisions", "Detects naming collisions between aggregates and value objects" do
+    command("CheckNameCollisions") { attribute :domain_id, String }
+  end
+
+  aggregate "ComputedNameCollisions", "Detects collisions between computed and declared attributes" do
+    command("CheckComputedCollisions") { attribute :domain_id, String }
+  end
+
+  aggregate "GlossaryTermViolations", "Enforces ubiquitous language glossary term usage" do
+    command("CheckGlossaryTerms") { attribute :domain_id, String }
+  end
+
+  aggregate "AggregatesHaveCommands", "Validates every aggregate has at least one command" do
+    command("CheckAggregateCommands") { attribute :domain_id, String }
+  end
+
+  aggregate "CommandsHaveAttributes", "Validates commands declare at least one attribute" do
+    command("CheckCommandAttributes") { attribute :domain_id, String }
+  end
+
+  aggregate "SingleAttributeAggregate", "Warns when aggregate has only one attribute" do
+    command("CheckSingleAttribute") { attribute :domain_id, String }
+  end
+
+  aggregate "TooManyCommands", "Warns when aggregate has excessive commands" do
+    command("CheckCommandCount") { attribute :domain_id, String }
+  end
+
+  aggregate "ValidPolicyEvents", "Validates policy event references exist in domain" do
+    command("CheckPolicyEvents") { attribute :domain_id, String }
+  end
+
+  aggregate "ValidPolicyTriggers", "Validates policy trigger commands exist in domain" do
+    command("CheckPolicyTriggers") { attribute :domain_id, String }
+  end
+
+  aggregate "NoPiiInIdentity", "Warns against PII fields used as identity attributes" do
+    command("CheckPiiIdentity") { attribute :domain_id, String }
+  end
+
+  aggregate "ValidReferences", "Validates reference targets exist in domain" do
+    command("CheckReferences") { attribute :domain_id, String }
+  end
+
+  aggregate "NoSelfReferences", "Detects invalid self-referencing aggregate associations" do
+    command("CheckSelfReferences") { attribute :domain_id, String }
+  end
+
+  aggregate "NoBidirectionalReferences", "Detects bidirectional reference cycles between aggregates" do
+    command("CheckBidirectional") { attribute :domain_id, String }
+  end
+
+  aggregate "NoForeignKeyAttributes", "Detects attributes that should be references instead" do
+    command("CheckForeignKeys") { attribute :domain_id, String }
+  end
+
+  aggregate "Transparency", "Validates domain design supports transparency concern" do
+    command("CheckTransparency") { attribute :domain_id, String }
+  end
+
+  aggregate "Consent", "Validates domain design supports user consent concern" do
+    command("CheckConsent") { attribute :domain_id, String }
+  end
+
+  aggregate "Privacy", "Validates domain design supports privacy concern" do
+    command("CheckPrivacy") { attribute :domain_id, String }
+  end
+
+  aggregate "Security", "Validates domain design supports security concern" do
+    command("CheckSecurity") { attribute :domain_id, String }
+  end
+
+  aggregate "BoundaryAdvisor", "Warns when aggregates are suspiciously thin (single attribute, no VOs)" do
+    command("Advise") { attribute :domain_id, String }
+  end
+
+  aggregate "WorldConcerns", "Validates that aggregate world concerns are permitted by domain policy" do
+    command("CheckConcerns") { attribute :domain_id, String }
+  end
+
+  # --- Visualizers Paragraph ---
+
+  aggregate "DomainVisualizer", "Orchestrates Mermaid diagram generation for a domain" do
+    command("VisualizeDomain") { attribute :domain_id, String }
+  end
+
+  aggregate "DomainVisualizerMethods", "Mixin extending Hecks with the visualize method" do
+    command("RegisterVisualizer") { attribute :domain_id, String }
+  end
+
+  aggregate "BehaviorDiagram", "Generates Mermaid diagrams for command and event flows" do
+    command("GenerateBehaviorDiagram") { attribute :domain_id, String }
+  end
+
+  aggregate "PortDiagram", "Generates Mermaid diagrams for ports and adapters" do
+    command("GeneratePortDiagram") { attribute :domain_id, String }
+  end
+
+  aggregate "StructureDiagram", "Generates Mermaid diagrams for aggregate structure" do
+    command("GenerateStructureDiagram") { attribute :domain_id, String }
+  end
+
+  # --- Serializers Paragraph ---
+
+  aggregate "AggregateSerializer", "Serializes aggregate IR back to Bluebook DSL source" do
+    command("SerializeAggregate") { attribute :aggregate_id, String }
+  end
+
+  aggregate "BehaviorSerializer", "Serializes commands, events, and policies to DSL source" do
+    command("SerializeBehavior") { attribute :aggregate_id, String }
+  end
+
+  aggregate "RuleSerializer", "Serializes validation rules to DSL source" do
+    command("SerializeRules") { attribute :aggregate_id, String }
+  end
+
+  aggregate "TypeHelpers", "Type name formatting utilities for serializer output" do
+    command("FormatType") { attribute :type_name, String }
+  end
+
+  # --- AST Paragraph ---
+
+  aggregate "NodeReaders", "Shared AST node reading helpers for visitor classes" do
+    command("ReadNode") { attribute :node_type, String }
+  end
+
+  aggregate "AggregateVisitor", "Prism AST visitor that extracts aggregate definitions from Ruby source" do
+    command("VisitAggregate") { attribute :source, String }
+  end
+
+  aggregate "DomainVisitor", "Prism AST visitor that extracts domain-level definitions from Ruby source" do
+    command("VisitDomain") { attribute :source, String }
+  end
+
+  aggregate "EventStormImporter", "Imports YAML event storming sessions into domain IR" do
+    command("ImportEventStorm") { attribute :source, String; attribute :name, String }
+  end
+
+  aggregate "DslGenerator", "Generates Bluebook DSL from event storm parse results" do
+    command("GenerateDsl") { attribute :result_id, String }
+  end
+
+  aggregate "YamlParser", "Parses YAML event storm files into structured data" do
+    command("ParseYaml") { attribute :source, String }
+  end
+
+  aggregate "Result", "Container for event storm parse results" do
+    command("CreateResult") { attribute :source, String }
+  end
+
+  aggregate "PatternMatching", "Pattern matching for event storm element classification" do
+    command("MatchPattern") { attribute :text, String }
+  end
+
+  aggregate "ContextGrouping", "Groups event storm items by bounded context" do
+    command("GroupByContext") { attribute :items, String }
+  end
+
+  aggregate "EventNameValidation", "Warns when event storm names don't match command inference convention" do
+    command("ValidateEventNames") { attribute :source, String }
+  end
+
+  # --- Migrations Paragraph ---
+
+  aggregate "DomainDiff", "Diffs two domain IRs to produce a list of structural changes" do
+    command("DiffDomains") { attribute :old_domain_id, String; attribute :new_domain_id, String }
+  end
+
+  aggregate "BehaviorDiff", "Diffs behavior-level changes between domain versions" do
+    command("DiffBehaviors") { attribute :old_domain_id, String; attribute :new_domain_id, String }
+  end
+
+  aggregate "DomainSnapshot", "Saves and loads domain IR snapshots for migration diffing" do
+    command("SaveSnapshot") { attribute :domain_id, String; attribute :path, String }
+    command("LoadSnapshot") { attribute :path, String }
+  end
+
+  aggregate "MigrationRunner", "Applies migration files to update domain persistence" do
+    command("RunMigrations") { attribute :domain_id, String; attribute :path, String }
+  end
+
+  aggregate "MigrationStrategy", "Base class for migration strategies (SQL, NoSQL, etc.)" do
+    command("ApplyStrategy") { attribute :migration_id, String; attribute :target, String }
+  end
+
+  # --- Features Paragraph ---
+
+  aggregate "LeakySliceDetection", "Detects cross-slice dependencies that violate bounded context boundaries" do
+    command("DetectLeaks") { attribute :domain_id, String }
+  end
+
+  aggregate "ConnectionConfig", "Configures connections between domain contexts" do
+    command("ConfigureConnection") { attribute :from_domain, String; attribute :to_domain, String }
+  end
+
+  aggregate "SliceStep", "Single step in a vertical slice through a reactive chain" do
+    command("DefineStep") { attribute :command_name, String; attribute :event_name, String }
+  end
+
+  aggregate "DomainMixin", "Mixin adding vertical slice extraction to Domain IR" do
+    command("ExtractSlices") { attribute :domain_id, String }
+  end
+
+  aggregate "VerticalSlice", "Cross-cutting slice through a command/event reactive chain" do
+    command("Trace") { attribute :entry_command, String }
+  end
+
+  aggregate "SliceExtractor", "Extracts vertical slices from domain command flows" do
+    command("Extract") { attribute :domain_id, String }
+  end
+
+  aggregate "SliceDiagram", "Generates Mermaid diagrams from vertical slices" do
+    command("Generate") { attribute :domain_id, String }
+  end
+
+  # --- DSL Internals Paragraph ---
+
+  aggregate "AggregateRebuilder", "Rebuilds aggregate IR from modified DSL definitions" do
+    command("RebuildAggregate") { attribute :aggregate_id, String }
+  end
+
+  aggregate "AttributeCollector", "Collects typed attributes during DSL block evaluation" do
+    command("CollectAttribute") { attribute :name, String; attribute :type, String }
+  end
+
+  aggregate "BehaviorMethods", "DSL mixin providing command, event, and policy definition methods" do
+    command("DefineBehaviorMethod") { attribute :name, String; attribute :kind, String }
+  end
+
+  aggregate "ConstraintMethods", "DSL mixin providing validation and invariant definition methods" do
+    command("DefineConstraintMethod") { attribute :name, String; attribute :rule, String }
+  end
+
+  aggregate "ImplicitSyntax", "Convention-based implicit DSL shortcuts for common patterns" do
+    command("ApplyImplicitSyntax") { attribute :aggregate_id, String }
+  end
+
+  aggregate "QueryMethods", "DSL mixin providing query, scope, and specification methods" do
+    command("DefineQueryMethod") { attribute :name, String; attribute :return_type, String }
+  end
+
+  aggregate "StepCollector", "Collects workflow and saga steps during DSL evaluation" do
+    command("CollectStep") { attribute :name, String; attribute :action, String }
+  end
+
+  aggregate "Describable", "Shared mixin adding description support to DSL objects" do
+    command("SetDescription") { attribute :text, String }
+  end
+
+  aggregate "BluebookBuilderMethods", "Top-level Hecks.bluebook method for defining domains" do
+    command("DefineDomainEntry") { attribute :name, String }
+  end
+end

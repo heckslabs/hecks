@@ -21,7 +21,7 @@ module Hecks
       # context. Shared names across contexts suggest ambiguous ubiquitous language
       # that should be clarified with a context-specific prefix or rename.
       #
-      # @param domains [Array<Hecks::DomainModel::Structure::Domain>]
+      # @param domains [Array<Hecks::BluebookModel::Structure::Domain>]
       # @return [Array<String>] warning messages
       def ambiguous_name_warnings(domains)
         name_to_contexts = Hash.new { |h, k| h[k] = [] }

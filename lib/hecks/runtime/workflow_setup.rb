@@ -30,7 +30,7 @@ module Hecks
 
         @domain.workflows.each do |workflow|
           executor = WorkflowExecutor.new(workflow, @command_bus, @mod)
-          method_name = domain_snake_name(workflow.name).to_sym
+          method_name = bluebook_snake_name(workflow.name).to_sym
 
           @mod.define_singleton_method(method_name) do |**attrs|
             executor.call(**attrs)

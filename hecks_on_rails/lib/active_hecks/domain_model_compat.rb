@@ -1,4 +1,4 @@
-# ActiveHecks::DomainModelCompat
+# ActiveHecks::BluebookModelCompat
 #
 # Shared ActiveModel compatibility for all domain objects (aggregates + VOs).
 # Provides naming, conversion, JSON serialization, and attribute introspection.
@@ -10,7 +10,7 @@
 #   pizza.attributes       # => {"name" => "Margherita", "id" => "..."}
 #
 module ActiveHecks
-  module DomainModelCompat
+  module BluebookModelCompat
     def self.included(base)
       base.extend(ActiveModel::Naming) unless base.respond_to?(:model_name)
       base.include(ActiveModel::Conversion)

@@ -27,7 +27,7 @@ module Hecks
       # a +:path+ key is present in the domain entry.
       #
       # @param d [Hash] domain entry with :gem_name, :version, :path keys
-      # @return [Array(Hecks::DomainModel::Structure::Domain, Module)] tuple of domain IR and domain module
+      # @return [Array(Hecks::BluebookModel::Structure::Domain, Module)] tuple of domain IR and domain module
       def load_domain(d)
         d[:path] ? load_from_path(d) : load_from_gem(d)
       end
@@ -38,7 +38,7 @@ module Hecks
       # generated +lib/+ to +$LOAD_PATH+, and requires all generated files.
       #
       # @param d [Hash] domain entry with :gem_name and :path keys
-      # @return [Array(Hecks::DomainModel::Structure::Domain, Module)] tuple of domain IR and domain module
+      # @return [Array(Hecks::BluebookModel::Structure::Domain, Module)] tuple of domain IR and domain module
       def load_from_path(d)
         base = if defined?(::Rails)
                  ::Rails.root.join(d[:path]).to_s
@@ -56,7 +56,7 @@ module Hecks
         $LOAD_PATH.unshift(lib_path) unless $LOAD_PATH.include?(lib_path)
         require d[:gem_name]
         Dir[File.join(lib_path, "**/*.rb")].sort.each { |f| load f }
-        domain_module = Object.const_get(domain_module_name(domain_obj.name))
+        domain_module = Object.const_get(bluebook_module_name(domain_obj.name))
         [domain_obj, domain_module]
       end
 
@@ -65,7 +65,7 @@ module Hecks
       # Falls back to Rails root or current directory if the gem spec is not found.
       #
       # @param d [Hash] domain entry with :gem_name and optional :version keys
-      # @return [Array(Hecks::DomainModel::Structure::Domain, Module)] tuple of domain IR and domain module
+      # @return [Array(Hecks::BluebookModel::Structure::Domain, Module)] tuple of domain IR and domain module
       def load_from_gem(d)
         gem d[:gem_name], d[:version] if d[:version]
         require d[:gem_name]
@@ -82,7 +82,7 @@ module Hecks
         Kernel.load(domain_file)
         domain_obj = Hecks.last_domain
         domain_obj.source_path = domain_file
-        domain_module = Object.const_get(domain_module_name(domain_obj.name))
+        domain_module = Object.const_get(bluebook_module_name(domain_obj.name))
         [domain_obj, domain_module]
       end
     end

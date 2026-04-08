@@ -6,9 +6,8 @@
 # supplied ID, and optionally calls the reference_authorizer proc.
 #
 # Validation modes (set via `validate:` on `reference_to`):
-#   true       — check existence + run reference_authorizer if set (default)
-#   :exists    — check existence only, skip authorization
-#   false      — skip all validation (opt-out for eventual consistency)
+#   :exists    — check existence (default)
+#   true       — check existence + run reference_authorizer if set
 #
 # nil values are always skipped (nullable references).
 #
@@ -39,8 +38,6 @@ module Hecks
         authorizer = self.class.reference_authorizer
 
         meta.each do |ref|
-          next if ref.validate == false
-
           val = respond_to?(ref.name, true) ? send(ref.name) : nil
           next if val.nil?
 
@@ -56,7 +53,7 @@ module Hecks
             )
           end
 
-          next if ref.validate == :exists
+          next unless ref.validate == true
           next unless authorizer
 
           unless authorizer.call(ref, record, self)
@@ -76,7 +73,7 @@ module Hecks
       # For cross-domain references (ref.domain non-nil), resolves from the
       # foreign domain's constant (e.g., BillingDomain::Invoice).
       #
-      # @param ref [Hecks::DomainModel::Structure::Reference] the reference IR node
+      # @param ref [Hecks::BluebookModel::Structure::Reference] the reference IR node
       # @return [Class, nil] the resolved aggregate class, or nil if unresolvable
       def resolve_reference_class(ref)
         if ref.domain

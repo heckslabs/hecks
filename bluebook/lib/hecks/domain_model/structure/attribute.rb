@@ -1,13 +1,13 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Attribute
+    # Hecks::BluebookModel::Structure::Attribute
     #
     # Represents a typed attribute on an aggregate, value object, command, or event.
     # Supports scalar types (String, Integer) and list types.
     #
-    # The most granular building block in the DomainModel IR. Used by every builder
+    # The most granular building block in the BluebookModel IR. Used by every builder
     # and every generator.
     #
     #   attr = Attribute.new(name: :name, type: String)

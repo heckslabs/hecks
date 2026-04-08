@@ -85,7 +85,7 @@ module Hecks
       builder = @aggregate_builders[name] ||= DSL::AggregateBuilder.new(name)
       builder.instance_eval(&block) if block
 
-      handle = @handles[name] ||= AggregateHandle.new(name, builder, domain_module: domain_module_name(@name), workshop: self)
+      handle = @handles[name] ||= AggregateHandle.new(name, builder, domain_module: bluebook_module_name(@name), workshop: self)
 
       if block
         agg = builder.build
@@ -112,13 +112,13 @@ module Hecks
 
     # Build and return a Domain structure from the current aggregate definitions.
     #
-    # Constructs a DomainModel::Structure::Domain by building each aggregate
+    # Constructs a BluebookModel::Structure::Domain by building each aggregate
     # from its builder, collecting them along with any custom verbs.
     #
-    # @return [DomainModel::Structure::Domain] the fully assembled domain object
+    # @return [BluebookModel::Structure::Domain] the fully assembled domain object
     def to_domain
       aggregates = @aggregate_builders.values.map(&:build)
-      DomainModel::Structure::Domain.new(
+      BluebookModel::Structure::Domain.new(
         name: @name, aggregates: aggregates,
         services: @service_builders, custom_verbs: @custom_verbs
       )
@@ -141,7 +141,7 @@ module Hecks
         return mod
       end
       ActiveHecks.activate(mod, domain: domain)
-      puts "ActiveHecks loaded for #{domain_module_name(domain.name)}"
+      puts "ActiveHecks loaded for #{bluebook_module_name(domain.name)}"
       mod
     end
 
@@ -210,13 +210,13 @@ module Hecks
 
       # Build a standalone domain from this aggregate
       agg = builder.build
-      new_domain = DomainModel::Structure::Domain.new(
+      new_domain = BluebookModel::Structure::Domain.new(
         name: name, aggregates: [agg], custom_verbs: []
       )
 
       # Serialize and write
       dsl = DslSerializer.new(new_domain).serialize
-      file_name = "#{domain_snake_name(name)}_domain.rb"
+      file_name = "#{bluebook_snake_name(name)}_domain.rb"
       File.write(file_name, dsl)
 
       # Remove from current workshop
@@ -235,7 +235,7 @@ module Hecks
     # @param name [String] the raw name
     # @return [String] sanitized constant name
     def normalize_name(name)
-      domain_constant_name(name)
+      bluebook_constant_name(name)
     end
 
     # Build a human-readable summary string for an aggregate.
@@ -243,7 +243,7 @@ module Hecks
     # Lists counts of attributes, value objects, entities, commands, and
     # policies. Returns "empty" if the aggregate has none of these.
     #
-    # @param agg [DomainModel::Structure::Aggregate] the built aggregate
+    # @param agg [BluebookModel::Structure::Aggregate] the built aggregate
     # @return [String] summary like "3 attributes, 2 commands"
     def aggregate_summary(agg)
       parts = []

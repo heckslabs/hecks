@@ -17,7 +17,7 @@ module Hecks
 
       # Check transparency: every command should emit at least one event.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain]
+      # @param domain [Hecks::BluebookModel::Structure::Domain]
       # @return [Array(Array<Hash>, Array<String>)] violations and suggestions
       def check_transparency(domain)
         violations = []
@@ -48,7 +48,7 @@ module Hecks
 
       # Check consent: user-like aggregates need actor declarations.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain]
+      # @param domain [Hecks::BluebookModel::Structure::Domain]
       # @return [Array(Array<Hash>, Array<String>)] violations and suggestions
       def check_consent(domain)
         user_patterns = %w[User Account Member Customer Patient Person Profile]
@@ -77,7 +77,7 @@ module Hecks
 
       # Check privacy: PII must be hidden, PII-aggregate commands need actors.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain]
+      # @param domain [Hecks::BluebookModel::Structure::Domain]
       # @return [Array(Array<Hash>, Array<String>)] violations and suggestions
       def check_privacy(domain)
         violations = []
@@ -118,7 +118,7 @@ module Hecks
 
       # Check security: command actors must be declared at domain level.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain]
+      # @param domain [Hecks::BluebookModel::Structure::Domain]
       # @return [Array(Array<Hash>, Array<String>)] violations and suggestions
       def check_security(domain)
         domain_actor_names = domain.actors.map(&:name)

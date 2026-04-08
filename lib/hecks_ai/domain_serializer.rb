@@ -17,7 +17,7 @@ module Hecks
     module DomainSerializer
       # Serializes a full domain model into a structured Hash.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain to serialize
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain to serialize
       # @return [Hash] structured representation of the entire domain
       def self.call(domain)
         {
@@ -30,7 +30,7 @@ module Hecks
 
       # Serializes an aggregate into a Hash with all of its components.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [Hash] structured aggregate data
       def self.serialize_aggregate(agg)
         {
@@ -50,7 +50,7 @@ module Hecks
 
       # Serializes an attribute into a Hash.
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute
       # @return [Hash] structured attribute data
       def self.serialize_attribute(attr)
         h = { name: attr.name.to_s, type: attr.ruby_type }
@@ -63,8 +63,8 @@ module Hecks
 
       # Serializes a command and its paired event into a Hash.
       #
-      # @param cmd [Hecks::DomainModel::Behavior::Command] the command
-      # @param event [Hecks::DomainModel::Behavior::DomainEvent, nil] the paired event
+      # @param cmd [Hecks::BluebookModel::Behavior::Command] the command
+      # @param event [Hecks::BluebookModel::Behavior::BluebookEvent, nil] the paired event
       # @return [Hash] structured command data
       def self.serialize_command(cmd, event)
         h = {
@@ -81,7 +81,7 @@ module Hecks
 
       # Serializes a policy into a Hash.
       #
-      # @param policy [Hecks::DomainModel::Behavior::Policy] the policy
+      # @param policy [Hecks::BluebookModel::Behavior::Policy] the policy
       # @return [Hash] structured policy data
       def self.serialize_policy(policy)
         h = { name: policy.name }
@@ -96,7 +96,7 @@ module Hecks
 
       # Serializes a validation into a Hash.
       #
-      # @param validation [Hecks::DomainModel::Structure::Validation] the validation
+      # @param validation [Hecks::BluebookModel::Structure::Validation] the validation
       # @return [Hash] structured validation data
       def self.serialize_validation(validation)
         h = { field: validation.field.to_s }
@@ -108,7 +108,7 @@ module Hecks
 
       # Serializes a value object into a Hash.
       #
-      # @param vo [Hecks::DomainModel::Structure::ValueObject] the value object
+      # @param vo [Hecks::BluebookModel::Structure::ValueObject] the value object
       # @return [Hash] structured value object data
       def self.serialize_value_object(vo)
         {
@@ -120,7 +120,7 @@ module Hecks
 
       # Serializes an entity into a Hash.
       #
-      # @param entity [Hecks::DomainModel::Structure::Entity] the entity
+      # @param entity [Hecks::BluebookModel::Structure::Entity] the entity
       # @return [Hash] structured entity data
       def self.serialize_entity(entity)
         {
@@ -132,7 +132,7 @@ module Hecks
 
       # Serializes a domain service into a Hash.
       #
-      # @param service [Hecks::DomainModel::Behavior::Service] the service
+      # @param service [Hecks::BluebookModel::Behavior::Service] the service
       # @return [Hash] structured service data
       def self.serialize_service(service)
         {

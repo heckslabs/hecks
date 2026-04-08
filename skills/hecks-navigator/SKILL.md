@@ -104,7 +104,7 @@ Bluebook DSL  →  Builders  →  Hecksagon IR  →  Generators  →  Ruby/Go co
 
 - **Boot an app**: `Hecks.boot(__dir__)` — loads `bluebook/` subfolder, builds IR
 - **Rails config**: `Hecks.configure { domain "Pizzas", path: "..." }`
-- **Run examples**: `ruby -Ilib examples/pizzas/app.rb`
+- **Run examples**: `ruby -Ilib examples/pizzas/pizzas.rb`
 - **CLI**: `bin/hecks` or `bundle exec hecks`
 - **Specs**: `bundle exec rspec` (must run under 1 second)
 

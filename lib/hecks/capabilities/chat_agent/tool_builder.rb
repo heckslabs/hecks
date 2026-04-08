@@ -15,7 +15,7 @@ module Hecks
       module ToolBuilder
         # Build tool definitions from the full domain surface.
         #
-        # @param domain [DomainModel::Structure::Domain] the domain
+        # @param domain [BluebookModel::Structure::Domain] the domain
         # @return [Array<Hash>] tool definitions
         def self.build(domain)
           tools = []

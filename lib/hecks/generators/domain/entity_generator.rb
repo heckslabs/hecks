@@ -68,7 +68,7 @@ module Hecks
       # List attributes get +default: []+ and +freeze: true+. Attributes with
       # explicit defaults get +default: <value>+. Plain attributes get just the name.
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute to declare
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute to declare
       # @return [String] the formatted declaration (e.g., ":amount" or ":entries, default: [], freeze: true")
       def attribute_declaration(attr)
         parts = [":#{attr.name}"]

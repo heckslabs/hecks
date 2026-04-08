@@ -9,7 +9,7 @@ module Hecks
     class RpcDiscovery < Hecks::Generator
       # Creates a new RpcDiscovery generator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       def initialize(domain)
         @domain = domain
       end
@@ -55,7 +55,7 @@ module Hecks
             }
           end
           agg.queries.each do |query|
-            qn = domain_snake_name(query.name)
+            qn = bluebook_snake_name(query.name)
             params = query.block.parameters.map { |_, n| { name: n.to_s, type: "string" } }
             methods << { name: "#{agg.name}.#{qn}", description: "#{agg.name} lookup", params: params }
           end

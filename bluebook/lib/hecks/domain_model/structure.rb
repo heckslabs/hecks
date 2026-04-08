@@ -1,13 +1,13 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
 
-    # Hecks::DomainModel::Structure
+    # Hecks::BluebookModel::Structure
     #
     # Namespace for the structural building blocks of a domain model: domains,
     # aggregates, value objects, attributes, validations, invariants, scopes,
     # ports, read models, external systems, and actors.
     #
-    # Part of the DomainModel IR layer. Each child class is an intermediate
+    # Part of the BluebookModel IR layer. Each child class is an intermediate
     # representation built by the DSL and consumed by generators.
     #
     # == Structural Hierarchy
@@ -31,14 +31,14 @@ module Hecks
     # == Usage
     #
     # These classes are not instantiated directly by application code. They are
-    # built by the DSL layer (DomainBuilder, AggregateBuilder, etc.) when parsing
+    # built by the DSL layer (BluebookBuilder, AggregateBuilder, etc.) when parsing
     # a domain definition, and then consumed by generators, the runtime, and
     # visualization tools.
     #
     #   # Typical flow:
-    #   domain = Hecks::DSL::DomainBuilder.new("Pizzas") { ... }.build
-    #   domain.class  # => Hecks::DomainModel::Structure::Domain
-    #   domain.aggregates.first.class  # => Hecks::DomainModel::Structure::Aggregate
+    #   domain = Hecks::DSL::BluebookBuilder.new("Pizzas") { ... }.build
+    #   domain.class  # => Hecks::BluebookModel::Structure::Domain
+    #   domain.aggregates.first.class  # => Hecks::BluebookModel::Structure::Aggregate
     #
     module Structure
       autoload :Domain,         "hecks/domain_model/structure/domain"

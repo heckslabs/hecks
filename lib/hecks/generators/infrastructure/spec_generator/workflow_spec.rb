@@ -14,11 +14,11 @@ module Hecks
           include HecksTemplating::NamingHelpers
           # Generates an RSpec spec for a domain workflow.
           #
-          # @param workflow [Hecks::DomainModel::Behavior::Workflow]
+          # @param workflow [Hecks::BluebookModel::Behavior::Workflow]
           # @return [String] the complete RSpec file content
           def generate_workflow_spec(workflow)
             mod = mod_name
-            method_name = domain_snake_name(workflow.name)
+            method_name = bluebook_snake_name(workflow.name)
             lines = []
             lines << "require \"spec_helper\""
             lines << ""

@@ -1,6 +1,6 @@
 require "date"
 
-Hecks.domain "Identity" do
+Hecks.bluebook "Identity" do
   Stakeholder "Users, roles, and permissions for governance participants" do
     name String, pii: true
     email String, pii: true

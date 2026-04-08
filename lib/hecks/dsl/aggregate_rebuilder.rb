@@ -14,7 +14,7 @@ module Hecks
     class AggregateRebuilder
       # Reconstruct an AggregateBuilder from a built Aggregate IR object.
       #
-      # @param aggregate [DomainModel::Structure::Aggregate] the aggregate IR to reconstruct from
+      # @param aggregate [BluebookModel::Structure::Aggregate] the aggregate IR to reconstruct from
       # @return [AggregateBuilder] a builder pre-populated with equivalent declarations
       def self.from_aggregate(aggregate)
         builder = DSL::AggregateBuilder.new(aggregate.name)

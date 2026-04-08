@@ -23,10 +23,10 @@ module Hecks
       LoadExtensions.require_auto
 
       hecks_dir = File.join(dir, "hecks")
-      raise Hecks::DomainLoadError, "No hecks/ directory in #{dir}" unless File.directory?(hecks_dir)
+      raise Hecks::BluebookLoadError, "No hecks/ directory in #{dir}" unless File.directory?(hecks_dir)
 
       bluebooks = find_domain_files(hecks_dir)
-      raise Hecks::DomainLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
+      raise Hecks::BluebookLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
 
       find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
       find_world_files(hecks_dir).each { |f| Kernel.load(f) }
@@ -86,24 +86,24 @@ module Hecks
     # Boot all domains: validates, compiles, wires event buses and
     # cross-domain queues, fires extensions.
     #
-    # @param domains [Array<DomainModel::Structure::Domain>]
+    # @param domains [Array<BluebookModel::Structure::Domain>]
     # @return [Array<Runtime>]
     def boot_domains(domains)
       require "hecks_multidomain"
       Hecks::MultiDomain::Validator.validate_no_cross_domain_references(domains)
-      domains.each { |d| load_domain(d) }
+      domains.each { |d| load_bluebook(d) }
 
       shared_bus = EventBus.new
       @shared_event_bus = shared_bus
       directionality = Hecks::MultiDomain::Directionality.build(domains)
       runtimes = domains.map do |domain|
-        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, domain_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
+        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, bluebook_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
         Runtime.new(domain, event_bus: bus)
       end
       Hecks::MultiDomain::QueueWiring.wire(domains, runtimes)
 
       domains.each_with_index do |domain, idx|
-        mod = Object.const_get(domain_module_name(domain.name))
+        mod = Object.const_get(bluebook_module_name(domain.name))
         fire_extensions(mod, domain, runtimes[idx])
       end
 
@@ -121,7 +121,7 @@ module Hecks
       return shared_bus unless @_directionality.any?
       FilteredEventBus.new(
         inner: shared_bus,
-        domain_gem_name: domain.gem_name,
+        bluebook_gem_name: domain.gem_name,
         allowed_sources: @_directionality[domain.gem_name]
       )
     end

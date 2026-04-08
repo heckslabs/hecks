@@ -33,7 +33,7 @@ module Hecks::Conventions
       GO
     end
 
-    # Go code to build an eventEntry from a DomainEvent.
+    # Go code to build an eventEntry from a BluebookEvent.
     def self.go_mapper(event_var: "e")
       <<~GO.chomp
         eventEntry{

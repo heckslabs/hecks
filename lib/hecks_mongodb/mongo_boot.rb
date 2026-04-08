@@ -28,7 +28,7 @@ module Hecks
       # Performs full MongoDB setup: generates adapter classes and returns
       # instantiated repository objects.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain model
+      # @param domain [BluebookModel::Structure::Domain] the domain model
       # @param client [Mongo::Client] the MongoDB client
       # @return [Hash<String, Object>] adapter instances keyed by aggregate name
       def setup(domain, client)

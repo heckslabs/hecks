@@ -175,7 +175,7 @@ module Hecks
     # Load the domain from Bluebook in the project root. Caches the
     # result across multiple tag evaluations within the same generate call.
     #
-    # @return [Hecks::DomainModel::Domain, nil] the loaded domain, or nil
+    # @return [Hecks::BluebookModel::Domain, nil] the loaded domain, or nil
     #   if Bluebook does not exist
     def load_domain
       @_domain ||= begin

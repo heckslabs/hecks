@@ -15,7 +15,7 @@ module Hecks
       include HecksTemplating::NamingHelpers
       # Initializes a StubGenerator for a specific element type and name.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain to search in
+      # @param domain [BluebookModel::Structure::Domain] the domain to search in
       # @param type [String] the element type ("command", "query", "aggregate",
       #   "workflow", "service", "policy", "specification")
       # @param name [String] the element name to find (e.g., "Withdraw", "Pizza")

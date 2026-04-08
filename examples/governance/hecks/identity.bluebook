@@ -1,4 +1,4 @@
-Hecks.domain "Identity" do
+Hecks.bluebook "Identity" do
   aggregate "Stakeholder" do
     attribute :name, String
     attribute :email, String

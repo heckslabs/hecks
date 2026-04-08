@@ -11,7 +11,7 @@
 #
 #   image = SessionImage.capture(workshop)
 #   image.domain_name   # => "Pizzas"
-#   image.dsl_source    # => 'Hecks.domain "Pizzas" do ...'
+#   image.dsl_source    # => 'Hecks.bluebook "Pizzas" do ...'
 #
 #   # Later...
 #   image.restore_into(workshop)

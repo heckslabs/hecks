@@ -22,7 +22,7 @@ module Hecks
 
       # Initializes the query object generator.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate whose
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate whose
       #   attributes will be used to generate finder methods
       # @param domain_module [String] the Ruby module name to wrap the generated module in
       def initialize(aggregate, domain_module:)
@@ -60,7 +60,7 @@ module Hecks
       def query_module_lines(indent)
         pad = " " * indent
         lines = []
-        lines << "#{pad}module #{domain_constant_name(@aggregate.name)}Queries"
+        lines << "#{pad}module #{bluebook_constant_name(@aggregate.name)}Queries"
         queryable_attributes.each do |attr|
           name = attr.name
           lines << "#{pad}  def by_#{name}(value)"
@@ -80,7 +80,7 @@ module Hecks
       # attributes (which point to other aggregates) since neither can be
       # directly matched with +where+.
       #
-      # @return [Array<Hecks::DomainModel::Structure::Attribute>] scalar, non-reference attributes
+      # @return [Array<Hecks::BluebookModel::Structure::Attribute>] scalar, non-reference attributes
       def queryable_attributes
         @aggregate.attributes.reject(&:list?)
       end

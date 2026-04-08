@@ -24,7 +24,7 @@ module Hecks
         # Returns the list of registered precondition checks.
         # Preconditions are validated before the command's +#call+ executes.
         #
-        # @return [Array<DomainModel::Behavior::Condition>] registered preconditions
+        # @return [Array<BluebookModel::Behavior::Condition>] registered preconditions
         def preconditions
           @preconditions ||= []
         end
@@ -33,7 +33,7 @@ module Hecks
         # Postconditions are validated after +#call+ returns, receiving the
         # before and after states of the aggregate.
         #
-        # @return [Array<DomainModel::Behavior::Condition>] registered postconditions
+        # @return [Array<BluebookModel::Behavior::Condition>] registered postconditions
         def postconditions
           @postconditions ||= []
         end
@@ -47,7 +47,7 @@ module Hecks
         # @return [void]
         # @raise [Hecks::PreconditionError] at execution time if the block returns falsey
         def precondition(message, &block)
-          preconditions << DomainModel::Behavior::Condition.new(message: message, block: block)
+          preconditions << BluebookModel::Behavior::Condition.new(message: message, block: block)
         end
 
         # Registers a postcondition that must hold after the command executes.
@@ -60,7 +60,7 @@ module Hecks
         # @return [void]
         # @raise [Hecks::PostconditionError] at execution time if the block returns falsey
         def postcondition(message, &block)
-          postconditions << DomainModel::Behavior::Condition.new(message: message, block: block)
+          postconditions << BluebookModel::Behavior::Condition.new(message: message, block: block)
         end
       end
 

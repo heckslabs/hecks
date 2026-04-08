@@ -111,7 +111,7 @@ module Hecks
 
       # Generates a column definition string with type and constraints.
       #
-      # @param attr [DomainModel::Structure::Attribute] the attribute
+      # @param attr [BluebookModel::Structure::Attribute] the attribute
       # @param presence_fields [Array<Symbol>] fields requiring NOT NULL
       # @param unique_fields [Array<Symbol>] fields requiring UNIQUE
       # @return [String] the column definition (e.g., "name VARCHAR(255) NOT NULL")
@@ -125,7 +125,7 @@ module Hecks
 
       # Generates a column definition for a reference (foreign key).
       #
-      # @param ref [DomainModel::Structure::Reference] the reference
+      # @param ref [BluebookModel::Structure::Reference] the reference
       # @return [String] the column definition (e.g., "team_id VARCHAR(36) REFERENCES teams(id)")
       def reference_column_def(ref)
         col = reference_column_name(ref)
@@ -136,7 +136,7 @@ module Hecks
       # Generates a CREATE TABLE for a value object's join table from a VO struct.
       #
       # @param aggregate_name [String] the parent aggregate name
-      # @param vo [DomainModel::Structure::ValueObject] the value object
+      # @param vo [BluebookModel::Structure::ValueObject] the value object
       # @return [String] the CREATE TABLE SQL statement
       def generate_create_join_table_from_vo(aggregate_name, vo)
         parent_table = table_name(aggregate_name)

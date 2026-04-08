@@ -10,7 +10,7 @@
 module Hecks::Features
 
   class SliceDiagram
-    # @param domain [Hecks::DomainModel::Structure::Domain]
+    # @param domain [Hecks::BluebookModel::Structure::Domain]
     def initialize(domain)
       @domain = domain
     end

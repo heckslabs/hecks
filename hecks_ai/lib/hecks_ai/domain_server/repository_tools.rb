@@ -14,7 +14,7 @@ module Hecks
       #
       # Mixed into DomainServer -- expects the following instance state:
       #   - +@server+ [MCP::Server] -- the MCP server to register tools on
-      #   - +@domain+ [Hecks::DomainModel::Structure::Domain] -- the domain model
+      #   - +@domain+ [Hecks::BluebookModel::Structure::Domain] -- the domain model
       #   - +@mod+ [Module] -- the generated domain module (e.g. PizzasDomain)
       #
       # Also expects this helper method from DomainServer:

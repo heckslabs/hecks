@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-      # Hecks::DomainModel::Behavior::ReadModel
+      # Hecks::BluebookModel::Behavior::ReadModel
       #
       # Intermediate representation of a read model -- an event-driven projection
       # that maintains a denormalized view of domain state. Each read model has a
@@ -13,7 +13,7 @@ module Hecks
       # Read models enable CQRS by separating the read side (optimized for queries)
       # from the write side (commands and aggregates).
       #
-      # Part of the DomainModel IR layer. Built by ReadModelBuilder, consumed by
+      # Part of the BluebookModel IR layer. Built by ReadModelBuilder, consumed by
       # ReadModelWiring at runtime to create queryable projections.
       #
       #   rm = ReadModel.new(

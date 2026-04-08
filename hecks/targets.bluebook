@@ -1,0 +1,240 @@
+Hecks.bluebook "Targets" do
+  # --- Core ---
+
+  aggregate "Target", "Language backend registration and build dispatch" do
+    attribute :name, String
+    attribute :language, String
+
+    command "RegisterTarget" do
+      attribute :name, String
+      attribute :language, String
+    end
+
+    command "Build" do
+      attribute :target_id, String
+      attribute :domain_id, String
+    end
+  end
+
+  # --- Schema Paragraph ---
+
+  aggregate "TypescriptGenerator", "Generates TypeScript type definitions from domain IR" do
+    command("GenerateTypescript") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  aggregate "JsonSchemaGenerator", "Generates JSON Schema from domain aggregate structure" do
+    command("GenerateJsonSchema") { attribute :aggregate_id, String }
+  end
+
+  aggregate "OpenapiGenerator", "Generates OpenAPI 3.0 specification from domain IR" do
+    command("GenerateOpenapi") { attribute :domain_id, String }
+  end
+
+  aggregate "RpcDiscovery", "Generates RPC service discovery manifest from domain commands" do
+    command("GenerateRpcDiscovery") { attribute :domain_id, String }
+  end
+
+  # --- Go Paragraph ---
+
+  aggregate "GoCodeBuilder", "Fluent builder for Go source files: packages, imports, structs, methods" do
+    command("Struct") { attribute :name, String }
+    command("Receiver") { attribute :type_name, String; attribute :method_name, String }
+    command("Func") { attribute :name, String; attribute :params, String }
+    command("Render") { attribute :package, String }
+  end
+
+  aggregate "GoUtils", "Naming and type mapping: Ruby types to Go types, case conversion" do
+    command("GoType") { attribute :attribute_name, String }
+    command("PascalCase") { attribute :input, String }
+  end
+
+  aggregate "GoAggregateGenerator", "Generates Go struct for aggregate root with validations" do
+    command("Generate") { attribute :aggregate_name, String; attribute :package, String }
+  end
+
+  aggregate "GoCommandGenerator", "Generates Go command struct with Execute method" do
+    command("Generate") { attribute :command_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "GoEventGenerator", "Generates immutable Go event struct with OccurredAt" do
+    command("Generate") { attribute :event_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "GoLifecycleGenerator", "Generates Go lifecycle: status type, state constants, transitions" do
+    command("Generate") { attribute :aggregate_name, String; attribute :package, String }
+  end
+
+  aggregate "GoPolicyGenerator", "Generates Go reactive policy structs wired to event bus" do
+    command("Generate") { attribute :policy_name, String; attribute :package, String }
+  end
+
+  aggregate "GoQueryGenerator", "Generates Go query functions with field-matching filter" do
+    command("Generate") { attribute :query_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "GoSpecificationGenerator", "Generates Go specification structs with SatisfiedBy predicate" do
+    command("Generate") { attribute :spec_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "GoValueObjectGenerator", "Generates Go struct for value objects with constructor validation" do
+    command("Generate") { attribute :value_object_name, String; attribute :package, String }
+  end
+
+  aggregate "GoPortGenerator", "Generates Go interface for repository ports" do
+    command("Generate") { attribute :aggregate_name, String; attribute :package, String }
+  end
+
+  aggregate "GoMemoryAdapterGenerator", "Generates Go in-memory repository using sync.RWMutex" do
+    command("Generate") { attribute :aggregate_name, String; attribute :package, String }
+  end
+
+  aggregate "GoErrorsGenerator", "Generates Go error types matching the hecks error hierarchy" do
+    command("Generate") { attribute :package, String }
+  end
+
+  aggregate "GoApplicationGenerator", "Generates Go runtime entry point with command dispatch" do
+    command("Generate") { attribute :module_path, String }
+  end
+
+  aggregate "GoRuntimeGenerator", "Generates Go runtime: event bus, command bus, domain event interface" do
+    command "GenerateEventBus"
+    command "GenerateCommandBus"
+  end
+
+  aggregate "GoRegistryGenerator", "Generates thread-safe module registry for Go runtime discovery" do
+    command "Generate"
+  end
+
+  aggregate "GoRegisterGenerator", "Generates init() that self-registers domain with registry" do
+    command("Generate") { attribute :domain_name, String; attribute :module_path, String }
+  end
+
+  aggregate "GoServerGenerator", "Generates Go HTTP server with JSON API, HTML UI, and behavior routes" do
+    command("Generate") { attribute :domain_name, String; attribute :module_path, String }
+  end
+
+  aggregate "DataRoutes", "Mixin generating Go JSON API CRUD routes for each aggregate" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "HtmlRoutes", "Mixin generating Go HTML index/show routes for each aggregate" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "UIRoutes", "Mixin generating Go form submission and new-entity routes" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "DomainBehaviorRoutes", "Mixin generating Go event, query, scope, and specification routes" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "GoRendererGenerator", "Generates Go template renderer with layout wrapping" do
+    command "Generate"
+  end
+
+  aggregate "GoViewGenerator", "Converts ERB templates to Go html/template syntax" do
+    command("Convert") { attribute :template_name, String }
+  end
+
+  aggregate "GoFormTemplate", "Generates Go html/template for form pages with field types" do
+    command "Generate"
+  end
+
+  aggregate "GoIndexTemplate", "Generates Go html/template for index pages with action buttons" do
+    command "Generate"
+  end
+
+  aggregate "GoShowTemplate", "Generates Go html/template for show pages with lifecycle fields" do
+    command "Generate"
+  end
+
+  aggregate "GoProjectGenerator", "Generates complete Go project: structs, commands, server, go.mod" do
+    command("Generate") { attribute :domain_name, String; attribute :output_dir, String }
+  end
+
+  aggregate "GoMultiProjectGenerator", "Generates multi-domain Go project with shared runtime" do
+    command("Generate") { attribute :output_dir, String }
+  end
+
+  aggregate "GoMultiServerGenerator", "Generates combined Go HTTP server routing across bounded contexts" do
+    command("Generate") { attribute :module_path, String }
+  end
+
+  aggregate "BinaryBuilder", "Compiles domain into native binary via Go target" do
+    command("Build") { attribute :domain_id, String; attribute :output_dir, String }
+  end
+
+  # --- Node Paragraph ---
+
+  aggregate "NodeUtils", "Naming and type mapping: Ruby types to TypeScript types" do
+    command("TsType") { attribute :attribute_name, String }
+    command("CamelCase") { attribute :input, String }
+  end
+
+  aggregate "NodeAggregateGenerator", "Generates TypeScript interface for an aggregate root" do
+    command("Generate") { attribute :aggregate_name, String }
+  end
+
+  aggregate "NodeCommandGenerator", "Generates TypeScript command functions returning typed events" do
+    command("Generate") { attribute :command_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "NodeRepositoryGenerator", "Generates TypeScript in-memory repository using Map" do
+    command("Generate") { attribute :aggregate_name, String }
+  end
+
+  aggregate "NodeServerGenerator", "Generates Express REST server with JSON routes per aggregate" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "NodeProjectGenerator", "Generates complete Node/TypeScript project with package.json" do
+    command("Generate") { attribute :domain_name, String; attribute :output_dir, String }
+  end
+
+  aggregate "NodeGenerator", "Top-level coordinator delegating to all Node sub-generators" do
+    command("Generate") { attribute :domain_name, String; attribute :output_dir, String }
+  end
+
+  # --- Ruby Paragraph ---
+
+  aggregate "EntryPointGenerator", "Generates lib/<gem>.rb autoloads and boot.rb wiring" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "RuntimeWriter", "Copies runtime templates into generated gem, replacing module placeholder" do
+    command("Generate") { attribute :domain_module, String }
+  end
+
+  aggregate "RubyServerGenerator", "Generates domain-specific HTTP server with aggregate routes" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "DomainRoutes", "Mixin generating query, scope, specification, and event log routes" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "RubyUIGenerator", "Generates route handlers that prepare data and render ERB templates" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "FormRoutes", "Mixin generating new/create form routes for each aggregate command" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "ConfigRoutes", "Mixin generating config and reboot UI routes" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "ShowRoute", "Mixin generating show page route for individual aggregates" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "DomainWriter", "Mixin generating domain aggregate and command files for static gem" do
+    command("Generate") { attribute :domain_name, String }
+  end
+
+  aggregate "BootWiring", "Mixin generating boot method and command/query/policy wiring" do
+    command("Generate") { attribute :domain_name, String }
+  end
+end

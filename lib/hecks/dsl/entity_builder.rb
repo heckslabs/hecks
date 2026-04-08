@@ -4,7 +4,7 @@ module Hecks
     # Hecks::DSL::EntityBuilder
     #
     # DSL builder for sub-entity definitions within aggregates. Collects attributes
-    # and invariants, then builds a DomainModel::Structure::Entity. Entities have
+    # and invariants, then builds a BluebookModel::Structure::Entity. Entities have
     # identity (UUID), are mutable, and use identity-based equality.
     #
     # Part of the DSL layer, nested under AggregateBuilder. The resulting entity
@@ -16,7 +16,7 @@ module Hecks
     #   builder.invariant("amount positive") { amount > 0 }
     #   entity = builder.build  # => #<Entity name="LedgerEntry" ...>
     #
-    # Builds a DomainModel::Structure::Entity from DSL declarations.
+    # Builds a BluebookModel::Structure::Entity from DSL declarations.
     #
     # EntityBuilder collects attributes and invariants for a sub-entity that
     # lives within an aggregate boundary. Unlike value objects, entities have
@@ -27,7 +27,7 @@ module Hecks
     # Includes AttributeCollector for the +attribute+, +list_of+, and
     # +reference_to+ DSL methods.
     class EntityBuilder
-      Structure = DomainModel::Structure
+      Structure = BluebookModel::Structure
 
       include AttributeCollector
       include Describable
@@ -53,9 +53,9 @@ module Hecks
         @invariants << Structure::Invariant.new(message: message, block: block)
       end
 
-      # Build and return the DomainModel::Structure::Entity IR object.
+      # Build and return the BluebookModel::Structure::Entity IR object.
       #
-      # @return [DomainModel::Structure::Entity] the fully built entity IR object
+      # @return [BluebookModel::Structure::Entity] the fully built entity IR object
       def build
         Structure::Entity.new(
           name: @name,

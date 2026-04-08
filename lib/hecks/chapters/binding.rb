@@ -17,7 +17,7 @@ module Hecks
     #
     module Binding
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Binding").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Binding").tap { |b|
           b.aggregate "ModuleDSL", "Declarative lazy_registry helper for modules" do
             command("DefineRegistry") { attribute :name, String }
           end

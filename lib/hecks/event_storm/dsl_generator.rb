@@ -11,7 +11,7 @@ module Hecks
     #
     #   result = EventStorm::Parser.new(source).parse
     #   dsl = EventStorm::DslGenerator.new(result, name: "Ordering").generate
-    #   puts dsl  # => "Hecks.domain \"Ordering\" do ..."
+    #   puts dsl  # => "Hecks.bluebook \"Ordering\" do ..."
     #
     class DslGenerator
       # Initializes a DslGenerator from a parse result.
@@ -27,14 +27,14 @@ module Hecks
 
       # Generates the Hecks DSL source code string.
       #
-      # Produces a complete Hecks.domain block with aggregate, command, and
+      # Produces a complete Hecks.bluebook block with aggregate, command, and
       # policy declarations. Includes TODO comments for attributes that need
       # manual addition. Appends any parser warnings as Ruby comments.
       #
       # @return [String] the generated DSL source code, terminated with a newline
       def generate
         lines = ["# Auto-generated from event storm"]
-        lines << "Hecks.domain \"#{@name}\" do"
+        lines << "Hecks.bluebook \"#{@name}\" do"
 
         # Flatten all context elements into one set of aggregates
         all_elements = @parse_result.contexts.flat_map(&:elements)

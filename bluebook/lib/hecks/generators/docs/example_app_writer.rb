@@ -38,7 +38,7 @@ module Hecks
       # --- naming ---
 
       def aggregate_var(agg)
-        domain_snake_name(agg.name)
+        bluebook_snake_name(agg.name)
       end
 
       def command_method(agg, cmd)
@@ -46,11 +46,11 @@ module Hecks
       end
 
       def query_method(query)
-        domain_snake_name(query.name)
+        bluebook_snake_name(query.name)
       end
 
       def value_object_constant(agg, vo)
-        "#{domain_module_name(@name)}::#{agg.name}::#{vo.name}"
+        "#{bluebook_module_name(@name)}::#{agg.name}::#{vo.name}"
       end
 
       def display_attr(obj)
@@ -70,7 +70,7 @@ module Hecks
           #
           # #{@name} domain — generated from #{@name}Bluebook
           #
-          # Run:  ruby -Ilib #{File.join("examples", domain_snake_name(@name), "#{domain_snake_name(@name)}.rb")}
+          # Run:  ruby -Ilib #{File.join("examples", bluebook_snake_name(@name), "#{bluebook_snake_name(@name)}.rb")}
           #
         RUBY
       end

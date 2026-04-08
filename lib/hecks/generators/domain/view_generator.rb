@@ -56,12 +56,12 @@ module Hecks
         lines << ""
         lines << "      def call(event, state = {})"
         lines << "        name = event.class.name.split('::').last"
-        lines << "        method = :\"project_\#{domain_snake_name(name)}\""
+        lines << "        method = :\"project_\#{bluebook_snake_name(name)}\""
         lines << "        @state = respond_to?(method) ? send(method, event, state) : state"
         lines << "        self"
         lines << "      end"
         projections.each do |event_name, block|
-          method_name = domain_snake_name(event_name)
+          method_name = bluebook_snake_name(event_name)
           body = Hecks::Utils.block_source(block)
           lines << ""
           lines << "      def project_#{method_name}(event, state)"

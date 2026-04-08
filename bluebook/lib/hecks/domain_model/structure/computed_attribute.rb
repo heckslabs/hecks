@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::ComputedAttribute
+    # Hecks::BluebookModel::Structure::ComputedAttribute
     #
     # A derived attribute computed from other attributes, not stored in the
     # database. Holds a name and a block whose body becomes a method on the

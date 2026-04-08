@@ -1,6 +1,6 @@
 require "date"
 
-Hecks.domain "Compliance" do
+Hecks.bluebook "Compliance" do
   GovernancePolicy "Organizational policies governing AI model usage and compliance" do
     name String
     description String

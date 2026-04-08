@@ -1,6 +1,6 @@
 require "date"
 
-Hecks.domain "ModelRegistry" do
+Hecks.bluebook "ModelRegistry" do
   AiModel "AI models registered for governance oversight" do
     name String
     version String

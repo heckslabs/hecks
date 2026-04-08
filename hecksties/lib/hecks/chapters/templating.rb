@@ -18,7 +18,7 @@ module Hecks
     #
     module Templating
       def self.definition
-        DSL::DomainBuilder.new("Templating").tap { |b|
+        DSL::BluebookBuilder.new("Templating").tap { |b|
           b.aggregate "NamingHelpers" do
             description "Mixin providing domain naming convention methods for modules, gems, slugs, and routes"
             command "DomainModuleName" do

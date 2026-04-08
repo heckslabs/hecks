@@ -20,7 +20,7 @@ module Hecks
       end
 
       def build
-        DomainModel::Behavior::DomainEvent.new(
+        BluebookModel::Behavior::BluebookEvent.new(
           name: @name,
           attributes: @attributes,
           description: @description

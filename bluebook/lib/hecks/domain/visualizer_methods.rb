@@ -10,7 +10,7 @@ module Hecks
   module DomainVisualizerMethods
     # Generate Mermaid diagrams (structure and behavior) for a domain.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain to visualize
+    # @param domain [Hecks::BluebookModel::Domain] the domain to visualize
     # @return [String] markdown string with two ```mermaid code blocks
     def visualize(domain)
       DomainVisualizer.new(domain).generate

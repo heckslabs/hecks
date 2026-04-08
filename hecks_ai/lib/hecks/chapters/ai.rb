@@ -17,7 +17,7 @@ module Hecks
 
     module AI
       def self.definition
-        Hecks::DSL::DomainBuilder.new("AI").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("AI").tap { |b|
           b.aggregate "McpServer" do
             description "MCP server exposing Workshop API as tools for AI agents"
             command "Start"
@@ -124,7 +124,7 @@ module Hecks
             end
           end
 
-          b.aggregate "DomainBuilder" do
+          b.aggregate "BluebookBuilder" do
             description "Walks LLM JSON and replays through Workshop API to build a validated domain"
             command "Build"
           end

@@ -30,7 +30,7 @@ module Hecks
       # +Hecks::Model+, so declaring them explicitly may cause unexpected
       # behavior. Called by +Hecks.build+ to emit non-blocking warnings.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain to check
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain to check
       # @return [Array<String>] warning messages for reserved attribute overrides
       def self.reserved_attr_warnings(domain)
         warnings = []
@@ -49,7 +49,7 @@ module Hecks
       # Validates that the aggregate name is a valid Ruby constant: starts with
       # an uppercase letter and contains only alphanumeric characters.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate to check
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate to check
       # @return [Array<String>] error messages (empty if valid)
       def check_aggregate_name(agg)
         errs = []
@@ -64,7 +64,7 @@ module Hecks
       # +def+, +end+). Ruby keywords cannot be used as method names without
       # causing syntax errors.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate to check
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate to check
       # @return [Array<String>] error messages for keyword attribute names
       def check_keyword_attrs(agg)
         errs = []

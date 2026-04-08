@@ -18,7 +18,7 @@ module Hecks
       def self.summary = "Thor-based command-line interface for Hecks"
 
       def self.definition
-        DSL::DomainBuilder.new("Cli").tap { |b|
+        DSL::BluebookBuilder.new("Cli").tap { |b|
           b.aggregate "CLI", "Thor-based command-line interface entry point" do
             command("Start") { attribute :argv, String }
           end

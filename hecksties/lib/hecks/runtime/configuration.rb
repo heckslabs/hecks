@@ -176,7 +176,7 @@ module Hecks
       if @declarations.any?
         FilteredEventBus.new(
           inner: @shared_event_bus,
-          domain_gem_name: gem_name,
+          bluebook_gem_name: gem_name,
           allowed_sources: @declarations[gem_name]
         )
       else
@@ -194,7 +194,7 @@ module Hecks
     def activate_rails
       require "active_hecks"
       @apps.each_value do |app|
-        mod = Object.const_get(domain_module_name(app.domain.name))
+        mod = Object.const_get(bluebook_module_name(app.domain.name))
         ActiveHecks.activate(mod)
       end
     rescue LoadError

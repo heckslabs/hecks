@@ -31,7 +31,7 @@ module Hecks
         #
         # @param klass [Class] the aggregate class to receive scope methods;
         #   must have +@__hecks_repo__+ set (done by AdHocQueries.bind)
-        # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         #   definition containing scope metadata
         # @return [void]
         def self.bind(klass, aggregate)

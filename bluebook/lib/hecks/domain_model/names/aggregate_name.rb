@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Names::AggregateName
+# Hecks::BluebookModel::Names::AggregateName
 #
 # Value object wrapping an aggregate name string (e.g. "Pizza").
 #
@@ -6,7 +6,7 @@
 #   name == "Pizza"  # => true
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Names
       class AggregateName < BaseName; end
     end

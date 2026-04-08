@@ -80,7 +80,7 @@ module Hecks
       # @param indent [String] the whitespace prefix for each generated line
       # @return [Array<String>] lines of Ruby source code representing the step hash
       def step_lines(step, indent)
-        if step.is_a?(DomainModel::Behavior::CommandStep)
+        if step.is_a?(BluebookModel::Behavior::CommandStep)
           ["#{indent}{ command: #{step.command.inspect} },"]
         elsif step.respond_to?(:branches) && step.branches
           lines = ["#{indent}{ branch: {"]

@@ -15,7 +15,7 @@ module Hecks
             command("DefineCommand") { attribute :name, String; attribute :aggregate_id, String }
           end
 
-          b.aggregate "DomainEvent", "Fact that something happened, emitted after command execution" do
+          b.aggregate "BluebookEvent", "Fact that something happened, emitted after command execution" do
             command("DefineEvent") { attribute :name, String; attribute :aggregate_id, String }
           end
 

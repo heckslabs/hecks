@@ -61,7 +61,7 @@ module Hecks
       # +String name+ (since they store IDs), and scalars show as
       # +Type name+.
       #
-      # @param attr [Hecks::DomainModel::Attribute] the attribute to format
+      # @param attr [Hecks::BluebookModel::Attribute] the attribute to format
       # @return [String] Mermaid-formatted attribute line (e.g., "+String name")
       def attribute_label(attr)
         if attr.list?

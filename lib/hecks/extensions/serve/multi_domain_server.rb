@@ -63,7 +63,7 @@ module Hecks
         @domains.each_with_index do |domain, domain_index|
           runtime = @runtimes[domain_index]
           slug = domain_slug(domain.name)
-          mod = Object.const_get(domain_module_name(domain.name))
+          mod = Object.const_get(bluebook_module_name(domain.name))
           ir = Hecks::WebExplorer::IRIntrospector.new(domain)
           whitelist = Hecks::Conventions::DispatchContract.build_whitelist(domain)
           bridge = Hecks::WebExplorer::RuntimeBridge.new(mod, whitelist: whitelist)
@@ -194,7 +194,7 @@ module Hecks
       end
 
       def plural(agg)
-        domain_aggregate_slug(agg.name)
+        bluebook_aggregate_slug(agg.name)
       end
 
       def route_matches_request_path?(pattern, path)

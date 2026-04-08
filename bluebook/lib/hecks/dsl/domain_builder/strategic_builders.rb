@@ -1,8 +1,8 @@
 module Hecks
   module DSL
-    class DomainBuilder
+    class BluebookBuilder
 
-      # Hecks::DSL::DomainBuilder::AclBuilder
+      # Hecks::DSL::BluebookBuilder::AclBuilder
       #
       # Collects translations for an anti-corruption layer.
       #
@@ -20,7 +20,7 @@ module Hecks
         end
       end
 
-      # Hecks::DSL::DomainBuilder::SagaStepBuilder
+      # Hecks::DSL::BluebookBuilder::SagaStepBuilder
       #
       # DSL builder for a single saga step. Collects success/failure events
       # and compensation command within a block.
@@ -44,7 +44,7 @@ module Hecks
         def compensate(cmd)    = (@compensate = cmd)
 
         def build
-          DomainModel::Behavior::SagaStep.new(
+          BluebookModel::Behavior::SagaStep.new(
             command: @command,
             on_success: @on_success,
             on_failure: @on_failure,
@@ -53,7 +53,7 @@ module Hecks
         end
       end
 
-      # Hecks::DSL::DomainBuilder::SagaBuilder
+      # Hecks::DSL::BluebookBuilder::SagaBuilder
       #
       # Collects steps, timeout, and on_timeout for a saga process manager.
       # Supports both block-based steps (new API) and keyword steps (legacy).
@@ -81,7 +81,7 @@ module Hecks
             builder.instance_eval(&block)
             @steps << builder.build
           else
-            @steps << DomainModel::Behavior::SagaStep.new(
+            @steps << BluebookModel::Behavior::SagaStep.new(
               command: command, on_success: on_success, on_failure: on_failure
             )
           end
@@ -91,14 +91,14 @@ module Hecks
         def on_timeout(command)  = (@on_timeout = command)
 
         def build
-          DomainModel::Behavior::Saga.new(
+          BluebookModel::Behavior::Saga.new(
             name: @name, steps: @steps,
             timeout: @timeout, on_timeout: @on_timeout
           )
         end
       end
 
-      # Hecks::DSL::DomainBuilder::GlossaryBuilder
+      # Hecks::DSL::BluebookBuilder::GlossaryBuilder
       #
       # Collects term preference rules and definitions for ubiquitous language.
       #
@@ -122,7 +122,7 @@ module Hecks
         end
       end
 
-      # Hecks::DSL::DomainBuilder::ModuleBuilder
+      # Hecks::DSL::BluebookBuilder::ModuleBuilder
       #
       # Delegates aggregate creation to the parent domain builder
       # while tracking which aggregates belong to this module.

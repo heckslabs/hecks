@@ -49,8 +49,8 @@ module Hecks
         end
 
         check(result, format, ctx, "Names.slug + snake") do
-          raise "blank slug" if Hecks::Conventions::Names.domain_aggregate_slug(agg.name).to_s.empty?
-          raise "blank snake" if Hecks::Conventions::Names.domain_snake_name(agg.name).to_s.empty?
+          raise "blank slug" if Hecks::Conventions::Names.bluebook_aggregate_slug(agg.name).to_s.empty?
+          raise "blank snake" if Hecks::Conventions::Names.bluebook_snake_name(agg.name).to_s.empty?
         end
 
         verify_commands(result, format, domain, agg)
@@ -75,7 +75,7 @@ module Hecks
             raise "empty" if method.to_s.empty?
           end
 
-          slug = Hecks::Conventions::Names.domain_aggregate_slug(agg.name)
+          slug = Hecks::Conventions::Names.bluebook_aggregate_slug(agg.name)
           cmd_snake = Hecks::Utils.underscore(cmd.name)
 
           check(result, format, ctx, "RouteContract.form_path") do

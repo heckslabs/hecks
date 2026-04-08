@@ -10,14 +10,14 @@
 #   ast = BlueBook::Grammar.parse("Pizza.attr :name, String")
 #
 
-# Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run DomainBuilder.
+# Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run BluebookBuilder.
 # These must load before any chapter can describe aggregates, so they
 # cannot use chapter-driven loading. They define the types and builders
-# that DomainBuilder.new("tmp") needs inside every chapter .define method.
+# that BluebookBuilder.new("tmp") needs inside every chapter .define method.
 require "bluebook/tokenizer"
-require "hecks/domain_model/behavior"
-require "hecks/domain_model/structure"
-require "hecks/domain_model/names"
+require "hecks/bluebook_model/behavior"
+require "hecks/bluebook_model/structure"
+require "hecks/bluebook_model/names"
 require "hecks/dsl/describable"
 require "hecks/dsl/attribute_collector"
 require "hecks/dsl/event_builder"
@@ -31,7 +31,7 @@ require "hecks/dsl/service_builder"
 require "hecks/dsl/workflow_builder"
 require "hecks/dsl/aggregate_builder"
 require "hecks/dsl/aggregate_rebuilder"
-require "hecks/dsl/domain_builder"
+require "hecks/dsl/bluebook_builder"
 require "hecks/dsl/bluebook_builder"
 
 # Chapter infrastructure (must load before any chapter files)
@@ -50,7 +50,7 @@ module BlueBook
   def self.register!
     Hecks.register_grammar(:bluebook) do |g|
       g.parser = BlueBook::Grammar
-      g.builder = Hecks::DSL::DomainBuilder
+      g.builder = Hecks::DSL::BluebookBuilder
       g.entry_point = :domain
       g.bare_commands = BlueBook::Grammar::BARE_COMMANDS
       g.handle_methods = BlueBook::Grammar::HANDLE_METHODS

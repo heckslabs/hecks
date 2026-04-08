@@ -12,7 +12,7 @@ module Hecks
       #
       # Mixed into DomainServer -- expects the following instance state:
       #   - +@server+ [MCP::Server] -- the MCP server to register tools on
-      #   - +@domain+ [Hecks::DomainModel::Structure::Domain] -- the domain model
+      #   - +@domain+ [Hecks::BluebookModel::Structure::Domain] -- the domain model
       #   - +@mod+ [Module] -- the generated domain module (e.g. PizzasDomain)
       #
       # Also expects these helper methods from DomainServer:
@@ -41,9 +41,9 @@ module Hecks
         # the command's attributes and wires the tool to call the corresponding
         # class method on the aggregate.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate owning the command
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate owning the command
         # @param agg_class [Class] the generated Ruby class for the aggregate
-        # @param cmd [Hecks::DomainModel::Behavior::Command] the command to register
+        # @param cmd [Hecks::BluebookModel::Behavior::Command] the command to register
         # @return [void]
         def register_command(agg, agg_class, cmd)
           method_name = derive_method_name(cmd.name, agg.name)
@@ -72,8 +72,8 @@ module Hecks
         # Builds a rich description for a command tool including what it does,
         # required attributes, emitted event, guard info, and return shape.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
-        # @param cmd [Hecks::DomainModel::Behavior::Command] the command
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
+        # @param cmd [Hecks::BluebookModel::Behavior::Command] the command
         # @param required [Array<String>] required parameter names
         # @return [String] the full description
         def build_command_description(agg, cmd, required)
@@ -93,7 +93,7 @@ module Hecks
         # Returns a representative example value for a domain attribute,
         # suitable for inclusion in a tool description.
         #
-        # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute
+        # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute
         # @return [String] an example value
         def example_value(attr)
           return attr.enum.first if attr.enum

@@ -1,11 +1,11 @@
-# Hecks::DomainModel::Behavior::Saga
+# Hecks::BluebookModel::Behavior::Saga
 #
 # Intermediate representation of a saga (process manager) for long-running
 # stateful business processes with compensation. A saga has a name, an
 # ordered list of steps, an optional timeout, and an optional on_timeout
 # handler command.
 #
-# Part of the DomainModel IR layer. Built by SagaBuilder in the DSL,
+# Part of the BluebookModel IR layer. Built by SagaBuilder in the DSL,
 # consumed by SagaRunner at runtime to execute the step sequence with
 # compensation on failure.
 #
@@ -18,7 +18,7 @@
 #   saga.timed?  # => true
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
       class Saga
         # @return [String] PascalCase saga name

@@ -7,7 +7,7 @@ git clone https://github.com/chrisyoung/hecks.git
 cd hecks
 bundle install
 bundle exec rspec          # 1170+ specs, under 1 second
-ruby -Ilib examples/pizzas/app.rb  # smoke test
+ruby -Ilib examples/pizzas/pizzas.rb  # smoke test
 ```
 
 ## Rules
@@ -24,7 +24,7 @@ ruby -Ilib examples/pizzas/app.rb  # smoke test
 1. Create a branch from `main`
 2. Write code and specs
 3. Run `bundle exec rspec` — all must pass under 1 second
-4. Run `ruby -Ilib examples/pizzas/app.rb` — smoke test
+4. Run `ruby -Ilib examples/pizzas/pizzas.rb` — smoke test
 5. Check file sizes: `find lib -name "*.rb" -exec wc -l {} + | sort -rn | head -5`
 6. Update `FEATURES.md` if you added a new feature
 7. Add `docs/usage/<feature>.md` with runnable examples

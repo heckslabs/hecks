@@ -7,7 +7,7 @@ module Hecks
     #
     # Shared mixin for DSL builders that collect attributes. Provides the
     # `attribute` and `list_of` DSL methods. Included by AggregateBuilder,
-    # CommandBuilder, ValueObjectBuilder, and DomainBuilder.
+    # CommandBuilder, ValueObjectBuilder, and BluebookBuilder.
     #
     #   attribute :name, String
     #   attribute :toppings, list_of("Topping")
@@ -60,7 +60,7 @@ module Hecks
         list = type.is_a?(Hash) && type[:list]
         actual_type = type.is_a?(Hash) ? type.values.first : type
 
-        @attributes << DomainModel::Structure::Attribute.new(
+        @attributes << BluebookModel::Structure::Attribute.new(
           name: name,
           type: actual_type,
           list: !!list,

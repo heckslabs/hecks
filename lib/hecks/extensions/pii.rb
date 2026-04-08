@@ -54,7 +54,7 @@ module Hecks::PII
   # Filters the aggregate's attributes by the +pii?+ predicate and extracts
   # their symbolic names.
   #
-  # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+  # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
   #   definition whose attributes are inspected
   # @return [Array<Symbol>] names of attributes marked with +pii: true+
   def self.pii_fields(aggregate)
@@ -117,7 +117,7 @@ Hecks.register_extension(:pii) do |domain_mod, domain, runtime|
     pii_lookup = {}
     domain.aggregates.each do |agg|
       agg.commands.each do |cmd|
-        fqn = Hecks::Conventions::Names.domain_command_fqn(domain_mod.name, agg.name, cmd.name)
+        fqn = Hecks::Conventions::Names.bluebook_command_fqn(domain_mod.name, agg.name, cmd.name)
         pii_names = Hecks::PII.pii_fields(agg)
         pii_lookup[fqn] = pii_names unless pii_names.empty?
       end

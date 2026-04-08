@@ -53,10 +53,10 @@ module Hecks
 
       # Build a BluebookStructure IR from all chapters.
       #
-      # @return [DomainModel::Structure::BluebookStructure]
+      # @return [BluebookModel::Structure::BluebookStructure]
       def to_bluebook
         domains = @chapters.values.map(&:to_domain)
-        DomainModel::Structure::BluebookStructure.new(
+        BluebookModel::Structure::BluebookStructure.new(
           name: @name, chapters: domains
         )
       end

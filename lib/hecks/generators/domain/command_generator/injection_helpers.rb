@@ -84,8 +84,8 @@ module Hecks
           # 1. Singular match: command has "topping" attr matching "toppings" list
           # 2. VO match: command attrs overlap with the value object's attrs
           #
-          # @param agg_attr [Hecks::DomainModel::Structure::Attribute] an aggregate attribute to check
-          # @return [Hecks::DomainModel::Structure::Attribute, nil] the matching singular command
+          # @param agg_attr [Hecks::BluebookModel::Structure::Attribute] an aggregate attribute to check
+          # @return [Hecks::BluebookModel::Structure::Attribute, nil] the matching singular command
           #   attribute (pattern 1), or nil
           def find_list_append(agg_attr)
             return nil unless agg_attr.list?
@@ -96,7 +96,7 @@ module Hecks
           # Detect when command attrs match a value object's attrs for list append.
           # Returns the VO and matching command attr names if found.
           #
-          # @param agg_attr [Hecks::DomainModel::Structure::Attribute] a list_of aggregate attribute
+          # @param agg_attr [Hecks::BluebookModel::Structure::Attribute] a list_of aggregate attribute
           # @return [Array, nil] [vo, matching_cmd_attrs] or nil
           def find_vo_append(agg_attr)
             return nil unless agg_attr.list? && @aggregate

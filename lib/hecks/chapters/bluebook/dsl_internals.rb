@@ -44,11 +44,7 @@ module Hecks
             command("SetDescription") { attribute :text, String }
           end
 
-          b.aggregate "BluebookBuilder", "Builds Bluebook IR from chapter DSL definitions" do
-            command("BuildBluebook") { attribute :name, String }
-          end
-
-          b.aggregate "DomainBuilderMethods", "Top-level Hecks.domain method for defining domains" do
+          b.aggregate "BluebookBuilderMethods", "Top-level Hecks.bluebook method for defining domains" do
             command("DefineDomainEntry") { attribute :name, String }
           end
         end

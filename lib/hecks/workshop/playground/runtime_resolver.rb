@@ -38,7 +38,7 @@ module Hecks
           # polluting other aggregates' namespaces via const_missing.
           @domain.aggregates.each do |agg|
             next unless agg.commands.any? { |c| c.name == command_name.to_s }
-            agg_class = mod.const_get(domain_constant_name(agg.name))
+            agg_class = mod.const_get(bluebook_constant_name(agg.name))
             return agg_class::Commands.const_get(command_name)
           end
 
@@ -61,7 +61,7 @@ module Hecks
             agg.commands.each_with_index do |cmd, i|
               if cmd.name == command_name.to_s
                 event = agg.events[i]
-                agg_class = mod.const_get(domain_constant_name(agg.name))
+                agg_class = mod.const_get(bluebook_constant_name(agg.name))
                 return agg_class::Events.const_get(event.name)
               end
             end
@@ -73,10 +73,10 @@ module Hecks
         # Find the domain IR command definition by name.
         #
         # Searches all aggregates for a command with the given name and returns
-        # the DomainModel::Structure::Command struct (not the generated class).
+        # the BluebookModel::Structure::Command struct (not the generated class).
         #
         # @param command_name [String] the command name to find
-        # @return [DomainModel::Structure::Command, nil] the command definition, or nil if not found
+        # @return [BluebookModel::Structure::Command, nil] the command definition, or nil if not found
         def resolve_domain_command(command_name)
           @domain.aggregates.each do |agg|
             agg.commands.each do |cmd|
@@ -95,7 +95,7 @@ module Hecks
 
         # Collect all policy definitions from all aggregates.
         #
-        # @return [Array<DomainModel::Structure::Policy>] all policies in the domain
+        # @return [Array<BluebookModel::Structure::Policy>] all policies in the domain
         def collect_policies
           @domain.aggregates.flat_map(&:policies)
         end
@@ -106,7 +106,7 @@ module Hecks
         # of the provided event object.
         #
         # @param event [Object] an event instance with a class name like "PizzasDomain::Pizza::Events::CreatedPizza"
-        # @return [Array<DomainModel::Structure::Policy>] policies triggered by this event
+        # @return [Array<BluebookModel::Structure::Policy>] policies triggered by this event
         def check_policies(event)
           event_name = Hecks::Utils.const_short_name(event)
           @policies.select { |p| p.event_name == event_name }

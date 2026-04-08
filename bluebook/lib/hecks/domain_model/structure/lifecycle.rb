@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-      # Hecks::DomainModel::Structure::Lifecycle
+      # Hecks::BluebookModel::Structure::Lifecycle
       #
       # State machine definition for an aggregate. Declares which field tracks
       # status, its default value, and which commands trigger which transitions.

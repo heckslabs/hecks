@@ -11,7 +11,7 @@ module Hecks
     module Kernel
       module CoreParagraph
         def self.define(b)
-          b.aggregate "Errors", "Custom error hierarchy: ValidationError, GuardError, ConditionError, DomainLoadError, MigrationError" do
+          b.aggregate "Errors", "Custom error hierarchy: ValidationError, GuardError, ConditionError, BluebookLoadError, MigrationError" do
             command("RaiseValidation") { attribute :message, String }
             command("RaiseGuard") { attribute :message, String }
           end

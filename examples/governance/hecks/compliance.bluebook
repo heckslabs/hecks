@@ -1,4 +1,4 @@
-Hecks.domain "Compliance" do
+Hecks.bluebook "Compliance" do
   aggregate "GovernancePolicy" do
     attribute :name, String
     attribute :description, String

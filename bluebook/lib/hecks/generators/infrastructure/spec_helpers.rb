@@ -22,7 +22,7 @@ module Hecks
       #   (e.g. +"Pizza::Commands::CreatePizza"+)
       # @return [String] the fully qualified name (e.g. +"PizzasDomain::Pizza::Commands::CreatePizza"+)
       def full_class_name(class_path)
-        mod = domain_module_name(@domain.name)
+        mod = bluebook_module_name(@domain.name)
         "#{mod}::#{class_path}"
       end
 
@@ -60,7 +60,7 @@ module Hecks
       # - +DateTime+ -> +"DateTime.now"+
       # - All others -> +"\"example\""+
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute IR
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute IR
       # @return [String] a Ruby literal suitable for source code embedding
       def example_value(attr)
         return "[]" if attr.list?
@@ -80,11 +80,11 @@ module Hecks
       # Generates simple "has <attr>" spec lines for each attribute on an aggregate.
       # Used by the legacy spec generation path.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [String] joined spec lines
       def attribute_specs(aggregate)
-        safe_name = domain_constant_name(aggregate.name)
-        snake = domain_snake_name(safe_name)
+        safe_name = bluebook_constant_name(aggregate.name)
+        snake = bluebook_snake_name(safe_name)
         aggregate.attributes.map do |attr|
           "    it \"has #{attr.name}\" do\n      expect(#{snake}.#{attr.name}).not_to be_nil\n    end"
         end.join("\n\n")
@@ -93,7 +93,7 @@ module Hecks
       # Generates validation spec blocks for presence rules. Returns an empty
       # string if the aggregate has no validations.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [String] the validation spec source, or empty string
       def validation_specs(aggregate)
         return "" if aggregate.validations.empty?
@@ -131,7 +131,7 @@ module Hecks
 
       # Generates an identity-based equality spec block for an aggregate.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [String] the equality spec source
       def equality_spec(aggregate)
         <<~RUBY.chomp

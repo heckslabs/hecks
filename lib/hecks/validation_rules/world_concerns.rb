@@ -9,7 +9,7 @@ module Hecks
     #
     # Rules are autoloaded and self-register via +Hecks.register_validation_rule+.
     #
-    #   Hecks.domain "Health" do
+    #   Hecks.bluebook "Health" do
     #     world_concerns :transparency, :consent, :privacy, :security
     #     # ... aggregates ...
     #   end

@@ -35,7 +35,7 @@ module Hecks
       # 6. Binds the +.bulk+ method via +bind_bulk+
       #
       # @param klass [Class] the aggregate class (e.g., +PizzasDomain::Pizza+)
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   definition from the domain IR
       # @param bus [Hecks::Commands::CommandBus] the command bus (used for middleware dispatch
       #   and to access the event bus)
@@ -92,11 +92,11 @@ module Hecks
       #   Widget.bulk(:suspend, where: {}, spec: HighRiskSpec)
       #
       # @param klass [Class] the aggregate class to receive the +.bulk+ method
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   definition, used to derive the ID field name
       # @return [void]
       def self.bind_bulk(klass, aggregate)
-        agg_snake = domain_snake_name(aggregate.name)
+        agg_snake = bluebook_snake_name(aggregate.name)
 
         klass.define_singleton_method(:bulk) do |command_method, where: {}, spec: nil|
           items = if where.empty?
@@ -132,9 +132,9 @@ module Hecks
       # the command execution.
       #
       # @param klass [Class] the aggregate class to receive shortcut methods
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @yield [cmd] called for each command; must return a callable executor
-      # @yieldparam cmd [Hecks::DomainModel::Behavior::Command] the command definition
+      # @yieldparam cmd [Hecks::BluebookModel::Behavior::Command] the command definition
       # @yieldreturn [Proc] a proc that accepts a Hash of attributes and executes the command
       # @return [void]
       def self.bind_shortcuts(klass, aggregate)

@@ -21,7 +21,7 @@ module Hecks
       def generate(output_dir: ".")
         slug = domain_slug(@domain.name)
         @root = File.join(output_dir, "#{slug}_rails")
-        @gem_name = domain_gem_name(@domain.name)
+        @gem_name = bluebook_gem_name(@domain.name)
 
         run_rails_new
         patch_gemfile

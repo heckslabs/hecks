@@ -100,7 +100,7 @@ module Hecks
 
       # Count total commands across all aggregates in the domain.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain to inspect
+      # @param domain [BluebookModel::Structure::Domain] the domain to inspect
       # @return [Integer] total command count
       def total_commands(domain)
         domain.aggregates.sum { |a| a.commands.size }
@@ -108,7 +108,7 @@ module Hecks
 
       # Count total events across all aggregates in the domain.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain to inspect
+      # @param domain [BluebookModel::Structure::Domain] the domain to inspect
       # @return [Integer] total event count
       def total_events(domain)
         domain.aggregates.sum { |a| a.events.size }

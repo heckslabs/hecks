@@ -16,7 +16,7 @@ module Hecks
     #   builder.condition { |event| event.amount > 10_000 }
     #   policy = builder.build  # => #<Policy name="FraudAlert" condition=... ...>
     #
-    # Builds a DomainModel::Behavior::Policy from reactive policy declarations.
+    # Builds a BluebookModel::Behavior::Policy from reactive policy declarations.
     #
     # PolicyBuilder wires domain events to command triggers, forming the backbone
     # of event-driven cross-aggregate workflows. Each policy listens for a
@@ -30,7 +30,7 @@ module Hecks
     # The +#build+ method validates that both +on+ and +trigger+ have been
     # called, raising descriptive errors if either is missing.
     class PolicyBuilder
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       include Describable
 
@@ -119,12 +119,12 @@ module Hecks
         @condition = block
       end
 
-      # Build and return the DomainModel::Behavior::Policy IR object.
+      # Build and return the BluebookModel::Behavior::Policy IR object.
       #
       # Validates that both +on+ (event name) and +trigger+ (command name) have
       # been specified. Raises with a descriptive message if either is missing.
       #
-      # @return [DomainModel::Behavior::Policy] the fully built policy IR object
+      # @return [BluebookModel::Behavior::Policy] the fully built policy IR object
       # @raise [RuntimeError] if +on+ or +trigger+ has not been called
       def build
         raise "Policy '#{@name}': missing 'on' (event name)" unless @event_name

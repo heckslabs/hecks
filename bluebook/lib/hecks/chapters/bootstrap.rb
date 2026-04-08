@@ -18,7 +18,7 @@ module Hecks
 
     module Bootstrap
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Bootstrap").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Bootstrap").tap { |b|
           b.aggregate "Tokenizer", "Splits command argument strings into typed tokens for DSL parsing" do
             command("Tokenize") { attribute :input, String }
           end
@@ -30,11 +30,11 @@ module Hecks
             command("DefineParagraphs") { attribute :chapter_module, String }
           end
 
-          b.aggregate "DomainBuilder", "Top-level DSL entry point: builds domain IR from block syntax" do
+          b.aggregate "BluebookBuilder", "Top-level DSL entry point: builds domain IR from block syntax" do
             command("Build") { attribute :name, String }
           end
 
-          b.aggregate "BluebookBuilder", "Composes chapters into a Bluebook with cross-chapter policies and shared event bus" do
+          b.aggregate "LibraryBuilder", "Composes chapters into a Bluebook with cross-chapter policies and shared event bus" do
             command("Build") { attribute :name, String }
           end
 

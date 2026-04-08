@@ -29,35 +29,35 @@ module Hecks
             write_file(root, "spec/spec_helper.rb", sg.generate_spec_helper)
             write_file(root, ".rspec", "--format documentation\n--color\n--require spec_helper\n")
             @domain.aggregates.each do |agg|
-              snake = domain_snake_name(domain_constant_name(agg.name))
+              snake = bluebook_snake_name(bluebook_constant_name(agg.name))
               write_file(root, "spec/#{snake}/#{snake}_spec.rb", sg.generate_aggregate_spec(agg))
 
               agg.value_objects.each do |vo|
-                write_file(root, "spec/#{snake}/#{domain_snake_name(vo.name)}_spec.rb", sg.generate_value_object_spec(vo, agg))
+                write_file(root, "spec/#{snake}/#{bluebook_snake_name(vo.name)}_spec.rb", sg.generate_value_object_spec(vo, agg))
               end
 
               agg.entities.each do |ent|
-                write_file(root, "spec/#{snake}/#{domain_snake_name(ent.name)}_spec.rb", sg.generate_entity_spec(ent, agg))
+                write_file(root, "spec/#{snake}/#{bluebook_snake_name(ent.name)}_spec.rb", sg.generate_entity_spec(ent, agg))
               end
 
               agg.commands.each do |cmd|
-                write_file(root, "spec/#{snake}/commands/#{domain_snake_name(cmd.name)}_spec.rb", sg.generate_command_spec(cmd, agg))
+                write_file(root, "spec/#{snake}/commands/#{bluebook_snake_name(cmd.name)}_spec.rb", sg.generate_command_spec(cmd, agg))
               end
 
               agg.events.each do |evt|
-                write_file(root, "spec/#{snake}/events/#{domain_snake_name(evt.name)}_spec.rb", sg.generate_event_spec(evt, agg))
+                write_file(root, "spec/#{snake}/events/#{bluebook_snake_name(evt.name)}_spec.rb", sg.generate_event_spec(evt, agg))
               end
 
               agg.queries.each do |query|
                 content = sg.generate_query_spec(query, agg)
                 next unless content
-                write_file(root, "spec/#{snake}/queries/#{domain_snake_name(query.name)}_spec.rb", content)
+                write_file(root, "spec/#{snake}/queries/#{bluebook_snake_name(query.name)}_spec.rb", content)
               end
 
               agg.policies.each do |policy|
                 content = sg.generate_policy_spec(policy, agg)
                 next unless content
-                write_file(root, "spec/#{snake}/policies/#{domain_snake_name(policy.name)}_spec.rb", content)
+                write_file(root, "spec/#{snake}/policies/#{bluebook_snake_name(policy.name)}_spec.rb", content)
               end
 
               if agg.lifecycle
@@ -68,7 +68,7 @@ module Hecks
               agg.specifications.each do |spec|
                 content = sg.generate_specification_spec(spec, agg)
                 next unless content
-                write_file(root, "spec/#{snake}/specifications/#{domain_snake_name(spec.name)}_spec.rb", content)
+                write_file(root, "spec/#{snake}/specifications/#{bluebook_snake_name(spec.name)}_spec.rb", content)
               end
 
               agg.scopes.each do |scope|
@@ -88,19 +88,19 @@ module Hecks
             @domain.views.each do |view|
               content = sg.generate_view_spec(view)
               next unless content
-              write_file(root, "spec/views/#{domain_snake_name(view.name)}_spec.rb", content)
+              write_file(root, "spec/views/#{bluebook_snake_name(view.name)}_spec.rb", content)
             end
 
             @domain.workflows.each do |wf|
               content = sg.generate_workflow_spec(wf)
               next unless content
-              write_file(root, "spec/workflows/#{domain_snake_name(wf.name)}_spec.rb", content)
+              write_file(root, "spec/workflows/#{bluebook_snake_name(wf.name)}_spec.rb", content)
             end
 
             @domain.services.each do |svc|
               content = sg.generate_service_spec(svc)
               next unless content
-              write_file(root, "spec/services/#{domain_snake_name(svc.name)}_spec.rb", content)
+              write_file(root, "spec/services/#{bluebook_snake_name(svc.name)}_spec.rb", content)
             end
           end
         end

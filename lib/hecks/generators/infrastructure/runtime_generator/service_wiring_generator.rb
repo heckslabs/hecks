@@ -19,7 +19,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +services+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"BankingDomain"+)
@@ -64,7 +64,7 @@ module Hecks
 
       # Returns the list of services from the domain IR.
       #
-      # @return [Array<Hecks::DomainModel::Behavior::Service>] domain services
+      # @return [Array<Hecks::BluebookModel::Behavior::Service>] domain services
       def services
         @domain.services || []
       end
@@ -76,10 +76,10 @@ module Hecks
       # 2. Evaluates the service call body within that context
       # 3. Returns +ctx.results+ with all dispatched command results
       #
-      # @param svc [Hecks::DomainModel::Behavior::Service] the service to wire
+      # @param svc [Hecks::BluebookModel::Behavior::Service] the service to wire
       # @return [Array<String>] indented lines of Ruby source
       def service_lines(svc)
-        method_name = domain_snake_name(svc.name)
+        method_name = bluebook_snake_name(svc.name)
         attr_names = svc.attributes.map { |a| a.name.to_s.inspect }
         call_body_source = svc.call_body ? Hecks::Utils.block_source(svc.call_body) : nil
 

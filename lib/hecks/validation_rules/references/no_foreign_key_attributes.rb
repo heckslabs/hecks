@@ -23,7 +23,7 @@ module Hecks
               next unless attr.name.to_s.end_with?("_id")
               next unless attr.type.to_s == "String"
               role = attr.name.to_s.sub(/_id$/, "")
-              target = HecksTemplating::Names.domain_constant_name(role)
+              target = HecksTemplating::Names.bluebook_constant_name(role)
               issues << "#{agg.name}.#{attr.name} looks like a foreign key. " \
                         "Use reference_to \"#{target}\" instead."
             end

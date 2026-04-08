@@ -14,11 +14,11 @@ module Hecks
           include HecksTemplating::NamingHelpers
           # Generates an RSpec spec for a scope defined on an aggregate.
           #
-          # @param scope [Hecks::DomainModel::Structure::Scope] the scope IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate]
+          # @param scope [Hecks::BluebookModel::Structure::Scope] the scope IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate]
           # @return [String] the complete RSpec file content
           def generate_scope_spec(scope, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             create_cmd = find_scope_create_cmd(aggregate)
             return nil unless create_cmd
 

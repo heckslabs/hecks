@@ -66,8 +66,8 @@ Hecks::Chapters.load_chapter(
 #
 module Hecks
   extend DomainInspector
-  extend DomainBuilderMethods
-  extend DomainCompiler
+  extend BluebookBuilderMethods
+  extend BluebookCompiler
   extend EventStormImporter
   extend DomainVisualizerMethods
   extend Boot
@@ -90,7 +90,7 @@ module Hecks
   #   runtime = Hecks.load(domain)
   #   runtime = Hecks.load(domain, event_bus: my_bus)
   #
-  # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+  # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
   # @param force [Boolean] reload even if already cached (default false)
   # @param opts [Hash] extra options forwarded to Runtime (e.g. event_bus:)
   # @return [Hecks::Runtime] a fully wired runtime with memory adapters

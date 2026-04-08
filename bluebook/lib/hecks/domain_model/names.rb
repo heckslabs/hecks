@@ -1,7 +1,7 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
 
-    # Hecks::DomainModel::Names
+    # Hecks::BluebookModel::Names
     #
     # Value objects for domain identifiers — command names, event names,
     # aggregate names, and state names. Each wraps a String and provides

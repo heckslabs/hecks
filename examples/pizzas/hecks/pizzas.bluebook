@@ -1,4 +1,4 @@
-Hecks.domain "Pizzas" do
+Hecks.bluebook "Pizzas" do
   aggregate "Pizza" do
     description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
     attribute :name, String

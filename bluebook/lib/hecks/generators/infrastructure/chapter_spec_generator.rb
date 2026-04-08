@@ -36,7 +36,7 @@ module Hecks
         paragraphs.each_with_object({}) do |(para_const, para_mod), hash|
           aggs = paragraph_aggregates(para_mod)
           next if aggs.empty?
-          slug = domain_snake_name(para_const.to_s)
+          slug = bluebook_snake_name(para_const.to_s)
           hash[slug] = build_spec_string(
             "#{chapter_fqn}::#{para_const}", chapter_require, aggs, nil
           )
@@ -46,7 +46,7 @@ module Hecks
       private
 
       def chapter_name = @chapter.name.split("::").last
-      def chapter_slug = domain_snake_name(chapter_name)
+      def chapter_slug = bluebook_snake_name(chapter_name)
       def chapter_fqn = @chapter.name
       def chapter_require = "hecks/chapters/#{chapter_slug}"
       def chapter_spec_filename = "#{chapter_slug}_spec.rb"
@@ -60,7 +60,7 @@ module Hecks
 
       def paragraph_aggregate_names
         @paragraph_aggregate_names ||= paragraphs.flat_map { |_, mod|
-          b = Hecks::DSL::DomainBuilder.new("_probe")
+          b = Hecks::DSL::BluebookBuilder.new("_probe")
           mod.define(b)
           b.build.aggregates.map(&:name)
         }.to_set
@@ -71,7 +71,7 @@ module Hecks
       end
 
       def paragraph_aggregates(para_mod)
-        b = Hecks::DSL::DomainBuilder.new("_probe")
+        b = Hecks::DSL::BluebookBuilder.new("_probe")
         para_mod.define(b)
         names = b.build.aggregates.map(&:name).to_set
         @domain.aggregates.select { |a| names.include?(a.name) }

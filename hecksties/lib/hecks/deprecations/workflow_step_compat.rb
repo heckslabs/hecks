@@ -7,7 +7,7 @@
 #
 
 # CommandStep
-HecksDeprecations.register(Hecks::DomainModel::Behavior::CommandStep, :[]) do |key|
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::CommandStep, :[]) do |key|
   HecksDeprecations.warn_deprecated(self.class, "[]")
   case key
   when :command then command
@@ -15,13 +15,13 @@ HecksDeprecations.register(Hecks::DomainModel::Behavior::CommandStep, :[]) do |k
   end
 end
 
-HecksDeprecations.register(Hecks::DomainModel::Behavior::CommandStep, :to_h) do
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::CommandStep, :to_h) do
   HecksDeprecations.warn_deprecated(self.class, "to_h")
   { command: command, mapping: mapping }
 end
 
 # BranchStep
-HecksDeprecations.register(Hecks::DomainModel::Behavior::BranchStep, :[]) do |key|
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::BranchStep, :[]) do |key|
   HecksDeprecations.warn_deprecated(self.class, "[]")
   case key
   when :branch then self
@@ -31,18 +31,18 @@ HecksDeprecations.register(Hecks::DomainModel::Behavior::BranchStep, :[]) do |ke
   end
 end
 
-HecksDeprecations.register(Hecks::DomainModel::Behavior::BranchStep, :to_h) do
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::BranchStep, :to_h) do
   HecksDeprecations.warn_deprecated(self.class, "to_h")
   { branch: { spec: spec, if_steps: if_steps, else_steps: else_steps } }
 end
 
 # ScheduledStep
-HecksDeprecations.register(Hecks::DomainModel::Behavior::ScheduledStep, :[]) do |key|
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::ScheduledStep, :[]) do |key|
   HecksDeprecations.warn_deprecated(self.class, "[]")
   send(key) if respond_to?(key)
 end
 
-HecksDeprecations.register(Hecks::DomainModel::Behavior::ScheduledStep, :to_h) do
+HecksDeprecations.register(Hecks::BluebookModel::Behavior::ScheduledStep, :to_h) do
   HecksDeprecations.warn_deprecated(self.class, "to_h")
   { name: name, find_aggregate: find_aggregate, find_spec: find_spec,
     find_query: find_query, trigger: trigger }

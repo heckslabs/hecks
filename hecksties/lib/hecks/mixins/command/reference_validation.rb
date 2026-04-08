@@ -76,7 +76,7 @@ module Hecks
       # For cross-domain references (ref.domain non-nil), resolves from the
       # foreign domain's constant (e.g., BillingDomain::Invoice).
       #
-      # @param ref [Hecks::DomainModel::Structure::Reference] the reference IR node
+      # @param ref [Hecks::BluebookModel::Structure::Reference] the reference IR node
       # @return [Class, nil] the resolved aggregate class, or nil if unresolvable
       def resolve_reference_class(ref)
         if ref.domain

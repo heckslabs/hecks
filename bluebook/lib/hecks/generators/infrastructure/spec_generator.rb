@@ -52,7 +52,7 @@ module Hecks
 
       # Creates a new SpecGenerator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       def initialize(domain)
         @domain = domain
       end
@@ -96,7 +96,7 @@ module Hecks
       #
       # @return [String] the domain module name with "Domain" suffix
       def mod_name
-        domain_module_name(@domain.name)
+        bluebook_module_name(@domain.name)
       end
     end
     end

@@ -18,7 +18,7 @@ module Hecks
       def self.summary = "Interactive REPL and MCP server for Hecks"
 
       def self.definition
-        Hecks::DSL::DomainBuilder.new("Workshop").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("Workshop").tap { |b|
           b.aggregate "Workshop" do
             description "Interactive domain-building session for REPL-driven development"
             command "CreateSession" do

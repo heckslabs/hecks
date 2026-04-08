@@ -33,7 +33,7 @@ module Hecks
         lines << ""
 
         domain.aggregates.each do |agg|
-          handle = @handles[agg.name] || AggregateHandle.new(agg.name, @aggregate_builders[agg.name], domain_module: domain_module_name(@name))
+          handle = @handles[agg.name] || AggregateHandle.new(agg.name, @aggregate_builders[agg.name], domain_module: bluebook_module_name(@name))
           lines << "  #{agg.name}"
 
           unless agg.attributes.empty?

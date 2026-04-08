@@ -1,6 +1,6 @@
 module Hecks
   module EventStorm
-    # Hecks::EventStorm::DomainBuilder
+    # Hecks::EventStorm::BluebookBuilder
     #
     # Builds a Structure::Domain from a Parser::ParseResult. Groups commands
     # under their aggregates, wires policies, attaches read models and external
@@ -10,13 +10,13 @@ module Hecks
     # the in-memory domain object.
     #
     #   result = EventStorm::Parser.new(source).parse
-    #   domain = EventStorm::DomainBuilder.new(result, name: "Ordering").build
+    #   domain = EventStorm::BluebookBuilder.new(result, name: "Ordering").build
     #
-    class DomainBuilder
-      Structure = DomainModel::Structure
-      Behavior  = DomainModel::Behavior
+    class BluebookBuilder
+      Structure = BluebookModel::Structure
+      Behavior  = BluebookModel::Behavior
 
-      # Initializes a DomainBuilder from a parse result.
+      # Initializes a BluebookBuilder from a parse result.
       #
       # @param parse_result [Parser::ParseResult] the intermediate representation
       #   produced by Parser or YamlParser, containing contexts, elements, and warnings
@@ -155,10 +155,10 @@ module Hecks
       # name via Command#inferred_event_name (e.g., "PlaceOrder" -> "OrderPlaced").
       #
       # @param commands [Array<Behavior::Command>] commands to infer from
-      # @return [Array<Behavior::DomainEvent>] inferred events
+      # @return [Array<Behavior::BluebookEvent>] inferred events
       def infer_events(commands)
         commands.map do |cmd|
-          Behavior::DomainEvent.new(
+          Behavior::BluebookEvent.new(
             name: cmd.inferred_event_name,
             attributes: cmd.attributes
           )

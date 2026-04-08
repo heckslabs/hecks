@@ -52,7 +52,7 @@ find lib -name "*.rb" -exec wc -l {} + | sort -rn | head -5
 ## Step 5: Smoke Test
 
 ```bash
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 ```
 
 - Must run without errors

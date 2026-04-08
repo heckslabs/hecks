@@ -1,4 +1,4 @@
-# Hecks::AI::DomainBuilder
+# Hecks::AI::BluebookBuilder
 #
 # Walks the structured JSON returned by LlmClient and replays it through the
 # Workshop API to build a valid domain. Delegates type resolution to TypeResolver.
@@ -8,13 +8,13 @@
 #          validations, policies, lifecycle states, and lifecycle transitions.
 #
 #   json = { domain_name: "Banking", aggregates: [...] }
-#   builder = Hecks::AI::DomainBuilder.new(json)
+#   builder = Hecks::AI::BluebookBuilder.new(json)
 #   workshop = builder.build   # => Hecks::Workshop
 #   dsl = workshop.to_dsl      # => "Hecks.domain \"Banking\" do ..."
 #
 module Hecks
   module AI
-    class DomainBuilder
+    class BluebookBuilder
       # Initializes with the structured JSON hash from LlmClient.
       #
       # @param domain_json [Hash] structured domain definition with :domain_name and :aggregates

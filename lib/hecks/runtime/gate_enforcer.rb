@@ -30,7 +30,7 @@ module Hecks
       # Looks up the gate from the Hecksagon IR for this aggregate + role,
       # then restricts disallowed methods.
       #
-      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Aggregate] the aggregate definition
       # @param agg_class [Class] the runtime aggregate class to restrict
       # @return [void]
       def enforce!(agg, agg_class)

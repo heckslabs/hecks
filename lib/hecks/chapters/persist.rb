@@ -13,7 +13,7 @@ module Hecks
   module Chapters
     module Persist
       def self.definition
-        DSL::DomainBuilder.new("Persist").tap { |b|
+        DSL::BluebookBuilder.new("Persist").tap { |b|
           b.aggregate "DatabaseConnection" do
             description "Connects to databases via Sequel, supports MySQL/Postgres/SQLite and Rails auto-detection"
             command "Connect" do

@@ -15,7 +15,7 @@ module Hecks
         # Builds an OpenAPI +requestBody+ object from a command's attributes.
         # Each attribute becomes a property in the JSON schema.
         #
-        # @param cmd [Hecks::DomainModel::Behavior::Command] the command
+        # @param cmd [Hecks::BluebookModel::Behavior::Command] the command
         # @return [Hash] an OpenAPI requestBody object with JSON content type
         def request_body(cmd)
           props = {}

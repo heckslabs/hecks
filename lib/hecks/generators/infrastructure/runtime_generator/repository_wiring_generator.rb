@@ -19,7 +19,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +aggregates+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
@@ -46,7 +46,7 @@ module Hecks
         lines << ""
         lines << "        def setup_repositories"
         @domain.aggregates.each_with_index do |agg, idx|
-          name = domain_constant_name(agg.name)
+          name = bluebook_constant_name(agg.name)
           lines << "" if idx > 0
           lines << "          unless @adapter_overrides.key?(\"#{name}\")"
           lines << "            @repositories[\"#{name}\"] = @mod::Adapters::#{name}MemoryRepository.new"

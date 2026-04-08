@@ -2,7 +2,7 @@
 #
 # Conversational onboarding that walks a user through defining a domain
 # interactively. Asks for domain name, aggregates, attributes, and commands,
-# then builds a Domain IR via DomainBuilder and serializes it as DSL source.
+# then builds a Domain IR via BluebookBuilder and serializes it as DSL source.
 #
 # Accepts `ask` and `say` callables for testability (defaults to Thor shell).
 #
@@ -102,7 +102,7 @@ module Hecks
     end
 
     def build_domain(name, aggregates)
-      builder = Hecks::DSL::DomainBuilder.new(name)
+      builder = Hecks::DSL::BluebookBuilder.new(name)
       aggregates.each do |agg|
         builder.aggregate(agg[:name]) do
           agg[:attributes].each { |a| attribute a[:name].to_sym, Object.const_get(a[:type]) rescue a[:type] }

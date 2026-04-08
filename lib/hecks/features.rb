@@ -11,7 +11,7 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("features", __dir__)
 )
 
-Hecks::DomainModel::Structure::Domain.include(Hecks::Features::DomainMixin)
+Hecks::BluebookModel::Structure::Domain.include(Hecks::Features::DomainMixin)
 
 # Backward compat
 HecksFeatures = Hecks::Features unless defined?(HecksFeatures)

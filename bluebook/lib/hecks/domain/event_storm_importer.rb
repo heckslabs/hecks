@@ -31,7 +31,7 @@ module Hecks
       result = (yaml ? EventStorm::YamlParser : EventStorm::Parser).new(content).parse
       domain_name = name || result.domain_name
       EventStorm::Result.new(
-        domain: EventStorm::DomainBuilder.new(result, name: domain_name).build,
+        domain: EventStorm::BluebookBuilder.new(result, name: domain_name).build,
         dsl: EventStorm::DslGenerator.new(result, name: domain_name).generate,
         warnings: result.warnings
       )

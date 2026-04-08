@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-    # Hecks::DomainModel::Behavior::EventSubscriber
+    # Hecks::BluebookModel::Behavior::EventSubscriber
     #
     # Intermediate representation of a DSL-defined event subscriber -- an
     # arbitrary code block that fires when a named event is published.
@@ -14,7 +14,7 @@ module Hecks
     # as its argument. The +async+ flag hints to the runtime whether the
     # subscriber should be dispatched synchronously or asynchronously.
     #
-    # Part of the DomainModel IR layer. Built by AggregateBuilder#on_event
+    # Part of the BluebookModel IR layer. Built by AggregateBuilder#on_event
     # and consumed by SubscriberGenerator to produce subscriber classes.
     #
     #   sub = EventSubscriber.new(

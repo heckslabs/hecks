@@ -14,7 +14,7 @@ module Hecks
       # Describe a single aggregate: attributes, commands, queries,
       # specifications, validations, invariants, and policies.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate]
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate]
       # @return [Array<String>]
       def describe_aggregate(agg)
         lines = ["## Aggregate: #{agg.name}", ""]

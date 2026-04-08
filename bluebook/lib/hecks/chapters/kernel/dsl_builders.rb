@@ -2,7 +2,7 @@
 #
 # Paragraph describing the DSL builder classes that parse domain
 # definitions into IR. These are the entry points for Hecks.domain {},
-# aggregate {}, command {}, etc. Covers DomainBuilder, AggregateBuilder,
+# aggregate {}, command {}, etc. Covers BluebookBuilder, AggregateBuilder,
 # and all sub-builders (command, event, entity, value object, policy,
 # lifecycle, read model, service, workflow, bluebook, rebuilder).
 #
@@ -13,7 +13,7 @@ module Hecks
     module Kernel
       module DslBuildersParagraph
         def self.define(b)
-          b.aggregate "DomainBuilder", "Top-level DSL builder that collects aggregates, policies, services, and workflows into a Domain IR" do
+          b.aggregate "BluebookBuilder", "Top-level DSL builder that collects aggregates, policies, services, and workflows into a Domain IR" do
             attribute :name, String
             attribute :version, String
             command("DefineDomain") { attribute :name, String; attribute :version, String }
@@ -112,7 +112,7 @@ module Hecks
             command("AddBranch") { attribute :spec_name, String }
           end
 
-          b.aggregate "BluebookBuilder", "DSL builder for composing multiple domains into a single Bluebook structure" do
+          b.aggregate "LibraryBuilder", "DSL builder for composing multiple domains into a single Bluebook structure" do
             attribute :name, String
             command("DefineChapter") { attribute :name, String }
             command("BuildBluebook") { attribute :builder_id, String }

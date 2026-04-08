@@ -24,7 +24,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +aggregates+ with +subscribers+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
@@ -53,7 +53,7 @@ module Hecks
         first_agg = true
         @domain.aggregates.each do |agg|
           next if agg.subscribers.empty?
-          safe_name = domain_constant_name(agg.name)
+          safe_name = bluebook_constant_name(agg.name)
           lines << "" unless first_agg
           lines << "          # #{safe_name} subscribers"
           agg.subscribers.each do |sub|

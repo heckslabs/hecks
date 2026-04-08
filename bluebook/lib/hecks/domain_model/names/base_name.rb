@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Names::BaseName
+# Hecks::BluebookModel::Names::BaseName
 #
 # Base class for name value objects. Inherits from String so it works
 # transparently everywhere strings are used — hash keys, comparisons,
@@ -12,7 +12,7 @@
 #   "Hello #{name}"          # => "Hello Foo"
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Names
       class BaseName < String
         def self.wrap(value)

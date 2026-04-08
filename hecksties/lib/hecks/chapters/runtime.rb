@@ -17,7 +17,7 @@ module Hecks
     #
     module Runtime
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Runtime").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Runtime").tap { |b|
           b.aggregate "Runtime", "Wires domain IR to adapters, dispatches commands, publishes events" do
             command("Boot") { attribute :domain_path, String }
             command("Load") { attribute :domain_ir, String }

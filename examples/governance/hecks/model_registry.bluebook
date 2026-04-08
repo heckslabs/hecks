@@ -1,4 +1,4 @@
-Hecks.domain "ModelRegistry" do
+Hecks.bluebook "ModelRegistry" do
   aggregate "AiModel" do
     attribute :name, String
     attribute :version, String

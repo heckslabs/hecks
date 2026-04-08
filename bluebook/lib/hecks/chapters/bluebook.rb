@@ -16,7 +16,7 @@ module Hecks
 
     module Bluebook
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Bluebook").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Bluebook").tap { |b|
           b.instance_eval do
             aggregate "Domain", "Root of the domain model IR, holds aggregates and policies" do
               attribute :name, String

@@ -6,7 +6,7 @@
 #
 #   Hecks.register_grammar(:bluebook) do |g|
 #     g.parser = BlueBook::Grammar
-#     g.builder = Hecks::DSL::DomainBuilder
+#     g.builder = Hecks::DSL::BluebookBuilder
 #     g.entry_point = :domain
 #   end
 #

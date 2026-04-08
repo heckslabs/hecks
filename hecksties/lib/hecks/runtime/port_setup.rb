@@ -50,10 +50,10 @@ module Hecks
       # - Query objects defined in the DSL
       # - Port enforcement to restrict methods based on the active port
       #
-      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition from the domain model
+      # @param agg [Hecks::BluebookModel::Aggregate] the aggregate definition from the domain model
       # @return [void]
       def wire_aggregate(agg)
-        agg_class = @mod.const_get(domain_constant_name(agg.name))
+        agg_class = @mod.const_get(bluebook_constant_name(agg.name))
         repo = ownership_scoped_repo(agg, @repositories[agg.name])
         defaults = build_defaults(agg)
 
@@ -70,7 +70,7 @@ module Hecks
       # Wraps the repository with an OwnershipScopedRepository when the active
       # gate declares +owned_by+ or when tenancy is +:row+.
       #
-      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Aggregate] the aggregate definition
       # @param repo [Object] the inner repository instance
       # @return [Object] the repo, possibly wrapped with ownership scoping
       def ownership_scoped_repo(agg, repo)
@@ -100,7 +100,7 @@ module Hecks
       # These defaults are passed to the Commands binding so that new aggregates
       # are initialized with sensible values for omitted attributes.
       #
-      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Aggregate] the aggregate definition
       # @return [Hash{String => Array, nil}] attribute name to default value mapping
       def build_defaults(agg)
         agg.attributes.each_with_object({}) { |attr, h| h[attr.name] = attr.list? ? [] : nil }
@@ -125,7 +125,7 @@ module Hecks
       # - Otherwise, creates a class method that evaluates the query's block
       #   against a new +QueryBuilder+ instance backed by the repository
       #
-      # @param agg [Hecks::DomainModel::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Aggregate] the aggregate definition
       # @param agg_class [Class] the runtime aggregate class to add query methods to
       # @return [void]
       def wire_query_objects(agg, agg_class)
@@ -133,7 +133,7 @@ module Hecks
         queries_mod = begin; agg_class.const_get(:Queries); rescue NameError; nil; end
 
         agg.queries.each do |query|
-          method_name = domain_snake_name(query.name).to_sym
+          method_name = bluebook_snake_name(query.name).to_sym
           query_class = begin
             queries_mod&.const_defined?(query.name, false) && queries_mod.const_get(query.name)
           rescue StandardError

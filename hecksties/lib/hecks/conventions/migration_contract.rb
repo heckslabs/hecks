@@ -26,8 +26,8 @@ module Hecks::Conventions
 
     # Compare two domain IRs and return any differences.
     #
-    # @param original [DomainModel::Domain] the domain before serialization
-    # @param restored [DomainModel::Domain] the domain after deserialize
+    # @param original [BluebookModel::Domain] the domain before serialization
+    # @param restored [BluebookModel::Domain] the domain after deserialize
     # @return [Hash] { valid: Boolean, issues: Array<String> }
     def self.diff(original, restored)
       issues = []

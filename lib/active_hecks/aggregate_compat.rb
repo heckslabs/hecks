@@ -1,7 +1,7 @@
 # ActiveHecks::AggregateCompat
 #
 # Aggregate-specific ActiveModel mixin: identity, validations, and lifecycle
-# callbacks. Validations live here (not DomainModelCompat) because value
+# callbacks. Validations live here (not BluebookModelCompat) because value
 # objects are frozen and cannot mutate the @errors ivar.
 #
 # Included by ActiveHecks.extend_aggregate.

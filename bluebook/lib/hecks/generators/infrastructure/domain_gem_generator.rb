@@ -25,7 +25,7 @@ module Hecks
 
       # Creates a new DomainGemGenerator.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       # @param version [String] SemVer string written into the generated gemspec
       #   (default: +"0.1.0"+)
       # @param output_dir [String] filesystem path where the gem directory will be
@@ -54,7 +54,7 @@ module Hecks
       # @return [String] the absolute path to the generated gem root directory
       def generate
         gem_name = @domain.gem_name
-        mod = domain_module_name(@domain.name)
+        mod = bluebook_module_name(@domain.name)
         root = File.join(@output_dir, gem_name)
 
         FileUtils.mkdir_p(root)

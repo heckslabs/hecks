@@ -6,7 +6,7 @@
 #
 #   domain = Hecks::Chapters::Appeal.definition
 #   domain.aggregates.map(&:name)
-#   # => ["Server", "CommandDispatcher", "DomainBridge", ...]
+#   # => ["Server", "CommandDispatcher", "BluebookBridge", ...]
 #
 require "bluebook"
 
@@ -18,7 +18,7 @@ module Hecks
       def self.summary = "Browser-based IDE for domain modeling"
 
       def self.definition
-        Hecks::DSL::DomainBuilder.new("HecksAppeal").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("HecksAppeal").tap { |b|
           b.aggregate "Server" do
             description "Sinatra web server hosting the IDE and routing HTTP requests"
             command "Start" do
@@ -35,7 +35,7 @@ module Hecks
             end
           end
 
-          b.aggregate "DomainBridge" do
+          b.aggregate "BluebookBridge" do
             description "Connects the IDE to a booted Hecks domain for live introspection"
             command "Connect" do
               attribute :domain_path, String

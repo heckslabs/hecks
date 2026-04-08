@@ -89,7 +89,7 @@ module Hecks
           return @command_bus.dispatch(command_name, **event_attrs) unless target_agg
 
           filtered_attrs = filter_command_attrs(target_agg, command_name, event_attrs)
-          agg_class = @mod.const_get(domain_constant_name(target_agg.name))
+          agg_class = @mod.const_get(bluebook_constant_name(target_agg.name))
           method_name = resolve_command_method(command_name, target_agg.name)
 
           if agg_class.respond_to?(method_name)
@@ -107,8 +107,8 @@ module Hecks
         end
 
         def resolve_command_method(command_name, agg_name)
-          full = domain_snake_name(command_name)
-          snake = domain_snake_name(agg_name)
+          full = bluebook_snake_name(command_name)
+          snake = bluebook_snake_name(agg_name)
           snake.split("_").each_index do |i|
             suffix = snake.split("_").drop(i).join("_")
             stripped = full.sub(/_#{suffix}$/, "")

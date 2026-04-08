@@ -21,13 +21,13 @@ module Hecks
           # 4. Verifies both the trigger event and the chained event
           #    appear in app.events
           #
-          # @param policy [Hecks::DomainModel::Behavior::Policy] the policy IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning aggregate
+          # @param policy [Hecks::BluebookModel::Behavior::Policy] the policy IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning aggregate
           # @return [String, nil] the RSpec file content, or nil if not reactive
           def generate_policy_spec(policy, aggregate)
             return nil unless policy.reactive?
 
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             trigger_cmd = find_command_for_event(policy.event_name)
             return nil unless trigger_cmd
 
@@ -36,7 +36,7 @@ module Hecks
 
             triggered_event = infer_event_name(policy.trigger_command)
             trigger_cmd_method = derive_method(trigger_cmd, trigger_agg)
-            trigger_safe = domain_constant_name(trigger_agg.name)
+            trigger_safe = bluebook_constant_name(trigger_agg.name)
             is_update = is_update_cmd?(trigger_cmd, trigger_agg)
 
             lines = []

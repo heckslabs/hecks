@@ -51,7 +51,7 @@ module Hecks
       end
 
       # @param path [String] snapshot file path
-      # @return [Hecks::DomainModel::Domain, nil]
+      # @return [Hecks::BluebookModel::Domain, nil]
       def self.load_snapshot(path)
         return nil unless File.exist?(path)
         Kernel.load(path)

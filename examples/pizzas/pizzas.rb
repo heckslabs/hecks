@@ -71,7 +71,7 @@ results = Order.pending
 puts "Pending: #{results.map(&:customer_name).join(", ")}"
 
 # Value objects are immutable
-item = PizzasDomain::Pizza::Topping.new(name: "Margherita", amount: 1)
+item = PizzasBluebook::Pizza::Topping.new(name: "Margherita", amount: 1)
 puts "\nTopping: #{item.name} (frozen: #{item.frozen?})"
 
 puts "\n--- Event history ---"

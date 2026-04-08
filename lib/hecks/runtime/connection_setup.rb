@@ -1,6 +1,6 @@
 # Hecks::Runtime::ConnectionSetup
 #
-# Mixin that wires domain connections declared via DomainConnections
+# Mixin that wires domain connections declared via BluebookConnections
 # (listens_to and sends_to) onto the event bus at boot time. Also exposes
 # the event bus on the domain module for cross-domain subscriptions.
 #
@@ -25,7 +25,7 @@ module Hecks
 
         # Orchestrates connection wiring: exposes the event bus on the domain module,
         # then wires any +listens_to+ and +sends_to+ connections declared via
-        # +DomainConnections+.
+        # +BluebookConnections+.
         #
         # @return [void]
         def setup_connections

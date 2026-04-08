@@ -43,7 +43,7 @@ module Hecks
 
           # Build the aggregate section for llms.txt.
           #
-          # @param agg [Hecks::DomainModel::Structure::Aggregate]
+          # @param agg [Hecks::BluebookModel::Structure::Aggregate]
           # @param gem_name [String]
           # @param mod [String]
           # @return [Array<String>]
@@ -165,15 +165,15 @@ module Hecks
             first_agg = @domain.aggregates.first
             if first_agg && !first_agg.commands.empty?
               cmd = first_agg.commands.first
-              snake = domain_snake_name(domain_constant_name(first_agg.name))
+              snake = bluebook_snake_name(bluebook_constant_name(first_agg.name))
               params = cmd.attributes.map { |a| "#{a.name}: ..." }.join(", ")
               lines << "# Run a command"
-              lines << "app.#{snake}.#{domain_snake_name(cmd.name)}(#{params})"
+              lines << "app.#{snake}.#{bluebook_snake_name(cmd.name)}(#{params})"
               lines << ""
             end
 
             if first_agg
-              snake = domain_snake_name(domain_constant_name(first_agg.name))
+              snake = bluebook_snake_name(bluebook_constant_name(first_agg.name))
               lines << "# Query the repository"
               lines << "app.#{snake}[1]  # find by id"
               lines << ""

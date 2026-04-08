@@ -1,0 +1,5 @@
+Hecks.bluebook "VerifyContracts" do
+  # The contract verifier runs every data contract against every
+  # aggregate, command, event, and attribute in every Bluebook chapter.
+  # It does not define its own domain aggregates.
+end

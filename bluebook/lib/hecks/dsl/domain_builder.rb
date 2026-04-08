@@ -4,10 +4,10 @@ require_relative "domain_builder/strategic_builders"
 module Hecks
   module DSL
 
-    # Hecks::DSL::DomainBuilder
+    # Hecks::DSL::BluebookBuilder
     #
     # Top-level DSL builder for domain definitions. Collects aggregate definitions
-    # and domain-level policies, then builds a DomainModel::Structure::Domain.
+    # and domain-level policies, then builds a BluebookModel::Structure::Domain.
     # Enforces unique aggregate names. Domain-level policies are cross-aggregate
     # reactive policies defined outside any aggregate block.
     #
@@ -22,9 +22,9 @@ module Hecks
     #     end
     #   end
     #
-    # Builds a DomainModel::Structure::Domain from top-level DSL declarations.
+    # Builds a BluebookModel::Structure::Domain from top-level DSL declarations.
     #
-    # DomainBuilder is the entry point for defining an entire domain model. It
+    # BluebookBuilder is the entry point for defining an entire domain model. It
     # collects aggregate definitions, cross-aggregate reactive policies, domain
     # services, read model views, workflows, event subscribers, and tenancy
     # configuration. The +#build+ method assembles these into an immutable
@@ -37,8 +37,8 @@ module Hecks
     #
     # Includes AttributeCollector for domain-level attribute declarations
     # (rarely used, but available for domain metadata).
-    class DomainBuilder
-      Structure = DomainModel::Structure
+    class BluebookBuilder
+      Structure = BluebookModel::Structure
 
       include AttributeCollector
       include Describable
@@ -159,7 +159,7 @@ module Hecks
       # @yield block invoked when the event fires
       # @return [void]
       def on_event(event_name, &block)
-        @event_subscribers << DomainModel::SubscriberRegistration.new(
+        @event_subscribers << BluebookModel::SubscriberRegistration.new(
           event_name: event_name.to_s, block: block
         )
       end
@@ -221,7 +221,7 @@ module Hecks
       #   end
       #
       # @param name [String] the paragraph name (e.g. "Ports")
-      # @yield block evaluated in the context of DomainBuilder (self)
+      # @yield block evaluated in the context of BluebookBuilder (self)
       # @return [void]
       def paragraph(name, &block)
         before = @aggregates.dup
@@ -299,12 +299,12 @@ module Hecks
         name.to_s =~ /\A[A-Z]/ || super
       end
 
-      # Build and return the DomainModel::Structure::Domain IR object.
+      # Build and return the BluebookModel::Structure::Domain IR object.
       #
       # Assembles all collected domain-level elements into an immutable
       # Domain intermediate representation.
       #
-      # @return [DomainModel::Structure::Domain] the fully built domain IR object
+      # @return [BluebookModel::Structure::Domain] the fully built domain IR object
       def build
         domain = Structure::Domain.new(
           name: @name, version: @version, aggregates: @aggregates, paragraphs: @paragraphs, policies: @policies,

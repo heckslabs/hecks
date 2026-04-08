@@ -1,7 +1,7 @@
 # Hecks::AI::TypeResolver
 #
 # Shared module for converting type strings to Ruby types or descriptor hashes.
-# Extracted from McpServer so it can be reused by DomainBuilder and other
+# Extracted from McpServer so it can be reused by BluebookBuilder and other
 # components that need to interpret typed attribute declarations.
 #
 # Supported formats:

@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Aggregate
+    # Hecks::BluebookModel::Structure::Aggregate
     #
     # Intermediate representation of a DDD aggregate -- the core building block
     # of a Hecks domain. Groups a root entity with its value objects, commands,
@@ -15,7 +15,7 @@ module Hecks
     #     name: "Pizza",
     #     attributes: [Attribute.new(name: :name, type: String)],
     #     commands: [Command.new(name: "CreatePizza", attributes: [...])],
-    #     events: [DomainEvent.new(name: "CreatedPizza", attributes: [...])],
+    #     events: [BluebookEvent.new(name: "CreatedPizza", attributes: [...])],
     #     scopes: [Scope.new(name: :active, conditions: { status: "active" })],
     #     ports: { guest: GateDefinition.new(name: :guest, allowed_methods: [:find]) }
     #   )
@@ -36,7 +36,7 @@ module Hecks
       # @return [Array<Behavior::Command>] commands that mutate this aggregate (e.g., CreatePizza, UpdatePizza)
       attr_reader :commands
 
-      # @return [Array<Behavior::DomainEvent>] domain events emitted by this aggregate's commands
+      # @return [Array<Behavior::BluebookEvent>] domain events emitted by this aggregate's commands
       attr_reader :events
 
       # @return [Array<Behavior::Policy>] reactive policies triggered by events within this aggregate
@@ -90,7 +90,7 @@ module Hecks
       # @param value_objects [Array<ValueObject>] embedded value objects
       # @param entities [Array<Entity>] owned sub-entities
       # @param commands [Array<Behavior::Command>] commands that mutate this aggregate
-      # @param events [Array<Behavior::DomainEvent>] domain events emitted by commands
+      # @param events [Array<Behavior::BluebookEvent>] domain events emitted by commands
       # @param policies [Array<Behavior::Policy>] reactive policies triggered by events
       # @param validations [Array<Validation>] attribute-level validation rules
       # @param invariants [Array<Invariant>] aggregate-level business rules

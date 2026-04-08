@@ -17,7 +17,7 @@ module Hecks
 
       # Initializes a generator for a single aggregate's SQL repository.
       #
-      # @param aggregate [DomainModel::Structure::Aggregate] the aggregate to
+      # @param aggregate [BluebookModel::Structure::Aggregate] the aggregate to
       #   generate a repository for
       # @param domain_module [String] the fully qualified module name
       #   (e.g., "PizzasDomain")
@@ -132,7 +132,7 @@ module Hecks
 
       # Returns attributes that are stored as direct columns (not list types).
       #
-      # @return [Array<DomainModel::Structure::Attribute>] scalar attributes
+      # @return [Array<BluebookModel::Structure::Attribute>] scalar attributes
       def scalar_attributes
         @aggregate.attributes.reject(&:list?)
       end
@@ -146,7 +146,7 @@ module Hecks
 
       # Returns value objects that are stored in join tables (list-type VOs).
       #
-      # @return [Array<DomainModel::Structure::ValueObject>] list value objects
+      # @return [Array<BluebookModel::Structure::ValueObject>] list value objects
       def list_value_objects
         @aggregate.value_objects.select do |vo|
           @aggregate.attributes.any? { |a| a.list? && a.type.to_s == vo.name }

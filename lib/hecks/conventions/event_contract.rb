@@ -31,7 +31,7 @@ module Hecks::Conventions
 
     # Validate that generated event fields match the domain IR definition.
     #
-    # @param event_ir [DomainModel::Behavior::Event] the event from the IR
+    # @param event_ir [BluebookModel::Behavior::Event] the event from the IR
     # @param generated_attrs [Array<String, Symbol>] field names in generated code
     # @return [Hash] { missing:, extra:, valid: }
     def self.validate(event_ir, generated_attrs)

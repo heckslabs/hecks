@@ -6,7 +6,7 @@ JSON::Validator.use_multi_json = false if defined?(JSON::Validator)
 
 # Bootstrap — must load before chapter system (errors, naming, autoloads,
 # registries). These define the module infrastructure that Chapters and
-# DomainBuilder depend on, so they cannot be chapter-driven.
+# BluebookBuilder depend on, so they cannot be chapter-driven.
 require "hecks/errors"
 require "hecks/conventions"
 require "hecks/autoloads"
@@ -18,7 +18,8 @@ require "hecks/module_dsl"
 require "hecks/core_extensions"
 require "hecks/registries/extension_registry"
 require "hecks/registries/capability_registry"
-require "hecks/registries/domain_registry"
+require "hecks/registries/bluebook_registry"
+require "hecks/bluebook/event_storm_importer"
 require "hecks/registries/cross_domain"
 require "hecks/registries/thread_context"
 require "hecks/registries/target_registry"
@@ -31,7 +32,7 @@ require "hecks/registries/grammar_registry"
 module Hecks
   extend ExtensionRegistryMethods
   extend CapabilityRegistryMethods
-  extend DomainRegistryMethods
+  extend BluebookRegistryMethods
   extend CrossDomainMethods
   extend ThreadContextMethods
   extend TargetRegistryMethods
@@ -69,12 +70,20 @@ Hecks::ChapterLoader.load_from_file || Hecks.chapters(:all)
 #
 # Top-level framework module: DSL entry point, registry methods, and configuration for all domain components.
 #
+require "hecks/bluebook/inspector"
+require "hecks/bluebook/builder_methods"
+require "hecks/bluebook/compiler"
+require "hecks/bluebook/visualizer_methods"
+require "hecks/bluebook/connections"
+require "hecks/registries/bluebook_registry"
+require "hecks/bluebook/event_storm_importer"
+
 module Hecks
-  extend DomainInspector
-  extend DomainBuilderMethods
-  extend DomainCompiler
+  extend BluebookInspector
+  extend BluebookBuilderMethods
+  extend BluebookCompiler
   extend EventStormImporter
-  extend DomainVisualizerMethods
+  extend BluebookVisualizerMethods
   extend Boot
   extend BootBluebook
 
@@ -95,12 +104,12 @@ module Hecks
   #   runtime = Hecks.load(domain)
   #   runtime = Hecks.load(domain, event_bus: my_bus)
   #
-  # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+  # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
   # @param force [Boolean] reload even if already cached (default false)
   # @param opts [Hash] extra options forwarded to Runtime (e.g. event_bus:)
   # @return [Hecks::Runtime] a fully wired runtime with memory adapters
   def self.load(domain, force: false, **opts, &config)
-    load_domain(domain, force: force)
+    load_bluebook(domain, force: force)
     Runtime.new(domain, **opts, &config)
   end
 
@@ -121,6 +130,6 @@ module Hecks
   register_dump_format(:swagger, desc: "OpenAPI 3.0") { |domain, say:| require "hecks_serve"; File.write("openapi.json", JSON.pretty_generate(Hecks::HTTP::OpenapiGenerator.new(domain).generate)); say.call("Dumped openapi.json", :green) }
   register_dump_format(:rpc, desc: "JSON-RPC discovery") { |domain, say:| require "hecks_serve"; File.write("rpc_methods.json", JSON.pretty_generate(Hecks::HTTP::RpcDiscovery.new(domain).generate)); say.call("Dumped rpc_methods.json", :green) }
   register_dump_format(:domain, desc: "domain gem") { |domain, say:| FileUtils.mkdir_p("domain"); say.call("Dumped domain gem to domain/#{File.basename(Hecks.build(domain, output_dir: "domain"))}/", :green) }
-  register_dump_format(:glossary, desc: "plain-English glossary") { |domain, say:| File.write("glossary.md", Hecks::DomainGlossary.new(domain).generate.join("\n") + "\n"); say.call("Dumped glossary.md", :green) }
+  register_dump_format(:glossary, desc: "plain-English glossary") { |domain, say:| File.write("glossary.md", Hecks::BluebookGlossary.new(domain).generate.join("\n") + "\n"); say.call("Dumped glossary.md", :green) }
   register_dump_format(:types, desc: "TypeScript types (.d.ts)") { |domain, say:| File.write("types.d.ts", Hecks::HTTP::TypescriptGenerator.new(domain).generate); say.call("Dumped types.d.ts", :green) }
 end

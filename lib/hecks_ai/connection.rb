@@ -15,7 +15,7 @@ module Hecks
     class McpConnection
       # Initializes the connection by creating a DomainServer for the given domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain model to expose
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain model to expose
       # @param runtime [Hecks::Runtime] the runtime instance (unused, required by interface)
       def initialize(domain, runtime)
         @server = MCP::DomainServer.new(domain)

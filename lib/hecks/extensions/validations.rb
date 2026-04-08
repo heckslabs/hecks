@@ -30,7 +30,7 @@ Hecks.register_extension(:validations) do |domain_mod, domain, runtime|
   domain.aggregates.each do |agg|
     safe = agg.name
     agg.commands.each do |cmd|
-      cmd_snake = HecksTemplating::Names.domain_snake_name(cmd.name)
+      cmd_snake = HecksTemplating::Names.bluebook_snake_name(cmd.name)
       cmd_rules = {}
 
       cmd.attributes.each do |attr|
@@ -84,7 +84,7 @@ Hecks.register_extension(:validations) do |domain_mod, domain, runtime|
     parts = command.class.name.split("::")
     agg_name = parts[-3]
     cmd_name = parts[-1]
-    cmd_snake = HecksTemplating::Names.domain_snake_name(cmd_name)
+    cmd_snake = HecksTemplating::Names.bluebook_snake_name(cmd_name)
 
     # Build params hash from command instance variables
     params = {}

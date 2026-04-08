@@ -28,4 +28,4 @@ jobs:
         run: bundle exec rspec
 
       - name: Smoke test
-        run: bundle exec ruby examples/pizzas/app.rb
+        run: bundle exec ruby examples/pizzas/pizzas.rb

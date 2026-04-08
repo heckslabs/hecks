@@ -4,7 +4,7 @@ module Hecks
     # Hecks::DSL::ValueObjectBuilder
     #
     # DSL builder for value object definitions. Collects attributes and invariants,
-    # then builds a DomainModel::Structure::ValueObject. Used inside aggregate blocks.
+    # then builds a BluebookModel::Structure::ValueObject. Used inside aggregate blocks.
     #
     # Part of the DSL layer, nested under AggregateBuilder. The resulting value
     # object is embedded within its parent aggregate.
@@ -15,7 +15,7 @@ module Hecks
     #   builder.invariant("street required") { !street.nil? }
     #   vo = builder.build  # => #<ValueObject name="Address" ...>
     #
-    # Builds a DomainModel::Structure::ValueObject from DSL declarations.
+    # Builds a BluebookModel::Structure::ValueObject from DSL declarations.
     #
     # ValueObjectBuilder collects attributes and invariants for an immutable,
     # equality-by-value type embedded within an aggregate. Value objects have
@@ -26,7 +26,7 @@ module Hecks
     # Includes AttributeCollector for the +attribute+, +list_of+, and
     # +reference_to+ DSL methods.
     class ValueObjectBuilder
-      Structure = DomainModel::Structure
+      Structure = BluebookModel::Structure
 
       include AttributeCollector
       include Describable
@@ -65,9 +65,9 @@ module Hecks
         true
       end
 
-      # Build and return the DomainModel::Structure::ValueObject IR object.
+      # Build and return the BluebookModel::Structure::ValueObject IR object.
       #
-      # @return [DomainModel::Structure::ValueObject] the fully built value object IR object
+      # @return [BluebookModel::Structure::ValueObject] the fully built value object IR object
       def build
         Structure::ValueObject.new(
           name: @name,

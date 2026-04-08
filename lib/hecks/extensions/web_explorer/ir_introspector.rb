@@ -35,7 +35,7 @@ module Hecks
       end
 
       def find_aggregate_by_slug(slug)
-        @domain.aggregates.find { |agg| domain_aggregate_slug(agg.name) == slug }
+        @domain.aggregates.find { |agg| bluebook_aggregate_slug(agg.name) == slug }
       end
 
       def user_attributes(agg)
@@ -63,7 +63,7 @@ module Hecks
       end
 
       def find_command(agg, cmd_snake)
-        agg.commands.find { |cmd| domain_snake_name(cmd.name) == cmd_snake }
+        agg.commands.find { |cmd| bluebook_snake_name(cmd.name) == cmd_snake }
       end
 
       def command_fields(cmd, params = {})

@@ -20,12 +20,12 @@ module Hecks
           # 3. Calls the query method
           # 4. Verifies only matching results are returned
           #
-          # @param query [Hecks::DomainModel::Behavior::Query] the query IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning aggregate
+          # @param query [Hecks::BluebookModel::Behavior::Query] the query IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning aggregate
           # @return [String] the complete RSpec file content
           def generate_query_spec(query, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
-            query_method = domain_snake_name(query.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
+            query_method = bluebook_snake_name(query.name)
             create_cmd = find_create_command(aggregate)
             return nil unless create_cmd
 

@@ -1,0 +1,5 @@
+Hecks.bluebook "VerifyGenerators" do
+  # The generator verifier boots the Pizzas domain, runs each runtime
+  # generator, and checks output for expected module structure and
+  # valid syntax. It does not define its own domain aggregates.
+end

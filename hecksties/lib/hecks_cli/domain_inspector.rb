@@ -21,7 +21,7 @@ module Hecks
     # Formats a Domain IR into comprehensive, readable terminal output covering all aggregates and domain elements.
     #
     class DomainInspector
-      # @param domain [Hecks::DomainModel::Structure::Domain]
+      # @param domain [Hecks::BluebookModel::Structure::Domain]
       def initialize(domain)
         @domain = domain
       end

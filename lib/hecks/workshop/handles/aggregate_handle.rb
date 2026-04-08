@@ -113,7 +113,7 @@ module Hecks
     end
 
     def normalize_name(name)
-      domain_constant_name(name)
+      bluebook_constant_name(name)
     end
 
     def infer_command_name(snake)

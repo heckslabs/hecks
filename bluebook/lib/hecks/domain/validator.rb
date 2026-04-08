@@ -41,7 +41,7 @@ module Hecks
     # @return [Array<String>] world-concerns-only errors (populated after #valid? is called)
     attr_reader :world_concerns_errors
 
-    # @param domain [Hecks::DomainModel::Domain] the domain to validate
+    # @param domain [Hecks::BluebookModel::Domain] the domain to validate
     def initialize(domain)
       @domain = domain
       @errors = []

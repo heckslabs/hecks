@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-    # Hecks::DomainModel::Behavior::Specification
+    # Hecks::BluebookModel::Behavior::Specification
     #
     # Intermediate representation of a domain specification -- a named, reusable
     # predicate defined in the DSL. Each specification has a name and a block that
@@ -12,7 +12,7 @@ module Hecks
     # 1. Directly, to filter or validate domain objects (e.g. "is this loan high risk?")
     # 2. In workflows, as branch conditions that determine which execution path to take
     #
-    # Part of the DomainModel IR layer. Built by the DSL aggregate builder and
+    # Part of the BluebookModel IR layer. Built by the DSL aggregate builder and
     # consumed by SpecificationGenerator to produce specification classes in the
     # domain gem. At runtime, the block is called with a domain object and returns
     # a boolean.

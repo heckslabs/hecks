@@ -35,7 +35,7 @@ module Hecks
           command("Throw") { attribute :message, String; attribute :postcondition, String }
         end
 
-        b.aggregate "DomainLoadError", "Raised when a domain gem cannot be loaded" do
+        b.aggregate "BluebookLoadError", "Raised when a domain gem cannot be loaded" do
           command("Throw") { attribute :message, String }
         end
 

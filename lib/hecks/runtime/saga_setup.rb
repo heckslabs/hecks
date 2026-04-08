@@ -34,7 +34,7 @@ module Hecks
 
         @domain.sagas.each do |saga|
           runner = SagaRunner.new(saga, @command_bus, @saga_store, @event_bus)
-          method_name = :"start_#{domain_snake_name(saga.name)}"
+          method_name = :"start_#{bluebook_snake_name(saga.name)}"
 
           @mod.define_singleton_method(method_name) do |**attrs|
             runner.start(**attrs)

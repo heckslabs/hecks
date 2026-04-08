@@ -18,14 +18,14 @@ module Hecks
           # - Identity-based equality: two entities with the same ID are equal
           # - Invariants: generates TODO placeholders for each invariant rule
           #
-          # @param entity [Hecks::DomainModel::Structure::Entity] the entity IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning
+          # @param entity [Hecks::BluebookModel::Structure::Entity] the entity IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning
           #   aggregate, used to build the fully qualified class name
           # @return [String] the complete RSpec file content
           def generate_entity_spec(entity, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             fqn = full_class_name("#{safe_agg}::#{entity.name}")
-            snake = domain_snake_name(entity.name)
+            snake = bluebook_snake_name(entity.name)
             lines = []
 
             lines << "require \"spec_helper\""

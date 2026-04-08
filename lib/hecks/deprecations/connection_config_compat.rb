@@ -5,7 +5,7 @@
 #
 #   config == { type: :sqlite }  # => warns, then compares via to_h
 #
-require "hecks/domain/connection_config"
+require "hecks/bluebook/connection_config"
 
 # PersistConfig
 HecksDeprecations.register(Hecks::PersistConfig, :==) do |other|

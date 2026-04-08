@@ -27,7 +27,7 @@ module Hecks
               res.status = 404; res.body = "Not found"; return
             end
 
-            safe = domain_constant_name(agg.name)
+            safe = bluebook_constant_name(agg.name)
             p = plural(agg)
             prefix = "/#{slug}"
             remaining = sub_path.sub("/#{p}", "")

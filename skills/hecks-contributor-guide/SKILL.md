@@ -31,7 +31,7 @@ Before writing any code in this codebase, consult `CONTRIBUTING.md` at the proje
 2. Add `docs/usage/<feature>.md` with runnable examples
 3. `bundle exec rspec` — all must pass under 1 second
 4. `find lib -name "*.rb" -exec wc -l {} + | sort -rn | head -5` — no file over 200 code lines
-5. `ruby -Ilib examples/pizzas/app.rb` — smoke test
+5. `ruby -Ilib examples/pizzas/pizzas.rb` — smoke test
 
 ## Naming — Never Inline String Transforms
 

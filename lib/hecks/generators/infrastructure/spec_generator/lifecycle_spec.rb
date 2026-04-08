@@ -14,13 +14,13 @@ module Hecks
           include HecksTemplating::NamingHelpers
           # Generates an RSpec spec for an aggregate's lifecycle.
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate]
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate]
           # @return [String, nil] the RSpec file content, or nil if no lifecycle
           def generate_lifecycle_spec(aggregate)
             lc = aggregate.lifecycle
             return nil unless lc
 
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             create_cmd = find_create_cmd(aggregate)
             return nil unless create_cmd
 

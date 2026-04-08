@@ -1,5 +1,5 @@
 module Hecks
-  # Hecks::DomainBuilderMethods
+  # Hecks::BluebookBuilderMethods
   #
   # DSL entry points for defining, validating, and previewing domains.
   # This module is extended onto the top-level Hecks module to provide
@@ -14,16 +14,16 @@ module Hecks
   #   Hecks.preview(domain, "Pizza")
   #   Hecks.workshop("Pizzas")
   #
-  module DomainBuilderMethods
+  module BluebookBuilderMethods
     include HecksTemplating::NamingHelpers
     # Define a new domain using the Hecks DSL. Evaluates the given block
-    # inside a DomainBuilder, which collects aggregate definitions, policies,
+    # inside a BluebookBuilder, which collects aggregate definitions, policies,
     # workflows, views, and services. The resulting Domain object is stored
     # as +Hecks.last_domain+ for snapshot tooling.
     #
     # @param name [String] the human-readable domain name (e.g., "Pizzas")
-    # @param block [Proc] DSL block evaluated inside DSL::DomainBuilder
-    # @return [Hecks::DomainModel::Domain] the fully built domain IR object
+    # @param block [Proc] DSL block evaluated inside DSL::BluebookBuilder
+    # @return [Hecks::BluebookModel::Domain] the fully built domain IR object
     def domain(name, version: nil, &block)
       model(name, version: version, grammar: :bluebook, &block)
     end
@@ -33,7 +33,7 @@ module Hecks
     #   Hecks.model "Pizzas" do ... end  # defaults to :bluebook
     def model(name, grammar: :bluebook, version: nil, &block)
       grammar_desc = Hecks.grammar(grammar)
-      builder_class = grammar_desc&.builder || DSL::DomainBuilder
+      builder_class = grammar_desc&.builder || DSL::BluebookBuilder
       builder = builder_class.new(name, version: version)
       builder.instance_eval(&block)
       result = builder.build
@@ -57,14 +57,14 @@ module Hecks
     end
 
     # Define a composed system of domains (chapters) using the Bluebook DSL.
-    # Each chapter block delegates to DomainBuilder, so all standard domain
+    # Each chapter block delegates to BluebookBuilder, so all standard domain
     # DSL methods are available inside a chapter. The result is a BluebookStructure
     # IR containing all chapters as Domain objects.
     #
     # @param name [String] the system name (e.g., "PizzaShop")
     # @param version [String, nil] optional version string
     # @param block [Proc] DSL block evaluated inside BluebookBuilder
-    # @return [Hecks::DomainModel::Structure::BluebookStructure]
+    # @return [Hecks::BluebookModel::Structure::BluebookStructure]
     def bluebook(name, version: nil, &block)
       builder = DSL::BluebookBuilder.new(name, version: version)
       builder.instance_eval(&block)
@@ -88,7 +88,7 @@ module Hecks
     # Returns a tuple of validity and any error messages. Does not raise
     # on invalid domains -- callers decide how to handle errors.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain to validate
+    # @param domain [Hecks::BluebookModel::Domain] the domain to validate
     # @return [Array(Boolean, Array<String>)] [valid?, error_messages]
     def validate(domain)
       validator = Validator.new(domain)
@@ -98,12 +98,12 @@ module Hecks
     # Generate Ruby source code for a single aggregate without writing to disk.
     # Useful for previewing what +build+ would produce for a specific aggregate.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain containing the aggregate
+    # @param domain [Hecks::BluebookModel::Domain] the domain containing the aggregate
     # @param aggregate_name [String] the name of the aggregate to preview (e.g., "Pizza")
     # @return [String] generated Ruby source code for the aggregate class
     # @raise [RuntimeError] if the named aggregate does not exist in the domain
     def preview(domain, aggregate_name)
-      mod = domain_module_name(domain.name)
+      mod = bluebook_module_name(domain.name)
       agg = domain.aggregates.find { |a| a.name == aggregate_name }
       raise "Unknown aggregate: #{aggregate_name}" unless agg
       Generators::Domain::AggregateGenerator.new(agg, domain_module: mod).generate

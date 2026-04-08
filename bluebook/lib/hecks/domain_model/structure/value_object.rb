@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::ValueObject
+    # Hecks::BluebookModel::Structure::ValueObject
     #
     # Intermediate representation of a DDD value object -- an immutable object
     # defined entirely by its attributes, with no identity. Value objects can
@@ -16,7 +16,7 @@ module Hecks
     # attribute-based equality (==). They include Hecks::Model with the
     # value_object flag set.
     #
-    # Part of the DomainModel IR layer. Built by ValueObjectBuilder and consumed
+    # Part of the BluebookModel IR layer. Built by ValueObjectBuilder and consumed
     # by ValueObjectGenerator to produce frozen, equality-by-value classes.
     #
     #   vo = ValueObject.new(

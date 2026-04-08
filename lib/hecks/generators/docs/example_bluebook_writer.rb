@@ -5,7 +5,7 @@
 # alongside the example script.
 #
 #   writer = ExampleBluebookWriter.new(domain, aggregates)
-#   writer.generate_bluebook   # => "Hecks.domain \"Spec\" do ..."
+#   writer.generate_bluebook   # => "Hecks.bluebook \"Spec\" do ..."
 #   writer.generate_hecksagon  # => "Hecks.hecksagon \"Spec\" do ..."
 #
 module Hecks
@@ -19,7 +19,7 @@ module Hecks
 
       def generate_bluebook
         lines = []
-        lines << "Hecks.domain #{@name.inspect} do"
+        lines << "Hecks.bluebook #{@name.inspect} do"
         @aggregates.each { |agg| lines << aggregate_block(agg) }
         lines << "end"
         lines.join("\n")
@@ -107,7 +107,7 @@ module Hecks
         lines = []
         lines << "    command #{cmd.name.inspect} do"
         lines << "      description #{cmd.description.inspect}" if cmd.description
-        refs.each { |r| lines << "      reference_to #{r.type.inspect}, validate: :exists" }
+        refs.each { |r| lines << "      reference_to #{r.type.inspect}" }
         attrs.each { |a| lines << attribute_line(a, "      ") }
         lines << "    end"
         lines.join("\n")

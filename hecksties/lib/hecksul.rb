@@ -8,7 +8,7 @@
 #   require "hecksul"
 #
 #   HecksUL.syntax        # => [:aggregate, :command, :attribute, ...]
-#   HecksUL.compiler      # => { frontend: "DSL", ir: "DomainModel", ... }
+#   HecksUL.compiler      # => { frontend: "DSL", ir: "BluebookModel", ... }
 #   HecksUL.self_hosting  # => { chapters: 15, aggregates: 670, commands: 836 }
 #
 require_relative "hecks"
@@ -42,7 +42,7 @@ module HecksUL
   def self.compiler
     {
       frontend:   "Bluebook DSL",
-      ir:         "Hecks::DomainModel",
+      ir:         "Hecks::BluebookModel",
       backends:   backends,
       loader:     "Hecks::InMemoryLoader"
     }

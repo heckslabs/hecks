@@ -40,7 +40,7 @@ module Hecks
       #
       # @param klass [Class] the aggregate class to receive shortcut methods
       #   (e.g., +PizzasDomain::Pizza+)
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   definition from the domain IR, containing command/event metadata
       # @param bus [Hecks::Commands::CommandBus] the command bus for middleware dispatch
       # @param repo [Object] the repository instance for this aggregate
@@ -58,10 +58,10 @@ module Hecks
       # commands are dispatched through a different mechanism.
       #
       # @param klass [Class] the aggregate class to receive shortcut methods
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   definition from the domain IR
       # @yield [cmd] called for each command defined on the aggregate
-      # @yieldparam cmd [Hecks::DomainModel::Behavior::Command] the command definition
+      # @yieldparam cmd [Hecks::BluebookModel::Behavior::Command] the command definition
       # @yieldreturn [Proc] a callable that accepts a keyword hash and executes the command
       # @return [void]
       def self.bind_shortcuts(klass, aggregate, &block)

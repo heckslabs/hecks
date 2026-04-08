@@ -15,12 +15,12 @@ module Hecks
   # Executes a saga definition step-by-step through the command bus with compensation on failure.
   #
   class SagaRunner
-    # @return [Hecks::DomainModel::Behavior::Saga] the saga definition
+    # @return [Hecks::BluebookModel::Behavior::Saga] the saga definition
     attr_reader :saga
 
     # Creates a new runner for the given saga definition.
     #
-    # @param saga [Hecks::DomainModel::Behavior::Saga] the saga IR
+    # @param saga [Hecks::BluebookModel::Behavior::Saga] the saga IR
     # @param command_bus [Hecks::Commands::CommandBus] for dispatching commands
     # @param store [Hecks::SagaStore] for persisting saga state
     # @param event_bus [Hecks::EventBus] for publishing saga lifecycle events

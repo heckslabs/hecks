@@ -6,12 +6,12 @@ module Hecks
     # the generated DSL string, and any warnings produced during parsing.
     #
     #   result = Hecks.from_event_storm("storm.md")
-    #   result.domain    # => DomainModel::Structure::Domain
+    #   result.domain    # => BluebookModel::Structure::Domain
     #   result.dsl       # => "Hecks.domain \"Ordering\" do ..."
     #   result.warnings  # => ["Event 'Order Placed' doesn't match ..."]
     #
     class Result
-      # @return [DomainModel::Structure::Domain] the built domain object
+      # @return [BluebookModel::Structure::Domain] the built domain object
       attr_reader :domain
 
       # @return [String] the generated Hecks DSL source code
@@ -22,7 +22,7 @@ module Hecks
 
       # Initializes a Result with the domain, DSL, and warnings.
       #
-      # @param domain [DomainModel::Structure::Domain] the built domain object
+      # @param domain [BluebookModel::Structure::Domain] the built domain object
       # @param dsl [String] the generated Hecks DSL source code
       # @param warnings [Array<String>] any warnings from parsing/validation
       def initialize(domain:, dsl:, warnings: [])

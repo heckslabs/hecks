@@ -7,7 +7,7 @@
 #
 #   domain = Hecks::Chapters::AI.definition
 #   domain.aggregates.map(&:name)
-#   # => ["McpServer", "DomainServer", "GovernanceGuard", ...]
+#   # => ["McpServer", "BluebookServer", "GovernanceGuard", ...]
 #
 require "bluebook"
 
@@ -19,7 +19,7 @@ module Hecks
       def self.summary = "AI integration for Hecks"
 
       def self.definition
-        Hecks::DSL::DomainBuilder.new("AI").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("AI").tap { |b|
           b.aggregate "McpServer" do
             description "MCP server exposing Workshop API as tools for AI agents"
             command "Start"
@@ -97,7 +97,7 @@ module Hecks
             command "GovernanceCheck"
           end
 
-          b.aggregate "DomainServer" do
+          b.aggregate "BluebookServer" do
             description "Generates MCP server from a compiled domain with command/query/repo tools"
             command "Run"
           end
@@ -108,7 +108,7 @@ module Hecks
           end
 
           b.aggregate "McpConnection" do
-            description "MCP protocol connection adapter bridging listens_to declarations to DomainServer"
+            description "MCP protocol connection adapter bridging listens_to declarations to BluebookServer"
             command "Run"
           end
 
@@ -126,7 +126,7 @@ module Hecks
             end
           end
 
-          b.aggregate "DomainBuilder" do
+          b.aggregate "AiBluebookBuilder" do
             description "Walks LLM JSON and replays through Workshop API to build a validated domain"
             command "Build"
           end

@@ -4,24 +4,24 @@ module Hecks
     # Hecks::DSL::ReadModelBuilder
     #
     # DSL builder for read model definitions. Collects event projections
-    # and builds a DomainModel::Behavior::ReadModel. Each projection maps
+    # and builds a BluebookModel::Behavior::ReadModel. Each projection maps
     # an event name to a proc that transforms state.
     #
     #   builder = ReadModelBuilder.new("OrderSummary")
     #   builder.project("PlacedOrder") { |event, state| state.merge(total: event.quantity) }
     #   rm = builder.build  # => #<ReadModel name="OrderSummary" ...>
     #
-    # Builds a DomainModel::Behavior::ReadModel from projection declarations.
+    # Builds a BluebookModel::Behavior::ReadModel from projection declarations.
     #
     # ReadModelBuilder defines a denormalized read-side view that is built by
     # applying projection functions to domain events. Each projection maps an
     # event name to a block that receives the event and current state, returning
     # the updated state. Multiple projections can be defined for different events.
     #
-    # Read models are defined at the domain level via +DomainBuilder#view+ and
+    # Read models are defined at the domain level via +BluebookBuilder#view+ and
     # provide optimized query paths separate from the write-side aggregates.
     class ReadModelBuilder
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       include Describable
 
@@ -52,9 +52,9 @@ module Hecks
         @projections[event_name.to_s] = block
       end
 
-      # Build and return the DomainModel::Behavior::ReadModel IR object.
+      # Build and return the BluebookModel::Behavior::ReadModel IR object.
       #
-      # @return [DomainModel::Behavior::ReadModel] the fully built read model IR object
+      # @return [BluebookModel::Behavior::ReadModel] the fully built read model IR object
       def build
         Behavior::ReadModel.new(
           name: @name,

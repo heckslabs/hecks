@@ -39,13 +39,13 @@ module Hecks
 
       # Initializes the bus with a domain definition and an event bus for publishing.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR containing
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR containing
       #   aggregate, command, and event definitions
       # @param event_bus [Hecks::EventBus] the event bus for publishing domain events
       def initialize(domain:, event_bus:)
         @domain = domain
         @event_bus = event_bus
-        @mod = Object.const_get(domain_module_name(domain.name))
+        @mod = Object.const_get(bluebook_module_name(domain.name))
         @middleware = []
       end
 

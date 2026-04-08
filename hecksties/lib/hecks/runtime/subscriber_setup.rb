@@ -31,7 +31,7 @@ module Hecks
         def setup_subscribers
           @domain.aggregates.each do |agg|
             agg.subscribers.each do |sub|
-              safe_name = domain_constant_name(agg.name)
+              safe_name = bluebook_constant_name(agg.name)
               sub_class = @mod.const_get(safe_name)::Subscribers.const_get(sub.name)
               handler = sub_class.new
 

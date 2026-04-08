@@ -192,13 +192,13 @@ module Hecks
 
   # Raised when a domain definition cannot be loaded or parsed (e.g.,
   # missing domain.rb file, syntax error in DSL, unresolvable references).
-  class DomainLoadError < Error; end
+  class BluebookLoadError < Error; end
 
-  # Raised when a +version:+ kwarg passed to +Hecks.domain+ does not conform
+  # Raised when a +version:+ kwarg passed to +Hecks.bluebook+ does not conform
   # to semver (+x.y.z+) or CalVer (+YYYY.MM.DD.N+).
   #
-  #   Hecks.domain "Banking", version: "bad"  # => InvalidDomainVersion
-  class InvalidDomainVersion < Error; end
+  #   Hecks.bluebook "Banking", version: "bad"  # => InvalidBluebookVersion
+  class InvalidBluebookVersion < Error; end
 
   # Raised when a schema migration fails (e.g., attempting to add a column
   # that already exists, incompatible type change).

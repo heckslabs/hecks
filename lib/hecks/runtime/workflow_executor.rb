@@ -14,12 +14,12 @@ module Hecks
   # Executes workflow steps in order against the command bus, evaluating branch specifications for routing.
   #
   class WorkflowExecutor
-    CommandStep = DomainModel::Behavior::CommandStep
-    BranchStep  = DomainModel::Behavior::BranchStep
+    CommandStep = BluebookModel::Behavior::CommandStep
+    BranchStep  = BluebookModel::Behavior::BranchStep
 
     # Creates a new workflow executor.
     #
-    # @param workflow [Hecks::DomainModel::Workflow] the workflow definition containing
+    # @param workflow [Hecks::BluebookModel::Workflow] the workflow definition containing
     #   ordered steps (commands and branches)
     # @param command_bus [Hecks::CommandBus] the command bus to dispatch commands through
     # @param domain_mod [Module] the domain module used to resolve specification classes

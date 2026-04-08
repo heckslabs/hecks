@@ -11,7 +11,7 @@ module Hecks
     #
     # DSL builder for aggregate definitions. Collects attributes, value objects,
     # commands, policies, validations, invariants, scopes, ports, and queries,
-    # then builds a DomainModel::Structure::Aggregate. Automatically infers
+    # then builds a BluebookModel::Structure::Aggregate. Automatically infers
     # domain events from commands.
     #
     #   builder = AggregateBuilder.new("Pizza")
@@ -21,8 +21,8 @@ module Hecks
     #   agg = builder.build
     #
     class AggregateBuilder
-      Structure = DomainModel::Structure
-      Behavior  = DomainModel::Behavior
+      Structure = BluebookModel::Structure
+      Behavior  = BluebookModel::Behavior
 
       include AttributeCollector
       include Describable
@@ -145,7 +145,7 @@ module Hecks
         domain = parts.length > 1 ? parts[0..-2].join("::") : nil
         name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
-        @references << DomainModel::Structure::Reference.new(
+        @references << BluebookModel::Structure::Reference.new(
           name: name, type: target, domain: domain
         )
       end
@@ -199,7 +199,7 @@ module Hecks
 
       # Build the Aggregate IR object, inferring events from commands.
       #
-      # @return [DomainModel::Structure::Aggregate]
+      # @return [BluebookModel::Structure::Aggregate]
       def build
         events = merge_events(infer_events, @explicit_events)
 
@@ -247,7 +247,7 @@ module Hecks
             event_refs << agg_ref
           end
           command.event_names.map do |event_name|
-            Behavior::DomainEvent.new(
+            Behavior::BluebookEvent.new(
               name: event_name,
               attributes: event_attrs,
               references: event_refs

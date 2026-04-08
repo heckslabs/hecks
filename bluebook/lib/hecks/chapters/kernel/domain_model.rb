@@ -1,15 +1,15 @@
-# Hecks::Chapters::Kernel::DomainModelParagraph
+# Hecks::Chapters::Kernel::BluebookModelParagraph
 #
 # Paragraph describing the domain model intermediate representation.
 # Covers Structure (data shapes), Behavior (commands, events, policies),
 # Names (typed identifiers), and the Tokenizer (DSL argument parsing).
 #
-#   Hecks::Chapters::Kernel::DomainModelParagraph.define(builder)
+#   Hecks::Chapters::Kernel::BluebookModelParagraph.define(builder)
 #
 module Hecks
   module Chapters
     module Kernel
-      module DomainModelParagraph
+      module BluebookModelParagraph
         def self.define(b)
           b.aggregate "StructureModule", "Namespace for structural IR nodes: domains, aggregates, value objects, attributes, references" do
             command("DefineStructure") { attribute :domain_id, String }

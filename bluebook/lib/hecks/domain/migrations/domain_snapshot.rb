@@ -23,7 +23,7 @@ module Hecks
     # contains valid Ruby DSL code that can be evaluated to reconstruct
     # the domain.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain to snapshot
+    # @param domain [Hecks::BluebookModel::Domain] the domain to snapshot
     # @param path [String] file path for the snapshot (default DEFAULT_PATH)
     # @return [String] the path where the snapshot was written
     def self.save(domain, path: DEFAULT_PATH)
@@ -47,7 +47,7 @@ module Hecks
     # Returns nil if the snapshot file does not exist.
     #
     # @param path [String] file path for the snapshot (default DEFAULT_PATH)
-    # @return [Hecks::DomainModel::Domain, nil] the loaded domain, or nil
+    # @return [Hecks::BluebookModel::Domain, nil] the loaded domain, or nil
     #   if no snapshot exists
     def self.load(path: DEFAULT_PATH)
       return nil unless File.exist?(path)

@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Names::EventName
+# Hecks::BluebookModel::Names::EventName
 #
 # Value object wrapping an event name string (e.g. "CreatedPizza").
 #
@@ -6,7 +6,7 @@
 #   name == "CreatedPizza"  # => true
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Names
       class EventName < BaseName; end
     end

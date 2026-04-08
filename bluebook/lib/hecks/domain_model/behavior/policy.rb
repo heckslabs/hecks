@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-    # Hecks::DomainModel::Behavior::Policy
+    # Hecks::BluebookModel::Behavior::Policy
     #
     # Intermediate representation of a domain policy. Policies come in two forms:
     #
@@ -16,7 +16,7 @@ module Hecks
     # 2. *Guard policies* carry a block that validates a command before execution.
     #    If the block returns falsy, the command is rejected.
     #
-    # Part of the DomainModel IR layer. Built by PolicyBuilder (reactive) or
+    # Part of the BluebookModel IR layer. Built by PolicyBuilder (reactive) or
     # AggregateBuilder (guard), consumed by generators and the Application layer.
     # Use {#reactive?} and {#guard?} to distinguish the two forms.
     #

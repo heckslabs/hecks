@@ -16,8 +16,8 @@ module Hecks
       load_src(module_shell(mod, domain.version), "#{gem}.rb")
 
       domain.aggregates.each do |agg|
-        safe = domain_constant_name(agg.name)
-        snake = domain_snake_name(safe)
+        safe = bluebook_constant_name(agg.name)
+        snake = bluebook_snake_name(safe)
         opts = { domain_module: mod }
         base = "#{gem}/#{snake}"
 
@@ -38,7 +38,7 @@ module Hecks
             extra = child_extra_opts(g, agg, item, i, safe)
             src = gen(g[:klass], item, aggregate_name: safe, **extra, **opts)
             src = inject_mixin(src, item.name, g[:mixin]) if g[:mixin]
-            path = "#{base}/#{g[:source]}/#{domain_snake_name(item.name)}.rb"
+            path = "#{base}/#{g[:source]}/#{bluebook_snake_name(item.name)}.rb"
             load_src(src, path)
           end
         end
@@ -48,7 +48,7 @@ module Hecks
       Generators.for(:domain).each do |g|
         domain.send(g[:source]).each do |item|
           src = g[:klass].new(item, domain_module: mod).generate
-          load_src(src, "#{gem}/#{g[:source]}/#{domain_snake_name(item.name)}.rb")
+          load_src(src, "#{gem}/#{g[:source]}/#{bluebook_snake_name(item.name)}.rb")
         end
       end
     end

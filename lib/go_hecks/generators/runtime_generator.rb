@@ -14,35 +14,35 @@ module GoHecks
         	"time"
         )
 
-        type DomainEvent interface {
+        type BluebookEvent interface {
         	EventName() string
         	GetOccurredAt() time.Time
         }
 
         type EventBus struct {
         	mu        sync.RWMutex
-        	listeners map[string][]func(DomainEvent)
-        	global    []func(DomainEvent)
-        	events    []DomainEvent
+        	listeners map[string][]func(BluebookEvent)
+        	global    []func(BluebookEvent)
+        	events    []BluebookEvent
         }
 
         func NewEventBus() *EventBus {
-        	return &EventBus{listeners: make(map[string][]func(DomainEvent))}
+        	return &EventBus{listeners: make(map[string][]func(BluebookEvent))}
         }
 
-        func (b *EventBus) Subscribe(eventName string, handler func(DomainEvent)) {
+        func (b *EventBus) Subscribe(eventName string, handler func(BluebookEvent)) {
         	b.mu.Lock()
         	defer b.mu.Unlock()
         	b.listeners[eventName] = append(b.listeners[eventName], handler)
         }
 
-        func (b *EventBus) OnAny(handler func(DomainEvent)) {
+        func (b *EventBus) OnAny(handler func(BluebookEvent)) {
         	b.mu.Lock()
         	defer b.mu.Unlock()
         	b.global = append(b.global, handler)
         }
 
-        func (b *EventBus) Publish(event DomainEvent) {
+        func (b *EventBus) Publish(event BluebookEvent) {
         	b.mu.Lock()
         	b.events = append(b.events, event)
         	b.mu.Unlock()
@@ -57,7 +57,7 @@ module GoHecks
         	}
         }
 
-        func (b *EventBus) Events() []DomainEvent {
+        func (b *EventBus) Events() []BluebookEvent {
         	b.mu.RLock()
         	defer b.mu.RUnlock()
         	return b.events

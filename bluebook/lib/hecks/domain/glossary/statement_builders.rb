@@ -17,7 +17,7 @@ module Hecks
       # ("belongs to"), and scalar attributes ("has a/an").
       #
       # @param agg_name [String] the aggregate name for sentence subject
-      # @param attr [Hecks::DomainModel::Attribute] the attribute to describe
+      # @param attr [Hecks::BluebookModel::Attribute] the attribute to describe
       # @return [String] a plain-English sentence about this attribute
       def attribute_statement(agg_name, attr)
         article_phrase = an(agg_name)
@@ -34,8 +34,8 @@ module Hecks
       # domain event that results.
       #
       # @param agg_name [String] the aggregate name
-      # @param cmd [Hecks::DomainModel::Command] the command to describe
-      # @param event [Hecks::DomainModel::Event, nil] the resulting event, or nil
+      # @param cmd [Hecks::BluebookModel::Command] the command to describe
+      # @param event [Hecks::BluebookModel::Event, nil] the resulting event, or nil
       # @return [String] a plain-English sentence about this command flow
       def command_statement(agg_name, cmd, event)
         verb = cmd.name.split(/(?=[A-Z])/).first.downcase
@@ -58,7 +58,7 @@ module Hecks
       # optionally asynchronously.
       #
       # @param agg_name [String] the aggregate or domain name for context
-      # @param pol [Hecks::DomainModel::Policy] the policy to describe
+      # @param pol [Hecks::BluebookModel::Policy] the policy to describe
       # @return [String] a plain-English sentence about this policy chain
       def policy_statement(agg_name, pol)
         trigger_verb = pol.trigger_command.split(/(?=[A-Z])/).first.downcase

@@ -4,8 +4,8 @@
 # Include in any class/module for bare method calls:
 #
 #   include Hecks::Conventions::Names
-#   domain_module_name("Pizzas")     # => "PizzasDomain"
-#   domain_aggregate_slug("Pizza")   # => "pizzas"
+#   bluebook_module_name("Pizzas")     # => "PizzasDomain"
+#   bluebook_aggregate_slug("Pizza")   # => "pizzas"
 #   domain_command_method("CreatePizza", "Pizza") # => :create
 #
 module Hecks::Conventions
@@ -18,27 +18,27 @@ module Hecks::Conventions
       module_function
 
       # "Pizzas" → "PizzasDomain"
-      def domain_module_name(name)
-        Hecks::Utils.sanitize_constant(name) + "Domain"
+      def bluebook_module_name(name)
+        Hecks::Utils.sanitize_constant(name) + "Bluebook"
       end
 
       # "Pizzas" → "pizzas_domain"
-      def domain_gem_name(name)
-        Hecks::Utils.underscore(Hecks::Utils.sanitize_constant(name)) + "_domain"
+      def bluebook_gem_name(name)
+        Hecks::Utils.underscore(Hecks::Utils.sanitize_constant(name)) + "_bluebook"
       end
 
       # "pizza order" → "PizzaOrder"
-      def domain_constant_name(name)
+      def bluebook_constant_name(name)
         Hecks::Utils.sanitize_constant(name)
       end
 
       # "GovernancePolicy" → "governance_policy"
-      def domain_snake_name(name)
+      def bluebook_snake_name(name)
         Hecks::Utils.underscore(name)
       end
 
       # "Pizza" → "pizzas"
-      def domain_aggregate_slug(name)
+      def bluebook_aggregate_slug(name)
         s = Hecks::Utils.underscore(Hecks::Utils.sanitize_constant(name))
         s.end_with?("s") ? s : s + "s"
       end
@@ -69,17 +69,17 @@ module Hecks::Conventions
       end
 
       # ("PizzasDomain", "Pizza", "CreatePizza") → "PizzasDomain::Pizza::Commands::CreatePizza"
-      def domain_command_fqn(domain_mod_name, agg_name, cmd_name)
+      def bluebook_command_fqn(domain_mod_name, agg_name, cmd_name)
         "#{domain_mod_name}::#{agg_name}::Commands::#{cmd_name}"
       end
 
       # ("PizzasDomain", "Pizza", "CreatedPizza") → "PizzasDomain::Pizza::Events::CreatedPizza"
-      def domain_event_fqn(domain_mod_name, agg_name, event_name)
+      def bluebook_event_fqn(domain_mod_name, agg_name, event_name)
         "#{domain_mod_name}::#{agg_name}::Events::#{event_name}"
       end
 
       # ("PizzasDomain", "Pizza", "CanCreate") → "PizzasDomain::Pizza::Policies::CanCreate"
-      def domain_policy_fqn(domain_mod_name, agg_name, policy_name)
+      def bluebook_policy_fqn(domain_mod_name, agg_name, policy_name)
         "#{domain_mod_name}::#{agg_name}::Policies::#{policy_name}"
       end
 
@@ -92,7 +92,7 @@ module Hecks::Conventions
         domain.aggregates.each do |agg|
           agg.commands.each do |cmd|
             next if cmd.actors.empty?
-            map[domain_command_fqn(domain_mod.name, agg.name, cmd.name)] = cmd.actors.map(&:name)
+            map[bluebook_command_fqn(domain_mod.name, agg.name, cmd.name)] = cmd.actors.map(&:name)
           end
         end
         map
@@ -114,12 +114,12 @@ module Hecks::Conventions
 
       # ("Blog", "Post") → "/blog/posts"
       def domain_route_path(domain_name, aggregate_name)
-        "/#{domain_slug(domain_name)}/#{domain_aggregate_slug(aggregate_name)}"
+        "/#{domain_slug(domain_name)}/#{bluebook_aggregate_slug(aggregate_name)}"
       end
 
       # "Pizzas" → "pizzas_domain"
-      def domain_output_dir(domain_name)
-        Hecks::Utils.underscore(Hecks::Utils.sanitize_constant(domain_name)) + "_domain"
+      def bluebook_output_dir(domain_name)
+        Hecks::Utils.underscore(Hecks::Utils.sanitize_constant(domain_name)) + "_bluebook"
       end
     end
 end

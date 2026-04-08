@@ -17,7 +17,7 @@ module Hecks
     # and path context. Used by DeepInspect to walk the full aggregate tree.
     #
     class Navigator
-      # @param domain [DomainModel::Structure::Domain]
+      # @param domain [BluebookModel::Structure::Domain]
       def initialize(domain)
         @domain = domain
       end

@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Structure::StateTransition
+# Hecks::BluebookModel::Structure::StateTransition
 #
 # Value object representing a lifecycle state transition. Replaces the
 # raw String or Hash previously used in Lifecycle#transitions values.
@@ -11,7 +11,7 @@
 #   t.from    # => "draft"
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
       class StateTransition
         attr_reader :target, :from

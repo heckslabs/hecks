@@ -17,7 +17,7 @@ module Hecks
       # SQL repository, then evals it into the runtime. The generated classes
       # are namespaced under {DomainModule}::Adapters::{AggregateName}SqlRepository.
       #
-      # @param domain_obj [DomainModel::Structure::Domain] the domain containing
+      # @param domain_obj [BluebookModel::Structure::Domain] the domain containing
       #   aggregates to generate adapters for
       # @return [void]
       def generate_adapters(domain_obj)

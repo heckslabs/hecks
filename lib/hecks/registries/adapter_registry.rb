@@ -1,7 +1,7 @@
 # Hecks::AdapterRegistryMethods
 #
 # Registry for persistence adapter types. Each adapter (memory, sqlite, etc.)
-# registers itself so that DomainConnections and Boot can check adapter
+# registers itself so that BluebookConnections and Boot can check adapter
 # availability without hardcoded lists.
 #
 #   Hecks.register_adapter(:sqlite)

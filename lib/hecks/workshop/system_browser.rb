@@ -44,7 +44,7 @@ module Hecks
       # controls whether this is the last aggregate in the list, which affects
       # whether a vertical continuation line is drawn.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the built aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the built aggregate
       # @param last [Boolean] true if this is the last aggregate (uses corner connector)
       # @return [String] multi-line tree representation
       def browse_aggregate(agg, last: false)
@@ -64,7 +64,7 @@ module Hecks
       # Each section is a two-element array of [label, formatted_items_string].
       # Only sections with at least one item are included.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the built aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the built aggregate
       # @return [Array<Array(String, String)>] list of [label, items] pairs
       def browse_sections(agg)
         sections = []

@@ -15,9 +15,9 @@ module Hecks
       module CommandLoader
         # Generate and eval Ruby command classes for the new stubs.
         #
-        # @param agg [DomainModel::Structure::Aggregate] the aggregate
-        # @param commands [Array<DomainModel::Behavior::Command>] new commands
-        # @param events [Array<DomainModel::Behavior::DomainEvent>] corresponding events
+        # @param agg [BluebookModel::Structure::Aggregate] the aggregate
+        # @param commands [Array<BluebookModel::Behavior::Command>] new commands
+        # @param events [Array<BluebookModel::Behavior::BluebookEvent>] corresponding events
         # @param mod_name [String] the domain module name
         # @return [void]
         def self.load(agg, commands, events, mod_name)

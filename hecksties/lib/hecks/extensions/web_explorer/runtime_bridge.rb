@@ -87,7 +87,7 @@ module Hecks
       private
 
       def klass_for(agg_name)
-        safe = domain_constant_name(agg_name)
+        safe = bluebook_constant_name(agg_name)
         @mod.const_get(safe)
       end
 

@@ -57,7 +57,7 @@ module Hecks
       # Conditionally generates POST (create) and PATCH (update) routes only
       # if the aggregate has matching Create*/Update* commands defined.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the Ruby class for the aggregate (e.g. +PizzasDomain::Pizza+)
       # @param slug [String] the URL slug (e.g. "pizzas")
       # @return [Array<Hash>] the generated CRUD route hashes
@@ -97,7 +97,7 @@ module Hecks
       # Each query becomes a GET endpoint at +/slug/query_name+. The handler
       # passes query string parameters to the query method.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the Ruby class for the aggregate
       # @param slug [String] the URL slug
       # @return [Array<Hash>] the generated query route hashes

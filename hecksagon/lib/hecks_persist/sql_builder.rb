@@ -122,7 +122,7 @@ module Hecks
       # Produces a loop that inserts each VO instance with a new UUID,
       # the parent aggregate's ID as foreign key, and all VO attributes.
       #
-      # @param vo [DomainModel::Structure::ValueObject] the value object
+      # @param vo [BluebookModel::Structure::ValueObject] the value object
       # @return [Array<String>] lines of Ruby source code for the VO insert loop
       def insert_vo_lines(vo)
         vo_table = "#{table_name}_#{domain_snake_name(vo.name)}s"

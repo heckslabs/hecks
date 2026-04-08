@@ -1,7 +1,7 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
 
-    # Hecks::DomainModel::Behavior
+    # Hecks::BluebookModel::Behavior
     #
     # Namespace for domain behavior representations: commands (intent to change
     # state), events (records of what happened), policies (reactive rules and
@@ -10,7 +10,7 @@ module Hecks
     # read models (event-driven projections), and event subscribers (arbitrary
     # event handlers).
     #
-    # Part of the DomainModel IR layer. Each child class is a plain data object
+    # Part of the BluebookModel IR layer. Each child class is a plain data object
     # (intermediate representation) built by the DSL builders and consumed by
     # generators to produce runtime domain code.
     #
@@ -18,7 +18,7 @@ module Hecks
     #
     #   Behavior::Command         # intent to change aggregate state
     #   Behavior::Condition       # pre/postcondition assertion on a command
-    #   Behavior::DomainEvent     # record that something happened
+    #   Behavior::BluebookEvent     # record that something happened
     #   Behavior::EventSubscriber # arbitrary code block fired on an event
     #   Behavior::Policy          # reactive rule (event->command) or guard block
     #   Behavior::Query           # named, reusable lookup
@@ -30,7 +30,7 @@ module Hecks
     module Behavior
       autoload :Command,     "hecks/domain_model/behavior/command"
       autoload :Condition,   "hecks/domain_model/behavior/condition"
-      autoload :DomainEvent, "hecks/domain_model/behavior/domain_event"
+      autoload :BluebookEvent, "hecks/domain_model/behavior/domain_event"
       autoload :Policy,      "hecks/domain_model/behavior/policy"
       autoload :Query,            "hecks/domain_model/behavior/query"
       autoload :EventSubscriber, "hecks/domain_model/behavior/event_subscriber"

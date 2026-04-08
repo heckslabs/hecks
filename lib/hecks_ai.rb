@@ -19,7 +19,7 @@ module Hecks
     autoload :Connection,       "hecks_ai/connection"
     autoload :TypeResolver,     "hecks_ai/type_resolver"
     autoload :LlmClient,        "hecks_ai/llm_client"
-    autoload :DomainBuilder,    "hecks_ai/domain_builder"
+    autoload :BluebookBuilder,    "hecks_ai/domain_builder"
 
     module Prompts
       autoload :DomainGeneration, "hecks_ai/prompts/domain_generation"

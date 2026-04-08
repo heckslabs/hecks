@@ -20,7 +20,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +workflows+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
@@ -51,7 +51,7 @@ module Hecks
         lines << "        def setup_workflows"
         workflows = @domain.respond_to?(:workflows) ? (@domain.workflows || []) : []
         workflows.each_with_index do |workflow, idx|
-          method_name = domain_snake_name(workflow.name)
+          method_name = bluebook_snake_name(workflow.name)
           lines << "" if idx > 0
           lines << "          executor = WorkflowExecutor.new("
           lines << "            @domain.workflows.find { |w| w.name == \"#{workflow.name}\" },"

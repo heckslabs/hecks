@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-    # Hecks::DomainModel::Behavior::Query
+    # Hecks::BluebookModel::Behavior::Query
     #
     # Intermediate representation of a domain query -- a named, reusable lookup
     # defined in the DSL. Each query has a name and a block that uses the
@@ -12,7 +12,7 @@ module Hecks
     # which evaluates the block in a context that supports filtering, ordering,
     # and pagination methods.
     #
-    # Part of the DomainModel IR layer. Built by the DSL aggregate builder and
+    # Part of the BluebookModel IR layer. Built by the DSL aggregate builder and
     # consumed by QueryGenerator to produce query classes in the domain gem.
     #
     #   query = Query.new(name: "Classics", block: proc { where(style: "Classic") })

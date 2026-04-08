@@ -62,7 +62,7 @@ module Hecks
 
           def build_create_buttons(ir, agg, prefix, p)
             ir.create_commands(agg).map do |c|
-              cm = domain_snake_name(c.name)
+              cm = bluebook_snake_name(c.name)
               { label: HecksTemplating::UILabelContract.label(c.name),
                 href: "#{prefix}/#{p}/#{cm}/new", allowed: true }
             end

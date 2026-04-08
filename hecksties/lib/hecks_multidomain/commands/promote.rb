@@ -5,7 +5,7 @@ Hecks::CLI.register_command(:promote, "Extract an aggregate into its own domain"
   domain = resolve_domain_option
   next unless domain
 
-  agg_name = domain_constant_name(aggregate_name)
+  agg_name = bluebook_constant_name(aggregate_name)
   agg = domain.aggregates.find { |a| a.name == agg_name }
   unless agg
     say "No aggregate named #{agg_name} in #{domain.name}", :red
@@ -14,16 +14,16 @@ Hecks::CLI.register_command(:promote, "Extract an aggregate into its own domain"
   end
 
   # Build a standalone domain for the promoted aggregate
-  new_domain = Hecks::DomainModel::Structure::Domain.new(
+  new_domain = Hecks::BluebookModel::Structure::Domain.new(
     name: agg_name, aggregates: [agg], custom_verbs: []
   )
-  new_file = "#{domain_snake_name(agg_name)}_domain.rb"
+  new_file = "#{bluebook_snake_name(agg_name)}_domain.rb"
   File.write(new_file, Hecks::DslSerializer.new(new_domain).serialize)
   say "Wrote #{new_file} (#{agg.attributes.size} attributes, #{agg.commands.size} commands)", :green
 
   # Re-save the original domain without the promoted aggregate
   remaining = domain.aggregates.reject { |a| a.name == agg_name }
-  updated = Hecks::DomainModel::Structure::Domain.new(
+  updated = Hecks::BluebookModel::Structure::Domain.new(
     name: domain.name, aggregates: remaining, custom_verbs: domain.custom_verbs
   )
   source_file = find_domain_file || "Bluebook"

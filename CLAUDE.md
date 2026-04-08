@@ -16,7 +16,7 @@
 2. Add `docs/usage/<feature>.md` for each new feature with runnable examples
 3. Run specs — all must pass (speed enforced by hook)
 4. Check file sizes — `find lib -name "*.rb" -exec wc -l {} + | sort -rn | head -5`
-5. Smoke test — `ruby -Ilib examples/pizzas/app.rb`
+5. Smoke test — `ruby -Ilib examples/pizzas/pizzas.rb`
 
 ## Conventions
 

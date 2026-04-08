@@ -1,0 +1,70 @@
+Hecks.bluebook "Templating" do
+  aggregate "NamingHelpers", "Mixin providing domain naming convention methods for modules, gems, slugs, and routes" do
+    command "DomainModuleName" do
+      attribute :name, String
+    end
+    command "DomainGemName" do
+      attribute :name, String
+    end
+    command "DomainAggregateSlug" do
+      attribute :name, String
+    end
+    command "DomainCommandMethod" do
+      attribute :command_name, String
+      attribute :aggregate_name, String
+    end
+    command "DomainRoutePath" do
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "SmokeTest", "Browser-style HTTP smoke test that exercises every page like a real user" do
+    command "Run" do
+      attribute :base_url, String
+      attribute :domain_name, String
+    end
+  end
+
+  # --- Smoke Test Children Paragraph ---
+
+  aggregate "EventChecks", "Validates event log entries via /_events endpoint" do
+    command("CheckEventsContain") { attribute :expected_events, String }
+  end
+
+  aggregate "BehaviorTests", "Composite mixin aggregating all domain behavior smoke tests" do
+    command "TestQueries"
+    command "TestPolicies"
+    command "TestLifecycles"
+  end
+
+  aggregate "FormSubmission", "Navigates to forms, fills fields, and submits via POST" do
+    command("SubmitForm") { attribute :form_path, String }
+  end
+
+  # --- Behavior Tests Children Paragraph ---
+
+  aggregate "QueryTests", "Smoke tests for query objects via /_queries endpoint" do
+    command "TestQueries"
+  end
+
+  aggregate "PolicyTests", "Smoke tests for policy event triggers" do
+    command "TestPolicies"
+  end
+
+  aggregate "LifecycleTests", "Smoke tests for lifecycle state transitions" do
+    command "TestLifecycles"
+  end
+
+  aggregate "NegativeTests", "Smoke tests for validation error paths" do
+    command "TestNegativeCases"
+  end
+
+  aggregate "EndpointTests", "Smoke tests for custom endpoint routes" do
+    command "TestEndpoints"
+  end
+
+  aggregate "DomainLookups", "Helper for resolving aggregates and commands by name during smoke tests" do
+    command("LookupAggregate") { attribute :name, String }
+  end
+end

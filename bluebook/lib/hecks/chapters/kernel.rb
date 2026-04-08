@@ -7,7 +7,7 @@
 # the compiled binary (Hecks v0) will use these definitions for chapter
 # dispatch loading.
 #
-# Organized into paragraphs: DslBuilders, DomainModel, Registries,
+# Organized into paragraphs: DslBuilders, BluebookModel, Registries,
 # Core, ChapterSystem.
 #
 #   domain = Hecks::Chapters::Kernel.definition
@@ -19,7 +19,7 @@ module Hecks
 
     module Kernel
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Kernel").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Kernel").tap { |b|
           b.instance_eval do
             aggregate "BootstrapKernel", "Root of the kernel infrastructure that makes chapter-driven loading possible" do
               attribute :name, String

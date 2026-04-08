@@ -50,7 +50,7 @@ module Hecks
       # Performs full SQL setup: generates adapter classes, creates tables,
       # and returns instantiated repository objects.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain model
+      # @param domain [BluebookModel::Structure::Domain] the domain model
       # @param db [Sequel::Database] the database connection
       # @return [Hash<String, Object>] adapter instances keyed by aggregate name
       def setup(domain, db)
@@ -62,7 +62,7 @@ module Hecks
 
       # Generates and evals SQL repository classes for each aggregate.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain model
+      # @param domain [BluebookModel::Structure::Domain] the domain model
       # @param mod_name [String] the domain module name (e.g., "PizzasDomain")
       # @return [void]
       def generate_adapters(domain, mod_name)
@@ -74,7 +74,7 @@ module Hecks
 
       # Creates database tables for all aggregates (idempotent -- skips existing).
       #
-      # @param domain [DomainModel::Structure::Domain] the domain model
+      # @param domain [BluebookModel::Structure::Domain] the domain model
       # @param db [Sequel::Database] the database connection
       # @return [void]
       def create_tables(domain, db)
@@ -86,7 +86,7 @@ module Hecks
 
       # Instantiates SQL repository objects for all aggregates.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain model
+      # @param domain [BluebookModel::Structure::Domain] the domain model
       # @param db [Sequel::Database] the database connection
       # @param mod_name [String] the domain module name
       # @return [Hash<String, Object>] repository instances keyed by aggregate name
@@ -106,7 +106,7 @@ module Hecks
       # Includes an id primary key, all scalar attributes, and created_at/updated_at
       # timestamps. Skips if the table already exists.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the aggregate
       # @param db [Sequel::Database] the database connection
       # @return [void]
       def create_aggregate_table(agg, db)
@@ -129,7 +129,7 @@ module Hecks
       # Each join table has an id, a foreign key to the parent aggregate,
       # and columns for all value object attributes.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the aggregate
       # @param db [Sequel::Database] the database connection
       # @return [void]
       def create_vo_join_tables(agg, db)
@@ -152,7 +152,7 @@ module Hecks
 
       # Returns pairs of [value_object, list_attribute] for list-type VOs.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the aggregate
       # @return [Array<Array(ValueObject, Attribute)>] pairs of VO and its list attribute
       def list_vos(agg)
         agg.value_objects.filter_map do |vo|
@@ -163,7 +163,7 @@ module Hecks
 
       # Computes the table name for an aggregate (underscore + pluralize).
       #
-      # @param agg [DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the aggregate
       # @return [Symbol] the table name as a symbol (e.g., :pizzas)
       def table_name_for(agg)
         domain_aggregate_slug(agg.name).to_sym
@@ -171,7 +171,7 @@ module Hecks
 
       # Maps a domain attribute to a Sequel column type.
       #
-      # @param attr [DomainModel::Structure::Attribute] the attribute
+      # @param attr [BluebookModel::Structure::Attribute] the attribute
       # @return [Class, Symbol] the Sequel column type
       def sequel_type(attr)
         TYPE_MAP.fetch(attr.type.to_s, String)

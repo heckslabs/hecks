@@ -14,7 +14,7 @@ module Hecks
   module Chapters
     module Examples
       def self.definition
-        DSL::DomainBuilder.new("Examples").tap { |b|
+        DSL::BluebookBuilder.new("Examples").tap { |b|
           b.aggregate "PizzasApp" do
             description "Canonical example: pizza domain with CRUD, events, queries, and lifecycle"
             command "Run"

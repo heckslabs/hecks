@@ -1,10 +1,10 @@
-# Hecks::DomainModel::Behavior::SagaStep
+# Hecks::BluebookModel::Behavior::SagaStep
 #
 # Intermediate representation of a single step within a saga. Each step
 # has a command to execute, optional success/failure event names, and an
 # optional compensation command to reverse the step on failure.
 #
-# Part of the DomainModel IR layer. Built by SagaStepBuilder in the DSL,
+# Part of the BluebookModel IR layer. Built by SagaStepBuilder in the DSL,
 # consumed by SagaRunner at runtime.
 #
 #   step = SagaStep.new(
@@ -16,7 +16,7 @@
 #   step.compensatable?  # => true
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
       class SagaStep
         # @return [String] PascalCase command name to dispatch

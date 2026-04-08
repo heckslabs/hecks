@@ -192,7 +192,7 @@ module Hecks
 
   # Raised when a domain definition cannot be loaded or parsed (e.g.,
   # missing domain.rb file, syntax error in DSL, unresolvable references).
-  class DomainLoadError < Error; end
+  class BluebookLoadError < Error; end
 
   # Raised when a +version:+ kwarg passed to +Hecks.domain+ does not conform
   # to semver (+x.y.z+) or CalVer (+YYYY.MM.DD.N+).

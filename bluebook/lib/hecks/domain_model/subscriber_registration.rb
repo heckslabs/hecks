@@ -1,13 +1,13 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
 
-    # Hecks::DomainModel::SubscriberRegistration
+    # Hecks::BluebookModel::SubscriberRegistration
     #
     # Value object representing a domain-level event subscriber registration.
     # Replaces plain hashes `{ event_name:, block: }` with a proper struct
     # that supports both method access and hash-style [] access.
     #
-    # Part of the DomainModel IR layer. Built by DomainBuilder's `on_event`
+    # Part of the BluebookModel IR layer. Built by BluebookBuilder's `on_event`
     # method, consumed by Runtime::SubscriberSetup.
     #
     #   reg = SubscriberRegistration.new(event_name: "CreatedPizza", block: -> (e) { ... })

@@ -1,0 +1,227 @@
+Hecks.bluebook "Extensions" do
+  # --- Core ---
+
+  aggregate "Auth", "Actor-based authentication and authorization" do
+    command("Authenticate") { attribute :actor, String }
+    command("Authorize") { attribute :command_name, String; attribute :role, String }
+  end
+
+  aggregate "Audit", "Command execution audit trail" do
+    command("Record") { attribute :command_name, String; attribute :actor, String }
+  end
+
+  aggregate "Bubble", "Anti-Corruption Layer for legacy system translation" do
+    command("TranslateInbound") { attribute :legacy_data, String }
+    command("TranslateOutbound") { attribute :domain_data, String }
+  end
+
+  aggregate "WebExplorer", "HTML UI for browsing aggregates and events" do
+    command("Browse") { attribute :domain_name, String }
+    command("RenderView") { attribute :template, String }
+  end
+
+  aggregate "Logging", "Structured logging for command dispatch" do
+    command("Log") { attribute :message, String }
+  end
+
+  aggregate "Metrics", "Runtime metrics collection" do
+    command("Record") { attribute :metric_name, String; attribute :value, Integer }
+  end
+
+  aggregate "PII", "PII attribute marking, masking, and erasure" do
+    command("MarkPII") { attribute :field, String }
+    command("Erase") { attribute :aggregate_id, String }
+  end
+
+  aggregate "Tenancy", "Multi-tenant data isolation" do
+    command("SetTenant") { attribute :tenant_id, String }
+  end
+
+  aggregate "RateLimit", "Per-command rate limiting" do
+    command("Check") { attribute :command_name, String; attribute :actor, String }
+  end
+
+  aggregate "RetryPolicy", "Automatic command retry with backoff" do
+    command("RetryCommand") { attribute :command_name, String; attribute :max_retries, Integer }
+  end
+
+  aggregate "Idempotency", "Idempotency key tracking for commands" do
+    command("Check") { attribute :idempotency_key, String }
+  end
+
+  aggregate "Slack", "Slack notification integration" do
+    command("Notify") { attribute :channel, String; attribute :message, String }
+  end
+
+  aggregate "OutboxExtension", "Outbox pattern for reliable messaging" do
+    command("Enqueue") { attribute :message, String }
+    command("Poll") { attribute :batch_size, Integer }
+  end
+
+  aggregate "ReadmeWriter", "Generates per-extension Markdown README files from metadata" do
+    command("Generate") { attribute :root, String }
+  end
+
+  # --- Auth Paragraph ---
+
+  aggregate "ScreenRoutes", "Login, signup, and logout HTTP route handlers for auth screens" do
+    command("HandleAuthRoute") { attribute :path, String; attribute :method, String }
+  end
+
+  aggregate "SessionStore", "In-memory credential store with cookie-based session management" do
+    command("SetSession") { attribute :email, String; attribute :role, String }
+    command("RestoreSession") { attribute :cookie, String }
+  end
+
+  aggregate "TemplateBinding", "Minimal binding for auth screen ERB templates" do
+    command("Bind") { attribute :template_name, String }
+  end
+
+  # --- Bubble Paragraph ---
+
+  aggregate "AggregateMapper", "Collects inbound/outbound field mappings for a single aggregate" do
+    command("TranslateLegacy") { attribute :action, String; attribute :data, String }
+    command("ReverseTranslate") { attribute :action, String; attribute :data, String }
+  end
+
+  aggregate "Context", "DSL host grouping aggregate mappers with translate and reverse entry points" do
+    command("MapAggregate") { attribute :aggregate_name, String }
+    command("Translate") { attribute :aggregate_name, String; attribute :action, String }
+  end
+
+  # --- Persistence Paragraph ---
+
+  aggregate "FilesystemRepository", "JSON file-based persistence" do
+    command("Save") { attribute :aggregate_name, String; attribute :data, String }
+    command("Load") { attribute :aggregate_name, String; attribute :id, String }
+    command("Delete") { attribute :id, String }
+  end
+
+  aggregate "FileAdapter", "Low-level file read/write adapter" do
+    command("Write") { attribute :path, String; attribute :content, String }
+    command("Read") { attribute :path, String }
+  end
+
+  # --- Queue Paragraph ---
+
+  aggregate "RabbitMqAdapter", "RabbitMQ queue adapter that publishes events by routing key" do
+    command("Publish") { attribute :routing_key, String; attribute :payload, String }
+  end
+
+  # --- Serve Paragraph ---
+
+  aggregate "DomainServer", "WEBrick REST server for a single domain" do
+    command("Start") { attribute :port, Integer }
+    command("Stop") { attribute :reason, String }
+  end
+
+  aggregate "MultiDomainServer", "Serves multiple domains on one port" do
+    command("Start") { attribute :port, Integer }
+  end
+
+  aggregate "RpcServer", "JSON-RPC 2.0 server over HTTP" do
+    command("HandleRequest") { attribute :method, String; attribute :params, String }
+  end
+
+  aggregate "RouteBuilder", "Generates route definitions from aggregates" do
+    command("BuildRoutes") { attribute :domain_name, String }
+  end
+
+  aggregate "CommandBusPort", "HTTP-to-command-bus bridge" do
+    command("Dispatch") { attribute :command_name, String; attribute :params, String }
+  end
+
+  aggregate "Connection", "HTTP connection wrapper for boot blocks" do
+    command("Connect") { attribute :host, String; attribute :port, Integer }
+  end
+
+  aggregate "DomainWatcher", "File watcher for auto-reload during serve" do
+    command("Watch") { attribute :domain_path, String }
+  end
+
+  # --- Serve Routes Paragraph ---
+
+  aggregate "RequestWrapper", "Wraps WEBrick request for consistent route handler interface" do
+    command("Wrap") { attribute :path, String; attribute :method, String }
+  end
+
+  aggregate "CorsHeaders", "ENV-driven CORS origin header middleware" do
+    command("ApplyOrigin") { attribute :origin, String }
+  end
+
+  aggregate "CsrfHelpers", "Double-submit cookie CSRF protection mixin" do
+    command("Validate") { attribute :cookie_token, String; attribute :header_token, String }
+    command("EnsureCookie") { attribute :request_id, String }
+  end
+
+  aggregate "RouteDispatcher", "Dispatches UI requests to index/show/form handlers by URL path" do
+    command("Dispatch") { attribute :path, String; attribute :method, String }
+  end
+
+  aggregate "IndexRoute", "Serves aggregate index pages with search, filtering, and computed attributes" do
+    command("ServeIndex") { attribute :aggregate_name, String }
+  end
+
+  aggregate "ShowRoute", "Serves aggregate detail pages with user and computed attributes" do
+    command("ServeShow") { attribute :aggregate_name, String; attribute :id, String }
+  end
+
+  aggregate "FormRoute", "Renders command forms and handles form submission with CSRF" do
+    command("ServeForm") { attribute :command_name, String }
+    command("ServeSubmit") { attribute :command_name, String; attribute :params, String }
+  end
+
+  aggregate "EventRoutes", "Handles event listing and JSON endpoints with filtering and pagination" do
+    command("ServeEvents") { attribute :type_filter, String }
+    command("ServeEventsJson") { attribute :format, String }
+  end
+
+  aggregate "UIRoutes", "Multi-domain UI route composition module" do
+    command("Mount") { attribute :domain_slug, String }
+  end
+
+  aggregate "HttpConnection", "Connection wrapper for declarative boot block HTTP listeners" do
+    command("Connect") { attribute :host, String; attribute :port, Integer }
+    command("Start") { attribute :reason, String }
+  end
+
+  # --- Tenancy Paragraph ---
+
+  aggregate "OwnershipScopedRepository", "Repository proxy filtering by ownership field identity" do
+    command("ScopeToOwner") { attribute :owner_id, String }
+    command("VerifyOwnership") { attribute :record_id, String }
+  end
+
+  aggregate "TenantScopedRepository", "Repository proxy maintaining separate instances per tenant" do
+    command("ScopeToTenant") { attribute :tenant_id, String }
+    command("ForTenant") { attribute :tenant_id, String }
+  end
+
+  # --- Web Explorer Paragraph ---
+
+  aggregate "IRIntrospector", "Structural queries from Bluebook IR for web explorer display" do
+    command("Introspect") { attribute :domain_name, String }
+    command("FindCommand") { attribute :aggregate_name, String; attribute :command_name, String }
+  end
+
+  aggregate "EventIntrospector", "Reads and filters events from EventBus instances for web display" do
+    command("ListEvents") { attribute :type_filter, String; attribute :aggregate_filter, String }
+  end
+
+  aggregate "Paginator", "Offset-based pagination for web explorer list views" do
+    command("Paginate") { attribute :page, Integer; attribute :per_page, Integer }
+  end
+
+  aggregate "Renderer", "ERB template rendering with layout wrapping and HTML escaping" do
+    command("Render") { attribute :template_name, String }
+  end
+
+  aggregate "RuntimeBridge", "Isolates runtime CRUD access behind a clean interface for web explorer" do
+    command("FindAll") { attribute :aggregate_name, String }
+    command("ExecuteCommand") { attribute :aggregate_name, String; attribute :method_name, String }
+  end
+
+  aggregate "WebExplorerTemplateBinding", "Clean binding for ERB templates where locals become methods" do
+    command("Bind") { attribute :template_name, String }
+  end
+end

@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-    # Hecks::DomainModel::Behavior::Command
+    # Hecks::BluebookModel::Behavior::Command
     #
     # Intermediate representation of a domain command -- an intent to change state.
     # Each command carries attributes, optional read models, external systems,
@@ -10,7 +10,7 @@ module Hecks
     # to past tense (CreatePizza -> CreatedPizza), or can have explicit event
     # name(s) declared via the +emits+ DSL keyword.
     #
-    # Part of the DomainModel IR layer. Built by CommandBuilder or EventStorm
+    # Part of the BluebookModel IR layer. Built by CommandBuilder or EventStorm
     # parser, consumed by CommandGenerator and event inference in AggregateBuilder.
     #
     #   cmd = Command.new(name: "CreatePizza", attributes: [])
@@ -22,7 +22,7 @@ module Hecks
     #
     class Command
       # @return [String] PascalCase command name, e.g. "CreatePizza"
-      # @return [Array<Hecks::DomainModel::Structure::Attribute>] input attributes for the command
+      # @return [Array<Hecks::BluebookModel::Structure::Attribute>] input attributes for the command
       # @return [String, nil] name of a custom handler class, or nil for default handling
       # @return [String, nil] name of the guard policy to run before execution
       # @return [Array<String>] names of read models this command depends on
@@ -44,7 +44,7 @@ module Hecks
       # Creates a new Command IR node.
       #
       # @param name [String] PascalCase command name (e.g. "CreatePizza")
-      # @param attributes [Array<Hecks::DomainModel::Structure::Attribute>] input attributes
+      # @param attributes [Array<Hecks::BluebookModel::Structure::Attribute>] input attributes
       # @param handler [String, nil] custom handler class name
       # @param guard_name [String, nil] guard policy name to validate before execution
       # @param read_models [Array<String>] read model names this command references

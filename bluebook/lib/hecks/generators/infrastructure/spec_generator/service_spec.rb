@@ -14,11 +14,11 @@ module Hecks
           include HecksTemplating::NamingHelpers
           # Generates an RSpec spec for a domain service.
           #
-          # @param service [Hecks::DomainModel::Behavior::Service]
+          # @param service [Hecks::BluebookModel::Behavior::Service]
           # @return [String] the complete RSpec file content
           def generate_service_spec(service)
             mod = mod_name
-            method_name = domain_snake_name(service.name)
+            method_name = bluebook_snake_name(service.name)
             lines = []
             lines << "require \"spec_helper\""
             lines << ""

@@ -1,7 +1,7 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
-      # Hecks::DomainModel::Behavior::WorkflowStep
+      # Hecks::BluebookModel::Behavior::WorkflowStep
       #
       # Base class for workflow steps. Subclasses represent commands, branches,
       # and scheduled tasks within a workflow definition.
@@ -9,7 +9,7 @@ module Hecks
       class WorkflowStep
       end
 
-      # Hecks::DomainModel::Behavior::CommandStep
+      # Hecks::BluebookModel::Behavior::CommandStep
       #
       # A workflow step that dispatches a named command with an optional attribute mapping.
       #
@@ -22,7 +22,7 @@ module Hecks
         end
       end
 
-      # Hecks::DomainModel::Behavior::BranchStep
+      # Hecks::BluebookModel::Behavior::BranchStep
       #
       # A workflow step that conditionally routes to if_steps or else_steps based on a spec.
       #
@@ -36,7 +36,7 @@ module Hecks
         end
       end
 
-      # Hecks::DomainModel::Behavior::ScheduledStep
+      # Hecks::BluebookModel::Behavior::ScheduledStep
       #
       # A workflow step that finds aggregates matching a query or spec and triggers a command.
       #

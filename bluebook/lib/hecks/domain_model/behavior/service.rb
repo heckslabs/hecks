@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-      # Hecks::DomainModel::Behavior::Service
+      # Hecks::BluebookModel::Behavior::Service
       #
       # Intermediate representation of a domain service -- a stateless operation that
       # orchestrates multiple commands across aggregates. Services have input attributes
@@ -12,7 +12,7 @@ module Hecks
       # Unlike commands, which operate on a single aggregate, services coordinate
       # cross-aggregate workflows that don't naturally belong to any one aggregate.
       #
-      # Part of the DomainModel IR layer. Built by ServiceBuilder in the DSL,
+      # Part of the BluebookModel IR layer. Built by ServiceBuilder in the DSL,
       # consumed by ServiceGenerator to produce service classes in the domain gem.
       #
       #   svc = Service.new(
@@ -25,7 +25,7 @@ module Hecks
       #
       class Service
         # @return [String] PascalCase service name (e.g. "TransferMoney")
-        # @return [Array<Hecks::DomainModel::Structure::Attribute>] input attributes
+        # @return [Array<Hecks::BluebookModel::Structure::Attribute>] input attributes
         #   required to invoke this service
         # @return [Proc, nil] the orchestration body that dispatches commands;
         #   nil if the service has no inline implementation

@@ -7,7 +7,7 @@
 # references, value objects, entities, validations, and world concerns --
 # all without eval.
 #
-# Returns a plain hash IR that mirrors the DomainBuilder's output, suitable
+# Returns a plain hash IR that mirrors the BluebookBuilder's output, suitable
 # for static analysis, linting, or feeding into the normal Domain constructor.
 #
 #   result = Hecks::AstExtractor.extract_file("examples/pizzas/PizzasBluebook")

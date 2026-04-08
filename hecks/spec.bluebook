@@ -1,0 +1,147 @@
+Hecks.bluebook "Spec" do
+  aggregate "TestHelper", "Resets runtime state between tests: clears repos and event bus" do
+    command "Reset"
+  end
+
+  aggregate "InMemoryLoader", "Loads a domain into Ruby without disk I/O via RubyVM::InstructionSequence" do
+    command "Load" do
+      attribute :domain, String
+      attribute :mod, String
+    end
+  end
+
+  aggregate "MemoryAdapter", "Generated in-memory repository with find, save, delete, all, count, query, clear" do
+    command "Generate" do
+      attribute :aggregate, String
+      attribute :domain_module, String
+    end
+  end
+
+  aggregate "MemoryOutbox", "In-memory outbox for testing: store, poll, mark_published, clear" do
+    command "Store" do
+      attribute :event, String
+    end
+    command "Poll"
+    command "MarkPublished" do
+      attribute :entry_id, String
+    end
+  end
+
+  aggregate "EventBus", "In-memory pub/sub with ordered event log for test verification" do
+    command "Subscribe" do
+      attribute :event_name, String
+    end
+    command "Publish" do
+      attribute :event, String
+    end
+    command "Clear"
+  end
+
+  aggregate "InMemoryExecutor", "Fallback query executor filtering in-memory collections" do
+    command "Execute"
+  end
+
+  aggregate "SpecGenerator", "Composes 14 type-specific mixins to generate RSpec files from domain IR" do
+    command "GenerateSpecHelper"
+  end
+
+  aggregate "SpecHelpers", "Example value generation, argument building, and spec snippet builders" do
+    command "ExampleArgs" do
+      attribute :thing, String
+    end
+    command "ExampleValue" do
+      attribute :attr, String
+    end
+  end
+
+  aggregate "SpecWriter", "Orchestrates writing all RSpec files to disk for a domain gem" do
+    command "GenerateSpecs" do
+      attribute :root, String
+      attribute :gem_name, String
+    end
+  end
+
+  aggregate "ServerHelpers", "HTTP server test helpers: port allocation, readiness polling, form submission" do
+    command "FreePort"
+    command "WaitForServer" do
+      attribute :url, String
+    end
+    command "SubmitForm" do
+      attribute :base_url, String
+      attribute :form_path, String
+    end
+  end
+
+  aggregate "Pizza", "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries." do
+    attribute :name, String
+    attribute :description, String
+    attribute :toppings, list_of("Topping")
+
+    value_object "Topping" do
+      description "A measured ingredient on a pizza. Immutable once created."
+      attribute :name, String
+      attribute :amount, Integer
+
+      invariant "amount must be positive" do
+        amount > 0
+      end
+    end
+
+    validation :name, presence: true
+    validation :description, presence: true
+
+    command "CreatePizza" do
+      description "Add a new pizza to the menu with a name and description"
+      attribute :name, String
+      attribute :description, String
+    end
+
+    query "ByDescription" do |desc|
+      where(description: desc)
+    end
+
+    command "AddTopping" do
+      description "Add a measured topping to an existing pizza"
+      reference_to "Pizza"
+      attribute :name, String
+      attribute :amount, Integer
+    end
+  end
+
+  aggregate "Order", "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies." do
+    attribute :customer_name, String
+    attribute :items, list_of("OrderItem")
+    reference_to "Pizza"
+
+    attribute :status, String, default: "pending" do
+      transition "CancelOrder" => "cancelled"
+    end
+
+    value_object "OrderItem" do
+      description "A line item in an order with a quantity"
+      attribute :quantity, Integer
+
+      invariant "quantity must be positive" do
+        quantity > 0
+      end
+    end
+
+    validation :customer_name, presence: true
+
+    command "PlaceOrder" do
+      description "Place a new order for a pizza"
+      attribute :customer_name, String
+      reference_to "Pizza"
+      attribute :quantity, Integer
+    end
+
+    command "CancelOrder" do
+      description "Cancel a pending order, transitioning status to cancelled"
+      reference_to "Order"
+    end
+
+    query "Pending" do
+      where(status: "pending")
+    end
+  end
+end

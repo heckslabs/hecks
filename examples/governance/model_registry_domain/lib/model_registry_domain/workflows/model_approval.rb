@@ -4,7 +4,7 @@ module ModelRegistryDomain
       unless defined?(STEPS)
         STEPS = [
           { command: "SubmitAssessment" },
-          { command: "#<Hecks::DomainModel::Behavior::BranchStep:0x000000011c45ae30>" },
+          { command: "#<Hecks::BluebookModel::Behavior::BranchStep:0x000000011c45ae30>" },
         ].freeze
       end
 

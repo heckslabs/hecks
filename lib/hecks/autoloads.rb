@@ -11,7 +11,7 @@
 #   versioning, and migrations
 # - *Domain tools* -- Validator, connections, glossary, visualizer, serializer
 # - *ValidationRules* -- Individual validation rule classes for domain linting
-# - *DomainModel* -- Structure and behavior types (aggregates, entities,
+# - *BluebookModel* -- Structure and behavior types (aggregates, entities,
 #   value objects, commands, events)
 # - *DSL* -- Builder classes for the domain definition DSL
 # - *Generators* -- Code generators for domain classes, SQL adapters, and
@@ -38,20 +38,20 @@ module Hecks
   autoload :Configuration,  "hecks/runtime/configuration"
   autoload :CLI,            "hecks_cli/cli"
   autoload :Workshop,      "hecks/workshop"
-  autoload :Versioner,      "hecks/domain/versioner"
-  autoload :Migrations,     "hecks/domain/migrations"
+  autoload :Versioner,      "hecks/bluebook/versioner"
+  autoload :Migrations,     "hecks/bluebook/migrations"
 
 
   # Domain tools
-  autoload :Validator,         "hecks/domain/validator"
-  autoload :DomainConnections, "hecks/domain/connections"
-  autoload :DomainGlossary,    "hecks/domain/glossary"
-  autoload :LlmsGenerator,     "hecks/domain/llms_generator"
-  autoload :DomainVisualizer,  "hecks/domain/visualizer"
-  autoload :ContextMapGenerator, "hecks/domain/context_map_generator"
-  autoload :DslSerializer,     "hecks/domain/dsl_serializer"
+  autoload :Validator,         "hecks/bluebook/validator"
+  autoload :BluebookConnections, "hecks/bluebook/connections"
+  autoload :BluebookGlossary,    "hecks/bluebook/glossary"
+  autoload :LlmsGenerator,     "hecks/bluebook/llms_generator"
+  autoload :BluebookVisualizer,  "hecks/bluebook/visualizer"
+  autoload :ContextMapGenerator, "hecks/bluebook/context_map_generator"
+  autoload :DslSerializer,     "hecks/bluebook/dsl_serializer"
   autoload :DomainVersioning,  "hecks/domain_versioning"
-  autoload :FlowGenerator,     "hecks/domain/flow_generator"
+  autoload :FlowGenerator,     "hecks/bluebook/flow_generator"
 
   # = Hecks::ValidationRules
   #
@@ -68,29 +68,29 @@ module Hecks
     autoload :WorldConcerns, "hecks/validation_rules/world_concerns"
   end
 
-  # = Hecks::DomainModel
+  # = Hecks::BluebookModel
   #
   # Namespace for the domain model type system. Contains two sub-namespaces:
   # - +Structure+ -- Structural types: Domain, Aggregate, Entity, ValueObject,
   #   Attribute, ReadModel, Port, DomainService
   # - +Behavior+ -- Behavioral types: Command, Event, Policy, Lifecycle,
   #   Workflow, Guard, Invariant
-  module DomainModel
-    autoload :Behavior,                "hecks/domain_model/behavior"
-    autoload :Structure,               "hecks/domain_model/structure"
-    autoload :Names,                   "hecks/domain_model/names"
-    autoload :SubscriberRegistration,  "hecks/domain_model/subscriber_registration"
+  module BluebookModel
+    autoload :Behavior,                "hecks/bluebook_model/behavior"
+    autoload :Structure,               "hecks/bluebook_model/structure"
+    autoload :Names,                   "hecks/bluebook_model/names"
+    autoload :SubscriberRegistration,  "hecks/bluebook_model/subscriber_registration"
   end
 
   # = Hecks::DSL
   #
   # Namespace for the domain definition DSL builder classes. Each builder
   # provides a block-based API for constructing one type of domain model
-  # element. Builders are used internally by {Hecks::DomainBuilderMethods}
+  # element. Builders are used internally by {Hecks::BluebookBuilderMethods}
   # and by the +Hecks.build+ entry point.
   module DSL
     autoload :AttributeCollector, "hecks/dsl/attribute_collector"
-    autoload :DomainBuilder,      "hecks/dsl/domain_builder"
+    autoload :BluebookBuilder,    "hecks/dsl/bluebook_builder"
     autoload :AggregateBuilder,   "hecks/dsl/aggregate_builder"
     autoload :ValueObjectBuilder, "hecks/dsl/value_object_builder"
     autoload :EntityBuilder,      "hecks/dsl/entity_builder"
@@ -127,13 +127,13 @@ module Hecks
   # (from text or YAML) and converts them into Hecks domain definitions.
   # - +Parser+ -- Parses structured text event storm notation
   # - +YamlParser+ -- Parses YAML-formatted event storm files
-  # - +DomainBuilder+ -- Converts parsed event storm data into domain objects
+  # - +BluebookBuilder+ -- Converts parsed event storm data into domain objects
   # - +DslGenerator+ -- Generates Hecks DSL source code from parsed data
   # - +Result+ -- Value object wrapping the parse result
   module EventStorm
     autoload :Parser,        "hecks/event_storm/parser"
     autoload :YamlParser,    "hecks/event_storm/yaml_parser"
-    autoload :DomainBuilder, "hecks/event_storm/domain_builder"
+    autoload :BluebookBuilder, "hecks/event_storm/domain_builder"
     autoload :DslGenerator,  "hecks/event_storm/dsl_generator"
     autoload :Result,        "hecks/event_storm/result"
   end
@@ -163,8 +163,8 @@ module Hecks
   # exposing domains over REST and JSON-RPC, plus OpenAPI and JSON Schema
   # generators for documentation.
   module HTTP
-    autoload :DomainServer,       "hecks/extensions/serve/domain_server"
-    autoload :MultiDomainServer,  "hecks/extensions/serve/multi_domain_server"
+    autoload :BluebookServer,       "hecks/extensions/serve/domain_server"
+    autoload :MultiBluebookServer,  "hecks/extensions/serve/multi_domain_server"
     autoload :RpcServer,          "hecks/extensions/serve/rpc_server"
     autoload :RouteBuilder,       "hecks/extensions/serve/route_builder"
     autoload :OpenapiGenerator,   "hecks/generators/docs/openapi_generator"

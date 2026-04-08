@@ -13,7 +13,7 @@ module Hecks
 
     module Targets
       def self.definition
-        @definition ||= DSL::DomainBuilder.new("Targets").tap { |b|
+        @definition ||= DSL::BluebookBuilder.new("Targets").tap { |b|
           b.aggregate "Target", "Language backend registration and build dispatch" do
             attribute :name, String
             attribute :language, String

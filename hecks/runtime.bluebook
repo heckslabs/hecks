@@ -1,0 +1,475 @@
+Hecks.bluebook "Runtime" do
+  # --- Core ---
+
+  aggregate "Runtime", "Wires domain IR to adapters, dispatches commands, publishes events" do
+    command("Boot") { attribute :domain_path, String }
+    command("Load") { attribute :domain_ir, String }
+    command("Configure") { attribute :config_block, String }
+  end
+
+  aggregate "Configuration", "Application wiring: adapters, extensions, domain loading" do
+    command("SetAdapter") { attribute :adapter_name, String }
+    command("AddExtension") { attribute :extension_name, String }
+    command("LoadDomain") { attribute :domain_name, String }
+  end
+
+  aggregate "GateEnforcer", "Restricts aggregate access by gate role" do
+    command("EnforceGate") { attribute :gate_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "DryRunResult", "Previews command execution without side effects" do
+    command("DryRun") { attribute :command_name, String }
+  end
+
+  aggregate "SagaRunner", "Executes multi-step sagas with compensation" do
+    command("StartSaga") { attribute :saga_name, String }
+  end
+
+  aggregate "SagaStore", "Persists saga state across steps" do
+    command("SaveState") { attribute :saga_id, String; attribute :state, String }
+  end
+
+  aggregate "WorkflowExecutor", "Runs multi-step workflows with branching" do
+    command("ExecuteWorkflow") { attribute :workflow_name, String }
+  end
+
+  aggregate "ViewBinding", "Wires read model projections to event bus" do
+    command("BindView") { attribute :view_name, String }
+  end
+
+  aggregate "Introspection", "Runtime inspection of aggregates, commands, events" do
+    command("Inspect") { attribute :aggregate_name, String }
+  end
+
+  aggregate "DomainVersioning", "Snapshot-based domain version management" do
+    command("TagVersion") { attribute :version, String }
+    command("LoadVersion") { attribute :version, String }
+    command("DiffVersions") { attribute :from_version, String; attribute :to_version, String }
+  end
+
+  aggregate "Validations", "Domain validation rule enforcement" do
+    command("Validate") { attribute :aggregate, String }
+  end
+
+  aggregate "SmokeTest", "Browser-style HTTP smoke tests for domains" do
+    command("RunSmoke") { attribute :base_url, String }
+    command("CheckEvents") { attribute :event_log, String }
+    command("TestBehaviors") { attribute :domain_name, String }
+  end
+
+  # --- Setup Paragraph ---
+
+  aggregate "BootBluebook", "Boots domains from Bluebook IR" do
+    command("Boot") { attribute :bluebook_path, String }
+  end
+
+  aggregate "BootPhase", "Ordered boot phase execution" do
+    command("Execute") { attribute :phase_name, String }
+  end
+
+  aggregate "ConfigurationDSL", "DSL methods for Hecks.configure block" do
+    command("Evaluate") { attribute :config_block, String }
+  end
+
+  aggregate "ConnectionSetup", "Wires database connections at boot" do
+    command("Connect") { attribute :adapter_name, String; attribute :url, String }
+  end
+
+  aggregate "ConstantHoisting", "Hoists generated classes into constant namespace" do
+    command("Hoist") { attribute :module_name, String }
+  end
+
+  aggregate "DomainConfigBuilder", "Builds domain config from DSL block" do
+    command("Build") { attribute :config_block, String }
+  end
+
+  aggregate "DomainLoader", "Loads domain IR from file or gem" do
+    command("LoadFromFile") { attribute :file_path, String }
+    command("LoadFromGem") { attribute :gem_name, String }
+  end
+
+  aggregate "ExtensionDispatch", "Dispatches extension lifecycle hooks" do
+    command("Dispatch") { attribute :hook_name, String }
+  end
+
+  aggregate "LoadExtensions", "Loads and registers extensions at boot" do
+    command("Load") { attribute :extension_name, String }
+  end
+
+  aggregate "PolicySetup", "Wires policy event listeners" do
+    command("Wire") { attribute :policy_name, String }
+  end
+
+  aggregate "PortSetup", "Creates port modules from domain IR" do
+    command("Create") { attribute :aggregate_name, String }
+  end
+
+  aggregate "ReadModelSetup", "Wires read model projections" do
+    command("Wire") { attribute :projection_name, String }
+  end
+
+  aggregate "RepositorySetup", "Creates repository adapters" do
+    command("Create") { attribute :adapter_name, String; attribute :aggregate_name, String }
+  end
+
+  aggregate "SagaSetup", "Registers saga runners" do
+    command("Register") { attribute :saga_name, String }
+  end
+
+  aggregate "ServiceSetup", "Wires service objects with dependency injection" do
+    command("Wire") { attribute :service_name, String }
+  end
+
+  aggregate "ServiceContext", "Execution context for services" do
+    command("Build") { attribute :service_name, String }
+  end
+
+  aggregate "SubscriberSetup", "Registers event subscribers" do
+    command("Register") { attribute :event_name, String; attribute :handler, String }
+  end
+
+  aggregate "ViewSetup", "Wires view projections" do
+    command("Wire") { attribute :view_name, String }
+  end
+
+  aggregate "WorkflowSetup", "Registers workflow executors" do
+    command("Register") { attribute :workflow_name, String }
+  end
+
+  aggregate "CommandDispatch", "Command dispatch pipeline" do
+    command("Dispatch") { attribute :command_name, String; attribute :payload, String }
+  end
+
+  aggregate "AuthCoverageCheck", "Verifies all ports have auth gates" do
+    command("Check") { attribute :domain_name, String }
+  end
+
+  aggregate "ReferenceCoverageCheck", "Verifies reference authorizers exist" do
+    command("Check") { attribute :domain_name, String }
+  end
+
+  aggregate "Versioning", "Runtime version tracking" do
+    command("CurrentVersion") { attribute :domain_name, String }
+  end
+
+  aggregate "CommandLoader", "Generates and evaluates CRUD command and event classes" do
+    command("Load") { attribute :aggregate_name, String }
+  end
+
+  aggregate "QueryContext", "Read-only cross-domain query execution context" do
+    command("Execute") { attribute :query_name, String }
+  end
+
+  aggregate "AdapterWiring", "Wires command adapters into the runtime" do
+    command("Adapt") { attribute :aggregate_name, String; attribute :adapter_module, String }
+  end
+
+  aggregate "ReferenceAuthorizerCheck", "Validates reference_to authorizers exist at boot" do
+    command("Check") { attribute :domain_name, String }
+  end
+
+  # --- Ports Paragraph ---
+
+  aggregate "EventBus", "Publish-subscribe event dispatch" do
+    command("Publish") { attribute :event_name, String }
+    command("Subscribe") { attribute :event_name, String }
+  end
+
+  aggregate "CommandBus", "Routes commands to handlers with middleware" do
+    command("Dispatch") { attribute :command_name, String }
+    command("AddMiddleware") { attribute :middleware_name, String }
+  end
+
+  aggregate "CommandRunner", "Executes a single command through the pipeline" do
+    command("Run") { attribute :command_name, String }
+  end
+
+  aggregate "Repository", "Aggregate persistence port with collection proxy" do
+    command("Create") { attribute :aggregate_name, String }
+    command("Find") { attribute :id, String }
+    command("Delete") { attribute :id, String }
+  end
+
+  aggregate "QueryBuilder", "Composable query DSL with in-memory executor" do
+    command("Where") { attribute :field, String; attribute :value, String }
+    command("OrderBy") { attribute :field, String }
+  end
+
+  aggregate "QueuePort", "Async command dispatch via in-memory queue" do
+    command("Enqueue") { attribute :command_name, String }
+    command("Process") { attribute :batch_size, Integer }
+  end
+
+  aggregate "CommandMixin", "Included into generated command classes" do
+    command("Execute") { attribute :attributes, String }
+  end
+
+  aggregate "ModelMixin", "Included into generated aggregate/entity classes" do
+    command("Initialize") { attribute :attributes, String }
+  end
+
+  aggregate "QueryMixin", "Included into generated query classes" do
+    command("Call") { attribute :params, String }
+  end
+
+  aggregate "SpecificationMixin", "Predicate objects for domain rules" do
+    command("Satisfied") { attribute :candidate, String }
+  end
+
+  aggregate "AttachmentMethods", "File attachment support for aggregates" do
+    command("Attach") { attribute :field, String; attribute :file, String }
+  end
+
+  aggregate "Commands", "Wires command dispatch infrastructure onto aggregate classes at boot" do
+    command("Bind") { attribute :klass, String; attribute :aggregate, String }
+    command("BindShortcuts") { attribute :klass, String; attribute :aggregate, String }
+  end
+
+  aggregate "Querying", "Wires query services (scopes, ad-hoc queries, operators) onto aggregate classes" do
+    command("Bind") { attribute :klass, String; attribute :aggregate, String }
+  end
+
+  aggregate "Persistence", "Wires CRUD, collection proxy, reference, and event recording onto aggregates" do
+    command("Bind") { attribute :klass, String; attribute :aggregate, String; attribute :repo, String }
+    command("BindEventRecorder") { attribute :klass, String; attribute :recorder, String }
+  end
+
+  aggregate "Outbox", "Reliable event publishing via transactional outbox pattern" do
+    command("Enable") { attribute :enabled, String }
+  end
+
+  aggregate "Queue", "Event queue publishing (RabbitMQ, file, custom adapter)" do
+    command("Enable") { attribute :adapter, String }
+  end
+
+  # --- Port Internals Paragraph ---
+
+  aggregate "CommandMethods", "Shared command port interface methods" do
+    command("Execute") { attribute :command, String }
+  end
+
+  aggregate "CommandResolver", "Resolves command/event classes from names" do
+    command("Resolve") { attribute :name, String }
+  end
+
+  aggregate "CollectionItem", "Single-item repository wrapper" do
+    command("Wrap") { attribute :id, String }
+  end
+
+  aggregate "CollectionMethods", "Enumerable collection interface for repos" do
+    command("Each") { attribute :block, String }
+  end
+
+  aggregate "CollectionProxy", "Lazy-loading collection with query chaining" do
+    command("Chain") { attribute :scope, String }
+    command("Load") { attribute :scope, String }
+  end
+
+  aggregate "EventRecorder", "Records events during command execution" do
+    command("Record") { attribute :event_name, String; attribute :payload, String }
+  end
+
+  aggregate "ReferenceMethods", "Reference resolution methods for repos" do
+    command("Resolve") { attribute :reference_name, String; attribute :id, String }
+  end
+
+  aggregate "RepositoryMethods", "Core CRUD methods for repository ports" do
+    command("Create") { attribute :attributes, String }
+    command("Read") { attribute :id, String }
+    command("Update") { attribute :id, String; attribute :attributes, String }
+    command("Delete") { attribute :id, String }
+  end
+
+  aggregate "MemoryOutbox", "In-memory transactional outbox" do
+    command("Enqueue") { attribute :message, String }
+    command("Flush") { attribute :batch_size, Integer }
+  end
+
+  aggregate "MemoryQueue", "In-memory message queue" do
+    command("Push") { attribute :message, String }
+    command("Pop") { attribute :count, Integer }
+  end
+
+  aggregate "AdHocQueries", "Ad-hoc query builder DSL" do
+    command("Build") { attribute :expression, String }
+  end
+
+  aggregate "ConditionNode", "Query condition tree node" do
+    command("Evaluate") { attribute :record, String }
+  end
+
+  aggregate "InMemoryExecutor", "Executes queries against in-memory collections" do
+    command("Execute") { attribute :query, String; attribute :collection, String }
+  end
+
+  aggregate "ScopeMethods", "Scope composition methods for queries" do
+    command("Compose") { attribute :scope_a, String; attribute :scope_b, String }
+  end
+
+  aggregate "Operators", "Operator registry module" do
+    command("Register") { attribute :name, String; attribute :operator, String }
+  end
+
+  aggregate "Operator", "Base operator class for query comparisons" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "Gt", "Greater-than query operator" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "Gte", "Greater-than-or-equal query operator" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "Lt", "Less-than query operator" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "Lte", "Less-than-or-equal query operator" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "InOp", "Inclusion query operator" do
+    command("Compare") { attribute :field, String; attribute :values, String }
+  end
+
+  aggregate "NotEq", "Not-equal query operator" do
+    command("Compare") { attribute :field, String; attribute :value, String }
+  end
+
+  aggregate "CommandHandle", "Deferred command execution handle with wait/completed?/result" do
+    command("Wait") { attribute :timeout, Integer }
+  end
+
+  # --- Mixins Paragraph ---
+
+  aggregate "ModelMixinInternal", "Aggregate model mixin: attributes, equality, serialization" do
+    command("Initialize") { attribute :attributes, String }
+    command("Serialize") { attribute :format, String }
+  end
+
+  aggregate "DispatchMixin", "Command dispatch mixin" do
+    command("Dispatch") { attribute :command_name, String; attribute :payload, String }
+  end
+
+  aggregate "ReferenceValidation", "Validates references exist before dispatch" do
+    command("Validate") { attribute :reference_name, String; attribute :id, String }
+  end
+
+  aggregate "LifecycleSteps", "Lifecycle state transition steps" do
+    command("Transition") { attribute :from_state, String; attribute :to_state, String }
+  end
+
+  aggregate "AndSpecification", "Composite AND specification" do
+    command("Satisfied") { attribute :candidate, String }
+  end
+
+  aggregate "OrSpecification", "Composite OR specification" do
+    command("Satisfied") { attribute :candidate, String }
+  end
+
+  aggregate "NotSpecification", "Composite NOT specification" do
+    command("Satisfied") { attribute :candidate, String }
+  end
+
+  aggregate "BreakingBumper", "Auto-bumps version on breaking changes" do
+    command("Bump") { attribute :domain_name, String }
+  end
+
+  aggregate "BreakingClassifier", "Classifies domain changes as breaking/non-breaking" do
+    command("Classify") { attribute :diff, String }
+  end
+
+  aggregate "Command", "Mixin orchestrating command lifecycle: guard, validate, call, persist, emit event" do
+    command("Emits") { attribute :event_names, String }
+    command("Call") { attribute :attrs, String }
+  end
+
+  aggregate "Model", "Mixin for aggregate classes providing attribute DSL, UUID identity, and auto-discovery" do
+    command("Attribute") { attribute :name, String; attribute :default, String }
+    command "RebuildInitializer"
+  end
+
+  aggregate "Query", "Mixin for query classes providing repository wiring and QueryBuilder delegation" do
+    command("Call") { attribute :params, String }
+  end
+
+  aggregate "Specification", "Mixin for composable business rule predicates with and/or/not operators" do
+    command("SatisfiedBy") { attribute :candidate, String }
+  end
+
+  aggregate "Dispatch", "Event construction and persistence helpers for command execution" do
+    command "EmitEvent"
+    command "PersistAggregate"
+  end
+
+  aggregate "Validation", "Pre/postcondition DSL and enforcement for command objects" do
+    command("Precondition") { attribute :message, String }
+    command("Postcondition") { attribute :message, String }
+  end
+
+  aggregate "RuntimeAttributeDefinition", "Struct wrapping a single model attribute's name, default, and freeze flag" do
+    command("Define") { attribute :name, String; attribute :default, String }
+  end
+
+  aggregate "WorkflowStepCompat", "Deprecation shim for legacy workflow_step API" do
+    command("Register") { attribute :target_class, String }
+  end
+
+  aggregate "ConnectionConfigCompat", "Deprecation shim for legacy connection_config API" do
+    command("Register") { attribute :target_class, String }
+  end
+
+  # --- Event Sourcing Paragraph ---
+
+  aggregate "EventStore", "Append-only event log per aggregate stream" do
+    command("Append") { attribute :stream_id, String; attribute :event, String }
+    command("ReadStream") { attribute :stream_id, String }
+  end
+
+  aggregate "SnapshotStore", "Periodic aggregate state snapshots" do
+    command("Save") { attribute :stream_id, String; attribute :snapshot, String }
+    command("Load") { attribute :stream_id, String }
+  end
+
+  aggregate "UpcasterRegistry", "Registers event version upcasters" do
+    command("Register") { attribute :event_type, String; attribute :version, Integer }
+  end
+
+  aggregate "UpcasterEngine", "Applies upcasters to old event versions" do
+    command("Upcast") { attribute :event, String }
+  end
+
+  aggregate "ProjectionRebuilder", "Rebuilds read models from event history" do
+    command("Rebuild") { attribute :projection_name, String }
+  end
+
+  aggregate "Reconstitution", "Rebuilds aggregate from events + snapshot" do
+    command("Reconstitute") { attribute :stream_id, String }
+  end
+
+  aggregate "TimeTravel", "Query aggregate state at a point in time" do
+    command("At") { attribute :stream_id, String; attribute :timestamp, String }
+  end
+
+  aggregate "ProcessManager", "Long-running event-driven coordinator" do
+    command("Handle") { attribute :event, String }
+  end
+
+  aggregate "OutboxES", "Transactional outbox for reliable event publishing" do
+    command("Enqueue") { attribute :event, String }
+  end
+
+  aggregate "OutboxPoller", "Polls outbox and publishes pending events" do
+    command("Poll") { attribute :batch_size, Integer }
+  end
+
+  aggregate "Concurrency", "Optimistic concurrency version stamps" do
+    command("Stamp") { attribute :aggregate, String; attribute :version, Integer }
+  end
+
+  aggregate "EventSourcing", "Top-level module for event sourcing concerns with autoload registry" do
+    command("Autoload") { attribute :const_name, String; attribute :path, String }
+  end
+end

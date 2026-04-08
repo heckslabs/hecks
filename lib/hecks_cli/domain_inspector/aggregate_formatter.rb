@@ -33,7 +33,7 @@ module Hecks
         include RuleFormatters
         include LifecycleFormatter
 
-        # @param agg [Hecks::DomainModel::Structure::Aggregate]
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate]
         def initialize(agg)
           @agg = agg
         end

@@ -25,7 +25,7 @@ module Hecks
     #   Chapters.load_aggregates(Targets::Go, base_dir: "go_hecks")
     #
     def self.load_aggregates(paragraph_module, base_dir:)
-      builder = Hecks::DSL::DomainBuilder.new("tmp")
+      builder = Hecks::DSL::BluebookBuilder.new("tmp")
       paragraph_module.define(builder)
       require_aggregates(builder.build.aggregates, base_dir: base_dir)
     end

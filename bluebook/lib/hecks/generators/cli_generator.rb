@@ -20,7 +20,7 @@ require_relative "cli_generator/type_mapper"
 module Hecks
   module Generators
     class CliGenerator < Hecks::Generator
-      # @param domain [Hecks::DomainModel::Structure::Domain] chapter definition IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] chapter definition IR
       # @param namespace [String, nil] Ruby module to wrap the generated class in
       def initialize(domain, namespace: nil)
         @domain = domain

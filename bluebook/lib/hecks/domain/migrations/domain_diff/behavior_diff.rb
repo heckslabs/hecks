@@ -19,8 +19,8 @@ module Hecks
         # Diff commands between old and new aggregate versions.
         # Delegates to the generic diff_named_collection helper.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] command add/remove changes
         def diff_commands(old_agg, new_agg)
           diff_named_collection(old_agg, new_agg, :commands, :command)
@@ -31,8 +31,8 @@ module Hecks
         # (rewired) when their event or trigger command is modified while
         # the policy name stays the same.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] policy add/remove/change changes
         def diff_policies(old_agg, new_agg)
           changes = []
@@ -74,8 +74,8 @@ module Hecks
         # Diff validations between old and new aggregate versions.
         # Compares by field name to detect added and removed validation rules.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] validation add/remove changes
         def diff_validations(old_agg, new_agg)
           changes = []
@@ -103,8 +103,8 @@ module Hecks
         # Diff invariants between old and new aggregate versions.
         # Compares by message string to detect added and removed invariants.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] invariant add/remove changes
         def diff_invariants(old_agg, new_agg)
           old_msgs = old_agg.invariants.map(&:message)
@@ -131,8 +131,8 @@ module Hecks
         # Diff queries between old and new aggregate versions.
         # Delegates to the generic diff_named_collection helper.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] query add/remove changes
         def diff_queries(old_agg, new_agg)
           diff_named_collection(old_agg, new_agg, :queries, :query)
@@ -141,8 +141,8 @@ module Hecks
         # Diff scopes between old and new aggregate versions.
         # Delegates to the generic diff_named_collection helper.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] scope add/remove changes
         def diff_scopes(old_agg, new_agg)
           diff_named_collection(old_agg, new_agg, :scopes, :scope)
@@ -152,8 +152,8 @@ module Hecks
         # Compares by subscriber name and includes the event name in
         # the details for added subscribers.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] subscriber add/remove changes
         def diff_subscribers(old_agg, new_agg)
           old_names = (old_agg.subscribers || []).map(&:name)
@@ -181,8 +181,8 @@ module Hecks
         # Diff specifications between old and new aggregate versions.
         # Delegates to the generic diff_named_collection helper.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @return [Array<Change>] specification add/remove changes
         def diff_specifications(old_agg, new_agg)
           diff_named_collection(old_agg, new_agg, :specifications, :specification)
@@ -192,8 +192,8 @@ module Hecks
         # Compares items by their +name+ attribute and produces add/remove
         # Change objects with the appropriate kind prefix.
         #
-        # @param old_agg [Hecks::DomainModel::Aggregate] previous aggregate version
-        # @param new_agg [Hecks::DomainModel::Aggregate] current aggregate version
+        # @param old_agg [Hecks::BluebookModel::Aggregate] previous aggregate version
+        # @param new_agg [Hecks::BluebookModel::Aggregate] current aggregate version
         # @param method [Symbol] the collection accessor method (e.g., :commands, :queries)
         # @param kind_prefix [Symbol] the Change kind prefix (e.g., :command -> :add_command)
         # @return [Array<Change>] add/remove changes for the collection

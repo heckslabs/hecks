@@ -12,7 +12,7 @@ module Hecks
     class JsonSchemaGenerator < Hecks::Generator
       # Creates a new JsonSchemaGenerator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       def initialize(domain)
         @domain = domain
       end
@@ -51,7 +51,7 @@ module Hecks
           agg.entities.each { |ent| defs["#{agg.name}::#{ent.name}"] = entity_def(ent) }
           agg.commands.each { |cmd| defs[cmd.name] = command_def(cmd) }
           agg.events.each { |evt| defs[evt.name] = event_def(evt) }
-          agg.queries.each { |q| defs["#{agg.name}.#{domain_snake_name(q.name)}"] = query_def(agg, q) }
+          agg.queries.each { |q| defs["#{agg.name}.#{bluebook_snake_name(q.name)}"] = query_def(agg, q) }
         end
         defs
       end
@@ -61,7 +61,7 @@ module Hecks
       # are rendered as arrays with +$ref+ items when the target type is a known
       # value object or entity.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [Hash] JSON Schema object definition
       def aggregate_def(agg)
         props = { id: { type: "string", format: "uuid" } }
@@ -86,7 +86,7 @@ module Hecks
 
       # Builds a JSON Schema object definition for a value object.
       #
-      # @param vo [Hecks::DomainModel::Structure::ValueObject] the value object
+      # @param vo [Hecks::BluebookModel::Structure::ValueObject] the value object
       # @return [Hash] JSON Schema object definition
       def value_object_def(vo)
         props = {}
@@ -97,7 +97,7 @@ module Hecks
       # Builds a JSON Schema object definition for an entity, including a
       # required +id+ field.
       #
-      # @param ent [Hecks::DomainModel::Structure::Entity] the entity
+      # @param ent [Hecks::BluebookModel::Structure::Entity] the entity
       # @return [Hash] JSON Schema object definition with +id+ in +required+
       def entity_def(ent)
         props = { id: { type: "string", format: "uuid" } }
@@ -108,7 +108,7 @@ module Hecks
       # Builds a JSON Schema object definition for a command. All attributes
       # are listed in +required+.
       #
-      # @param cmd [Hecks::DomainModel::Behavior::Command] the command
+      # @param cmd [Hecks::BluebookModel::Behavior::Command] the command
       # @return [Hash] JSON Schema object definition
       def command_def(cmd)
         props = {}
@@ -127,7 +127,7 @@ module Hecks
       # Builds a JSON Schema object definition for an event, including an
       # +occurred_at+ timestamp field.
       #
-      # @param evt [Hecks::DomainModel::Behavior::Event] the event
+      # @param evt [Hecks::BluebookModel::Behavior::Event] the event
       # @return [Hash] JSON Schema object definition
       def event_def(evt)
         props = { occurred_at: { type: "string", format: "date-time" } }
@@ -138,8 +138,8 @@ module Hecks
       # Builds a JSON Schema-like definition for a query, listing its parameters
       # and declaring that it returns an array of the owning aggregate.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the owning aggregate
-      # @param query [Hecks::DomainModel::Behavior::Query] the query
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the owning aggregate
+      # @param query [Hecks::BluebookModel::Behavior::Query] the query
       # @return [Hash] a definition with +description+, +parameters+, and +returns+
       def query_def(agg, query)
         params = query.block.parameters
@@ -158,7 +158,7 @@ module Hecks
       # - +Float+ -> +type: "number"+
       # - All others -> +type: "string"+
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute
       # @return [Hash] a JSON Schema property definition
       def property(attr)
         if attr.json?

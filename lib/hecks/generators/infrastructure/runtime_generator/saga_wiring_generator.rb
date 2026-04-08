@@ -19,7 +19,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +sagas+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
@@ -57,7 +57,7 @@ module Hecks
         lines << "          event_bus = @event_bus"
         lines << "          saga_store = @saga_store"
         sagas.each_with_index do |saga, idx|
-          method_name = "start_#{domain_snake_name(saga.name)}"
+          method_name = "start_#{bluebook_snake_name(saga.name)}"
           lines << "" if idx > 0
           lines << "          saga_def = @domain.sagas.detect { |s| s.name == \"#{saga.name}\" }"
           lines << "          runner = SagaRunner.new(saga_def, command_bus, saga_store, event_bus)"

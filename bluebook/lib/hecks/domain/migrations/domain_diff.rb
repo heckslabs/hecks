@@ -42,15 +42,15 @@ module Hecks
 
     # Convenience class method to compute changes between two domains.
     #
-    # @param old_domain [Hecks::DomainModel::Domain, nil] the previous domain version (nil for first build)
-    # @param new_domain [Hecks::DomainModel::Domain] the current domain version
+    # @param old_domain [Hecks::BluebookModel::Domain, nil] the previous domain version (nil for first build)
+    # @param new_domain [Hecks::BluebookModel::Domain] the current domain version
     # @return [Array<Change>] list of detected changes
     def self.call(old_domain, new_domain)
       new(old_domain, new_domain).changes
     end
 
-    # @param old_domain [Hecks::DomainModel::Domain, nil] the previous domain version
-    # @param new_domain [Hecks::DomainModel::Domain] the current domain version
+    # @param old_domain [Hecks::BluebookModel::Domain, nil] the previous domain version
+    # @param new_domain [Hecks::BluebookModel::Domain] the current domain version
     def initialize(old_domain, new_domain)
       @old = old_domain
       @new = new_domain
@@ -114,8 +114,8 @@ module Hecks
     # Diff attributes between old and new versions of the same aggregate.
     # Detects added and removed attributes by name comparison.
     #
-    # @param old_agg [Hecks::DomainModel::Aggregate] the previous aggregate version
-    # @param new_agg [Hecks::DomainModel::Aggregate] the current aggregate version
+    # @param old_agg [Hecks::BluebookModel::Aggregate] the previous aggregate version
+    # @param new_agg [Hecks::BluebookModel::Aggregate] the current aggregate version
     # @return [Array<Change>] attribute-level changes
     def diff_attributes(old_agg, new_agg)
       changes = []
@@ -151,8 +151,8 @@ module Hecks
     # Diff value objects between old and new versions of the same aggregate.
     # Detects added and removed value objects by name comparison.
     #
-    # @param old_agg [Hecks::DomainModel::Aggregate] the previous aggregate version
-    # @param new_agg [Hecks::DomainModel::Aggregate] the current aggregate version
+    # @param old_agg [Hecks::BluebookModel::Aggregate] the previous aggregate version
+    # @param new_agg [Hecks::BluebookModel::Aggregate] the current aggregate version
     # @return [Array<Change>] value object-level changes
     def diff_value_objects(old_agg, new_agg)
       changes = []
@@ -184,8 +184,8 @@ module Hecks
     # Diff entities between old and new versions of the same aggregate.
     # Detects added and removed entities by name comparison.
     #
-    # @param old_agg [Hecks::DomainModel::Aggregate] the previous aggregate version
-    # @param new_agg [Hecks::DomainModel::Aggregate] the current aggregate version
+    # @param old_agg [Hecks::BluebookModel::Aggregate] the previous aggregate version
+    # @param new_agg [Hecks::BluebookModel::Aggregate] the current aggregate version
     # @return [Array<Change>] entity-level changes
     def diff_entities(old_agg, new_agg)
       changes = []
@@ -216,8 +216,8 @@ module Hecks
 
     # Diff references between old and new versions of the same aggregate.
     #
-    # @param old_agg [Hecks::DomainModel::Aggregate] the previous aggregate version
-    # @param new_agg [Hecks::DomainModel::Aggregate] the current aggregate version
+    # @param old_agg [Hecks::BluebookModel::Aggregate] the previous aggregate version
+    # @param new_agg [Hecks::BluebookModel::Aggregate] the current aggregate version
     # @return [Array<Change>] reference-level changes
     def diff_references(old_agg, new_agg)
       changes = []

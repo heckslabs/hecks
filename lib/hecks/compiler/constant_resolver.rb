@@ -6,8 +6,8 @@
 # resolution for bare references inside enclosing scopes.
 #
 #   resolver = ConstantResolver.new(file_definitions, file_namespaces)
-#   resolver.resolve("Hecks::DSL::DomainBuilder")
-#     # => "/path/to/lib/hecks/dsl/domain_builder.rb"
+#   resolver.resolve("Hecks::DSL::BluebookBuilder")
+#     # => "/path/to/lib/hecks/dsl/bluebook_builder.rb"
 #
 module Hecks
   module Compiler
@@ -21,7 +21,7 @@ module Hecks
       # Resolves a constant reference to the file that defines it.
       # Tries full path first, then progressively shorter prefixes.
       #
-      # @param ref [String] constant path (e.g. "Hecks::DSL::DomainBuilder")
+      # @param ref [String] constant path (e.g. "Hecks::DSL::BluebookBuilder")
       # @param exclude [String, nil] file to exclude from results
       # @return [String, nil] file path or nil
       def resolve(ref, exclude: nil)
@@ -49,7 +49,7 @@ module Hecks
       end
 
       # Checks if a bare reference matches any locally defined constant.
-      # E.g., "DomainVisualizer" matches "Hecks::DomainVisualizer".
+      # E.g., "BluebookVisualizer" matches "Hecks::BluebookVisualizer".
       def defined_locally?(ref, scopes)
         suffix = "::#{ref}"
         scopes.any? { |s| s == ref || s.end_with?(suffix) }

@@ -1,0 +1,157 @@
+Hecks.bluebook "Hecksagon" do
+  # --- DSL Builders ---
+
+  aggregate "HecksagonBuilder", "DSL builder for hexagonal architecture wiring: gates, adapters, extensions" do
+    command("AddGate") { attribute :aggregate, String; attribute :role, String }
+    command("SetAdapter") { attribute :type, String }
+    command "Build"
+  end
+
+  aggregate "GateBuilder", "DSL builder for access control gates on aggregates" do
+    command("Allow") { attribute :methods, String }
+    command "Build"
+  end
+
+  # --- IR Structures ---
+
+  aggregate "GateDefinition", "Immutable IR structure for a gate (access control on an aggregate)" do
+    command("Create") { attribute :aggregate, String; attribute :role, String }
+  end
+
+  aggregate "AclDefinition", "Collects translations for an anti-corruption layer" do
+    command("Translate") { attribute :entity, String }
+  end
+
+  # --- Module Mixins ---
+
+  aggregate "DrivenPortRegistry", "Formalizes adapter registration for driven ports" do
+    command("RegisterAdapter") { attribute :name, String; attribute :port, String }
+    command("LookupAdapter") { attribute :name, String }
+  end
+
+  aggregate "ContractValidator", "Validates that adapters satisfy their driven port contracts at boot time" do
+    command "Validate"
+  end
+
+  aggregate "StrategicDSL", "Mixin for domain builders adding shared kernels, ACLs, published events" do
+    command "SharedKernel"
+    command("UseKernel") { attribute :name, String }
+    command("AntiCorruptionLayer") { attribute :name, String }
+  end
+
+  aggregate "ExtensionsDSL", "Mixin for domain builders declaring driving and driven ports" do
+    command("DrivingPort") { attribute :name, String }
+    command("DrivenPort") { attribute :name, String }
+  end
+
+  aggregate "DomainMixin", "Extends Domain IR objects with hexagonal accessors for ports and kernels" do
+    command "Apply"
+  end
+
+  # --- SQL Persistence ---
+
+  aggregate "SqlAdapterGenerator", "Generates Sequel-based repository adapter classes for each aggregate" do
+    command "Generate"
+  end
+
+  aggregate "SqlBuilder", "Mixin with Sequel-based generation helpers for insert, update, delete" do
+    command "BuildInsert"
+    command "BuildUpdate"
+  end
+
+  aggregate "SqlMigrationGenerator", "Generates CREATE TABLE SQL statements from a domain model" do
+    command "Generate"
+  end
+
+  aggregate "SqlStrategy", "Generates SQL migration files from domain changes with ALTER TABLE support" do
+    command "GenerateMigration"
+  end
+
+  aggregate "SqlHelpers", "Shared helpers for SQL migration: type mapping, naming, literal quoting" do
+    command("MapType") { attribute :ruby_type, String }
+  end
+
+  aggregate "SqlSetup", "Generates and evals SQL adapter classes at boot time for Hecks.configure" do
+    command "Setup"
+  end
+
+  aggregate "SqlBoot", "SQL adapter lifecycle: connect, generate repos, create tables" do
+    command "Setup"
+  end
+
+  aggregate "DatabaseConnection", "Connects to databases via Sequel: MySQL, Postgres, SQLite, URLs" do
+    command("Connect") { attribute :url, String }
+  end
+
+  # --- MongoDB ---
+
+  aggregate "MongoAdapterGenerator", "Generates MongoDB repository adapter classes for each aggregate" do
+    command "Generate"
+  end
+
+  aggregate "MongoBoot", "MongoDB adapter lifecycle: connect, generate repos, return adapters" do
+    command "Setup"
+  end
+
+  # --- Extensions ---
+
+  aggregate "HecksCqrs", "CQRS support: named persistence connections for read/write separation" do
+    command "Enable"
+  end
+
+  aggregate "HecksMysql", "MySQL persistence extension, auto-wires SQL adapters via Sequel mysql2" do
+    command "Boot"
+  end
+
+  aggregate "HecksPostgres", "PostgreSQL persistence extension, auto-wires SQL adapters via Sequel pg" do
+    command "Boot"
+  end
+
+  aggregate "HecksSqlite", "SQLite persistence extension, auto-wires in-memory SQL adapters" do
+    command "Boot"
+  end
+
+  aggregate "HecksTransactions", "Command bus middleware wrapping execution in database transactions" do
+    command "Wrap"
+  end
+
+  # --- CLI ---
+
+  aggregate "Migrations", "CLI command for generating SQL migrations from domain changes" do
+    command "GenerateMigrations"
+  end
+
+  # --- Capabilities Paragraph ---
+
+  aggregate "AggregateCapabilityBuilder", "Fluent builder for per-aggregate capability tags via chained method calls" do
+    command "AddCapability" do
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "AttributeSelector", "Fluent attribute selector that captures attribute name for capability tagging" do
+    command "SelectAttribute" do
+      attribute :attr_name, String
+    end
+  end
+
+  aggregate "TagApplier", "Applies a capability tag to a selected attribute via method_missing" do
+    command "ApplyTag" do
+      attribute :tag_name, String
+    end
+  end
+
+  aggregate "HecksagonModule", "Top-level Hecksagon namespace with autoload registry for DSL, Structure, and mixins" do
+    command "Autoload" do
+      attribute :const_name, String
+      attribute :path, String
+    end
+  end
+
+  # --- Mongo Adapter Paragraph ---
+
+  aggregate "SerializationLines", "Mixin for MongoAdapterGenerator that builds serialize/deserialize method source" do
+    command "SerializeLines"
+    command "DeserializeLines"
+  end
+end

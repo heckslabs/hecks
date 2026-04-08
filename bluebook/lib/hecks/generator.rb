@@ -6,7 +6,7 @@
 #
 #   class MyGenerator < Hecks::Generator
 #     def generate
-#       "class #{domain_constant_name(@model.name)}; end"
+#       "class #{bluebook_constant_name(@model.name)}; end"
 #     end
 #   end
 #

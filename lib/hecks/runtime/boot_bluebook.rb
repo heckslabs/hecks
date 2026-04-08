@@ -15,7 +15,7 @@ module Hecks
   module BootBluebook
     # Boot a BluebookStructure into running runtimes.
     #
-    # @param bluebook [DomainModel::Structure::BluebookStructure]
+    # @param bluebook [BluebookModel::Structure::BluebookStructure]
     # @return [Array<Runtime>]
     def open(bluebook)
       require "hecks/runtime/load_extensions"

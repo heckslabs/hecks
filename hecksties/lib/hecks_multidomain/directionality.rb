@@ -32,7 +32,7 @@ module Hecks
       #    and domain-level). If a policy reacts to an event from a different
       #    domain, record that domain as a listener of the event's source.
       #
-      # @param domains [Array<Hecks::DomainModel::Structure::Domain>] all domains in the multi-domain setup
+      # @param domains [Array<Hecks::BluebookModel::Structure::Domain>] all domains in the multi-domain setup
       # @return [Hash<String, Array<String>>] map of gem_name to array of source gem_names
       #   it needs to listen to. Only domains with cross-domain reactive policies appear as keys.
       def self.build(domains)
@@ -62,7 +62,7 @@ module Hecks
       # requiring events from a source domain but does not declare +listens_to+ for
       # that source.
       #
-      # @param domains [Array<Hecks::DomainModel::Structure::Domain>] all domains
+      # @param domains [Array<Hecks::BluebookModel::Structure::Domain>] all domains
       # @param declarations [Hash<String, Array<String>>] explicit directionality
       #   declarations from the configuration (gem_name -> array of source gem_names)
       # @return [Array<String>] warning messages (empty if everything matches)

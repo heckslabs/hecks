@@ -107,7 +107,7 @@ module Hecks
         lines = []
         lines << "    command #{cmd.name.inspect} do"
         lines << "      description #{cmd.description.inspect}" if cmd.description
-        refs.each { |r| lines << "      reference_to #{r.type.inspect}, validate: :exists" }
+        refs.each { |r| lines << "      reference_to #{r.type.inspect}" }
         attrs.each { |a| lines << attribute_line(a, "      ") }
         lines << "    end"
         lines.join("\n")

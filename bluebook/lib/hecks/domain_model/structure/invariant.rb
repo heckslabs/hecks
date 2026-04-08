@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Invariant
+    # Hecks::BluebookModel::Structure::Invariant
     #
     # A business rule that must always hold true for an aggregate or value object.
     # Invariants carry a human-readable message and an optional block that
@@ -13,7 +13,7 @@ module Hecks
     # and the message is added to validation errors. When no block is provided, the
     # invariant serves as documentation only.
     #
-    # Part of the DomainModel IR layer. Consumed by generators to produce
+    # Part of the BluebookModel IR layer. Consumed by generators to produce
     # validation logic in domain gem classes.
     #
     #   inv = Invariant.new(message: "name is required", block: proc { !name.nil? })

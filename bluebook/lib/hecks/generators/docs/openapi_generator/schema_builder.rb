@@ -37,7 +37,7 @@ module Hecks
         # - +JSON+ -> +"object"+
         # - All others -> +"string"+
         #
-        # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute
+        # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute
         # @return [String] the OpenAPI type string
         def openapi_type(attr)
           HecksTemplating::TypeContract.openapi(attr.ruby_type)

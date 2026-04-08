@@ -28,7 +28,7 @@ module Hecks
     class BaseRule
       # Initializes the rule with the domain model to validate.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain model containing
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain model containing
       #   aggregates, commands, events, policies, and their attributes/references
       def initialize(domain)
         @domain = domain

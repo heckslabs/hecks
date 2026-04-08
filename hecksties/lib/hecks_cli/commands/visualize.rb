@@ -41,7 +41,7 @@ end
 
 # Build Mermaid markdown for the given domain and diagram type.
 #
-# @param domain [Hecks::DomainModel::Structure::Domain]
+# @param domain [Hecks::BluebookModel::Structure::Domain]
 # @param type   [Symbol] :all, :structure, :behavior, :flows, :slices
 # @return [String]
 def build_mermaid(domain, type)

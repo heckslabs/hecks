@@ -2,7 +2,7 @@
 #
 # Paragraph covering the DSL builder hierarchy: the classes that
 # translate block syntax into domain model IR nodes. These must
-# load before any chapter can call DomainBuilder.new.
+# load before any chapter can call BluebookBuilder.new.
 #
 #   Hecks::Chapters::Bootstrap::DslBuildersParagraph.define(builder)
 #

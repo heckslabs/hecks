@@ -24,7 +24,7 @@ module Hecks
   class GovernanceGuard
     SUPPORTED_CONCERNS = %i[transparency consent privacy security].freeze
 
-    # @param domain [Hecks::DomainModel::Structure::Domain] the domain to check
+    # @param domain [Hecks::BluebookModel::Structure::Domain] the domain to check
     # @param api_key [String, nil] Anthropic API key for AI-enriched analysis
     def initialize(domain, api_key: nil)
       @domain = domain

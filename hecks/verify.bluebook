@@ -1,0 +1,5 @@
+Hecks.bluebook "Verify" do
+  # The verify chapter is the self-verification engine. It loads every
+  # chapter, validates its IR, and reports issues. It does not define
+  # domain aggregates -- the chapters themselves are the test data.
+end

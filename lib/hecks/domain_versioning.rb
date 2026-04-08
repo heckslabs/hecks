@@ -24,7 +24,7 @@ module Hecks
     # Tag the current domain as a named version snapshot.
     #
     # @param version [String] semantic version label (e.g. "2.1.0")
-    # @param domain [Hecks::DomainModel::Domain] the domain to snapshot
+    # @param domain [Hecks::BluebookModel::Domain] the domain to snapshot
     # @param base_dir [String] project root directory
     # @return [String] path to the written snapshot file
     def self.tag(version, domain, base_dir: Dir.pwd)
@@ -56,7 +56,7 @@ module Hecks
     #
     # @param version [String] version label
     # @param base_dir [String] project root directory
-    # @return [Hecks::DomainModel::Domain, nil]
+    # @return [Hecks::BluebookModel::Domain, nil]
     def self.load_version(version, base_dir: Dir.pwd)
       path = File.join(base_dir, VERSIONS_DIR, "#{version}.rb")
       return nil unless File.exist?(path)

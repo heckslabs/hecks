@@ -15,7 +15,7 @@
 class Hecks::ContextMapGenerator
   include HecksTemplating::NamingHelpers
 
-  # @param domains [Array<Hecks::DomainModel::Structure::Domain>] loaded domain IRs
+  # @param domains [Array<Hecks::BluebookModel::Structure::Domain>] loaded domain IRs
   def initialize(domains)
     @domains = domains
   end
@@ -159,7 +159,7 @@ class Hecks::ContextMapGenerator
   def check_attribute_references(attr, agg_to_domain, current_domain, ref_counts)
     agg_to_domain.each do |agg_name, owner_domain|
       next if owner_domain == current_domain
-      snake = domain_snake_name(agg_name)
+      snake = bluebook_snake_name(agg_name)
       parts = snake.split("_")
       matched = parts.each_index.any? { |idx| attr.name.to_s == parts.drop(idx).join("_") + "_id" }
       ref_counts[owner_domain].add(current_domain) if matched

@@ -147,7 +147,7 @@ module Hecks
     # Returns a human-readable type label for a domain attribute.
     # Wraps list and reference types in descriptive notation.
     #
-    # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute
+    # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute
     #   to label (must respond to +list?+, +reference?+, and +type+)
     # @return [String] the type label (e.g., "String", "list_of(Topping)",
     #   "reference_to(Order)")

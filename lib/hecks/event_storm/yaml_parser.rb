@@ -9,7 +9,7 @@ module Hecks
     # to event storm concepts: contexts, aggregates, commands, policies, etc.
     #
     # The YAML format is an alternative to the ASCII notation -- both produce
-    # identical ParseResult objects consumed by DomainBuilder and DslGenerator.
+    # identical ParseResult objects consumed by BluebookBuilder and DslGenerator.
     #
     #   parser = YamlParser.new(File.read("storm.yml"))
     #   result = parser.parse

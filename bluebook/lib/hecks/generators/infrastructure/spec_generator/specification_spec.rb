@@ -14,11 +14,11 @@ module Hecks
           include HecksTemplating::NamingHelpers
           # Generates an RSpec spec for a specification on an aggregate.
           #
-          # @param specification [Hecks::DomainModel::Behavior::Specification]
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate]
+          # @param specification [Hecks::BluebookModel::Behavior::Specification]
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate]
           # @return [String] the complete RSpec file content
           def generate_specification_spec(specification, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             spec_fqn = full_class_name("#{safe_agg}::Specifications::#{specification.name}")
 
             lines = []

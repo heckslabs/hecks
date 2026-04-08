@@ -15,7 +15,7 @@ module Hecks
     #   "Aggregate 'UserProfile' contains avoided term 'user' — prefer 'stakeholder'"
     #
     # Usage:
-    #   Hecks.domain "Billing" do
+    #   Hecks.bluebook "Billing" do
     #     glossary(strict: true) do
     #       prefer "stakeholder", not: ["user", "person"]
     #     end

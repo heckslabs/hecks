@@ -31,7 +31,7 @@ module HecksCqrs
   # Returns true when more than one named persist connection exists,
   # indicating separate read and write paths.
   #
-  # @param mod [Module] a domain module that includes DomainConnections;
+  # @param mod [Module] a domain module that includes BluebookConnections;
   #   must respond to +connections+ returning a Hash with a +:persist+ key
   # @return [Boolean] true if the module has multiple persist connections
   def self.active?(mod)
@@ -44,7 +44,7 @@ module HecksCqrs
   # Return the adapter configuration hash for a named connection, or nil
   # if the connection does not exist or the module has no connections.
   #
-  # @param mod [Module] a domain module that includes DomainConnections
+  # @param mod [Module] a domain module that includes BluebookConnections
   # @param name [Symbol] connection name, typically +:write+ or +:read+,
   #   but can also be +:default+ or any custom name
   # @return [Hash, nil] the adapter configuration hash (e.g.

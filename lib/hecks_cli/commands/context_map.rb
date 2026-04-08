@@ -39,7 +39,7 @@ end
 
 # Load all domain Bluebooks from domains/ directory or current directory.
 #
-# @return [Array<Hecks::DomainModel::Structure::Domain>]
+# @return [Array<Hecks::BluebookModel::Structure::Domain>]
 def load_context_map_domains
   domains_dir = File.join(Dir.pwd, "domains")
   if File.directory?(domains_dir)

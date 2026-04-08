@@ -1,4 +1,4 @@
-Hecks.domain "Banking" do
+Hecks.bluebook "Banking" do
   aggregate "Customer" do
     attribute :name, String
     attribute :email, String

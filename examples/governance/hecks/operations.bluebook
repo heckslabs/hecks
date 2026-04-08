@@ -1,4 +1,4 @@
-Hecks.domain "Operations" do
+Hecks.bluebook "Operations" do
   aggregate "Deployment" do
     attribute :model_id, String
     attribute :environment, String

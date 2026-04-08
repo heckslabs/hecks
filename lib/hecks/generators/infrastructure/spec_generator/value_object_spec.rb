@@ -17,15 +17,15 @@ module Hecks
           #   are equal
           # - Invariants: generates TODO placeholders for each invariant rule
           #
-          # @param value_object [Hecks::DomainModel::Structure::ValueObject] the
+          # @param value_object [Hecks::BluebookModel::Structure::ValueObject] the
           #   value object IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning
           #   aggregate, used to build the fully qualified class name
           # @return [String] the complete RSpec file content
           def generate_value_object_spec(value_object, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             fqn = full_class_name("#{safe_agg}::#{value_object.name}")
-            snake = domain_snake_name(value_object.name)
+            snake = bluebook_snake_name(value_object.name)
             lines = []
 
             lines << "require \"spec_helper\""

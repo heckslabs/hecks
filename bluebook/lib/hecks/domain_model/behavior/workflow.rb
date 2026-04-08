@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Behavior
 
-      # Hecks::DomainModel::Behavior::Workflow
+      # Hecks::BluebookModel::Behavior::Workflow
       #
       # Intermediate representation of a workflow -- a conditional multi-step
       # command orchestration. Each workflow has a name and an ordered array of
@@ -23,7 +23,7 @@ module Hecks
       #    Evaluates the named specification; if truthy, runs +if_steps+; otherwise runs +else_steps+.
       #    Each sub-step follows the same format recursively.
       #
-      # Part of the DomainModel IR layer. Built by WorkflowBuilder in the DSL,
+      # Part of the BluebookModel IR layer. Built by WorkflowBuilder in the DSL,
       # consumed by WorkflowRunner at runtime to execute the step sequence.
       #
       #   workflow = Workflow.new(

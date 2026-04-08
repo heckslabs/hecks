@@ -27,7 +27,7 @@ module Hecks
     # with the event and the current state hash, and the return value becomes the
     # new state. All state mutations are protected by a Mutex.
     #
-    # @param view [Hecks::DomainModel::View] the view definition containing projections
+    # @param view [Hecks::BluebookModel::View] the view definition containing projections
     # @param event_bus [Hecks::EventBus] the event bus to subscribe projections to
     # @param mod [Module] the domain module to define the view constant under
     # @return [void]
@@ -39,7 +39,7 @@ module Hecks
         define_singleton_method(:current) { mutex.synchronize { state.dup } }
       end
 
-      mod.const_set(domain_constant_name(view.name), view_mod)
+      mod.const_set(bluebook_constant_name(view.name), view_mod)
 
       view.projections.each do |event_name, projection|
         event_bus.subscribe(event_name) do |event|

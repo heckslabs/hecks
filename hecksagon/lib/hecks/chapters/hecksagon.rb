@@ -17,7 +17,7 @@ module Hecks
 
     module Hecksagon
       def self.definition
-        Hecks::DSL::DomainBuilder.new("Hecksagon").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("Hecksagon").tap { |b|
           # Entry points — autoload files
           b.entry_point "hecksagon"
           b.entry_point "hecks_persist"

@@ -40,7 +40,7 @@ module Hecks::Conventions
           allowed << Hecks::Conventions::CommandContract.method_name(cmd.name, agg.name)
         end
         agg.queries.each do |query|
-          allowed << Hecks::Conventions::Names.domain_snake_name(query.name).to_sym
+          allowed << Hecks::Conventions::Names.bluebook_snake_name(query.name).to_sym
         end
         wl[agg.name.to_s] = allowed
       end

@@ -106,7 +106,7 @@ module Hecks
           lines << "              if target_agg"
           lines << '                cmd = target_agg.commands.find { |c| c.name == policy.trigger_command.to_s }'
           lines << "                filtered = cmd ? attrs.select { |k, _| cmd.attributes.map { |a| a.name.to_sym }.include?(k) } : attrs"
-          lines << "                agg_class = @mod.const_get(domain_constant_name(target_agg.name))"
+          lines << "                agg_class = @mod.const_get(bluebook_constant_name(target_agg.name))"
           lines << "                method_name = resolve_command_method(policy.trigger_command, target_agg.name)"
           lines << "                if agg_class.respond_to?(method_name)"
           lines << "                  agg_class.send(method_name, **filtered)"
@@ -125,8 +125,8 @@ module Hecks
           lines << "        end"
           lines << ""
           lines << "        def resolve_command_method(command_name, agg_name)"
-          lines << "          full = domain_snake_name(command_name)"
-          lines << "          snake = domain_snake_name(agg_name)"
+          lines << "          full = bluebook_snake_name(command_name)"
+          lines << "          snake = bluebook_snake_name(agg_name)"
           lines << '          snake.split("_").each_index do |i|'
           lines << '            suffix = snake.split("_").drop(i).join("_")'
           lines << '            stripped = full.sub(/_#{suffix}$/, "")'

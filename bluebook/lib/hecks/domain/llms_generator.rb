@@ -20,7 +20,7 @@ module Hecks
     include ValidationDescriber
     include PolicyDescriber
 
-    # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+    # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
     def initialize(domain)
       @domain = domain
     end

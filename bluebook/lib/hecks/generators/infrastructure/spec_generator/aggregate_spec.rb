@@ -17,13 +17,13 @@ module Hecks
           # - Invariants: generates TODO placeholders for each invariant rule
           # - Identity: verifies equality by ID (same ID = equal, different ID = not equal)
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
           #   to generate specs for
           # @return [String] the complete RSpec file content
           def generate_aggregate_spec(aggregate)
-            safe_name = domain_constant_name(aggregate.name)
+            safe_name = bluebook_constant_name(aggregate.name)
             fqn = full_class_name(safe_name)
-            snake = domain_snake_name(safe_name)
+            snake = bluebook_snake_name(safe_name)
             lines = []
 
             lines << "require \"spec_helper\""
@@ -44,7 +44,7 @@ module Hecks
           # Generates the "creating a <Name>" describe block with subject and
           # per-attribute expectations.
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
           # @param safe_name [String] PascalCase sanitized aggregate name
           # @param snake [String] snake_case aggregate name for the subject variable
           # @return [Array<String>] lines of the construction spec block
@@ -76,7 +76,7 @@ module Hecks
           # Generates validation spec blocks for each validation rule on the aggregate.
           # Currently handles +:presence+ (rejects nil) and +:uniqueness+ (placeholder).
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
           # @return [Array<String>] lines of validation spec blocks
           def validation_specs(aggregate)
             lines = []
@@ -102,7 +102,7 @@ module Hecks
 
           # Generates TODO-style invariant spec blocks for each invariant rule.
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
           # @return [Array<String>] lines of invariant spec blocks (with TODO comments)
           def invariant_specs(aggregate)
             lines = []
@@ -121,7 +121,7 @@ module Hecks
           # Generates the identity equality spec block, testing that two aggregates
           # with the same ID are equal and two with different IDs are not.
           #
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
           # @param safe_name [String] PascalCase sanitized aggregate name
           # @return [Array<String>] lines of the identity spec block
           def identity_spec(aggregate, safe_name)

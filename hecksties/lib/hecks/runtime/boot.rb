@@ -89,7 +89,7 @@ module Hecks
       # Look for .hec files or *Bluebook at root, then in bluebook/ subfolder
       bluebooks = find_domain_files(dir)
       bluebooks = find_domain_files(File.join(dir, "bluebook")) if bluebooks.empty?
-      raise Hecks::DomainLoadError, "No .hec or Bluebook found in #{dir}" if bluebooks.empty?
+      raise Hecks::BluebookLoadError, "No .hec or Bluebook found in #{dir}" if bluebooks.empty?
 
       bluebooks.each { |bluebook_file| Kernel.load(bluebook_file) }
       domain = Hecks.last_domain
@@ -102,7 +102,7 @@ module Hecks
 
       mod = load_domain(domain)
       load_stubs(dir, domain)
-      mod.extend(Hecks::DomainConnections) unless mod.respond_to?(:connections)
+      mod.extend(Hecks::BluebookConnections) unless mod.respond_to?(:connections)
       [domain, mod]
     end
 
@@ -167,7 +167,7 @@ module Hecks
       # Support .hec, *Bluebook, and .rb files
       domain_files = find_domain_files(domains_dir)
       domain_files = Dir[File.join(domains_dir, "*.rb")].sort if domain_files.empty?
-      raise Hecks::DomainLoadError, "No .hec or .rb files in #{domains_dir}" if domain_files.empty?
+      raise Hecks::BluebookLoadError, "No .hec or .rb files in #{domains_dir}" if domain_files.empty?
 
       domains = domain_files.map { |path| eval(File.read(path), nil, path, 1) }
       domains.each { |domain| load_stubs(dir, domain) }
@@ -180,7 +180,7 @@ module Hecks
     # compiles, wires event buses and cross-domain queues, fires extensions.
     # Used by boot_multi (file-based) and open (Bluebook IR-based).
     #
-    # @param domains [Array<DomainModel::Structure::Domain>]
+    # @param domains [Array<BluebookModel::Structure::Domain>]
     # @return [Array<Runtime>]
     def boot_domains(domains)
       require "hecks_multidomain"
@@ -191,13 +191,13 @@ module Hecks
       @shared_event_bus = shared_bus
       directionality = Hecks::MultiDomain::Directionality.build(domains)
       runtimes = domains.map do |domain|
-        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, domain_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
+        bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, bluebook_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
         Runtime.new(domain, event_bus: bus)
       end
       Hecks::MultiDomain::QueueWiring.wire(domains, runtimes)
 
       domains.each_with_index do |domain, idx|
-        mod = Object.const_get(domain_module_name(domain.name))
+        mod = Object.const_get(bluebook_module_name(domain.name))
         fire_extensions(mod, domain, runtimes[idx])
       end
 
@@ -215,7 +215,7 @@ module Hecks
       return shared_bus unless @_directionality.any?
       FilteredEventBus.new(
         inner: shared_bus,
-        domain_gem_name: domain.gem_name,
+        bluebook_gem_name: domain.gem_name,
         allowed_sources: @_directionality[domain.gem_name]
       )
     end

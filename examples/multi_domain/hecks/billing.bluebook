@@ -1,4 +1,4 @@
-Hecks.domain "Billing" do
+Hecks.bluebook "Billing" do
   aggregate "Invoice" do
     attribute :pizza, String
     attribute :quantity, Integer

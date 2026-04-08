@@ -33,7 +33,7 @@ Hecks::CLI.register_command(:generate, "Generate Bluebook DSL from a natural lan
   client_opts[:model] = options[:model] if options[:model]
 
   domain_json = Hecks::AI::LlmClient.new(**client_opts).generate_domain(description)
-  workshop    = Hecks::AI::DomainBuilder.new(domain_json).build
+  workshop    = Hecks::AI::BluebookBuilder.new(domain_json).build
   dsl         = workshop.to_dsl
 
   if options[:dry_run]

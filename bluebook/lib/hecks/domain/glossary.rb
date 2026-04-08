@@ -23,7 +23,7 @@ module Hecks
     include TextHelpers
     include StatementBuilders
 
-    # @param domain [Hecks::DomainModel::Domain] the domain IR to describe
+    # @param domain [Hecks::BluebookModel::Domain] the domain IR to describe
     def initialize(domain)
       @domain = domain
     end
@@ -67,7 +67,7 @@ module Hecks
 
     # Generate glossary lines for a single aggregate only.
     #
-    # @param agg [Hecks::DomainModel::Aggregate] the aggregate to describe
+    # @param agg [Hecks::BluebookModel::Aggregate] the aggregate to describe
     # @return [Array<String>] lines of markdown text for this aggregate
     def generate_for(agg)
       describe_aggregate(agg)
@@ -75,7 +75,7 @@ module Hecks
 
     # Print the glossary for a single aggregate to stdout.
     #
-    # @param agg [Hecks::DomainModel::Aggregate] the aggregate to describe
+    # @param agg [Hecks::BluebookModel::Aggregate] the aggregate to describe
     # @return [nil]
     def print_for(agg)
       puts generate_for(agg).join("\n")
@@ -88,7 +88,7 @@ module Hecks
     # value objects, entities, commands, queries, validations, invariants,
     # and aggregate-level policies.
     #
-    # @param agg [Hecks::DomainModel::Aggregate] the aggregate to describe
+    # @param agg [Hecks::BluebookModel::Aggregate] the aggregate to describe
     # @return [Array<String>] lines of markdown text
     def describe_aggregate(agg)
       lines = []

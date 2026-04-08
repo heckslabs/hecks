@@ -48,7 +48,7 @@ module GoHecks
       lines = []
       lines << "type CommandResult struct {"
       lines << "\tAggregate interface{}"
-      lines << "\tEvent     DomainEvent"
+      lines << "\tEvent     BluebookEvent"
       lines << "}"
       lines << ""
       lines
@@ -110,11 +110,11 @@ module GoHecks
 
     def accessor_methods
       lines = []
-      lines << "func (app *Application) Events() []DomainEvent {"
+      lines << "func (app *Application) Events() []BluebookEvent {"
       lines << "\treturn app.EventBus.Events()"
       lines << "}"
       lines << ""
-      lines << "func (app *Application) On(eventName string, handler func(DomainEvent)) {"
+      lines << "func (app *Application) On(eventName string, handler func(BluebookEvent)) {"
       lines << "\tapp.EventBus.Subscribe(eventName, handler)"
       lines << "}"
       lines << ""

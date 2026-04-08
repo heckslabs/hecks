@@ -43,10 +43,10 @@ module Hecks
     # definitions, and boots a Runtime with memory adapters and an
     # event-capturing event bus.
     #
-    # @param domain [DomainModel::Structure::Domain] the domain to compile and run
+    # @param domain [BluebookModel::Structure::Domain] the domain to compile and run
     def initialize(domain)
       @domain = domain
-      @mod_name = domain_module_name(domain.name)
+      @mod_name = bluebook_module_name(domain.name)
       @events = []
       @policies = collect_policies
       compile!
@@ -74,9 +74,9 @@ module Hecks
       end
 
       mod = Object.const_get(@mod_name)
-      agg_class = mod.const_get(domain_constant_name(agg_def.name))
-      agg_snake = domain_snake_name(agg_def.name)
-      method_name = domain_snake_name(command_name).sub(/_#{agg_snake}$/, "").to_sym
+      agg_class = mod.const_get(bluebook_constant_name(agg_def.name))
+      agg_snake = bluebook_snake_name(agg_def.name)
+      method_name = bluebook_snake_name(command_name).sub(/_#{agg_snake}$/, "").to_sym
 
       events_before = @events.size
       result = agg_class.send(method_name, **attrs)

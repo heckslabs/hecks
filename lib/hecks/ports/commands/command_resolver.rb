@@ -11,7 +11,7 @@
 #     include CommandResolver
 #     def initialize(domain:)
 #       @domain = domain
-#       @mod = Object.const_get(domain_module_name(domain.name))
+#       @mod = Object.const_get(bluebook_module_name(domain.name))
 #     end
 #   end
 #

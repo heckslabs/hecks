@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Entity
+    # Hecks::BluebookModel::Structure::Entity
     #
     # Intermediate representation of a sub-entity within an aggregate. Entities
     # have identity (UUID), are mutable, and use identity-based equality -- unlike
@@ -13,7 +13,7 @@ module Hecks
     # include Hecks::Model, which provides identity, attribute accessors, and
     # invariant enforcement.
     #
-    # Part of the DomainModel IR layer. Built by EntityBuilder and consumed by
+    # Part of the BluebookModel IR layer. Built by EntityBuilder and consumed by
     # EntityGenerator to produce classes that include Hecks::Model.
     #
     #   entity = Entity.new(

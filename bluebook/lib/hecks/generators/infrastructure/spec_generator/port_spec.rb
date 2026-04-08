@@ -15,11 +15,11 @@ module Hecks
           # Generates an RSpec spec for a port on an aggregate.
           #
           # @param port_name [Symbol] the port name (e.g., :admin, :guest)
-          # @param port_def [Hecks::DomainModel::Structure::GateDefinition]
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate]
+          # @param port_def [Hecks::BluebookModel::Structure::GateDefinition]
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate]
           # @return [String] the complete RSpec file content
           def generate_port_spec(port_name, port_def, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             create_cmd = find_port_create_cmd(aggregate)
 
             lines = []
@@ -51,7 +51,7 @@ module Hecks
             end
 
             # Test denied commands
-            agg_snake = domain_snake_name(aggregate.name)
+            agg_snake = bluebook_snake_name(aggregate.name)
             aggregate.commands.each do |cmd|
               cmd_method = derive_port_method(cmd, aggregate)
               unless allowed.include?(cmd_method.to_sym)

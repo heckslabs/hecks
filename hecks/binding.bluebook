@@ -1,0 +1,323 @@
+Hecks.bluebook "Binding" do
+  # --- Core ---
+
+  aggregate "ModuleDSL", "Declarative lazy_registry helper for modules" do
+    command("DefineRegistry") { attribute :name, String }
+  end
+
+  aggregate "CoreExtensions", "Ruby core class extensions" do
+    command("Apply") { attribute :target_class, String }
+  end
+
+  aggregate "NamingHelpers", "Domain naming convention methods" do
+    command("DomainModuleName") { attribute :name, String }
+    command("DomainSlug") { attribute :name, String }
+  end
+
+  aggregate "Utils", "Shared utility functions across framework" do
+    command("Underscore") { attribute :string, String }
+    command("SanitizeConstant") { attribute :string, String }
+  end
+
+  aggregate "Deprecations", "Deprecated API shim registry" do
+    command("Register") { attribute :target_class, String; attribute :method_name, String }
+  end
+
+  aggregate "HecksDeprecations", "Top-level deprecated API shim module that prepends warning methods onto target classes" do
+    command("Register") { attribute :target_class, String; attribute :method_name, String }
+  end
+
+  aggregate "Registry", "Hash-backed registry for named resources with symbol-coerced keys and Enumerable support" do
+    command("Register") { attribute :key, String; attribute :value, String }
+    command("Lookup") { attribute :key, String }
+  end
+
+  aggregate "SetRegistry", "Array-backed registry for unique items with duplicate prevention and Enumerable support" do
+    command("Register") { attribute :item, String }
+  end
+
+  aggregate "Stats", "Framework usage statistics: aggregate counts, attribute counts, command/event/policy metrics" do
+    command("Compute") { attribute :domain_name, String }
+  end
+
+  aggregate "ExtensionDocs", "Metadata registry for extension gems" do
+    command("ListExtensions") { attribute :format, String }
+  end
+
+  aggregate "TestHelper", "Auto-reset support module for test suites" do
+    command("Reset") { attribute :scope, String }
+  end
+
+  aggregate "Autoloads", "Central autoload registry for lazy loading" do
+    command("Register") { attribute :module_name, String; attribute :path, String }
+  end
+
+  aggregate "Version", "Framework version (CalVer)" do
+    command("Show") { attribute :format, String }
+  end
+
+  aggregate "BindingSpine", "Top-level binding module holding chapters together with module wiring" do
+    command("Define") { attribute :name, String }
+  end
+
+  # --- Contracts Paragraph ---
+
+  aggregate "Contracts", "Contract registry for cross-target parity" do
+    command("Register") { attribute :name, String; attribute :contract, String }
+    command("Lookup") { attribute :name, String }
+  end
+
+  aggregate "TypeContract", "Attribute type mapping rules" do
+    command("ResolveType") { attribute :type_name, String }
+  end
+
+  aggregate "AggregateContract", "Aggregate shape and naming rules" do
+    command("Validate") { attribute :aggregate_name, String }
+  end
+
+  aggregate "CommandContract", "Command naming and attribute rules" do
+    command("Validate") { attribute :command_name, String }
+  end
+
+  aggregate "EventContract", "Event naming and payload rules" do
+    command("Validate") { attribute :event_name, String }
+  end
+
+  aggregate "EventLogContract", "Event log format and storage rules" do
+    command("Validate") { attribute :log_entry, String }
+  end
+
+  aggregate "RouteContract", "HTTP route naming and path rules" do
+    command("Validate") { attribute :route_path, String }
+  end
+
+  aggregate "DisplayContract", "Display label and formatting rules" do
+    command("Format") { attribute :value, String }
+  end
+
+  aggregate "ViewContract", "Read model projection rules" do
+    command("Validate") { attribute :view_name, String }
+  end
+
+  aggregate "FormParsingContract", "HTTP form parameter parsing rules" do
+    command("Parse") { attribute :params, String }
+  end
+
+  aggregate "UILabelContract", "UI label generation rules" do
+    command("Generate") { attribute :field_name, String }
+  end
+
+  aggregate "MigrationContract", "Schema migration naming rules" do
+    command("Validate") { attribute :migration_name, String }
+  end
+
+  aggregate "DispatchContract", "Command dispatch routing rules" do
+    command("Validate") { attribute :command_name, String }
+  end
+
+  aggregate "ExtensionContract", "Extension registration and wiring rules" do
+    command("Validate") { attribute :extension_name, String }
+  end
+
+  aggregate "CsrfContract", "CSRF token generation and validation" do
+    command("Validate") { attribute :token, String }
+  end
+
+  aggregate "NamingContract", "Domain naming conventions" do
+    command("Validate") { attribute :name, String }
+  end
+
+  aggregate "DispatchNotAllowed", "Raised when dispatch target is not a declared command, query, or CRUD builtin" do
+    command("Throw") { attribute :agg_name, String; attribute :method_name, String }
+  end
+
+  # --- Errors Paragraph ---
+
+  aggregate "Error", "Base error class for all Hecks domain errors" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "ValidationError", "Raised when attribute or aggregate validation fails" do
+    command("Throw") { attribute :message, String; attribute :errors, String }
+  end
+
+  aggregate "GuardRejected", "Raised when a guard policy blocks command execution" do
+    command("Throw") { attribute :message, String; attribute :guard_name, String }
+  end
+
+  aggregate "PreconditionError", "Raised when a command precondition is not met" do
+    command("Throw") { attribute :message, String; attribute :precondition, String }
+  end
+
+  aggregate "PostconditionError", "Raised when a command postcondition check fails" do
+    command("Throw") { attribute :message, String; attribute :postcondition, String }
+  end
+
+  aggregate "DomainLoadError", "Raised when a domain gem cannot be loaded" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "InvalidDomainVersion", "Raised when a domain version string is malformed" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "MigrationError", "Raised when a domain migration fails" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "ConfigurationError", "Raised when Hecks.configure has invalid settings" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "GateAccessDenied", "Raised when a gate blocks method access for a role" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "Unauthenticated", "Raised when no identity is provided for a gated operation" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "Unauthorized", "Raised when identity lacks permission for an operation" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "RateLimitExceeded", "Raised when a rate-limited operation exceeds its quota" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "ConcurrencyError", "Raised on optimistic locking version conflict" do
+    command("Throw") { attribute :message, String }
+  end
+
+  aggregate "PathTraversalDetected", "Raised when a file path attempts directory traversal" do
+    command("Throw") { attribute :message, String; attribute :path, String }
+  end
+
+  aggregate "ReferenceNotFound", "Raised when a cross-aggregate reference target is missing" do
+    command("Throw") { attribute :message, String; attribute :reference_type, String }
+  end
+
+  aggregate "ReferenceAccessDenied", "Raised when IDOR validation blocks a reference access" do
+    command("Throw") { attribute :message, String; attribute :reference_type, String }
+  end
+
+  # --- Multi-Domain Paragraph ---
+
+  aggregate "FilteredEventBus", "Event bus scoped to specific event types" do
+    command("Subscribe") { attribute :event_name, String }
+    command("Publish") { attribute :event_name, String }
+  end
+
+  aggregate "CrossDomainQuery", "Query across domain boundaries" do
+    command("Query") { attribute :target_domain, String; attribute :aggregate, String }
+  end
+
+  aggregate "CrossDomainView", "Projected view spanning multiple domains" do
+    command("Project") { attribute :source_domains, String }
+  end
+
+  aggregate "Directionality", "Enforces upstream/downstream relationships" do
+    command("Validate") { attribute :source, String; attribute :target, String }
+  end
+
+  aggregate "QueueWiring", "Wires cross-domain event queues" do
+    command("Wire") { attribute :source_domain, String; attribute :target_domain, String }
+  end
+
+  aggregate "MultiDomainValidator", "Validates multi-domain configuration" do
+    command("Validate") { attribute :domains, String }
+  end
+
+  # --- Registries Paragraph ---
+
+  aggregate "DomainRegistry", "Tracks loaded domain modules" do
+    command("Register") { attribute :domain_name, String }
+    command("Lookup") { attribute :domain_name, String }
+  end
+
+  aggregate "AdapterRegistry", "Registers persistence adapters" do
+    command("Register") { attribute :adapter_name, String }
+    command("Lookup") { attribute :adapter_name, String }
+  end
+
+  aggregate "ExtensionRegistry", "Registers extension modules" do
+    command("Register") { attribute :extension_name, String }
+    command("Apply") { attribute :extension_name, String }
+  end
+
+  aggregate "CapabilityRegistry", "Registers domain capabilities" do
+    command("Register") { attribute :capability_name, String }
+    command("Apply") { attribute :capability_name, String }
+  end
+
+  aggregate "GrammarRegistry", "Registers DSL grammar providers" do
+    command("Register") { attribute :grammar_name, String }
+  end
+
+  aggregate "TargetRegistry", "Registers build targets (ruby, go, node)" do
+    command("Register") { attribute :target_name, String }
+    command("Build") { attribute :target_name, String }
+  end
+
+  aggregate "ValidationRegistry", "Registers domain validation rules" do
+    command("Register") { attribute :rule_name, String }
+  end
+
+  aggregate "DumpFormatRegistry", "Registers export formats (schema, swagger)" do
+    command("Register") { attribute :format_name, String }
+    command("Dump") { attribute :format_name, String }
+  end
+
+  aggregate "ThreadContext", "Thread-local state (actor, tenant)" do
+    command("SetActor") { attribute :actor, String }
+    command("SetTenant") { attribute :tenant_id, String }
+  end
+
+  aggregate "CrossDomainRegistry", "Tracks cross-domain event subscriptions" do
+    command("Subscribe") { attribute :source_domain, String; attribute :event, String }
+  end
+
+  aggregate "AdapterRegistryMethods", "Lazy registry methods for adapter types (memory, sqlite, etc.) extended onto Hecks" do
+    command("RegisterAdapter") { attribute :name, String }
+  end
+
+  aggregate "CapabilityRegistryMethods", "Lazy registry methods for domain capabilities extended onto Hecks" do
+    command("RegisterCapability") { attribute :name, String }
+  end
+
+  aggregate "DomainRegistryMethods", "Lazy registry for domain IR caching and load strategy extended onto Hecks" do
+    command("SetLoadStrategy") { attribute :strategy, String }
+  end
+
+  aggregate "ExtensionRegistryMethods", "Lazy registry for driven/driving extension hooks and metadata extended onto Hecks" do
+    command("DescribeExtension") { attribute :name, String; attribute :adapter_type, String }
+  end
+
+  aggregate "TargetRegistryMethods", "Lazy registry for build targets (ruby, go, rails) extended onto Hecks" do
+    command("RegisterTarget") { attribute :name, String }
+  end
+
+  aggregate "ValidationRegistryMethods", "Lazy registry for domain validation rule classes extended onto Hecks" do
+    command("RegisterRule") { attribute :rule_class, String }
+  end
+
+  aggregate "DumpFormatRegistryMethods", "Lazy registry for dump/serialization formats (schema, swagger) extended onto Hecks" do
+    command("RegisterFormat") { attribute :name, String; attribute :desc, String }
+  end
+
+  aggregate "GrammarRegistryMethods", "Lazy registry for modeling vocabularies (BlueBook, GameBook) extended onto Hecks" do
+    command("RegisterGrammar") { attribute :name, String }
+  end
+
+  aggregate "GrammarDescriptor", "Descriptor holding parser, builder, entry point, and type map for a grammar" do
+    command("Configure") { attribute :name, String }
+  end
+
+  aggregate "CrossDomainMethods", "Cross-domain queries, views, and shared event bus methods extended onto Hecks" do
+    command("RegisterQuery") { attribute :name, String }
+  end
+
+  aggregate "ThreadContextMethods", "Thread-local tenant, actor, and current_user context methods extended onto Hecks" do
+    command("SetContext") { attribute :key, String; attribute :value, String }
+  end
+end

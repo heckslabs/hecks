@@ -16,7 +16,7 @@ module Hecks
     class AutoloadGenerator < Hecks::Generator
       # Creates a new AutoloadGenerator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       #   containing aggregates, workflows, views, and services
       def initialize(domain)
         @domain = domain
@@ -36,7 +36,7 @@ module Hecks
       # @return [String] the complete Ruby source code for +lib/<gem_name>.rb+
       def generate_entry_point
         gem_name = @domain.gem_name
-        mod = domain_module_name(@domain.name)
+        mod = bluebook_module_name(@domain.name)
 
         lines = []
         lines << "require \"securerandom\""
@@ -52,16 +52,16 @@ module Hecks
         lines << ""
 
         @domain.aggregates.each do |agg|
-          safe_name = domain_constant_name(agg.name)
-          snake = domain_snake_name(safe_name)
+          safe_name = bluebook_constant_name(agg.name)
+          snake = bluebook_snake_name(safe_name)
           lines << "  autoload :#{safe_name}, \"#{gem_name}/#{snake}/#{snake}\""
         end
 
         lines << ""
         lines << "  module Ports"
         @domain.aggregates.each do |agg|
-          safe_name = domain_constant_name(agg.name)
-          snake = domain_snake_name(safe_name)
+          safe_name = bluebook_constant_name(agg.name)
+          snake = bluebook_snake_name(safe_name)
           lines << "    autoload :#{safe_name}Repository, \"#{gem_name}/ports/#{snake}_repository\""
         end
         lines << "  end"
@@ -69,8 +69,8 @@ module Hecks
         lines << ""
         lines << "  module Adapters"
         @domain.aggregates.each do |agg|
-          safe_name = domain_constant_name(agg.name)
-          snake = domain_snake_name(safe_name)
+          safe_name = bluebook_constant_name(agg.name)
+          snake = bluebook_snake_name(safe_name)
           lines << "    autoload :#{safe_name}MemoryRepository, \"#{gem_name}/adapters/#{snake}_memory_repository\""
         end
         lines << "  end"
@@ -79,7 +79,7 @@ module Hecks
           lines << ""
           lines << "  module Workflows"
           @domain.workflows.each do |wf|
-            snake = domain_snake_name(wf.name)
+            snake = bluebook_snake_name(wf.name)
             lines << "    autoload :#{wf.name}, \"#{gem_name}/workflows/#{snake}\""
           end
           lines << "  end"
@@ -89,7 +89,7 @@ module Hecks
           lines << ""
           lines << "  module Views"
           @domain.views.each do |v|
-            snake = domain_snake_name(v.name)
+            snake = bluebook_snake_name(v.name)
             lines << "    autoload :#{v.name}, \"#{gem_name}/views/#{snake}\""
           end
           lines << "  end"
@@ -99,7 +99,7 @@ module Hecks
           lines << ""
           lines << "  module Services"
           @domain.services.each do |svc|
-            snake = domain_snake_name(svc.name)
+            snake = bluebook_snake_name(svc.name)
             lines << "    autoload :#{svc.name}, \"#{gem_name}/services/#{snake}\""
           end
           lines << "  end"
@@ -143,7 +143,7 @@ module Hecks
       # intentionally omitted because they are auto-discovered at runtime via
       # +const_missing+ in +Hecks::Model+.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   whose child types need autoload declarations
       # @param gem_name [String] the snake_case gem name, used to build require paths
       #   (e.g. +"pizzas_domain"+)
@@ -153,19 +153,19 @@ module Hecks
       #   injection into the aggregate class body; empty string if no value objects
       #   or entities exist
       def generate_aggregate_autoloads(aggregate, gem_name, domain_module)
-        safe_name = domain_constant_name(aggregate.name)
-        snake = domain_snake_name(safe_name)
+        safe_name = bluebook_constant_name(aggregate.name)
+        snake = bluebook_snake_name(safe_name)
         base = "#{gem_name}/#{snake}"
         base_indent = "    "
 
         lines = []
         aggregate.value_objects.each do |vo|
-          vo_snake = domain_snake_name(vo.name)
+          vo_snake = bluebook_snake_name(vo.name)
           lines << "#{base_indent}autoload :#{vo.name}, \"#{base}/#{vo_snake}\""
         end
 
         aggregate.entities.each do |ent|
-          ent_snake = domain_snake_name(ent.name)
+          ent_snake = bluebook_snake_name(ent.name)
           lines << "#{base_indent}autoload :#{ent.name}, \"#{base}/#{ent_snake}\""
         end
 
@@ -179,21 +179,21 @@ module Hecks
       # Returns autoload lines for value objects and entities as an array of
       # strings (without indentation), for use by the standalone gem generator.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate]
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate]
       # @param gem_name [String]
       # @return [Array<String>]
       def aggregate_autoloads(aggregate, gem_name)
-        safe_name = domain_constant_name(aggregate.name)
-        snake = domain_snake_name(safe_name)
+        safe_name = bluebook_constant_name(aggregate.name)
+        snake = bluebook_snake_name(safe_name)
         base = "#{gem_name}/#{snake}"
 
         lines = []
         aggregate.value_objects.each do |vo|
-          vo_snake = domain_snake_name(vo.name)
+          vo_snake = bluebook_snake_name(vo.name)
           lines << "autoload :#{vo.name}, \"#{base}/#{vo_snake}\""
         end
         aggregate.entities.each do |ent|
-          ent_snake = domain_snake_name(ent.name)
+          ent_snake = bluebook_snake_name(ent.name)
           lines << "autoload :#{ent.name}, \"#{base}/#{ent_snake}\""
         end
         lines

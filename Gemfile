@@ -2,6 +2,8 @@ source "https://rubygems.org"
 
 gemspec
 
+gem "websocket"
+
 group :development, :test do
   gem "rake"
   gem "rspec", "~> 3.0"

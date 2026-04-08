@@ -11,7 +11,7 @@ module Hecks
     module Bluebook
       module BuildersParagraph
         def self.define(b)
-          b.aggregate "DomainBuilder", "Top-level DSL builder that collects aggregates, policies, and services into a Domain IR" do
+          b.aggregate "BluebookBuilder", "Top-level DSL builder that collects aggregates, policies, and services into a Domain IR" do
             command("BuildDomain") { attribute :name, String; attribute :version, String }
           end
 

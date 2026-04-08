@@ -70,7 +70,7 @@ module Hecks
 
       # Build Mermaid markdown for the given domain and diagram type.
       #
-      # @param domain [DomainModel::Structure::Domain]
+      # @param domain [BluebookModel::Structure::Domain]
       # @param type   [Symbol] :all, :structure, :behavior, :flows, :slices
       # @return [String]
       def mermaid_for(domain, type)

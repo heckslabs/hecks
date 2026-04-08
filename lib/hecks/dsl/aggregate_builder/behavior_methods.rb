@@ -28,7 +28,7 @@ module Hecks
         # @return [void]
         def policy(name, &block)
           if block && block.arity > 0
-            @policies << DomainModel::Behavior::Policy.new(name: name, block: block)
+            @policies << BluebookModel::Behavior::Policy.new(name: name, block: block)
           else
             builder = PolicyBuilder.new(name)
             builder.instance_eval(&block) if block
@@ -56,7 +56,7 @@ module Hecks
         # @return [void]
         def on_event(event_name, async: false, &block)
           name = generate_subscriber_name(event_name.to_s)
-          @subscribers << DomainModel::Behavior::EventSubscriber.new(
+          @subscribers << BluebookModel::Behavior::EventSubscriber.new(
             name: name, event_name: event_name.to_s, block: block, async: async
           )
         end
@@ -67,7 +67,7 @@ module Hecks
         # @yield block that receives an aggregate instance and returns true/false
         # @return [void]
         def specification(name, &block)
-          @specifications << DomainModel::Behavior::Specification.new(name: name, block: block)
+          @specifications << BluebookModel::Behavior::Specification.new(name: name, block: block)
         end
 
         private

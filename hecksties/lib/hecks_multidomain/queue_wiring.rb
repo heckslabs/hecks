@@ -20,7 +20,7 @@ module Hecks
             runtimes.each do |rt|
               rt.domain.aggregates.each do |agg|
                 next unless agg.commands.any? { |c| c.name == cmd_name }
-                mod = Object.const_get(domain_module_name(rt.domain.name))
+                mod = Object.const_get(bluebook_module_name(rt.domain.name))
                 klass = Hecks::Conventions::Names.resolve_command_const(mod, agg.name, cmd_name)
                 return klass.call(**attrs)
               end

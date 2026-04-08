@@ -5,7 +5,7 @@ module Hecks
     #
     # DSL builder for command definitions. Collects attributes, read models,
     # external systems, actors, an optional handler block, and an optional
-    # guard policy reference, then builds a DomainModel::Behavior::Command.
+    # guard policy reference, then builds a BluebookModel::Behavior::Command.
     #
     # Part of the DSL layer, nested under AggregateBuilder. Each command
     # automatically gets a corresponding domain event inferred by name.
@@ -18,7 +18,7 @@ module Hecks
     #   cmd = builder.build  # => #<Command name="CreatePizza" ...>
     #   cmd.inferred_event_name  # => "CreatedPizza"
     #
-    # Builds a DomainModel::Behavior::Command from DSL declarations.
+    # Builds a BluebookModel::Behavior::Command from DSL declarations.
     #
     # CommandBuilder collects all facets of a command definition: its input
     # attributes, an optional handler or call body, a guard policy reference,
@@ -29,13 +29,13 @@ module Hecks
     # Includes AttributeCollector for the +attribute+, +list_of+, and
     # +reference_to+ DSL methods.
     class CommandBuilder
-      Structure = DomainModel::Structure
-      Behavior  = DomainModel::Behavior
+      Structure = BluebookModel::Structure
+      Behavior  = BluebookModel::Behavior
 
       include AttributeCollector
       include Describable
 
-      # @return [Array<DomainModel::Structure::Attribute>] the command's input attributes
+      # @return [Array<BluebookModel::Structure::Attribute>] the command's input attributes
       attr_reader :attributes
 
       # Initialize a new command builder with the given command name.
@@ -198,18 +198,18 @@ module Hecks
       #
       # @param type [String] the target aggregate name (e.g. "Team")
       # @param role [String, nil] optional role name, defaults to downcased type
-      # @param validate [Boolean, Symbol] validation mode: true (default) checks
-      #   existence and authorization; :exists checks existence only; false skips
-      #   all validation (opt-out for cross-context eventual consistency)
+      # @param validate [Boolean, Symbol] validation mode: :exists (default) checks
+      #   existence; true also checks authorization; false skips all validation
+      #   (opt-out for cross-context eventual consistency)
       # @return [void]
-      def reference_to(type, role: nil, validate: true)
+      def reference_to(type, role: nil, validate: :exists)
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last
         domain = parts.length > 1 ? parts[0..-2].join("::") : nil
         name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
-        @references << DomainModel::Structure::Reference.new(
+        @references << BluebookModel::Structure::Reference.new(
           name: name, type: target, domain: domain, validate: validate
         )
       end
@@ -231,7 +231,7 @@ module Hecks
         true
       end
 
-      # @return [DomainModel::Behavior::Command] the fully built command IR object
+      # @return [BluebookModel::Behavior::Command] the fully built command IR object
       def build
         Behavior::Command.new(
           name: @name, attributes: @attributes, references: @references,

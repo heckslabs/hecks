@@ -46,7 +46,7 @@ module Hecks
       # proxies), and ReferenceMethods (cross-aggregate reference resolution).
       #
       # @param klass [Class] the aggregate class to augment (e.g., Pizza)
-      # @param aggregate [Hecks::DomainModel::Aggregate] the domain model metadata
+      # @param aggregate [Hecks::BluebookModel::Aggregate] the domain model metadata
       #   describing this aggregate's attributes, value objects, and entities
       # @param repo [Object] the repository adapter instance (memory or SQL) that
       #   handles actual storage operations (save, find, delete, all)

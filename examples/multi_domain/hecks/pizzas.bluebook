@@ -1,4 +1,4 @@
-Hecks.domain "Pizzas" do
+Hecks.bluebook "Pizzas" do
   aggregate "Pizza" do
     attribute :name, String
     attribute :style, String

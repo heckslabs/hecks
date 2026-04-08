@@ -1,4 +1,4 @@
-Hecks.domain "RiskAssessment" do
+Hecks.bluebook "RiskAssessment" do
   aggregate "Assessment" do
     attribute :model_id, String
     attribute :assessor_id, String

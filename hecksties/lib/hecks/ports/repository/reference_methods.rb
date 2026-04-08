@@ -17,7 +17,7 @@ module Hecks
       # Defines reference resolution methods on the given aggregate class.
       #
       # @param klass [Class] the aggregate class to augment
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the domain model metadata
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the domain model metadata
       # @return [void]
       def self.bind(klass, aggregate)
         domain_mod = klass.name.split("::")[0..-2].inject(Object) { |m, c| m.const_get(c) }

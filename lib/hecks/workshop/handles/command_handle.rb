@@ -59,7 +59,7 @@ module Hecks
         domain = parts.length > 1 ? parts[0..-2].join("::") : nil
         name = (role || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
-        ref = DomainModel::Structure::Reference.new(name: name, type: target, domain: domain)
+        ref = BluebookModel::Structure::Reference.new(name: name, type: target, domain: domain)
         cmd.references << ref
         puts "reference_to #{type} added to #{@command_name}"
         self
@@ -75,7 +75,7 @@ module Hecks
         list = type.is_a?(Hash) && type[:list]
         actual_type = type.is_a?(Hash) ? type.values.first : type
 
-        attr = DomainModel::Structure::Attribute.new(
+        attr = BluebookModel::Structure::Attribute.new(
           name: name.to_sym, type: actual_type,
           list: !!list, **kwargs
         )

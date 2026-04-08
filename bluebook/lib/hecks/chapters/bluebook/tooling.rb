@@ -10,7 +10,7 @@ module Hecks
     module Bluebook
       module ToolingParagraph
         def self.define(b)
-          b.aggregate "DomainCompiler", "Generates domain gems and loads domains into memory" do
+          b.aggregate "BluebookCompiler", "Generates domain gems and loads domains into memory" do
             command("Compile") { attribute :domain_id, String; attribute :output_dir, String }
             command("LoadDomain") { attribute :domain_id, String }
             command("BuildStatic") { attribute :domain_id, String; attribute :output_dir, String }
@@ -44,7 +44,7 @@ module Hecks
             command("Humanize") { attribute :text, String }
           end
 
-          b.aggregate "DomainConnections", "Declares what crosses the domain boundary via extend verb" do
+          b.aggregate "BluebookConnections", "Declares what crosses the domain boundary via extend verb" do
             command("Apply") { attribute :extension_name, String }
           end
 

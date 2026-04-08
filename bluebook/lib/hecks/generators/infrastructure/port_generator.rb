@@ -14,14 +14,14 @@ module Hecks
 
       # Creates a new PortGenerator for a single aggregate.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   that needs a repository port interface
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
       def initialize(aggregate, domain_module:)
         @aggregate = aggregate
         @domain_module = domain_module
-        @safe_name = domain_constant_name(@aggregate.name)
+        @safe_name = bluebook_constant_name(@aggregate.name)
       end
 
       # Generates Ruby source for a repository port module.
@@ -37,7 +37,7 @@ module Hecks
       #
       # @return [String] the complete Ruby source code for the port module
       def generate
-        snake = domain_snake_name(@safe_name)
+        snake = bluebook_snake_name(@safe_name)
         lines = []
         lines << "module #{@domain_module}"
         lines << "  module Ports"

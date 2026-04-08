@@ -112,13 +112,13 @@ module Hecks
 
     # Build and return a Domain structure from the current aggregate definitions.
     #
-    # Constructs a DomainModel::Structure::Domain by building each aggregate
+    # Constructs a BluebookModel::Structure::Domain by building each aggregate
     # from its builder, collecting them along with any custom verbs.
     #
-    # @return [DomainModel::Structure::Domain] the fully assembled domain object
+    # @return [BluebookModel::Structure::Domain] the fully assembled domain object
     def to_domain
       aggregates = @aggregate_builders.values.map(&:build)
-      DomainModel::Structure::Domain.new(
+      BluebookModel::Structure::Domain.new(
         name: @name, aggregates: aggregates,
         services: @service_builders, custom_verbs: @custom_verbs
       )
@@ -210,7 +210,7 @@ module Hecks
 
       # Build a standalone domain from this aggregate
       agg = builder.build
-      new_domain = DomainModel::Structure::Domain.new(
+      new_domain = BluebookModel::Structure::Domain.new(
         name: name, aggregates: [agg], custom_verbs: []
       )
 
@@ -243,7 +243,7 @@ module Hecks
     # Lists counts of attributes, value objects, entities, commands, and
     # policies. Returns "empty" if the aggregate has none of these.
     #
-    # @param agg [DomainModel::Structure::Aggregate] the built aggregate
+    # @param agg [BluebookModel::Structure::Aggregate] the built aggregate
     # @return [String] summary like "3 attributes, 2 commands"
     def aggregate_summary(agg)
       parts = []

@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Validation
+    # Hecks::BluebookModel::Structure::Validation
     #
     # A validation rule for an aggregate attribute. Supports presence checks,
     # type constraints, and uniqueness enforcement. Rules are stored as a hash
@@ -12,7 +12,7 @@ module Hecks
     # attributes against simple rules (present? correct type? unique?), while
     # invariants enforce cross-attribute business rules with custom logic.
     #
-    # Part of the DomainModel IR layer. Built by the DSL validation helpers and
+    # Part of the BluebookModel IR layer. Built by the DSL validation helpers and
     # consumed by generators to produce attribute validation logic.
     #
     #   v = Validation.new(field: :name, rules: { presence: true, type: String })

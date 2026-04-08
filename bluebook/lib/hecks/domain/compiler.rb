@@ -1,5 +1,5 @@
 require "tmpdir"
-  # Hecks::DomainCompiler
+  # Hecks::BluebookCompiler
   #
   # Generates domain gems (build) and loads domains into memory (load_domain).
   # By default, load_domain uses InMemoryLoader to compile generated source
@@ -16,14 +16,14 @@ require "tmpdir"
   #
 
 module Hecks
-  module DomainCompiler
+  module BluebookCompiler
     include HecksTemplating::NamingHelpers
 
     # Build a complete domain gem on disk. Validates the domain first, then
     # generates all Ruby source files, specs, and documentation artifacts
     # (OpenAPI JSON, RPC discovery, JSON Schema, glossary markdown).
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain to compile
+    # @param domain [Hecks::BluebookModel::Domain] the domain to compile
     # @param version [String] gem version string (default "0.1.0")
     # @param output_dir [String] parent directory for the generated gem (default ".")
     # @return [String] absolute path to the generated gem root directory
@@ -57,14 +57,14 @@ module Hecks
     # source without writing to disk. Caches the loaded module by domain
     # object_id to avoid redundant reloads unless +force+ is true.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain to load
+    # @param domain [Hecks::BluebookModel::Domain] the domain to load
     # @param force [Boolean] reload even if already cached (default false)
     # @param skip_validation [Boolean] skip validation before loading (default false)
     # @return [Module] the loaded domain module constant (e.g., PizzasDomain)
     # @raise [Hecks::ValidationError] if validation fails and skip_validation is false
-    # @raise [Hecks::DomainLoadError] if generated code has syntax or naming errors
+    # @raise [Hecks::BluebookLoadError] if generated code has syntax or naming errors
     def load_domain(domain, force: false, skip_validation: false)
-      mod = domain_module_name(domain.name)
+      mod = bluebook_module_name(domain.name)
       key = domain.object_id
       return Object.const_get(mod) if !force && loaded_domains[mod] == key && Object.const_defined?(mod)
 
@@ -79,7 +79,7 @@ module Hecks
       begin
         InMemoryLoader.load(domain, mod)
       rescue SyntaxError, NameError => e
-        raise Hecks::DomainLoadError, "Failed to load domain '#{domain.name}': #{e.message}"
+        raise Hecks::BluebookLoadError, "Failed to load domain '#{domain.name}': #{e.message}"
       end
       loaded_domains[mod] = key
       domain_objects[mod] = domain

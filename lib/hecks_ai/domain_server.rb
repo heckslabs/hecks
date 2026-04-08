@@ -34,7 +34,7 @@ module Hecks
       # Builds an MCP server from the given domain. Compiles the domain gem,
       # loads it, boots a runtime, and registers all command/query/repository tools.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain model to serve
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain model to serve
       def initialize(domain)
         @domain = domain
         @server = ::MCP::Server.new(
@@ -117,7 +117,7 @@ module Hecks
 
       # Converts a domain attribute's Ruby type to a JSON Schema type string.
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute to inspect
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute to inspect
       # @return [String] the JSON Schema type: "integer", "number", or "string"
       def json_type(attr)
         case attr.ruby_type

@@ -10,7 +10,7 @@
 #   ast = BlueBook::Grammar.parse("Pizza.attr :name, String")
 #
 
-# Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run DomainBuilder.
+# Bootstrap: Tokenizer, IR, DSL kernel — the minimum to run BluebookBuilder.
 # These must load before any chapter can describe aggregates.
 require_relative "bluebook/tokenizer"
 require_relative "hecks/domain_model/behavior"
@@ -48,7 +48,7 @@ module BlueBook
   def self.register!
     Hecks.register_grammar(:bluebook) do |g|
       g.parser = BlueBook::Grammar
-      g.builder = Hecks::DSL::DomainBuilder
+      g.builder = Hecks::DSL::BluebookBuilder
       g.entry_point = :domain
       g.bare_commands = BlueBook::Grammar::BARE_COMMANDS
       g.handle_methods = BlueBook::Grammar::HANDLE_METHODS

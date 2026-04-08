@@ -13,7 +13,7 @@ module Hecks
     Chapters.load_chapter(
       Chapters::Bluebook,
       base_dirs: %w[
-        hecks/domain hecks/domain_model hecks/dsl hecks/generators
+        hecks/domain hecks/bluebook_model hecks/dsl hecks/generators
         hecks/validation_rules hecks/event_storm hecks/features
         hecks/extensions/docs bluebook hecks_persist hecks_mongodb
       ].map { |d| File.join(__dir__, "../..", d) }

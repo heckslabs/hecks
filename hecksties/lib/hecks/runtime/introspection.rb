@@ -26,7 +26,7 @@ module Hecks
       # the aggregate IR definition and extending the class with +ClassMethods+.
       #
       # @param klass [Class] the generated aggregate class to bind introspection to
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate IR definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate IR definition
       # @return [void]
       def self.bind(klass, agg)
         klass.instance_variable_set(:@__hecks_agg_def__, agg)
@@ -42,7 +42,7 @@ module Hecks
         # intermediate representation from the domain DSL, containing all
         # metadata about this aggregate's structure and behavior.
         #
-        # @return [Hecks::DomainModel::Structure::Aggregate] the aggregate IR definition
+        # @return [Hecks::BluebookModel::Structure::Aggregate] the aggregate IR definition
         def domain_def
           instance_variable_get(:@__hecks_agg_def__)
         end

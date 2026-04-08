@@ -16,7 +16,7 @@ module Hecks
       include HecksTemplating::NamingHelpers
       # Initializes a migration generator for a full domain.
       #
-      # @param domain [DomainModel::Structure::Domain] the domain to generate SQL for
+      # @param domain [BluebookModel::Structure::Domain] the domain to generate SQL for
       def initialize(domain)
         @domain = domain
       end
@@ -58,7 +58,7 @@ module Hecks
       #
       # Includes an id primary key and all scalar (non-list) attributes.
       #
-      # @param agg [DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [BluebookModel::Structure::Aggregate] the aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_aggregate_table(agg)
         lines = []
@@ -91,8 +91,8 @@ module Hecks
       # Includes an id, a foreign key referencing the parent aggregate,
       # and all value object attributes.
       #
-      # @param vo [DomainModel::Structure::ValueObject] the value object
-      # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
+      # @param vo [BluebookModel::Structure::ValueObject] the value object
+      # @param parent_agg [BluebookModel::Structure::Aggregate] the parent aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_value_object_table(vo, parent_agg)
         generate_child_table(vo, parent_agg)
@@ -103,8 +103,8 @@ module Hecks
       # Similar to value object tables but for entities (which have their own id).
       # Includes an id, a foreign key to the parent aggregate, and all entity attributes.
       #
-      # @param ent [DomainModel::Structure::Entity] the entity
-      # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
+      # @param ent [BluebookModel::Structure::Entity] the entity
+      # @param parent_agg [BluebookModel::Structure::Aggregate] the parent aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_entity_table(ent, parent_agg)
         generate_child_table(ent, parent_agg)
@@ -115,8 +115,8 @@ module Hecks
       # Includes an id, a foreign key referencing the parent aggregate,
       # and all child attributes.
       #
-      # @param child [DomainModel::Structure::ValueObject, DomainModel::Structure::Entity]
-      # @param parent_agg [DomainModel::Structure::Aggregate] the parent aggregate
+      # @param child [BluebookModel::Structure::ValueObject, BluebookModel::Structure::Entity]
+      # @param parent_agg [BluebookModel::Structure::Aggregate] the parent aggregate
       # @return [String] the CREATE TABLE SQL statement
       def generate_child_table(child, parent_agg)
         parent_table = table_name(parent_agg.name)
@@ -140,7 +140,7 @@ module Hecks
 
       # Maps a domain attribute to its SQL column type.
       #
-      # @param attr [DomainModel::Structure::Attribute] the attribute
+      # @param attr [BluebookModel::Structure::Attribute] the attribute
       # @return [String] the SQL type (e.g., "VARCHAR(255)", "INTEGER")
       def sql_type(attr)
         case attr.type.to_s

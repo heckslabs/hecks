@@ -21,7 +21,7 @@ module Hecks
         def build_paths
           paths = {}
           @domain.aggregates.each do |agg|
-            slug = domain_aggregate_slug(agg.name)
+            slug = bluebook_aggregate_slug(agg.name)
             paths.merge!(crud_paths(agg, slug))
             paths.merge!(query_paths(agg, slug))
           end
@@ -32,7 +32,7 @@ module Hecks
         # Builds CRUD path entries for a single aggregate: list/create on
         # +/<slug>+ and find/update/delete on +/<slug>/{id}+.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         # @param slug [String] the pluralized snake_case URL segment
         # @return [Hash] path entries for the CRUD operations
         def crud_paths(agg, slug)
@@ -56,7 +56,7 @@ module Hecks
         # Builds the POST operation for creating an aggregate. Returns +nil+ if
         # no command starting with "Create" exists.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         # @param slug [String] the pluralized snake_case URL segment (unused but
         #   kept for interface consistency)
         # @return [Hash, nil] the POST operation object, or nil
@@ -73,7 +73,7 @@ module Hecks
         # Builds the PATCH operation for updating an aggregate. Returns +nil+ if
         # no command starting with "Update" exists.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         # @return [Hash, nil] the PATCH operation object, or nil
         def patch_path(agg)
           cmd = agg.commands.find { |c| c.name.start_with?("Update") }
@@ -89,13 +89,13 @@ module Hecks
         # Builds GET path entries for each query defined on the aggregate.
         # Query parameters are derived from the query block's parameter list.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         # @param slug [String] the pluralized snake_case URL segment
         # @return [Hash] path entries for query operations
         def query_paths(agg, slug)
           paths = {}
           agg.queries.each do |query|
-            qn = domain_snake_name(query.name)
+            qn = bluebook_snake_name(query.name)
             params = query.block.parameters.map do |_, name|
               { name: name.to_s, in: "query", schema: { type: "string" }, required: true }
             end

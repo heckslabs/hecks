@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Scope
+    # Hecks::BluebookModel::Structure::Scope
     #
     # Value object representing a named query scope declared on an aggregate.
     # A scope has a name and conditions -- either a plain Hash for simple
@@ -13,7 +13,7 @@ module Hecks
     # of aggregates. Static (Hash) scopes apply fixed equality conditions, while
     # callable (Proc) scopes accept parameters and return a conditions Hash.
     #
-    # Part of the DomainModel IR layer. Built by AggregateBuilder and consumed
+    # Part of the BluebookModel IR layer. Built by AggregateBuilder and consumed
     # by generators and the querying subsystem at runtime.
     #
     #   # Static scope -- fixed conditions

@@ -32,7 +32,7 @@ module Hecks
 
       # Initializes the generator with an aggregate model object and output context.
       #
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate to generate code for;
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate to generate code for;
       #   provides +name+, +attributes+, +validations+, +invariants+, and +lifecycle+
       # @param domain_module [String] the Ruby module name to wrap the generated class in
       #   (e.g., "PizzasDomain")
@@ -40,7 +40,7 @@ module Hecks
         @aggregate = aggregate
         @domain_module = domain_module
         @mixin_prefix = mixin_prefix
-        @safe_name = domain_constant_name(@aggregate.name)
+        @safe_name = bluebook_constant_name(@aggregate.name)
         @user_attrs = @aggregate.attributes.reject { |a| Hecks::Utils::RESERVED_AGGREGATE_ATTRS.include?(a.name.to_s) }
       end
 
@@ -120,7 +120,7 @@ module Hecks
       # Generates the combined +validate!+ method lines including presence checks,
       # type checks, and enum validation for constrained attributes.
       #
-      # @param enum_attrs [Array<Hecks::DomainModel::Structure::Attribute>] attributes
+      # @param enum_attrs [Array<Hecks::BluebookModel::Structure::Attribute>] attributes
       #   that have enum constraints defined
       # @return [Array<String>] lines of Ruby source code for the validate! method
       def combined_validation_lines(enum_attrs)
@@ -149,7 +149,7 @@ module Hecks
       # List attributes get +default: []+ and +freeze: true+. Attributes with
       # explicit defaults get +default: <value>+. Plain attributes get just the name.
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute to declare
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute to declare
       # @return [String] the formatted attribute declaration (e.g., ":name" or ":toppings, default: [], freeze: true")
       def attribute_declaration(attr)
         parts = [":#{attr.name}"]

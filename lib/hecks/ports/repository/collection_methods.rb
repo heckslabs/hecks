@@ -32,7 +32,7 @@ module Hecks
       # the underlying array with persistence-aware mutation methods.
       #
       # @param klass [Class] the aggregate class to augment (e.g., Pizza)
-      # @param aggregate [Hecks::DomainModel::Aggregate] the domain model metadata
+      # @param aggregate [Hecks::BluebookModel::Aggregate] the domain model metadata
       #   describing this aggregate's attributes, value objects, and entities
       # @param repo [Object] the repository adapter instance for persisting changes
       #   when collection items are added or removed

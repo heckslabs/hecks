@@ -18,12 +18,12 @@ module Hecks
           # - Runtime execution: calls the command, verifies persistence
           # - Event log: verifies the expected event appears in app.events
           #
-          # @param command [Hecks::DomainModel::Behavior::Command] the command IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning
+          # @param command [Hecks::BluebookModel::Behavior::Command] the command IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning
           #   aggregate, used to build the fully qualified class name
           # @return [String] the complete RSpec file content
           def generate_command_spec(command, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             fqn = full_class_name("#{safe_agg}::Commands::#{command.name}")
             event_name = command.inferred_event_name
             cmd_method = derive_command_method(command, aggregate)
@@ -122,7 +122,7 @@ module Hecks
           end
 
           def update_command?(cmd, aggregate)
-            agg_snake = domain_snake_name(aggregate.name)
+            agg_snake = bluebook_snake_name(aggregate.name)
             (cmd.references || []).any? { |ref|
               Hecks::Utils.underscore(ref.type) == agg_snake
             }
@@ -133,7 +133,7 @@ module Hecks
           end
 
           def find_self_ref_attr(cmd, aggregate)
-            agg_snake = domain_snake_name(aggregate.name)
+            agg_snake = bluebook_snake_name(aggregate.name)
             (cmd.references || []).find { |ref|
               Hecks::Utils.underscore(ref.type) == agg_snake
             }

@@ -6,7 +6,7 @@
   # calls after domains have been loaded.
   #
   # Each method iterates over +domain_objects+ (a Hash of module_name =>
-  # Domain maintained by DomainCompiler) to collect information from all
+  # Domain maintained by BluebookCompiler) to collect information from all
   # loaded domains.
   #
   #   Hecks.commands   # => ["Pizza.CreatePizza(name: String) -> CreatedPizza"]
@@ -91,7 +91,7 @@ module Hecks
 
     # Collect all aggregates from all loaded domains into a flat array.
     #
-    # @return [Array<Hecks::DomainModel::Aggregate>] all aggregates
+    # @return [Array<Hecks::BluebookModel::Aggregate>] all aggregates
     def each_aggregate
       domain_objects.flat_map { |_, domain| domain.aggregates }
     end

@@ -100,7 +100,7 @@ Every example app in `examples/` that references the old name:
 bundle exec rspec
 
 # Smoke test
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 
 # Check for orphaned references
 grep -r "OldName\|old_name" lib/ spec/ examples/ docs/

@@ -1,4 +1,4 @@
-Hecks.domain "HecksAppeal" do
+Hecks.bluebook "HecksAppeal" do
   aggregate "Project" do
     description "A domain project workspace. Loads, creates, and manages domain directories."
     attribute :name, String

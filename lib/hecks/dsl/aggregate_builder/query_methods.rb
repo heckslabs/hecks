@@ -14,7 +14,7 @@ module Hecks
         # @return [void]
         def scope(name, conditions_or_lambda = nil, &block)
           conditions = block || conditions_or_lambda
-          @scopes << DomainModel::Structure::Scope.new(name: name, conditions: conditions)
+          @scopes << BluebookModel::Structure::Scope.new(name: name, conditions: conditions)
         end
 
         # Define a custom query with a block.
@@ -23,7 +23,7 @@ module Hecks
         # @yield block implementing the query logic
         # @return [void]
         def query(name, &block)
-          @queries << DomainModel::Behavior::Query.new(name: name, block: block)
+          @queries << BluebookModel::Behavior::Query.new(name: name, block: block)
         end
       end
     end

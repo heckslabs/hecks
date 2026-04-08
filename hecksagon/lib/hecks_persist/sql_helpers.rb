@@ -38,7 +38,7 @@ module Hecks
 
         # Maps a domain attribute to its SQL column type.
         #
-        # @param attr [DomainModel::Structure::Attribute] the attribute
+        # @param attr [BluebookModel::Structure::Attribute] the attribute
         # @return [String] the SQL type (e.g., "VARCHAR(255)", "INTEGER")
         def sql_type(attr)
           sql_type_for(attr.type)
@@ -46,7 +46,7 @@ module Hecks
 
         # Returns the SQL column name for a reference (role_id).
         #
-        # @param ref [DomainModel::Structure::Reference] the reference
+        # @param ref [BluebookModel::Structure::Reference] the reference
         # @return [String] the column name (e.g., "team_id")
         def reference_column_name(ref)
           "#{ref.name}_id"

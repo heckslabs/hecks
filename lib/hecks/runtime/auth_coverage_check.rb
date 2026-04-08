@@ -43,7 +43,7 @@ module Hecks
 
       # Collects all commands across aggregates that declare actor requirements.
       #
-      # @return [Array<Hecks::DomainModel::Structure::Command>] commands with actors
+      # @return [Array<Hecks::BluebookModel::Structure::Command>] commands with actors
       def actor_protected_commands
         @domain.aggregates.flat_map do |agg|
           agg.commands.select { |cmd| cmd.actors.any? }

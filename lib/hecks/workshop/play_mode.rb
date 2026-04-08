@@ -202,7 +202,7 @@ module Hecks
       # @return [Session] self
       def serve!(port: 9292)
         play! unless play?
-        mod_name = domain_module_name(@name)
+        mod_name = bluebook_module_name(@name)
         if Object.const_defined?(mod_name)
           mod = Object.const_get(mod_name)
           if mod.respond_to?(:serve)

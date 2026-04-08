@@ -18,7 +18,7 @@
 #   Pizza.before_save { puts "saving!" }
 #
 # Mixins:
-#   DomainModelCompat   — naming, conversion, JSON serialization (all objects)
+#   BluebookModelCompat   — naming, conversion, JSON serialization (all objects)
 #   AggregateCompat     — identity, validations, lifecycle callbacks
 #   ValueObjectCompat   — no-identity, immutable semantics
 #   ValidationWiring    — converts DSL rules to ActiveModel validates calls
@@ -69,7 +69,7 @@ module ActiveHecks
   end
 
   def self.extend_aggregate(klass)
-    klass.include(DomainModelCompat)
+    klass.include(BluebookModelCompat)
     klass.include(AggregateCompat)
     ValidationWiring.bind(klass, domain: @domain)
     override_model_name(klass)
@@ -77,7 +77,7 @@ module ActiveHecks
   end
 
   def self.extend_value_object(klass)
-    klass.include(DomainModelCompat)
+    klass.include(BluebookModelCompat)
     klass.include(ValueObjectCompat)
     override_model_name(klass)
   end

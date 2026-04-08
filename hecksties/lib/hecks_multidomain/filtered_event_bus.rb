@@ -19,7 +19,7 @@
   #
   #   bus = FilteredEventBus.new(
   #     inner: shared_bus,
-  #     domain_gem_name: "orders_domain",
+  #     bluebook_gem_name: "orders_domain",
   #     allowed_sources: ["inventory_domain"]
   #   )
   #   bus.publish(event)     # tags event with source "orders_domain"
@@ -37,13 +37,13 @@ module Hecks
     # Creates a new FilteredEventBus wrapping an inner event bus.
     #
     # @param inner [Hecks::EventBus] the underlying event bus to delegate to
-    # @param domain_gem_name [String] the name of this domain (used to tag
+    # @param bluebook_gem_name [String] the name of this domain (used to tag
     #   published events with their source, e.g., "orders_domain")
     # @param allowed_sources [Array<String>, nil] list of domain gem names whose
     #   events this bus will accept; nil means accept all (open mode)
-    def initialize(inner:, domain_gem_name:, allowed_sources: nil)
+    def initialize(inner:, bluebook_gem_name:, allowed_sources: nil)
       @inner = inner
-      @domain_gem_name = domain_gem_name
+      @bluebook_gem_name = bluebook_gem_name
       @allowed_sources = allowed_sources&.map(&:to_s)
     end
 
@@ -57,7 +57,7 @@ module Hecks
     # @return [void]
     def publish(event)
       tagged = event.frozen? ? event.dup : event
-      tagged.instance_variable_set(HecksTemplating::EventContract::SOURCE_ATTR, @domain_gem_name)
+      tagged.instance_variable_set(HecksTemplating::EventContract::SOURCE_ATTR, @bluebook_gem_name)
       @inner.publish(tagged)
     end
 

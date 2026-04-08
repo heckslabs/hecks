@@ -13,7 +13,7 @@ module Hecks
     #   builder.call { dispatch("Withdraw", account_id: source_id, amount: amount) }
     #   service = builder.build
     #
-    # Builds a DomainModel::Behavior::Service from DSL declarations.
+    # Builds a BluebookModel::Behavior::Service from DSL declarations.
     #
     # ServiceBuilder defines a domain service -- a stateless operation that
     # orchestrates multiple commands across different aggregates. Services
@@ -27,7 +27,7 @@ module Hecks
     # Includes AttributeCollector for the +attribute+, +list_of+, and
     # +reference_to+ DSL methods.
     class ServiceBuilder
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       include AttributeCollector
       include Describable
@@ -60,9 +60,9 @@ module Hecks
         @call_body = block
       end
 
-      # Build and return the DomainModel::Behavior::Service IR object.
+      # Build and return the BluebookModel::Behavior::Service IR object.
       #
-      # @return [DomainModel::Behavior::Service] the fully built service IR object
+      # @return [BluebookModel::Behavior::Service] the fully built service IR object
       def build
         Behavior::Service.new(
           name: @name,

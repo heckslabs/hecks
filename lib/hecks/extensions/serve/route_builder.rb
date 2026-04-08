@@ -43,8 +43,8 @@ module Hecks
       def build
         routes = []
         @domain.aggregates.each do |agg|
-          klass = @mod.const_get(domain_constant_name(agg.name))
-          slug = domain_aggregate_slug(agg.name)
+          klass = @mod.const_get(bluebook_constant_name(agg.name))
+          slug = bluebook_aggregate_slug(agg.name)
           routes.concat(query_routes(agg, klass, slug))
           routes.concat(crud_routes(agg, klass, slug))
         end
@@ -59,7 +59,7 @@ module Hecks
       # Conditionally generates POST (create) and PATCH (update) routes only
       # if the aggregate has matching Create*/Update* commands defined.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the Ruby class for the aggregate (e.g. +PizzasDomain::Pizza+)
       # @param slug [String] the URL slug (e.g. "pizzas")
       # @return [Array<Hash>] the generated CRUD route hashes
@@ -117,14 +117,14 @@ module Hecks
       # Each query becomes a GET endpoint at +/slug/query_name+. The handler
       # passes query string parameters to the query method.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the Ruby class for the aggregate
       # @param slug [String] the URL slug
       # @return [Array<Hash>] the generated query route hashes
       def query_routes(agg, klass, slug)
         port = @port
         agg.queries.map do |query|
-          qn = domain_snake_name(query.name)
+          qn = bluebook_snake_name(query.name)
           Hecks::Conventions::DispatchContract.validate!(@whitelist, agg.name, qn.to_sym)
           params = query.block.parameters
           { method: "GET", path: "/#{slug}/#{qn}", handler: ->(req) {

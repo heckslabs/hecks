@@ -68,5 +68,5 @@ declaration needed.
 ## Running Example
 
 ```sh
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 ```

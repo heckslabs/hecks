@@ -146,7 +146,7 @@ module Hecks
       # The handler converts string-keyed params to symbol-keyed and calls
       # the derived method on the aggregate class.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_commands(agg, klass)
@@ -164,7 +164,7 @@ module Hecks
       # "Pizza.by_topping"). The handler maps parameter names from the
       # query block's parameter list to values in the params hash.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_queries(agg, klass)
@@ -187,7 +187,7 @@ module Hecks
       # - "AggregateName.count" -- return entity count
       # - "AggregateName.delete" -- delete by ID, returns confirmation
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate definition
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate definition
       # @param klass [Class] the aggregate's Ruby class
       # @return [void]
       def register_crud(agg, klass)

@@ -1,6 +1,6 @@
 require "date"
 
-Hecks.domain "RiskAssessment" do
+Hecks.bluebook "RiskAssessment" do
   Assessment "Risk assessments evaluating AI model safety, bias, and transparency" do
     attribute :model_id, String
     attribute :assessor_id, String

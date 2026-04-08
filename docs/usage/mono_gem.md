@@ -10,7 +10,7 @@ chapter. One gem, many chapters.
 gem "hecks", path: "/path/to/hecks"
 
 # Or from the command line:
-ruby -Ilib examples/pizzas/app.rb
+ruby -Ilib examples/pizzas/pizzas.rb
 ```
 
 ## Directory layout

@@ -13,7 +13,7 @@ module Hecks
   module Chapters
     module Watchers
       def self.definition
-        DSL::DomainBuilder.new("Watchers").tap { |b|
+        DSL::BluebookBuilder.new("Watchers").tap { |b|
           b.aggregate "WatcherRegistry" do
             description "Registry for pre-commit watchers, categorized as blocking or advisory"
             command "RegisterWatcher" do

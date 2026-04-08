@@ -20,7 +20,7 @@ module Hecks
     # Iterates through +domain.services+ and wires each one as a callable
     # method on +mod+.
     #
-    # @param domain [Hecks::DomainModel::Domain] the domain definition containing service declarations
+    # @param domain [Hecks::BluebookModel::Domain] the domain definition containing service declarations
     # @param mod [Module] the domain module to define service methods on (e.g., +BankingDomain+)
     # @param command_bus [Hecks::CommandBus] the command bus for dispatching commands within service bodies
     # @return [void]
@@ -37,12 +37,12 @@ module Hecks
     # 2. Evaluates the service's call body within that context
     # 3. Returns the accumulated results array from all dispatched commands
     #
-    # @param svc [Hecks::DomainModel::Service] the service definition from the DSL
+    # @param svc [Hecks::BluebookModel::Service] the service definition from the DSL
     # @param mod [Module] the domain module to define the method on
     # @param command_bus [Hecks::CommandBus] the command bus for the service context
     # @return [void]
     def self.wire_service(svc, mod, command_bus)
-      method_name = domain_snake_name(svc.name).to_sym
+      method_name = bluebook_snake_name(svc.name).to_sym
       call_body = svc.call_body
       attr_names = svc.attributes.map(&:name)
 

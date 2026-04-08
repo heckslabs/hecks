@@ -19,8 +19,8 @@ module Hecks
     #
     module Crud
       extend HecksTemplating::NamingHelpers
-      Structure = DomainModel::Structure
-      Behavior  = DomainModel::Behavior
+      Structure = BluebookModel::Structure
+      Behavior  = BluebookModel::Behavior
 
       CRUD_PREFIXES = %w[Create Read Update Delete].freeze
 
@@ -30,7 +30,7 @@ module Hecks
       # @return [void]
       def self.apply(runtime)
         domain = runtime.domain
-        mod_name = HecksTemplating::NamingHelpers.instance_method(:domain_module_name)
+        mod_name = HecksTemplating::NamingHelpers.instance_method(:bluebook_module_name)
           .bind_call(self, domain.name)
         mod = Object.const_get(mod_name)
 
@@ -82,17 +82,17 @@ module Hecks
           end
           [attrs, []]
         when "Update"
-          snake = HecksTemplating::NamingHelpers.instance_method(:domain_snake_name)
+          snake = HecksTemplating::NamingHelpers.instance_method(:bluebook_snake_name)
             .bind_call(self, agg.name)
-          ref = Structure::Reference.new(name: snake.to_sym, type: agg.name, validate: :exists)
+          ref = Structure::Reference.new(name: snake.to_sym, type: agg.name)
           attrs = agg.attributes.reject { |a| reserved?(a.name) }.map do |a|
             Structure::Attribute.new(name: a.name, type: a.type, list: a.list?)
           end
           [attrs, [ref]]
         when "Delete"
-          snake = HecksTemplating::NamingHelpers.instance_method(:domain_snake_name)
+          snake = HecksTemplating::NamingHelpers.instance_method(:bluebook_snake_name)
             .bind_call(self, agg.name)
-          ref = Structure::Reference.new(name: snake.to_sym, type: agg.name, validate: :exists)
+          ref = Structure::Reference.new(name: snake.to_sym, type: agg.name)
           [[], [ref]]
         else
           [[], []]
@@ -103,7 +103,7 @@ module Hecks
       #
       # @param cmd [Behavior::Command] the command
       # @param agg [Structure::Aggregate] the parent aggregate
-      # @return [Behavior::DomainEvent]
+      # @return [Behavior::BluebookEvent]
       def self.build_event(cmd, agg)
         aggregate_id_attr = Structure::Attribute.new(name: :aggregate_id, type: String)
         event_attrs = [aggregate_id_attr] + cmd.attributes.dup
@@ -116,7 +116,7 @@ module Hecks
           next if event_refs.any? { |er| er.name == ar.name }
           event_refs << ar
         end
-        Behavior::DomainEvent.new(
+        Behavior::BluebookEvent.new(
           name: cmd.event_names.first,
           attributes: event_attrs,
           references: event_refs
@@ -137,7 +137,7 @@ module Hecks
       # @return [void]
       def self.rewire_aggregate(runtime, agg, mod)
         agg_class = mod.const_get(
-          HecksTemplating::NamingHelpers.instance_method(:domain_constant_name)
+          HecksTemplating::NamingHelpers.instance_method(:bluebook_constant_name)
             .bind_call(self, agg.name)
         )
         repo = runtime[agg.name]

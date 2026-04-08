@@ -29,7 +29,7 @@ module Hecks::Conventions
     # Extract all validation rules from an aggregate IR.
     # Returns a hash that both Ruby and Go generators can consume.
     #
-    # @param agg [Hecks::DomainModel::Structure::Aggregate]
+    # @param agg [Hecks::BluebookModel::Structure::Aggregate]
     # @return [Hash] normalized rules
     def self.rules(agg)
       {
@@ -44,7 +44,7 @@ module Hecks::Conventions
     # Validate that generated code enforces all required rules.
     # Used by smoke tests to verify Ruby and Go output is equivalent.
     #
-    # @param agg [Hecks::DomainModel::Structure::Aggregate]
+    # @param agg [Hecks::BluebookModel::Structure::Aggregate]
     # @param generated_checks [Array<Hash>] checks found in generated code
     # @return [Hash] { valid:, missing: }
     def self.validate(agg, generated_checks)

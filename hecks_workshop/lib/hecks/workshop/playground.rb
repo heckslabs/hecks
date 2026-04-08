@@ -43,7 +43,7 @@ module Hecks
     # definitions, and boots a Runtime with memory adapters and an
     # event-capturing event bus.
     #
-    # @param domain [DomainModel::Structure::Domain] the domain to compile and run
+    # @param domain [BluebookModel::Structure::Domain] the domain to compile and run
     def initialize(domain)
       @domain = domain
       @mod_name = domain_module_name(domain.name)

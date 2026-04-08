@@ -38,7 +38,7 @@ module Hecks
 
       # Format a single policy as a readable line.
       #
-      # @param pol [Hecks::DomainModel::Behavior::Policy]
+      # @param pol [Hecks::BluebookModel::Behavior::Policy]
       # @return [String]
       def format_policy(pol)
         if pol.reactive?

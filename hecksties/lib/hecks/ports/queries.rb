@@ -42,7 +42,7 @@ module Hecks
       # domain IR and creates corresponding singleton methods on the aggregate class.
       #
       # @param klass [Class] the aggregate class to receive scope methods
-      # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       #   definition containing scope metadata
       # @return [void]
       def self.bind(klass, aggregate)

@@ -17,12 +17,12 @@ module Hecks
           # - Attribute carriage: verifies each attribute is accessible and returns
           #   the expected example value (or is non-nil for Date/DateTime types)
           #
-          # @param event [Hecks::DomainModel::Behavior::Event] the event IR
-          # @param aggregate [Hecks::DomainModel::Structure::Aggregate] the owning
+          # @param event [Hecks::BluebookModel::Behavior::Event] the event IR
+          # @param aggregate [Hecks::BluebookModel::Structure::Aggregate] the owning
           #   aggregate, used to build the fully qualified class name
           # @return [String] the complete RSpec file content
           def generate_event_spec(event, aggregate)
-            safe_agg = domain_constant_name(aggregate.name)
+            safe_agg = bluebook_constant_name(aggregate.name)
             fqn = full_class_name("#{safe_agg}::Events::#{event.name}")
             lines = []
 

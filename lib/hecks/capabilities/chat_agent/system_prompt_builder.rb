@@ -14,7 +14,7 @@ module Hecks
       module SystemPromptBuilder
         # Build a system prompt from the full domain IR.
         #
-        # @param domain [DomainModel::Structure::Domain] the domain
+        # @param domain [BluebookModel::Structure::Domain] the domain
         # @return [String] the assembled system prompt
         def self.build(domain)
           lines = []

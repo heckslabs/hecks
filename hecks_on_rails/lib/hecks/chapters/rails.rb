@@ -6,7 +6,7 @@
 #
 #   domain = Hecks::Chapters::Rails.definition
 #   domain.aggregates.map(&:name)
-#   # => ["ActiveHecks", "DomainModelCompat", "AggregateCompat", ...]
+#   # => ["ActiveHecks", "BluebookModelCompat", "AggregateCompat", ...]
 #
 require "bluebook"
 
@@ -14,7 +14,7 @@ module Hecks
   module Chapters
     module Rails
       def self.definition
-        Hecks::DSL::DomainBuilder.new("Rails").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("Rails").tap { |b|
           b.aggregate "ActiveHecks" do
             description "Adds full ActiveModel compatibility to generated domain objects for Rails"
             command "Activate" do
@@ -22,7 +22,7 @@ module Hecks
             end
           end
 
-          b.aggregate "DomainModelCompat" do
+          b.aggregate "BluebookModelCompat" do
             description "Shared ActiveModel compatibility: naming, conversion, JSON serialization"
             command "Include"
           end

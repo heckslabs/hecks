@@ -1,4 +1,4 @@
-# Hecks::DomainModel::Names::CommandName
+# Hecks::BluebookModel::Names::CommandName
 #
 # Value object wrapping a command name string (e.g. "CreatePizza").
 #
@@ -6,7 +6,7 @@
 #   name == "CreatePizza"  # => true
 #
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Names
       class CommandName < BaseName; end
     end

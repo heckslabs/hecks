@@ -1,4 +1,4 @@
-Hecks.domain "Bookshelf" do
+Hecks.bluebook "Bookshelf" do
   aggregate "Book" do
     attribute :title, String
     attribute :author, String

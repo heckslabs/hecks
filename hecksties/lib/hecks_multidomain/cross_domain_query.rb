@@ -71,8 +71,8 @@ module Hecks
       # @return [Class] the aggregate class (e.g., +ModelRegistryDomain::AiModel+)
       # @raise [NameError] if the domain or aggregate constant does not exist
       def from(domain_name, aggregate_name)
-        mod_name = domain_module_name(domain_name)
-        agg_name = domain_constant_name(aggregate_name)
+        mod_name = bluebook_module_name(domain_name)
+        agg_name = bluebook_constant_name(aggregate_name)
         Object.const_get("#{mod_name}::#{agg_name}")
       end
     end

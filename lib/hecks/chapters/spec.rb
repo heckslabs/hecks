@@ -17,7 +17,7 @@ module Hecks
 
     module Spec
       def self.definition
-        Hecks::DSL::DomainBuilder.new("Spec").tap { |b|
+        Hecks::DSL::BluebookBuilder.new("Spec").tap { |b|
           b.aggregate "TestHelper" do
             description "Resets runtime state between tests: clears repos and event bus"
             command "Reset"
@@ -132,7 +132,7 @@ module Hecks
 
             command "AddTopping" do
               description "Add a measured topping to an existing pizza"
-              reference_to "Pizza", validate: :exists
+              reference_to "Pizza"
               attribute :name, String
               attribute :amount, Integer
             end
@@ -162,13 +162,13 @@ module Hecks
             command "PlaceOrder" do
               description "Place a new order for a pizza"
               attribute :customer_name, String
-              reference_to "Pizza", validate: :exists
+              reference_to "Pizza"
               attribute :quantity, Integer
             end
 
             command "CancelOrder" do
               description "Cancel a pending order, transitioning status to cancelled"
-              reference_to "Order", validate: :exists
+              reference_to "Order"
             end
 
             query "Pending" do

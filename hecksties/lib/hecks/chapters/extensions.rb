@@ -16,7 +16,7 @@ module Hecks
     #
     module Extensions
       def self.definition
-        DSL::DomainBuilder.new("Extensions").tap { |b|
+        DSL::BluebookBuilder.new("Extensions").tap { |b|
           b.aggregate "Auth", "Actor-based authentication and authorization" do
             command("Authenticate") { attribute :actor, String }
             command("Authorize") { attribute :command_name, String; attribute :role, String }

@@ -1,8 +1,8 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::ReadModel
+    # Hecks::BluebookModel::Structure::ReadModel
     #
     # Represents a read model (data view) needed by a command to make decisions.
     # Captured during Event Storming as green stickies -- the information a user
@@ -13,7 +13,7 @@ module Hecks
     # a "Menu & Availability" read model tells the domain that users need to see
     # available menu items before placing an order.
     #
-    # Part of the DomainModel IR layer. Does not generate code -- serves as
+    # Part of the BluebookModel IR layer. Does not generate code -- serves as
     # metadata for documentation, UI planning, and domain understanding.
     #
     #   read_model = ReadModel.new(name: "Menu & Availability")

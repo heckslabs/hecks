@@ -12,7 +12,7 @@ module Hecks
       #
       # Mixed into DomainServer -- expects the following instance state:
       #   - +@server+ [MCP::Server] -- the MCP server to register tools on
-      #   - +@domain+ [Hecks::DomainModel::Structure::Domain] -- the domain model
+      #   - +@domain+ [Hecks::BluebookModel::Structure::Domain] -- the domain model
       #   - +@mod+ [Module] -- the generated domain module (e.g. PizzasDomain)
       #
       # Also expects this helper method from DomainServer:
@@ -43,7 +43,7 @@ module Hecks
         # no required inputs. For parameterized queries, each block parameter
         # becomes a required string input.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate owning the query
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate owning the query
         # @param agg_class [Class] the generated Ruby class for the aggregate
         # @param query [Object] the query object with +name+, +block+ (a Proc with parameters)
         # @return [void]
@@ -84,7 +84,7 @@ module Hecks
         # Builds a rich description for a query tool including what it does,
         # accepted parameters, and the shape of the result set.
         #
-        # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+        # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
         # @param method_name [Symbol] the query method name
         # @param param_names [Array<String>] parameter names (empty for zero-arg queries)
         # @param attr_list [String] comma-separated attribute descriptions for the return shape

@@ -1,6 +1,6 @@
 require "date"
 
-Hecks.domain "Operations" do
+Hecks.bluebook "Operations" do
   Deployment "AI model deployments across environments" do
     attribute :model_id, String
     environment String, enum: %w[development staging production]

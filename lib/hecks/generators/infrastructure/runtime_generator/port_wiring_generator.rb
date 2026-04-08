@@ -19,7 +19,7 @@ module Hecks
 
       # Initializes the generator with a domain IR and module name.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
       #   providing +aggregates+ to wire
       # @param domain_module [String] the PascalCase domain module name
       #   (e.g. +"PizzasDomain"+)
@@ -72,7 +72,7 @@ module Hecks
         lines = []
         lines << "        def wire_ports!"
         @domain.aggregates.each do |agg|
-          lines << "          wire_#{domain_snake_name(agg.name)}"
+          lines << "          wire_#{bluebook_snake_name(agg.name)}"
         end
         lines << "        end"
         lines
@@ -84,7 +84,7 @@ module Hecks
       def wire_aggregate_bang_lines
         lines = []
         lines << "        def wire_aggregate!(name)"
-        lines << "          method_name = \"wire_\#{domain_snake_name(name)}\""
+        lines << "          method_name = \"wire_\#{bluebook_snake_name(name)}\""
         lines << "          send(method_name) if respond_to?(method_name, true)"
         lines << "        end"
         lines
@@ -92,11 +92,11 @@ module Hecks
 
       # Emits the +wire_<name>+ method for a single aggregate.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate
       # @return [Array<String>] source lines
       def wire_single_lines(agg)
-        name = domain_constant_name(agg.name)
-        snake = domain_snake_name(agg.name)
+        name = bluebook_constant_name(agg.name)
+        snake = bluebook_snake_name(agg.name)
         lines = []
         lines << "        def wire_#{snake}"
         lines << "          agg = @domain.aggregates.find { |a| a.name == \"#{agg.name}\" }"
@@ -190,7 +190,7 @@ module Hecks
           '          repo = @repositories[agg.name]',
           '          queries_mod = begin; agg_class.const_get(:Queries); rescue NameError; nil; end',
           '          agg.queries.each do |query|',
-          '            method_name = domain_snake_name(query.name).to_sym',
+          '            method_name = bluebook_snake_name(query.name).to_sym',
           '            query_class = begin',
           '              queries_mod&.const_defined?(query.name, false) && queries_mod.const_get(query.name)',
           '            rescue StandardError',

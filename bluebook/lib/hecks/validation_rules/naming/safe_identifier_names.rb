@@ -54,7 +54,7 @@ module Hecks
       # Validates all members of an aggregate: attributes, value objects,
       # entities, commands, events, queries, policies, lifecycle, and invariants.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate to check
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate to check
       # @return [Array<String>] error messages (empty if all valid)
       def check_aggregate_members(agg)
         errs = []
@@ -113,7 +113,7 @@ module Hecks
 
       # Validates enum values on an attribute.
       #
-      # @param attr [Hecks::DomainModel::Structure::Attribute] the attribute to check
+      # @param attr [Hecks::BluebookModel::Structure::Attribute] the attribute to check
       # @param context [String] the context label for the error message
       # @return [Array<String>] error messages (empty if all enum values are valid)
       def check_enum_values(attr, context)
@@ -127,7 +127,7 @@ module Hecks
 
       # Validates lifecycle field, default state, and all transition states.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate] the aggregate to check
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate] the aggregate to check
       # @return [Array<String>] error messages (empty if no lifecycle or all valid)
       def check_lifecycle(agg)
         lc = agg.lifecycle

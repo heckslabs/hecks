@@ -37,10 +37,10 @@ module Hecks
     def list_of(type) = { list: type }
 
     def aggregate(name, &block)
-      is_new = !@workshop.aggregate_builders.key?(domain_constant_name(name))
+      is_new = !@workshop.aggregate_builders.key?(bluebook_constant_name(name))
       handle = @workshop.aggregate(name, &block)
-      hoist_aggregate(domain_constant_name(name).to_sym, handle)
-      puts "#{domain_constant_name(name)} aggregate created" if is_new && !block
+      hoist_aggregate(bluebook_constant_name(name).to_sym, handle)
+      puts "#{bluebook_constant_name(name)} aggregate created" if is_new && !block
       handle
     end
 
@@ -51,7 +51,7 @@ module Hecks
     def play!
       result = @workshop.play!
       if @workshop.play? && @workshop.playground
-        mod_name = domain_module_name(@workshop.name)
+        mod_name = bluebook_module_name(@workshop.name)
         if Object.const_defined?(mod_name)
           hoist_domain_constants(Object.const_get(mod_name))
         end
@@ -62,7 +62,7 @@ module Hecks
     def reload!
       result = @workshop.reload!
       if @workshop.play? && @workshop.playground
-        mod_name = domain_module_name(@workshop.name)
+        mod_name = bluebook_module_name(@workshop.name)
         if Object.const_defined?(mod_name)
           hoist_domain_constants(Object.const_get(mod_name))
         end
@@ -72,7 +72,7 @@ module Hecks
 
     def sketch!
       # Unload the domain module (removes hoisted constants + module itself)
-      mod_name = domain_module_name(@workshop.name)
+      mod_name = bluebook_module_name(@workshop.name)
       if Object.const_defined?(mod_name)
         mod = Object.const_get(mod_name)
         mod.unload! if mod.respond_to?(:unload!)

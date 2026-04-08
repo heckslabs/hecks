@@ -1,0 +1,4 @@
+Hecks.bluebook "Packaging" do
+  # Packaging has no aggregates defined -- it is the selective chapter
+  # loading mechanism. Included for completeness.
+end

@@ -1,14 +1,14 @@
 module Hecks
-  module DomainModel
+  module BluebookModel
     module Structure
 
-    # Hecks::DomainModel::Structure::Reference
+    # Hecks::BluebookModel::Structure::Reference
     #
     # Represents a relationship from one aggregate to another. References are
     # first-class domain concepts — the domain layer holds live objects in memory,
     # never foreign key IDs. Persistence is the only layer that knows about IDs.
     #
-    # The +kind+ is set post-build by DomainBuilder#classify_references:
+    # The +kind+ is set post-build by BluebookBuilder#classify_references:
     #   :composition    — target is a VO/entity within the same aggregate
     #   :aggregation    — target is another aggregate root
     #   :cross_context  — target is in a different bounded context

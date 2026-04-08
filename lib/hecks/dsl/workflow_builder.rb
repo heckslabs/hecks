@@ -4,7 +4,7 @@ module Hecks
     # Hecks::DSL::WorkflowBuilder
     #
     # DSL builder for workflow definitions. Collects sequential steps and
-    # conditional branches, then builds a DomainModel::Behavior::Workflow.
+    # conditional branches, then builds a BluebookModel::Behavior::Workflow.
     #
     #   builder = WorkflowBuilder.new("LoanApproval")
     #   builder.step "ScoreLoan", score: :principal
@@ -14,7 +14,7 @@ module Hecks
     #   end
     #   workflow = builder.build
     #
-    # Builds a DomainModel::Behavior::Workflow from step and branch declarations.
+    # Builds a BluebookModel::Behavior::Workflow from step and branch declarations.
     #
     # WorkflowBuilder defines multi-step orchestrations that compose commands
     # with conditional branching. Steps execute commands with optional field
@@ -22,9 +22,9 @@ module Hecks
     # alternative step sequences. Workflows can also be scheduled to run on
     # a recurring interval.
     #
-    # Used inside +DomainBuilder#workflow+ blocks.
+    # Used inside +BluebookBuilder#workflow+ blocks.
     class WorkflowBuilder
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       include Describable
 
@@ -99,9 +99,9 @@ module Hecks
         @steps << Behavior::BranchStep.new(**branch_data)
       end
 
-      # Build and return the DomainModel::Behavior::Workflow IR object.
+      # Build and return the BluebookModel::Behavior::Workflow IR object.
       #
-      # @return [DomainModel::Behavior::Workflow] the fully built workflow IR object
+      # @return [BluebookModel::Behavior::Workflow] the fully built workflow IR object
       def build
         Behavior::Workflow.new(name: @name, steps: @steps, schedule: @schedule, description: @description)
       end
@@ -113,7 +113,7 @@ module Hecks
     # certain criteria (via specification or query) and then triggers a command
     # on each matched aggregate. Used inside +WorkflowBuilder#step+ blocks.
     class ScheduledStepBuilder
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       # Initialize with an optional step name.
       #
@@ -208,7 +208,7 @@ module Hecks
     # and +BranchBuilder#otherwise+ blocks. It provides a single +step+ method
     # to accumulate command dispatch instructions.
     class StepCollector
-      Behavior = DomainModel::Behavior
+      Behavior = BluebookModel::Behavior
 
       # @return [Array<Hash>] collected step definitions, each with :command and :mapping keys
       attr_reader :steps

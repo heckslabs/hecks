@@ -15,7 +15,7 @@ module Hecks
     class TypescriptGenerator < Hecks::Generator
       # Creates a new TypescriptGenerator for a domain.
       #
-      # @param domain [Hecks::DomainModel::Structure::Domain] the parsed domain IR
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the parsed domain IR
       def initialize(domain)
         @domain = domain
       end
@@ -37,7 +37,7 @@ module Hecks
 
       # Builds all sections for a single aggregate.
       #
-      # @param agg [Hecks::DomainModel::Structure::Aggregate]
+      # @param agg [Hecks::BluebookModel::Structure::Aggregate]
       # @return [Array<String>]
       def aggregate_sections(agg)
         parts = []
