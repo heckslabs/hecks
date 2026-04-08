@@ -50,8 +50,7 @@ module Hecks
         apply_block = @apply_block
 
         Hecks.register_capability(name) do |runtime|
-          resolved = DSL.resolve_config(name, schema)
-          apply_block&.call(runtime, resolved)
+          apply_block&.call(runtime)
         end
 
         Hecks.describe_capability(name, description: @description, config: schema)
