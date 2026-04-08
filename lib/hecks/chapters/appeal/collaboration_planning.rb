@@ -1,80 +1,116 @@
 # Hecks::Chapters::Appeal::CollaborationPlanningParagraph
 #
-# Domain paragraph for the collaboration chapter of HecksAppeal.
-# Defines aggregates for story tracking and backlog management.
-#
-#   Hecks::Chapters::Appeal::CollaborationPlanningParagraph.define(builder)
+# Feature management with domain-driven verification.
+# Stories decompose into domain additions (aggregates, commands, events).
+# As additions appear in the domain IR, items turn green.
+# AI agent plans domain additions and can build them.
 #
 module Hecks
   module Chapters
     module Appeal
       module CollaborationPlanningParagraph
         def self.define(b)
-          b.aggregate "Story" do
-            description "A unit of work -- feature, task, or bug."
+          b.aggregate "Feature" do
+            description "A feature to build. Decomposes into domain additions tracked against the live IR."
             attribute :title, String
             attribute :description, String
-            attribute :acceptance_criteria, String
-            attribute :status, String, default: "todo"
-            attribute :priority, Integer, default: 0
+            attribute :status, String, default: "draft"
+            attribute :additions, list_of("DomainAddition")
+            attribute :total_additions, Integer, default: 0
+            attribute :completed_additions, Integer, default: 0
 
-            command "CreateStory" do
-              description "Define a new story with title and acceptance criteria"
+            value_object "DomainAddition" do
+              description "A planned domain change — aggregate, command, event, attribute, or policy"
+              attribute :kind, String
+              attribute :name, String
+              attribute :parent, String
+              attribute :description, String
+              attribute :exists_in_domain, String, default: "false"
+            end
+
+            command "CreateFeature" do
+              description "Define a new feature with a title and description"
               attribute :title, String
               attribute :description, String
-              attribute :acceptance_criteria, String
+              emits "FeatureCreated"
             end
 
-            command "StartStory" do
-              description "Move a story to in-progress"
-              reference_to "Story"
-              end
+            command "PlanFeature" do
+              description "Ask the AI agent to plan all domain additions for this feature"
+              reference_to "Feature"
+              emits "FeaturePlanned"
+            end
 
-            command "CompleteStory" do
-              description "Mark a story as done"
-              reference_to "Story"
-              end
+            command "AddDomainAddition" do
+              description "Manually add a planned domain change to the feature"
+              reference_to "Feature"
+              attribute :kind, String
+              attribute :name, String
+              attribute :parent, String
+              attribute :description, String
+              emits "DomainAdditionAdded"
+            end
 
-            command "AcceptStory" do
-              description "Accept a completed story -- acceptance criteria met"
-              reference_to "Story"
-              end
+            command "VerifyAdditions" do
+              description "Check the live domain IR for each planned addition"
+              reference_to "Feature"
+              emits "AdditionsVerified"
+            end
+
+            command "BuildFeature" do
+              description "Ask the AI agent to implement all remaining additions"
+              reference_to "Feature"
+              emits "FeatureBuildStarted"
+            end
+
+            command "CompleteFeature" do
+              description "Mark the feature as done — all additions verified"
+              reference_to "Feature"
+              emits "FeatureCompleted"
+            end
+
+            lifecycle :status, default: "draft" do
+              transition "PlanFeature" => "planned", from: "draft"
+              transition "BuildFeature" => "building", from: "planned"
+              transition "VerifyAdditions" => "planned", from: "building"
+              transition "CompleteFeature" => "done", from: "planned"
+            end
 
             validation :title, presence: true
-
-            query "InProgress" do
-              where(status: "in_progress")
-            end
-
-            query "Todo" do
-              where(status: "todo")
-            end
           end
 
           b.aggregate "Backlog" do
-            description "Ordered collection of stories. Tracks progress and readiness."
+            description "Ordered collection of features. Tracks progress."
             attribute :name, String
-            attribute :story_count, Integer, default: 0
-            attribute :completed_count, Integer, default: 0
-            attribute :ready, String, default: "false"
+            attribute :features, list_of("BacklogEntry")
+
+            value_object "BacklogEntry" do
+              description "A feature in the backlog with its position"
+              attribute :feature_title, String
+              attribute :position, Integer
+              attribute :status, String
+            end
 
             command "AddToBacklog" do
-              description "Add a story to the backlog"
+              description "Add a feature to the backlog"
               reference_to "Backlog"
-              reference_to "Story"
+              attribute :feature_title, String
+              emits "AddedToBacklog"
             end
 
             command "Prioritize" do
-              description "Reorder a story within the backlog"
+              description "Reorder a feature within the backlog"
               reference_to "Backlog"
-              reference_to "Story"
+              attribute :feature_title, String
               attribute :position, Integer
+              emits "Reprioritized"
             end
 
             command "TrackProgress" do
-              description "Recalculate completion and update readiness status"
+              description "Recalculate completion across all features"
               reference_to "Backlog"
-              end
+              emits "ProgressTracked"
+            end
 
             validation :name, presence: true
           end

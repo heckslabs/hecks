@@ -64,6 +64,47 @@ module Hecks
             end
           end
 
+          b.aggregate "AcceptanceTest" do
+            description "Automated test runner. Dispatches every domain command and validates the event log."
+            attribute :status, String, default: "idle"
+            attribute :results, list_of("TestResult")
+            attribute :passed, Integer, default: 0
+            attribute :failed, Integer, default: 0
+            attribute :total, Integer, default: 0
+
+            value_object "TestResult" do
+              description "Result of a single command dispatch test"
+              attribute :command_name, String
+              attribute :aggregate_name, String
+              attribute :status, String
+              attribute :event_name, String
+              attribute :error, String
+            end
+
+            command "RunAll" do
+              description "Dispatch every command and validate events are emitted"
+              emits "AllTestsCompleted"
+            end
+
+            command "RunCommand" do
+              description "Test a single command dispatch"
+              attribute :aggregate_name, String
+              attribute :command_name, String
+              emits "CommandTested"
+            end
+
+            command "Reset" do
+              description "Clear all test results"
+              emits "TestsReset"
+            end
+
+            lifecycle :status, default: "idle" do
+              transition "RunAll" => "running", from: "idle"
+              transition "AllTestsCompleted" => "idle", from: "running"
+              transition "Reset" => "idle"
+            end
+          end
+
           b.aggregate "EventStream" do
             description "Live event feed. Subscribes to domain events and streams them to the UI."
             attribute :status, String, default: "streaming"

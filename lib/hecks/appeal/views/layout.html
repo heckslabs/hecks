@@ -31,6 +31,7 @@
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-diagrams">Diagrams<span class="text-white/[.38] text-xs ml-4">Ctrl+2</span></button>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-console">Console<span class="text-white/[.38] text-xs ml-4">Ctrl+3</span></button>
             <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-workbench">Workbench<span class="text-white/[.38] text-xs ml-4">Ctrl+4</span></button>
+            <button role="menuitem" class="w-full text-left px-3 py-1.5 text-sm text-white/[.87] hover:bg-white/[.08] flex justify-between" data-action="menu-action" data-menu-action="focus-features">Features<span class="text-white/[.38] text-xs ml-4">Ctrl+5</span></button>
           </div>
         </div>
         <div class="relative">
@@ -90,6 +91,7 @@
           <button role="tab" aria-selected="true" aria-controls="panel-diagrams" id="tab-diagrams" class="px-4 h-9 text-sm text-white/[.87] border-b-2 border-accent bg-white/[.04]" data-tab="diagrams">Diagrams</button>
           <button role="tab" aria-selected="false" aria-controls="panel-console" id="tab-console" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="console">Console</button>
           <button role="tab" aria-selected="false" aria-controls="panel-workbench" id="tab-workbench" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="workbench">Workbench</button>
+          <button role="tab" aria-selected="false" aria-controls="panel-features" id="tab-features" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="features">Features</button>
         </div>
 
         <!-- Tab Panels -->
@@ -125,6 +127,17 @@
                 <input type="text" id="workbench-input" autocomplete="off" spellcheck="false" class="flex-1 bg-transparent text-white/[.87] text-sm py-2 pr-3 focus:outline-none" placeholder="aggregate Pizza do; command CreatePizza; end">
               </div>
             </div>
+          </div>
+        </div>
+        <div role="tabpanel" id="panel-features" aria-labelledby="tab-features" class="flex-1 overflow-auto p-4" style="display:none">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white/[.87]">Features</h2>
+            <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="new-feature">New Feature</button>
+          </div>
+          <div id="feature-list" class="space-y-3">
+            <p class="text-white/[.38] text-sm">No features yet. Click "New Feature" to start planning.</p>
+          </div>
+          <div id="feature-detail" class="mt-4 hidden">
           </div>
         </div>
 
@@ -196,9 +209,11 @@
 
   <script src="/assets/js/renderer.js?v=4"></script>
   <script src="/assets/js/renderer_panels.js?v=2"></script>
+  <script src="/assets/js/renderer_aggregate.js?v=1"></script>
   <script src="/hecks/client.js"></script>
   <script src="/hecks/workbench.js"></script>
   <script src="/assets/js/app.js?v=3"></script>
+  <script src="/assets/js/features.js?v=1"></script>
   <script src="/assets/js/socket.js?v=2"></script>
   <script src="/assets/js/menus.js?v=3"></script>
   <script src="/assets/js/actions.js?v=2"></script>

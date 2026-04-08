@@ -73,7 +73,8 @@ module Hecks
             d[:aggregates]&.each do |a|
               matches << { type: "aggregate", name: a[:name], domain: d[:name] } if a[:name].downcase.include?(q)
               a[:commands]&.each do |c|
-                matches << { type: "command", name: c, aggregate: a[:name], domain: d[:name] } if c.downcase.include?(q)
+                cname = c.is_a?(Hash) ? c[:name] : c
+                matches << { type: "command", name: cname, aggregate: a[:name], domain: d[:name] } if cname.downcase.include?(q)
               end
             end
             matches
@@ -103,9 +104,20 @@ module Hecks
           {
             name: agg.name,
             description: agg.respond_to?(:description) ? agg.description : nil,
-            commands: agg.commands.map(&:name),
+            commands: agg.commands.map { |c| command_info(c) },
             references: agg.respond_to?(:references) ? agg.references.map { |r| r.respond_to?(:name) ? r.name : r.to_s } : []
           }
+        end
+
+        def command_info(cmd)
+          {
+            name: cmd.name,
+            attributes: cmd.attributes.map { |a| { name: a.name.to_s, type: type_label(a.type) } }
+          }
+        end
+
+        def type_label(type)
+          type.is_a?(Class) ? type.name.split("::").last : type.to_s
         end
 
         def policies_for(domain)
