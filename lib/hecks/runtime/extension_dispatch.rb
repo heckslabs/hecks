@@ -46,9 +46,16 @@ module Hecks
       private
 
       # Apply capabilities declared in the Hecksagon file.
+      # Stores exclusions so composite capabilities can check them.
       def apply_hecksagon_capabilities
         return unless @hecksagon
-        (@hecksagon.capabilities || []).each { |cap| capability(cap) }
+        excluded = @hecksagon.excluded_capabilities || []
+        Hecks.instance_variable_set(:@_excluded_capabilities, excluded)
+        (@hecksagon.capabilities || []).each do |cap|
+          next if excluded.include?(cap)
+          capability(cap)
+        end
+        Hecks.instance_variable_set(:@_excluded_capabilities, [])
       end
     end
   end

@@ -20,11 +20,11 @@ module Hecksagon
     #
     class Hecksagon
       attr_reader :name, :gates, :persistence, :extensions, :subscriptions, :tenancy,
-                  :capabilities, :aggregate_capabilities, :annotations
+                  :capabilities, :excluded_capabilities, :aggregate_capabilities, :annotations
 
       def initialize(name:, gates: [], persistence: nil, extensions: [], subscriptions: [],
-                     tenancy: nil, capabilities: [], aggregate_capabilities: {},
-                     annotations: [])
+                     tenancy: nil, capabilities: [], excluded_capabilities: [],
+                     aggregate_capabilities: {}, annotations: [])
         @name = name
         @gates = gates
         @persistence = persistence
@@ -32,8 +32,14 @@ module Hecksagon
         @subscriptions = subscriptions
         @tenancy = tenancy
         @capabilities = capabilities
+        @excluded_capabilities = excluded_capabilities
         @aggregate_capabilities = aggregate_capabilities
         @annotations = annotations
+      end
+
+      # Check if a capability is excluded.
+      def excluded?(cap_name)
+        @excluded_capabilities.include?(cap_name.to_sym)
       end
 
       # Returns gates for a specific aggregate.

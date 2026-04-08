@@ -21,7 +21,9 @@ module Hecks
       #
       # @param runtime [Hecks::Runtime] the booted runtime
       def self.apply(runtime)
+        excluded = Hecks.instance_variable_get(:@_excluded_capabilities) || []
         BUNDLED.each do |cap|
+          next if excluded.include?(cap)
           require "hecks/capabilities/#{cap}"
           hook = Hecks.capability_registry[cap]
           hook.call(runtime) if hook

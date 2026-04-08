@@ -62,14 +62,19 @@ module Hecksagon
         @subscriptions << domain_name.to_s
       end
 
-      # Declare domain-wide capabilities.
+      # Declare domain-wide capabilities. Supports except: for exclusions
+      # from composite capabilities (concerns).
       #
-      #   capabilities :crud, :audit
+      #   capabilities :crud, :webapp
+      #   capabilities :webstack, except: [:tailwind]
       #
       # @param names [Array<Symbol>] capability names
+      # @param except [Array<Symbol>] capabilities to exclude
       # @return [void]
-      def capabilities(*names)
+      def capabilities(*names, except: [])
         @capabilities.concat(names.map(&:to_sym))
+        @excluded_capabilities ||= []
+        @excluded_capabilities.concat(Array(except).map(&:to_sym))
       end
 
       # Declare per-aggregate capabilities via a block. The block
@@ -124,6 +129,7 @@ module Hecksagon
           subscriptions: @subscriptions,
           tenancy: @tenancy,
           capabilities: @capabilities,
+          excluded_capabilities: @excluded_capabilities || [],
           aggregate_capabilities: @aggregate_capabilities,
           annotations: @annotations
         )
