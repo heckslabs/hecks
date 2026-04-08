@@ -106,28 +106,9 @@ module Hecks
       # @return [Object] the domain event created and published by this command
       # @raise [RuntimeError] if the command name cannot be resolved
       def dispatch(command_name, **attrs)
-        agg_def, cmd_def, event_def = resolve(command_name)
-
+        agg_def, _, _ = resolve(command_name)
         cmd_class = resolve_class(agg_def.name, command_name)
-        command = cmd_class.new(**attrs)
-
-        # Build the innermost handler — creates and publishes the event
-        event_bus = @event_bus
-        inner = -> {
-          event_class = resolve_event_class(agg_def.name, event_def.name)
-          event_attrs = extract_event_attrs(command, event_class)
-          event = event_class.new(**event_attrs)
-          event_bus.publish(event)
-          event
-        }
-
-        # Wrap middleware around the inner handler, outermost first
-        chain = @middleware.reverse.reduce(inner) do |next_handler, mw|
-          handler = mw[:handler]
-          -> { handler.call(command, next_handler) }
-        end
-
-        chain.call
+        cmd_class.call(**attrs)
       end
 
       # Resolves a command name to its Ruby class. Used by dry_run.
