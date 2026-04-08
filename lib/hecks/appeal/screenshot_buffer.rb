@@ -6,7 +6,7 @@
 #
 #   buffer = Hecks::Appeal::ScreenshotBuffer.new
 #   buffer.save(base64_data, "2026-04-07T12:00:00Z")
-#   buffer.latest  # => "/tmp/ha_screenshots/frame_042.jpg"
+#   buffer.latest  # => "/tmp/appeal_screenshots/frame_042.jpg"
 #
 require "base64"
 require "fileutils"
@@ -15,7 +15,7 @@ module Hecks
   module Appeal
     class ScreenshotBuffer
       BUFFER_SIZE = 100
-      DIR = "/tmp/ha_screenshots"
+      DIR = "/tmp/appeal_screenshots"
 
       def initialize
         @index = 0

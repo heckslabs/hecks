@@ -9,6 +9,6 @@
 Hecks::CLI.register_command(:appeal, "Launch the HecksAppeal IDE",
   args: ["PATH..."]
 ) do |*args|
-  ha = File.expand_path("../../../bin/ha", __dir__)
-  exec ha, *args
+  appeal = File.expand_path("../../../bin/appeal", __dir__)
+  exec appeal, *args
 end
