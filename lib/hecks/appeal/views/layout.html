@@ -92,6 +92,7 @@
           <button role="tab" aria-selected="false" aria-controls="panel-console" id="tab-console" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="console">Console</button>
           <button role="tab" aria-selected="false" aria-controls="panel-workbench" id="tab-workbench" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="workbench">Workbench</button>
           <button role="tab" aria-selected="false" aria-controls="panel-features" id="tab-features" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="features">Features</button>
+          <button role="tab" aria-selected="false" aria-controls="panel-tests" id="tab-tests" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="tests">Tests</button>
         </div>
 
         <!-- Tab Panels -->
@@ -138,6 +139,29 @@
             <p class="text-white/[.38] text-sm">No features yet. Click "New Feature" to start planning.</p>
           </div>
           <div id="feature-detail" class="mt-4 hidden">
+          </div>
+        </div>
+
+        <div role="tabpanel" id="panel-tests" aria-labelledby="tab-tests" class="flex-1 overflow-auto p-4" style="display:none">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white/[.87]">Acceptance Tests</h2>
+            <div class="flex gap-2">
+              <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="run-all-tests">Run All</button>
+              <button class="px-3 py-1.5 bg-elevated border border-white/[.12] text-white/[.54] text-sm rounded hover:text-white/[.87] transition-colors" data-action="reset-tests">Reset</button>
+            </div>
+          </div>
+          <div id="test-progress" class="mb-4 hidden">
+            <div class="flex items-center gap-3 text-sm">
+              <span id="test-passed" class="text-green-400">0 passed</span>
+              <span id="test-failed" class="text-red-400">0 failed</span>
+              <span id="test-total" class="text-white/[.38]">0 total</span>
+            </div>
+            <div class="w-full bg-white/[.08] rounded-full h-1.5 mt-2">
+              <div id="test-bar" class="bg-green-400 h-1.5 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+          </div>
+          <div id="test-results" class="space-y-1">
+            <p class="text-white/[.38] text-sm">Click "Run All" to test every command in the domain.</p>
           </div>
         </div>
 
@@ -214,6 +238,7 @@
   <script src="/hecks/workbench.js"></script>
   <script src="/assets/js/app.js?v=3"></script>
   <script src="/assets/js/features.js?v=1"></script>
+  <script src="/assets/js/tests.js?v=1"></script>
   <script src="/assets/js/socket.js?v=2"></script>
   <script src="/assets/js/menus.js?v=3"></script>
   <script src="/assets/js/actions.js?v=2"></script>
