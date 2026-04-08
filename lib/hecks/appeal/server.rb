@@ -55,7 +55,6 @@ module Hecks
         appeal_dir = File.expand_path("../chapters/appeal", __dir__)
         Hecks.load_bluebook(
           Hecks::Chapters::Appeal.definition,
-          skip_validation: true,
           source_dir: appeal_dir
         )
         domain = Hecks::Chapters::Appeal.definition
