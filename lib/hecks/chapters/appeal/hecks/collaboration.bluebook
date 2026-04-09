@@ -4,8 +4,8 @@ Hecks.bluebook "Collaboration" do
     aggregate "Feature", "A planned capability moving through proposal, planning, building, and verification" do
       attribute :title, String
       attribute :description, String
-      attribute :lifecycle_state, "FeatureStatus"
-      attribute :additions, list_of("DomainAddition")
+      attribute :lifecycle_state, FeatureStatus
+      attribute :additions, list_of(DomainAddition)
 
       value_object "FeatureStatus" do
         description "Where a feature sits in its delivery lifecycle"
@@ -34,8 +34,8 @@ Hecks.bluebook "Collaboration" do
       command "PlanAdditions" do
         role "Developer"
         description "Decompose the feature into domain additions that must be built"
-        reference_to "Feature"
-        attribute :additions, list_of("DomainAddition")
+        reference_to Feature
+        attribute :additions, list_of(DomainAddition)
         emits "AdditionsPlanned"
         handler do |feature|
           raise "Feature must have a title before planning" if feature.title.nil? || feature.title.empty?
@@ -46,14 +46,14 @@ Hecks.bluebook "Collaboration" do
       command "ImplementFeature" do
         role "Developer"
         description "Begin building all planned additions against the live domain"
-        reference_to "Feature"
+        reference_to Feature
         emits "ImplementationStarted"
       end
 
       command "VerifyAdditions" do
         role "Developer"
         description "Check every addition against the live IR and mark verified"
-        reference_to "Feature"
+        reference_to Feature
         emits "AdditionsVerified"
         handler do |feature|
           raise "No additions to verify" if feature.additions.nil? || feature.additions.empty?
@@ -69,7 +69,7 @@ Hecks.bluebook "Collaboration" do
         role "ProductOwner"
         goal "Sign off that the feature meets acceptance criteria"
         description "Accept the feature as complete -- all additions verified"
-        reference_to "Feature"
+        reference_to Feature
         emits "FeatureAccepted"
       end
 
@@ -106,8 +106,8 @@ Hecks.bluebook "Collaboration" do
     end
 
     aggregate "Agent", "AI collaborator for domain modeling conversations and suggested changes" do
-      attribute :conversation, list_of("ConversationMessage")
-      attribute :suggestions, list_of("Suggestion")
+      attribute :conversation, list_of(ConversationMessage)
+      attribute :suggestions, list_of(Suggestion)
       attribute :context_domain, String
 
       value_object "ConversationMessage" do
@@ -126,13 +126,13 @@ Hecks.bluebook "Collaboration" do
         attribute :applied, String, default: "false"
       end
 
-      command("ClearConversation") { role "AI"; reference_to "Agent"; emits "ConversationCleared" }
-      command("ApplySuggestion") { role "AI"; reference_to "Agent"; attribute :title, String; emits "SuggestionApplied" }
-      command("LoadContext") { role "AI"; reference_to "Agent"; attribute :domain_name, String; emits "ContextLoaded" }
+      command("ClearConversation") { role "AI"; reference_to Agent; emits "ConversationCleared" }
+      command("ApplySuggestion") { role "AI"; reference_to Agent; attribute :title, String; emits "SuggestionApplied" }
+      command("LoadContext") { role "AI"; reference_to Agent; attribute :domain_name, String; emits "ContextLoaded" }
     end
 
     aggregate "Backlog", "Ordered queue of features ranked by delivery priority" do
-      attribute :entries, list_of("BacklogPosition")
+      attribute :entries, list_of(BacklogPosition)
 
       value_object "BacklogPosition" do
         description "A feature's place in the delivery queue"
@@ -142,11 +142,11 @@ Hecks.bluebook "Collaboration" do
 
       command("AddFeature") { role "ProductOwner"; attribute :feature_title, String; emits "FeatureQueued" }
       command("Reorder") { role "ProductOwner"; attribute :feature_title, String; attribute :rank, Integer; emits "BacklogReordered" }
-      command("TrackProgress") { role "ProductOwner"; reference_to "Backlog"; emits "ProgressTracked" }
+      command("TrackProgress") { role "ProductOwner"; reference_to Backlog; emits "ProgressTracked" }
     end
 
     aggregate "Review", "Domain change review -- propose, discuss, decide" do
-      attribute :decision, "ReviewDecision"
+      attribute :decision, ReviewDecision
       attribute :comments, list_of(String)
 
       value_object "ReviewDecision" do
@@ -163,13 +163,13 @@ Hecks.bluebook "Collaboration" do
         emits "ChangeProposed"
       end
 
-      command("AddComment") { role "Reviewer"; reference_to "Review"; attribute :body, String; emits "CommentAdded" }
-      command("Decide") { role "Reviewer"; reference_to "Review"; attribute :decision, String; emits "DecisionRendered" }
+      command("AddComment") { role "Reviewer"; reference_to Review; attribute :body, String; emits "CommentAdded" }
+      command("Decide") { role "Reviewer"; reference_to Review; attribute :decision, String; emits "DecisionRendered" }
     end
 
     aggregate "ProductExecutor", "Eight-agent product team: plan, build domain, build app, UX, UI, product owner, scrum master, event storming" do
       attribute :active_agent, String
-      attribute :conversations, list_of("AgentConversation")
+      attribute :conversations, list_of(AgentConversation)
 
       value_object "AgentConversation" do
         description "A named agent's chat history"
@@ -198,9 +198,9 @@ Hecks.bluebook "Collaboration" do
         emits "StoryWritten"
       end
 
-      command("StartWork") { role "Developer"; reference_to "Story"; emits "WorkStarted" }
-      command("FinishWork") { role "Developer"; reference_to "Story"; emits "WorkFinished" }
-      command("AcceptDelivery") { role "ProductOwner"; reference_to "Story"; emits "DeliveryAccepted" }
+      command("StartWork") { role "Developer"; reference_to Story; emits "WorkStarted" }
+      command("FinishWork") { role "Developer"; reference_to Story; emits "WorkFinished" }
+      command("AcceptDelivery") { role "ProductOwner"; reference_to Story; emits "DeliveryAccepted" }
 
       lifecycle :lifecycle_state, default: "ready" do
         transition "StartWork" => "in_progress", from: "ready"
@@ -232,7 +232,7 @@ Hecks.bluebook "Collaboration" do
       command "ToggleFlag" do
         role "Developer"
         description "Enable or disable a feature flag at runtime"
-        reference_to "FeatureFlag"
+        reference_to FeatureFlag
         emits "FlagToggled"
         handler do |flag|
           flag.enabled = flag.enabled == "true" ? "false" : "true"
@@ -243,7 +243,7 @@ Hecks.bluebook "Collaboration" do
       command "RemoveFlag" do
         role "ProductOwner"
         description "Remove the flag — feature becomes permanent. Triggered when story is accepted."
-        reference_to "FeatureFlag"
+        reference_to FeatureFlag
         emits "FlagRemoved"
         handler do |flag|
           flag.permanent = "true"

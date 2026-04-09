@@ -75,7 +75,7 @@ Hecks.bluebook "Spec" do
   aggregate "Pizza", "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries." do
     attribute :name, String
     attribute :description, String
-    attribute :toppings, list_of("Topping")
+    attribute :toppings, list_of(Topping)
 
     value_object "Topping" do
       description "A measured ingredient on a pizza. Immutable once created."
@@ -102,7 +102,7 @@ Hecks.bluebook "Spec" do
 
     command "AddTopping" do
       description "Add a measured topping to an existing pizza"
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :name, String
       attribute :amount, Integer
     end
@@ -110,8 +110,8 @@ Hecks.bluebook "Spec" do
 
   aggregate "Order", "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies." do
     attribute :customer_name, String
-    attribute :items, list_of("OrderItem")
-    reference_to "Pizza"
+    attribute :items, list_of(OrderItem)
+    reference_to Pizza
 
     attribute :status, String, default: "pending" do
       transition "CancelOrder" => "cancelled"
@@ -131,13 +131,13 @@ Hecks.bluebook "Spec" do
     command "PlaceOrder" do
       description "Place a new order for a pizza"
       attribute :customer_name, String
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :quantity, Integer
     end
 
     command "CancelOrder" do
       description "Cancel a pending order, transitioning status to cancelled"
-      reference_to "Order"
+      reference_to Order
     end
 
     query "Pending" do

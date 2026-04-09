@@ -15,8 +15,8 @@ Hecks.bluebook "Modeling" do
         attribute :relationship, String
       end
       attribute :view_type, String
-      attribute :nodes, list_of("DiagramNode")
-      attribute :edges, list_of("DiagramEdge")
+      attribute :nodes, list_of(DiagramNode)
+      attribute :edges, list_of(DiagramEdge)
       command "GenerateDiagram" do
         role "Developer"
         goal "Visualize domain structure as an interactive diagram"
@@ -35,14 +35,14 @@ Hecks.bluebook "Modeling" do
       command "SelectView" do
         role "Developer"
         description "Switch between aggregate map, event flow, or command graph"
-        reference_to "Diagram"
+        reference_to Diagram
         attribute :view_type, String
         emits "ViewSelected"
       end
       command "FilterByAggregate" do
         role "Developer"
         description "Show only nodes related to a specific aggregate"
-        reference_to "Diagram"
+        reference_to Diagram
         attribute :aggregate_name, String
         emits "DiagramFiltered"
       end
@@ -62,7 +62,7 @@ Hecks.bluebook "Modeling" do
         attribute :position_y, Integer
       end
       attribute :storm_name, String
-      attribute :stickies, list_of("Sticky")
+      attribute :stickies, list_of(Sticky)
       command "StartStorm" do
         role "Developer"
         goal "Kick off a collaborative event storming session"
@@ -73,7 +73,7 @@ Hecks.bluebook "Modeling" do
       command "PlaceSticky" do
         role "Developer"
         description "Place a new sticky note on the board"
-        reference_to "EventStorm"
+        reference_to EventStorm
         attribute :label, String
         attribute :kind, String
         emits "StickyPlaced"
@@ -81,7 +81,7 @@ Hecks.bluebook "Modeling" do
       command "MoveSticky" do
         role "Developer"
         description "Reposition a sticky on the board"
-        reference_to "EventStorm"
+        reference_to EventStorm
         attribute :label, String
         attribute :position_x, Integer
         attribute :position_y, Integer
@@ -90,7 +90,7 @@ Hecks.bluebook "Modeling" do
       command "ConvertToDomain" do
         role "Developer"
         description "Transform stickies into Bluebook DSL aggregates, commands, and events"
-        reference_to "EventStorm"
+        reference_to EventStorm
         emits "StormConverted"
       end
       validation :storm_name, presence: true
@@ -104,7 +104,7 @@ Hecks.bluebook "Modeling" do
         attribute :category, String
         attribute :aliases, String
       end
-      attribute :terms, list_of("GlossaryTerm")
+      attribute :terms, list_of(GlossaryTerm)
       command "ShowGlossary" do
         role "DomainExpert"
         description "Display the full glossary of domain terms"
@@ -122,7 +122,7 @@ Hecks.bluebook "Modeling" do
       command "RenameTerm" do
         role "DomainExpert"
         description "Rename a term and cascade the change to all references"
-        reference_to "Glossary"
+        reference_to Glossary
         attribute :old_name, String
         attribute :new_name, String
         emits "TermRenamed"
@@ -131,7 +131,7 @@ Hecks.bluebook "Modeling" do
         role "DomainExpert"
         goal "Surface a naming conflict for team resolution"
         description "Mark a term as ambiguous -- needs team clarification"
-        reference_to "Glossary"
+        reference_to Glossary
         attribute :term_name, String
         attribute :reason, String
         emits "AmbiguityFlagged"
@@ -139,7 +139,7 @@ Hecks.bluebook "Modeling" do
       command "LinkTerms" do
         role "DomainExpert"
         description "Declare a relationship between two glossary terms"
-        reference_to "Glossary"
+        reference_to Glossary
         attribute :from_term, String
         attribute :to_term, String
         attribute :relationship, String
@@ -155,7 +155,7 @@ Hecks.bluebook "Modeling" do
         attribute :aggregate_name, String
         attribute :suggestion, String
       end
-      attribute :findings, list_of("InsightFinding")
+      attribute :findings, list_of(InsightFinding)
       command "AnalyzeDomain" do
         role "Developer"
         description "Run all analysis rules against the current domain"
@@ -165,7 +165,7 @@ Hecks.bluebook "Modeling" do
       command "DismissInsight" do
         role "Developer"
         description "Acknowledge and hide a specific finding"
-        reference_to "Insight"
+        reference_to Insight
         attribute :rule, String
         attribute :aggregate_name, String
         emits "InsightDismissed"
@@ -173,7 +173,7 @@ Hecks.bluebook "Modeling" do
       command "ConfigureRules" do
         role "Developer"
         description "Enable or disable specific analysis rules"
-        reference_to "Insight"
+        reference_to Insight
         attribute :rule, String
         attribute :enabled, String
         emits "RulesConfigured"
@@ -187,7 +187,7 @@ Hecks.bluebook "Modeling" do
         attribute :to_version, String
         attribute :changes, String
       end
-      attribute :diff, "VersionDiff"
+      attribute :diff, VersionDiff
       command "DetectChanges" do
         role "Developer"
         description "Compare current bluebook against a previous version"
@@ -197,13 +197,13 @@ Hecks.bluebook "Modeling" do
       command "GenerateMigration" do
         role "Developer"
         description "Produce a migration script for the detected changes"
-        reference_to "Migration"
+        reference_to Migration
         emits "MigrationGenerated"
       end
       command "ApplyMigration" do
         role "Developer"
         description "Execute the migration against a target environment"
-        reference_to "Migration"
+        reference_to Migration
         emits "MigrationApplied"
       end
     end

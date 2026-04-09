@@ -3,10 +3,10 @@ Hecks.bluebook "Compliance" do
     attribute :name, String
     attribute :description, String
     attribute :category, String
-    reference_to "Compliance::RegulatoryFramework"
+    reference_to Compliance::RegulatoryFramework
     attribute :effective_date, Date
     attribute :review_date, Date
-    attribute :requirements, list_of("Requirement")
+    attribute :requirements, list_of(Requirement)
     attribute :status, String
 
     value_object "Requirement" do
@@ -39,7 +39,7 @@ Hecks.bluebook "Compliance" do
       attribute :name, String
       attribute :description, String
       attribute :category, String
-      reference_to "Compliance::RegulatoryFramework"
+      reference_to Compliance::RegulatoryFramework
       role "governance_board"
       role "admin"
     end
@@ -77,7 +77,7 @@ Hecks.bluebook "Compliance" do
     attribute :version, String
     attribute :effective_date, Date
     attribute :authority, String
-    attribute :requirements, list_of("FrameworkRequirement")
+    attribute :requirements, list_of(FrameworkRequirement)
     attribute :status, String
 
     value_object "FrameworkRequirement" do
@@ -117,13 +117,13 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "ComplianceReview" do
-    reference_to "ModelRegistry::AiModel"
-    reference_to "Compliance::GovernancePolicy"
-    reference_to "Identity::Stakeholder"
+    reference_to ModelRegistry::AiModel
+    reference_to Compliance::GovernancePolicy
+    reference_to Identity::Stakeholder
     attribute :outcome, String
     attribute :notes, String
     attribute :completed_at, DateTime
-    attribute :conditions, list_of("ReviewCondition")
+    attribute :conditions, list_of(ReviewCondition)
     attribute :status, String
 
     value_object "ReviewCondition" do
@@ -151,9 +151,9 @@ Hecks.bluebook "Compliance" do
     end
 
     command "OpenReview" do
-      reference_to "ModelRegistry::AiModel"
-      reference_to "Compliance::GovernancePolicy"
-      reference_to "Identity::Stakeholder"
+      reference_to ModelRegistry::AiModel
+      reference_to Compliance::GovernancePolicy
+      reference_to Identity::Stakeholder
       role "reviewer"
       role "admin"
     end
@@ -187,11 +187,11 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "Exemption" do
-    reference_to "ModelRegistry::AiModel"
-    reference_to "Compliance::GovernancePolicy"
+    reference_to ModelRegistry::AiModel
+    reference_to Compliance::GovernancePolicy
     attribute :requirement, String
     attribute :reason, String
-    reference_to "Identity::Stakeholder"
+    reference_to Identity::Stakeholder
     attribute :approved_at, DateTime
     attribute :expires_at, Date
     attribute :scope, String
@@ -214,15 +214,15 @@ Hecks.bluebook "Compliance" do
     end
 
     command "RequestExemption" do
-      reference_to "ModelRegistry::AiModel"
-      reference_to "Compliance::GovernancePolicy"
+      reference_to ModelRegistry::AiModel
+      reference_to Compliance::GovernancePolicy
       attribute :requirement, String
       attribute :reason, String
     end
 
     command "ApproveExemption" do
       attribute :exemption_id, String
-      reference_to "Identity::Stakeholder"
+      reference_to Identity::Stakeholder
       attribute :expires_at, Date
       role "governance_board"
       role "admin"
@@ -236,8 +236,8 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "TrainingRecord" do
-    reference_to "Identity::Stakeholder"
-    reference_to "Compliance::GovernancePolicy"
+    reference_to Identity::Stakeholder
+    reference_to Compliance::GovernancePolicy
     attribute :completed_at, DateTime
     attribute :expires_at, Date
     attribute :certification, String
@@ -268,8 +268,8 @@ Hecks.bluebook "Compliance" do
     end
 
     command "AssignTraining" do
-      reference_to "Identity::Stakeholder"
-      reference_to "Compliance::GovernancePolicy"
+      reference_to Identity::Stakeholder
+      reference_to Compliance::GovernancePolicy
     end
 
     command "CompleteTraining" do

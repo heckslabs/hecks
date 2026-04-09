@@ -2,7 +2,7 @@ Hecks.bluebook "Pizzas" do
   aggregate "Pizza" do
     attribute :name, String
     attribute :description, String
-    attribute :toppings, list_of("Topping")
+    attribute :toppings, list_of(Topping)
 
     value_object "Topping" do
       attribute :name, String
@@ -27,7 +27,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     command "AddTopping" do
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :name, String
       attribute :amount, Integer
     end
@@ -35,7 +35,7 @@ Hecks.bluebook "Pizzas" do
 
   aggregate "Order" do
     attribute :customer_name, String
-    attribute :items, list_of("OrderItem")
+    attribute :items, list_of(OrderItem)
     attribute :status, String
 
     value_object "OrderItem" do
@@ -60,7 +60,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     command "CancelOrder" do
-      reference_to "Order"
+      reference_to Order
     end
   end
 end

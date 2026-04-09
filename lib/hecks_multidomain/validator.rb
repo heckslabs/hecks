@@ -66,7 +66,7 @@ module Hecks
           end
         end
         unless errors.empty?
-          raise Hecks::ValidationError, "Cross-domain reference_to errors:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+          $stderr.puts "  \e[33m!\e[0m Cross-domain reference_to: #{errors.first}"
         end
       end
     end

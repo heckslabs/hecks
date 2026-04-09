@@ -8,7 +8,7 @@ Hecks.bluebook "SpaghettiWestern" do
     attribute :wanted_level, Integer
     attribute :kills, Integer
     attribute :preferred_weapon, String
-    reference_to "Town"
+    reference_to Town
     validation :name, {:presence=>true}
     validation :accuracy, {:presence=>true}
 
@@ -25,10 +25,10 @@ Hecks.bluebook "SpaghettiWestern" do
   end
 
   aggregate "Duel" do
-    reference_to "Gunslinger"
-    reference_to "Gunslinger"
-    reference_to "Town"
-    reference_to "Gunslinger"
+    reference_to Gunslinger
+    reference_to Gunslinger
+    reference_to Town
+    reference_to Gunslinger
     attribute :status, String
     attribute :narration, String
     attribute :dramatic_pause_seconds, Float
@@ -67,8 +67,8 @@ Hecks.bluebook "SpaghettiWestern" do
 
   aggregate "Bounty" do
     attribute :bounty_type, String
-    reference_to "Gunslinger"
-    reference_to "Gunslinger"
+    reference_to Gunslinger
+    reference_to Gunslinger
     attribute :amount, Integer
     attribute :status, String, enum: ["active", "claimed", "expired", "cancelled"]
     attribute :description, String
@@ -86,7 +86,7 @@ Hecks.bluebook "SpaghettiWestern" do
 
   aggregate "Saloon" do
     attribute :name, String
-    reference_to "Town"
+    reference_to Town
     attribute :drink_prices, JSON
     attribute :capacity, Integer
     attribute :trouble_rating, Float
@@ -105,8 +105,8 @@ Hecks.bluebook "SpaghettiWestern" do
     attribute :breed, String
     attribute :speed, Integer
     attribute :alive, TrueClass
-    reference_to "Gunslinger"
-    reference_to "Town"
+    reference_to Gunslinger
+    reference_to Town
     validation :name, {:presence=>true}
 
     command "CreateHorse" do
@@ -122,7 +122,7 @@ Hecks.bluebook "SpaghettiWestern" do
     attribute :recipient, String
     attribute :message, String
     attribute :event_type, String
-    reference_to "Town"
+    reference_to Town
     attribute :sent_at, DateTime
     attribute :read, TrueClass
     validation :message, {:presence=>true}

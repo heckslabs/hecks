@@ -18,12 +18,12 @@ Hecks.bluebook "Banking" do
   end
 
   aggregate "Account" do
-    reference_to "Customer"
+    reference_to Customer
     attribute :balance, Float
     attribute :account_type, String
     attribute :daily_limit, Float
     attribute :status, String, default: "open"
-    attribute :ledger, list_of("LedgerEntry")
+    attribute :ledger, list_of(LedgerEntry)
 
     entity "LedgerEntry" do
       attribute :amount, Float
@@ -60,8 +60,8 @@ Hecks.bluebook "Banking" do
   end
 
   aggregate "Transfer" do
-    reference_to "Account"
-    reference_to "Account"
+    reference_to Account
+    reference_to Account
     attribute :amount, Float
     attribute :status, String, default: "pending"
     attribute :memo, String
@@ -85,8 +85,8 @@ Hecks.bluebook "Banking" do
   end
 
   aggregate "Loan" do
-    reference_to "Customer"
-    reference_to "Account"
+    reference_to Customer
+    reference_to Account
     attribute :principal, Float
     attribute :rate, Float
     attribute :term_months, Integer

@@ -2,9 +2,9 @@ Hecks.bluebook "Workbench" do
   vision "Domain IDE shell — panel layout, session modes, live event streaming, menus, and shortcuts"
 
     aggregate "Layout", "IDE chrome — panels, tabs, sidebar, shortcuts, persisted geometry." do
-      attribute :panel_layout, "PanelLayout"
-      attribute :panels, "PanelState"
-      attribute :shortcuts, "ShortcutBinding"
+      attribute :panel_layout, PanelLayout
+      attribute :panels, PanelState
+      attribute :shortcuts, ShortcutBinding
       attribute :search_query, String
       value_object "TabName" do
         attribute :label, String
@@ -18,9 +18,9 @@ Hecks.bluebook "Workbench" do
       end
 
       value_object "PanelLayout" do
-        attribute :sidebar, "PanelState"
-        attribute :events_panel, "PanelState"
-        attribute :active_tab, "TabName"
+        attribute :sidebar, PanelState
+        attribute :events_panel, PanelState
+        attribute :active_tab, TabName
       end
 
       value_object "ShortcutBinding" do
@@ -29,12 +29,12 @@ Hecks.bluebook "Workbench" do
         attribute :target_command, String
       end
 
-      reference_to "Session"
+      reference_to Session
 
       command "SelectTab" do
         role "Developer"
         goal "Switch the active IDE panel to a different view"
-        reference_to "Layout"
+        reference_to Layout
         attribute :tab_label, String
         emits "TabSelected"
         handler do |layout|
@@ -46,7 +46,7 @@ Hecks.bluebook "Workbench" do
       command "ToggleSidebar" do
         role "Developer"
         goal "Show or hide the sidebar to manage screen space"
-        reference_to "Layout"
+        reference_to Layout
         emits "SidebarToggled"
         handler do |layout|
           collapsed = layout.sidebar_collapsed == "true"
@@ -57,7 +57,7 @@ Hecks.bluebook "Workbench" do
 
       command "ToggleEventsPanel" do
         role "Developer"
-        reference_to "Layout"
+        reference_to Layout
         emits "EventsPanelToggled"
         handler do |layout|
           collapsed = layout.events_panel_collapsed == "true"
@@ -66,11 +66,11 @@ Hecks.bluebook "Workbench" do
         end
       end
 
-      command("OpenPanel")   { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelRevealed" }
-      command("ClosePanel")  { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelCollapsed" }
-      command("ResizePanel") { role "Developer"; reference_to "Layout"; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
-      command("HideProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsHidden" }
-      command("ShowProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsShown" }
+      command("OpenPanel")   { role "Developer"; reference_to Layout; attribute :panel_label, String; emits "PanelRevealed" }
+      command("ClosePanel")  { role "Developer"; reference_to Layout; attribute :panel_label, String; emits "PanelCollapsed" }
+      command("ResizePanel") { role "Developer"; reference_to Layout; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
+      command("HideProjects")  { role "Developer"; reference_to Layout; emits "ProjectsHidden" }
+      command("ShowProjects")  { role "Developer"; reference_to Layout; emits "ProjectsShown" }
     end
 
     aggregate "KeyboardShortcut", "Keyboard shortcut bindings for IDE navigation and actions." do
@@ -90,8 +90,8 @@ Hecks.bluebook "Workbench" do
     end
 
     aggregate "Session", "IDE session — sketch vs play mode, WebSocket connection lifecycle." do
-      attribute :mode, "SessionMode"
-      attribute :connection, "ConnectionStatus"
+      attribute :mode, SessionMode
+      attribute :connection, ConnectionStatus
 
       value_object "SessionMode" do
         attribute :label, String, default: "sketch"
@@ -103,8 +103,8 @@ Hecks.bluebook "Workbench" do
         invariant("known state") { %w[connected disconnected reconnecting].include?(label) }
       end
 
-      command("EnterSketch") { role "Developer"; reference_to "Session"; emits "SketchEntered" }
-      command("EnterPlay")   { role "Developer"; reference_to "Session"; emits "PlayEntered" }
+      command("EnterSketch") { role "Developer"; reference_to Session; emits "SketchEntered" }
+      command("EnterPlay")   { role "Developer"; reference_to Session; emits "PlayEntered" }
 
       lifecycle :mode, default: "sketch" do
         transition "EnterSketch" => "sketch", from: "play"
@@ -118,9 +118,9 @@ Hecks.bluebook "Workbench" do
         transition "RestoreConnection" => "connected", from: "reconnecting"
       end
 
-      command("OpenConnection")    { role "Developer"; reference_to "Session"; emits "ConnectionOpened" }
-      command("CloseConnection")   { role "Developer"; reference_to "Session"; emits "ConnectionClosed" }
-      command("RestoreConnection") { role "Developer"; reference_to "Session"; emits "ConnectionRestored" }
+      command("OpenConnection")    { role "Developer"; reference_to Session; emits "ConnectionOpened" }
+      command("CloseConnection")   { role "Developer"; reference_to Session; emits "ConnectionClosed" }
+      command("RestoreConnection") { role "Developer"; reference_to Session; emits "ConnectionRestored" }
     end
 
     aggregate "Workbench", "Live domain interaction — select project and aggregate, dispatch commands." do
@@ -143,7 +143,7 @@ Hecks.bluebook "Workbench" do
       command "SelectAggregate" do
         role "Developer"
         goal "Focus the workbench on a specific aggregate"
-        reference_to "Workbench"
+        reference_to Workbench
         attribute :aggregate_label, String
         emits "AggregateFocused"
         handler do |wb|
@@ -154,21 +154,21 @@ Hecks.bluebook "Workbench" do
     end
 
     aggregate "Agent", "AI chat panel — conversation history, domain review requests." do
-      attribute :messages, "AgentMessage"
+      attribute :messages, AgentMessage
 
       value_object "AgentMessage" do
         attribute :role, String
         attribute :content, String
       end
 
-      command("SendMessage")        { role "Developer"; reference_to "Agent"; attribute :content, String; emits "AgentMessageReceived" }
-      command("ClearConversation")  { role "Developer"; reference_to "Agent"; emits "ConversationCleared" }
-      command("RequestReview")      { role "Developer"; reference_to "Agent"; emits "ReviewRequested" }
+      command("SendMessage")        { role "Developer"; reference_to Agent; attribute :content, String; emits "AgentMessageReceived" }
+      command("ClearConversation")  { role "Developer"; reference_to Agent; emits "ConversationCleared" }
+      command("RequestReview")      { role "Developer"; reference_to Agent; emits "ReviewRequested" }
     end
 
     aggregate "Menu", "IDE menu bar — File, View, Domain dropdowns." do
       attribute :open_menu_label, String
-      attribute :entries, "MenuEntry"
+      attribute :entries, MenuEntry
 
       value_object "MenuEntry" do
         attribute :label, String
@@ -178,12 +178,12 @@ Hecks.bluebook "Workbench" do
       end
 
       command("OpenMenu")    { role "Developer"; attribute :menu_label, String; emits "MenuOpened" }
-      command("CloseMenu")   { role "Developer"; reference_to "Menu"; emits "MenuClosed" }
-      command("SelectEntry") { role "Developer"; reference_to "Menu"; attribute :entry_label, String; emits "EntrySelected" }
+      command("CloseMenu")   { role "Developer"; reference_to Menu; emits "MenuClosed" }
+      command("SelectEntry") { role "Developer"; reference_to Menu; attribute :entry_label, String; emits "EntrySelected" }
     end
 
     aggregate "EventStream", "Live event feed — streams domain events to the IDE console." do
-      attribute :captured_events, "CapturedEvent"
+      attribute :captured_events, CapturedEvent
       attribute :aggregate_filter, String
       attribute :event_filter, String
 
@@ -204,15 +204,15 @@ Hecks.bluebook "Workbench" do
         transition "StopStreaming" => "idle", from: "paused"
       end
 
-      command("SubscribeToEvents") { role "Developer"; reference_to "EventStream"; emits "EventsSubscribed" }
-      command("PauseStream")       { role "Developer"; reference_to "EventStream"; emits "StreamPaused" }
-      command("ResumeStream")      { role "Developer"; reference_to "EventStream"; emits "StreamResumed" }
-      command("StopStreaming")     { role "Developer"; reference_to "EventStream"; emits "StreamingStopped" }
-      command("ClearEvents")       { role "Developer"; reference_to "EventStream"; emits "EventsCleared" }
+      command("SubscribeToEvents") { role "Developer"; reference_to EventStream; emits "EventsSubscribed" }
+      command("PauseStream")       { role "Developer"; reference_to EventStream; emits "StreamPaused" }
+      command("ResumeStream")      { role "Developer"; reference_to EventStream; emits "StreamResumed" }
+      command("StopStreaming")     { role "Developer"; reference_to EventStream; emits "StreamingStopped" }
+      command("ClearEvents")       { role "Developer"; reference_to EventStream; emits "EventsCleared" }
 
       command "FlushEvents" do
         role "Developer"
-        reference_to "EventStream"
+        reference_to EventStream
         emits "EventsFlushed"
         handler do |stream|
           stream.captured_events = []
@@ -222,7 +222,7 @@ Hecks.bluebook "Workbench" do
 
       command "NarrowEvents" do
         role "Developer"
-        reference_to "EventStream"
+        reference_to EventStream
         attribute :aggregate_label, String
         attribute :event_label, String
         emits "EventsNarrowed"

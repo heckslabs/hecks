@@ -16,11 +16,11 @@ Hecks.bluebook "Pizzas" do
   end
 
   aggregate "Order" do
-    reference_to "Pizza"
+    reference_to Pizza
     attribute :quantity, Integer
 
     command "PlaceOrder" do
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :quantity, Integer
     end
   end

@@ -7,31 +7,31 @@ Hecks.bluebook "Authoring" do
         attribute :path, String
         invariant("path present") { !path.nil? && !path.empty? }
       end
-      attribute :project_path, "ProjectPath"
-      attribute :discovered_paths, list_of("ProjectPath")
+      attribute :project_path, ProjectPath
+      attribute :discovered_paths, list_of(ProjectPath)
       command "OpenProject" do
         role "Developer"
         goal "Load a domain project for editing and exploration"
         description "Load an existing domain project from a directory"
-        attribute :project_path, "ProjectPath"
+        attribute :project_path, ProjectPath
         emits "ProjectOpened"
       end
       command "DiscoverProjects" do
         role "Developer"
         description "Scan a directory tree for hecks apps -- looks for hecks/*.bluebook"
-        attribute :search_path, "ProjectPath"
+        attribute :search_path, ProjectPath
         emits "ProjectsDiscovered"
       end
       command "LoadProjects" do
         role "Developer"
         description "Discover and open every project found under a directory"
-        attribute :search_path, "ProjectPath"
+        attribute :search_path, ProjectPath
         emits "ProjectsLoaded"
       end
       command "CloseProject" do
         role "Developer"
         description "Close the current project and release resources"
-        reference_to "Project"
+        reference_to Project
         emits "ProjectClosed"
       end
       validation :project_path, presence: true
@@ -44,12 +44,12 @@ Hecks.bluebook "Authoring" do
         attribute :language, String
       end
       attribute :domain_context, String
-      attribute :last_opened, "FileContent"
-      reference_to "Project"
+      attribute :last_opened, FileContent
+      reference_to Project
       command "LoadDomain" do
         role "Developer"
         description "Parse the project domain and populate the explorer tree"
-        reference_to "Project"
+        reference_to Project
         emits "DomainLoaded"
       end
       command "InspectAggregate" do
@@ -69,7 +69,7 @@ Hecks.bluebook "Authoring" do
         role "Developer"
         goal "Open a domain source file for inspection"
         description "Open a source file and record it as the last opened"
-        reference_to "Project"
+        reference_to Project
         attribute :path, String
         attribute :domain, String
         emits "FileOpened"
@@ -82,33 +82,33 @@ Hecks.bluebook "Authoring" do
       end
     end
     aggregate "Document", "A source file open for editing. Tracks content and dirty status." do
-      attribute :content, "FileContent"
-      reference_to "Project"
+      attribute :content, FileContent
+      reference_to Project
       command "OpenDocument" do
         role "Developer"
         goal "Open a domain file for editing in the IDE"
         description "Load a .hec or .bluebook file into the editor"
-        reference_to "Project"
+        reference_to Project
         attribute :filename, String
         emits "DocumentOpened"
       end
       command "EditDocument" do
         role "Developer"
         description "Apply a text change to the open document"
-        reference_to "Document"
+        reference_to Document
         attribute :content, String
         emits "DocumentEdited"
       end
       command "SaveDocument" do
         role "Developer"
         description "Persist the document back to disk"
-        reference_to "Document"
+        reference_to Document
         emits "DocumentSaved"
       end
       command "ValidateDocument" do
         role "Developer"
         description "Parse and validate the document, producing diagnostics"
-        reference_to "Document"
+        reference_to Document
         emits "DocumentValidated"
       end
     end
@@ -120,13 +120,13 @@ Hecks.bluebook "Authoring" do
         attribute :detail, String
         attribute :timestamp, String
       end
-      attribute :entries, list_of("TimelineEntry")
+      attribute :entries, list_of(TimelineEntry)
       attribute :cursor, Integer, default: 0
-      reference_to "Document"
+      reference_to Document
       command "RecordChange" do
         role "Developer"
         description "Append a change to the timeline after an edit"
-        reference_to "Document"
+        reference_to Document
         attribute :action, String
         attribute :detail, String
         emits "ChangeRecorded"
@@ -134,13 +134,13 @@ Hecks.bluebook "Authoring" do
       command "Undo" do
         role "Developer"
         description "Move the cursor back one step and revert the change"
-        reference_to "Timeline"
+        reference_to Timeline
         emits "UndoApplied"
       end
       command "Redo" do
         role "Developer"
         description "Move the cursor forward and reapply the change"
-        reference_to "Timeline"
+        reference_to Timeline
         emits "RedoApplied"
       end
     end
@@ -156,33 +156,33 @@ Hecks.bluebook "Authoring" do
         attribute :content, String
         attribute :changed, String, default: "true"
       end
-      attribute :target, "BuildTarget"
-      attribute :artifacts, list_of("Artifact")
-      reference_to "Project"
+      attribute :target, BuildTarget
+      attribute :artifacts, list_of(Artifact)
+      reference_to Project
       command "SelectTarget" do
         role "Developer"
         description "Choose a build target -- ruby, go, rails, sinatra"
-        reference_to "Project"
-        attribute :target, "BuildTarget"
+        reference_to Project
+        attribute :target, BuildTarget
         emits "TargetSelected"
       end
       command "BuildTarget" do
         role "Developer"
         description "Generate all code artifacts for the selected target"
-        reference_to "Generator"
+        reference_to Generator
         emits "TargetBuilt"
       end
       command "PreviewArtifact" do
         role "Developer"
         description "Show the content of a single generated file before writing"
-        reference_to "Generator"
+        reference_to Generator
         attribute :filename, String
         emits "ArtifactPreviewed"
       end
       command "CompareArtifact" do
         role "Developer"
         description "Diff a generated artifact against the existing file on disk"
-        reference_to "Generator"
+        reference_to Generator
         attribute :filename, String
         emits "ArtifactCompared"
       end
@@ -198,7 +198,7 @@ Hecks.bluebook "Authoring" do
       attribute :pattern_name, String
       attribute :category, String
       attribute :template, String
-      attribute :parameters, list_of("PatternParameter")
+      attribute :parameters, list_of(PatternParameter)
       command "DefinePattern" do
         role "Developer"
         goal "Capture a reusable domain shape for scaffolding"
@@ -211,7 +211,7 @@ Hecks.bluebook "Authoring" do
       command "ApplyPattern" do
         role "Developer"
         description "Scaffold an aggregate by applying a pattern with parameters"
-        reference_to "Project"
+        reference_to Project
         attribute :pattern_name, String
         attribute :aggregate_name, String
         attribute :parameters, String

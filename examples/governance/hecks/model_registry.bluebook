@@ -2,14 +2,14 @@ Hecks.bluebook "ModelRegistry" do
   aggregate "AiModel" do
     attribute :name, String
     attribute :version, String
-    reference_to "ModelRegistry::Vendor"
+    reference_to ModelRegistry::Vendor
     attribute :description, String
     attribute :risk_level, String
     attribute :registered_at, DateTime
     attribute :parent_model, String
     attribute :derivation_type, String
-    attribute :capabilities, list_of("Capability")
-    attribute :intended_uses, list_of("IntendedUse")
+    attribute :capabilities, list_of(Capability)
+    attribute :intended_uses, list_of(IntendedUse)
     attribute :status, String
 
     value_object "Capability" do
@@ -53,7 +53,7 @@ Hecks.bluebook "ModelRegistry" do
     command "RegisterModel" do
       attribute :name, String
       attribute :version, String
-      reference_to "ModelRegistry::Vendor"
+      reference_to ModelRegistry::Vendor
       attribute :description, String
     end
 
@@ -66,25 +66,25 @@ Hecks.bluebook "ModelRegistry" do
     end
 
     command "ClassifyRisk" do
-      reference_to "ModelRegistry::AiModel"
+      reference_to ModelRegistry::AiModel
       attribute :risk_level, String
     end
 
     command "ApproveModel" do
-      reference_to "ModelRegistry::AiModel"
+      reference_to ModelRegistry::AiModel
       role "governance_board"
       role "admin"
     end
 
     command "SuspendModel" do
-      reference_to "ModelRegistry::AiModel"
+      reference_to ModelRegistry::AiModel
       external "NotificationGateway"
       role "governance_board"
       role "admin"
     end
 
     command "RetireModel" do
-      reference_to "ModelRegistry::AiModel"
+      reference_to ModelRegistry::AiModel
       role "governance_board"
       role "admin"
     end
@@ -152,13 +152,13 @@ Hecks.bluebook "ModelRegistry" do
   end
 
   aggregate "DataUsageAgreement" do
-    reference_to "ModelRegistry::AiModel"
+    reference_to ModelRegistry::AiModel
     attribute :data_source, String
     attribute :purpose, String
     attribute :consent_type, String
     attribute :effective_date, Date
     attribute :expiration_date, Date
-    attribute :restrictions, list_of("Restriction")
+    attribute :restrictions, list_of(Restriction)
     attribute :status, String
 
     value_object "Restriction" do
@@ -187,7 +187,7 @@ Hecks.bluebook "ModelRegistry" do
     end
 
     command "CreateAgreement" do
-      reference_to "ModelRegistry::AiModel"
+      reference_to ModelRegistry::AiModel
       attribute :data_source, String
       attribute :purpose, String
       attribute :consent_type, String

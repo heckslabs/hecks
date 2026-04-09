@@ -2,7 +2,7 @@ Hecks.bluebook "Observation" do
   vision "Real-time notifications, visual debugging, and cross-domain search"
 
     aggregate "Notification", "Alert feed — surfaces errors, warnings, and confirmations to the user." do
-      attribute :alerts, list_of("Alert")
+      attribute :alerts, list_of(Alert)
       attribute :unread_count, Integer, default: 0
 
       value_object "Alert" do
@@ -40,7 +40,7 @@ Hecks.bluebook "Observation" do
       command "DismissAlert" do
         role "Developer"
         description "Mark a specific alert as seen"
-        reference_to "Notification"
+        reference_to Notification
         attribute :alert_index, Integer
         emits "AlertDismissed"
 
@@ -57,7 +57,7 @@ Hecks.bluebook "Observation" do
       command "ClearAllAlerts" do
         role "Developer"
         description "Dismiss and remove every alert"
-        reference_to "Notification"
+        reference_to Notification
         emits "AllAlertsCleared"
 
         handler do |notification|
@@ -70,7 +70,7 @@ Hecks.bluebook "Observation" do
 
     aggregate "Search", "Full-text search across domains, aggregates, commands, and events." do
       attribute :query_text, String
-      attribute :matches, list_of("SearchMatch")
+      attribute :matches, list_of(SearchMatch)
 
       value_object "SearchMatch" do
         description "A single search hit with type, name, domain, and relevance score"
@@ -101,7 +101,7 @@ Hecks.bluebook "Observation" do
       command "ClearSearch" do
         role "Developer"
         description "Reset query and discard all matches"
-        reference_to "Search"
+        reference_to Search
         emits "SearchCleared"
 
         handler do |search|
@@ -114,7 +114,7 @@ Hecks.bluebook "Observation" do
       command "FilterResults" do
         role "Developer"
         description "Narrow matches to a specific element type"
-        reference_to "Search"
+        reference_to Search
         attribute :match_type, String
         emits "ResultsFiltered"
 
@@ -128,7 +128,7 @@ Hecks.bluebook "Observation" do
     end
 
     aggregate "Screenshot", "Rolling frame buffer for visual debugging of browser state." do
-      attribute :frames, list_of("ScreenFrame")
+      attribute :frames, list_of(ScreenFrame)
       attribute :capturing, String, default: "true"
 
       value_object "ScreenFrame" do
@@ -142,7 +142,7 @@ Hecks.bluebook "Observation" do
         role "Developer"
         goal "Record a browser screenshot for visual debugging"
         description "Save a screenshot frame from the browser"
-        reference_to "Screenshot"
+        reference_to Screenshot
         attribute :frame_data, String
         attribute :captured_at, String
         attribute :label, String
@@ -161,7 +161,7 @@ Hecks.bluebook "Observation" do
       command "PauseCapture" do
         role "Developer"
         description "Stop capturing frames without clearing the buffer"
-        reference_to "Screenshot"
+        reference_to Screenshot
         emits "CapturePaused"
 
         handler do |screenshot|
@@ -173,7 +173,7 @@ Hecks.bluebook "Observation" do
       command "ResumeCapture" do
         role "Developer"
         description "Resume capturing frames after a pause"
-        reference_to "Screenshot"
+        reference_to Screenshot
         emits "CaptureResumed"
 
         handler do |screenshot|

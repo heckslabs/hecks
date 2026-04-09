@@ -26,31 +26,31 @@ Hecks.bluebook "Bluebook" do
   end
 
   aggregate "Compiler", "Builds domain gems from IR and loads domains" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :output_module, String
     command("BuildDomain") { attribute :domain_id, String; attribute :output_dir, String }
   end
 
   aggregate "Validator", "Runs validation rules against domain IR" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :errors, String
     command("RunValidation") { attribute :domain_id, String }
   end
 
   aggregate "Visualizer", "Generates Mermaid diagrams from domain IR" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :diagram, String
     command("GenerateDiagram") { attribute :domain_id, String }
   end
 
   aggregate "Glossary", "Generates Ubiquitous Language glossary from domain IR" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :terms, String
     command("GenerateGlossary") { attribute :domain_id, String }
   end
 
   aggregate "DslSerializer", "Serializes domain IR back to DSL source" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :source_output, String
     command("SerializeDomain") { attribute :domain_id, String }
   end
@@ -62,13 +62,13 @@ Hecks.bluebook "Bluebook" do
   end
 
   aggregate "FlowGenerator", "Traces reactive event flows across policies" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :flows, String
     command("TraceFlows") { attribute :domain_id, String }
   end
 
   aggregate "LlmsGenerator", "Generates llms.txt from domain IR" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :output_text, String
     command("GenerateLlmsTxt") { attribute :domain_id, String }
   end
@@ -87,7 +87,7 @@ Hecks.bluebook "Bluebook" do
   end
 
   aggregate "Migration", "Diffs domain versions and generates migrations" do
-    reference_to "Domain"
+    reference_to Domain
     attribute :diff_result, String
     command("DiffDomains") { attribute :domain_id, String }
     command("RunMigration") { attribute :domain_id, String }

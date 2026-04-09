@@ -14,7 +14,7 @@ Hecks.bluebook "Shipping" do
     end
 
     command "ShipShipment" do
-      reference_to "Shipment"
+      reference_to Shipment
       end
 
     policy "ShipOnOrder" do

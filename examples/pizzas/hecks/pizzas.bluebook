@@ -6,7 +6,7 @@ Hecks.bluebook "Pizzas" do
     description "A pizza with toppings, pricing, and menu visibility"
     attribute :name
     attribute :description
-    attribute :toppings, "Topping"
+    attribute :toppings, Topping
 
     value_object "Topping" do
       attribute :name
@@ -34,7 +34,7 @@ Hecks.bluebook "Pizzas" do
     command "AddTopping" do
       role "Chef"
       goal "Customize a pizza with ingredients"
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :name
       attribute :amount, Integer
 
@@ -52,8 +52,8 @@ Hecks.bluebook "Pizzas" do
   aggregate "Order" do
     description "A customer order referencing a pizza with status tracking"
     attribute :customer_name
-    attribute :items, "OrderItem"
-    reference_to "Pizza"
+    attribute :items, OrderItem
+    reference_to Pizza
 
     value_object "OrderItem" do
       attribute :quantity, Integer
@@ -73,7 +73,7 @@ Hecks.bluebook "Pizzas" do
     command "PlaceOrder" do
       role "Customer"
       goal "Order a pizza for delivery or pickup"
-      reference_to "Pizza"
+      reference_to Pizza
       attribute :customer_name
       attribute :quantity, Integer
     end
@@ -81,7 +81,7 @@ Hecks.bluebook "Pizzas" do
     command "CancelOrder" do
       role "Customer"
       goal "Cancel a pending order before preparation starts"
-      reference_to "Order"
+      reference_to Order
     end
 
     query "Pending" do

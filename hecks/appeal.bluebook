@@ -54,7 +54,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "CloseProject" do
       description "Close the current project and release resources"
-      reference_to "Project"
+      reference_to Project
       emits "ProjectClosed"
     end
 
@@ -70,7 +70,7 @@ Hecks.bluebook "HecksAppeal" do
 
   aggregate "Explorer", "Browse and inspect parsed domain structure -- aggregates, commands, references." do
     attribute :domain_name, String
-    attribute :aggregate_names, list_of("ExplorerEntry")
+    attribute :aggregate_names, list_of(ExplorerEntry)
     attribute :last_opened_path, String
     attribute :last_opened_domain, String
 
@@ -80,11 +80,11 @@ Hecks.bluebook "HecksAppeal" do
       attribute :kind, String
     end
 
-    reference_to "Project"
+    reference_to Project
 
     command "LoadDomain" do
       description "Parse the project domain and populate the explorer tree"
-      reference_to "Project"
+      reference_to Project
       emits "DomainLoaded"
     end
 
@@ -103,7 +103,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "OpenFile" do
       description "Open a file from the project tree and record it as the last opened"
-      reference_to "Project"
+      reference_to Project
       attribute :path, String
       attribute :domain, String
       emits "FileOpened"
@@ -111,7 +111,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "GetLastOpened" do
       description "Return the last opened file path and domain"
-      reference_to "Explorer"
+      reference_to Explorer
       emits "LastOpenedReturned"
     end
 
@@ -124,7 +124,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :filename, String
     attribute :content, String
     attribute :dirty, String, default: "false"
-    attribute :diagnostics, list_of("Diagnostic")
+    attribute :diagnostics, list_of(Diagnostic)
 
     value_object "Diagnostic" do
       description "A validation finding at a source location"
@@ -134,31 +134,31 @@ Hecks.bluebook "HecksAppeal" do
       attribute :message, String
     end
 
-    reference_to "Project"
+    reference_to Project
 
     command "OpenDocument" do
       description "Load a .hec file into the editor"
-      reference_to "Project"
+      reference_to Project
       attribute :filename, String
       emits "DocumentOpened"
     end
 
     command "EditDocument" do
       description "Apply a text change to the document"
-      reference_to "Document"
+      reference_to Document
       attribute :content, String
       emits "DocumentEdited"
     end
 
     command "SaveDocument" do
       description "Persist the document back to disk"
-      reference_to "Document"
+      reference_to Document
       emits "DocumentSaved"
     end
 
     command "ValidateDocument" do
       description "Parse and validate the document, producing diagnostics"
-      reference_to "Document"
+      reference_to Document
       emits "DocumentValidated"
     end
 
@@ -168,7 +168,7 @@ Hecks.bluebook "HecksAppeal" do
   # --- Authoring Tools Paragraph ---
 
   aggregate "Timeline", "Edit history with undo/redo. Tracks document changes as a linear sequence." do
-    attribute :entries, list_of("TimelineEntry")
+    attribute :entries, list_of(TimelineEntry)
     attribute :cursor, Integer, default: 0
 
     value_object "TimelineEntry" do
@@ -178,23 +178,23 @@ Hecks.bluebook "HecksAppeal" do
       attribute :timestamp, String
     end
 
-    reference_to "Document"
+    reference_to Document
 
     command "RecordChange" do
       description "Append a change to the timeline"
-      reference_to "Document"
+      reference_to Document
       attribute :action, String
       attribute :detail, String
     end
 
     command "Undo" do
       description "Move the cursor back one step and revert the change"
-      reference_to "Timeline"
+      reference_to Timeline
     end
 
     command "Redo" do
       description "Move the cursor forward and reapply the change"
-      reference_to "Timeline"
+      reference_to Timeline
     end
   end
 
@@ -202,7 +202,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :target, String
     attribute :status, String, default: "idle"
     attribute :output_path, String
-    attribute :artifacts, list_of("Artifact")
+    attribute :artifacts, list_of(Artifact)
 
     value_object "Artifact" do
       description "A generated file with its content and diff status"
@@ -211,28 +211,28 @@ Hecks.bluebook "HecksAppeal" do
       attribute :changed, String, default: "true"
     end
 
-    reference_to "Project"
+    reference_to Project
 
     command "SelectTarget" do
       description "Choose a build target -- ruby, go, rails, sinatra"
-      reference_to "Project"
+      reference_to Project
       attribute :target, String
     end
 
     command "BuildTarget" do
       description "Generate all code for the selected target"
-      reference_to "Generator"
+      reference_to Generator
     end
 
     command "PreviewArtifact" do
       description "Show the content of a single generated file"
-      reference_to "Generator"
+      reference_to Generator
       attribute :filename, String
     end
 
     command "CompareArtifact" do
       description "Compare generated output against existing file on disk"
-      reference_to "Generator"
+      reference_to Generator
       attribute :filename, String
     end
 
@@ -245,25 +245,25 @@ Hecks.bluebook "HecksAppeal" do
     attribute :status, String, default: "pending"
     attribute :preview, String
 
-    reference_to "Project"
+    reference_to Project
 
     command "ImportSchema" do
       description "Parse a database schema and generate Bluebook aggregates"
-      reference_to "Project"
+      reference_to Project
       attribute :source_path, String
       attribute :format, String
     end
 
     command "ImportCode" do
       description "Parse existing Ruby/Go source and extract domain structure"
-      reference_to "Project"
+      reference_to Project
       attribute :source_path, String
       attribute :language, String
     end
 
     command "PreviewImport" do
       description "Show what the import would produce without applying it"
-      reference_to "Import"
+      reference_to Import
     end
 
     validation :source_type, presence: true
@@ -273,7 +273,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :name, String
     attribute :category, String
     attribute :template, String
-    attribute :parameters, list_of("PatternParameter")
+    attribute :parameters, list_of(PatternParameter)
 
     value_object "PatternParameter" do
       description "A configurable parameter when applying a pattern"
@@ -292,7 +292,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ApplyPattern" do
       description "Scaffold an aggregate by applying a pattern with parameters"
-      reference_to "Project"
+      reference_to Project
       attribute :pattern_name, String
       attribute :aggregate_name, String
       attribute :parameters, String
@@ -309,7 +309,7 @@ Hecks.bluebook "HecksAppeal" do
   # --- Modeling Analysis Paragraph ---
 
   aggregate "Insight", "Domain health analysis -- coupling metrics, design smells, completeness checks." do
-    attribute :findings, list_of("Finding")
+    attribute :findings, list_of(Finding)
     attribute :score, Integer
 
     value_object "Finding" do
@@ -328,14 +328,14 @@ Hecks.bluebook "HecksAppeal" do
 
     command "DismissInsight" do
       description "Acknowledge and hide a specific finding"
-      reference_to "Insight"
+      reference_to Insight
       attribute :rule, String
       attribute :element_name, String
     end
 
     command "ConfigureRules" do
       description "Enable or disable specific analysis rules"
-      reference_to "Insight"
+      reference_to Insight
       attribute :rule, String
       attribute :enabled, String
     end
@@ -345,7 +345,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :from_version, String
     attribute :to_version, String
     attribute :status, String, default: "pending"
-    attribute :changes, list_of("DomainChange")
+    attribute :changes, list_of(DomainChange)
 
     value_object "DomainChange" do
       description "A detected change -- added, removed, renamed, or modified element"
@@ -362,19 +362,19 @@ Hecks.bluebook "HecksAppeal" do
 
     command "GenerateMigration" do
       description "Produce a migration script for the detected changes"
-      reference_to "Migration"
+      reference_to Migration
     end
 
     command "ApplyMigration" do
       description "Execute the migration against a target environment"
-      reference_to "Migration"
+      reference_to Migration
     end
   end
 
   aggregate "Comparison", "Side-by-side diff of two domain versions." do
     attribute :left_version, String
     attribute :right_version, String
-    attribute :differences, list_of("Difference")
+    attribute :differences, list_of(Difference)
 
     value_object "Difference" do
       description "A single difference between two domain versions"
@@ -394,7 +394,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "HighlightBreaking" do
       description "Filter the comparison to show only breaking changes"
-      reference_to "Comparison"
+      reference_to Comparison
     end
   end
 
@@ -407,8 +407,8 @@ Hecks.bluebook "HecksAppeal" do
 
   aggregate "Diagram", "Generated domain visualizations -- aggregate maps, event flows, command graphs." do
     attribute :view_type, String
-    attribute :nodes, list_of("DiagramNode")
-    attribute :edges, list_of("DiagramEdge")
+    attribute :nodes, list_of(DiagramNode)
+    attribute :edges, list_of(DiagramEdge)
 
     value_object "DiagramNode" do
       description "An element in the diagram -- aggregate, command, event, or value object"
@@ -440,14 +440,14 @@ Hecks.bluebook "HecksAppeal" do
 
     command "SelectView" do
       description "Switch between aggregate map, event flow, or command graph"
-      reference_to "Diagram"
+      reference_to Diagram
       attribute :view_type, String
       emits "ViewSelected"
     end
 
     command "FilterByAggregate" do
       description "Show only nodes related to a specific aggregate"
-      reference_to "Diagram"
+      reference_to Diagram
       attribute :aggregate_name, String
       emits "DiagramFiltered"
     end
@@ -456,7 +456,7 @@ Hecks.bluebook "HecksAppeal" do
   aggregate "EventStorm", "Interactive event storming session. Stickies represent domain concepts." do
     attribute :name, String
     attribute :status, String, default: "active"
-    attribute :stickies, list_of("Sticky")
+    attribute :stickies, list_of(Sticky)
 
     value_object "Sticky" do
       description "A virtual sticky note -- event, command, policy, hotspot, or external system"
@@ -475,14 +475,14 @@ Hecks.bluebook "HecksAppeal" do
 
     command "AddSticky" do
       description "Place a new sticky note on the board"
-      reference_to "EventStorm"
+      reference_to EventStorm
       attribute :label, String
       attribute :kind, String
     end
 
     command "MoveSticky" do
       description "Reposition a sticky on the board"
-      reference_to "EventStorm"
+      reference_to EventStorm
       attribute :label, String
       attribute :position_x, Integer
       attribute :position_y, Integer
@@ -490,14 +490,14 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ConvertToDomain" do
       description "Transform stickies into Bluebook DSL aggregates, commands, and events"
-      reference_to "EventStorm"
+      reference_to EventStorm
     end
 
     validation :name, presence: true
   end
 
   aggregate "Glossary", "Ubiquitous language dictionary. Defines terms, enforces naming consistency." do
-    attribute :terms, list_of("Term")
+    attribute :terms, list_of(Term)
 
     value_object "Term" do
       description "A domain term with its definition and category"
@@ -516,21 +516,21 @@ Hecks.bluebook "HecksAppeal" do
 
     command "RenameTerm" do
       description "Rename a term and update all references"
-      reference_to "Glossary"
+      reference_to Glossary
       attribute :old_name, String
       attribute :new_name, String
     end
 
     command "FlagAmbiguity" do
       description "Mark a term as ambiguous -- needs clarification"
-      reference_to "Glossary"
+      reference_to Glossary
       attribute :term_name, String
       attribute :reason, String
     end
 
     command "LinkTerms" do
       description "Declare a relationship between two terms"
-      reference_to "Glossary"
+      reference_to Glossary
       attribute :from_term, String
       attribute :to_term, String
       attribute :relationship, String
@@ -544,8 +544,8 @@ Hecks.bluebook "HecksAppeal" do
     attribute :selected_command, String
     attribute :status, String, default: "idle"
     attribute :last_result, String
-    attribute :event_log, list_of("ConsoleEvent")
-    attribute :form, list_of("FormField")
+    attribute :event_log, list_of(ConsoleEvent)
+    attribute :form, list_of(FormField)
 
     value_object "FormField" do
       description "A generated input field from a command attribute"
@@ -565,13 +565,13 @@ Hecks.bluebook "HecksAppeal" do
 
     command "OpenConsole" do
       description "Open the console -- loads available aggregates and commands"
-      reference_to "Console"
+      reference_to Console
       emits "ConsoleOpened"
     end
 
     command "SelectCommand" do
       description "Pick an aggregate and command -- generates the input form"
-      reference_to "Console"
+      reference_to Console
       attribute :aggregate_name, String
       attribute :command_name, String
       emits "CommandSelected"
@@ -579,21 +579,21 @@ Hecks.bluebook "HecksAppeal" do
 
     command "SubmitForm" do
       description "Execute the selected command with the filled form values"
-      reference_to "Console"
+      reference_to Console
       attribute :values, String
       emits "CommandExecuted"
     end
 
     command "ViewResult" do
       description "Display the result of the last command execution"
-      reference_to "Console"
+      reference_to Console
       emits "ResultViewed"
     end
   end
 
   aggregate "EventStream", "Live event feed. Subscribes to domain events and streams them to the UI." do
     attribute :status, String, default: "streaming"
-    attribute :events, list_of("StreamEvent")
+    attribute :events, list_of(StreamEvent)
     attribute :filter_aggregate, String
     attribute :filter_event_type, String
 
@@ -610,37 +610,37 @@ Hecks.bluebook "HecksAppeal" do
 
     command "SubscribeToEvents" do
       description "Start streaming events from a project's domains"
-      reference_to "EventStream"
+      reference_to EventStream
       emits "EventsSubscribed"
     end
 
     command "StopStreaming" do
       description "Stop streaming events"
-      reference_to "EventStream"
+      reference_to EventStream
       emits "StreamingStopped"
     end
 
     command "PauseStream" do
       description "Temporarily pause the event stream without disconnecting"
-      reference_to "EventStream"
+      reference_to EventStream
       emits "StreamPaused"
     end
 
     command "ResumeStream" do
       description "Resume a paused event stream"
-      reference_to "EventStream"
+      reference_to EventStream
       emits "StreamResumed"
     end
 
     command "ClearEvents" do
       description "Remove all events from the stream display"
-      reference_to "EventStream"
+      reference_to EventStream
       emits "EventsCleared"
     end
 
     command "FilterEvents" do
       description "Filter the stream by aggregate name or event type"
-      reference_to "EventStream"
+      reference_to EventStream
       attribute :aggregate_name, String
       attribute :event_type, String
       emits "EventsFiltered"
@@ -648,7 +648,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "InspectEvent" do
       description "Expand an event row to show its full payload data"
-      reference_to "EventStream"
+      reference_to EventStream
       attribute :event_name, String
       attribute :timestamp, String
       emits "EventInspected"
@@ -660,7 +660,7 @@ Hecks.bluebook "HecksAppeal" do
   aggregate "Scenario", "Executable given/when/then specification. Tests domain commands without implementation." do
     attribute :name, String
     attribute :status, String, default: "draft"
-    attribute :steps, list_of("Step")
+    attribute :steps, list_of(Step)
     attribute :result, String
 
     value_object "Step" do
@@ -679,7 +679,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "AddStep" do
       description "Append a given/when/then step to the scenario"
-      reference_to "Scenario"
+      reference_to Scenario
       attribute :phase, String
       attribute :aggregate_name, String
       attribute :command_name, String
@@ -688,12 +688,12 @@ Hecks.bluebook "HecksAppeal" do
 
     command "RunScenario" do
       description "Execute all steps and record pass/fail"
-      reference_to "Scenario"
+      reference_to Scenario
     end
 
     command "RecordResult" do
       description "Store the outcome of a scenario run"
-      reference_to "Scenario"
+      reference_to Scenario
       attribute :result, String
     end
 
@@ -702,7 +702,7 @@ Hecks.bluebook "HecksAppeal" do
 
   aggregate "Fixture", "Reusable data set for populating scenarios with known state." do
     attribute :name, String
-    attribute :entries, list_of("FixtureEntry")
+    attribute :entries, list_of(FixtureEntry)
 
     value_object "FixtureEntry" do
       description "A single data record -- aggregate name, attribute values"
@@ -717,22 +717,22 @@ Hecks.bluebook "HecksAppeal" do
 
     command "AddEntry" do
       description "Add a data record to the fixture"
-      reference_to "Fixture"
+      reference_to Fixture
       attribute :aggregate_name, String
       attribute :attributes, String
     end
 
     command "ApplyToScenario" do
       description "Load this fixture as the given state for a scenario"
-      reference_to "Fixture"
-      reference_to "Scenario"
+      reference_to Fixture
+      reference_to Scenario
     end
 
     validation :name, presence: true
   end
 
   aggregate "Playground", "Interactive sandbox for running domain commands and inspecting state." do
-    attribute :events, list_of("PlaygroundEvent")
+    attribute :events, list_of(PlaygroundEvent)
     attribute :state_snapshot, String
 
     value_object "PlaygroundEvent" do
@@ -756,7 +756,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ResetPlayground" do
       description "Clear all sandbox state and events"
-      reference_to "Playground"
+      reference_to Playground
     end
 
     query "RecentEvents" do
@@ -782,17 +782,17 @@ Hecks.bluebook "HecksAppeal" do
 
     command "StartStory" do
       description "Move a story to in-progress"
-      reference_to "Story"
+      reference_to Story
     end
 
     command "CompleteStory" do
       description "Mark a story as done"
-      reference_to "Story"
+      reference_to Story
     end
 
     command "AcceptStory" do
       description "Accept a completed story -- acceptance criteria met"
-      reference_to "Story"
+      reference_to Story
     end
 
     validation :title, presence: true
@@ -814,20 +814,20 @@ Hecks.bluebook "HecksAppeal" do
 
     command "AddToBacklog" do
       description "Add a story to the backlog"
-      reference_to "Backlog"
-      reference_to "Story"
+      reference_to Backlog
+      reference_to Story
     end
 
     command "Prioritize" do
       description "Reorder a story within the backlog"
-      reference_to "Backlog"
-      reference_to "Story"
+      reference_to Backlog
+      reference_to Story
       attribute :position, Integer
     end
 
     command "TrackProgress" do
       description "Recalculate completion and update readiness status"
-      reference_to "Backlog"
+      reference_to Backlog
     end
 
     validation :name, presence: true
@@ -840,7 +840,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :status, String, default: "open"
     attribute :author, String
     attribute :changes_summary, String
-    attribute :comments, list_of("ReviewComment")
+    attribute :comments, list_of(ReviewComment)
 
     value_object "ReviewComment" do
       description "A comment on a proposed domain change"
@@ -859,7 +859,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "AddComment" do
       description "Comment on the proposed changes"
-      reference_to "Review"
+      reference_to Review
       attribute :author, String
       attribute :body, String
       attribute :element_name, String
@@ -867,13 +867,13 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ApproveReview" do
       description "Approve the proposed domain changes"
-      reference_to "Review"
+      reference_to Review
       attribute :author, String
     end
 
     command "RejectReview" do
       description "Reject the proposed changes with a reason"
-      reference_to "Review"
+      reference_to Review
       attribute :author, String
       attribute :reason, String
     end
@@ -886,7 +886,7 @@ Hecks.bluebook "HecksAppeal" do
     attribute :element_name, String
     attribute :body, String
     attribute :resolved, String, default: "false"
-    attribute :replies, list_of("Reply")
+    attribute :replies, list_of(Reply)
 
     value_object "Reply" do
       description "A threaded reply to an annotation"
@@ -904,12 +904,12 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ResolveAnnotation" do
       description "Mark an annotation as resolved"
-      reference_to "Annotation"
+      reference_to Annotation
     end
 
     command "ReplyToAnnotation" do
       description "Add a threaded reply to an existing annotation"
-      reference_to "Annotation"
+      reference_to Annotation
       attribute :author, String
       attribute :body, String
     end
@@ -922,8 +922,8 @@ Hecks.bluebook "HecksAppeal" do
   aggregate "Agent", "AI assistant for domain modeling. Ask questions, get suggestions, apply changes." do
     attribute :adapter_mode, String
     attribute :thinking, String
-    attribute :messages, list_of("Message")
-    attribute :suggestions, list_of("Suggestion")
+    attribute :messages, list_of(Message)
+    attribute :suggestions, list_of(Suggestion)
     attribute :loaded_domain, String
 
     value_object "Message" do
@@ -943,40 +943,40 @@ Hecks.bluebook "HecksAppeal" do
 
     command "SendMessage" do
       description "Send a message to the AI assistant about the domain"
-      reference_to "Agent"
+      reference_to Agent
       attribute :content, String
       emits "MessageReceived"
     end
 
     command "ToggleAdapter" do
       description "Switch between memory and live LLM adapter"
-      reference_to "Agent"
+      reference_to Agent
       attribute :mode, String
       emits "AdapterChanged"
     end
 
     command "ClearConversation" do
       description "Reset the conversation history"
-      reference_to "Agent"
+      reference_to Agent
       emits "ConversationCleared"
     end
 
     command "ApplySuggestion" do
       description "Accept and apply a suggested domain change"
-      reference_to "Agent"
+      reference_to Agent
       attribute :title, String
       emits "SuggestionApplied"
     end
 
     command "RequestReview" do
       description "Ask the AI to review the current domain"
-      reference_to "Agent"
+      reference_to Agent
       emits "ReviewRequested"
     end
 
     command "LoadDomainContext" do
       description "Set which domain the agent introspects for tools and system prompt"
-      reference_to "Agent"
+      reference_to Agent
       attribute :domain_name, String
       emits "DomainContextLoaded"
     end
@@ -1000,37 +1000,37 @@ Hecks.bluebook "HecksAppeal" do
 
     command "EnterSketch" do
       description "Switch to sketch mode for editing domain structure"
-      reference_to "Session"
+      reference_to Session
       emits "SketchEntered"
     end
 
     command "EnterPlay" do
       description "Switch to play mode for executing domain commands"
-      reference_to "Session"
+      reference_to Session
       emits "PlayEntered"
     end
 
     command "Connect" do
       description "Establish WebSocket connection to the IDE server"
-      reference_to "Session"
+      reference_to Session
       emits "Connected"
     end
 
     command "Disconnect" do
       description "Close the WebSocket connection"
-      reference_to "Session"
+      reference_to Session
       emits "Disconnected"
     end
 
     command "RestoreConnection" do
       description "Drop and re-establish the WebSocket connection"
-      reference_to "Session"
+      reference_to Session
       emits "ConnectionRestored"
     end
   end
 
   aggregate "Layout", "IDE panel and tab state. Tracks which panels are open, active tabs, sizes, and arrangement." do
-    attribute :panels, list_of("PanelState")
+    attribute :panels, list_of(PanelState)
     attribute :active_tab, String
     attribute :sidebar_collapsed, String, default: "false"
     attribute :events_panel_collapsed, String, default: "false"
@@ -1044,32 +1044,32 @@ Hecks.bluebook "HecksAppeal" do
       attribute :position, String
     end
 
-    reference_to "Session"
+    reference_to Session
 
     command "OpenPanel" do
       description "Show a hidden panel"
-      reference_to "Layout"
+      reference_to Layout
       attribute :panel_name, String
       emits "PanelOpened"
     end
 
     command "ClosePanel" do
       description "Hide a panel"
-      reference_to "Layout"
+      reference_to Layout
       attribute :panel_name, String
       emits "PanelClosed"
     end
 
     command "SelectTab" do
       description "Switch the active tab in the main area"
-      reference_to "Layout"
+      reference_to Layout
       attribute :tab_name, String
       emits "TabSelected"
     end
 
     command "ResizePanel" do
       description "Change a panel's dimensions"
-      reference_to "Layout"
+      reference_to Layout
       attribute :panel_name, String
       attribute :width, Integer
       attribute :height, Integer
@@ -1078,25 +1078,25 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ToggleSidebar" do
       description "Collapse or expand the sidebar"
-      reference_to "Layout"
+      reference_to Layout
       emits "SidebarToggled"
     end
 
     command "ToggleEventsPanel" do
       description "Collapse or expand the bottom events panel"
-      reference_to "Layout"
+      reference_to Layout
       emits "EventsPanelToggled"
     end
 
     command "HideProjects" do
       description "Hide the projects sidebar panel"
-      reference_to "Layout"
+      reference_to Layout
       emits "ProjectsHidden"
     end
 
     command "ShowProjects" do
       description "Show the projects sidebar panel"
-      reference_to "Layout"
+      reference_to Layout
       emits "ProjectsShown"
     end
 
@@ -1126,7 +1126,7 @@ Hecks.bluebook "HecksAppeal" do
 
   aggregate "Menu", "IDE menu bar with File, View, and Domain menus." do
     attribute :open_menu, String
-    attribute :items, list_of("MenuItem")
+    attribute :items, list_of(MenuItem)
 
     value_object "MenuItem" do
       description "A single menu entry -- label, action, keyboard shortcut, enabled state"
@@ -1145,13 +1145,13 @@ Hecks.bluebook "HecksAppeal" do
 
     command "CloseMenu" do
       description "Close any open menu dropdown"
-      reference_to "Menu"
+      reference_to Menu
       emits "MenuClosed"
     end
 
     command "SelectMenuItem" do
       description "Execute a menu item action"
-      reference_to "Menu"
+      reference_to Menu
       attribute :menu_name, String
       attribute :action, String
       emits "MenuItemSelected"
@@ -1176,7 +1176,7 @@ Hecks.bluebook "HecksAppeal" do
 
     command "DismissNotification" do
       description "Mark a notification as seen"
-      reference_to "Notification"
+      reference_to Notification
       emits "NotificationDismissed"
     end
 
@@ -1199,20 +1199,20 @@ Hecks.bluebook "HecksAppeal" do
 
     command "PauseCapture" do
       description "Stop capturing screenshots"
-      reference_to "Screenshot"
+      reference_to Screenshot
       emits "CapturePaused"
     end
 
     command "ResumeCapture" do
       description "Resume capturing screenshots"
-      reference_to "Screenshot"
+      reference_to Screenshot
       emits "CaptureResumed"
     end
   end
 
   aggregate "Search", "Full-text search across domains, aggregates, commands, and attributes." do
     attribute :query_text, String
-    attribute :results, list_of("SearchResult")
+    attribute :results, list_of(SearchResult)
     attribute :result_count, Integer, default: 0
 
     value_object "SearchResult" do
@@ -1232,13 +1232,13 @@ Hecks.bluebook "HecksAppeal" do
 
     command "ClearSearch" do
       description "Reset search results"
-      reference_to "Search"
+      reference_to Search
       emits "SearchCleared"
     end
 
     command "FilterSearchResults" do
       description "Narrow results by element type"
-      reference_to "Search"
+      reference_to Search
       attribute :element_type, String
       emits "SearchResultsFiltered"
     end

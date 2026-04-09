@@ -16,11 +16,11 @@ Hecks.bluebook "Bookshelf" do
     end
 
     command "CheckOutBook" do
-      reference_to "Book"
+      reference_to Book
     end
 
     command "ReturnBook" do
-      reference_to "Book"
+      reference_to Book
     end
 
     query "Available" do
@@ -33,7 +33,7 @@ Hecks.bluebook "Bookshelf" do
   end
 
   aggregate "Loan" do
-    reference_to "Book"
+    reference_to Book
     attribute :borrower_name, String
     attribute :due_date,      String
     attribute :status,        String, default: "active" do
@@ -44,13 +44,13 @@ Hecks.bluebook "Bookshelf" do
     validation :due_date,      presence: true
 
     command "CreateLoan" do
-      reference_to "Book"
+      reference_to Book
       attribute :borrower_name, String
       attribute :due_date,      String
     end
 
     command "CloseLoan" do
-      reference_to "Loan"
+      reference_to Loan
     end
 
     query "Active" do

@@ -1,15 +1,15 @@
 Hecks.bluebook "RiskAssessment" do
   aggregate "Assessment" do
-    reference_to "ModelRegistry::AiModel"
-    reference_to "Identity::Stakeholder"
+    reference_to ModelRegistry::AiModel
+    reference_to Identity::Stakeholder
     attribute :risk_level, String
     attribute :bias_score, Float
     attribute :safety_score, Float
     attribute :transparency_score, Float
     attribute :overall_score, Float
     attribute :submitted_at, DateTime
-    attribute :findings, list_of("Finding")
-    attribute :mitigations, list_of("Mitigation")
+    attribute :findings, list_of(Finding)
+    attribute :mitigations, list_of(Mitigation)
     attribute :status, String
 
     entity "Finding" do
@@ -56,8 +56,8 @@ s.nil? || (s >= 0.0 && s <= 1.0)
     end
 
     command "InitiateAssessment" do
-      reference_to "ModelRegistry::AiModel"
-      reference_to "Identity::Stakeholder"
+      reference_to ModelRegistry::AiModel
+      reference_to Identity::Stakeholder
       role "assessor"
       role "admin"
     end
