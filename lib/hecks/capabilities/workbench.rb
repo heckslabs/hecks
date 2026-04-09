@@ -105,6 +105,7 @@ end
 
 Hecks.capability :workbench do
   description "Interactive domain REPL — attach to commands via hecksagon annotations"
+  direction :driving
   on_apply do |runtime|
     Hecks::Capabilities::Workbench.apply(runtime)
   end

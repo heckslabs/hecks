@@ -24,6 +24,7 @@ Hecks.bluebook "Collaboration" do
       end
 
       command "ProposeFeature" do
+        goal "Introduce a new capability for the team to evaluate"
         description "Introduce a new feature idea with title and intent"
         attribute :title, String
         attribute :description, String
@@ -62,6 +63,7 @@ Hecks.bluebook "Collaboration" do
       end
 
       command "AcceptFeature" do
+        goal "Sign off that the feature meets acceptance criteria"
         description "Accept the feature as complete -- all additions verified"
         reference_to "Feature"
         emits "FeatureAccepted"
@@ -127,8 +129,6 @@ Hecks.bluebook "Collaboration" do
         attribute :applied, String, default: "false"
       end
 
-      command("AskQuestion") { reference_to "Agent"; attribute :content, String; emits "QuestionAsked" }
-      command("ReviewDomain") { reference_to "Agent"; emits "DomainReviewed" }
       command("ClearConversation") { reference_to "Agent"; emits "ConversationCleared" }
       command("ApplySuggestion") { reference_to "Agent"; attribute :title, String; emits "SuggestionApplied" }
       command("LoadContext") { reference_to "Agent"; attribute :domain_name, String; emits "ContextLoaded" }

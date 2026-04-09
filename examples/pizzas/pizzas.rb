@@ -29,11 +29,16 @@ end
 
 puts "\n--- Running commands ---"
 
+# Set actor for auth (Cockburn-style actor+goal on commands)
+Hecks.actor = OpenStruct.new(role: "Chef")
+
 puts "\nCreating pizzas..."
 pizza = Pizza.create(name: "Margherita", description: "Classic")
 
 puts "\nAdd a measured topping via collection proxy..."
 pizza.toppings.create(name: "Mozzarella", amount: 1)
+
+Hecks.actor = OpenStruct.new(role: "Customer")
 
 puts "\nCreating orders..."
 order = Order.place(customer_name: "Margherita", quantity: 1)
@@ -42,12 +47,14 @@ puts "\nCancel a pending order, transitioning status to cancelled..."
 Order.cancel(order: order.id)
 
 puts "\n--- Collection proxies ---"
+Hecks.actor = OpenStruct.new(role: "Chef")
 pizza.toppings.create(name: "Margherita", amount: 1)
 pizza.toppings.create(name: "Pepperoni", amount: 2)
 puts "Pizza toppings: #{pizza.toppings.count}"
 pizza.toppings.each do |item|
   puts "  - #{item.name} x#{item.amount}"
 end
+Hecks.actor = OpenStruct.new(role: "Customer")
 order.items.create(quantity: 1)
 order.items.create(quantity: 2)
 puts "Order items: #{order.items.count}"

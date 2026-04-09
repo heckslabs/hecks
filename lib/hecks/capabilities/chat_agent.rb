@@ -88,6 +88,7 @@ end
 
 Hecks.capability :chat_agent do
   description "AI chat agent wired to domain commands via ai_responder annotations"
+  direction :driven
   on_apply do |runtime|
     Hecks::Capabilities::ChatAgent.apply(runtime)
   end

@@ -58,6 +58,7 @@ module Hecks
         @postconditions = []
         @emits = nil
         @method_name = nil
+        @goal = nil
       end
 
       # Override the generated Ruby method name.
@@ -151,8 +152,19 @@ module Hecks
       #
       # @param name [String] the actor/role name (e.g. "Customer", "Admin")
       # @return [void]
-      def actor(name)
+      def role(name)
         @actors << Structure::Actor.new(name: name)
+      end
+
+      # Declare the goal this command fulfills (Cockburn use-case style).
+      #
+      # Goals document the business intent behind the command in plain
+      # language, useful for documentation, event storming, and onboarding.
+      #
+      # @param text [String] the goal description (e.g. "Add a new pizza to the menu")
+      # @return [void]
+      def goal(text)
+        @goal = text.to_s
       end
 
       # Declare static field assignments injected into the aggregate on execution.
@@ -240,7 +252,7 @@ module Hecks
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
           emits: @emits, description: @description,
-          method_name: @method_name
+          method_name: @method_name, goal: @goal
         )
       end
     end

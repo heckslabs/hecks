@@ -85,6 +85,7 @@ end
 
 Hecks.capability :client_commands do
   description "Browser-side command dispatch generated from domain IR"
+  direction :driving
   on_apply do |runtime|
     Hecks::Capabilities::ClientCommands.apply(runtime)
   end

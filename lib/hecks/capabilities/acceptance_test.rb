@@ -41,6 +41,7 @@ end
 
 Hecks.capability :acceptance_test do
   description "Visual acceptance test runner — dispatches every command, validates events"
+  direction :driving
   on_apply do |runtime|
     Hecks::Capabilities::AcceptanceTest.apply(runtime)
   end

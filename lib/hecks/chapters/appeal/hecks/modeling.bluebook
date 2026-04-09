@@ -47,6 +47,7 @@ Hecks.bluebook "Modeling" do
       attribute :nodes, list_of("DiagramNode")
       attribute :edges, list_of("DiagramEdge")
       command "GenerateDiagram" do
+        goal "Visualize domain structure as an interactive diagram"
         description "Build a diagram for a domain file. Uses Explorer.last_opened when path omitted."
         attribute :view_type, String
         attribute :path, String
@@ -80,6 +81,7 @@ Hecks.bluebook "Modeling" do
       attribute :storm_name, String
       attribute :stickies, list_of("Sticky")
       command "StartStorm" do
+        goal "Kick off a collaborative event storming session"
         description "Begin a new event storming session with a name"
         attribute :storm_name, String
         emits "StormStarted"
@@ -114,6 +116,7 @@ Hecks.bluebook "Modeling" do
         emits "GlossaryShown"
       end
       command "DefineTerm" do
+        goal "Establish shared vocabulary for the ubiquitous language"
         description "Add or update a term in the glossary"
         attribute :term_name, String
         attribute :definition, String
@@ -128,6 +131,7 @@ Hecks.bluebook "Modeling" do
         emits "TermRenamed"
       end
       command "FlagAmbiguity" do
+        goal "Surface a naming conflict for team resolution"
         description "Mark a term as ambiguous -- needs team clarification"
         reference_to "Glossary"
         attribute :term_name, String

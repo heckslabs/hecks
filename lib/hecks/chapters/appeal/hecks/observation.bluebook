@@ -18,6 +18,7 @@ Hecks.bluebook "Observation" do
       end
 
       command "NotifyUser" do
+        goal "Surface important feedback to the user"
         description "Surface an alert to the user"
         attribute :message, String
         attribute :severity, String
@@ -81,6 +82,7 @@ Hecks.bluebook "Observation" do
       end
 
       command "SearchDomain" do
+        goal "Find domain elements matching a query across all contexts"
         description "Search across all domain elements for a query"
         attribute :query_text, String
         emits "SearchCompleted"
@@ -134,6 +136,7 @@ Hecks.bluebook "Observation" do
       end
 
       command "CaptureFrame" do
+        goal "Record a browser screenshot for visual debugging"
         description "Save a screenshot frame from the browser"
         reference_to "Screenshot"
         attribute :frame_data, String

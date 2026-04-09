@@ -24,12 +24,18 @@ module Hecks
       def initialize(name)
         @name = name.to_sym
         @description = ""
+        @direction = nil
         @config_schema = {}
         @apply_block = nil
       end
 
       def description(text)
         @description = text
+      end
+
+      # Declare port direction: :driving (outside calls in) or :driven (domain calls out)
+      def direction(dir)
+        @direction = dir.to_sym
       end
 
       def config(&block)
@@ -51,7 +57,9 @@ module Hecks
           apply_block&.call(runtime)
         end
 
+        dir = @direction
         Hecks.describe_capability(name, description: @description, config: schema)
+        Hecks.capability_meta[name][:direction] = dir if dir
       end
     end
 

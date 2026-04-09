@@ -42,6 +42,7 @@ end
 
 Hecks.capability :web_client_state do
   description "Optimistic client state with localStorage + correlation dedup"
+  direction :driving
   on_apply do |runtime|
     Hecks::Capabilities::WebClientState.apply(runtime)
   end

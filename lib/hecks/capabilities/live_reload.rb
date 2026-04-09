@@ -58,6 +58,7 @@ end
 
 Hecks.capability :live_reload do
   description "Hot-reload domain on .bluebook file changes"
+  direction :driving
   config do
     watch_dirs ["hecks"], desc: "Directories to watch"
     debounce 0.5, desc: "Debounce interval in seconds"

@@ -34,6 +34,7 @@ end
 
 Hecks.capability :readme do
   description "Auto-generate HECKS_README.md from domain IR on boot"
+  direction :driven
   on_apply do |runtime|
     Hecks::Capabilities::Readme.apply(runtime)
   end

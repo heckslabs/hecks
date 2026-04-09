@@ -72,6 +72,7 @@ end
 
 Hecks.capability :static_assets do
   description "Serve HTML/CSS/JS from project directories"
+  direction :driving
   config do
     port 4567, desc: "HTTP listen port"
     views "views", desc: "Views directory"

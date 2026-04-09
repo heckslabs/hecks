@@ -30,6 +30,7 @@ end
 
 Hecks.capability :project_discovery do
   description "Discover and boot Hecks projects from the filesystem"
+  direction :driving
   on_apply do |runtime|
     Hecks::Capabilities::ProjectDiscovery.apply(runtime)
   end

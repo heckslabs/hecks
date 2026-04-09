@@ -26,6 +26,7 @@ Hecks.bluebook "Testing" do
       end
 
       command "RunAllTests" do
+        goal "Validate all domain commands produce expected events"
         description "Dispatch every domain command and collect results"
         reference_to "AcceptanceTest"
         emits "AllTestsStarted"
@@ -75,6 +76,7 @@ Hecks.bluebook "Testing" do
       end
 
       command "WriteScenario" do
+        goal "Define an executable acceptance scenario"
         description "Define a new scenario with a descriptive name"
         attribute :scenario_name, String
         emits "ScenarioWritten"
@@ -100,6 +102,7 @@ Hecks.bluebook "Testing" do
       end
 
       command "ExecuteScenario" do
+        goal "Run a given/when/then scenario against the live domain"
         description "Run all steps and record pass/fail for each"
         reference_to "Scenario"
         emits "ScenarioExecuted"

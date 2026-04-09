@@ -2,7 +2,7 @@
 #
 # AI agent that plans and builds domain features. Reads a feature
 # description, plans domain additions via Claude, and writes
-# .bluebook code to implement them.
+  direction :driven# .bluebook code to implement them.
 #
 #   Hecks.hecksagon "MyApp" do
 #     capabilities :app_builder
@@ -40,6 +40,7 @@ module Hecks
           if msg && msg[:type] == "app_builder"
             result = case msg[:action]&.to_s
             when "plan"   then planner.plan(msg[:title], msg[:description])
+  direction :driven
             when "build"  then builder.build(msg[:additions])
             when "verify" then verifier.verify(msg[:additions])
             else { error: "Unknown action: #{msg[:action]}" }
@@ -57,6 +58,7 @@ end
 
 Hecks.capability :app_builder do
   description "AI agent that plans and builds domain features"
+  direction :driven
   on_apply do |runtime|
     Hecks::Capabilities::AppBuilder.apply(runtime)
   end

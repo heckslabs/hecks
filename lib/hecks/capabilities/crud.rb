@@ -162,6 +162,7 @@ end
 
 Hecks.capability :crud do
   description "Generate Create/Read/Update/Delete command stubs and bind repository methods"
+  direction :driven
   on_apply do |runtime|
     Hecks::Capabilities::Crud.apply(runtime)
   end

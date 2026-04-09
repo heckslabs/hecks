@@ -40,6 +40,7 @@ Hecks.bluebook "Authoring" do
       attribute :project_path, "ProjectPath"
       attribute :discovered_paths, list_of("ProjectPath")
       command "OpenProject" do
+        goal "Load a domain project for editing and exploration"
         description "Load an existing domain project from a directory"
         attribute :project_path, "ProjectPath"
         emits "ProjectOpened"
@@ -82,6 +83,7 @@ Hecks.bluebook "Authoring" do
         emits "CommandInspected"
       end
       command "OpenFile" do
+        goal "Open a domain source file for inspection"
         description "Open a source file and record it as the last opened"
         reference_to "Project"
         attribute :path, String
@@ -98,6 +100,7 @@ Hecks.bluebook "Authoring" do
       attribute :content, "FileContent"
       reference_to "Project"
       command "OpenDocument" do
+        goal "Open a domain file for editing in the IDE"
         description "Load a .hec or .bluebook file into the editor"
         reference_to "Project"
         attribute :filename, String
@@ -178,6 +181,7 @@ Hecks.bluebook "Authoring" do
       attribute :template, String
       attribute :parameters, list_of("PatternParameter")
       command "DefinePattern" do
+        goal "Capture a reusable domain shape for scaffolding"
         description "Create a new reusable pattern from an existing aggregate shape"
         attribute :pattern_name, String
         attribute :category, String

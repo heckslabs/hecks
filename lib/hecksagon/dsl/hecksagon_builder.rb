@@ -93,6 +93,53 @@ module Hecksagon
         @excluded_capabilities.concat(Array(except).map(&:to_sym))
       end
 
+      # Declare driving (primary/user-side) ports. These are capabilities
+      # that drive the application — UI, API, CLI, tests.
+      #
+      #   driving :webapp, :cli
+      #
+      # @param names [Array<Symbol>] port names
+      # @param except [Array<Symbol>] capabilities to exclude
+      # @return [void]
+      def driving(*names, except: [])
+        names.each { |n| @capabilities << n.to_sym }
+        @driving_ports ||= []
+        @driving_ports.concat(names.map(&:to_sym))
+        @excluded_capabilities ||= []
+        @excluded_capabilities.concat(Array(except).map(&:to_sym))
+      end
+
+      # Declare driven (secondary/infrastructure) ports. These are capabilities
+      # driven by the application — persistence, messaging, external services.
+      #
+      #   driven :persistence, :email
+      #
+      # @param names [Array<Symbol>] port names
+      # @return [void]
+      def driven(*names)
+        names.each { |n| @capabilities << n.to_sym }
+        @driven_ports ||= []
+        @driven_ports.concat(names.map(&:to_sym))
+      end
+
+      # Declare a port contract — the shape an adapter must satisfy.
+      #
+      #   port :persistence do
+      #     requires :save, :find, :delete
+      #     accepts  "Pizza"
+      #     publishes "PizzaSaved"
+      #   end
+      #
+      # @param name [Symbol] port name
+      # @yield block evaluated in PortContractBuilder context
+      # @return [void]
+      def port(name, &block)
+        builder = PortContractBuilder.new(name)
+        builder.instance_eval(&block)
+        @port_contracts ||= []
+        @port_contracts << builder.build
+      end
+
       # Declare per-aggregate capabilities via a block. The block
       # receives an AggregateCapabilityBuilder for fluent tagging.
       #
@@ -148,7 +195,10 @@ module Hecksagon
           excluded_capabilities: @excluded_capabilities || [],
           aggregate_capabilities: @aggregate_capabilities,
           annotations: @annotations,
-          context_map: @context_map.any? ? @context_map : infer_context_map
+          context_map: @context_map.any? ? @context_map : infer_context_map,
+          driving_ports: @driving_ports || [],
+          driven_ports: @driven_ports || [],
+          port_contracts: @port_contracts || []
         )
       end
 

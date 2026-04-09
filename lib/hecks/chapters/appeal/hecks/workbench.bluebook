@@ -32,6 +32,7 @@ Hecks.bluebook "Workbench" do
       reference_to "Session"
 
       command "SelectTab" do
+        goal "Switch the active IDE panel to a different view"
         reference_to "Layout"
         attribute :tab_label, String
         emits "TabSelected"
@@ -42,6 +43,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "ToggleSidebar" do
+        goal "Show or hide the sidebar to manage screen space"
         reference_to "Layout"
         emits "SidebarToggled"
         handler do |layout|
@@ -97,8 +99,6 @@ Hecks.bluebook "Workbench" do
         transition "RestoreConnection" => "connected", from: "reconnecting"
       end
 
-      command("EnterSketch")       { reference_to "Session"; emits "SketchEntered" }
-      command("EnterPlay")         { reference_to "Session"; emits "PlayEntered" }
       command("OpenConnection")    { reference_to "Session"; emits "ConnectionOpened" }
       command("CloseConnection")   { reference_to "Session"; emits "ConnectionClosed" }
       command("RestoreConnection") { reference_to "Session"; emits "ConnectionRestored" }
@@ -111,6 +111,7 @@ Hecks.bluebook "Workbench" do
       command("OpenWorkbench") { emits "WorkbenchOpened" }
 
       command "SelectProject" do
+        goal "Choose which domain project to work on"
         attribute :project_label, String
         emits "ProjectSelected"
         handler do |wb|
@@ -120,6 +121,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "SelectAggregate" do
+        goal "Focus the workbench on a specific aggregate"
         reference_to "Workbench"
         attribute :aggregate_label, String
         emits "AggregateFocused"

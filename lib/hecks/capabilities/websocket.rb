@@ -59,6 +59,7 @@ end
 
 Hecks.capability :websocket do
   description "Bidirectional WebSocket command/event bridge"
+  direction :driving
   config do
     port 4568, desc: "WebSocket listen port"
   end

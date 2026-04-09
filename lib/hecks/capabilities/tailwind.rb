@@ -63,6 +63,7 @@ end
 
 Hecks.capability :tailwind do
   description "CSS compilation via tailwindcss --watch"
+  direction :driven
   config do
     input "assets/css/app.css", desc: "Tailwind input CSS"
     output "assets/css/tailwind.css", desc: "Compiled output CSS"
