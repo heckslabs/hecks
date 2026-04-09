@@ -21,7 +21,8 @@ module Hecksagon
     autoload :HecksagonBuilder,   "hecksagon/dsl/hecksagon_builder"
     autoload :GateBuilder,        "hecksagon/dsl/gate_builder"
     autoload :WorldBuilder,       "hecksagon/dsl/world_builder"
-    autoload :AnnotationSelector, "hecksagon/dsl/annotation_selector"
+    autoload :AnnotationSelector,  "hecksagon/dsl/annotation_selector"
+    autoload :ContextMapBuilder,   "hecksagon/dsl/context_map_builder"
   end
 
   module Structure

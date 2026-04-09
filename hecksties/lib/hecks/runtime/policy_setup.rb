@@ -39,9 +39,7 @@ module Hecks
             @policies_in_flight.add(policy_key)
             return unless condition_met?(policy, event)
 
-            attrs = extract_event_attrs(event)
-            attrs = apply_policy_mapping(policy, attrs)
-            attrs = attrs.merge(policy.defaults) if policy.defaults.any?
+            attrs = translate_or_extract(policy, event)
 
             dispatch_policy(policy, attrs)
           rescue StandardError => e
@@ -55,6 +53,17 @@ module Hecks
           if @policies_in_flight.include?(policy_key)
             warn "[Hecks] Skipping re-entrant policy #{name} (already in-flight)"
             true
+          end
+        end
+
+        def translate_or_extract(policy, event)
+          if policy.translate
+            policy.translate.call(event)
+          else
+            attrs = extract_event_attrs(event)
+            attrs = apply_policy_mapping(policy, attrs)
+            attrs = attrs.merge(policy.defaults) if policy.defaults.any?
+            attrs
           end
         end
 

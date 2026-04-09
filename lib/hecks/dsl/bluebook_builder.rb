@@ -71,6 +71,9 @@ module Hecks
         @event_subscribers = []
         @world_concerns = []
         @entry_points = []
+        @vision = nil
+        @subdomain = nil
+        @glossary_terms = []
       end
 
       # Declare world concerns that this domain aspires to uphold.
@@ -83,6 +86,47 @@ module Hecks
       # @return [void]
       def world_concerns(*concerns)
         @world_concerns.concat(concerns.map(&:to_sym))
+      end
+
+      # Set the strategic vision statement for this domain.
+      # Describes what problem the domain solves in business terms.
+      #
+      #   vision "Manage pizza creation and ordering for a pizzeria"
+      #
+      # @param text [String] the vision statement
+      # @return [void]
+      def vision(text)
+        @vision = text
+      end
+
+      # Classify this domain's subdomain type (Evans strategic design).
+      #
+      #   subdomain :core
+      #
+      # @param type [Symbol] one of :core, :supporting, :generic
+      # @return [void]
+      def subdomain(type)
+        @subdomain = type.to_sym
+      end
+
+      # Shorthand for subdomain(:core)
+      def core;       subdomain(:core);       end
+      # Shorthand for subdomain(:supporting)
+      def supporting; subdomain(:supporting); end
+      # Shorthand for subdomain(:generic)
+      def generic;    subdomain(:generic);    end
+
+      # Define a glossary term with its business definition.
+      # Builds the ubiquitous language dictionary for this domain.
+      #
+      #   define "Topping", "A measured ingredient placed on a pizza"
+      #   define "Order", "A customer's request for one or more pizzas"
+      #
+      # @param term [String] the domain term name
+      # @param definition [String] what this term means in the domain
+      # @return [void]
+      def define(term, definition)
+        @glossary_terms << { name: term.to_s, definition: definition.to_s }
       end
 
       def actor(name, description: nil)
@@ -317,7 +361,9 @@ module Hecks
           glossary_strict: @glossary_strict || false,
           world_concerns: @world_concerns,
           description: @description,
-          entry_points: @entry_points
+          entry_points: @entry_points,
+          vision: @vision, subdomain: @subdomain,
+          glossary_terms: @glossary_terms
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

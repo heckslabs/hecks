@@ -81,6 +81,18 @@ module Hecks
       # @return [Array<String>] autoload entry point file names (e.g., ["hecks_persist", "hecks_mongodb"])
       attr_reader :entry_points
 
+      # @return [String, nil] Evans strategic vision statement for this domain
+      attr_reader :vision
+
+      # @return [Symbol, nil] subdomain classification (:core, :supporting, :generic)
+      attr_reader :subdomain
+
+      # @return [Array<Hash>] explicit glossary term definitions ({ name:, definition: })
+      attr_reader :glossary_terms
+
+      # @return [Array<String>] auto-extracted glossary terms from aggregate/VO/command names
+      attr_reader :auto_glossary
+
       # @return [String, nil] the filesystem path where this domain's source files live.
       #   Set after compilation or when loading from a gem. Used by generators to know
       #   where to write output files.
@@ -110,7 +122,8 @@ module Hecks
                      tenancy: nil, event_subscribers: [],
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
                      version: nil, world_concerns: [], description: nil,
-                     entry_points: [])
+                     entry_points: [],
+                     vision: nil, subdomain: nil, glossary_terms: [])
         validate_version!(version)
         @name = name
         @version = version
@@ -131,6 +144,10 @@ module Hecks
         @world_concerns = world_concerns.map(&:to_sym)
         @description = description
         @entry_points = entry_points
+        @vision = vision
+        @subdomain = subdomain&.to_sym
+        @glossary_terms = glossary_terms
+        @auto_glossary = build_auto_glossary(aggregates)
       end
 
       # @return [String, nil] human-readable description of this domain
@@ -269,6 +286,16 @@ module Hecks
       end
 
       private
+
+      def build_auto_glossary(aggregates)
+        terms = []
+        aggregates.each do |agg|
+          terms << agg.name
+          terms.concat(agg.value_objects.map(&:name)) if agg.respond_to?(:value_objects)
+          terms.concat(agg.commands.map(&:name)) if agg.respond_to?(:commands)
+        end
+        terms.uniq
+      end
 
       def validate_version!(v)
         return if v.nil?

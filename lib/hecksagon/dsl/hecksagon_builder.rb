@@ -22,6 +22,22 @@ module Hecksagon
         @capabilities = []
         @aggregate_capabilities = {}
         @annotations = []
+        @context_map = []
+      end
+
+      # Declare context map relationships between bounded contexts.
+      #
+      #   context_map do
+      #     upstream "Pizzas", downstream: "Billing", relationship: :anti_corruption
+      #     shared_kernel "Pizzas", "Inventory", shared: ["ToppingName"]
+      #   end
+      #
+      # @yield block evaluated in ContextMapBuilder context
+      # @return [void]
+      def context_map(&block)
+        builder = ContextMapBuilder.new
+        builder.instance_eval(&block)
+        @context_map = builder.build
       end
 
       # Declare a gate (access control) for an aggregate + role.
@@ -131,7 +147,8 @@ module Hecksagon
           capabilities: @capabilities,
           excluded_capabilities: @excluded_capabilities || [],
           aggregate_capabilities: @aggregate_capabilities,
-          annotations: @annotations
+          annotations: @annotations,
+          context_map: @context_map
         )
       end
     end

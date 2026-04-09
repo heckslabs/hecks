@@ -103,6 +103,23 @@ module Hecks
         @defaults.merge!(hash)
       end
 
+      # Set an anti-corruption translation block for cross-context policies.
+      #
+      # When a translate block is set, the policy calls it with the event
+      # and uses the returned hash as the command attributes instead of
+      # extracting/mapping from the event directly.
+      #
+      # @yield [event] block that transforms event data for the target context
+      # @yieldparam event [Object] the domain event that triggered the policy
+      # @yieldreturn [Hash{Symbol => Object}] attributes for the triggered command
+      # @return [void]
+      #
+      # @example
+      #   translate { |event| { item_name: event.name, price: 12.99 } }
+      def translate(&block)
+        @translate_block = block
+      end
+
       # Set a conditional firing gate for this policy.
       #
       # When a condition is set, the policy only triggers the command if the
@@ -137,6 +154,7 @@ module Hecks
           attribute_map: @attribute_map,
           condition: @condition,
           defaults: @defaults,
+          translate: @translate_block,
           description: @description
         )
       end

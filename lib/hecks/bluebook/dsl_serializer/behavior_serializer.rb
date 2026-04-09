@@ -32,6 +32,7 @@ module Hecks
         lines << "    trigger \"#{pol.trigger_command}\""
         lines << "    async true" if pol.async
         append_attribute_map(lines, pol, "    ")
+        append_translate(lines, pol, "    ")
         append_condition(lines, pol, "    ")
         lines << "  end"
         lines
@@ -57,6 +58,7 @@ module Hecks
         lines << "      on \"#{pol.event_name}\""
         lines << "      trigger \"#{pol.trigger_command}\""
         lines << "      async true" if pol.async
+        append_translate(lines, pol, "      ")
         append_condition(lines, pol, "      ")
         lines << "    end"
       end
@@ -73,6 +75,13 @@ module Hecks
 
         mapping = pol.attribute_map.map { |from, to| "#{from}: :#{to}" }.join(", ")
         lines << "#{indent}map #{mapping}"
+      end
+
+      def append_translate(lines, pol, indent)
+        return unless pol.respond_to?(:translate) && pol.translate
+
+        body = Hecks::Utils.block_source(pol.translate)
+        lines << "#{indent}translate { |event| #{body} }"
       end
 
       def append_condition(lines, pol, indent)
