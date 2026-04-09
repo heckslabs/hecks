@@ -62,6 +62,9 @@ module Hecks
                 // Save to localStorage
                 saveState();
 
+                // Skip server dispatch if we handled it locally (no double-toggle)
+                if (localResult) return localResult;
+
                 // Send to server with correlation ID
                 pending[correlationId] = true;
                 if (window.HecksIDE && window.HecksIDE.raw) {
