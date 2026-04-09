@@ -43,10 +43,11 @@ module Hecks
         find_world_files(hecks_dir).each { |f| Kernel.load(f) }
 
         domains = bluebooks.map do |path|
-          # Set inferred name so Hecks.bluebook can use it as default
           Hecks.instance_variable_set(:@_inferred_bluebook_name,
             File.basename(path, ".bluebook").split("_").map(&:capitalize).join)
-          Kernel.load(path)
+          Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
+            Kernel.load(path)
+          end
           Hecks.last_domain
         end
         domains.each { |d| load_stubs(dir, d) }

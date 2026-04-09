@@ -57,6 +57,11 @@ module Hecks
           type = String
         end
 
+        # Disallow string type names — use bare constants
+        if type.class == String && Hecks::DSL::TypeName.match?(type)
+          raise ArgumentError, "Use bare constant #{type} instead of string \"#{type}\" for attribute :#{name}"
+        end
+
         # Convention: plural name + non-primitive type → list
         name_str = name.to_s
         if !type.is_a?(Hash) && name_str.end_with?("s") && !name_str.end_with?("ss") && type_is_vo?(type)
@@ -90,6 +95,7 @@ module Hecks
       # @example
       #   attribute :toppings, list_of("Topping")
       def list_of(type)
+        raise ArgumentError, "Use bare constant #{type} instead of string \"#{type}\" in list_of" if type.class == String && Hecks::DSL::TypeName.match?(type)
         { list: type }
       end
 

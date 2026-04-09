@@ -145,6 +145,7 @@ module Hecks
       #   reference_to "Team", role: "home_team"         — named role
       #
       def reference_to(type, role: nil)
+        raise ArgumentError, "reference_to requires a constant, not a string: #{type.inspect}" if type.class == String
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last

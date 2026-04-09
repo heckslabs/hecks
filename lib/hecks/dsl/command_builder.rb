@@ -215,6 +215,7 @@ module Hecks
       #   (opt-out for cross-context eventual consistency)
       # @return [void]
       def reference_to(type, role: nil, validate: :exists)
+        raise ArgumentError, "reference_to requires a constant, not a string: #{type.inspect}" if type.class == String && Hecks::DSL::TypeName.match?(type)
         type_str = type.to_s
         parts = type_str.split("::")
         target = parts.last
