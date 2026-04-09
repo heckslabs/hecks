@@ -59,6 +59,8 @@ module Hecks
         @emits = nil
         @method_name = nil
         @goal = nil
+        @givens = []
+        @mutations = []
       end
 
       # Override the generated Ruby method name.
@@ -91,6 +93,36 @@ module Hecks
       # @return [void]
       def handler(&block)
         @handler = block
+      end
+
+      # Declare a precondition in pure UL. The block is captured as source
+      # text, not as a Proc. This makes it projectable to any target.
+      #
+      #   given { toppings.size < 10 }
+      #   given("must have items") { quantity > 0 }
+      #
+      def given(message = nil, &block)
+        source = block ? extract_block_source(block) : message
+        @givens << BluebookModel::Behavior::Given.new(
+          expression: source, message: message
+        )
+      end
+
+      # Declare a state mutation. Pure declarative — no Ruby.
+      #
+      #   then_set :status, to: "placed"
+      #   then_set :toppings, append: { name: :name, amount: :amount }
+      #   then_set :count, increment: 1
+      #
+      def then_set(field, to: nil, append: nil, increment: nil, decrement: nil)
+        op, val = if !to.nil? then [:set, to]
+                  elsif append then [:append, append]
+                  elsif increment then [:increment, increment]
+                  elsif decrement then [:decrement, decrement]
+                  end
+        @mutations << BluebookModel::Behavior::Mutation.new(
+          field: field, operation: op, value: val
+        )
       end
 
       # Declare explicit event name(s) emitted when this command succeeds.
@@ -253,8 +285,26 @@ module Hecks
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
           emits: @emits, description: @description,
-          method_name: @method_name, goal: @goal
+          method_name: @method_name, goal: @goal,
+          givens: @givens, mutations: @mutations
         )
+      end
+
+      private
+
+      # Extract the source text from a block. The block is Ruby syntax but
+      # we store it as a string for projection to any target.
+      def extract_block_source(block)
+        file, line = block.source_location
+        return block.to_s unless file && File.exist?(file)
+        lines = File.readlines(file)
+        source_line = lines[line - 1].strip
+        # Extract the expression between { and }
+        if source_line =~ /\{(.+)\}/
+          $1.strip
+        else
+          source_line
+        end
       end
     end
   end

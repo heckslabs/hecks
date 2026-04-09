@@ -39,7 +39,8 @@ module Hecks
 
       attr_reader :name, :attributes, :references, :handler, :guard_name, :read_models,
                   :external_systems, :actors, :call_body, :sets,
-                  :preconditions, :postconditions, :emits, :description, :goal
+                  :preconditions, :postconditions, :emits, :description, :goal,
+                  :givens, :mutations
 
       # Creates a new Command IR node.
       #
@@ -59,7 +60,8 @@ module Hecks
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
-                     description: nil, method_name: nil, goal: nil)
+                     description: nil, method_name: nil, goal: nil,
+                     givens: [], mutations: [])
         @name = Names.command_name(name)
         @attributes = attributes
         @references = references
@@ -76,6 +78,8 @@ module Hecks
         @description = description
         @method_name = method_name
         @goal = goal
+        @givens = givens
+        @mutations = mutations
       end
 
       # Returns the event name(s) this command emits.
