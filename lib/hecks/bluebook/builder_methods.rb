@@ -49,7 +49,16 @@ module Hecks
     # @param block [Proc] DSL block evaluated inside Hecksagon::DSL::HecksagonBuilder
     # @return [Hecksagon::Structure::Hecksagon] the fully built Hecksagon IR object
     def hecksagon(name = nil, &block)
+      # Merge into existing hecksagon if same name (app overrides default)
+      existing = Hecks.last_hecksagon
       builder = Hecksagon::DSL::HecksagonBuilder.new(name)
+      if existing && existing.name == name
+        # Seed builder with existing capabilities, annotations, etc.
+        existing.capabilities.each { |c| builder.instance_eval { capabilities c } }
+        existing.annotations.each { |a| builder.instance_variable_get(:@annotations) << a }
+        existing.subscriptions.each { |s| builder.instance_eval { subscribe s } }
+        builder.instance_eval { persistence existing.persistence[:type], **existing.persistence.reject { |k,_| k == :type } } if existing.persistence
+      end
       with_annotation_constants(builder) { builder.instance_eval(&block) }
       result = builder.build
       Hecks.last_hecksagon = result
@@ -64,7 +73,14 @@ module Hecks
     # @param block [Proc] DSL block evaluated inside Hecksagon::DSL::WorldBuilder
     # @return [Hecksagon::Structure::World] the fully built World IR object
     def world(name = nil, &block)
+      # Merge into existing world if same name (app overrides default)
+      existing = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
       builder = Hecksagon::DSL::WorldBuilder.new(name)
+      if existing && existing.name == name
+        existing.configs.each do |ext_name, config|
+          builder.instance_eval { send(ext_name) { config.each { |k, v| send(k, v) } } }
+        end
+      end
       builder.instance_eval(&block)
       result = builder.build
       Hecks.last_world = result

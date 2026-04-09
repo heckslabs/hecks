@@ -1,0 +1,3 @@
+Hecks.hecksagon "HecksAppeal" do
+  capabilities :webapp, :tailwind, :acceptance_test, :web_client_state
+end

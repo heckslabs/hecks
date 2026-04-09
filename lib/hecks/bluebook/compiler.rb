@@ -97,14 +97,23 @@ module Hecks
     # Load hecksagon and world files from a directory, mirroring the
     # auto-discovery that Hecks.boot performs for file-based projects.
     def load_companion_files(dir)
-      hecks_dir = File.directory?(File.join(dir, "hecks")) ? File.join(dir, "hecks") : dir
-      hecksagon = File.join(hecks_dir, "hecksagon.hec")
-      world = File.join(hecks_dir, "world.hec")
-      return unless File.exist?(hecksagon) || File.exist?(world)
-
       require "hecksagon" unless defined?(Hecksagon)
-      Kernel.load(hecksagon) if File.exist?(hecksagon)
-      Kernel.load(world) if File.exist?(world)
+
+      # If dir is an app subdir (apps/web/), load the parent's defaults first
+      parent = File.dirname(dir)
+      if File.basename(parent) == "apps"
+        default_dir = File.dirname(parent)
+        load_hec(File.join(default_dir, "hecksagon.hec"))
+        load_hec(File.join(default_dir, "world.hec"))
+      end
+
+      # Load from this dir (default or app override — merges via builder)
+      load_hec(File.join(dir, "hecksagon.hec"))
+      load_hec(File.join(dir, "world.hec"))
+    end
+
+    def load_hec(path)
+      Kernel.load(path) if File.exist?(path)
     end
   end
 end

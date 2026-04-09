@@ -12,7 +12,7 @@ require_relative "ide_server"
 module Hecks
   module Appeal
     class Server
-      APPEAL_DIR = File.expand_path("../chapters/appeal", __dir__)
+      APPEAL_DIR = File.expand_path("../chapters/appeal/apps/web", __dir__)
       APPEAL_ROOT = File.expand_path("../appeal", __dir__)
 
       def self.run(argv = ARGV)
