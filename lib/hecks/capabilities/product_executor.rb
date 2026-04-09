@@ -108,16 +108,28 @@ module Hecks
                 role: "assistant", content: "Everyone's quiet."
               })
             else
-              runner.agent_names.each do |name|
-                port.send_json(client, { type: "executor_thinking", agent: name, thinking: true })
-              end
+              target, clean_content = runner.parse_mention(content)
 
-              runner.broadcast(content) do |agent_name, response|
-                port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
-                port.send_json(client, {
-                  type: "executor_message", agent: agent_name,
-                  role: "assistant", content: response[:content] || response.to_s
-                })
+              if target
+                port.send_json(client, { type: "executor_thinking", agent: target, thinking: true })
+                runner.send_to(target, clean_content) do |agent_name, response|
+                  port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
+                  port.send_json(client, {
+                    type: "executor_message", agent: agent_name,
+                    role: "assistant", content: response[:content] || response.to_s
+                  })
+                end
+              else
+                runner.agent_names.each do |name|
+                  port.send_json(client, { type: "executor_thinking", agent: name, thinking: true })
+                end
+                runner.broadcast(content) do |agent_name, response|
+                  port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
+                  port.send_json(client, {
+                    type: "executor_message", agent: agent_name,
+                    role: "assistant", content: response[:content] || response.to_s
+                  })
+                end
               end
             end
           else

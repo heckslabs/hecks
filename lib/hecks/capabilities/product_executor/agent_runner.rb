@@ -30,6 +30,43 @@ module Hecks
         #
         # @param content [String] the user message
         # @yield [agent_name, response] called per agent response
+        # Send to a specific agent by name. Only that agent responds.
+        def send_to(agent_name, content, &on_response)
+          config = @agents[agent_name]
+          return unless config
+          @mutex.synchronize { @conversation << { role: "user", content: content } }
+
+          thread = Thread.new do
+            begin
+              messages = build_messages(agent_name, config)
+              response = ChatAgent::Dispatcher.run_loop(
+                adapter: resolve_adapter(agent_name), messages: messages, tools: config[:tools],
+                system: config[:system_prompt], runtime: @runtime
+              )
+              if response[:content] && !response[:content].empty?
+                @mutex.synchronize do
+                  @conversation << { role: "assistant", agent: agent_name, content: response[:content] }
+                end
+                on_response.call(agent_name, response) if on_response
+              end
+            rescue => e
+              on_response.call(agent_name, { content: "Error: #{e.message}" }) if on_response
+            end
+          end
+          @mutex.synchronize { @active_threads << thread }
+        end
+
+        # Parse @mentions from content. Returns [target_name, clean_content] or [nil, content].
+        def parse_mention(content)
+          if content =~ /\A@(\w+)\s*(.*)/m
+            name = $1.downcase
+            name = "uncle_bob" if name == "unclebob"
+            [@agents.key?(name) ? name : nil, $2.strip]
+          else
+            [nil, content]
+          end
+        end
+
         def broadcast(content, &on_response)
           @mutex.synchronize { @conversation << { role: "user", content: content } }
 
