@@ -65,7 +65,7 @@ module Hecks
       CLIENT_JS = <<~JS
         (function() {
           "use strict";
-          var capturing = true, interval = 5000, timer = null;
+          var capturing = true, interval = 1000, timer = null;
 
           function capture() {
             if (!capturing || !window.html2canvas) return;
