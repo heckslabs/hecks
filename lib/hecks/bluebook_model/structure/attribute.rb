@@ -49,7 +49,7 @@ module Hecks
       # @return [Attribute] a new Attribute instance
       def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true)
         @name = name.to_sym
-        @type = type
+        @type = type.is_a?(Class) ? type : type.to_s
         @default = default
         @list = list
         @pii = pii

@@ -131,7 +131,7 @@ module Hecks
         check(result, format, "Serialization", "DslSerializer round-trip") do
           original = app.domain
           dsl_source = Hecks::DslSerializer.new(original).serialize
-          restored = eval(dsl_source)
+          restored = Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants { eval(dsl_source) }
           diff = Hecks::Conventions::MigrationContract.diff(original, restored)
           unless diff[:valid]
             raise "round-trip failed: #{diff[:issues].join(', ')}"

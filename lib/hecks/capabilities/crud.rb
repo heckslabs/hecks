@@ -38,7 +38,6 @@ module Hecks
 
         domain.aggregates.each do |agg|
           new_commands, new_events = generate_stubs(agg)
-          next if new_commands.empty?
 
           agg.commands.concat(new_commands)
           agg.events.concat(new_events)

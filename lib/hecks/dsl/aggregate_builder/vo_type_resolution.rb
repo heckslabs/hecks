@@ -3,9 +3,8 @@
 # @domain Layout
 #
 # Enables bare PascalCase constants as type references in DSL blocks.
-# Unknown constants resolve to type references so the IR treats them
-# as aggregate or value object names. Supports :: chaining for
-# cross-domain references: ModelRegistry::AiModel
+# Unknown constants resolve to anonymous Modules that chain via
+# const_missing for cross-domain :: references.
 #
 #   aggregate "Pizza" do
 #     attribute :topping, Topping            # => "Topping"
@@ -16,49 +15,18 @@
 module Hecks
   module DSL
     class AggregateBuilder
-
-      # A proxy returned by const_missing that supports :: chaining.
-      # ModelRegistry returns TypeRef("ModelRegistry"), then
-      # ::AiModel calls const_missing on it → TypeRef("ModelRegistry::AiModel")
-      # A type reference that behaves like a String but supports :: chaining.
-      # Uses BasicObject so it doesn't pick up module namespace.
-      class TypeRef < Module
-        def initialize(name)
-          @name = name
-        end
-
-        def to_s = @name
-        def to_str = @name
-        def inspect = @name
-        def name = @name
-        def ==(other) = @name == other.to_s
-        def eql?(other) = @name == other.to_s
-        def hash = @name.hash
-        def include?(str) = @name.include?(str)
-        def split(*args) = @name.split(*args)
-        def gsub(*args, &b) = @name.gsub(*args, &b)
-        def match?(*args) = @name.match?(*args)
-        def start_with?(*args) = @name.start_with?(*args)
-        def end_with?(*args) = @name.end_with?(*args)
-        def downcase = @name.downcase
-        def length = @name.length
-        def empty? = @name.empty?
-
-        def const_missing(child)
-          TypeRef.new("#{@name}::#{child}")
-        end
-
-        def is_a?(klass)
-          klass == String || super
-        end
-      end
-
       module VoTypeResolution
         def self.with_vo_constants
           saved = begin; Object.method(:const_missing); rescue NameError; nil; end
           Object.define_singleton_method(:const_missing) do |name|
             if Thread.current[:_hecks_vo_eval]
-              TypeRef.new(name.to_s)
+              mod = Module.new
+              mod.define_singleton_method(:const_missing) { |child| "#{name}::#{child}" }
+              mod.define_singleton_method(:to_s) { name.to_s }
+              mod.define_singleton_method(:to_str) { name.to_s }
+              mod.define_singleton_method(:name) { name.to_s }
+              mod.define_singleton_method(:inspect) { name.to_s }
+              mod
             elsif saved
               saved.call(name)
             else
