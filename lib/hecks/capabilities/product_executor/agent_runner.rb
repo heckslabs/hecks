@@ -109,18 +109,7 @@ module Hecks
         private
 
         def resolve_adapter(agent_name = nil)
-          @adapters ||= {}
-          @adapters[agent_name] ||= begin
-            base = Hecks::Capabilities::ChatAgent.resolve_adapter(nil, {})
-            if agent_name == "uncle_bob" && base.is_a?(Hecks::Extensions::ClaudeCliAdapter)
-              Hecks::Extensions::ClaudeCliAdapter.new(
-                model: base.instance_variable_get(:@model),
-                dangerously_skip_permissions: true
-              )
-            else
-              base
-            end
-          end
+          @adapter ||= Hecks::Capabilities::ChatAgent.resolve_adapter(nil, {})
         end
 
         def build_messages(agent_name, _config)
