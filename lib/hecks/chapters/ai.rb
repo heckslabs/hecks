@@ -94,7 +94,7 @@ module Hecks
 
           b.aggregate "GovernanceTools" do
             description "MCP wrapper around GovernanceGuard for governance checks"
-            command "GovernanceCheck"
+            command "RunGovernanceCheck"
           end
 
           b.aggregate "BluebookServer" do

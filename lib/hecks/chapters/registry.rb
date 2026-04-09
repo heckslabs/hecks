@@ -44,14 +44,7 @@ module Hecks
     requires: %w[hecks_ai]
   )
 
-  ChapterLoader.register(:appeal,
-    requires: %w[hecks/appeal]
-  ) do
-    Chapters.load_chapter(
-      Chapters::Appeal,
-      base_dirs: [File.expand_path("../../appeal", __dir__)]
-    )
-  end
+  # Appeal is a bluebook project — boots via Hecks.boot, not as a chapter
 
   ChapterLoader.register(:cli,
     requires: %w[hecks_cli/cli]

@@ -14,15 +14,10 @@ require_relative "ide_server"
 module Hecks
   module Appeal
     class Server
-      APPEAL_DIR = File.expand_path("../chapters/appeal/apps/web", __dir__)
       APPEAL_ROOT = File.expand_path("../appeal", __dir__)
 
       def self.run(argv = ARGV)
-        runtime = Hecks.boot(
-          domain: Hecks::Chapters::Appeal.definition,
-          root: APPEAL_ROOT,
-          source_dir: APPEAL_DIR
-        )
+        runtime = Hecks.boot(APPEAL_ROOT)
         runtime = [runtime] unless runtime.is_a?(Array)
         rt = runtime.first
 

@@ -1,0 +1,22 @@
+Hecks.world "HecksAppeal" do
+  websocket do
+    port 4568
+  end
+
+  static_assets do
+    port 4567
+    views "views"
+    assets "assets"
+  end
+
+  live_reload do
+    watch_dirs "hecks"
+    debounce 0.5
+  end
+
+  tailwind do
+    input "assets/css/app.css"
+    output "assets/css/tailwind.css"
+    content "views/**/*.html", "assets/js/**/*.js"
+  end
+end

@@ -1,0 +1,38 @@
+Hecks.bluebook "Ide" do
+  vision "Core IDE infrastructure — server, command dispatch, domain bridge, views"
+
+  aggregate "Server", "Web server hosting the IDE and routing HTTP requests" do
+    command "Start" do
+      attribute :port, Integer
+      emits "ServerStarted"
+    end
+    command "Stop" do
+      description "Shut down the IDE server and free all ports"
+      emits "ServerStopped"
+    end
+  end
+
+  aggregate "CommandDispatcher", "Routes browser form submissions to domain commands via the runtime" do
+    command "Dispatch" do
+      attribute :command_name, String
+      attribute :params, Hash
+    end
+  end
+
+  aggregate "BluebookBridge", "Connects the IDE to a booted Hecks domain for live introspection" do
+    command "Connect" do
+      attribute :domain_path, String
+    end
+    command "Describe"
+  end
+
+  aggregate "Views", "Templates rendering domain structure, forms, and event logs" do
+    command "RenderAggregate" do
+      attribute :aggregate_name, String
+    end
+    command "RenderCommand" do
+      attribute :command_name, String
+    end
+    command "RenderEventLog"
+  end
+end
