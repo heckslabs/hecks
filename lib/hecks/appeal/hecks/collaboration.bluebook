@@ -167,7 +167,7 @@ Hecks.bluebook "Collaboration" do
       command("Decide") { role "Reviewer"; reference_to Review; attribute :decision, String; emits "DecisionRendered" }
     end
 
-    aggregate "ProductExecutor", "Product team with invisible routing. Bullpen agent picks who responds." do
+    aggregate "ProductExecutor", "Product team. Chris receives all messages and routes to the right people." do
       attribute :active_agent, String
       attribute :conversations, list_of(AgentConversation)
 
@@ -175,11 +175,10 @@ Hecks.bluebook "Collaboration" do
         description "A named agent's chat history"
         attribute :agent_name, String
         attribute :messages, list_of(String)
-        invariant("known agent") { %w[jesper chris alberto eric alistair uncle_bob don jony bullpen].include?(agent_name) }
+        invariant("known agent") { %w[jesper chris alberto eric alistair uncle_bob don jony].include?(agent_name) }
       end
 
       command("SendToAgent")  { role "Developer"; attribute :agent_name, String; attribute :content, String; emits "AgentMessageSent" }
-      command("RouteMessage") { role "Developer"; attribute :content, String; emits "MessageRouted" }
       command("SwitchAgent")  { role "Developer"; attribute :agent_name, String; emits "AgentSwitched" }
       command("ClearAgent")   { role "Developer"; attribute :agent_name, String; emits "AgentCleared" }
     end

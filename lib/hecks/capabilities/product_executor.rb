@@ -120,7 +120,9 @@ module Hecks
                   })
                 end
               else
-                runner.route(content) do |agent_name, response|
+                # Everything goes to Chris first
+                port.send_json(client, { type: "executor_thinking", agent: "chris", thinking: true })
+                runner.send_to("chris", content) do |agent_name, response|
                   port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
                   port.send_json(client, {
                     type: "executor_message", agent: agent_name,
