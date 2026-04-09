@@ -25,6 +25,7 @@ module Hecks
       autoload :ViewDomainTags,             "hecks/validation_rules/structure/view_domain_tags"
       autoload :HandlerBlocks,              "hecks/validation_rules/structure/handler_blocks"
       autoload :FileCoverage,               "hecks/validation_rules/structure/file_coverage"
+      autoload :GivenReferences,            "hecks/validation_rules/structure/given_references"
     end
   end
 end

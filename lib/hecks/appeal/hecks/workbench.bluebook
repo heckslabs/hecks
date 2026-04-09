@@ -6,6 +6,9 @@ Hecks.bluebook "Workbench" do
       attribute :panels, PanelState
       attribute :shortcuts, ShortcutBinding
       attribute :search_query, String
+      attribute :active_tab, String
+      attribute :sidebar_collapsed, String, default: "false"
+      attribute :events_panel_collapsed, String, default: "false"
       value_object "TabName" do
         attribute :label, String
         invariant("known tab") { %w[editor diagrams console workbench features tests].include?(label) }
