@@ -66,13 +66,14 @@ module Hecks
       version_line = version ? "  VERSION = #{version.inspect}\n  def self.version; VERSION; end\n" : ""
       "require 'securerandom'\nmodule #{mod}\n" \
       "#{version_line}" \
-      "  class ValidationError < StandardError\n" \
+      "  class Error < StandardError; end\n" \
+      "  class ValidationError < Error\n" \
       "    attr_reader :field, :rule\n" \
       "    def initialize(message = nil, field: nil, rule: nil)\n" \
       "      @field = field; @rule = rule; super(message)\n" \
       "    end\n" \
       "  end\n" \
-      "  class InvariantError < StandardError; end\n" \
+      "  class InvariantError < Error; end\n" \
       "end"
     end
 
