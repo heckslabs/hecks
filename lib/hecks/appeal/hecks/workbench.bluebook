@@ -37,10 +37,7 @@ Hecks.bluebook "Workbench" do
         reference_to Layout
         attribute :tab_label, String
         emits "TabSelected"
-        handler do |layout|
-          layout.active_tab = { "label" => tab_label }
-          layout
-        end
+        then_set :active_tab, to: { label: :tab_label }
       end
 
       command "ToggleSidebar" do
@@ -48,22 +45,14 @@ Hecks.bluebook "Workbench" do
         goal "Show or hide the sidebar to manage screen space"
         reference_to Layout
         emits "SidebarToggled"
-        handler do |layout|
-          collapsed = layout.sidebar_collapsed == "true"
-          layout.sidebar_collapsed = collapsed ? "false" : "true"
-          layout
-        end
+        then_toggle :sidebar_collapsed
       end
 
       command "ToggleEventsPanel" do
         role "Developer"
         reference_to Layout
         emits "EventsPanelToggled"
-        handler do |layout|
-          collapsed = layout.events_panel_collapsed == "true"
-          layout.events_panel_collapsed = collapsed ? "false" : "true"
-          layout
-        end
+        then_toggle :events_panel_collapsed
       end
 
       command("OpenPanel")   { role "Developer"; reference_to Layout; attribute :panel_label, String; emits "PanelRevealed" }
@@ -134,10 +123,7 @@ Hecks.bluebook "Workbench" do
         goal "Choose which domain project to work on"
         attribute :project_label, String
         emits "ProjectSelected"
-        handler do |wb|
-          wb.active_project = project_label
-          wb
-        end
+        then_set :active_project, to: :project_label
       end
 
       command "SelectAggregate" do
@@ -146,10 +132,7 @@ Hecks.bluebook "Workbench" do
         reference_to Workbench
         attribute :aggregate_label, String
         emits "AggregateFocused"
-        handler do |wb|
-          wb.active_aggregate = aggregate_label
-          wb
-        end
+        then_set :active_aggregate, to: :aggregate_label
       end
     end
 
@@ -214,10 +197,7 @@ Hecks.bluebook "Workbench" do
         role "Developer"
         reference_to EventStream
         emits "EventsFlushed"
-        handler do |stream|
-          stream.captured_events = []
-          stream
-        end
+        then_set :captured_events, to: []
       end
 
       command "NarrowEvents" do
@@ -226,11 +206,8 @@ Hecks.bluebook "Workbench" do
         attribute :aggregate_label, String
         attribute :event_label, String
         emits "EventsNarrowed"
-        handler do |stream|
-          stream.aggregate_filter = aggregate_label
-          stream.event_filter = event_label
-          stream
-        end
+        then_set :aggregate_filter, to: :aggregate_label
+        then_set :event_filter, to: :event_label
       end
     end
 end

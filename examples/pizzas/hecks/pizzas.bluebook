@@ -38,10 +38,8 @@ Hecks.bluebook "Pizzas" do
       attribute :name
       attribute :amount, Integer
 
-      handler do |pizza|
-        raise "Max 10 toppings" if pizza.toppings.respond_to?(:size) && pizza.toppings.size >= 10
-        pizza
-      end
+      given("max 10 toppings") { toppings.size < 10 }
+      then_set :toppings, append: { name: :name, amount: :amount }
     end
 
     query "ByDescription" do |desc|

@@ -25,16 +25,8 @@ Hecks.bluebook "Observation" do
         attribute :source_aggregate, String
         emits "UserNotified"
 
-        handler do |notification|
-          notification.alerts << {
-            "message" => message,
-            "severity" => severity,
-            "source_aggregate" => source_aggregate,
-            "dismissed" => "false"
-          }
-          notification.unread_count = (notification.unread_count || 0) + 1
-          notification
-        end
+        then_set :alerts, append: { message: :message, severity: :severity, source_aggregate: :source_aggregate, dismissed: "false" }
+        then_set :unread_count, increment: 1
       end
 
       command "DismissAlert" do
@@ -44,14 +36,8 @@ Hecks.bluebook "Observation" do
         attribute :alert_index, Integer
         emits "AlertDismissed"
 
-        handler do |notification|
-          alert = notification.alerts[alert_index]
-          if alert && alert["dismissed"] == "false"
-            alert["dismissed"] = "true"
-            notification.unread_count = [notification.unread_count - 1, 0].max
-          end
-          notification
-        end
+        given("alert exists") { !alerts.nil? && alerts.size > alert_index }
+        then_set :unread_count, decrement: 1
       end
 
       command "ClearAllAlerts" do
@@ -60,11 +46,8 @@ Hecks.bluebook "Observation" do
         reference_to Notification
         emits "AllAlertsCleared"
 
-        handler do |notification|
-          notification.alerts = []
-          notification.unread_count = 0
-          notification
-        end
+        then_set :alerts, to: []
+        then_set :unread_count, to: 0
       end
     end
 
@@ -90,12 +73,9 @@ Hecks.bluebook "Observation" do
         attribute :query_text, String
         emits "SearchCompleted"
 
-        handler do |search|
-          raise "Query cannot be empty" if query_text.nil? || query_text.strip.empty?
-          search.query_text = query_text
-          search.matches = []
-          search
-        end
+        given("Query cannot be empty") { !query_text.nil? && !query_text.strip.empty? }
+        then_set :query_text, to: :query_text
+        then_set :matches, to: []
       end
 
       command "ClearSearch" do
@@ -104,11 +84,8 @@ Hecks.bluebook "Observation" do
         reference_to Search
         emits "SearchCleared"
 
-        handler do |search|
-          search.query_text = nil
-          search.matches = []
-          search
-        end
+        then_set :query_text, to: nil
+        then_set :matches, to: []
       end
 
       command "FilterResults" do
@@ -118,12 +95,7 @@ Hecks.bluebook "Observation" do
         attribute :match_type, String
         emits "ResultsFiltered"
 
-        handler do |search|
-          search.matches = search.matches.select do |m|
-            m["match_type"] == match_type
-          end
-          search
-        end
+        then_set :matches, to: []
       end
     end
 
@@ -148,14 +120,7 @@ Hecks.bluebook "Observation" do
         attribute :label, String
         emits "FrameCaptured"
 
-        handler do |screenshot|
-          screenshot.frames << {
-            "frame_data" => frame_data,
-            "captured_at" => captured_at,
-            "label" => label
-          }
-          screenshot
-        end
+        then_set :frames, append: { frame_data: :frame_data, captured_at: :captured_at, label: :label }
       end
 
       command "PauseCapture" do
@@ -163,11 +128,7 @@ Hecks.bluebook "Observation" do
         description "Stop capturing frames without clearing the buffer"
         reference_to Screenshot
         emits "CapturePaused"
-
-        handler do |screenshot|
-          screenshot.capturing = "false"
-          screenshot
-        end
+        then_set :capturing, to: "false"
       end
 
       command "ResumeCapture" do
@@ -175,11 +136,7 @@ Hecks.bluebook "Observation" do
         description "Resume capturing frames after a pause"
         reference_to Screenshot
         emits "CaptureResumed"
-
-        handler do |screenshot|
-          screenshot.capturing = "true"
-          screenshot
-        end
+        then_set :capturing, to: "true"
       end
     end
 

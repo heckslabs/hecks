@@ -114,6 +114,16 @@ module Hecks
       #   then_set :toppings, append: { name: :name, amount: :amount }
       #   then_set :count, increment: 1
       #
+      # Toggle a boolean string field between "true" and "false".
+      #
+      #   then_toggle :sidebar_collapsed
+      #
+      def then_toggle(field)
+        @mutations << BluebookModel::Behavior::Mutation.new(
+          field: field, operation: :toggle, value: nil
+        )
+      end
+
       def then_set(field, to: nil, append: nil, increment: nil, decrement: nil)
         op, val = if !to.nil? then [:set, to]
                   elsif append then [:append, append]

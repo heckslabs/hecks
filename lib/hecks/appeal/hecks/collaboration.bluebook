@@ -37,10 +37,7 @@ Hecks.bluebook "Collaboration" do
         reference_to Feature
         attribute :additions, list_of(DomainAddition)
         emits "AdditionsPlanned"
-        handler do |feature|
-          raise "Feature must have a title before planning" if feature.title.nil? || feature.title.empty?
-          feature
-        end
+        given("Feature must have a title before planning") { !title.nil? && !title.empty? }
       end
 
       command "ImplementFeature" do
@@ -55,14 +52,7 @@ Hecks.bluebook "Collaboration" do
         description "Check every addition against the live IR and mark verified"
         reference_to Feature
         emits "AdditionsVerified"
-        handler do |feature|
-          raise "No additions to verify" if feature.additions.nil? || feature.additions.empty?
-          verified_count = 0
-          feature.additions.each do |addition|
-            verified_count += 1 if addition.respond_to?(:verified) && addition.verified == "true"
-          end
-          feature
-        end
+        given("No additions to verify") { !additions.nil? && !additions.empty? }
       end
 
       command "AcceptFeature" do

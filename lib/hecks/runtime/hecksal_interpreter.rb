@@ -49,6 +49,9 @@ module Hecks
         when :decrement
           current = aggregate.send(m.field) || 0
           aggregate.send(:"#{m.field}=", current - m.value)
+        when :toggle
+          current = aggregate.send(m.field)
+          aggregate.send(:"#{m.field}=", current == "true" ? "false" : "true")
         end
       end
       aggregate

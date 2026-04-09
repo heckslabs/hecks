@@ -30,11 +30,8 @@ Hecks.bluebook "Testing" do
         description "Dispatch every domain command and collect results"
         reference_to AcceptanceTest
         emits "AllTestsStarted"
-        handler do |t|
-          t.lifecycle_state = "running"
-          t.results = []
-          t
-        end
+        then_set :lifecycle_state, to: "running"
+        then_set :results, to: []
       end
 
       command "RunSingleTest" do
@@ -44,10 +41,7 @@ Hecks.bluebook "Testing" do
         attribute :aggregate_name, String
         attribute :command_name, String
         emits "SingleTestCompleted"
-        handler do |t|
-          t.lifecycle_state = "running"
-          t
-        end
+        then_set :lifecycle_state, to: "running"
       end
 
       command "ResetResults" do
@@ -55,13 +49,10 @@ Hecks.bluebook "Testing" do
         description "Clear all results and return to idle"
         reference_to AcceptanceTest
         emits "ResultsReset"
-        handler do |t|
-          t.lifecycle_state = "idle"
-          t.results = []
-          t.passed_count = 0
-          t.failed_count = 0
-          t
-        end
+        then_set :lifecycle_state, to: "idle"
+        then_set :results, to: []
+        then_set :passed_count, to: 0
+        then_set :failed_count, to: 0
       end
     end
 
@@ -83,11 +74,8 @@ Hecks.bluebook "Testing" do
         description "Define a new scenario with a descriptive name"
         attribute :scenario_name, String
         emits "ScenarioWritten"
-        handler do |s|
-          s.scenario_name = scenario_name
-          s.steps = []
-          s
-        end
+        then_set :scenario_name, to: :scenario_name
+        then_set :steps, to: []
       end
 
       command "AddStep" do
@@ -98,11 +86,7 @@ Hecks.bluebook "Testing" do
         attribute :command_name, String
         attribute :expected_event, String
         emits "StepAdded"
-        handler do |s|
-          s.steps << { "step_description" => step_description, "command_name" => command_name,
-                       "expected_event" => expected_event, "actual_result" => "" }
-          s
-        end
+        then_set :steps, append: { step_description: :step_description, command_name: :command_name, expected_event: :expected_event, actual_result: "" }
       end
 
       command "ExecuteScenario" do
@@ -111,10 +95,7 @@ Hecks.bluebook "Testing" do
         description "Run all steps and record pass/fail for each"
         reference_to Scenario
         emits "ScenarioExecuted"
-        handler do |s|
-          raise "Scenario has no steps" if s.steps.empty?
-          s
-        end
+        given("Scenario has no steps") { !steps.empty? }
       end
 
       command "RecordOutcome" do
@@ -124,6 +105,7 @@ Hecks.bluebook "Testing" do
         attribute :step_index, Integer
         attribute :actual_result, String
         emits "OutcomeRecorded"
+        # TODO: array index mutation not yet supported in Bluebook
         handler do |s|
           s.steps[step_index]["actual_result"] = actual_result
           s
@@ -148,11 +130,8 @@ Hecks.bluebook "Testing" do
         description "Create a new named fixture set"
         attribute :fixture_name, String
         emits "FixtureDefined"
-        handler do |f|
-          f.fixture_name = fixture_name
-          f.entries = []
-          f
-        end
+        then_set :fixture_name, to: :fixture_name
+        then_set :entries, to: []
       end
 
       command "AddEntry" do
@@ -162,10 +141,7 @@ Hecks.bluebook "Testing" do
         attribute :aggregate_name, String
         attribute :attribute_values, String
         emits "EntryAdded"
-        handler do |f|
-          f.entries << { "aggregate_name" => aggregate_name, "attribute_values" => attribute_values }
-          f
-        end
+        then_set :entries, append: { aggregate_name: :aggregate_name, attribute_values: :attribute_values }
       end
 
       command "ApplyToScenario" do
@@ -174,10 +150,7 @@ Hecks.bluebook "Testing" do
         reference_to Fixture
         reference_to Scenario
         emits "FixtureApplied"
-        handler do |f|
-          raise "Fixture has no entries" if f.entries.empty?
-          f
-        end
+        given("Fixture has no entries") { !entries.empty? }
       end
 
       validation :fixture_name, presence: true
@@ -191,10 +164,7 @@ Hecks.bluebook "Testing" do
         role "Developer"
         description "Launch the sandbox for a domain"
         emits "PlaygroundOpened"
-        handler do |p|
-          p.sandbox_state = "ready"
-          p
-        end
+        then_set :sandbox_state, to: "ready"
       end
 
       command "ExecuteCommand" do
@@ -205,10 +175,7 @@ Hecks.bluebook "Testing" do
         attribute :command_name, String
         attribute :attributes, String
         emits "CommandExecuted"
-        handler do |p|
-          p.active_aggregate = aggregate_name
-          p
-        end
+        then_set :active_aggregate, to: :aggregate_name
       end
 
       command "InspectState" do
@@ -217,10 +184,7 @@ Hecks.bluebook "Testing" do
         reference_to Playground
         attribute :aggregate_name, String
         emits "StateInspected"
-        handler do |p|
-          p.active_aggregate = aggregate_name
-          p
-        end
+        then_set :active_aggregate, to: :aggregate_name
       end
 
       command "ResetSandbox" do
@@ -228,11 +192,8 @@ Hecks.bluebook "Testing" do
         description "Clear all sandbox state and start fresh"
         reference_to Playground
         emits "SandboxReset"
-        handler do |p|
-          p.active_aggregate = nil
-          p.sandbox_state = nil
-          p
-        end
+        then_set :active_aggregate, to: nil
+        then_set :sandbox_state, to: nil
       end
     end
 end

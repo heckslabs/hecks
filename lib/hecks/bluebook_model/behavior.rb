@@ -43,6 +43,8 @@ module Hecks
       autoload :ScheduledStep,  "hecks/bluebook_model/behavior/workflow_step"
       autoload :Saga,           "hecks/bluebook_model/behavior/saga"
       autoload :SagaStep,       "hecks/bluebook_model/behavior/saga_step"
+      autoload :Given,          "hecks/bluebook_model/behavior/given"
+      autoload :Mutation,       "hecks/bluebook_model/behavior/mutation"
     end
   end
 end
