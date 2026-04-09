@@ -20,7 +20,8 @@ module Hecks
       autoload :ValidPolicyTriggers,      "hecks/validation_rules/structure/valid_policy_triggers"
       autoload :NoPiiInIdentity,          "hecks/validation_rules/structure/no_pii_in_identity"
       autoload :SingleAttributeAggregate, "hecks/validation_rules/structure/single_attribute_aggregate"
-      autoload :TooManyCommands,          "hecks/validation_rules/structure/too_many_commands"
+      autoload :TooManyCommands,              "hecks/validation_rules/structure/too_many_commands"
+      autoload :AntiCorruptionTranslation,  "hecks/validation_rules/structure/anti_corruption_translation"
     end
   end
 end

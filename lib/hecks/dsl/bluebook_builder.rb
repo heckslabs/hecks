@@ -247,7 +247,11 @@ module Hecks
         desc = definition || description
         builder.description(desc) if desc
         begin
-          builder.instance_eval(&block) if block
+          if block
+            AggregateBuilder::VoTypeResolution.with_vo_constants do
+              builder.instance_eval(&block)
+            end
+          end
         rescue Hecks::Error
           raise
         rescue => e

@@ -6,6 +6,7 @@ require "hecks/dsl/aggregate_builder/behavior_methods"
 require "hecks/dsl/aggregate_builder/constraint_methods"
 require "hecks/dsl/aggregate_builder/query_methods"
 require "hecks/dsl/aggregate_builder/implicit_syntax"
+require "hecks/dsl/aggregate_builder/vo_type_resolution"
 
 module Hecks
   module DSL

@@ -1,0 +1,102 @@
+Hecks.bluebook "Observation" do
+  vision "User feedback, visual debugging, and cross-domain search"
+
+  core do
+    aggregate "Notification", "Feedback messages -- errors, warnings, success confirmations, progress updates." do
+      attribute :severity, String
+      attribute :message, String
+      attribute :context, String
+      attribute :dismissed, String, default: "false"
+
+      command "Notify" do
+        description "Create a notification for the user"
+        attribute :severity, String
+        attribute :message, String
+        attribute :context, String
+        emits "Notified"
+      end
+
+      command "DismissNotification" do
+        description "Mark a notification as seen"
+        reference_to "Notification"
+        emits "NotificationDismissed"
+      end
+
+      query "Active" do
+        where(dismissed: "false")
+      end
+    end
+
+    aggregate "Search", "Full-text search across domains, aggregates, commands, and attributes." do
+      attribute :query_text, String
+      attribute :results, list_of("SearchResult")
+      attribute :result_count, Integer, default: 0
+
+      value_object "SearchResult" do
+        description "A single search match with context"
+        attribute :element_type, String
+        attribute :element_name, String
+        attribute :domain_name, String
+        attribute :context, String
+        attribute :relevance, Integer
+      end
+
+      command "SearchDomain" do
+        description "Search across all domain elements for a query string"
+        attribute :query_text, String
+        emits "SearchCompleted"
+      end
+
+      command "ClearSearch" do
+        description "Reset search results"
+        reference_to "Search"
+        emits "SearchCleared"
+      end
+
+      command "FilterSearchResults" do
+        description "Narrow results by element type"
+        reference_to "Search"
+        attribute :element_type, String
+        emits "SearchResultsFiltered"
+      end
+    end
+  end
+
+  supporting do
+    aggregate "Screenshot", "Rolling buffer of browser screenshots for visual debugging." do
+      attribute :buffer_size, Integer, default: 100
+      attribute :capture_interval, Integer, default: 1000
+      attribute :status, String, default: "streaming"
+
+      command "CaptureScreen" do
+        description "Save a screenshot frame from the browser"
+        attribute :frame_data, String
+        attribute :timestamp, String
+        emits "ScreenshotCaptured"
+      end
+
+      command "PauseCapture" do
+        description "Stop capturing screenshots"
+        reference_to "Screenshot"
+        emits "CapturePaused"
+      end
+
+      command "ResumeCapture" do
+        description "Resume capturing screenshots"
+        reference_to "Screenshot"
+        emits "CaptureResumed"
+      end
+    end
+  end
+
+  policy "NotifyOnBuildComplete" do
+    on "BuiltTarget"
+    trigger "Notify"
+    map severity: "success", message: "Build complete"
+  end
+
+  policy "SwitchToEditorOnFileOpen" do
+    on "FileOpened"
+    trigger "SelectTab"
+  end
+end

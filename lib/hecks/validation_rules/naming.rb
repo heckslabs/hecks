@@ -24,6 +24,7 @@ module Hecks
       autoload :ComputedNameCollisions, "hecks/validation_rules/naming/computed_name_collisions"
       autoload :GlossaryTermViolations, "hecks/validation_rules/naming/glossary_term_violations"
       autoload :SafeIdentifierNames,    "hecks/validation_rules/naming/safe_identifier_names"
+      autoload :GlossaryEnforcement,   "hecks/validation_rules/naming/glossary_enforcement"
     end
   end
 end

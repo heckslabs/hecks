@@ -8,7 +8,8 @@ module Hecksagon
   module DomainMixin
     attr_accessor :driving_ports, :driven_ports,
                   :shared_kernel, :uses_kernels,
-                  :anti_corruption_layers, :published_events
+                  :anti_corruption_layers, :published_events,
+                  :context_map_relationships
 
     def shared_kernel?
       @shared_kernel == true

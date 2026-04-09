@@ -106,6 +106,7 @@ module Hecks
     def boot_domains(domains, root: nil)
       require "hecks_multidomain"
       Hecks::MultiDomain::Validator.validate_no_cross_domain_references(domains)
+      attach_context_map(domains)
       domains.each { |d| load_bluebook(d) }
 
       shared_bus = EventBus.new
@@ -158,6 +159,18 @@ module Hecks
         bluebook_gem_name: domain.gem_name,
         allowed_sources: @_directionality[domain.gem_name]
       )
+    end
+
+    # Attach context_map_relationships from the hecksagon to each domain,
+    # so validation rules can inspect cross-context declarations.
+    def attach_context_map(domains)
+      hecksagon = Hecks.last_hecksagon
+      return unless hecksagon
+
+      cm = hecksagon.context_map || []
+      domains.each do |d|
+        d.context_map_relationships = cm if d.respond_to?(:context_map_relationships=)
+      end
     end
 
     # Find domain definition files: *.bluebook
