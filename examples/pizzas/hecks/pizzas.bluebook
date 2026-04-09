@@ -1,77 +1,83 @@
 Hecks.bluebook "Pizzas" do
+  vision "Manage pizza creation, customization, and ordering for a pizzeria"
+  core
+
   aggregate "Pizza" do
-    description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
-    attribute :name, String
-    attribute :description, String
-    attribute :toppings, list_of("Topping")
+    description "A pizza with toppings, pricing, and menu visibility"
+    attribute :name
+    attribute :description
+    attribute :toppings, "Topping"
 
     value_object "Topping" do
-      description "A measured ingredient on a pizza. Immutable once created."
-      attribute :name, String
+      attribute :name
       attribute :amount, Integer
       invariant "amount must be positive" do
         amount > 0
       end
     end
-    validation :name, presence: true
-    validation :description, presence: true
+
+    value_object "Price" do
+      attribute :cents, Integer
+      attribute :currency, default: "USD"
+      invariant "must be non-negative" do
+        cents >= 0
+      end
+    end
+
     command "CreatePizza" do
-      description "Add a new pizza to the menu with a name and description"
-      attribute :name, String
-      attribute :description, String
+      attribute :name
+      attribute :description
     end
+
     command "AddTopping" do
-      description "Add a measured topping to an existing pizza"
       reference_to "Pizza"
-      attribute :name, String
+      attribute :name
       attribute :amount, Integer
+
+      handler do |pizza|
+        raise "Max 10 toppings" if pizza.toppings.respond_to?(:size) && pizza.toppings.size >= 10
+        pizza
+      end
     end
+
     query "ByDescription" do |desc|
       where(description: desc)
-    end
-    projection "PizzaMenu" do
-      on "CreatedPizza" do |event|
-        upsert(event.aggregate_id, name: event.name, topping_count: 0)
-      end
-      on "AddedTopping" do |event|
-        update(event.aggregate_id) { |row| row[:topping_count] = (row[:topping_count] || 0) + 1 }
-      end
-      query "Popular" do
-        select { |_id, row| (row[:topping_count] || 0) > 2 }
-      end
     end
   end
 
   aggregate "Order" do
-    description "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies."
-    attribute :customer_name, String
-    attribute :items, list_of("OrderItem")
+    description "A customer order referencing a pizza with status tracking"
+    attribute :customer_name
+    attribute :items, "OrderItem"
+    reference_to "Pizza"
 
     value_object "OrderItem" do
-      description "A line item in an order with a quantity"
       attribute :quantity, Integer
       invariant "quantity must be positive" do
         quantity > 0
       end
     end
-    reference_to "Pizza"
-    attribute :status, String, default: "pending" do
+
+    value_object "OrderStatus" do
+      attribute :value, default: "pending"
+    end
+
+    attribute :status, default: "pending" do
       transition "CancelOrder" => "cancelled"
     end
-    validation :customer_name, presence: true
+
     command "PlaceOrder" do
-      description "Place a new order for a pizza"
       reference_to "Pizza"
-      attribute :customer_name, String
+      attribute :customer_name
       attribute :quantity, Integer
     end
+
     command "CancelOrder" do
-      description "Cancel a pending order, transitioning status to cancelled"
       reference_to "Order"
-      end
+    end
+
     query "Pending" do
       where(status: "pending")
     end
   end
-
 end

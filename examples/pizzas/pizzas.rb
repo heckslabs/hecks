@@ -74,10 +74,9 @@ puts "Pending: #{results.map(&:customer_name).join(", ")}"
 item = PizzasBluebook::Pizza::Topping.new(name: "Margherita", amount: 1)
 puts "\nTopping: #{item.name} (frozen: #{item.frozen?})"
 
-puts "\n--- CQRS Projections ---"
-menu = app.projection("PizzaMenu")
-puts "PizzaMenu all: #{menu.all}"
-puts "PizzaMenu popular: #{menu.query("Popular")}"
+puts "\n--- Projections ---"
+pizza_proj = app.projection("Pizza")
+puts "Pizza projection: #{pizza_proj&.all&.size || 0} records"
 
 puts "\n--- Event history ---"
 app.events.each_with_index do |event, i|
