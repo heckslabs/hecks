@@ -129,6 +129,10 @@ module Hecks
           b.aggregate "VerifyCommand", "Runs Bluebook self-verification" do
             command("Verify") { attribute :format, String }
           end
+
+          b.aggregate "SmoketestCommand", "Runs all example domain tests" do
+            command("Run") { attribute :format, String }
+          end
         end
       end
     end
