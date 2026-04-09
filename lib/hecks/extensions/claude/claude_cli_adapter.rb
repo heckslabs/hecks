@@ -47,12 +47,13 @@ module Hecks
         file.write(system_prompt)
         file.close
 
+        turns = @skip_permissions ? "10" : "1"
         cmd = [
           "claude", "-p",
           "--model", @model,
           "--output-format", "json",
           "--system-prompt-file", file.path,
-          "--max-turns", "3"
+          "--max-turns", turns
         ]
 
         if @skip_permissions
