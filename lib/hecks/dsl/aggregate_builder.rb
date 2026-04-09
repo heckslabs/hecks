@@ -1,6 +1,7 @@
 # Bootstrap: These modules are included at class-body time, so they must
 # load before AggregateBuilder is defined. Cannot use chapter-driven loading.
 require "hecks/dsl/event_builder"
+require "hecks/dsl/projection_builder"
 require "hecks/dsl/aggregate_builder/behavior_methods"
 require "hecks/dsl/aggregate_builder/constraint_methods"
 require "hecks/dsl/aggregate_builder/query_methods"
@@ -79,6 +80,7 @@ module Hecks
         @specifications = []
         @references = []
         @explicit_events = []
+        @projections = []
         @factories = []
         @computed_attributes = []
         @lifecycle = nil
@@ -177,6 +179,24 @@ module Hecks
         @explicit_events << builder.build
       end
 
+      # Define a CQRS read model projection within this aggregate.
+      # Projections subscribe to events and maintain denormalized data.
+      #
+      #   projection "PizzaMenu" do
+      #     on "CreatedPizza" do |event|
+      #       upsert(event.aggregate_id, name: event.name)
+      #     end
+      #     query "Popular" do
+      #       select { |_id, row| (row[:topping_count] || 0) > 3 }
+      #     end
+      #   end
+      #
+      def projection(name, &block)
+        builder = ProjectionBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @projections << builder.build
+      end
+
       # Define a nested value object within this aggregate.
       #
       # @param name [String] the value object type name
@@ -213,6 +233,7 @@ module Hecks
           scopes: @scopes, queries: @queries,
           subscribers: @subscribers,
           specifications: @specifications, computed_attributes: @computed_attributes,
+          projections: @projections,
           lifecycle: @lifecycle,
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields,

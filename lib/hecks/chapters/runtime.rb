@@ -56,6 +56,15 @@ module Hecks
             command("BindView") { attribute :view_name, String }
           end
 
+          b.aggregate "Projection", "CQRS read model projection with in-memory store" do
+            command("Apply") { attribute :event_name, String }
+            command("Query") { attribute :query_name, String }
+          end
+
+          b.aggregate "ProjectionSetup", "Wires CQRS projections to event bus at boot" do
+            command("SetupProjections") { attribute :domain_id, String }
+          end
+
           b.aggregate "Introspection", "Runtime inspection of aggregates, commands, events" do
             command("Inspect") { attribute :aggregate_name, String }
           end

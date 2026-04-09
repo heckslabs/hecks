@@ -27,6 +27,10 @@ module Hecksagon
         if name.to_s.match?(/\A[A-Z]/)
           AnnotationSelector.new(@annotations, "#{@aggregate_name}::#{name}")
         else
+          # Push an aggregate-level annotation (e.g. Pizza.event_store).
+          # If further chaining occurs, AnnotationApplier adds the
+          # attribute-specific annotation too.
+          @annotations << { aggregate: @aggregate_name, annotation: name.to_sym }
           AnnotationApplier.new(@annotations, @aggregate_name, name.to_s)
         end
       end

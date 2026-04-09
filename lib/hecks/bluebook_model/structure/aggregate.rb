@@ -75,6 +75,9 @@ module Hecks
       # @return [Lifecycle, nil] optional state machine definition
       attr_reader :lifecycle
 
+      # @return [Array<Projection>] CQRS read model projections for this aggregate
+      attr_reader :projections
+
       # @return [Array<Symbol>, nil] natural key fields that form the aggregate's
       #   domain-level identity (e.g., [:team, :start_date] for a Season).
       #   This is a domain concept ("this combination of fields uniquely
@@ -107,6 +110,7 @@ module Hecks
                      scopes: [], queries: [], subscribers: [],
                      specifications: [], references: [],
                      factories: [], computed_attributes: [],
+                     projections: [],
                      lifecycle: nil, metadata: {}, origin_domain: nil,
                      identity_fields: nil, description: nil,
                      namespace: nil, superclass: nil, mixins: [])
@@ -126,6 +130,7 @@ module Hecks
         @references = references
         @factories = factories
         @computed_attributes = computed_attributes
+        @projections = projections
         @lifecycle = lifecycle
         @metadata = metadata
         @origin_domain = origin_domain

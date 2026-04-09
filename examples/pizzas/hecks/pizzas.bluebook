@@ -29,6 +29,17 @@ Hecks.bluebook "Pizzas" do
     query "ByDescription" do |desc|
       where(description: desc)
     end
+    projection "PizzaMenu" do
+      on "CreatedPizza" do |event|
+        upsert(event.aggregate_id, name: event.name, topping_count: 0)
+      end
+      on "AddedTopping" do |event|
+        update(event.aggregate_id) { |row| row[:topping_count] = (row[:topping_count] || 0) + 1 }
+      end
+      query "Popular" do
+        select { |_id, row| (row[:topping_count] || 0) > 2 }
+      end
+    end
   end
 
   aggregate "Order" do

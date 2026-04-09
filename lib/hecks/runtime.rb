@@ -18,6 +18,9 @@ Hecks::Chapters.load_chapter(
   #   Pizza.create(name: "Margherita")
   #
 
+require "hecks/runtime/projection_setup"
+require "hecks/runtime/projection"
+
 module Hecks
   # Hecks::Runtime
   #
@@ -40,6 +43,7 @@ module Hecks
     include ConfigurationDSL
     include CommandDispatch
     include AdapterWiring
+    include ProjectionSetup
 
     attr_reader :domain, :event_bus, :command_bus, :actor_system
 
@@ -66,6 +70,7 @@ module Hecks
 
       setup_repositories
       setup_command_bus
+      setup_projections
       setup_policies
       setup_subscribers
       setup_views
