@@ -44,6 +44,19 @@ module Hecks
         end
       end
 
+      # Attach handler blocks to command classes
+      domain.aggregates.each do |agg|
+        agg.commands.each do |cmd|
+          next unless cmd.handler.is_a?(Proc)
+          safe_agg = bluebook_constant_name(agg.name)
+          begin
+            cmd_class = Object.const_get("#{mod}::#{safe_agg}::Commands::#{cmd.name}")
+            cmd_class.define_singleton_method(:domain_handler) { cmd.handler }
+          rescue NameError
+          end
+        end
+      end
+
       # Domain-scope generators
       Generators.for(:domain).each do |g|
         domain.send(g[:source]).each do |item|

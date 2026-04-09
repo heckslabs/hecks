@@ -95,7 +95,9 @@ module Hecks
         lines << ""
         lines.concat(initializer_lines)
         lines << ""
-        if @command.call_body
+        if @command.handler
+          lines.concat(handler_call_lines)
+        elsif @command.call_body
           lines.concat(custom_call_lines)
         elsif @aggregate && @event
           lines.concat(call_lines)
@@ -122,6 +124,28 @@ module Hecks
       # Generates lines for a custom +call+ method using the command's DSL-provided block.
       #
       # @return [Array<String>] lines of Ruby source code for the custom call method
+      # Generates a call method that invokes the DSL handler block.
+      # The handler receives the aggregate and command attributes.
+      def handler_call_lines
+        lines = ["        def call"]
+        if @is_create
+          lines << "          agg = #{@domain_module}::#{@aggregate.name}.new"
+        else
+          ref = (@command.references || []).first
+          if ref
+            lines << "          _id = #{ref.name}.respond_to?(:id) ? #{ref.name}.id : #{ref.name}"
+            lines << "          agg = repository.find(_id)"
+            lines << "          raise #{@domain_module}::Error, \"#{@aggregate.name} not found\" unless agg"
+          else
+            lines << "          agg = repository.all.last || #{@domain_module}::#{@aggregate.name}.new"
+          end
+        end
+        lines << "          result = instance_exec(agg, &self.class.domain_handler)"
+        lines << "          result.is_a?(#{@domain_module}::#{@aggregate.name}) ? result : agg"
+        lines << "        end"
+        lines
+      end
+
       def custom_call_lines
         source = Hecks::Utils.block_source(@command.call_body)
         lines = ["        def call"]

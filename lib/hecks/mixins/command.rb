@@ -257,7 +257,9 @@ module Hecks
     #
     # @return [void]
     def run_handler
-      self.class.handler&.call(self)
+      h = self.class.handler
+      # Skip DSL handler blocks (Procs) — those run in CallStep via domain_handler
+      h&.call(self) unless h.is_a?(Proc)
     end
   end
 end

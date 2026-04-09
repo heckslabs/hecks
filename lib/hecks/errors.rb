@@ -227,6 +227,18 @@ module Hecks
   # another process has updated the aggregate since it was read.
   class ConcurrencyError < Error; end
 
+  # Raised when a command violates a lifecycle transition rule.
+  # The aggregate is in state X but the command requires state Y.
+  class TransitionError < Error
+    attr_reader :command_name, :current_state, :required_from
+    def initialize(command_name:, current_state:, required_from:)
+      @command_name = command_name
+      @current_state = current_state
+      @required_from = required_from
+      super("#{command_name} requires #{required_from}, got #{current_state}")
+    end
+  end
+
   # Raised when a generator attempts to write a file outside the designated
   # output directory. Prevents path traversal attacks where user-controlled
   # domain names or aggregate names contain +../+ segments, absolute paths,

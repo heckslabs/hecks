@@ -29,6 +29,33 @@ module Hecks
         cmd
       }
 
+      LifecycleGuardStep = ->(cmd) {
+        # Enforce lifecycle state transitions if the aggregate has a lifecycle
+        if cmd.class.respond_to?(:lifecycle_def) && cmd.class.lifecycle_def
+          lc = cmd.class.lifecycle_def
+          # Find the existing aggregate to check current state
+          existing = cmd.respond_to?(:repository, true) && cmd.send(:repository).respond_to?(:all) ?
+            cmd.send(:repository).all.last : nil
+          if existing
+            field = lc[:field]
+            current = existing.respond_to?(field) ? existing.send(field) : nil
+            if current
+              transitions = lc[:transitions] || {}
+              cmd_name = cmd.class.name.split("::").last
+              transition = transitions[cmd_name]
+              if transition && transition[:from] && !Array(transition[:from]).include?(current)
+                raise Hecks::TransitionError.new(
+                  command_name: cmd_name,
+                  current_state: current,
+                  required_from: Array(transition[:from]).join(" or ")
+                )
+              end
+            end
+          end
+        end
+        cmd
+      }
+
       CallStep = ->(cmd) {
         result = if cmd.class.command_bus && !cmd.class.command_bus.middleware.empty?
           cmd.class.command_bus.dispatch_with_command(cmd) { cmd.call }
@@ -61,7 +88,8 @@ module Hecks
       }
 
       PIPELINE = [
-        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep, CallStep,
+        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep,
+        LifecycleGuardStep, CallStep,
         PostconditionStep, PersistStep, EmitStep, RecordStep
       ].freeze
 
