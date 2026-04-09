@@ -121,8 +121,7 @@ module Hecks
       end
 
       color = errors.any? ? "\e[31m" : "\e[32m"
-      puts "#{color}#{total} examples, #{errors.size} failures, #{warnings.size} warnings\e[0m"
-      puts "Finished in #{format('%.2f', elapsed)} seconds"
+      puts "#{color}Verified in #{format('%.2f', elapsed)}s\e[0m"
 
       if errors.any?
         raise VerificationError,
