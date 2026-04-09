@@ -120,10 +120,7 @@ module Hecks
                   })
                 end
               else
-                runner.agent_names.each do |name|
-                  port.send_json(client, { type: "executor_thinking", agent: name, thinking: true })
-                end
-                runner.broadcast(content) do |agent_name, response|
+                runner.route(content) do |agent_name, response|
                   port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
                   port.send_json(client, {
                     type: "executor_message", agent: agent_name,

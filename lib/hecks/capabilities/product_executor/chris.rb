@@ -44,6 +44,7 @@ module Hecks
           - Don Norman: UX design, user flows, mental models
           - Jony Ive: UI design, visual systems, layout
           - Jesper Kouthoofd: product owner, decides what ships
+        When you respond, suggest which other team members might have useful input. Use @name format so the user can tag them. For example: "You might also want to hear from @don about the UX implications."
         PROMPT
 
         def self.config(domain)
