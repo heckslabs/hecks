@@ -116,7 +116,8 @@ module Hecks
                   port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
                   port.send_json(client, {
                     type: "executor_message", agent: agent_name,
-                    role: "assistant", content: response[:content] || response.to_s
+                    role: "assistant", content: response[:content] || response.to_s,
+                    tools_used: response[:tools_used] || []
                   })
                 end
               else
@@ -142,7 +143,8 @@ module Hecks
                       port.send_json(client, { type: "executor_thinking", agent: mentioned_name, thinking: false })
                       port.send_json(client, {
                         type: "executor_message", agent: mentioned_name,
-                        role: "assistant", content: mentioned_response[:content] || mentioned_response.to_s
+                        role: "assistant", content: mentioned_response[:content] || mentioned_response.to_s,
+                        tools_used: mentioned_response[:tools_used] || []
                       })
                     end
                   end

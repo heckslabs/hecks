@@ -95,9 +95,10 @@ module Hecks
       def parse_response(output)
         data = JSON.parse(output)
         content = extract_content(data)
-        { role: "assistant", content: content, tool_calls: [] }
+        tools_used = extract_tools(data)
+        { role: "assistant", content: content, tool_calls: [], tools_used: tools_used }
       rescue JSON::ParserError
-        { role: "assistant", content: output.strip, tool_calls: [] }
+        { role: "assistant", content: output.strip, tool_calls: [], tools_used: [] }
       end
 
       def extract_content(data)
@@ -110,6 +111,19 @@ module Hecks
         else
           data.to_s
         end
+      end
+
+      def extract_tools(data)
+        return [] unless data.is_a?(Hash)
+        usage = data["usage"] || {}
+        iterations = usage["iterations"] || []
+        iterations.flat_map do |iter|
+          (iter["tool_uses"] || []).map do |tu|
+            { name: tu["name"], input: tu["input"]&.to_s&.slice(0, 100) }
+          end
+        end
+      rescue
+        []
       end
     end
   end
