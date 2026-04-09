@@ -56,7 +56,7 @@ module Hecks
                 "#{a.name}: #{val}"
               end
               args_str = args.empty? ? "{}" : "{ #{args.join(", ")} }"
-              tests << "{ name: #{(agg.name + "." + cmd.name).inspect}, group: \"domain\", fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }}"
+              tests << "{ name: #{cmd.name.inspect}, group: #{agg.name.inspect}, fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }}"
             end
           end
 
@@ -142,7 +142,7 @@ module Hecks
               }
 
               function appendGroupHeader(group) {
-                var label = group === "client" ? "Client Tests" : "Domain Tests";
+                var label = group === "client" ? "Client Tests" : group;
                 var html = '<div style="color:#4361ee;font-weight:600;font-size:11px;margin-top:8px;margin-bottom:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px">' + label + '</div>';
                 var c = document.getElementById("hecks-test-overlay-results");
                 if (c) c.insertAdjacentHTML("beforeend", html);
