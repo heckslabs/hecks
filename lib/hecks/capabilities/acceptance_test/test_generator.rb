@@ -94,7 +94,7 @@ module Hecks
                 }
                 var r = { command: test.name, event: evt, status: "passed" };
                 results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
-                setTimeout(function() { runNext(idx + 1); }, 500);
+                setTimeout(function() { runNext(idx + 1); }, 100);
               }
 
               function finalize() {
