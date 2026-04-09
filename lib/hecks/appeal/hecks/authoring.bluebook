@@ -225,6 +225,13 @@ Hecks.bluebook "Authoring" do
       end
       validation :pattern_name, presence: true
     end
+  policy "OpenDocumentOnFileSelected" do
+    description "When a file is selected in the Explorer, open it as an editable Document in the editor"
+    on "FileOpened"
+    trigger "OpenDocument"
+    map project_id: :project_id
+    map filename: :path
+  end
   policy "ValidateOnEdit" do
     on "DocumentEdited"
     trigger "ValidateDocument"

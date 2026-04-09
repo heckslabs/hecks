@@ -31,7 +31,7 @@ module Hecks
           domains = bluebooks.map do |bb|
             Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
               d = eval(File.read(bb), TOPLEVEL_BINDING, bb)
-              { name: d.name, aggregates: d.aggregates.map { |a| aggregate_info(a) }, domain: d }
+              { name: d.name, path: bb, aggregates: d.aggregates.map { |a| aggregate_info(a) }, domain: d }
             end
           end
 
@@ -92,7 +92,7 @@ module Hecks
                 name: p[:name], path: path, error: p[:error],
                 files: p[:files], world: p[:world],
                 domains: (p[:domains] || []).map { |d|
-                  { name: d[:name], aggregates: d[:aggregates], policies: policies_for(d[:domain]) }
+                  { name: d[:name], path: d[:path], aggregates: d[:aggregates], policies: policies_for(d[:domain]) }
                 }
               }
             },

@@ -14,6 +14,11 @@ Hecks.world "HecksAppeal" do
     debounce 0.5
   end
 
+  claude do
+    model "sonnet"
+    max_tokens 4096
+  end
+
   tailwind do
     input "assets/css/app.css"
     output "assets/css/tailwind.css"
