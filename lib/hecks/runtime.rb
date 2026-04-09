@@ -41,7 +41,7 @@ module Hecks
     include CommandDispatch
     include AdapterWiring
 
-    attr_reader :domain, :event_bus, :command_bus
+    attr_reader :domain, :event_bus, :command_bus, :actor_system
 
     # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
     # @param gate [Symbol, nil] optional gate name
@@ -75,6 +75,7 @@ module Hecks
       setup_workflows
       setup_sagas
       hoist_constants
+      setup_actor_system
       apply_hecksagon_capabilities
     end
 
@@ -86,6 +87,11 @@ module Hecks
 
     def runtime_option?(aggregate_name, option)
       (@runtime_options || {}).dig(aggregate_name.to_s, option) || false
+    end
+
+    def setup_actor_system
+      require "hecks/runtime/actor/actor_system"
+      @actor_system = Actor::ActorSystem.new(self)
     end
 
     def setup_command_bus
