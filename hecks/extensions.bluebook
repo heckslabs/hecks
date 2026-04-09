@@ -194,7 +194,7 @@ Hecks.bluebook "Extensions" do
 
   aggregate "TenantScopedRepository", "Repository proxy maintaining separate instances per tenant" do
     command("ScopeToTenant") { attribute :tenant_id, String }
-    command("ForTenant") { attribute :tenant_id, String }
+    command("ScopeForTenant") { attribute :tenant_id, String }
   end
 
   # --- Web Explorer Paragraph ---

@@ -37,15 +37,15 @@ Hecks.bluebook "Targets" do
   # --- Go Paragraph ---
 
   aggregate "GoCodeBuilder", "Fluent builder for Go source files: packages, imports, structs, methods" do
-    command("Struct") { attribute :name, String }
-    command("Receiver") { attribute :type_name, String; attribute :method_name, String }
-    command("Func") { attribute :name, String; attribute :params, String }
+    command("BuildStruct") { attribute :name, String }
+    command("BuildReceiver") { attribute :type_name, String; attribute :method_name, String }
+    command("BuildFunc") { attribute :name, String; attribute :params, String }
     command("Render") { attribute :package, String }
   end
 
   aggregate "GoUtils", "Naming and type mapping: Ruby types to Go types, case conversion" do
     command("GoType") { attribute :attribute_name, String }
-    command("PascalCase") { attribute :input, String }
+    command("ConvertPascalCase") { attribute :input, String }
   end
 
   aggregate "GoAggregateGenerator", "Generates Go struct for aggregate root with validations" do
@@ -168,8 +168,8 @@ Hecks.bluebook "Targets" do
   # --- Node Paragraph ---
 
   aggregate "NodeUtils", "Naming and type mapping: Ruby types to TypeScript types" do
-    command("TsType") { attribute :attribute_name, String }
-    command("CamelCase") { attribute :input, String }
+    command("ResolveTsType") { attribute :attribute_name, String }
+    command("ConvertCamelCase") { attribute :input, String }
   end
 
   aggregate "NodeAggregateGenerator", "Generates TypeScript interface for an aggregate root" do

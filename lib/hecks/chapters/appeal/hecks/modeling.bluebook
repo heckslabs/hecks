@@ -1,47 +1,19 @@
 Hecks.bluebook "Modeling" do
   vision "Domain visualization, event storming, ubiquitous language management, and version analysis"
 
-    value_object "DiagramNode" do
-      description "An element in a diagram -- aggregate, command, event, or value object"
-      attribute :node_name, String
-      attribute :kind, String
-      attribute :metadata, String
-    end
-    value_object "DiagramEdge" do
-      description "A directed relationship between two diagram nodes"
-      attribute :from_node, String
-      attribute :to_node, String
-      attribute :relationship, String
-    end
-    value_object "Sticky" do
-      description "A virtual sticky note for event storming sessions"
-      attribute :label, String
-      attribute :kind, String
-      attribute :position_x, Integer
-      attribute :position_y, Integer
-    end
-    value_object "GlossaryTerm" do
-      description "A domain term with definition, category, and known aliases"
-      attribute :term_name, String
-      attribute :definition, String
-      attribute :category, String
-      attribute :aliases, String
-    end
-    value_object "InsightFinding" do
-      description "A single analysis finding with severity and recommendation"
-      attribute :rule, String
-      attribute :severity, String
-      attribute :aggregate_name, String
-      attribute :suggestion, String
-    end
-    value_object "VersionDiff" do
-      description "A version range representing a set of domain changes"
-      attribute :from_version, String
-      attribute :to_version, String
-      attribute :changes, String
-    end
-
     aggregate "Diagram", "Generated domain visualizations -- aggregate maps, event flows, command graphs." do
+      value_object "DiagramNode" do
+        description "An element in a diagram -- aggregate, command, event, or value object"
+        attribute :node_name, String
+        attribute :kind, String
+        attribute :metadata, String
+      end
+      value_object "DiagramEdge" do
+        description "A directed relationship between two diagram nodes"
+        attribute :from_node, String
+        attribute :to_node, String
+        attribute :relationship, String
+      end
       attribute :view_type, String
       attribute :nodes, list_of("DiagramNode")
       attribute :edges, list_of("DiagramEdge")
@@ -82,6 +54,13 @@ Hecks.bluebook "Modeling" do
     end
 
     aggregate "EventStorm", "Interactive event storming session. Place and arrange domain concept stickies." do
+      value_object "Sticky" do
+        description "A virtual sticky note for event storming sessions"
+        attribute :label, String
+        attribute :kind, String
+        attribute :position_x, Integer
+        attribute :position_y, Integer
+      end
       attribute :storm_name, String
       attribute :stickies, list_of("Sticky")
       command "StartStorm" do
@@ -118,6 +97,13 @@ Hecks.bluebook "Modeling" do
     end
 
     aggregate "Glossary", "Ubiquitous language dictionary. Defines terms and enforces naming consistency." do
+      value_object "GlossaryTerm" do
+        description "A domain term with definition, category, and known aliases"
+        attribute :term_name, String
+        attribute :definition, String
+        attribute :category, String
+        attribute :aliases, String
+      end
       attribute :terms, list_of("GlossaryTerm")
       command "ShowGlossary" do
         role "DomainExpert"
@@ -162,6 +148,13 @@ Hecks.bluebook "Modeling" do
     end
 
     aggregate "Insight", "Domain health analysis -- coupling metrics, design smells, completeness checks." do
+      value_object "InsightFinding" do
+        description "A single analysis finding with severity and recommendation"
+        attribute :rule, String
+        attribute :severity, String
+        attribute :aggregate_name, String
+        attribute :suggestion, String
+      end
       attribute :findings, list_of("InsightFinding")
       command "AnalyzeDomain" do
         role "Developer"
@@ -188,6 +181,12 @@ Hecks.bluebook "Modeling" do
     end
 
     aggregate "Migration", "Breaking change detection and migration path generation between domain versions." do
+      value_object "VersionDiff" do
+        description "A version range representing a set of domain changes"
+        attribute :from_version, String
+        attribute :to_version, String
+        attribute :changes, String
+      end
       attribute :diff, "VersionDiff"
       command "DetectChanges" do
         role "Developer"

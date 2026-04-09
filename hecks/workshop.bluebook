@@ -52,7 +52,7 @@ Hecks.bluebook "Workshop" do
     command "Preview"
     command "Build"
     command "Save"
-    command "ToDsl"
+    command "ConvertToDsl"
   end
 
   aggregate "PlayMode", "Session mixin for play mode: executing commands against a live compiled domain" do
@@ -161,7 +161,7 @@ Hecks.bluebook "Workshop" do
       attribute :name, String
     end
     command "ListChapters"
-    command "ToBluebook"
+    command "ConvertToBluebook"
   end
 
   # --- Runner Support Paragraph ---

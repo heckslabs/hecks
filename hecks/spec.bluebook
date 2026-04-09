@@ -46,10 +46,10 @@ Hecks.bluebook "Spec" do
   end
 
   aggregate "SpecHelpers", "Example value generation, argument building, and spec snippet builders" do
-    command "ExampleArgs" do
+    command "GenerateExampleArgs" do
       attribute :thing, String
     end
-    command "ExampleValue" do
+    command "GenerateExampleValue" do
       attribute :attr, String
     end
   end

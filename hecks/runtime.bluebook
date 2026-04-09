@@ -149,7 +149,7 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "Versioning", "Runtime version tracking" do
-    command("CurrentVersion") { attribute :domain_name, String }
+    command("ResolveCurrentVersion") { attribute :domain_name, String }
   end
 
   aggregate "CommandLoader", "Generates and evaluates CRUD command and event classes" do
@@ -213,7 +213,7 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "SpecificationMixin", "Predicate objects for domain rules" do
-    command("Satisfied") { attribute :candidate, String }
+    command("CheckSatisfied") { attribute :candidate, String }
   end
 
   aggregate "AttachmentMethods", "File attachment support for aggregates" do
@@ -362,15 +362,15 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "AndSpecification", "Composite AND specification" do
-    command("Satisfied") { attribute :candidate, String }
+    command("CheckSatisfied") { attribute :candidate, String }
   end
 
   aggregate "OrSpecification", "Composite OR specification" do
-    command("Satisfied") { attribute :candidate, String }
+    command("CheckSatisfied") { attribute :candidate, String }
   end
 
   aggregate "NotSpecification", "Composite NOT specification" do
-    command("Satisfied") { attribute :candidate, String }
+    command("CheckSatisfied") { attribute :candidate, String }
   end
 
   aggregate "BreakingBumper", "Auto-bumps version on breaking changes" do
@@ -382,7 +382,7 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "Command", "Mixin orchestrating command lifecycle: guard, validate, call, persist, emit event" do
-    command("Emits") { attribute :event_names, String }
+    command("DeclareEmits") { attribute :event_names, String }
     command("Call") { attribute :attrs, String }
   end
 
@@ -396,7 +396,7 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "Specification", "Mixin for composable business rule predicates with and/or/not operators" do
-    command("SatisfiedBy") { attribute :candidate, String }
+    command("CheckSatisfiedBy") { attribute :candidate, String }
   end
 
   aggregate "Dispatch", "Event construction and persistence helpers for command execution" do
@@ -406,7 +406,7 @@ Hecks.bluebook "Runtime" do
 
   aggregate "Validation", "Pre/postcondition DSL and enforcement for command objects" do
     command("Precondition") { attribute :message, String }
-    command("Postcondition") { attribute :message, String }
+    command("ValidatePostcondition") { attribute :message, String }
   end
 
   aggregate "RuntimeAttributeDefinition", "Struct wrapping a single model attribute's name, default, and freeze flag" do
@@ -450,7 +450,7 @@ Hecks.bluebook "Runtime" do
   end
 
   aggregate "TimeTravel", "Query aggregate state at a point in time" do
-    command("At") { attribute :stream_id, String; attribute :timestamp, String }
+    command("TravelAt") { attribute :stream_id, String; attribute :timestamp, String }
   end
 
   aggregate "ProcessManager", "Long-running event-driven coordinator" do

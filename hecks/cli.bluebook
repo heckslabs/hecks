@@ -8,7 +8,7 @@ Hecks.bluebook "Cli" do
   # --- Commands Paragraph ---
 
   aggregate "InitCommand", "Scaffolds a new Hecks domain project" do
-    command("Init") { attribute :project_name, String }
+    command("Initialize") { attribute :project_name, String }
   end
 
   aggregate "BuildCommand", "Compiles domain DSL into Ruby classes" do
@@ -214,7 +214,7 @@ Hecks.bluebook "Cli" do
   end
 
   aggregate "Import", "Reverse-engineers Rails apps into Hecks domain definitions" do
-    command("FromRails") { attribute :app_path, String }
+    command("ImportFromRails") { attribute :app_path, String }
   end
 
   # --- Tools Paragraph ---

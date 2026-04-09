@@ -6,14 +6,14 @@ Hecks.bluebook "Templating" do
     command "ResolveDomainGemName" do
       attribute :name, String
     end
-    command "DomainAggregateSlug" do
+    command "ResolveDomainAggregateSlug" do
       attribute :name, String
     end
-    command "DomainCommandMethod" do
+    command "ResolveDomainCommandMethod" do
       attribute :command_name, String
       attribute :aggregate_name, String
     end
-    command "DomainRoutePath" do
+    command "ResolveDomainRoutePath" do
       attribute :domain_name, String
       attribute :aggregate_name, String
     end

@@ -37,7 +37,7 @@ Hecks.bluebook "Persist" do
   end
 
   aggregate "SqlHelpers", "Shared helpers for SQL type mapping, naming conventions, and literal quoting" do
-    command "SqlType" do
+    command "ResolveSqlType" do
       attribute :attribute_type, String
     end
     command "TableName" do

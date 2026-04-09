@@ -71,6 +71,14 @@ module Hecks
         Pay Charge Refund Bill Invoice
         Ship Deliver Return Receive
         Connect Disconnect Link Unlink Attach Detach
+        Find Lookup Resolve Compare Diff
+        Setup Initialize Configure Build Generate Run Execute
+        Tokenize Parse Compile Serialize Deserialize
+        Enqueue Dequeue Process Emit Trigger Fire
+        Scope Filter Where Each Map Select
+        Upcast Downcast Convert Transform Translate
+        Autoload Load Require Boot Wire
+        Compute Calculate Score Satisfy
       ].freeze
 
       # Checks whether a word is a recognized verb, either from the built-in

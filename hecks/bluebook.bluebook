@@ -97,10 +97,6 @@ Hecks.bluebook "Bluebook" do
     command("ComputeVersion") { attribute :path, String }
   end
 
-  policy "AutoEvent" do
-    on "AddedCommand"
-    trigger "InferEvent"
-  end
 
   # --- Structure Paragraph ---
 

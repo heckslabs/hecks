@@ -1,42 +1,12 @@
 Hecks.bluebook "Authoring" do
   vision "Project management, document editing, code generation, and reusable domain patterns"
 
-    value_object "ProjectPath" do
-      description "Absolute filesystem path to a domain project directory"
-      attribute :path, String
-      validation :path, presence: true
-    end
-    value_object "FileContent" do
-      description "A file's name, body, and source language"
-      attribute :filename, String
-      attribute :content, String
-      attribute :language, String
-    end
-    value_object "BuildTarget" do
-      description "Code generation target -- ruby, go, rails, sinatra"
-      attribute :target, String
-      validation :target, presence: true
-    end
-    value_object "Artifact" do
-      description "A generated file with content and change status"
-      attribute :filename, String
-      attribute :content, String
-      attribute :changed, String, default: "true"
-    end
-    value_object "PatternParameter" do
-      description "A configurable parameter when applying a domain pattern"
-      attribute :param_name, String
-      attribute :param_type, String
-      attribute :default_value, String
-      attribute :required, String, default: "true"
-    end
-    value_object "TimelineEntry" do
-      description "A recorded change with action, detail, and wall-clock time"
-      attribute :action, String
-      attribute :detail, String
-      attribute :timestamp, String
-    end
     aggregate "Project", "A domain project workspace. Opens, discovers, and manages domain directories." do
+      value_object "ProjectPath" do
+        description "Absolute filesystem path to a domain project directory"
+        attribute :path, String
+        invariant("path present") { !path.nil? && !path.empty? }
+      end
       attribute :project_path, "ProjectPath"
       attribute :discovered_paths, list_of("ProjectPath")
       command "OpenProject" do
@@ -67,6 +37,12 @@ Hecks.bluebook "Authoring" do
       validation :project_path, presence: true
     end
     aggregate "Explorer", "Browse and inspect parsed domain structure -- aggregates, commands, references." do
+      value_object "FileContent" do
+        description "A file's name, body, and source language"
+        attribute :filename, String
+        attribute :content, String
+        attribute :language, String
+      end
       attribute :domain_context, String
       attribute :last_opened, "FileContent"
       reference_to "Project"
@@ -138,6 +114,12 @@ Hecks.bluebook "Authoring" do
     end
 
     aggregate "Timeline", "Edit history with undo/redo. Tracks document changes as a linear sequence." do
+      value_object "TimelineEntry" do
+        description "A recorded change with action, detail, and wall-clock time"
+        attribute :action, String
+        attribute :detail, String
+        attribute :timestamp, String
+      end
       attribute :entries, list_of("TimelineEntry")
       attribute :cursor, Integer, default: 0
       reference_to "Document"
@@ -163,6 +145,17 @@ Hecks.bluebook "Authoring" do
       end
     end
     aggregate "Generator", "Build domain code for a target language. Preview and diff against existing files." do
+      value_object "BuildTarget" do
+        description "Code generation target -- ruby, go, rails, sinatra"
+        attribute :target, String
+        invariant("target present") { !target.nil? && !target.empty? }
+      end
+      value_object "Artifact" do
+        description "A generated file with content and change status"
+        attribute :filename, String
+        attribute :content, String
+        attribute :changed, String, default: "true"
+      end
       attribute :target, "BuildTarget"
       attribute :artifacts, list_of("Artifact")
       reference_to "Project"
@@ -195,6 +188,13 @@ Hecks.bluebook "Authoring" do
       end
     end
     aggregate "Pattern", "Reusable domain pattern library -- CRUD, event-sourced, saga, process manager." do
+      value_object "PatternParameter" do
+        description "A configurable parameter when applying a domain pattern"
+        attribute :param_name, String
+        attribute :param_type, String
+        attribute :default_value, String
+        attribute :required, String, default: "true"
+      end
       attribute :pattern_name, String
       attribute :category, String
       attribute :template, String

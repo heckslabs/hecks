@@ -34,14 +34,14 @@ Hecks.bluebook "Hecksagon" do
   end
 
   aggregate "StrategicDSL", "Mixin for domain builders adding shared kernels, ACLs, published events" do
-    command "SharedKernel"
+    command "DeclareSharedKernel"
     command("UseKernel") { attribute :name, String }
-    command("AntiCorruptionLayer") { attribute :name, String }
+    command("DeclareAntiCorruptionLayer") { attribute :name, String }
   end
 
   aggregate "ExtensionsDSL", "Mixin for domain builders declaring driving and driven ports" do
-    command("DrivingPort") { attribute :name, String }
-    command("DrivenPort") { attribute :name, String }
+    command("DeclareDrivingPort") { attribute :name, String }
+    command("DeclareDrivenPort") { attribute :name, String }
   end
 
   aggregate "DomainMixin", "Extends Domain IR objects with hexagonal accessors for ports and kernels" do
