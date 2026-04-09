@@ -1,87 +1,97 @@
 Hecks.bluebook "Collaboration" do
-  vision "Feature planning, backlog management, AI-assisted modeling, domain reviews, and annotations"
+  vision "Deliberate feature delivery through planning, verification, review, and backlog shaping"
 
   core do
-    aggregate "Feature", "A feature to build. Decomposes into domain additions tracked against the live IR." do
+    aggregate "Feature", "A planned capability moving through proposal, planning, building, and verification" do
       attribute :title, String
       attribute :description, String
-      attribute :status, String, default: "draft"
+      attribute :lifecycle_state, "FeatureStatus"
       attribute :additions, list_of("DomainAddition")
-      attribute :total_additions, Integer, default: 0
-      attribute :completed_additions, Integer, default: 0
+
+      value_object "FeatureStatus" do
+        description "Where a feature sits in its delivery lifecycle"
+        attribute :value, String, default: "draft"
+        invariant("must be a known state") { %w[draft planned building verified done].include?(value) }
+      end
 
       value_object "DomainAddition" do
-        description "A planned domain change -- aggregate, command, event, attribute, or policy"
+        description "A single domain change to be built and verified"
         attribute :kind, String
-        attribute :name, String
-        attribute :parent, String
+        attribute :target_name, String
+        attribute :parent_name, String
         attribute :description, String
-        attribute :exists_in_domain, String, default: "false"
+        attribute :verified, String, default: "false"
       end
 
-      command "CreateFeature" do
-        description "Define a new feature with a title and description"
+      command "ProposeFeature" do
+        description "Introduce a new feature idea with title and intent"
         attribute :title, String
         attribute :description, String
-        emits "FeatureCreated"
+        emits "FeatureProposed"
       end
 
-      command "PlanFeature" do
-        description "Ask the AI agent to plan all domain additions for this feature"
+      command "PlanAdditions" do
+        description "Decompose the feature into domain additions that must be built"
         reference_to "Feature"
-        emits "FeaturePlanned"
+        attribute :additions, list_of("DomainAddition")
+        emits "AdditionsPlanned"
+        handler do |feature|
+          raise "Feature must have a title before planning" if feature.title.nil? || feature.title.empty?
+          feature
+        end
       end
 
-      command "AddDomainAddition" do
-        description "Manually add a planned domain change to the feature"
+      command "ImplementFeature" do
+        description "Begin building all planned additions against the live domain"
         reference_to "Feature"
-        attribute :kind, String
-        attribute :name, String
-        attribute :parent, String
-        attribute :description, String
-        emits "DomainAdditionAdded"
+        emits "ImplementationStarted"
       end
 
       command "VerifyAdditions" do
-        description "Check the live domain IR for each planned addition"
+        description "Check every addition against the live IR and mark verified"
         reference_to "Feature"
         emits "AdditionsVerified"
+        handler do |feature|
+          raise "Cannot verify with no additions" if feature.additions.nil? || feature.additions.empty?
+          feature
+        end
       end
 
-      command "BuildFeature" do
-        description "Ask the AI agent to implement all remaining additions"
+      command "AcceptFeature" do
+        description "Accept the feature as complete -- all additions verified"
         reference_to "Feature"
-        emits "FeatureBuildStarted"
+        emits "FeatureAccepted"
       end
 
-      command "CompleteFeature" do
-        description "Mark the feature as done -- all additions verified"
-        reference_to "Feature"
-        emits "FeatureCompleted"
-      end
+      on_event("FeatureProposed") { |e| }
+      on_event("AdditionsPlanned") { |e| }
+      on_event("ImplementationStarted") { |e| }
+      on_event("AdditionsVerified") { |e| }
+      on_event("FeatureAccepted") { |e| }
 
-      lifecycle :status, default: "draft" do
-        transition "PlanFeature" => "planned", from: "draft"
-        transition "BuildFeature" => "building", from: "planned"
-        transition "VerifyAdditions" => "planned", from: "building"
-        transition "CompleteFeature" => "done", from: "planned"
+      lifecycle :lifecycle_state, default: "draft" do
+        transition "PlanAdditions" => "planned", from: "draft"
+        transition "ImplementFeature" => "building", from: "planned"
+        transition "VerifyAdditions" => "verified", from: "building"
+        transition "AcceptFeature" => "done", from: "verified"
       end
 
       validation :title, presence: true
     end
+  end
 
-    aggregate "Agent", "AI assistant for domain modeling. Ask questions, get suggestions, apply changes." do
-      attribute :adapter_mode, String
-      attribute :thinking, String
-      attribute :messages, list_of("Message")
+  supporting do
+    aggregate "Agent", "AI collaborator for domain modeling conversations and suggested changes" do
+      attribute :conversation, list_of("ConversationMessage")
       attribute :suggestions, list_of("Suggestion")
-      attribute :loaded_domain, String
+      attribute :context_domain, String
 
-      value_object "Message" do
-        description "A conversation message -- user or assistant"
+      value_object "ConversationMessage" do
+        description "A single exchange in the modeling conversation"
         attribute :role, String
         attribute :content, String
         attribute :timestamp, String
+        invariant("role must be user or assistant") { %w[user assistant].include?(role) }
       end
 
       value_object "Suggestion" do
@@ -89,217 +99,76 @@ Hecks.bluebook "Collaboration" do
         attribute :title, String
         attribute :rationale, String
         attribute :diff_preview, String
-        attribute :status, String, default: "pending"
+        attribute :applied, String, default: "false"
       end
 
-      command "SendMessage" do
-        description "Send a message to the AI assistant about the domain"
-        reference_to "Agent"
-        attribute :content, String
-        emits "MessageReceived"
-      end
-
-      command "ToggleAdapter" do
-        description "Switch between memory and live LLM adapter"
-        reference_to "Agent"
-        attribute :mode, String
-        emits "AdapterChanged"
-      end
-
-      command "ClearConversation" do
-        description "Reset the conversation history"
-        reference_to "Agent"
-        emits "ConversationCleared"
-      end
-
-      command "ApplySuggestion" do
-        description "Accept and apply a suggested domain change"
-        reference_to "Agent"
-        attribute :title, String
-        emits "SuggestionApplied"
-      end
-
-      command "RequestReview" do
-        description "Ask the AI to review the current domain"
-        reference_to "Agent"
-        emits "ReviewRequested"
-      end
-
-      command "LoadDomainContext" do
-        description "Set which domain the agent introspects for tools and system prompt"
-        reference_to "Agent"
-        attribute :domain_name, String
-        emits "DomainContextLoaded"
-      end
-
-      lifecycle :adapter_mode, default: "memory" do
-        transition "ToggleAdapter" => "live", from: "memory"
-        transition "ToggleAdapter" => "memory", from: "live"
-      end
-
-      lifecycle :thinking, default: "idle" do
-        transition "SendMessage" => "thinking", from: "idle"
-        transition "ReceiveResponse" => "idle", from: "thinking"
-      end
-    end
-  end
-
-  supporting do
-    aggregate "Backlog", "Ordered collection of features and stories. Tracks progress." do
-      attribute :name, String
-      attribute :features, list_of("BacklogEntry")
-
-      value_object "BacklogEntry" do
-        description "A feature in the backlog with its position"
-        attribute :feature_title, String
-        attribute :position, Integer
-        attribute :status, String
-      end
-
-      command "AddToBacklog" do
-        description "Add a feature to the backlog"
-        attribute :feature_title, String
-        emits "AddedToBacklog"
-      end
-
-      command "Prioritize" do
-        description "Reorder a feature within the backlog"
-        attribute :feature_title, String
-        attribute :position, Integer
-        emits "Reprioritized"
-      end
-
-      command "TrackProgress" do
-        description "Recalculate completion across all features"
-        reference_to "Backlog"
-        emits "ProgressTracked"
-      end
-
-      validation :name, presence: true
+      command("AskQuestion") { reference_to "Agent"; attribute :content, String; emits "QuestionAsked" }
+      command("ReviewDomain") { reference_to "Agent"; emits "DomainReviewed" }
+      command("ClearConversation") { reference_to "Agent"; emits "ConversationCleared" }
+      command("ApplySuggestion") { reference_to "Agent"; attribute :title, String; emits "SuggestionApplied" }
+      command("LoadContext") { reference_to "Agent"; attribute :domain_name, String; emits "ContextLoaded" }
     end
 
-    aggregate "Review", "Domain change review workflow -- propose changes, discuss, approve or reject." do
-      attribute :title, String
-      attribute :status, String, default: "open"
-      attribute :author, String
-      attribute :changes_summary, String
-      attribute :comments, list_of("ReviewComment")
+    aggregate "Backlog", "Ordered queue of features ranked by delivery priority" do
+      attribute :entries, list_of("BacklogPosition")
 
-      value_object "ReviewComment" do
-        description "A comment on a proposed domain change"
-        attribute :author, String
-        attribute :body, String
-        attribute :element_name, String
-        attribute :timestamp, String
+      value_object "BacklogPosition" do
+        description "A feature's place in the delivery queue"
+        attribute :feature_title, String
+        attribute :rank, Integer
+      end
+
+      command("AddFeature") { attribute :feature_title, String; emits "FeatureQueued" }
+      command("Reorder") { attribute :feature_title, String; attribute :rank, Integer; emits "BacklogReordered" }
+      command("TrackProgress") { reference_to "Backlog"; emits "ProgressTracked" }
+    end
+
+    aggregate "Review", "Domain change review -- propose, discuss, decide" do
+      attribute :decision, "ReviewDecision"
+      attribute :comments, list_of(String)
+
+      value_object "ReviewDecision" do
+        description "The outcome of a domain change review"
+        attribute :value, String, default: "pending"
+        invariant("must be a known decision") { %w[pending approved rejected needs_changes].include?(value) }
       end
 
       command "ProposeChange" do
         description "Open a review for a set of domain changes"
         attribute :title, String
-        attribute :author, String
         attribute :changes_summary, String
+        emits "ChangeProposed"
       end
 
-      command "AddComment" do
-        description "Comment on the proposed changes"
-        reference_to "Review"
-        attribute :author, String
-        attribute :body, String
-        attribute :element_name, String
-      end
-
-      command "ApproveReview" do
-        description "Approve the proposed domain changes"
-        reference_to "Review"
-        attribute :author, String
-      end
-
-      command "RejectReview" do
-        description "Reject the proposed changes with a reason"
-        reference_to "Review"
-        attribute :author, String
-        attribute :reason, String
-      end
-
-      validation :title, presence: true
+      command("AddComment") { reference_to "Review"; attribute :body, String; emits "CommentAdded" }
+      command("Decide") { reference_to "Review"; attribute :decision, String; emits "DecisionRendered" }
     end
 
-    aggregate "Annotation", "Comments and notes attached to specific domain elements." do
-      attribute :element_type, String
-      attribute :element_name, String
-      attribute :body, String
-      attribute :resolved, String, default: "false"
-      attribute :replies, list_of("Reply")
-
-      value_object "Reply" do
-        description "A threaded reply to an annotation"
-        attribute :author, String
-        attribute :body, String
-        attribute :timestamp, String
-      end
-
-      command "Annotate" do
-        description "Attach a comment to a domain element"
-        attribute :element_type, String
-        attribute :element_name, String
-        attribute :body, String
-      end
-
-      command "ResolveAnnotation" do
-        description "Mark an annotation as resolved"
-        reference_to "Annotation"
-      end
-
-      command "ReplyToAnnotation" do
-        description "Add a threaded reply to an existing annotation"
-        reference_to "Annotation"
-        attribute :author, String
-        attribute :body, String
-      end
-
-      query "Unresolved" do
-        where(resolved: "false")
-      end
-    end
-
-    aggregate "Story", "A unit of work -- feature, task, or bug." do
+    aggregate "Story", "A deliverable unit of work with acceptance criteria" do
       attribute :title, String
       attribute :description, String
       attribute :acceptance_criteria, String
-      attribute :status, String, default: "todo"
-      attribute :priority, Integer, default: 0
+      attribute :lifecycle_state, String, default: "ready"
 
-      command "CreateStory" do
-        description "Define a new story with title and acceptance criteria"
+      command "WriteStory" do
+        description "Draft a story with title, description, and acceptance criteria"
         attribute :title, String
         attribute :description, String
         attribute :acceptance_criteria, String
+        emits "StoryWritten"
       end
 
-      command "StartStory" do
-        description "Move a story to in-progress"
-        reference_to "Story"
-      end
+      command("StartWork") { reference_to "Story"; emits "WorkStarted" }
+      command("FinishWork") { reference_to "Story"; emits "WorkFinished" }
+      command("AcceptDelivery") { reference_to "Story"; emits "DeliveryAccepted" }
 
-      command "CompleteStory" do
-        description "Mark a story as done"
-        reference_to "Story"
-      end
-
-      command "AcceptStory" do
-        description "Accept a completed story -- acceptance criteria met"
-        reference_to "Story"
+      lifecycle :lifecycle_state, default: "ready" do
+        transition "StartWork" => "in_progress", from: "ready"
+        transition "FinishWork" => "delivered", from: "in_progress"
+        transition "AcceptDelivery" => "accepted", from: "delivered"
       end
 
       validation :title, presence: true
-
-      query "InProgress" do
-        where(status: "in_progress")
-      end
-
-      query "Todo" do
-        where(status: "todo")
-      end
     end
   end
 end

@@ -1,270 +1,217 @@
 Hecks.bluebook "Authoring" do
   vision "Project management, document editing, code generation, and reusable domain patterns"
-
   core do
-    aggregate "Project", "A domain project workspace. Loads, creates, and manages domain directories." do
-      attribute :name, String
+    value_object "ProjectPath" do
+      description "Absolute filesystem path to a domain project directory"
       attribute :path, String
-      attribute :status, String, default: "closed"
-
+      validation :path, presence: true
+    end
+    value_object "FileContent" do
+      description "A file's name, body, and source language"
+      attribute :filename, String
+      attribute :content, String
+      attribute :language, String
+    end
+    value_object "BuildTarget" do
+      description "Code generation target -- ruby, go, rails, sinatra"
+      attribute :target, String
+      validation :target, presence: true
+    end
+    value_object "Artifact" do
+      description "A generated file with content and change status"
+      attribute :filename, String
+      attribute :content, String
+      attribute :changed, String, default: "true"
+    end
+    value_object "PatternParameter" do
+      description "A configurable parameter when applying a domain pattern"
+      attribute :param_name, String
+      attribute :param_type, String
+      attribute :default_value, String
+      attribute :required, String, default: "true"
+    end
+    value_object "TimelineEntry" do
+      description "A recorded change with action, detail, and wall-clock time"
+      attribute :action, String
+      attribute :detail, String
+      attribute :timestamp, String
+    end
+    aggregate "Project", "A domain project workspace. Opens, discovers, and manages domain directories." do
+      attribute :project_path, "ProjectPath"
+      attribute :discovered_paths, list_of("ProjectPath")
       command "OpenProject" do
-        description "Load an existing domain from a directory"
-        attribute :path, String
+        description "Load an existing domain project from a directory"
+        attribute :project_path, "ProjectPath"
         emits "ProjectOpened"
       end
-
-      command "CreateProject" do
-        description "Initialize a new domain with a name"
-        attribute :name, String
-        attribute :path, String
-        emits "ProjectCreated"
+      command "DiscoverProjects" do
+        description "Scan a directory tree for hecks apps -- looks for hecks/*.bluebook"
+        attribute :search_path, "ProjectPath"
+        emits "ProjectsDiscovered"
       end
-
+      command "LoadProjects" do
+        description "Discover and open every project found under a directory"
+        attribute :search_path, "ProjectPath"
+        emits "ProjectsLoaded"
+      end
       command "CloseProject" do
         description "Close the current project and release resources"
         reference_to "Project"
         emits "ProjectClosed"
       end
-
-      command "DiscoverProjects" do
-        description "Scan a directory for hecks apps -- looks for hecks/*.bluebook"
-        attribute :search_path, String
-        emits "ProjectsDiscovered"
-      end
-
-      command "LoadProjects" do
-        description "Discover and open all projects in a directory"
-        attribute :search_path, String
-        emits "ProjectsLoaded"
-      end
-
-      validation :name, presence: true
-      validation :path, presence: true
+      validation :project_path, presence: true
     end
-
     aggregate "Explorer", "Browse and inspect parsed domain structure -- aggregates, commands, references." do
-      attribute :domain_name, String
-      attribute :aggregate_names, list_of("ExplorerEntry")
-      attribute :last_opened_path, String
-      attribute :last_opened_domain, String
-
-      value_object "ExplorerEntry" do
-        description "A named item in the domain structure"
-        attribute :name, String
-        attribute :kind, String
-      end
-
+      attribute :domain_context, String
+      attribute :last_opened, "FileContent"
       reference_to "Project"
-
       command "LoadDomain" do
         description "Parse the project domain and populate the explorer tree"
         reference_to "Project"
         emits "DomainLoaded"
       end
-
       command "InspectAggregate" do
-        description "Show details of an aggregate"
+        description "Show full details of an aggregate -- attributes, commands, value objects"
         attribute :aggregate_name, String
         emits "AggregateInspected"
       end
-
       command "InspectCommand" do
-        description "Show details of a command"
+        description "Show details of a command within an aggregate"
         attribute :aggregate_name, String
         attribute :command_name, String
         emits "CommandInspected"
       end
-
       command "OpenFile" do
-        description "Open a file from the project tree and record it as the last opened"
+        description "Open a source file and record it as the last opened"
         reference_to "Project"
         attribute :path, String
         attribute :domain, String
         emits "FileOpened"
       end
-
-      command "GetLastOpened" do
-        description "Return the last opened file path and domain"
-        reference_to "Explorer"
-        emits "LastOpenedReturned"
-      end
-
       command "ExportBluebook" do
         description "Export the current domain as a .bluebook file"
         attribute :format, String
         emits "BluebookExported"
       end
-
-      query "ByKind" do |kind|
-        where(kind: kind)
-      end
     end
-
-    aggregate "Document", "A source file open for editing. Tracks content, parse state, and dirty status." do
-      attribute :filename, String
-      attribute :content, String
-      attribute :dirty, String, default: "false"
-      attribute :diagnostics, list_of("Diagnostic")
-
-      value_object "Diagnostic" do
-        description "A validation finding at a source location"
-        attribute :line, Integer
-        attribute :column, Integer
-        attribute :severity, String
-        attribute :message, String
-      end
-
+    aggregate "Document", "A source file open for editing. Tracks content and dirty status." do
+      attribute :content, "FileContent"
       reference_to "Project"
-
       command "OpenDocument" do
-        description "Load a .hec file into the editor"
+        description "Load a .hec or .bluebook file into the editor"
         reference_to "Project"
         attribute :filename, String
         emits "DocumentOpened"
       end
-
       command "EditDocument" do
-        description "Apply a text change to the document"
+        description "Apply a text change to the open document"
         reference_to "Document"
         attribute :content, String
         emits "DocumentEdited"
       end
-
       command "SaveDocument" do
         description "Persist the document back to disk"
         reference_to "Document"
         emits "DocumentSaved"
       end
-
       command "ValidateDocument" do
         description "Parse and validate the document, producing diagnostics"
         reference_to "Document"
         emits "DocumentValidated"
       end
-
-      validation :filename, presence: true
     end
   end
-
   supporting do
     aggregate "Timeline", "Edit history with undo/redo. Tracks document changes as a linear sequence." do
       attribute :entries, list_of("TimelineEntry")
       attribute :cursor, Integer, default: 0
-
-      value_object "TimelineEntry" do
-        description "A recorded change with before/after content"
-        attribute :action, String
-        attribute :detail, String
-        attribute :timestamp, String
-      end
-
       reference_to "Document"
-
       command "RecordChange" do
-        description "Append a change to the timeline"
+        description "Append a change to the timeline after an edit"
         reference_to "Document"
         attribute :action, String
         attribute :detail, String
+        emits "ChangeRecorded"
       end
-
       command "Undo" do
         description "Move the cursor back one step and revert the change"
         reference_to "Timeline"
+        emits "UndoApplied"
       end
-
       command "Redo" do
         description "Move the cursor forward and reapply the change"
         reference_to "Timeline"
+        emits "RedoApplied"
       end
     end
-
-    aggregate "Generator", "Build domain code for a target language. Preview output, diff against existing." do
-      attribute :target, String
-      attribute :status, String, default: "idle"
-      attribute :output_path, String
+    aggregate "Generator", "Build domain code for a target language. Preview and diff against existing files." do
+      attribute :target, "BuildTarget"
       attribute :artifacts, list_of("Artifact")
-
-      value_object "Artifact" do
-        description "A generated file with its content and diff status"
-        attribute :filename, String
-        attribute :content, String
-        attribute :changed, String, default: "true"
-      end
-
       reference_to "Project"
-
       command "SelectTarget" do
         description "Choose a build target -- ruby, go, rails, sinatra"
         reference_to "Project"
-        attribute :target, String
+        attribute :target, "BuildTarget"
+        emits "TargetSelected"
       end
-
       command "BuildTarget" do
-        description "Generate all code for the selected target"
+        description "Generate all code artifacts for the selected target"
         reference_to "Generator"
+        emits "TargetBuilt"
       end
-
       command "PreviewArtifact" do
-        description "Show the content of a single generated file"
+        description "Show the content of a single generated file before writing"
         reference_to "Generator"
         attribute :filename, String
+        emits "ArtifactPreviewed"
       end
-
       command "CompareArtifact" do
-        description "Compare generated output against existing file on disk"
+        description "Diff a generated artifact against the existing file on disk"
         reference_to "Generator"
         attribute :filename, String
+        emits "ArtifactCompared"
       end
-
-      validation :target, presence: true
     end
-
     aggregate "Pattern", "Reusable domain pattern library -- CRUD, event-sourced, saga, process manager." do
-      attribute :name, String
+      attribute :pattern_name, String
       attribute :category, String
       attribute :template, String
       attribute :parameters, list_of("PatternParameter")
-
-      value_object "PatternParameter" do
-        description "A configurable parameter when applying a pattern"
-        attribute :name, String
-        attribute :param_type, String
-        attribute :default_value, String
-        attribute :required, String, default: "true"
-      end
-
-      command "CreatePattern" do
-        description "Define a new reusable pattern from an existing aggregate shape"
-        attribute :name, String
+      command "DefinePattern" do
+        description "Create a new reusable pattern from an existing aggregate shape"
+        attribute :pattern_name, String
         attribute :category, String
         attribute :template, String
+        emits "PatternDefined"
       end
-
       command "ApplyPattern" do
         description "Scaffold an aggregate by applying a pattern with parameters"
         reference_to "Project"
         attribute :pattern_name, String
         attribute :aggregate_name, String
         attribute :parameters, String
+        emits "PatternApplied"
       end
-
       command "ListPatterns" do
         description "Show all available patterns, optionally filtered by category"
         attribute :category, String
+        emits "PatternsListed"
       end
-
-      validation :name, presence: true
+      validation :pattern_name, presence: true
     end
   end
-
   policy "ValidateOnEdit" do
-    on "EditedDocument"
+    on "DocumentEdited"
     trigger "ValidateDocument"
     map document_id: :document_id
   end
-
+  policy "RecordOnEdit" do
+    on "DocumentEdited"
+    trigger "RecordChange"
+    map document_id: :document_id
+  end
   policy "RefreshExplorerOnSave" do
-    on "SavedDocument"
+    on "DocumentSaved"
     trigger "LoadDomain"
     map project_id: :project_id
   end

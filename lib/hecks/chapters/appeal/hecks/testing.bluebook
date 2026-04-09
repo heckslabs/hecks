@@ -1,154 +1,224 @@
 Hecks.bluebook "Testing" do
-  vision "Acceptance testing, executable scenarios, reusable fixtures, and interactive playground sandbox"
+  vision "Automated acceptance testing, executable scenarios, and interactive domain playground"
 
   core do
-    aggregate "AcceptanceTest", "Automated test runner. Dispatches every domain command and validates the event log." do
-      attribute :status, String, default: "idle"
+    aggregate "AcceptanceTest", "Runs domain commands and validates the event log against expected outcomes." do
+      attribute :lifecycle_state, String, default: "idle"
       attribute :results, list_of("TestResult")
-      attribute :passed, Integer, default: 0
-      attribute :failed, Integer, default: 0
-      attribute :total, Integer, default: 0
+      attribute :passed_count, Integer, default: 0
+      attribute :failed_count, Integer, default: 0
 
       value_object "TestResult" do
-        description "Result of a single command dispatch test"
-        attribute :command_name, String
-        attribute :aggregate_name, String
-        attribute :status, String
-        attribute :event_name, String
-        attribute :error, String
+        description "Outcome of dispatching a single domain command"
+        attribute :command_tested, String
+        attribute :aggregate_tested, String
+        attribute :outcome, String
+        attribute :event_emitted, String
+        attribute :error_message, String
+        invariant("outcome must be passed, failed, or skipped") { %w[passed failed skipped].include?(outcome) }
       end
 
-      command "RunAll" do
-        description "Dispatch every command and validate events are emitted"
-        emits "AllTestsCompleted"
+      lifecycle :lifecycle_state, default: "idle" do
+        transition "RunAllTests" => "running", from: "idle"
+        transition "AllTestsCompleted" => "complete", from: "running"
+        transition "RunSingleTest" => "running", from: "idle"
+        transition "ResetResults" => "idle"
       end
 
-      command "RunCommand" do
-        description "Test a single command dispatch"
-        attribute :aggregate_name, String
-        attribute :command_name, String
-        emits "CommandTested"
-      end
-
-      command "Reset" do
-        description "Clear all test results"
+      command "RunAllTests" do
+        description "Dispatch every domain command and collect results"
         reference_to "AcceptanceTest"
-        emits "TestsReset"
+        emits "AllTestsStarted"
+        handler do |t|
+          t.lifecycle_state = "running"
+          t.results = []
+          t
+        end
       end
 
-      lifecycle :status, default: "idle" do
-        transition "RunAll" => "running", from: "idle"
-        transition "AllTestsCompleted" => "idle", from: "running"
-        transition "Reset" => "idle"
+      command "RunSingleTest" do
+        description "Dispatch one command and validate its event"
+        reference_to "AcceptanceTest"
+        attribute :aggregate_name, String
+        attribute :command_name, String
+        emits "SingleTestCompleted"
+        handler do |t|
+          t.lifecycle_state = "running"
+          t
+        end
+      end
+
+      command "ResetResults" do
+        description "Clear all results and return to idle"
+        reference_to "AcceptanceTest"
+        emits "ResultsReset"
+        handler do |t|
+          t.lifecycle_state = "idle"
+          t.results = []
+          t.passed_count = 0
+          t.failed_count = 0
+          t
+        end
       end
     end
 
-    aggregate "Scenario", "Executable given/when/then specification. Tests domain commands without implementation." do
-      attribute :name, String
-      attribute :status, String, default: "draft"
-      attribute :steps, list_of("Step")
-      attribute :result, String
+    aggregate "Scenario", "Executable given/when/then specification that validates domain behavior." do
+      attribute :scenario_name, String
+      attribute :steps, list_of("ScenarioStep")
 
-      value_object "Step" do
-        description "A single step in a scenario -- given, when, or then"
-        attribute :phase, String
-        attribute :aggregate_name, String
+      value_object "ScenarioStep" do
+        description "One step: the command to dispatch and the expected event"
+        attribute :step_description, String
         attribute :command_name, String
-        attribute :attributes, String
-        attribute :expectation, String
+        attribute :expected_event, String
+        attribute :actual_result, String
       end
 
-      command "CreateScenario" do
-        description "Define a new scenario with a name"
-        attribute :name, String
+      command "WriteScenario" do
+        description "Define a new scenario with a descriptive name"
+        attribute :scenario_name, String
+        emits "ScenarioWritten"
+        handler do |s|
+          s.scenario_name = scenario_name
+          s.steps = []
+          s
+        end
       end
 
       command "AddStep" do
-        description "Append a given/when/then step to the scenario"
+        description "Append a step to the scenario"
         reference_to "Scenario"
-        attribute :phase, String
-        attribute :aggregate_name, String
+        attribute :step_description, String
         attribute :command_name, String
-        attribute :attributes, String
+        attribute :expected_event, String
+        emits "StepAdded"
+        handler do |s|
+          s.steps << { "step_description" => step_description, "command_name" => command_name,
+                       "expected_event" => expected_event, "actual_result" => "" }
+          s
+        end
       end
 
-      command "RunScenario" do
-        description "Execute all steps and record pass/fail"
+      command "ExecuteScenario" do
+        description "Run all steps and record pass/fail for each"
         reference_to "Scenario"
+        emits "ScenarioExecuted"
+        handler do |s|
+          raise "Scenario has no steps" if s.steps.empty?
+          s
+        end
       end
 
-      command "RecordResult" do
-        description "Store the outcome of a scenario run"
+      command "RecordOutcome" do
+        description "Store the outcome after scenario execution"
         reference_to "Scenario"
-        attribute :result, String
+        attribute :step_index, Integer
+        attribute :actual_result, String
+        emits "OutcomeRecorded"
+        handler do |s|
+          s.steps[step_index]["actual_result"] = actual_result
+          s
+        end
       end
 
-      validation :name, presence: true
+      validation :scenario_name, presence: true
     end
   end
 
   supporting do
-    aggregate "Fixture", "Reusable data set for populating scenarios with known state." do
-      attribute :name, String
+    aggregate "Fixture", "Reusable data set that seeds scenarios with known aggregate state." do
+      attribute :fixture_name, String
       attribute :entries, list_of("FixtureEntry")
 
       value_object "FixtureEntry" do
-        description "A single data record -- aggregate name, attribute values"
+        description "A seed record: which aggregate and what attribute values"
         attribute :aggregate_name, String
-        attribute :attributes, String
+        attribute :attribute_values, String
       end
 
-      command "CreateFixture" do
-        description "Define a new fixture set"
-        attribute :name, String
+      command "DefineFixture" do
+        description "Create a new named fixture set"
+        attribute :fixture_name, String
+        emits "FixtureDefined"
+        handler do |f|
+          f.fixture_name = fixture_name
+          f.entries = []
+          f
+        end
       end
 
       command "AddEntry" do
-        description "Add a data record to the fixture"
+        description "Append a seed record to the fixture"
         reference_to "Fixture"
         attribute :aggregate_name, String
-        attribute :attributes, String
+        attribute :attribute_values, String
+        emits "EntryAdded"
+        handler do |f|
+          f.entries << { "aggregate_name" => aggregate_name, "attribute_values" => attribute_values }
+          f
+        end
       end
 
       command "ApplyToScenario" do
-        description "Load this fixture as the given state for a scenario"
+        description "Load this fixture as given-state for a scenario"
         reference_to "Fixture"
         reference_to "Scenario"
+        emits "FixtureApplied"
+        handler do |f|
+          raise "Fixture has no entries" if f.entries.empty?
+          f
+        end
       end
 
-      validation :name, presence: true
+      validation :fixture_name, presence: true
     end
 
-    aggregate "Playground", "Interactive sandbox for running domain commands and inspecting state." do
-      attribute :events, list_of("PlaygroundEvent")
-      attribute :state_snapshot, String
+    aggregate "Playground", "Interactive sandbox for dispatching commands and inspecting live state." do
+      attribute :active_aggregate, String
+      attribute :sandbox_state, String
 
-      value_object "PlaygroundEvent" do
-        description "A recorded event from command execution"
-        attribute :name, String
-        attribute :payload, String
-        attribute :timestamp, String
+      command "OpenPlayground" do
+        description "Launch the sandbox for a domain"
+        emits "PlaygroundOpened"
+        handler do |p|
+          p.sandbox_state = "ready"
+          p
+        end
       end
 
       command "ExecuteCommand" do
-        description "Run a domain command in the sandbox"
+        description "Dispatch a domain command inside the sandbox"
+        reference_to "Playground"
         attribute :aggregate_name, String
         attribute :command_name, String
         attribute :attributes, String
+        emits "CommandExecuted"
+        handler do |p|
+          p.active_aggregate = aggregate_name
+          p
+        end
       end
 
       command "InspectState" do
-        description "View current aggregate state in the sandbox"
-        attribute :aggregate_name, String
-      end
-
-      command "ResetPlayground" do
-        description "Clear all sandbox state and events"
+        description "View the current state of an aggregate in the sandbox"
         reference_to "Playground"
+        attribute :aggregate_name, String
+        emits "StateInspected"
+        handler do |p|
+          p.active_aggregate = aggregate_name
+          p
+        end
       end
 
-      query "RecentEvents" do
-        where(timestamp: "recent")
+      command "ResetSandbox" do
+        description "Clear all sandbox state and start fresh"
+        reference_to "Playground"
+        emits "SandboxReset"
+        handler do |p|
+          p.active_aggregate = nil
+          p.sandbox_state = nil
+          p
+        end
       end
     end
   end

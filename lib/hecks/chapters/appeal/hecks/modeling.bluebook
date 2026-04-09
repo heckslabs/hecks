@@ -1,244 +1,200 @@
 Hecks.bluebook "Modeling" do
-  vision "Domain visualization, event storming, ubiquitous language, health analysis, and version comparison"
+  vision "Domain visualization, event storming, ubiquitous language management, and version analysis"
 
   core do
+    value_object "DiagramNode" do
+      description "An element in a diagram -- aggregate, command, event, or value object"
+      attribute :node_name, String
+      attribute :kind, String
+      attribute :metadata, String
+    end
+    value_object "DiagramEdge" do
+      description "A directed relationship between two diagram nodes"
+      attribute :from_node, String
+      attribute :to_node, String
+      attribute :relationship, String
+    end
+    value_object "Sticky" do
+      description "A virtual sticky note for event storming sessions"
+      attribute :label, String
+      attribute :kind, String
+      attribute :position_x, Integer
+      attribute :position_y, Integer
+    end
+    value_object "GlossaryTerm" do
+      description "A domain term with definition, category, and known aliases"
+      attribute :term_name, String
+      attribute :definition, String
+      attribute :category, String
+      attribute :aliases, String
+    end
+    value_object "InsightFinding" do
+      description "A single analysis finding with severity and recommendation"
+      attribute :rule, String
+      attribute :severity, String
+      attribute :aggregate_name, String
+      attribute :suggestion, String
+    end
+    value_object "VersionDiff" do
+      description "A version range representing a set of domain changes"
+      attribute :from_version, String
+      attribute :to_version, String
+      attribute :changes, String
+    end
+
     aggregate "Diagram", "Generated domain visualizations -- aggregate maps, event flows, command graphs." do
       attribute :view_type, String
       attribute :nodes, list_of("DiagramNode")
       attribute :edges, list_of("DiagramEdge")
-
-      value_object "DiagramNode" do
-        description "An element in the diagram -- aggregate, command, event, or value object"
-        attribute :name, String
-        attribute :kind, String
-        attribute :metadata, String
-      end
-
-      value_object "DiagramEdge" do
-        description "A relationship between two nodes"
-        attribute :from_node, String
-        attribute :to_node, String
-        attribute :relationship, String
-      end
-
       command "GenerateDiagram" do
-        description "Build a diagram for a file. Uses Explorer.last_opened_path when path is not provided."
+        description "Build a diagram for a domain file. Uses Explorer.last_opened when path omitted."
         attribute :view_type, String
         attribute :path, String
         attribute :domain, String
         emits "DiagramGenerated"
       end
-
       command "GenerateOverview" do
-        description "Build a cross-domain relationship diagram showing all domains and their connections"
+        description "Build a cross-domain relationship diagram showing all bounded contexts"
         attribute :scope, String
-        emits "BluebookOverviewGenerated"
+        emits "OverviewGenerated"
       end
-
       command "SelectView" do
         description "Switch between aggregate map, event flow, or command graph"
         reference_to "Diagram"
         attribute :view_type, String
         emits "ViewSelected"
       end
-
       command "FilterByAggregate" do
         description "Show only nodes related to a specific aggregate"
         reference_to "Diagram"
         attribute :aggregate_name, String
         emits "DiagramFiltered"
       end
-
       command "RunAnalysis" do
         description "Analyze domain patterns -- coupling, cohesion, naming issues"
         emits "AnalysisCompleted"
       end
     end
 
-    aggregate "EventStorm", "Interactive event storming session. Stickies represent domain concepts." do
-      attribute :name, String
-      attribute :status, String, default: "active"
+    aggregate "EventStorm", "Interactive event storming session. Place and arrange domain concept stickies." do
+      attribute :storm_name, String
       attribute :stickies, list_of("Sticky")
-
-      value_object "Sticky" do
-        description "A virtual sticky note -- event, command, policy, hotspot, or external system"
-        attribute :label, String
-        attribute :kind, String
-        attribute :color, String
-        attribute :position_x, Integer
-        attribute :position_y, Integer
-        attribute :notes, String
-      end
-
       command "StartStorm" do
-        description "Begin a new event storming session"
-        attribute :name, String
+        description "Begin a new event storming session with a name"
+        attribute :storm_name, String
+        emits "StormStarted"
       end
-
-      command "AddSticky" do
+      command "PlaceSticky" do
         description "Place a new sticky note on the board"
         reference_to "EventStorm"
         attribute :label, String
         attribute :kind, String
+        emits "StickyPlaced"
       end
-
       command "MoveSticky" do
         description "Reposition a sticky on the board"
         reference_to "EventStorm"
         attribute :label, String
         attribute :position_x, Integer
         attribute :position_y, Integer
+        emits "StickyMoved"
       end
-
       command "ConvertToDomain" do
         description "Transform stickies into Bluebook DSL aggregates, commands, and events"
         reference_to "EventStorm"
+        emits "StormConverted"
       end
-
-      validation :name, presence: true
+      validation :storm_name, presence: true
     end
 
-    aggregate "Glossary", "Ubiquitous language dictionary. Defines terms, enforces naming consistency." do
-      attribute :terms, list_of("Term")
-
-      value_object "Term" do
-        description "A domain term with its definition and category"
-        attribute :name, String
-        attribute :definition, String
-        attribute :category, String
-        attribute :aliases, String
-      end
-
+    aggregate "Glossary", "Ubiquitous language dictionary. Defines terms and enforces naming consistency." do
+      attribute :terms, list_of("GlossaryTerm")
       command "ShowGlossary" do
         description "Display the full glossary of domain terms"
         emits "GlossaryShown"
       end
-
       command "DefineTerm" do
-        description "Add a new term to the glossary"
-        attribute :name, String
+        description "Add or update a term in the glossary"
+        attribute :term_name, String
         attribute :definition, String
         attribute :category, String
+        emits "TermDefined"
       end
-
       command "RenameTerm" do
-        description "Rename a term and update all references"
+        description "Rename a term and cascade the change to all references"
         reference_to "Glossary"
         attribute :old_name, String
         attribute :new_name, String
+        emits "TermRenamed"
       end
-
       command "FlagAmbiguity" do
-        description "Mark a term as ambiguous -- needs clarification"
+        description "Mark a term as ambiguous -- needs team clarification"
         reference_to "Glossary"
         attribute :term_name, String
         attribute :reason, String
+        emits "AmbiguityFlagged"
       end
-
       command "LinkTerms" do
-        description "Declare a relationship between two terms"
+        description "Declare a relationship between two glossary terms"
         reference_to "Glossary"
         attribute :from_term, String
         attribute :to_term, String
         attribute :relationship, String
+        emits "TermsLinked"
       end
     end
   end
 
   supporting do
     aggregate "Insight", "Domain health analysis -- coupling metrics, design smells, completeness checks." do
-      attribute :findings, list_of("Finding")
-      attribute :score, Integer
-
-      value_object "Finding" do
-        description "A single analysis finding with severity and recommendation"
-        attribute :rule, String
-        attribute :severity, String
-        attribute :element_name, String
-        attribute :message, String
-        attribute :recommendation, String
-      end
-
+      attribute :findings, list_of("InsightFinding")
       command "AnalyzeDomain" do
         description "Run all analysis rules against the current domain"
         attribute :scope, String
+        emits "DomainAnalyzed"
       end
-
       command "DismissInsight" do
         description "Acknowledge and hide a specific finding"
         reference_to "Insight"
         attribute :rule, String
-        attribute :element_name, String
+        attribute :aggregate_name, String
+        emits "InsightDismissed"
       end
-
       command "ConfigureRules" do
         description "Enable or disable specific analysis rules"
         reference_to "Insight"
         attribute :rule, String
         attribute :enabled, String
+        emits "RulesConfigured"
       end
     end
 
-    aggregate "Migration", "Breaking change detection and migration path generation." do
-      attribute :from_version, String
-      attribute :to_version, String
-      attribute :status, String, default: "pending"
-      attribute :changes, list_of("DomainChange")
-
-      value_object "DomainChange" do
-        description "A detected change -- added, removed, renamed, or modified element"
-        attribute :kind, String
-        attribute :element_type, String
-        attribute :element_name, String
-        attribute :detail, String
-      end
-
+    aggregate "Migration", "Breaking change detection and migration path generation between domain versions." do
+      attribute :diff, "VersionDiff"
       command "DetectChanges" do
         description "Compare current bluebook against a previous version"
         attribute :from_version, String
+        emits "ChangesDetected"
       end
-
       command "GenerateMigration" do
         description "Produce a migration script for the detected changes"
         reference_to "Migration"
+        emits "MigrationGenerated"
       end
-
       command "ApplyMigration" do
         description "Execute the migration against a target environment"
         reference_to "Migration"
-      end
-    end
-
-    aggregate "Comparison", "Side-by-side diff of two domain versions." do
-      attribute :left_version, String
-      attribute :right_version, String
-      attribute :differences, list_of("Difference")
-
-      value_object "Difference" do
-        description "A single difference between two domain versions"
-        attribute :element_type, String
-        attribute :element_name, String
-        attribute :change_kind, String
-        attribute :left_value, String
-        attribute :right_value, String
-        attribute :breaking, String, default: "false"
-      end
-
-      command "CompareVersions" do
-        description "Diff two versions of the domain"
-        attribute :left_version, String
-        attribute :right_version, String
-      end
-
-      command "HighlightBreaking" do
-        description "Filter the comparison to show only breaking changes"
-        reference_to "Comparison"
+        emits "MigrationApplied"
       end
     end
   end
 
-  policy "ShowDiagramOnTabSelect" do
-    on "TabSelected"
-    trigger "GenerateDiagram"
+  policy "AnalyzeOnDiagram" do
+    on "DiagramGenerated"
+    trigger "AnalyzeDomain"
+  end
+  policy "RefreshGlossaryOnConvert" do
+    on "StormConverted"
+    trigger "ShowGlossary"
   end
 end

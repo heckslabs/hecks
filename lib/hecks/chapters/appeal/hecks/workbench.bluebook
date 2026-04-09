@@ -1,301 +1,196 @@
 Hecks.bluebook "Workbench" do
-  vision "IDE shell -- session lifecycle, panel layout, menus, keyboard shortcuts, and live event streaming"
+  vision "Domain IDE shell — panel layout, session modes, live event streaming, menus, and shortcuts"
 
   core do
-    aggregate "Workbench", "Live domain interaction. Select a project, execute commands, inspect state." do
-      attribute :active_project, String
-      attribute :active_aggregate, String
+    aggregate "Layout", "IDE chrome — panels, tabs, sidebar, shortcuts, persisted geometry." do
+      attribute :panels, "PanelState"
+      attribute :active_tab, "TabName"
+      attribute :sidebar, "PanelState"
+      attribute :events_panel, "PanelState"
+      attribute :shortcuts, "ShortcutBinding"
 
-      command "ShowWorkbench" do
-        description "Open the workbench REPL for this domain"
-        emits "WorkbenchShown"
+      value_object "TabName" do
+        attribute :label, String
+        invariant("known tab") { %w[editor diagrams console workbench features tests].include?(label) }
       end
-
-      command "SelectProject" do
-        description "Set the active project for command dispatch"
-        attribute :project_name, String
-        emits "ProjectSelected"
-      end
-
-      command "SelectAggregate" do
-        description "Set the active aggregate for inspection"
-        attribute :aggregate_name, String
-        emits "AggregateSelected"
-      end
-
-      command "ExecuteCommand" do
-        description "Dispatch a command against the active project's runtime"
-        attribute :command_name, String
-        attribute :args, String
-        emits "CommandExecuted"
-      end
-
-      command "InspectRepository" do
-        description "List all records in an aggregate's repository"
-        attribute :aggregate_name, String
-        emits "RepositoryInspected"
-      end
-
-      command "FindRecord" do
-        description "Find a single record by ID"
-        attribute :aggregate_name, String
-        attribute :record_id, String
-        emits "RecordFound"
-      end
-
-      command "ShowEventHistory" do
-        description "Show all events for the active project"
-        emits "EventHistoryShown"
-      end
-    end
-
-    aggregate "Session", "IDE session with sketch/play modes and WebSocket connection state." do
-      attribute :mode, String, default: "sketch"
-      attribute :connection_status, String, default: "disconnected"
-
-      command "EnterSketch" do
-        description "Switch to sketch mode for editing domain structure"
-        reference_to "Session"
-        emits "SketchEntered"
-      end
-
-      command "EnterPlay" do
-        description "Switch to play mode for executing domain commands"
-        reference_to "Session"
-        emits "PlayEntered"
-      end
-
-      command "Connect" do
-        description "Establish WebSocket connection to the IDE server"
-        reference_to "Session"
-        emits "Connected"
-      end
-
-      command "Disconnect" do
-        description "Close the WebSocket connection"
-        reference_to "Session"
-        emits "Disconnected"
-      end
-
-      command "RestoreConnection" do
-        description "Drop and re-establish the WebSocket connection"
-        reference_to "Session"
-        emits "ConnectionRestored"
-      end
-    end
-
-    aggregate "Layout", "IDE panel and tab state. Tracks which panels are open, active tabs, sizes, and arrangement." do
-      attribute :panels, list_of("PanelState")
-      attribute :active_tab, String
-      attribute :sidebar_collapsed, String, default: "false"
-      attribute :events_panel_collapsed, String, default: "false"
 
       value_object "PanelState" do
-        description "State of a single IDE panel -- name, visibility, dimensions"
-        attribute :name, String
-        attribute :open, String, default: "true"
+        attribute :collapsed, String, default: "false"
         attribute :width, Integer
         attribute :height, Integer
-        attribute :position, String
+      end
+
+      value_object "ShortcutBinding" do
+        attribute :key, String
+        attribute :modifiers, String
+        attribute :target_command, String
       end
 
       reference_to "Session"
 
-      command "OpenPanel" do
-        description "Show a hidden panel"
-        reference_to "Layout"
-        attribute :panel_name, String
-        emits "PanelOpened"
-      end
-
-      command "ClosePanel" do
-        description "Hide a panel"
-        reference_to "Layout"
-        attribute :panel_name, String
-        emits "PanelClosed"
-      end
-
       command "SelectTab" do
-        description "Switch the active tab in the main area"
         reference_to "Layout"
-        attribute :tab_name, String
+        attribute :tab_label, String
         emits "TabSelected"
-      end
-
-      command "ResizePanel" do
-        description "Change a panel's dimensions"
-        reference_to "Layout"
-        attribute :panel_name, String
-        attribute :width, Integer
-        attribute :height, Integer
-        emits "PanelResized"
+        handler do |layout|
+          layout.active_tab = { "label" => tab_label }
+          layout
+        end
       end
 
       command "ToggleSidebar" do
-        description "Collapse or expand the sidebar"
         reference_to "Layout"
         emits "SidebarToggled"
+        handler do |layout|
+          collapsed = layout.sidebar_collapsed == "true"
+          layout.sidebar_collapsed = collapsed ? "false" : "true"
+          layout
+        end
       end
 
       command "ToggleEventsPanel" do
-        description "Collapse or expand the bottom events panel"
         reference_to "Layout"
         emits "EventsPanelToggled"
+        handler do |layout|
+          collapsed = layout.events_panel_collapsed == "true"
+          layout.events_panel_collapsed = collapsed ? "false" : "true"
+          layout
+        end
       end
 
-      command "HideProjects" do
-        description "Hide the projects sidebar panel"
-        reference_to "Layout"
-        emits "ProjectsHidden"
+      command("OpenPanel")   { reference_to "Layout"; attribute :panel_label, String; emits "PanelRevealed" }
+      command("ClosePanel")  { reference_to "Layout"; attribute :panel_label, String; emits "PanelCollapsed" }
+      command("ResizePanel") { reference_to "Layout"; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
+      command("BindShortcut") { reference_to "Layout"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
+      command("TriggerShortcut") { reference_to "Layout"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
+      command("TrackOpenFile") { reference_to "Layout"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
+      command("SaveLayout")    { reference_to "Layout"; emits "LayoutSaved" }
+      command("RestoreLayout") { reference_to "Layout"; emits "LayoutRestored" }
+    end
+
+    aggregate "Session", "IDE session — sketch vs play mode, WebSocket connection lifecycle." do
+      attribute :mode, "SessionMode"
+      attribute :connection, "ConnectionStatus"
+
+      value_object "SessionMode" do
+        attribute :label, String, default: "sketch"
+        invariant("sketch or play") { %w[sketch play].include?(label) }
       end
 
-      command "ShowProjects" do
-        description "Show the projects sidebar panel"
-        reference_to "Layout"
-        emits "ProjectsShown"
+      value_object "ConnectionStatus" do
+        attribute :label, String, default: "disconnected"
+        invariant("known state") { %w[connected disconnected reconnecting].include?(label) }
       end
 
-      command "TrackCurrentFile" do
-        description "Record the currently open file and domain for context"
-        reference_to "Layout"
-        attribute :path, String
-        attribute :domain, String
-        emits "CurrentFileTracked"
+      lifecycle :mode, default: "sketch" do
+        transition "EnterSketch" => "sketch", from: "play"
+        transition "EnterPlay" => "play", from: "sketch"
       end
 
-      command "SaveState" do
-        description "Persist the current layout state to disk"
-        reference_to "Layout"
-        emits "StateSaved"
+      lifecycle :connection, default: "disconnected" do
+        transition "OpenConnection" => "connected", from: "disconnected"
+        transition "CloseConnection" => "disconnected", from: "connected"
+        transition "RestoreConnection" => "reconnecting", from: "disconnected"
+        transition "RestoreConnection" => "connected", from: "reconnecting"
       end
 
-      command "RestoreState" do
-        description "Load persisted layout state from disk"
-        reference_to "Layout"
-        emits "StateRestored"
+      command("EnterSketch")       { reference_to "Session"; emits "SketchEntered" }
+      command("EnterPlay")         { reference_to "Session"; emits "PlayEntered" }
+      command("OpenConnection")    { reference_to "Session"; emits "ConnectionOpened" }
+      command("CloseConnection")   { reference_to "Session"; emits "ConnectionClosed" }
+      command("RestoreConnection") { reference_to "Session"; emits "ConnectionRestored" }
+    end
+
+    aggregate "Workbench", "Live domain interaction — select project and aggregate, dispatch commands." do
+      attribute :active_project, String
+      attribute :active_aggregate, String
+
+      command("OpenWorkbench") { emits "WorkbenchOpened" }
+
+      command "SelectProject" do
+        attribute :project_label, String
+        emits "ProjectSelected"
+        handler do |wb|
+          wb.active_project = project_label
+          wb
+        end
+      end
+
+      command "SelectAggregate" do
+        reference_to "Workbench"
+        attribute :aggregate_label, String
+        emits "AggregateFocused"
+        handler do |wb|
+          wb.active_aggregate = aggregate_label
+          wb
+        end
       end
     end
   end
 
   supporting do
-    aggregate "Menu", "IDE menu bar with File, View, and Domain menus." do
-      attribute :open_menu, String
-      attribute :items, list_of("MenuItem")
+    aggregate "Menu", "IDE menu bar — File, View, Domain dropdowns." do
+      attribute :open_menu_label, String
+      attribute :entries, "MenuEntry"
 
-      value_object "MenuItem" do
-        description "A single menu entry -- label, action, keyboard shortcut, enabled state"
+      value_object "MenuEntry" do
         attribute :label, String
         attribute :action, String
-        attribute :shortcut, String
+        attribute :shortcut_hint, String
         attribute :enabled, String, default: "true"
-        attribute :separator, String, default: "false"
       end
 
-      command "OpenMenu" do
-        description "Open a menu dropdown -- File, View, or Domain"
-        attribute :menu_name, String
-        emits "MenuOpened"
-      end
-
-      command "CloseMenu" do
-        description "Close any open menu dropdown"
-        reference_to "Menu"
-        emits "MenuClosed"
-      end
-
-      command "SelectMenuItem" do
-        description "Execute a menu item action"
-        reference_to "Menu"
-        attribute :menu_name, String
-        attribute :action, String
-        emits "MenuItemSelected"
-      end
+      command("OpenMenu")    { attribute :menu_label, String; emits "MenuOpened" }
+      command("CloseMenu")   { reference_to "Menu"; emits "MenuClosed" }
+      command("SelectEntry") { reference_to "Menu"; attribute :entry_label, String; emits "EntrySelected" }
     end
 
-    aggregate "KeyboardShortcut", "Keyboard shortcut binding. Maps key combinations to domain commands." do
-      attribute :key, String
-      attribute :modifiers, String
-      attribute :command_aggregate, String
-      attribute :command_name, String
+    aggregate "EventStream", "Live event feed — streams domain events to the IDE console." do
+      attribute :captured_events, "CapturedEvent"
+      attribute :aggregate_filter, String
+      attribute :event_filter, String
 
-      command "BindShortcut" do
-        description "Register a keyboard shortcut for a command"
-        attribute :key, String
-        attribute :modifiers, String
-        attribute :command_aggregate, String
-        attribute :command_name, String
-        emits "ShortcutBound"
-      end
-
-      command "TriggerShortcut" do
-        description "Fire the command associated with a key combination"
-        attribute :key, String
-        attribute :modifiers, String
-        emits "ShortcutTriggered"
-      end
-    end
-
-    aggregate "EventStream", "Live event feed. Subscribes to domain events and streams them to the UI." do
-      attribute :status, String, default: "streaming"
-      attribute :events, list_of("StreamEvent")
-      attribute :filter_aggregate, String
-      attribute :filter_event_type, String
-
-      value_object "StreamEvent" do
-        description "A domain event captured from any running aggregate"
-        attribute :event_name, String
-        attribute :aggregate_name, String
+      value_object "CapturedEvent" do
+        attribute :event_label, String
+        attribute :aggregate_label, String
         attribute :aggregate_id, String
-        attribute :payload, String
-        attribute :timestamp, String
+        attribute :payload_json, String
+        attribute :captured_at, String
         attribute :source_command, String
-        attribute :source_policy, String
       end
 
-      command "SubscribeToEvents" do
-        description "Start streaming events from a project's domains"
-        reference_to "EventStream"
-        emits "EventsSubscribed"
+      lifecycle :streaming_state, default: "idle" do
+        transition "SubscribeToEvents" => "streaming", from: "idle"
+        transition "PauseStream" => "paused", from: "streaming"
+        transition "ResumeStream" => "streaming", from: "paused"
+        transition "StopStreaming" => "idle", from: "streaming"
+        transition "StopStreaming" => "idle", from: "paused"
       end
 
-      command "StopStreaming" do
-        description "Stop streaming events"
+      command("SubscribeToEvents") { reference_to "EventStream"; emits "EventsSubscribed" }
+      command("PauseStream")       { reference_to "EventStream"; emits "StreamPaused" }
+      command("ResumeStream")      { reference_to "EventStream"; emits "StreamResumed" }
+      command("StopStreaming")     { reference_to "EventStream"; emits "StreamingStopped" }
+
+      command "FlushEvents" do
         reference_to "EventStream"
-        emits "StreamingStopped"
+        emits "EventsFlushed"
+        handler do |stream|
+          stream.captured_events = []
+          stream
+        end
       end
 
-      command "PauseStream" do
-        description "Temporarily pause the event stream without disconnecting"
+      command "NarrowEvents" do
         reference_to "EventStream"
-        emits "StreamPaused"
-      end
-
-      command "ResumeStream" do
-        description "Resume a paused event stream"
-        reference_to "EventStream"
-        emits "StreamResumed"
-      end
-
-      command "ClearEvents" do
-        description "Remove all events from the stream display"
-        reference_to "EventStream"
-        emits "EventsCleared"
-      end
-
-      command "FilterEvents" do
-        description "Filter the stream by aggregate name or event type"
-        reference_to "EventStream"
-        attribute :aggregate_name, String
-        attribute :event_type, String
-        emits "EventsFiltered"
-      end
-
-      command "InspectEvent" do
-        description "Expand an event row to show its full payload data"
-        reference_to "EventStream"
-        attribute :event_name, String
-        attribute :timestamp, String
-        emits "EventInspected"
+        attribute :aggregate_label, String
+        attribute :event_label, String
+        emits "EventsNarrowed"
+        handler do |stream|
+          stream.aggregate_filter = aggregate_label
+          stream.event_filter = event_label
+          stream
+        end
       end
     end
   end
