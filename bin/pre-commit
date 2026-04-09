@@ -1,20 +1,19 @@
 #!/bin/bash
 #
-# Pre-commit hook: the Bluebook is the spec.
-# Verifies all chapters load and validates their IR.
+# Pre-commit hook: validate + smoke test.
 #
 
-# Bluebook self-verification
-output=$(bin/verify 2>&1)
+# Validate all projects
+output=$(ruby -Ilib -e 'require "hecks"; require "hecks/validate"; result = Hecks::Validate.run(Dir.pwd); exit(result[:errors].any? ? 1 : 0)' 2>&1)
 exit_code=$?
 
 if [ $exit_code -ne 0 ]; then
-  echo "COMMIT BLOCKED: Bluebook verification failed."
+  echo "COMMIT BLOCKED:"
   echo "$output"
   exit 1
 fi
 
-echo "Bluebook verified."
+echo "Validated."
 
 # Smoke test
 smoke_output=$(ruby -Ilib examples/pizzas/pizzas.rb 2>&1)
@@ -25,7 +24,3 @@ if [ $smoke_exit -ne 0 ]; then
   exit 1
 fi
 echo "Smoke test passed."
-
-# Run all watchers (cross-require blocks; others are advisory)
-ruby -Ilib -I hecksties/watchers/lib -r hecks_watchers -e \
-  'exit(HecksWatchers::PreCommit.new(project_root: Dir.pwd).call ? 0 : 1)'

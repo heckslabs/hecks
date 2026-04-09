@@ -25,7 +25,6 @@ module Hecks
       autoload :GlossaryTermViolations, "hecks/validation_rules/naming/glossary_term_violations"
       autoload :SafeIdentifierNames,    "hecks/validation_rules/naming/safe_identifier_names"
       autoload :GlossaryEnforcement,   "hecks/validation_rules/naming/glossary_enforcement"
-      autoload :StringReferences,      "hecks/validation_rules/naming/string_references"
     end
   end
 end

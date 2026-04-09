@@ -59,7 +59,7 @@ module Hecks
       # @return [void]
       def self.apply(runtime)
         domain = runtime.domain
-        adapter = ChatAgent.resolve_adapter(nil, {})
+        adapter = nil # resolved lazily on first message
 
         agents = {}
         AGENT_MODULES.each do |name, mod_proc|

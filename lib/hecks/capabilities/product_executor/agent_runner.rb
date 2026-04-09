@@ -38,7 +38,7 @@ module Hecks
               begin
                 messages = build_messages(name, config)
                 response = ChatAgent::Dispatcher.run_loop(
-                  adapter: @adapter, messages: messages, tools: config[:tools],
+                  adapter: resolve_adapter, messages: messages, tools: config[:tools],
                   system: config[:system_prompt], runtime: @runtime
                 )
                 if response[:content] && !response[:content].empty?
@@ -74,6 +74,10 @@ module Hecks
         end
 
         private
+
+        def resolve_adapter
+          @adapter ||= Hecks::Capabilities::ChatAgent.resolve_adapter(nil, {})
+        end
 
         def build_messages(agent_name, _config)
           @mutex.synchronize do

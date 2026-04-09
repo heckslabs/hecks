@@ -101,21 +101,21 @@ module Hecks
 
           function capture() {
             if (!capturing || !window.HecksIDE || !window.HecksIDE.raw) return;
-            if (typeof html2canvas === "undefined") return;
-
-            html2canvas(document.body, {
-              scale: 0.5, logging: false, useCORS: true,
-              backgroundColor: "#0d0d0d"
-            }).then(function(canvas) {
-              var data = canvas.toDataURL("image/jpeg", 0.7);
-              var base64 = data.split(",")[1];
-              if (!base64) return;
-              window.HecksIDE.raw(JSON.stringify({
-                type: "command", aggregate: "Debug", command: "CaptureFrame",
-                args: { frame_data: base64, captured_at: new Date().toISOString() }
-              }));
-              flashDot();
-            }).catch(function(e) { console.error("[debug] capture failed:", e.message || e); });
+            var state = {};
+            if (window.HecksApp) {
+              var s = window.HecksApp.state;
+              state = {
+                tab: s.layout.activeTab,
+                sidebar: s.layout.sidebarCollapsed ? "collapsed" : "open",
+                events: s.events.length,
+                projects: s.projects.length
+              };
+            }
+            window.HecksIDE.raw(JSON.stringify({
+              type: "command", aggregate: "Debug", command: "StateSnapshot",
+              args: { state: JSON.stringify(state), captured_at: new Date().toISOString() }
+            }));
+            flashDot();
           }
 
           function start() {

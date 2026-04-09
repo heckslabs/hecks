@@ -36,7 +36,10 @@ Hecks.describe_extension(:sqlite,
 Hecks.register_extension(:sqlite) do |domain_mod, domain, runtime|
   require "sequel"
   require "sqlite3"
-  db = Sequel.sqlite
+  world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
+  config = world&.config_for(:sqlite) || {}
+  db_path = config[:database]
+  db = db_path ? Sequel.sqlite(db_path) : Sequel.sqlite
   adapters = Hecks::Boot::SqlBoot.setup(domain, db)
   adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
 end

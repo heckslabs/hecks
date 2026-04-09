@@ -43,20 +43,27 @@ module Hecks
                   }
                 }
 
-                // If not a client-side command, fire optimistic event locally
-                if (!localResult && window.HecksApp) {
+                // For Layout/EventStream commands, fire optimistic event locally
+                // (these are UI-only and don't need server data).
+                // All other commands go to the server for a real response.
+                if (!localResult && window.HecksApp && isOptimistic(aggregate, command)) {
                   var eventName = inferEventName(command);
                   var eventData = Object.assign({}, args);
-                  // For toggle commands, infer the toggled state
                   if (command === "SelectTab") {
                     // Tab selection — args already have tab_name
                   } else if (command.indexOf("Toggle") === 0) {
-                    var field = command.replace("Toggle", "");
-                    var camelField = field.charAt(0).toLowerCase() + field.substring(1) + "Collapsed";
-                    var snakeField = field.replace(/([A-Z])/g, "_$1").toLowerCase().substring(1) + "_collapsed";
-                    var st = window.HecksApp.getState();
-                    var current = st.layout && st.layout[camelField];
-                    eventData[snakeField] = !current;
+                    // Map toggle commands to their state field names.
+                    // Command names don't always match state field names directly.
+                    var TOGGLE_MAP = {
+                      ToggleSidebar: { camel: "sidebarCollapsed", snake: "sidebar_collapsed" },
+                      ToggleEventsPanel: { camel: "eventsCollapsed", snake: "events_collapsed" }
+                    };
+                    var mapping = TOGGLE_MAP[command];
+                    if (mapping) {
+                      var st = window.HecksApp.getState();
+                      var current = st.layout && st.layout[mapping.camel];
+                      eventData[mapping.snake] = !current;
+                    }
                   }
                   localResult = { event: eventName, aggregate: aggregate, data: eventData };
                   window.HecksApp.handleEvent(localResult);
@@ -82,6 +89,13 @@ module Hecks
                 }
 
                 return localResult;
+              }
+
+              // Only Layout, EventStream, and Menu commands run optimistically.
+              // These are UI-only state — no server data needed.
+              var OPTIMISTIC_AGGREGATES = { Layout: true, EventStream: true, Menu: true };
+              function isOptimistic(aggregate, command) {
+                return !!OPTIMISTIC_AGGREGATES[aggregate];
               }
 
               function inferEventName(command) {

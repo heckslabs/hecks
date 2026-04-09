@@ -10,6 +10,7 @@
 #
 require_relative "dsl"
 require_relative "project_discovery/bridge"
+require_relative "project_discovery/ws_handler"
 
 module Hecks
   module Capabilities
@@ -22,6 +23,7 @@ module Hecks
         bridge = Bridge.new
         runtime.instance_variable_set(:@project_bridge, bridge)
         runtime.define_singleton_method(:projects) { @project_bridge }
+        WsHandler.wire(runtime, bridge)
         bridge
       end
     end
