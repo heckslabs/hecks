@@ -59,23 +59,22 @@ module Hecks
         excluded = @hecksagon.excluded_capabilities || []
         Hecks.instance_variable_set(:@_excluded_capabilities, excluded)
 
-        # Apply individual capabilities
-        (@hecksagon.capabilities || []).each do |cap|
-          next if excluded.include?(cap)
-          begin
-            capability(cap)
-          rescue LoadError, RuntimeError
-            # Skip capabilities that don't have implementation files yet
-          end
-        end
-
-        # Apply concerns (bundles of capabilities)
+        # Apply concerns first (infrastructure: static_assets, websocket, etc.)
         (@hecksagon.concerns || []).each do |concern_name|
           next if excluded.include?(concern_name)
           begin
             load_capability(concern_name)
             hook = Hecks.capability_registry[concern_name.to_sym]
             hook.call(self) if hook
+          rescue LoadError, RuntimeError
+          end
+        end
+
+        # Apply individual capabilities after concerns
+        (@hecksagon.capabilities || []).each do |cap|
+          next if excluded.include?(cap)
+          begin
+            capability(cap)
           rescue LoadError, RuntimeError
           end
         end

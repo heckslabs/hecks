@@ -42,14 +42,25 @@ module Hecks
         find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
         find_world_files(hecks_dir).each { |f| Kernel.load(f) }
 
-        domains = bluebooks.map do |path|
+        all_aggregates = []
+        all_policies = []
+        bluebooks.each do |path|
           Hecks.instance_variable_set(:@_inferred_bluebook_name,
             File.basename(path, ".bluebook").split("_").map(&:capitalize).join)
           Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
             Kernel.load(path)
           end
-          Hecks.last_domain
+          d = Hecks.last_domain
+          all_aggregates.concat(d.aggregates)
+          all_policies.concat(d.policies)
         end
+
+        project_name = File.basename(dir).split("_").map(&:capitalize).join
+        merged = BluebookModel::Structure::Domain.new(
+          name: project_name, aggregates: all_aggregates, policies: all_policies
+        )
+        merged.source_path = File.join(dir, "hecks")
+        domains = [merged]
         domains.each { |d| load_stubs(dir, d) }
       end
 
