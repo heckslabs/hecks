@@ -148,8 +148,18 @@ module Hecksagon
           excluded_capabilities: @excluded_capabilities || [],
           aggregate_capabilities: @aggregate_capabilities,
           annotations: @annotations,
-          context_map: @context_map
+          context_map: @context_map.any? ? @context_map : infer_context_map
         )
+      end
+
+      private
+
+      # Infer context map from subscribe declarations.
+      # Each subscription implies this context listens to events from another.
+      def infer_context_map
+        @subscriptions.map do |sub|
+          { type: :upstream_downstream, source: sub, target: @name, relationship: :conformist }
+        end
       end
     end
 

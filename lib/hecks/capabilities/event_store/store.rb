@@ -72,9 +72,28 @@ module Hecks
           events.each do |event|
             event_type = Hecks::Utils.const_short_name(event)
             applier = appliers[event_type]
-            instance.instance_exec(event, &applier) if applier
+            if applier
+              instance.instance_exec(event, &applier)
+            else
+              # Auto-apply: map event attributes to aggregate attributes by name
+              auto_apply(instance, event)
+            end
           end
           instance
+        end
+
+        # Auto-apply event attributes to aggregate by matching names.
+        def auto_apply(instance, event)
+          event.instance_variables.each do |ivar|
+            name = ivar.to_s.delete_prefix("@")
+            next if name == "aggregate_id" || name == "timestamp"
+            setter = "#{name}="
+            if instance.respond_to?(setter)
+              instance.send(setter, event.instance_variable_get(ivar))
+            elsif instance.respond_to?(name)
+              instance.instance_variable_set(ivar, event.instance_variable_get(ivar))
+            end
+          end
         end
 
         # Remove all events for a specific aggregate ID.
