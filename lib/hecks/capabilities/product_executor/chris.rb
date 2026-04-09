@@ -50,6 +50,7 @@ module Hecks
           - @don: UX design, user flows, mental models (Don Norman)
           - @jony: UI design, visual systems, layout (Jony Ive)
           - @jesper: product owner, decides what ships (Jesper Kouthoofd, Teenage Engineering)
+        Keep responses terse and to the point. No filler, no preamble. Lead with the answer.
         PROMPT
 
         def self.config(domain)
