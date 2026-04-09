@@ -50,12 +50,14 @@ module Hecks
 
       def self.verify_create(result, format, app)
         check(result, format, "Create", "Pizza.create") do
+          as_role("Chef")
           pizza = Pizza.create(name: "Verify", description: "Test pizza")
           raise "nil aggregate" unless pizza
           raise "wrong name" unless pizza.name == "Verify"
         end
 
         check(result, format, "Create", "Pizza.find") do
+          as_role("Chef")
           pizza = Pizza.create(name: "Findable", description: "Test")
           found = Pizza.find(pizza.id)
           raise "not found" unless found
@@ -65,6 +67,7 @@ module Hecks
 
       def self.verify_collection(result, format, app)
         check(result, format, "Collection", "pizza.toppings.create") do
+          as_role("Chef")
           pizza = Pizza.create(name: "Topped", description: "Test")
           pizza.toppings.create(name: "Cheese", amount: 1)
           found = Pizza.find(pizza.id)
@@ -72,6 +75,7 @@ module Hecks
         end
 
         check(result, format, "Collection", "name not overwritten") do
+          as_role("Chef")
           pizza = Pizza.create(name: "Original", description: "Test")
           pizza.toppings.create(name: "Sauce", amount: 2)
           found = Pizza.find(pizza.id)
@@ -81,11 +85,13 @@ module Hecks
 
       def self.verify_lifecycle(result, format, app)
         check(result, format, "Lifecycle", "Order.place → pending") do
+          as_role("Customer")
           order = Order.place(customer_name: "Test", quantity: 1)
           raise "wrong status: #{order.status}" unless order.status == "pending"
         end
 
         check(result, format, "Lifecycle", "Order.cancel → cancelled") do
+          as_role("Customer")
           order = Order.place(customer_name: "Test", quantity: 1)
           Order.cancel(order: order.id)
           found = Order.find(order.id)
@@ -95,12 +101,14 @@ module Hecks
 
       def self.verify_query(result, format, app)
         check(result, format, "Query", "Pizza.by_description") do
+          as_role("Chef")
           Pizza.create(name: "Queried", description: "unique_test_desc")
           results = Pizza.by_description("unique_test_desc")
           raise "no results" unless results.any?
         end
 
         check(result, format, "Query", "Order.pending") do
+          as_role("Customer")
           Order.place(customer_name: "PendingTest", quantity: 1)
           results = Order.pending
           raise "no results" unless results.any?
@@ -129,6 +137,11 @@ module Hecks
             raise "round-trip failed: #{diff[:issues].join(', ')}"
           end
         end
+      end
+
+      def self.as_role(name)
+        Hecks.current_role = name
+        Hecks.actor = OpenStruct.new(role: name)
       end
 
       def self.check(result, format, group, label)

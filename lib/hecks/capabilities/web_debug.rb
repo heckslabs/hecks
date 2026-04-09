@@ -37,6 +37,9 @@ module Hecks
           elsif msg && msg[:type] == "command" && msg[:command] == "ConsoleError"
             args = msg[:args] || {}
             $stderr.puts "[Browser] #{args[:message]}"
+          elsif msg && msg[:type] == "command" && msg[:command] == "StateSnapshot"
+            args = msg[:args] || {}
+            buffer.save_snapshot(args[:state], args[:captured_at])
           else
             original.call(client, raw)
           end
@@ -66,28 +69,52 @@ module Hecks
         (function() {
           "use strict";
           var capturing = true, interval = 1000, timer = null;
+          var dot = null;
 
-          function capture() {
-            if (!capturing || !window.html2canvas) return;
-            var el = document.getElementById("ide") || document.body;
-            html2canvas(el, { scale: 0.5, logging: false, useCORS: true }).then(function(canvas) {
-              var data = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
-              if (data && window.HecksIDE && window.HecksIDE.raw) {
-                window.HecksIDE.raw(JSON.stringify({
-                  type: "command", aggregate: "Screenshot", command: "CaptureFrame",
-                  args: { frame_data: data, captured_at: new Date().toISOString() }
-                }));
-              }
-            }).catch(function() {});
+          function createDot() {
+            dot = document.createElement("div");
+            dot.style.cssText = "position:fixed;bottom:8px;right:8px;width:8px;height:8px;" +
+              "border-radius:50%;background:#22c55e;opacity:0;transition:opacity 0.3s;" +
+              "pointer-events:none;z-index:9999";
+            document.body.appendChild(dot);
           }
 
-          function start() { capturing = true; timer = setInterval(capture, interval); }
+          function flashDot() {
+            if (!dot) return;
+            dot.style.opacity = "1";
+            setTimeout(function() { dot.style.opacity = "0"; }, 400);
+          }
+
+          function capture() {
+            if (!capturing || !window.HecksIDE || !window.HecksIDE.raw) return;
+            var state = {};
+            if (window.HecksApp) {
+              var s = window.HecksApp.state;
+              state = {
+                tab: s.layout.activeTab,
+                sidebar: s.layout.sidebarCollapsed ? "collapsed" : "open",
+                events_panel: s.layout.eventsCollapsed ? "collapsed" : "open",
+                event_count: s.events.length,
+                projects: s.projects.length
+              };
+            }
+            window.HecksIDE.raw(JSON.stringify({
+              type: "command", aggregate: "Debug", command: "StateSnapshot",
+              args: { state: JSON.stringify(state), captured_at: new Date().toISOString() }
+            }));
+            flashDot();
+          }
+
+          function start() {
+            capturing = true;
+            if (!dot) createDot();
+            timer = setInterval(capture, interval);
+          }
           function stop() { capturing = false; if (timer) clearInterval(timer); }
 
           if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function() { setTimeout(start, 2000); });
           else setTimeout(start, 2000);
 
-          // Stream console errors to server
           var origError = console.error;
           console.error = function() {
             origError.apply(console, arguments);
@@ -100,7 +127,6 @@ module Hecks
             }
           };
 
-          // Catch unhandled errors
           window.addEventListener("error", function(e) {
             if (window.HecksIDE && window.HecksIDE.raw) {
               window.HecksIDE.raw(JSON.stringify({

@@ -34,13 +34,16 @@ module Hecks
                 args = args || {};
                 var correlationId = "c" + (++counter) + "_" + Date.now();
 
-                // Try client-side dispatch first (instant)
+                // Try client-side dispatch ONLY (no server round-trip)
                 var localResult = null;
-                if (window.Hecks && window.Hecks.dispatch) {
-                  localResult = window.Hecks.dispatch(aggregate, command, args);
+                if (window.Hecks && window.Hecks.handlers) {
+                  var key = aggregate + "." + command;
+                  if (window.Hecks.handlers[key]) {
+                    localResult = window.Hecks.dispatch(aggregate, command, args);
+                  }
                 }
 
-                // If client dispatch didn't produce an event, fire one optimistically
+                // If not a client-side command, fire optimistic event locally
                 if (!localResult && window.HecksApp) {
                   var eventName = inferEventName(command);
                   var eventData = Object.assign({}, args);
@@ -62,19 +65,20 @@ module Hecks
                 // Save to localStorage
                 saveState();
 
-                // Skip server dispatch if we handled it locally (no double-toggle)
-                if (localResult) return localResult;
-
-                // Send to server with correlation ID
+                // Send to server for domain history.
+                // If we already handled it locally, mark no_respond so the
+                // server doesn't echo the event back (prevents double-toggle).
                 pending[correlationId] = true;
                 if (window.HecksIDE && window.HecksIDE.raw) {
-                  window.HecksIDE.raw(JSON.stringify({
+                  var msg = {
                     type: "command",
                     aggregate: aggregate,
                     command: command,
                     args: args,
                     correlation: correlationId
-                  }));
+                  };
+                  if (localResult) msg.meta = { no_respond: true };
+                  window.HecksIDE.raw(JSON.stringify(msg));
                 }
 
                 return localResult;

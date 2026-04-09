@@ -40,8 +40,18 @@ module Hecks
           end
         end
 
+        def save_snapshot(state_json, timestamp = nil)
+          @mutex.synchronize do
+            @frame_count += 1
+            filename = "snapshot_#{@frame_count.to_s.rjust(5, "0")}.json"
+            path = File.join(DIR, filename)
+            File.write(path, state_json)
+            path
+          end
+        end
+
         def latest
-          files = Dir[File.join(DIR, "*.jpg")].sort
+          files = (Dir[File.join(DIR, "*.json")] + Dir[File.join(DIR, "*.jpg")]).sort
           files.last
         end
 
