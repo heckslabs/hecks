@@ -56,6 +56,13 @@ module Hecks
         elsif type.nil?
           type = String
         end
+
+        # Convention: plural name + non-primitive type → list
+        name_str = name.to_s
+        if !type.is_a?(Hash) && name_str.end_with?("s") && !name_str.end_with?("ss") && type_is_vo?(type)
+          type = { list: type }
+        end
+
         type = resolve_type(type)
         list = type.is_a?(Hash) && type[:list]
         actual_type = type.is_a?(Hash) ? type.values.first : type
@@ -102,6 +109,13 @@ module Hecks
         when String then TYPE_MAP.fetch(type.downcase.to_sym) { type }
         else type
         end
+      end
+
+      # Check if a type looks like a value object (PascalCase, not a Ruby primitive)
+      def type_is_vo?(type)
+        return false if type.is_a?(Hash)
+        return false if [String, Integer, Float, TrueClass, FalseClass, Date, DateTime].include?(type)
+        type.is_a?(String) && type.match?(/\A[A-Z]/)
       end
     end
   end

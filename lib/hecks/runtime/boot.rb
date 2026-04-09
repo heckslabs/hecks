@@ -42,7 +42,13 @@ module Hecks
         find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
         find_world_files(hecks_dir).each { |f| Kernel.load(f) }
 
-        domains = bluebooks.map { |path| Kernel.load(path); Hecks.last_domain }
+        domains = bluebooks.map do |path|
+          # Set inferred name so Hecks.bluebook can use it as default
+          Hecks.instance_variable_set(:@_inferred_bluebook_name,
+            File.basename(path, ".bluebook").split("_").map(&:capitalize).join)
+          Kernel.load(path)
+          Hecks.last_domain
+        end
         domains.each { |d| load_stubs(dir, d) }
       end
 

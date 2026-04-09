@@ -24,7 +24,8 @@ module Hecks
     # @param name [String] the human-readable domain name (e.g., "Pizzas")
     # @param block [Proc] DSL block evaluated inside DSL::BluebookBuilder
     # @return [Hecks::BluebookModel::Domain] the fully built domain IR object
-    def bluebook(name, version: nil, &block)
+    def bluebook(name = nil, version: nil, &block)
+      name ||= Hecks.instance_variable_get(:@_inferred_bluebook_name) || "Unnamed"
       model(name, version: version, grammar: :bluebook, &block)
     end
 
