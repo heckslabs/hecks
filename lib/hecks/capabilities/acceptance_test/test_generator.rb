@@ -56,11 +56,15 @@ module Hecks
                 "#{a.name}: #{val}"
               end
               args_str = args.empty? ? "{}" : "{ #{args.join(", ")} }"
-              tests << "{ name: #{(agg.name + "." + cmd.name).inspect}, fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }}"
+              tests << "{ name: #{(agg.name + "." + cmd.name).inspect}, group: \"domain\", fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }}"
             end
           end
 
-          "\n  var tests = [\n    #{tests.join(",\n    ")}\n  ];\n"
+          # Mark client tests
+          client_tests = tests.first(8).map { |t| t.sub("{ name:", "{ group: \"client\", name:") }
+          domain_tests = tests[8..]
+
+          "\n  var tests = [\n    #{client_tests.join(",\n    ")},\n    #{domain_tests.join(",\n    ")}\n  ];\n"
         end
 
         def runner
@@ -78,14 +82,20 @@ module Hecks
                 runNext(0);
               }
 
+              var lastGroup = null;
+
               function runNext(idx) {
                 if (idx >= tests.length) { running = false; finalize(); return; }
                 var test = tests[idx];
+                // Show group header when group changes
+                if (test.group && test.group !== lastGroup) {
+                  lastGroup = test.group;
+                  appendGroupHeader(test.group);
+                }
                 showRunning(test.name);
                 var before = window.HecksApp ? window.HecksApp.state.events.length : 0;
                 var result = null;
                 try { result = test.fn(); } catch(e) {}
-                // Client dispatch returns the event directly
                 var clientEvent = result && result.event ? result.event : null;
                 var evt = clientEvent || "";
                 if (!evt) {
@@ -94,7 +104,8 @@ module Hecks
                 }
                 var r = { command: test.name, event: evt, status: "passed" };
                 results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
-                setTimeout(function() { runNext(idx + 1); }, 100);
+                var delay = test.group === "client" ? 100 : 0;
+                setTimeout(function() { runNext(idx + 1); }, delay);
               }
 
               function finalize() {
@@ -128,6 +139,15 @@ module Hecks
               function showProgress(n, total) {
                 var fill = document.getElementById("hecks-test-overlay-fill");
                 if (fill) fill.style.width = (total > 0 ? n/total*100 : 0) + "%";
+              }
+
+              function appendGroupHeader(group) {
+                var label = group === "client" ? "Client Tests" : "Domain Tests";
+                var html = '<div style="color:#4361ee;font-weight:600;font-size:11px;margin-top:8px;margin-bottom:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px">' + label + '</div>';
+                var c = document.getElementById("hecks-test-overlay-results");
+                if (c) c.insertAdjacentHTML("beforeend", html);
+                var p = document.getElementById("test-results");
+                if (p) p.insertAdjacentHTML("beforeend", html);
               }
 
               function appendResult(r) {
