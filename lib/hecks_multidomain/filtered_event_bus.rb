@@ -41,9 +41,9 @@ module Hecks
     #   published events with their source, e.g., "orders_domain")
     # @param allowed_sources [Array<String>, nil] list of domain gem names whose
     #   events this bus will accept; nil means accept all (open mode)
-    def initialize(inner:, domain_gem_name:, allowed_sources: nil)
+    def initialize(inner:, domain_gem_name: nil, bluebook_gem_name: nil, allowed_sources: nil)
       @inner = inner
-      @domain_gem_name = domain_gem_name
+      @domain_gem_name = domain_gem_name || bluebook_gem_name
       @allowed_sources = allowed_sources&.map(&:to_s)
     end
 

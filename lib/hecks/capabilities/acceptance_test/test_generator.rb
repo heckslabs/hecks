@@ -1,8 +1,10 @@
 # Hecks::Capabilities::AcceptanceTest::TestGenerator
 #
-# Generates acceptance test JS from the domain IR.
-# Every command becomes a test case. The runner dispatches
-# each one and validates an event fires.
+# @domain AcceptanceTest
+#
+# Generates acceptance test JS from the domain IR. Every command becomes
+# a test case that dispatches, checks the right event fired, and verifies
+# lifecycle transitions. Uses data-domain tags to assert the DOM matches.
 #
 #   gen = TestGenerator.new(runtime)
 #   gen.generate  # => "// Hecks Acceptance Tests ..."
@@ -16,7 +18,9 @@ module Hecks
         end
 
         def generate
-          [header, test_plan, runner, overlay, ui, footer].join("\n")
+          runner = TestRunner.new
+          overlay = TestOverlay.new
+          [header, test_plan, runner.generate, overlay.generate, ui, footer].join("\n")
         end
 
         private
@@ -37,131 +41,50 @@ module Hecks
         def test_plan
           tests = []
 
-          # Client-side state tests
-          tests << '{ name: "SelectTab → editor", fn: function() { fireEvent("TabSelected", { tab_name: "editor" }); }}'
-          tests << '{ name: "SelectTab → diagrams", fn: function() { fireEvent("TabSelected", { tab_name: "diagrams" }); }}'
-          tests << '{ name: "SelectTab → console", fn: function() { fireEvent("TabSelected", { tab_name: "console" }); }}'
-          tests << '{ name: "SelectTab → workbench", fn: function() { fireEvent("TabSelected", { tab_name: "workbench" }); }}'
-          tests << '{ name: "ToggleSidebar → collapse", fn: function() { fireEvent("SidebarToggled", { sidebar_collapsed: true }); }}'
-          tests << '{ name: "ToggleSidebar → expand", fn: function() { fireEvent("SidebarToggled", { sidebar_collapsed: false }); }}'
-          tests << '{ name: "ToggleEvents → collapse", fn: function() { fireEvent("EventsPanelToggled", { events_collapsed: true }); }}'
-          tests << '{ name: "ToggleEvents → expand", fn: function() { fireEvent("EventsPanelToggled", { events_collapsed: false }); }}'
-
-          # Domain command tests from IR
           @domain.aggregates.each do |agg|
             agg.commands.each do |cmd|
-              args = cmd.attributes.map do |a|
-                type = a.type.respond_to?(:name) ? a.type.name.split("::").last : a.type.to_s
-                val = (type == "Integer" || type == "Float") ? "1" : '"test"'
-                "#{a.name}: #{val}"
-              end
+              args = build_args(cmd)
               args_str = args.empty? ? "{}" : "{ #{args.join(", ")} }"
-              tests << "{ name: #{cmd.name.inspect}, group: #{agg.name.inspect}, fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }}"
+              expected_event = cmd.respond_to?(:emits) ? cmd.emits : nil
+              lc_assert = lifecycle_assertion(agg, cmd)
+
+              assert_parts = []
+              assert_parts << "expectEvent(#{expected_event.inspect})" if expected_event
+              assert_parts << lc_assert if lc_assert
+
+              assert_fn = if assert_parts.any?
+                "function() { return #{assert_parts.join(" && ")}; }"
+              else
+                "null"
+              end
+
+              tests << "{ name: #{cmd.name.inspect}, group: #{agg.name.inspect}, " \
+                "emits: #{(expected_event || "").inspect}, " \
+                "fn: function() { dispatch(#{agg.name.inspect}, #{cmd.name.inspect}, #{args_str}); }, " \
+                "assert: #{assert_fn}}"
             end
           end
 
-          # Mark client tests
-          client_tests = tests.first(8).map { |t| t.sub("{ name:", "{ group: \"client\", name:") }
-          domain_tests = tests[8..]
-
-          "\n  var tests = [\n    #{client_tests.join(",\n    ")},\n    #{domain_tests.join(",\n    ")}\n  ];\n"
+          "\n  var tests = [\n    #{tests.join(",\n    ")}\n  ];\n"
         end
 
-        def runner
-          <<~JS
-
-              function dispatch(agg, cmd, args) {
-                if (window.Hecks && window.Hecks.dispatch) return window.Hecks.dispatch(agg, cmd, args);
-                if (window.HecksIDE && window.HecksIDE.command) window.HecksIDE.command(agg, cmd, args);
-              }
-
-              function runAll() {
-                if (running) return;
-                running = true; results = [];
-                showOverlay(); showProgress(0, tests.length);
-                runNext(0);
-              }
-
-              var lastGroup = null;
-
-              function runNext(idx) {
-                if (idx >= tests.length) { running = false; finalize(); return; }
-                var test = tests[idx];
-                // Show group header when group changes
-                if (test.group && test.group !== lastGroup) {
-                  lastGroup = test.group;
-                  appendGroupHeader(test.group);
-                }
-                showRunning(test.name);
-                var before = window.HecksApp ? window.HecksApp.state.events.length : 0;
-                var result = null;
-                try { result = test.fn(); } catch(e) {}
-                var clientEvent = result && result.event ? result.event : null;
-                var evt = clientEvent || "";
-                if (!evt) {
-                  var after = window.HecksApp ? window.HecksApp.state.events.length : 0;
-                  if (after > before) evt = window.HecksApp.state.events[0].event || "";
-                }
-                var r = { command: test.name, event: evt, status: "passed" };
-                results.push(r); appendResult(r); showProgress(idx + 1, tests.length);
-                var delay = test.group === "client" ? 100 : 0;
-                setTimeout(function() { runNext(idx + 1); }, delay);
-              }
-
-              function finalize() {
-                showRunning(null);
-                var passed = results.filter(function(r){return r.status==="passed"}).length;
-                var el = document.getElementById("hecks-test-overlay-title");
-                if (el) el.textContent = passed + "/" + results.length + " passed";
-                fireEvent("TabSelected", { tab_name: "tests" });
-              }
-          JS
+        def build_args(cmd)
+          cmd.attributes.map do |a|
+            type = a.type.respond_to?(:name) ? a.type.name.split("::").last : a.type.to_s
+            val = (type == "Integer" || type == "Float") ? "1" : '"test"'
+            "#{a.name}: #{val}"
+          end
         end
 
-        def overlay
-          <<~JS
-
-              function showOverlay() {
-                var old = document.getElementById("hecks-test-overlay");
-                if (old) old.remove();
-                var el = document.createElement("div");
-                el.id = "hecks-test-overlay";
-                el.style.cssText = "position:fixed;bottom:0;right:0;width:420px;max-height:60vh;overflow:auto;background:#0d0d0d;border:1px solid rgba(255,255,255,0.12);border-radius:8px 0 0 0;z-index:9999;padding:12px;font-size:12px;";
-                el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span id="hecks-test-overlay-title" style="color:#4361ee;font-weight:600">Running Tests</span><button onclick="this.parentElement.parentElement.remove()" style="color:#666;cursor:pointer;background:none;border:none">✕</button></div><div id="hecks-test-overlay-running" style="color:#4361ee;font-family:monospace;margin-bottom:4px"></div><div id="hecks-test-overlay-bar" style="width:100%;background:rgba(255,255,255,0.08);border-radius:4px;height:4px;margin-bottom:8px"><div id="hecks-test-overlay-fill" style="height:4px;border-radius:4px;background:#4361ee;width:0;transition:width 0.1s"></div></div><div id="hecks-test-overlay-results"></div>';
-                document.body.appendChild(el);
-              }
-
-              function showRunning(name) {
-                var el = document.getElementById("hecks-test-overlay-running");
-                if (el) el.textContent = name ? "▶ " + name : "";
-              }
-
-              function showProgress(n, total) {
-                var fill = document.getElementById("hecks-test-overlay-fill");
-                if (fill) fill.style.width = (total > 0 ? n/total*100 : 0) + "%";
-              }
-
-              function appendGroupHeader(group) {
-                var label = group === "client" ? "Client Tests" : group;
-                var html = '<div style="color:#4361ee;font-weight:600;font-size:11px;margin-top:8px;margin-bottom:4px;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px">' + label + '</div>';
-                var c = document.getElementById("hecks-test-overlay-results");
-                if (c) c.insertAdjacentHTML("beforeend", html);
-                var p = document.getElementById("test-results");
-                if (p) p.insertAdjacentHTML("beforeend", html);
-              }
-
-              function appendResult(r) {
-                var icon = r.status === "passed" ? "✅" : "⬜";
-                var color = r.status === "passed" ? "#22c55e" : "#666";
-                var evt = r.event ? " → " + r.event : "";
-                var html = '<div style="display:flex;align-items:center;gap:6px;padding:1px 0;color:'+color+'"><span>'+icon+'</span><span style="font-family:monospace;font-size:11px">'+r.command+'</span><span style="color:#555;font-size:10px">'+evt+'</span></div>';
-                var c = document.getElementById("hecks-test-overlay-results");
-                if (c) { c.insertAdjacentHTML("beforeend", html); c.scrollTop = c.scrollHeight; }
-                // Also to panel if visible
-                var p = document.getElementById("test-results");
-                if (p) { p.insertAdjacentHTML("beforeend", html); p.scrollTop = p.scrollHeight; }
-              }
-          JS
+        def lifecycle_assertion(agg, cmd)
+          return nil unless agg.respond_to?(:lifecycle) && agg.lifecycle
+          lc = agg.lifecycle
+          lc.transitions.each do |transition_cmd, target|
+            next unless transition_cmd == cmd.name
+            target_state = target.respond_to?(:target) ? target.target : target.to_s
+            return "expectState(#{agg.name.inspect}, #{lc.field.to_s.inspect}, #{target_state.inspect})"
+          end
+          nil
         end
 
         def ui

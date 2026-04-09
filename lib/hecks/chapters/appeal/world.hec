@@ -1,4 +1,8 @@
 Hecks.world "HecksAppeal" do
+  sqlite do
+    database "db/appeal.db"
+  end
+
   claude do
     model "sonnet"
     max_tokens 4096

@@ -106,6 +106,60 @@ module Hecks
 
             validation :name, presence: true
           end
+
+          b.aggregate "ProductExecutor" do
+            description "Eight-agent product team: plan, build domain, build app, UX, UI, product owner, scrum master, event storming"
+            attribute :active_agent, String
+            attribute :conversations, list_of("AgentConversation")
+
+            value_object "AgentConversation" do
+              description "A named agent's chat history"
+              attribute :agent_name, String
+              attribute :messages, list_of(String)
+            end
+
+            command "SendToAgent" do
+              description "Send a message to a named agent"
+              attribute :agent_name, String
+              attribute :content, String
+              emits "AgentMessageSent"
+            end
+
+            command "SwitchAgent" do
+              description "Switch the active agent tab"
+              attribute :agent_name, String
+              emits "AgentSwitched"
+            end
+
+            command "ClearAgent" do
+              description "Clear an agent's conversation"
+              attribute :agent_name, String
+              emits "AgentCleared"
+            end
+          end
+
+          b.aggregate "FeatureFlag" do
+            description "Runtime toggle for shipped features. Enabled on ship, removed on acceptance."
+            attribute :feature_title, String
+            attribute :enabled, String, default: "true"
+            attribute :permanent, String, default: "false"
+
+            command "CreateFlag" do
+              description "Create a feature flag when a feature ships"
+              attribute :feature_title, String
+              emits "FlagCreated"
+            end
+
+            command "ToggleFlag" do
+              description "Enable or disable a feature flag at runtime"
+              emits "FlagToggled"
+            end
+
+            command "RemoveFlag" do
+              description "Remove the flag — feature becomes permanent"
+              emits "FlagRemoved"
+            end
+          end
         end
       end
     end

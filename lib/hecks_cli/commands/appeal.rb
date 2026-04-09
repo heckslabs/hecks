@@ -9,6 +9,6 @@
 Hecks::CLI.register_command(:appeal, "Launch the HecksAppeal IDE",
   args: ["PATH..."]
 ) do |*args|
-  appeal = File.expand_path("../../../bin/appeal", __dir__)
-  exec appeal, *args
+  require "hecks/appeal/server"
+  Hecks::Appeal::Server.run(args)
 end

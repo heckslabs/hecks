@@ -153,6 +153,13 @@ module Hecks
               emits "ProjectsShown"
             end
 
+          end
+
+          b.aggregate "LayoutState" do
+            description "Persisted layout preferences — current file, saved panel arrangement."
+            attribute :current_file, String
+            attribute :current_domain, String
+
             command "TrackCurrentFile" do
               description "Record the currently open file and domain for context"
               attribute :path, String

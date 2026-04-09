@@ -1,7 +1,6 @@
 Hecks.bluebook "Testing" do
   vision "Automated acceptance testing, executable scenarios, and interactive domain playground"
 
-  core do
     aggregate "AcceptanceTest", "Runs domain commands and validates the event log against expected outcomes." do
       attribute :lifecycle_state, String, default: "idle"
       attribute :results, list_of("TestResult")
@@ -133,9 +132,7 @@ Hecks.bluebook "Testing" do
 
       validation :scenario_name, presence: true
     end
-  end
 
-  supporting do
     aggregate "Fixture", "Reusable data set that seeds scenarios with known aggregate state." do
       attribute :fixture_name, String
       attribute :entries, list_of("FixtureEntry")
@@ -238,5 +235,4 @@ Hecks.bluebook "Testing" do
         end
       end
     end
-  end
 end

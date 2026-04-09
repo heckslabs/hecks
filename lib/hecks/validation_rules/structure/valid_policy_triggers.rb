@@ -22,7 +22,7 @@ module Hecks
       # @return [Array<String>] error messages for policies with unknown trigger commands
       def errors
         result = []
-        all_commands = @domain.aggregates.flat_map { |a| a.commands.map(&:name) }
+        all_commands = collect_all_commands(@domain)
 
         @domain.aggregates.each do |agg|
           agg.policies.select(&:reactive?).each do |policy|
@@ -46,6 +46,12 @@ module Hecks
       end
 
       private
+
+      def collect_all_commands(domain)
+        cmds = domain.aggregates.flat_map { |a| a.commands.map(&:name) }
+        cmds += domain.all_commands.map(&:name) if domain.respond_to?(:all_commands)
+        cmds.uniq
+      end
 
       # Matches bare names ("RecordEntry") and qualified names
       # ("Identity::AuditLog::RecordEntry") against known commands.

@@ -37,9 +37,23 @@ module Hecks
           elsif msg && msg[:type] == "command" && msg[:command] == "ConsoleError"
             args = msg[:args] || {}
             $stderr.puts "[Browser] #{args[:message]}"
+            port.broadcast_event({
+              event: "ServerError", aggregate: "Server",
+              data: { message: args[:message], source: "browser", timestamp: args[:timestamp] }
+            })
           elsif msg && msg[:type] == "command" && msg[:command] == "StateSnapshot"
             args = msg[:args] || {}
             buffer.save_snapshot(args[:state], args[:captured_at])
+          elsif msg && msg[:type] == "command" && msg[:command] == "TestResult"
+            args = msg[:args] || {}
+            icon = args[:status] == "passed" ? "\e[32m.\e[0m" : "\e[31mF\e[0m"
+            print icon
+            if args[:status] != "passed" && args[:command] != "SUMMARY"
+              $stderr.puts "\n  \e[31m#{args[:command]}: #{args[:reason]}\e[0m"
+            end
+            if args[:command] == "SUMMARY"
+              puts "\n  #{args[:event]} tests #{args[:status]}"
+            end
           else
             original.call(client, raw)
           end
@@ -87,22 +101,21 @@ module Hecks
 
           function capture() {
             if (!capturing || !window.HecksIDE || !window.HecksIDE.raw) return;
-            var state = {};
-            if (window.HecksApp) {
-              var s = window.HecksApp.state;
-              state = {
-                tab: s.layout.activeTab,
-                sidebar: s.layout.sidebarCollapsed ? "collapsed" : "open",
-                events_panel: s.layout.eventsCollapsed ? "collapsed" : "open",
-                event_count: s.events.length,
-                projects: s.projects.length
-              };
-            }
-            window.HecksIDE.raw(JSON.stringify({
-              type: "command", aggregate: "Debug", command: "StateSnapshot",
-              args: { state: JSON.stringify(state), captured_at: new Date().toISOString() }
-            }));
-            flashDot();
+            if (typeof html2canvas === "undefined") return;
+
+            html2canvas(document.body, {
+              scale: 0.5, logging: false, useCORS: true,
+              backgroundColor: "#0d0d0d"
+            }).then(function(canvas) {
+              var data = canvas.toDataURL("image/jpeg", 0.7);
+              var base64 = data.split(",")[1];
+              if (!base64) return;
+              window.HecksIDE.raw(JSON.stringify({
+                type: "command", aggregate: "Debug", command: "CaptureFrame",
+                args: { frame_data: base64, captured_at: new Date().toISOString() }
+              }));
+              flashDot();
+            }).catch(function() {});
           }
 
           function start() {

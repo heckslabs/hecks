@@ -15,7 +15,11 @@
 <body class="bg-base text-white/[.87] font-sans h-screen overflow-hidden">
   <canvas id="bg-canvas" aria-hidden="true" class="fixed inset-0 -z-10"></canvas>
 
-  <div id="ide" class="flex flex-col h-screen">
+  <div id="ide" class="flex flex-col h-screen"
+       data-domain-layout-sidebar-collapsed="false"
+       data-domain-layout-events-collapsed="false"
+       data-domain-layout-active-tab="diagrams"
+       data-domain-layout-search-query="">
     <!-- Menu Bar -->
     <header role="menubar" aria-label="Main Menu" class="h-9 flex items-center bg-surface border-b border-white/[.12]">
       <div class="flex items-center flex-1">
@@ -64,7 +68,7 @@
         <span aria-hidden="true">&raquo;</span>
       </button>
       <!-- Sidebar -->
-      <nav id="sidebar" role="navigation" aria-label="Domain Browser" class="bg-surface border-r border-white/[.12] flex flex-col flex-shrink-0" style="width: 16rem;">
+      <nav id="sidebar" role="navigation" aria-label="Domain Browser" data-domain="Layout.sidebar" data-domain-collapsed="false" class="bg-surface border-r border-white/[.12] flex flex-col flex-shrink-0" style="width: 16rem;">
         <div class="h-9 flex items-center justify-between px-3 border-b border-white/[.12]">
           <h2 class="text-sm font-semibold text-white/[.87]">Projects</h2>
           <button aria-label="Toggle Projects" class="text-white/[.54] hover:text-white/[.87] transition-colors" data-action="toggle-projects">
@@ -91,29 +95,29 @@
           <button role="tab" aria-selected="true" aria-controls="panel-diagrams" id="tab-diagrams" class="px-4 h-9 text-sm text-white/[.87] border-b-2 border-accent bg-white/[.04]" data-tab="diagrams">Diagrams</button>
           <button role="tab" aria-selected="false" aria-controls="panel-console" id="tab-console" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="console">Console</button>
           <button role="tab" aria-selected="false" aria-controls="panel-workbench" id="tab-workbench" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="workbench">Workbench</button>
-          <button role="tab" aria-selected="false" aria-controls="panel-features" id="tab-features" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="features">Features</button>
+          <button role="tab" aria-selected="false" aria-controls="panel-executor" id="tab-executor" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="executor">The Bullpen</button>
           <button role="tab" aria-selected="false" aria-controls="panel-tests" id="tab-tests" class="px-4 h-9 text-sm text-white/[.54] hover:text-white/[.87] border-b-2 border-transparent hover:bg-white/[.04] transition-colors" data-tab="tests">Tests</button>
         </div>
 
         <!-- Tab Panels -->
-        <div role="tabpanel" id="panel-editor" aria-labelledby="tab-editor" class="flex-1 overflow-auto p-4" style="display:none">
+        <div role="tabpanel" id="panel-editor" aria-labelledby="tab-editor" data-domain="Layout.tab.editor" class="flex-1 overflow-auto p-4" style="display:none">
           <div id="editor-content">
             <p class="text-white/[.38] text-sm">Select a file from the sidebar</p>
           </div>
         </div>
 
-        <div role="tabpanel" id="panel-diagrams" aria-labelledby="tab-diagrams" class="flex-1 overflow-auto p-4">
+        <div role="tabpanel" id="panel-diagrams" aria-labelledby="tab-diagrams" data-domain="Layout.tab.diagrams" class="flex-1 overflow-auto p-4">
           <div id="diagrams-content">
             <p class="text-white/[.38] text-sm">Select a domain to view diagrams</p>
           </div>
         </div>
 
-        <div role="tabpanel" id="panel-console" aria-labelledby="tab-console" class="flex-1 overflow-auto p-4" style="display:none">
+        <div role="tabpanel" id="panel-console" aria-labelledby="tab-console" data-domain="Layout.tab.console" class="flex-1 overflow-auto p-4" style="display:none">
           <div id="console-content" role="form" aria-label="Console">
             <p class="text-white/[.38] text-sm">Open a project to use the console</p>
           </div>
         </div>
-        <div role="tabpanel" id="panel-workbench" aria-labelledby="tab-workbench" class="flex-1 flex flex-col overflow-hidden" style="display:none">
+        <div role="tabpanel" id="panel-workbench" aria-labelledby="tab-workbench" data-domain="Layout.tab.workbench" class="flex-1 flex flex-col overflow-hidden" style="display:none">
           <div class="flex items-center gap-2 px-4 py-2 border-b border-white/[.12]">
             <div class="flex bg-elevated rounded overflow-hidden border border-white/[.12]">
               <button class="workbench-mode px-3 py-1 text-xs font-medium text-white/[.87] bg-accent" data-sketchmode="sketch">Sketch</button>
@@ -130,30 +134,32 @@
             </div>
           </div>
         </div>
-        <div role="tabpanel" id="panel-features" aria-labelledby="tab-features" class="flex-1 overflow-auto p-4" style="display:none">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-white/[.87]">Features</h2>
-            <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="new-feature">New Feature</button>
+        <div role="tabpanel" id="panel-executor" aria-labelledby="tab-executor" data-domain="ProductExecutor" class="flex-1 flex overflow-hidden" style="display:none">
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <div id="executor-messages" class="flex-1 overflow-auto p-3 space-y-2" role="log" aria-label="Team Chat" aria-live="polite"></div>
+            <div class="p-3 border-t border-white/[.12] flex gap-2">
+              <label for="executor-input" class="sr-only">Describe a feature</label>
+              <input type="text" id="executor-input" placeholder="Describe a feature..." aria-label="Feature description" autocomplete="off" class="flex-1 bg-elevated border border-white/[.12] rounded px-3 py-1.5 text-sm text-white/[.87] placeholder-white/[.38] focus:outline-none focus:border-accent">
+              <button aria-label="Send" class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="send-executor">Send</button>
+            </div>
           </div>
-          <div id="feature-list" class="space-y-3">
-            <p class="text-white/[.38] text-sm">No features yet. Click "New Feature" to start planning.</p>
-          </div>
-          <div id="feature-detail" class="mt-4 hidden">
+          <div id="executor-dashboard" class="w-48 border-l border-white/[.12] overflow-auto p-2 flex flex-col gap-1">
+            <h3 class="text-xs font-semibold text-white/[.38] px-1 mb-1">Shipped</h3>
           </div>
         </div>
 
-        <div role="tabpanel" id="panel-tests" aria-labelledby="tab-tests" class="flex-1 overflow-auto p-4" style="display:none">
+        <div role="tabpanel" id="panel-tests" aria-labelledby="tab-tests" data-domain="AcceptanceTest" class="flex-1 overflow-auto p-4" style="display:none">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-white/[.87]">Acceptance Tests</h2>
             <div class="flex gap-2">
-              <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-action="run-all-tests">Run All</button>
-              <button class="px-3 py-1.5 bg-elevated border border-white/[.12] text-white/[.54] text-sm rounded hover:text-white/[.87] transition-colors" data-action="reset-tests">Reset</button>
+              <button class="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded transition-colors" data-domain="AcceptanceTest.RunAll" data-action="run-all-tests">Run All</button>
+              <button class="px-3 py-1.5 bg-elevated border border-white/[.12] text-white/[.54] text-sm rounded hover:text-white/[.87] transition-colors" data-domain="AcceptanceTest.Reset" data-action="reset-tests">Reset</button>
             </div>
           </div>
-          <div id="test-progress" class="mb-4 hidden">
+          <div id="test-progress" data-domain="AcceptanceTest.results" class="mb-4 hidden">
             <div class="flex items-center gap-3 text-sm">
-              <span id="test-passed" class="text-green-400">0 passed</span>
-              <span id="test-failed" class="text-red-400">0 failed</span>
+              <span id="test-passed" data-domain="AcceptanceTest.passed" class="text-green-400">0 passed</span>
+              <span id="test-failed" data-domain="AcceptanceTest.failed" class="text-red-400">0 failed</span>
               <span id="test-total" class="text-white/[.38]">0 total</span>
             </div>
             <div class="w-full bg-white/[.08] rounded-full h-1.5 mt-2">
@@ -197,7 +203,7 @@
     <div class="resize-handle-y h-1 cursor-row-resize bg-transparent hover:bg-accent/40 transition-colors flex-shrink-0" data-resize="events-y"></div>
 
     <!-- Events Panel -->
-    <section id="events-panel" class="bg-surface border-t border-white/[.12]" aria-label="Events" style="height: 10rem;">
+    <section id="events-panel" data-domain="Layout.events_panel" data-domain-collapsed="false" class="bg-surface border-t border-white/[.12]" aria-label="Events" style="height: 10rem;">
       <div class="h-8 flex items-center justify-between px-3 border-b border-white/[.12]">
         <h2 class="text-xs font-semibold text-white/[.87]">Events</h2>
         <input type="text" id="event-filter-input" placeholder="Filter events..."
@@ -239,6 +245,7 @@
   <script src="/assets/js/app.js?v=3"></script>
   <script src="/hecks/state.js"></script>
   <script src="/assets/js/features.js?v=1"></script>
+  <script src="/assets/js/executor.js?v=1"></script>
   <script src="/hecks/tests.js"></script>
   <script src="/assets/js/socket.js?v=2"></script>
   <script src="/assets/js/menus.js?v=3"></script>
@@ -247,6 +254,7 @@
   <script src="/assets/js/animation.js?v=2"></script>
   <script src="/assets/js/keyboard.js?v=2"></script>
   <script src="/assets/js/resize.js?v=1"></script>
+  <script src="/hecks/accessibility.js"></script>
   <script src="/hecks/debug.js"></script>
 </body>
 </html>

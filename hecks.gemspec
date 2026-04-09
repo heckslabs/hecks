@@ -9,10 +9,10 @@ Gem::Specification.new do |spec|
   spec.homepage      = "https://github.com/chrisyoung/hecks"
   spec.license       = "MIT"
 
-  spec.files         = Dir["lib/**/*.rb"] + ["README.md", "FEATURES.md", "hecks_logo.png"]
+  spec.files         = Dir["lib/**/*.{rb,hec,bluebook,html,js,css}"] + ["README.md", "FEATURES.md", "hecks_logo.png"]
   spec.require_paths = ["lib"]
   spec.bindir        = "bin"
-  spec.executables   = ["hecks", "hecks_claude"]
+  spec.executables   = ["hecks", "hecks_claude", "appeal"]
 
   spec.required_ruby_version = ">= 3.0"
 

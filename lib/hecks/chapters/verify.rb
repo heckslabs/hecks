@@ -28,6 +28,11 @@ module Hecks
         .map { |c| const_get(c) }
         .select { |m| m.respond_to?(:definition) }
 
+      if format == :progress
+        seed = Random.new_seed
+        chapter_modules = chapter_modules.shuffle(random: Random.new(seed))
+      end
+
       chapter_modules.each do |mod|
         domain = mod.definition
 
@@ -42,7 +47,8 @@ module Hecks
           puts "\e[1m#{domain.name}\e[0m (#{domain.aggregates.size} aggregates, #{cmd_count} commands)"
         end
 
-        domain.aggregates.each do |agg|
+        aggs = format == :progress ? domain.aggregates.shuffle(random: Random.new(seed)) : domain.aggregates
+        aggs.each do |agg|
           if agg.description
             pass_count += 1
             if format == :documentation
@@ -83,8 +89,16 @@ module Hecks
       pass_count += generator_result.pass_count
       errors.concat(generator_result.errors)
 
+      # Phase 5: File coverage (every lib file must match an aggregate)
+      warnings = []
+      puts "" if format == :progress
+      require "hecks/chapters/verify_coverage"
+      coverage_result = CoverageVerifier.run(format: format)
+      pass_count += coverage_result.pass_count
+      warnings.concat(coverage_result.errors)
+
       elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
-      total = pass_count + errors.size
+      total = pass_count + errors.size + warnings.size
       puts "" if format == :progress
 
       if errors.any?
@@ -97,8 +111,17 @@ module Hecks
         end
       end
 
+      if warnings.any?
+        puts "\e[33mWarnings (#{warnings.size}):\e[0m"
+        warnings.first(10).each do |w|
+          puts "  \e[33m- #{w[:context]}: #{w[:message]}\e[0m"
+        end
+        puts "  \e[33m... and #{warnings.size - 10} more\e[0m" if warnings.size > 10
+        puts ""
+      end
+
       color = errors.any? ? "\e[31m" : "\e[32m"
-      puts "#{color}#{total} examples, #{errors.size} failures\e[0m"
+      puts "#{color}#{total} examples, #{errors.size} failures, #{warnings.size} warnings\e[0m"
       puts "Finished in #{format('%.2f', elapsed)} seconds"
 
       if errors.any?

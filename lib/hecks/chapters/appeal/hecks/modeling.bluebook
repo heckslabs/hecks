@@ -1,7 +1,6 @@
 Hecks.bluebook "Modeling" do
   vision "Domain visualization, event storming, ubiquitous language management, and version analysis"
 
-  core do
     value_object "DiagramNode" do
       description "An element in a diagram -- aggregate, command, event, or value object"
       attribute :node_name, String
@@ -161,9 +160,7 @@ Hecks.bluebook "Modeling" do
         emits "TermsLinked"
       end
     end
-  end
 
-  supporting do
     aggregate "Insight", "Domain health analysis -- coupling metrics, design smells, completeness checks." do
       attribute :findings, list_of("InsightFinding")
       command "AnalyzeDomain" do
@@ -211,7 +208,6 @@ Hecks.bluebook "Modeling" do
         emits "MigrationApplied"
       end
     end
-  end
 
   policy "AnalyzeOnDiagram" do
     on "DiagramGenerated"

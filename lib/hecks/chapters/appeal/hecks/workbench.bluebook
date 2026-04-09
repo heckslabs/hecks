@@ -1,11 +1,11 @@
 Hecks.bluebook "Workbench" do
   vision "Domain IDE shell — panel layout, session modes, live event streaming, menus, and shortcuts"
 
-  core do
     aggregate "Layout", "IDE chrome — panels, tabs, sidebar, shortcuts, persisted geometry." do
       attribute :panel_layout, "PanelLayout"
       attribute :panels, "PanelState"
       attribute :shortcuts, "ShortcutBinding"
+      attribute :search_query, String
       value_object "TabName" do
         attribute :label, String
         invariant("known tab") { %w[editor diagrams console workbench features tests].include?(label) }
@@ -72,6 +72,8 @@ Hecks.bluebook "Workbench" do
       command("BindShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
       command("TriggerShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
       command("TrackOpenFile") { role "Developer"; reference_to "Layout"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
+      command("HideProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsHidden" }
+      command("ShowProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsShown" }
       command("SaveLayout")    { role "Developer"; reference_to "Layout"; emits "LayoutSaved" }
       command("RestoreLayout") { role "Developer"; reference_to "Layout"; emits "LayoutRestored" }
     end
@@ -139,9 +141,20 @@ Hecks.bluebook "Workbench" do
         end
       end
     end
-  end
 
-  supporting do
+    aggregate "Agent", "AI chat panel — conversation history, domain review requests." do
+      attribute :messages, "AgentMessage"
+
+      value_object "AgentMessage" do
+        attribute :role, String
+        attribute :content, String
+      end
+
+      command("SendMessage")        { role "Developer"; reference_to "Agent"; attribute :content, String; emits "AgentMessageReceived" }
+      command("ClearConversation")  { role "Developer"; reference_to "Agent"; emits "ConversationCleared" }
+      command("RequestReview")      { role "Developer"; reference_to "Agent"; emits "ReviewRequested" }
+    end
+
     aggregate "Menu", "IDE menu bar — File, View, Domain dropdowns." do
       attribute :open_menu_label, String
       attribute :entries, "MenuEntry"
@@ -184,6 +197,7 @@ Hecks.bluebook "Workbench" do
       command("PauseStream")       { role "Developer"; reference_to "EventStream"; emits "StreamPaused" }
       command("ResumeStream")      { role "Developer"; reference_to "EventStream"; emits "StreamResumed" }
       command("StopStreaming")     { role "Developer"; reference_to "EventStream"; emits "StreamingStopped" }
+      command("ClearEvents")       { role "Developer"; reference_to "EventStream"; emits "EventsCleared" }
 
       command "FlushEvents" do
         role "Developer"
@@ -208,5 +222,4 @@ Hecks.bluebook "Workbench" do
         end
       end
     end
-  end
 end

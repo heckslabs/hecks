@@ -77,7 +77,7 @@ module Hecks
           })
         end
 
-        puts "chat_agent capability applied"
+        puts "  \e[32m✓\e[0m chat_agent"
       end
 
       # Load extracted modules from the chat_agent/ subdirectory.

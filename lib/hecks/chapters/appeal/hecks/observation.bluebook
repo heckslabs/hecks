@@ -1,7 +1,6 @@
 Hecks.bluebook "Observation" do
   vision "Real-time notifications, visual debugging, and cross-domain search"
 
-  core do
     aggregate "Notification", "Alert feed — surfaces errors, warnings, and confirmations to the user." do
       attribute :alerts, list_of("Alert")
       attribute :unread_count, Integer, default: 0
@@ -127,9 +126,7 @@ Hecks.bluebook "Observation" do
         end
       end
     end
-  end
 
-  supporting do
     aggregate "Screenshot", "Rolling frame buffer for visual debugging of browser state." do
       attribute :frames, list_of("ScreenFrame")
       attribute :capturing, String, default: "true"
@@ -185,7 +182,6 @@ Hecks.bluebook "Observation" do
         end
       end
     end
-  end
 
   policy "AlertOnBuildComplete" do
     on "FeatureImplemented"

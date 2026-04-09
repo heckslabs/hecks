@@ -9,6 +9,8 @@
 #   end
 #
 require_relative "dsl"
+require_relative "acceptance_test/test_runner"
+require_relative "acceptance_test/test_overlay"
 require_relative "acceptance_test/test_generator"
 
 module Hecks

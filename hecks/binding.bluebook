@@ -10,8 +10,8 @@ Hecks.bluebook "Binding" do
   end
 
   aggregate "NamingHelpers", "Domain naming convention methods" do
-    command("DomainModuleName") { attribute :name, String }
-    command("DomainSlug") { attribute :name, String }
+    command("ResolveDomainModuleName") { attribute :name, String }
+    command("ResolveDomainSlug") { attribute :name, String }
   end
 
   aggregate "Utils", "Shared utility functions across framework" do
@@ -29,7 +29,7 @@ Hecks.bluebook "Binding" do
 
   aggregate "Registry", "Hash-backed registry for named resources with symbol-coerced keys and Enumerable support" do
     command("Register") { attribute :key, String; attribute :value, String }
-    command("Lookup") { attribute :key, String }
+    command("FindByKey") { attribute :key, String }
   end
 
   aggregate "SetRegistry", "Array-backed registry for unique items with duplicate prevention and Enumerable support" do
@@ -64,7 +64,7 @@ Hecks.bluebook "Binding" do
 
   aggregate "Contracts", "Contract registry for cross-target parity" do
     command("Register") { attribute :name, String; attribute :contract, String }
-    command("Lookup") { attribute :name, String }
+    command("FindByName") { attribute :name, String }
   end
 
   aggregate "TypeContract", "Attribute type mapping rules" do
@@ -232,12 +232,12 @@ Hecks.bluebook "Binding" do
 
   aggregate "DomainRegistry", "Tracks loaded domain modules" do
     command("Register") { attribute :domain_name, String }
-    command("Lookup") { attribute :domain_name, String }
+    command("FindDomain") { attribute :domain_name, String }
   end
 
   aggregate "AdapterRegistry", "Registers persistence adapters" do
     command("Register") { attribute :adapter_name, String }
-    command("Lookup") { attribute :adapter_name, String }
+    command("FindAdapter") { attribute :adapter_name, String }
   end
 
   aggregate "ExtensionRegistry", "Registers extension modules" do

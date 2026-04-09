@@ -1,9 +1,9 @@
 Hecks.bluebook "Templating" do
   aggregate "NamingHelpers", "Mixin providing domain naming convention methods for modules, gems, slugs, and routes" do
-    command "DomainModuleName" do
+    command "ResolveDomainModuleName" do
       attribute :name, String
     end
-    command "DomainGemName" do
+    command "ResolveDomainGemName" do
       attribute :name, String
     end
     command "DomainAggregateSlug" do

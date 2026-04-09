@@ -43,11 +43,11 @@ s.nil? || (s >= 0.0 && s <= 1.0)
 
     scope :rejected, status: "rejected"
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "pending" do
+    query "Pending" do
       where(status: "pending")
     end
 
@@ -58,8 +58,8 @@ s.nil? || (s >= 0.0 && s <= 1.0)
     command "InitiateAssessment" do
       attribute :model_id, String
       attribute :assessor_id, String
-      actor "assessor"
-      actor "admin"
+      role "assessor"
+      role "admin"
     end
 
     command "RecordFinding" do
@@ -67,8 +67,8 @@ s.nil? || (s >= 0.0 && s <= 1.0)
       attribute :category, String
       attribute :severity, String
       attribute :description, String
-      actor "assessor"
-      actor "admin"
+      role "assessor"
+      role "admin"
     end
 
     command "SubmitAssessment" do
@@ -79,14 +79,14 @@ s.nil? || (s >= 0.0 && s <= 1.0)
       attribute :transparency_score, Float
       attribute :overall_score, Float
       external "RiskScoringEngine"
-      actor "assessor"
-      actor "admin"
+      role "assessor"
+      role "admin"
     end
 
     command "RejectAssessment" do
       attribute :assessment_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
   end
 end

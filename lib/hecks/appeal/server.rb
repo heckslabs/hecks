@@ -1,5 +1,7 @@
 # Hecks::Appeal::Server
 #
+# @domain Project.OpenProject, Project.DiscoverProjects, Project.LoadProjects
+#
 # Entry point for the HecksAppeal IDE. Boots the Appeal domain,
 # discovers projects, starts the server. Everything is capabilities.
 #

@@ -17,12 +17,12 @@ module Hecks
         def self.define(b)
           b.aggregate "DomainRegistry", "Tracks loaded domain modules" do
             command("Register") { attribute :domain_name, String }
-            command("Lookup") { attribute :domain_name, String }
+            command("FindDomain") { attribute :domain_name, String }
           end
 
           b.aggregate "AdapterRegistry", "Registers persistence adapters" do
             command("Register") { attribute :adapter_name, String }
-            command("Lookup") { attribute :adapter_name, String }
+            command("FindAdapter") { attribute :adapter_name, String }
           end
 
           b.aggregate "ExtensionRegistry", "Registers extension modules" do

@@ -17,7 +17,7 @@ module Hecks
         def self.define(b)
           b.aggregate "Contracts", "Contract registry for cross-target parity" do
             command("Register") { attribute :name, String; attribute :contract, String }
-            command("Lookup") { attribute :name, String }
+            command("FindByName") { attribute :name, String }
           end
 
           b.aggregate "TypeContract", "Attribute type mapping rules" do

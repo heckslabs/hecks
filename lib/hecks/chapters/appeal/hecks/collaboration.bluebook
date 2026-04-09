@@ -1,7 +1,6 @@
 Hecks.bluebook "Collaboration" do
   vision "Deliberate feature delivery through planning, verification, review, and backlog shaping"
 
-  core do
     aggregate "Feature", "A planned capability moving through proposal, planning, building, and verification" do
       attribute :title, String
       attribute :description, String
@@ -110,9 +109,7 @@ Hecks.bluebook "Collaboration" do
         end
       end
     end
-  end
 
-  supporting do
     aggregate "Agent", "AI collaborator for domain modeling conversations and suggested changes" do
       attribute :conversation, list_of("ConversationMessage")
       attribute :suggestions, list_of("Suggestion")
@@ -175,6 +172,22 @@ Hecks.bluebook "Collaboration" do
       command("Decide") { role "Reviewer"; reference_to "Review"; attribute :decision, String; emits "DecisionRendered" }
     end
 
+    aggregate "ProductExecutor", "Eight-agent product team: plan, build domain, build app, UX, UI, product owner, scrum master, event storming" do
+      attribute :active_agent, String
+      attribute :conversations, list_of("AgentConversation")
+
+      value_object "AgentConversation" do
+        description "A named agent's chat history"
+        attribute :agent_name, String
+        attribute :messages, list_of(String)
+        invariant("known agent") { %w[jesper chris alberto eric alistair uncle_bob don jony].include?(agent_name) }
+      end
+
+      command("SendToAgent")  { role "Developer"; attribute :agent_name, String; attribute :content, String; emits "AgentMessageSent" }
+      command("SwitchAgent")  { role "Developer"; attribute :agent_name, String; emits "AgentSwitched" }
+      command("ClearAgent")   { role "Developer"; attribute :agent_name, String; emits "AgentCleared" }
+    end
+
     aggregate "Story", "A deliverable unit of work with acceptance criteria" do
       attribute :title, String
       attribute :description, String
@@ -202,5 +215,59 @@ Hecks.bluebook "Collaboration" do
 
       validation :title, presence: true
     end
+
+    aggregate "FeatureFlag", "Runtime toggle for shipped features. Enabled on ship, removed on acceptance." do
+      attribute :feature_title, String
+      attribute :enabled, String, default: "true"
+      attribute :permanent, String, default: "false"
+
+      command "CreateFlag" do
+        role "Developer"
+        description "Create a feature flag when a feature ships"
+        attribute :feature_title, String
+        emits "FlagCreated"
+        handler do |flag|
+          flag.feature_title = feature_title
+          flag.enabled = "true"
+          flag.permanent = "false"
+          flag
+        end
+      end
+
+      command "ToggleFlag" do
+        role "Developer"
+        description "Enable or disable a feature flag at runtime"
+        reference_to "FeatureFlag"
+        emits "FlagToggled"
+        handler do |flag|
+          flag.enabled = flag.enabled == "true" ? "false" : "true"
+          flag
+        end
+      end
+
+      command "RemoveFlag" do
+        role "ProductOwner"
+        description "Remove the flag — feature becomes permanent. Triggered when story is accepted."
+        reference_to "FeatureFlag"
+        emits "FlagRemoved"
+        handler do |flag|
+          flag.permanent = "true"
+          flag.enabled = "true"
+          flag
+        end
+      end
+    end
+
+
+  policy "FlagOnShip" do
+    on "FeatureCompleted"
+    trigger "CreateFlag"
+    map feature_title: :title
+  end
+
+  policy "RemoveFlagOnAccept" do
+    on "DeliveryAccepted"
+    trigger "RemoveFlag"
+    map feature_title: :title
   end
 end

@@ -42,7 +42,7 @@ module Hecks
             command "GenerateOverview" do
               description "Build a cross-domain relationship diagram showing all domains and their connections"
               attribute :scope, String
-              emits "BluebookOverviewGenerated"
+              emits "OverviewGenerated"
             end
 
             command "SelectView" do

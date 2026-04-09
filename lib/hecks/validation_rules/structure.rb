@@ -22,6 +22,8 @@ module Hecks
       autoload :SingleAttributeAggregate, "hecks/validation_rules/structure/single_attribute_aggregate"
       autoload :TooManyCommands,              "hecks/validation_rules/structure/too_many_commands"
       autoload :AntiCorruptionTranslation,  "hecks/validation_rules/structure/anti_corruption_translation"
+      autoload :ViewDomainTags,             "hecks/validation_rules/structure/view_domain_tags"
+      autoload :FileCoverage,               "hecks/validation_rules/structure/file_coverage"
     end
   end
 end

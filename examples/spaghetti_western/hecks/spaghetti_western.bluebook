@@ -1,4 +1,4 @@
-Hecks.bluebook "Spaghetti Western" do
+Hecks.bluebook "SpaghettiWestern" do
   aggregate "Gunslinger" do
     attribute :name, String
     attribute :nickname, String

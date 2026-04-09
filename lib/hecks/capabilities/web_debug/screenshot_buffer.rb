@@ -16,7 +16,7 @@ module Hecks
     module WebDebug
       class ScreenshotBuffer
         BUFFER_SIZE = 100
-        DIR = "/tmp/appeal_screenshots"
+        DIR = "/tmp/ha_screenshots"
 
         def initialize
           @frame_count = 0

@@ -23,15 +23,15 @@ Hecks.bluebook "Compliance" do
 
     scope :draft_policies, status: "draft"
 
-    query "by_category" do
+    query "ByCategory" do
       where(category: category)
     end
 
-    query "by_framework" do
+    query "ByFramework" do
       where(framework_id: framework_id)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "active")
     end
 
@@ -40,34 +40,34 @@ Hecks.bluebook "Compliance" do
       attribute :description, String
       attribute :category, String
       reference_to "RegulatoryFramework"
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "ActivatePolicy" do
       attribute :policy_id, String
       attribute :effective_date, Date
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "SuspendPolicy" do
       attribute :policy_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "RetirePolicy" do
       attribute :policy_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "UpdateReviewDate" do
       attribute :policy_id, String
       attribute :review_date, Date
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
   end
 
@@ -91,11 +91,11 @@ Hecks.bluebook "Compliance" do
 
     validation :jurisdiction, {:presence=>true}
 
-    query "by_jurisdiction" do
+    query "ByJurisdiction" do
       where(jurisdiction: jurisdiction)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "active")
     end
 
@@ -138,15 +138,15 @@ Hecks.bluebook "Compliance" do
 
     scope :open_reviews, status: "open"
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "pending" do
+    query "Pending" do
       where(status: "open")
     end
 
-    query "by_reviewer" do
+    query "ByReviewer" do
       where(reviewer_id: reviewer_id)
     end
 
@@ -154,31 +154,31 @@ Hecks.bluebook "Compliance" do
       attribute :model_id, String
       reference_to "GovernancePolicy"
       attribute :reviewer_id, String
-      actor "reviewer"
-      actor "admin"
+      role "reviewer"
+      role "admin"
     end
 
     command "ApproveReview" do
       attribute :review_id, String
       attribute :notes, String
       external "NotificationGateway"
-      actor "reviewer"
-      actor "admin"
+      role "reviewer"
+      role "admin"
     end
 
     command "RejectReview" do
       attribute :review_id, String
       attribute :notes, String
       external "NotificationGateway"
-      actor "reviewer"
-      actor "admin"
+      role "reviewer"
+      role "admin"
     end
 
     command "RequestChanges" do
       attribute :review_id, String
       attribute :notes, String
-      actor "reviewer"
-      actor "admin"
+      role "reviewer"
+      role "admin"
     end
 
     on_event "RejectedReview" do |event|
@@ -201,11 +201,11 @@ Hecks.bluebook "Compliance" do
 
     validation :policy_id, {:presence=>true}
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "active")
     end
 
@@ -224,14 +224,14 @@ Hecks.bluebook "Compliance" do
       attribute :exemption_id, String
       attribute :approved_by_id, String
       attribute :expires_at, Date
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "RevokeExemption" do
       attribute :exemption_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
   end
 
@@ -251,15 +251,15 @@ Hecks.bluebook "Compliance" do
       !expires_at || !completed_at || expires_at.to_s >= completed_at.to_s[0, 10]
     end
 
-    query "by_stakeholder" do
+    query "ByStakeholder" do
       where(stakeholder_id: stakeholder_id)
     end
 
-    query "by_policy" do
+    query "ByPolicy" do
       where(policy_id: policy_id)
     end
 
-    query "incomplete" do
+    query "Incomplete" do
       where(status: "assigned")
     end
 

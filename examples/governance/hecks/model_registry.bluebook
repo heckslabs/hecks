@@ -30,19 +30,19 @@ Hecks.bluebook "ModelRegistry" do
 
     scope :suspended, status: "suspended"
 
-    query "by_provider" do
+    query "ByProvider" do
       where(provider_id: provider_id)
     end
 
-    query "by_risk_level" do
+    query "ByRiskLevel" do
       where(risk_level: level)
     end
 
-    query "by_status" do
+    query "ByStatus" do
       where(status: status)
     end
 
-    query "by_parent" do
+    query "ByParent" do
       where(parent_model_id: parent_id)
     end
 
@@ -72,21 +72,21 @@ Hecks.bluebook "ModelRegistry" do
 
     command "ApproveModel" do
       attribute :model_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "SuspendModel" do
       attribute :model_id, String
       external "NotificationGateway"
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "RetireModel" do
       attribute :model_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     policy "ClassifyAfterAssessment" do
@@ -122,11 +122,11 @@ Hecks.bluebook "ModelRegistry" do
 
     validation :name, {:presence=>true}
 
-    query "by_risk_tier" do
+    query "ByRiskTier" do
       where(risk_tier: tier)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "approved")
     end
 
@@ -140,14 +140,14 @@ Hecks.bluebook "ModelRegistry" do
       attribute :vendor_id, String
       attribute :assessment_date, Date
       attribute :next_review_date, Date
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
 
     command "SuspendVendor" do
       attribute :vendor_id, String
-      actor "governance_board"
-      actor "admin"
+      role "governance_board"
+      role "admin"
     end
   end
 
@@ -174,11 +174,11 @@ Hecks.bluebook "ModelRegistry" do
       !expiration_date || !effective_date || expiration_date.to_s >= effective_date.to_s
     end
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "active")
     end
 
@@ -191,29 +191,29 @@ Hecks.bluebook "ModelRegistry" do
       attribute :data_source, String
       attribute :purpose, String
       attribute :consent_type, String
-      actor "data_steward"
-      actor "admin"
+      role "data_steward"
+      role "admin"
     end
 
     command "ActivateAgreement" do
       attribute :agreement_id, String
       attribute :effective_date, Date
       attribute :expiration_date, Date
-      actor "data_steward"
-      actor "admin"
+      role "data_steward"
+      role "admin"
     end
 
     command "RevokeAgreement" do
       attribute :agreement_id, String
-      actor "data_steward"
-      actor "admin"
+      role "data_steward"
+      role "admin"
     end
 
     command "RenewAgreement" do
       attribute :agreement_id, String
       attribute :expiration_date, Date
-      actor "data_steward"
-      actor "admin"
+      role "data_steward"
+      role "admin"
     end
   end
 

@@ -25,7 +25,7 @@ module Hecks
               attribute :name, String
               attribute :field_type, String
               attribute :required, String, default: "true"
-              attribute :value, String
+              attribute :input_value, String
               attribute :error, String
             end
 

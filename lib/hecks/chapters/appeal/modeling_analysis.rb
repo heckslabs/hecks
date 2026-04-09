@@ -102,7 +102,11 @@ module Hecks
           b.policy "ShowDiagramOnTabSelect" do
             on "TabSelected"
             trigger "GenerateDiagram"
-            condition { |event| event[:active_tab] == "diagrams" }
+            condition do |event|
+              data = event.respond_to?(:to_h) ? event.to_h : (event.respond_to?(:data) ? event.data : event)
+              tab = data.is_a?(Hash) ? (data[:active_tab] || data["active_tab"]) : nil
+              tab == "diagrams"
+            end
           end
         end
       end

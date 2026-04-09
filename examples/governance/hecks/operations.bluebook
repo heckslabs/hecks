@@ -17,15 +17,15 @@ Hecks.bluebook "Operations" do
 
     scope :customer_facing, audience: "customer-facing"
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "by_environment" do
+    query "ByEnvironment" do
       where(environment: env)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "deployed")
     end
 
@@ -71,15 +71,15 @@ Hecks.bluebook "Operations" do
 
     scope :open_incidents, status: "reported"
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "by_severity" do
+    query "BySeverity" do
       where(severity: severity)
     end
 
-    query "open" do
+    query "Open" do
       where(status: "reported")
     end
 
@@ -135,11 +135,11 @@ Hecks.bluebook "Operations" do
       !threshold || threshold > 0
     end
 
-    query "by_model" do
+    query "ByModel" do
       where(model_id: model_id)
     end
 
-    query "by_deployment" do
+    query "ByDeployment" do
       where(deployment_id: deployment_id)
     end
 

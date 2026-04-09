@@ -112,7 +112,15 @@ module Hecks
 
         check(result, format, name, "references aggregates") do
           source = klass.new(domain, domain_module: "PizzasDomain").generate
-          raise "missing Pizza" unless source.include?("Pizza") || domain.aggregates.none? { |a| a.name == "Pizza" }
+          has_feature = case name
+          when "SubscriberWiring" then domain.event_subscribers.any?
+          when "PolicyWiring"     then domain.policies.any?
+          when "ServiceWiring"    then domain.services.any?
+          when "WorkflowWiring"   then domain.workflows.any?
+          when "SagaWiring"       then domain.sagas.any?
+          else true
+          end
+          raise "missing Pizza" if has_feature && !source.include?("Pizza")
         end
       end
 

@@ -38,7 +38,11 @@ module Hecks
             files: discover_files(path), domains: domains,
             runtimes: runtimes, world: world&.to_h
           }
+        rescue Hecks::ValidationError => e
+          $stderr.puts "  \e[33m!\e[0m #{File.basename(path)}: #{e.message.split("\n").first}"
+          { name: File.basename(path), path: path, warning: e.message }
         rescue => e
+          $stderr.puts "  \e[31m✗\e[0m #{File.basename(path)}: #{e.message.split("\n").first}"
           { name: File.basename(path), path: path, error: e.message }
         end
 

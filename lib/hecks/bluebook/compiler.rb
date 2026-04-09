@@ -75,7 +75,9 @@ module Hecks
       unless skip_validation
         validator = Validator.new(domain)
         unless validator.valid?
-          raise Hecks::ValidationError.for_domain(validator.errors)
+          validator.errors.each do |e|
+            $stderr.puts "  \e[33m!\e[0m #{domain.name}: #{e}"
+          end
         end
       end
 

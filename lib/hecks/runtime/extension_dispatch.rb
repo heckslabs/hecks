@@ -29,7 +29,7 @@ module Hecks
           @mod.connections[:sends] << { name: name.to_sym, **kwargs }
         end
         hook.call(@mod, @domain, self, **kwargs)
-        puts "#{name} extension applied"
+        puts "  \e[32m✓\e[0m #{name}"
       end
 
       # Apply a capability to the live runtime, enriching the domain IR.

@@ -1,6 +1,6 @@
 Hecks.bluebook "Authoring" do
   vision "Project management, document editing, code generation, and reusable domain patterns"
-  core do
+
     value_object "ProjectPath" do
       description "Absolute filesystem path to a domain project directory"
       attribute :path, String
@@ -136,8 +136,7 @@ Hecks.bluebook "Authoring" do
         emits "DocumentValidated"
       end
     end
-  end
-  supporting do
+
     aggregate "Timeline", "Edit history with undo/redo. Tracks document changes as a linear sequence." do
       attribute :entries, list_of("TimelineEntry")
       attribute :cursor, Integer, default: 0
@@ -226,7 +225,6 @@ Hecks.bluebook "Authoring" do
       end
       validation :pattern_name, presence: true
     end
-  end
   policy "ValidateOnEdit" do
     on "DocumentEdited"
     trigger "ValidateDocument"

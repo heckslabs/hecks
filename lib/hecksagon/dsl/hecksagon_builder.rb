@@ -102,6 +102,17 @@ module Hecksagon
       #   concerns :webapp
       #   concerns :dev_tools, env: :development
       #
+      # Register an annotation directly by strings, avoiding constant resolution.
+      # Use when the domain is already compiled and PascalCase names would
+      # resolve to existing constants instead of going through const_missing.
+      #
+      #   annotate "Workbench", "show_workbench", :workbench
+      #   annotate "Collaboration::Agent", "content", :ai_responder, emits: "Replied"
+      #
+      def annotate(aggregate, attribute, annotation, **opts)
+        @annotations << { aggregate: aggregate, attribute: attribute, annotation: annotation.to_sym }.merge(opts)
+      end
+
       def concerns(*names, except: [], env: nil)
         if env && !env_matches?(env)
           return # skip concerns not matching current environment

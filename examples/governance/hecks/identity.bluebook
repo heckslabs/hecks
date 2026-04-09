@@ -14,15 +14,15 @@ Hecks.bluebook "Identity" do
 
     scope :auditors, role: "auditor"
 
-    query "by_role" do
+    query "ByRole" do
       where(role: role)
     end
 
-    query "by_team" do
+    query "ByTeam" do
       where(team: team)
     end
 
-    query "active" do
+    query "Active" do
       where(status: "active")
     end
 
@@ -40,7 +40,7 @@ Hecks.bluebook "Identity" do
 
     command "DeactivateStakeholder" do
       attribute :stakeholder_id, String
-      actor "admin"
+      role "admin"
     end
   end
 
@@ -56,11 +56,11 @@ Hecks.bluebook "Identity" do
 
     validation :action, {:presence=>true}
 
-    query "by_entity" do
+    query "ByEntity" do
       where(entity_type: entity_type, entity_id: entity_id)
     end
 
-    query "by_actor" do
+    query "ByActor" do
       where(actor_id: actor_id)
     end
 

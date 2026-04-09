@@ -21,7 +21,7 @@ module Hecks
         DSL::BluebookBuilder.new("Templating").tap { |b|
           b.aggregate "NamingHelpers" do
             description "Mixin providing domain naming convention methods for modules, gems, slugs, and routes"
-            command "DomainModuleName" do
+            command "ResolveDomainModuleName" do
               attribute :name, String
             end
             command "DomainGemName" do

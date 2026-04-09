@@ -73,6 +73,7 @@ module Hecks
         @entry_points = []
         @vision = nil
         @subdomain = nil
+        @sme = nil
         @glossary_terms = []
       end
 
@@ -97,6 +98,18 @@ module Hecks
       # @return [void]
       def vision(text)
         @vision = text
+      end
+
+      # Declare a subject matter expert for this domain.
+      # The SME joins the product executor room as a domain-specific advisor.
+      #
+      #   sme "Dr. Pizza", "20 years in pizza operations, knows every edge case"
+      #
+      # @param name [String] the SME's name
+      # @param expertise [String] what they know and how they help
+      # @return [void]
+      def sme(name, expertise = nil)
+        @sme = { name: name, expertise: expertise }
       end
 
       # Classify this domain's subdomain type (Evans strategic design).
@@ -367,7 +380,8 @@ module Hecks
           description: @description,
           entry_points: @entry_points,
           vision: @vision, subdomain: @subdomain,
-          glossary_terms: @glossary_terms
+          glossary_terms: @glossary_terms,
+          sme: @sme
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

@@ -154,7 +154,7 @@ Hecks.bluebook "HecksAppeal" do
       attribute :filename, String
     end
 
-    command "DiffArtifact" do
+    command "CompareArtifact" do
       description "Compare generated output against existing file on disk"
       reference_to "Generator"
       attribute :filename, String

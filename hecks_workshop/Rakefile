@@ -1,8 +1,0 @@
-require "rspec/core/rake_task"
-
-RSpec::Core::RakeTask.new(:spec) do |t|
-  t.pattern = "spec/**/*_spec.rb"
-  t.rspec_opts = "-I ../hecksties/lib -I ../hecks_model/lib -I ../hecks_domain/lib -I ../hecks_runtime/lib -I ../hecks_workshop/lib -I ../hecks_cli/lib -I ../hecks_persist/lib -I ../hecks_spec --require spec_helper"
-end
-
-task default: :spec

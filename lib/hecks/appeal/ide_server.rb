@@ -1,5 +1,7 @@
 # Hecks::Appeal::IdeServer
 #
+# @domain Session.Connect, Project.OpenProject, Project.DiscoverProjects, Layout
+#
 # Boots the HecksAppeal IDE by starting capabilities from the runtime.
 # Everything is capability-driven — no hand-rolled infrastructure.
 #
@@ -32,9 +34,11 @@ module Hecks
       def print_projects
         return unless @bridge.respond_to?(:projects)
         @bridge.projects.each do |_path, project|
-          puts "  #{project[:name]}/"
-          project[:domains]&.each do |d|
-            puts "    #{d[:name]} (#{d[:aggregates]&.size || 0} aggregates)"
+          if project[:error]
+            puts "  \e[31m✗\e[0m #{project[:name]}: #{project[:error]}"
+          else
+            agg_count = project[:domains]&.sum { |d| d[:aggregates]&.size || 0 } || 0
+            puts "  \e[32m✓\e[0m #{project[:name]} (#{agg_count} aggregates)"
           end
         end
         puts ""
@@ -57,7 +61,7 @@ module Hecks
             port.add_runtime(project[:name], rt)
             # Also register with workbench handler if available
             runtime.workbench.add_runtime(project[:name], rt) if runtime&.respond_to?(:workbench)
-            puts "  [play] #{project[:name]}/#{rt.domain.name} — #{rt.domain.aggregates.size} aggregates"
+            puts "    \e[36m▶\e[0m #{rt.domain.name} (#{rt.domain.aggregates.size} aggregates)"
           end
         end
       end
@@ -70,7 +74,8 @@ module Hecks
 
       def start_static_assets(runtime)
         if runtime.respond_to?(:static_assets_adapter)
-          puts "Open http://localhost:#{runtime.static_assets.listen_port} in your browser"
+          url = "http://localhost:#{runtime.static_assets.listen_port}"
+          puts "\e]8;;#{url}\e\\#{url}\e]8;;\e\\"
           puts ""
           runtime.static_assets_adapter.start
         else

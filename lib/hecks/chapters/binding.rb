@@ -27,8 +27,8 @@ module Hecks
           end
 
           b.aggregate "NamingHelpers", "Domain naming convention methods" do
-            command("DomainModuleName") { attribute :name, String }
-            command("DomainSlug") { attribute :name, String }
+            command("ResolveDomainModuleName") { attribute :name, String }
+            command("ResolveDomainSlug") { attribute :name, String }
           end
 
           b.aggregate "Utils", "Shared utility functions across framework" do
@@ -46,7 +46,7 @@ module Hecks
 
           b.aggregate "Registry", "Hash-backed registry for named resources with symbol-coerced keys and Enumerable support" do
             command("Register") { attribute :key, String; attribute :value, String }
-            command("Lookup") { attribute :key, String }
+            command("FindByKey") { attribute :key, String }
           end
 
           b.aggregate "SetRegistry", "Array-backed registry for unique items with duplicate prevention and Enumerable support" do
