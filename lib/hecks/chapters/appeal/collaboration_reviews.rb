@@ -36,7 +36,6 @@ module Hecks
 
             command "AddComment" do
               description "Comment on the proposed changes"
-              reference_to "Review"
               attribute :author, String
               attribute :body, String
               attribute :element_name, String
@@ -44,13 +43,11 @@ module Hecks
 
             command "ApproveReview" do
               description "Approve the proposed domain changes"
-              reference_to "Review"
               attribute :author, String
             end
 
             command "RejectReview" do
               description "Reject the proposed changes with a reason"
-              reference_to "Review"
               attribute :author, String
               attribute :reason, String
             end
@@ -82,12 +79,10 @@ module Hecks
 
             command "ResolveAnnotation" do
               description "Mark an annotation as resolved"
-              reference_to "Annotation"
               end
 
             command "ReplyToAnnotation" do
               description "Add a threaded reply to an existing annotation"
-              reference_to "Annotation"
               attribute :author, String
               attribute :body, String
             end
@@ -122,40 +117,34 @@ module Hecks
 
             command "SendMessage" do
               description "Send a message to the AI assistant about the domain"
-              reference_to "Agent"
               attribute :content, String
               emits "MessageReceived"
             end
 
             command "ToggleAdapter" do
               description "Switch between memory and live LLM adapter"
-              reference_to "Agent"
               attribute :mode, String
               emits "AdapterChanged"
             end
 
             command "ClearConversation" do
               description "Reset the conversation history"
-              reference_to "Agent"
               emits "ConversationCleared"
             end
 
             command "ApplySuggestion" do
               description "Accept and apply a suggested domain change"
-              reference_to "Agent"
               attribute :title, String
               emits "SuggestionApplied"
             end
 
             command "RequestReview" do
               description "Ask the AI to review the current domain"
-              reference_to "Agent"
               emits "ReviewRequested"
             end
 
             command "LoadDomainContext" do
               description "Set which domain the agent introspects for tools and system prompt"
-              reference_to "Agent"
               attribute :domain_name, String
               emits "DomainContextLoaded"
             end

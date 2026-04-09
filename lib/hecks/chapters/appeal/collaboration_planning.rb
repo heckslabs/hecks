@@ -37,13 +37,11 @@ module Hecks
 
             command "PlanFeature" do
               description "Ask the AI agent to plan all domain additions for this feature"
-              reference_to "Feature"
               emits "FeaturePlanned"
             end
 
             command "AddDomainAddition" do
               description "Manually add a planned domain change to the feature"
-              reference_to "Feature"
               attribute :kind, String
               attribute :name, String
               attribute :parent, String
@@ -53,19 +51,16 @@ module Hecks
 
             command "VerifyAdditions" do
               description "Check the live domain IR for each planned addition"
-              reference_to "Feature"
               emits "AdditionsVerified"
             end
 
             command "BuildFeature" do
               description "Ask the AI agent to implement all remaining additions"
-              reference_to "Feature"
               emits "FeatureBuildStarted"
             end
 
             command "CompleteFeature" do
               description "Mark the feature as done — all additions verified"
-              reference_to "Feature"
               emits "FeatureCompleted"
             end
 
@@ -93,14 +88,12 @@ module Hecks
 
             command "AddToBacklog" do
               description "Add a feature to the backlog"
-              reference_to "Backlog"
               attribute :feature_title, String
               emits "AddedToBacklog"
             end
 
             command "Prioritize" do
               description "Reorder a feature within the backlog"
-              reference_to "Backlog"
               attribute :feature_title, String
               attribute :position, Integer
               emits "Reprioritized"
@@ -108,7 +101,6 @@ module Hecks
 
             command "TrackProgress" do
               description "Recalculate completion across all features"
-              reference_to "Backlog"
               emits "ProgressTracked"
             end
 

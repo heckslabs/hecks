@@ -34,7 +34,6 @@ module Hecks
 
             command "AddStep" do
               description "Append a given/when/then step to the scenario"
-              reference_to "Scenario"
               attribute :phase, String
               attribute :aggregate_name, String
               attribute :command_name, String
@@ -43,12 +42,10 @@ module Hecks
 
             command "RunScenario" do
               description "Execute all steps and record pass/fail"
-              reference_to "Scenario"
               end
 
             command "RecordResult" do
               description "Store the outcome of a scenario run"
-              reference_to "Scenario"
               attribute :result, String
             end
 
@@ -73,14 +70,12 @@ module Hecks
 
             command "AddEntry" do
               description "Add a data record to the fixture"
-              reference_to "Fixture"
               attribute :aggregate_name, String
               attribute :attributes, String
             end
 
             command "ApplyToScenario" do
               description "Load this fixture as the given state for a scenario"
-              reference_to "Fixture"
               reference_to "Scenario"
             end
 
@@ -113,7 +108,6 @@ module Hecks
 
             command "ResetPlayground" do
               description "Clear all sandbox state and events"
-              reference_to "Playground"
               end
 
             query "RecentEvents" do

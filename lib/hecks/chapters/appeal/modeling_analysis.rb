@@ -32,14 +32,12 @@ module Hecks
 
             command "DismissInsight" do
               description "Acknowledge and hide a specific finding"
-              reference_to "Insight"
               attribute :rule, String
               attribute :element_name, String
             end
 
             command "ConfigureRules" do
               description "Enable or disable specific analysis rules"
-              reference_to "Insight"
               attribute :rule, String
               attribute :enabled, String
             end
@@ -67,12 +65,10 @@ module Hecks
 
             command "GenerateMigration" do
               description "Produce a migration script for the detected changes"
-              reference_to "Migration"
               end
 
             command "ApplyMigration" do
               description "Execute the migration against a target environment"
-              reference_to "Migration"
               end
           end
 
@@ -100,7 +96,6 @@ module Hecks
 
             command "HighlightBreaking" do
               description "Filter the comparison to show only breaking changes"
-              reference_to "Comparison"
               end
           end
 

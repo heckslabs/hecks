@@ -47,14 +47,12 @@ module Hecks
 
             command "SelectView" do
               description "Switch between aggregate map, event flow, or command graph"
-              reference_to "Diagram"
               attribute :view_type, String
               emits "ViewSelected"
             end
 
             command "FilterByAggregate" do
               description "Show only nodes related to a specific aggregate"
-              reference_to "Diagram"
               attribute :aggregate_name, String
               emits "DiagramFiltered"
             end
@@ -88,14 +86,12 @@ module Hecks
 
             command "AddSticky" do
               description "Place a new sticky note on the board"
-              reference_to "EventStorm"
               attribute :label, String
               attribute :kind, String
             end
 
             command "MoveSticky" do
               description "Reposition a sticky on the board"
-              reference_to "EventStorm"
               attribute :label, String
               attribute :position_x, Integer
               attribute :position_y, Integer
@@ -103,7 +99,6 @@ module Hecks
 
             command "ConvertToDomain" do
               description "Transform stickies into Bluebook DSL aggregates, commands, and events"
-              reference_to "EventStorm"
               end
 
             validation :name, presence: true
@@ -135,21 +130,18 @@ module Hecks
 
             command "RenameTerm" do
               description "Rename a term and update all references"
-              reference_to "Glossary"
               attribute :old_name, String
               attribute :new_name, String
             end
 
             command "FlagAmbiguity" do
               description "Mark a term as ambiguous -- needs clarification"
-              reference_to "Glossary"
               attribute :term_name, String
               attribute :reason, String
             end
 
             command "LinkTerms" do
               description "Declare a relationship between two terms"
-              reference_to "Glossary"
               attribute :from_term, String
               attribute :to_term, String
               attribute :relationship, String

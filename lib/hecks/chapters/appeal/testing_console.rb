@@ -38,13 +38,11 @@ module Hecks
 
             command "OpenConsole" do
               description "Open the console -- loads available aggregates and commands"
-              reference_to "Console"
               emits "ConsoleOpened"
             end
 
             command "SelectCommand" do
               description "Pick an aggregate and command -- generates the input form"
-              reference_to "Console"
               attribute :aggregate_name, String
               attribute :command_name, String
               emits "CommandSelected"
@@ -52,14 +50,12 @@ module Hecks
 
             command "SubmitForm" do
               description "Execute the selected command with the filled form values"
-              reference_to "Console"
               attribute :values, String
               emits "CommandExecuted"
             end
 
             command "ViewResult" do
               description "Display the result of the last command execution"
-              reference_to "Console"
               emits "ResultViewed"
             end
           end
@@ -125,37 +121,31 @@ module Hecks
 
             command "SubscribeToEvents" do
               description "Start streaming events from a project's domains"
-              reference_to "EventStream"
               emits "EventsSubscribed"
             end
 
             command "StopStreaming" do
               description "Stop streaming events"
-              reference_to "EventStream"
               emits "StreamingStopped"
             end
 
             command "PauseStream" do
               description "Temporarily pause the event stream without disconnecting"
-              reference_to "EventStream"
               emits "StreamPaused"
             end
 
             command "ResumeStream" do
               description "Resume a paused event stream"
-              reference_to "EventStream"
               emits "StreamResumed"
             end
 
             command "ClearEvents" do
               description "Remove all events from the stream display"
-              reference_to "EventStream"
               emits "EventsCleared"
             end
 
             command "FilterEvents" do
               description "Filter the stream by aggregate name or event type"
-              reference_to "EventStream"
               attribute :aggregate_name, String
               attribute :event_type, String
               emits "EventsFiltered"
@@ -163,7 +153,6 @@ module Hecks
 
             command "InspectEvent" do
               description "Expand an event row to show its full payload data"
-              reference_to "EventStream"
               attribute :event_name, String
               attribute :timestamp, String
               emits "EventInspected"

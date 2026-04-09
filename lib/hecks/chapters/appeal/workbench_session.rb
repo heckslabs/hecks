@@ -66,31 +66,26 @@ module Hecks
 
             command "EnterSketch" do
               description "Switch to sketch mode for editing domain structure"
-              reference_to "Session"
               emits "SketchEntered"
             end
 
             command "EnterPlay" do
               description "Switch to play mode for executing domain commands"
-              reference_to "Session"
               emits "PlayEntered"
             end
 
             command "Connect" do
               description "Establish WebSocket connection to the IDE server"
-              reference_to "Session"
               emits "Connected"
             end
 
             command "Disconnect" do
               description "Close the WebSocket connection"
-              reference_to "Session"
               emits "Disconnected"
             end
 
             command "RestoreConnection" do
               description "Drop and re-establish the WebSocket connection"
-              reference_to "Session"
               emits "ConnectionRestored"
             end
           end
@@ -111,32 +106,27 @@ module Hecks
               attribute :position, String
             end
 
-            reference_to "Session"
 
             command "OpenPanel" do
               description "Show a hidden panel"
-              reference_to "Layout"
               attribute :panel_name, String
               emits "PanelOpened"
             end
 
             command "ClosePanel" do
               description "Hide a panel"
-              reference_to "Layout"
               attribute :panel_name, String
               emits "PanelClosed"
             end
 
             command "SelectTab" do
               description "Switch the active tab in the main area"
-              reference_to "Layout"
               attribute :tab_name, String
               emits "TabSelected"
             end
 
             command "ResizePanel" do
               description "Change a panel's dimensions"
-              reference_to "Layout"
               attribute :panel_name, String
               attribute :width, Integer
               attribute :height, Integer
@@ -145,31 +135,26 @@ module Hecks
 
             command "ToggleSidebar" do
               description "Collapse or expand the sidebar"
-              reference_to "Layout"
               emits "SidebarToggled"
             end
 
             command "ToggleEventsPanel" do
               description "Collapse or expand the bottom events panel"
-              reference_to "Layout"
               emits "EventsPanelToggled"
             end
 
             command "HideProjects" do
               description "Hide the projects sidebar panel"
-              reference_to "Layout"
               emits "ProjectsHidden"
             end
 
             command "ShowProjects" do
               description "Show the projects sidebar panel"
-              reference_to "Layout"
               emits "ProjectsShown"
             end
 
             command "TrackCurrentFile" do
               description "Record the currently open file and domain for context"
-              reference_to "Layout"
               attribute :path, String
               attribute :domain, String
               emits "CurrentFileTracked"
@@ -177,13 +162,11 @@ module Hecks
 
             command "SaveState" do
               description "Persist the current layout state to disk"
-              reference_to "Layout"
               emits "StateSaved"
             end
 
             command "RestoreState" do
               description "Load persisted layout state from disk"
-              reference_to "Layout"
               emits "StateRestored"
             end
           end
@@ -210,13 +193,11 @@ module Hecks
 
             command "CloseMenu" do
               description "Close any open menu dropdown"
-              reference_to "Menu"
               emits "MenuClosed"
             end
 
             command "SelectMenuItem" do
               description "Execute a menu item action"
-              reference_to "Menu"
               attribute :menu_name, String
               attribute :action, String
               emits "MenuItemSelected"

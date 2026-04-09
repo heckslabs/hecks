@@ -32,7 +32,6 @@ module Hecks
 
             command "CloseProject" do
               description "Close the current project and release resources"
-              reference_to "Project"
               emits "ProjectClosed"
             end
 
@@ -96,7 +95,6 @@ module Hecks
 
             command "GetLastOpened" do
               description "Return the last opened file path and domain"
-              reference_to "Explorer"
               emits "LastOpenedReturned"
             end
 
@@ -137,20 +135,17 @@ module Hecks
 
             command "EditDocument" do
               description "Apply a text change to the document"
-              reference_to "Document"
               attribute :content, String
               emits "DocumentEdited"
             end
 
             command "SaveDocument" do
               description "Persist the document back to disk"
-              reference_to "Document"
               emits "DocumentSaved"
             end
 
             command "ValidateDocument" do
               description "Parse and validate the document, producing diagnostics"
-              reference_to "Document"
               emits "DocumentValidated"
             end
 

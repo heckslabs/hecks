@@ -34,12 +34,10 @@ module Hecks
 
             command "Undo" do
               description "Move the cursor back one step and revert the change"
-              reference_to "Timeline"
               end
 
             command "Redo" do
               description "Move the cursor forward and reapply the change"
-              reference_to "Timeline"
               end
           end
 
@@ -67,18 +65,15 @@ module Hecks
 
             command "BuildTarget" do
               description "Generate all code for the selected target"
-              reference_to "Generator"
               end
 
             command "PreviewArtifact" do
               description "Show the content of a single generated file"
-              reference_to "Generator"
               attribute :filename, String
             end
 
             command "CompareArtifact" do
               description "Compare generated output against existing file on disk"
-              reference_to "Generator"
               attribute :filename, String
             end
 

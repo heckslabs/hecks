@@ -28,7 +28,6 @@ module Hecks
 
             command "DismissNotification" do
               description "Mark a notification as seen"
-              reference_to "Notification"
               emits "NotificationDismissed"
             end
 
@@ -52,13 +51,11 @@ module Hecks
 
             command "PauseCapture" do
               description "Stop capturing screenshots"
-              reference_to "Screenshot"
               emits "CapturePaused"
             end
 
             command "ResumeCapture" do
               description "Resume capturing screenshots"
-              reference_to "Screenshot"
               emits "CaptureResumed"
             end
           end
@@ -86,13 +83,11 @@ module Hecks
 
             command "ClearSearch" do
               description "Reset search results"
-              reference_to "Search"
               emits "SearchCleared"
             end
 
             command "FilterSearchResults" do
               description "Narrow results by element type"
-              reference_to "Search"
               attribute :element_type, String
               emits "SearchResultsFiltered"
             end
