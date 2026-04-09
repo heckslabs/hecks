@@ -1,7 +1,7 @@
 Hecks.bluebook "RiskAssessment" do
   aggregate "Assessment" do
-    reference_to "AiModel"
-    attribute :assessor_id, String
+    reference_to "ModelRegistry::AiModel"
+    reference_to "Identity::Stakeholder"
     attribute :risk_level, String
     attribute :bias_score, Float
     attribute :safety_score, Float
@@ -56,8 +56,8 @@ s.nil? || (s >= 0.0 && s <= 1.0)
     end
 
     command "InitiateAssessment" do
-      reference_to "AiModel"
-      attribute :assessor_id, String
+      reference_to "ModelRegistry::AiModel"
+      reference_to "Identity::Stakeholder"
       role "assessor"
       role "admin"
     end

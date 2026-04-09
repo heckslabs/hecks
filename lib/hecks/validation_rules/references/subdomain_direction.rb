@@ -33,9 +33,9 @@ module Hecks
               my_level = subdomain_level(subdomain_map[@domain.name])
               their_level = subdomain_level(subdomain_map[target_domain])
 
-              if my_level < their_level
-                result << "Warning: #{@domain.name} (#{subdomain_map[@domain.name] || "unclassified"}) " \
-                          "depends on #{target_domain} (#{subdomain_map[target_domain] || "unclassified"}) " \
+              if my_level < their_level && subdomain_map[@domain.name] && subdomain_map[target_domain]
+                result << "Warning: #{@domain.name} (#{subdomain_map[@domain.name]}) " \
+                          "depends on #{target_domain} (#{subdomain_map[target_domain]}) " \
                           "— core should not depend on generic"
               end
             end

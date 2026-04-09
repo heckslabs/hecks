@@ -48,7 +48,7 @@ Hecks.bluebook "Identity" do
     attribute :entity_type, String
     reference_to "Stakeholder"
     attribute :action, String
-    reference_to "Stakeholder"
+    attribute :performed_by, String
     attribute :details, String
     attribute :timestamp, DateTime
 
@@ -68,7 +68,7 @@ Hecks.bluebook "Identity" do
       attribute :entity_type, String
       reference_to "Stakeholder"
       attribute :action, String
-      reference_to "Stakeholder"
+      attribute :performed_by, String
       attribute :details, String
     end
 

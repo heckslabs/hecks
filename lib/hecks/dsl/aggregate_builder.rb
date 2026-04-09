@@ -91,6 +91,7 @@ module Hecks
         @namespace = nil
         @superclass = nil
         @mixins = []
+        @crud = false
         self.class.facet_registry.each do |facet_name, setup|
           @facet_data[facet_name] = []
           setup.call(self.class) unless self.class.method_defined?(facet_name)
@@ -220,10 +221,24 @@ module Hecks
         @entities << builder.build
       end
 
+      # Declare CRUD commands for this aggregate. Generates Create, Update,
+      # and Delete commands from the aggregate's attributes at build time.
+      # Skips any verb whose command already exists.
+      #
+      #   aggregate "Pizza" do
+      #     attribute :name, String
+      #     crud
+      #   end
+      #
+      def crud
+        @crud = true
+      end
+
       # Build the Aggregate IR object, inferring events from commands.
       #
       # @return [BluebookModel::Structure::Aggregate]
       def build
+        generate_crud_commands if @crud
         events = merge_events(infer_events, @explicit_events)
 
         Structure::Aggregate.new(
@@ -250,6 +265,32 @@ module Hecks
         inferred.each { |e| by_name[e.name] = e }
         explicit.each { |e| by_name[e.name] = e }
         by_name.values
+      end
+
+      def generate_crud_commands
+        existing = @commands.map(&:name).to_set
+        reserved = Hecks::Utils.respond_to?(:RESERVED_AGGREGATE_ATTRS) ? Hecks::Utils::RESERVED_AGGREGATE_ATTRS : %w[id created_at updated_at]
+        user_attrs = @attributes.reject { |a| reserved.include?(a.name.to_s) }
+
+        %w[Create Update Delete].each do |verb|
+          cmd_name = "#{verb}#{@name}"
+          next if existing.include?(cmd_name)
+
+          cmd_builder = CommandBuilder.new(cmd_name)
+          case verb
+          when "Create"
+            user_attrs.each { |a| cmd_builder.attribute(a.name, a.type) }
+            cmd_builder.emits("Created#{@name}")
+          when "Update"
+            cmd_builder.reference_to(@name)
+            user_attrs.each { |a| cmd_builder.attribute(a.name, a.type) }
+            cmd_builder.emits("Updated#{@name}")
+          when "Delete"
+            cmd_builder.reference_to(@name)
+            cmd_builder.emits("Deleted#{@name}")
+          end
+          @commands << cmd_builder.build
+        end
       end
 
       def infer_events

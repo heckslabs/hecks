@@ -1,6 +1,6 @@
 Hecks.bluebook "Operations" do
   aggregate "Deployment" do
-    reference_to "AiModel"
+    reference_to "ModelRegistry::AiModel"
     attribute :environment, String
     attribute :endpoint, String
     attribute :purpose, String
@@ -34,7 +34,7 @@ Hecks.bluebook "Operations" do
     end
 
     command "PlanDeployment" do
-      reference_to "AiModel"
+      reference_to "ModelRegistry::AiModel"
       attribute :environment, String
       attribute :endpoint, String
       attribute :purpose, String
@@ -52,11 +52,11 @@ Hecks.bluebook "Operations" do
   end
 
   aggregate "Incident" do
-    reference_to "AiModel"
+    reference_to "ModelRegistry::AiModel"
     attribute :severity, String
     attribute :category, String
     attribute :description, String
-    attribute :reported_by_id, String
+    reference_to "Identity::Stakeholder"
     attribute :reported_at, DateTime
     attribute :resolved_at, DateTime
     attribute :resolution, String
@@ -88,11 +88,11 @@ Hecks.bluebook "Operations" do
     end
 
     command "ReportIncident" do
-      reference_to "AiModel"
+      reference_to "ModelRegistry::AiModel"
       attribute :severity, String
       attribute :category, String
       attribute :description, String
-      attribute :reported_by_id, String
+      reference_to "Identity::Stakeholder"
       external "AlertingService"
     end
 
@@ -120,10 +120,10 @@ Hecks.bluebook "Operations" do
   end
 
   aggregate "Monitoring" do
-    reference_to "AiModel"
-    reference_to "Deployment"
+    reference_to "ModelRegistry::AiModel"
+    reference_to "Operations::Deployment"
     attribute :metric_name, String
-    attribute :value, Float
+    attribute :metric_value, Float
     attribute :threshold, Float
     attribute :recorded_at, DateTime
 
@@ -148,10 +148,10 @@ Hecks.bluebook "Operations" do
     end
 
     command "RecordMetric" do
-      reference_to "AiModel"
-      reference_to "Deployment"
+      reference_to "ModelRegistry::AiModel"
+      reference_to "Operations::Deployment"
       attribute :metric_name, String
-      attribute :value, Float
+      attribute :metric_value, Float
       attribute :threshold, Float
     end
 
