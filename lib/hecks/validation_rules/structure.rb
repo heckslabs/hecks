@@ -23,6 +23,7 @@ module Hecks
       autoload :TooManyCommands,              "hecks/validation_rules/structure/too_many_commands"
       autoload :AntiCorruptionTranslation,  "hecks/validation_rules/structure/anti_corruption_translation"
       autoload :ViewDomainTags,             "hecks/validation_rules/structure/view_domain_tags"
+      autoload :HandlerBlocks,              "hecks/validation_rules/structure/handler_blocks"
       autoload :FileCoverage,               "hecks/validation_rules/structure/file_coverage"
     end
   end
