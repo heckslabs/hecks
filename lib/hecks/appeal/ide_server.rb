@@ -33,30 +33,6 @@ module Hecks
 
       def print_projects
         return unless @bridge
-
-        errors = []
-        warnings = []
-        loaded = 0
-
-        @bridge.projects.each do |_path, project|
-          if project[:error]
-            puts "  \e[31m✗\e[0m #{project[:name]}: #{project[:error].to_s.split("\n").first}"
-            errors << project[:error].to_s.split("\n").first
-          elsif project[:warning]
-            puts "  \e[33m!\e[0m #{project[:name]}: #{project[:warning].to_s.split("\n").first}"
-            warnings << project[:warning].to_s.split("\n").first
-          else
-            agg_count = project[:domains]&.sum { |d| d[:aggregates]&.size || 0 } || 0
-            puts "  \e[32m✓\e[0m #{project[:name]} (#{agg_count} aggregates)"
-            loaded += 1
-          end
-        end
-
-        # Collect boot warnings from stderr capture
-        puts ""
-        color = errors.any? ? "\e[31m" : "\e[32m"
-        puts "#{color}#{loaded} projects, #{errors.size} errors, #{warnings.size} warnings\e[0m"
-        puts ""
       end
 
       def start_websocket(runtime)

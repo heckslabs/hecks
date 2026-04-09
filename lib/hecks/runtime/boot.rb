@@ -57,6 +57,7 @@ module Hecks
       runtimes = boot_domains(domains, root: boot_root)
       wire_persistence(runtimes)
       autoload_services(dir) unless domain
+      print_boot_summary(runtimes)
       runtimes.size == 1 ? runtimes.first : runtimes
     end
 
@@ -97,6 +98,13 @@ module Hecks
         end
       end
       [driven, driving, untyped]
+    end
+
+    def print_boot_summary(runtimes)
+      agg_count = runtimes.sum { |rt| rt.domain.aggregates.size }
+      domain_names = runtimes.map { |rt| rt.domain.name }
+      puts ""
+      puts "\e[32m#{domain_names.join(", ")} (#{agg_count} aggregates)\e[0m"
     end
 
     def autoload_services(dir)
