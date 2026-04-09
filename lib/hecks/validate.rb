@@ -35,10 +35,10 @@ module Hecks
             v.warnings.each { |w| warnings << "#{name}/#{rt.domain.name}: #{w}" } if v.respond_to?(:warnings)
           end
 
-          # UL tag coverage (only if the project has HTML/JS files)
-          runtimes.each do |rt|
-            cov = ul_coverage(rt, path)
-            warnings << "#{name}: UL coverage #{cov[:covered]}/#{cov[:total]} (#{cov[:pct]}%) — missing: #{cov[:missing].first(5).join(", ")}" if cov && cov[:missing].any?
+          # UL tag coverage (only for the project root, not per-domain)
+          cov = ul_coverage(runtimes.first, path)
+          if cov && cov[:missing].any?
+            warnings << "#{name}: UL coverage #{cov[:covered]}/#{cov[:total]} (#{cov[:pct]}%) — missing: #{cov[:missing].first(5).join(", ")}"
           end
 
           projects << { name: name, aggregates: agg_count, status: :ok }
