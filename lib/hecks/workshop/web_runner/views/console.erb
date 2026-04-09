@@ -26,6 +26,12 @@
     #autocomplete .ac-item { padding: 4px 10px; font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; color: #c9d1d9; cursor: pointer; }
     #autocomplete .ac-item.active, #autocomplete .ac-item:hover { background: #30363d; color: #7ee787; }
     #autocomplete .ac-type { color: #484f58; margin-left: 8px; }
+    #tab-bar { display: flex; align-items: stretch; min-height: 30px; overflow-x: auto; }
+    #tab-bar .tab { padding: 4px 12px; font-size: 11px; font-family: "SF Mono","Fira Code",monospace; color: #484f58; cursor: pointer; border-right: 1px solid #30363d; white-space: nowrap; display: flex; align-items: center; gap: 5px; user-select: none; }
+    #tab-bar .tab:hover { color: #c9d1d9; background: #0d1117; }
+    #tab-bar .tab.active { color: #c9d1d9; background: #0d1117; border-bottom: 2px solid #58a6ff; }
+    #tab-bar .tab-close { color: #484f58; font-size: 14px; line-height: 1; }
+    #tab-bar .tab-close:hover { color: #f85149; }
   </style>
 </head>
 <body class="flex h-screen bg-gh-bg text-gh-text font-sans m-0 p-0">
@@ -42,8 +48,10 @@
       <span id="mode-badge" class="bg-gh-badge text-white text-[11px] px-3 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity select-none">sketch</span>
     </div>
     <div id="error-banner-slot"></div>
+    <div id="tab-bar" class="border-b border-gh-border bg-gh-panel"></div>
     <div id="terminal" class="flex-1 overflow-y-auto px-4 py-3 font-mono text-[13px] leading-relaxed transition-all duration-500"></div>
-    <div class="flex border-t border-gh-border bg-gh-bg relative">
+    <bluebook-editor id="editor-pane" style="display:none;flex:1;overflow:auto;"></bluebook-editor>
+    <div id="cmd-input-row" class="flex border-t border-gh-border bg-gh-bg relative">
       <div id="autocomplete" class="absolute bottom-full left-8 bg-[#1e1e1e] border border-gh-border rounded max-h-44 overflow-y-auto hidden z-10 min-w-[200px]"></div>
       <div id="stop-hint" class="hidden absolute bottom-full right-3 bg-[#1e1e1e] border border-gh-border rounded px-2.5 py-1 font-mono text-[11px] text-gh-muted whitespace-nowrap"></div>
       <span class="text-gh-muted py-2.5 pl-4 font-mono text-[13px]">&gt;&nbsp;</span>
@@ -72,6 +80,49 @@
     var histIdx = -1;
     var terminal = document.getElementById('terminal');
     var input = document.getElementById('cmd-input');
+
+    // ─── Bluebook editor tabs ───
+    var openTabs = [{ id: 'terminal', label: 'Terminal' }], activeTab = 'terminal';
+
+    function renderTabs() {
+      var bar = document.getElementById('tab-bar');
+      bar.innerHTML = openTabs.map(function(t) {
+        var cls = 'tab' + (t.id === activeTab ? ' active' : '');
+        var close = t.id !== 'terminal' ? ' <span class="tab-close" onclick="event.stopPropagation();closeTab(\'' + esc(t.id) + '\')">&times;</span>' : '';
+        return '<div class="' + cls + '" onclick="switchTab(\'' + esc(t.id) + '\')">' + esc(t.label) + close + '</div>';
+      }).join('');
+    }
+
+    function switchTab(id) {
+      activeTab = id;
+      renderTabs();
+      var isTerminal = id === 'terminal';
+      terminal.style.display = isTerminal ? '' : 'none';
+      document.getElementById('cmd-input-row').style.display = isTerminal ? '' : 'none';
+      var pane = document.getElementById('editor-pane');
+      pane.style.display = isTerminal ? 'none' : '';
+      if (!isTerminal) {
+        var t = openTabs.find(function(x) { return x.id === id; });
+        pane.content = t ? t.content : '';
+      }
+    }
+
+    function closeTab(id) {
+      openTabs = openTabs.filter(function(t) { return t.id !== id; });
+      if (activeTab === id) switchTab('terminal'); else renderTabs();
+    }
+
+    function openBluebook(name) {
+      var existing = openTabs.find(function(t) { return t.id === name; });
+      if (existing) { switchTab(name); return; }
+      fetch('/hecks_web_workbench/bluebook?domain=' + encodeURIComponent(name))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.content) { openTabs.push({ id: name, label: name, content: d.content }); switchTab(name); }
+        });
+    }
+
+    renderTabs();
     var lastCmd = null, undoRemoves = {};
 
     function saveCmdHistory() { localStorage.setItem('hecks_cmdHistory', JSON.stringify(cmdHistory.slice(0, 100))); }
@@ -279,9 +330,17 @@
       });
 
       Object.keys(groups).forEach(function(domainName) {
+        var hasBluebook = state.domain_files && state.domain_files.indexOf(domainName) > -1;
         var header = document.createElement('h3');
         header.className = 'text-gh-blue text-[11px] uppercase tracking-wider mb-1 mt-2';
-        header.textContent = domainName;
+        if (hasBluebook) {
+          header.style.cursor = 'pointer';
+          header.title = 'Open bluebook source';
+          header.innerHTML = '<span style="opacity:0.7;margin-right:3px;">&#128216;</span>' + esc(domainName);
+          header.addEventListener('click', function() { openBluebook(domainName); });
+        } else {
+          header.textContent = domainName;
+        }
         tree.appendChild(header);
 
         groups[domainName].forEach(function(agg) {

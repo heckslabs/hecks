@@ -31,6 +31,7 @@ module Hecks
         @console_enabled = enable_console
         @domain_groups = {}
         @loaded_domains = []
+        @domain_file_paths = {}
         @runner = WorkshopRunner.new(name: name)
         if domains
           ws = load_multi_domain(domains, name)
@@ -45,6 +46,7 @@ module Hecks
       end
 
       def reload_domain!
+        @domain_file_paths = {}
         @domain_groups = {}
         @loaded_domains = []
         if @domain_paths
@@ -78,9 +80,10 @@ module Hecks
 
       def handle(req, res)
         case [req.request_method, req.path]
-        when ["GET",  BASE]           then serve_console(res)
-        when ["POST", "#{BASE}/command"] then guard_console(req, res) { serve_command(req, res) }
-        when ["GET",  "#{BASE}/state"] then serve_state(res)
+        when ["GET",  BASE]                then serve_console(res)
+        when ["POST", "#{BASE}/command"]   then guard_console(req, res) { serve_command(req, res) }
+        when ["GET",  "#{BASE}/state"]     then serve_state(res)
+        when ["GET",  "#{BASE}/bluebook"]  then serve_bluebook(req, res)
         else
           if req.request_method == "GET" && req.path.start_with?("#{BASE}/js/") && req.path.end_with?(".js")
             serve_js(res, req.path.sub("#{BASE}/", ""))
@@ -124,7 +127,7 @@ module Hecks
         reload_code! if ENV["HECKS_DEV"]
         input = JSON.parse(req.body)["input"].to_s.strip
         result = @evaluator.evaluate(input)
-        state  = @serializer.serialize
+        state  = @serializer.serialize.merge(domain_files: @domain_file_paths.keys)
         res.content_type = "application/json"
         res.body = JSON.generate(output: result[:output], error: result[:error], state: state)
       end
@@ -138,13 +141,26 @@ module Hecks
 
       def serve_state(res)
         res.content_type = "application/json"
-        res.body = JSON.generate(@serializer.serialize)
+        res.body = JSON.generate(@serializer.serialize.merge(domain_files: @domain_file_paths.keys))
+      end
+
+      def serve_bluebook(req, res)
+        name = req.query["domain"].to_s
+        path = @domain_file_paths[name]
+        res.content_type = "application/json"
+        if path && File.exist?(path)
+          res.body = JSON.generate(content: File.read(path), path: path, domain: name)
+        else
+          res.status = 404
+          res.body = JSON.generate(error: "No source file for domain: #{name}")
+        end
       end
 
       def load_domain_file(path)
         Kernel.load(File.expand_path(path))
         domain = Hecks.last_domain
         @loaded_domains << domain
+        @domain_file_paths[domain.name] = File.expand_path(path)
         ws = Hecks::Workshop.new(domain.name)
         domain.aggregates.each do |agg|
           ws.aggregate_builders[agg.name] =
@@ -161,6 +177,7 @@ module Hecks
           Kernel.load(File.expand_path(path))
           domain = Hecks.last_domain
           @loaded_domains << domain
+          @domain_file_paths[domain.name] = File.expand_path(path)
           domain.aggregates.each do |agg|
             ws.aggregate_builders[agg.name] =
               Hecks::DSL::AggregateRebuilder.from_aggregate(agg)
