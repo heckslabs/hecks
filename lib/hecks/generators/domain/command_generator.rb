@@ -95,7 +95,9 @@ module Hecks
         lines << ""
         lines.concat(initializer_lines)
         lines << ""
-        if @command.handler
+        if @command.givens.any? || @command.mutations.any?
+          lines.concat(given_then_lines)
+        elsif @command.handler
           lines.concat(handler_call_lines)
         elsif @command.call_body
           lines.concat(custom_call_lines)
@@ -119,6 +121,67 @@ module Hecks
         conds = @command.preconditions.map { |cond| "        # precondition: #{cond.message}" } +
                 @command.postconditions.map { |cond| "        # postcondition: #{cond.message}" }
         conds.any? ? [""] + conds : []
+      end
+
+      # Generates a call method from pure Bluebook given/then declarations.
+      # No Ruby handler — the behavior is projected from the UL.
+      def given_then_lines
+        lines = ["        def call"]
+
+        # Load aggregate
+        if @is_create
+          lines << "          agg = #{@domain_module}::#{@aggregate.name}.new"
+        else
+          ref = (@command.references || []).first
+          if ref
+            lines << "          _id = #{ref.name}.respond_to?(:id) ? #{ref.name}.id : #{ref.name}"
+            lines << "          agg = repository.find(_id)"
+            lines << "          raise #{@domain_module}::Error, \"#{@aggregate.name} not found\" unless agg"
+          else
+            lines << "          agg = repository.all.last || #{@domain_module}::#{@aggregate.name}.new"
+          end
+        end
+
+        # Givens → guard clauses
+        @command.givens.each do |g|
+          msg = g.message || "Given failed: #{g.expression}"
+          lines << "          raise Hecks::PreconditionError, #{msg.inspect} unless agg.instance_eval { #{g.expression} }"
+        end
+
+        # Mutations → assignments
+        @command.mutations.each do |m|
+          case m.operation
+          when :set
+            val = mutation_value(m.value)
+            lines << "          agg.#{m.field} = #{val}"
+          when :append
+            val = mutation_value(m.value)
+            lines << "          agg.#{m.field} = [] if agg.#{m.field}.nil?"
+            lines << "          agg.#{m.field} << #{val}"
+          when :increment
+            lines << "          agg.#{m.field} = (agg.#{m.field} || 0) + #{m.value}"
+          when :decrement
+            lines << "          agg.#{m.field} = (agg.#{m.field} || 0) - #{m.value}"
+          when :toggle
+            lines << "          agg.#{m.field} = agg.#{m.field} == \"true\" ? \"false\" : \"true\""
+          end
+        end
+
+        lines << "          agg"
+        lines << "        end"
+        lines
+      end
+
+      def mutation_value(val)
+        case val
+        when Symbol then val.to_s
+        when Hash
+          pairs = val.map { |k, v| "#{k.inspect} => #{v.is_a?(Symbol) ? v.to_s : v.inspect}" }
+          "{ #{pairs.join(", ")} }"
+        when nil then "nil"
+        when String then val.inspect
+        else val.inspect
+        end
       end
 
       # Generates lines for a custom +call+ method using the command's DSL-provided block.
