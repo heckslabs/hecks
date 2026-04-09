@@ -3746,7 +3746,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/ai.bluebook",
+    "source": "hecks_genetics/ai.bluebook",
     "domain": "AI",
     "aggregates": [
       {
@@ -4345,7 +4345,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/appeal.bluebook",
+    "source": "hecks_genetics/appeal.bluebook",
     "domain": "HecksAppeal",
     "aggregates": [
       {
@@ -7381,7 +7381,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/binding.bluebook",
+    "source": "hecks_genetics/binding.bluebook",
     "domain": "Binding",
     "aggregates": [
       {
@@ -9285,7 +9285,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/bluebook.bluebook",
+    "source": "hecks_genetics/bluebook.bluebook",
     "domain": "Bluebook",
     "aggregates": [
       {
@@ -15282,7 +15282,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/cli.bluebook",
+    "source": "hecks_genetics/cli.bluebook",
     "domain": "Cli",
     "aggregates": [
       {
@@ -16652,7 +16652,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/extensions.bluebook",
+    "source": "hecks_genetics/extensions.bluebook",
     "domain": "Extensions",
     "aggregates": [
       {
@@ -18084,7 +18084,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/hecksagon.bluebook",
+    "source": "hecks_genetics/hecksagon.bluebook",
     "domain": "Hecksagon",
     "aggregates": [
       {
@@ -18782,12 +18782,12 @@
     ]
   },
   {
-    "source": "hecks_bluebook/packaging.bluebook",
+    "source": "hecks_genetics/packaging.bluebook",
     "domain": "Packaging",
     "aggregates": []
   },
   {
-    "source": "hecks_bluebook/persist.bluebook",
+    "source": "hecks_genetics/persist.bluebook",
     "domain": "Persist",
     "aggregates": [
       {
@@ -19036,7 +19036,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/rails.bluebook",
+    "source": "hecks_genetics/rails.bluebook",
     "domain": "Rails",
     "aggregates": [
       {
@@ -19236,7 +19236,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/runtime.bluebook",
+    "source": "hecks_genetics/runtime.bluebook",
     "domain": "Runtime",
     "aggregates": [
       {
@@ -22183,7 +22183,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/spec.bluebook",
+    "source": "hecks_genetics/spec.bluebook",
     "domain": "Spec",
     "aggregates": [
       {
@@ -22628,7 +22628,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/targets.bluebook",
+    "source": "hecks_genetics/targets.bluebook",
     "domain": "Targets",
     "aggregates": [
       {
@@ -23962,7 +23962,7 @@
     ]
   },
   {
-    "source": "hecks_bluebook/templating.bluebook",
+    "source": "hecks_genetics/templating.bluebook",
     "domain": "Templating",
     "aggregates": [
       {
@@ -24266,27 +24266,27 @@
     ]
   },
   {
-    "source": "hecks_bluebook/verify.bluebook",
+    "source": "hecks_genetics/verify.bluebook",
     "domain": "Verify",
     "aggregates": []
   },
   {
-    "source": "hecks_bluebook/verify_contracts.bluebook",
+    "source": "hecks_genetics/verify_contracts.bluebook",
     "domain": "VerifyContracts",
     "aggregates": []
   },
   {
-    "source": "hecks_bluebook/verify_generators.bluebook",
+    "source": "hecks_genetics/verify_generators.bluebook",
     "domain": "VerifyGenerators",
     "aggregates": []
   },
   {
-    "source": "hecks_bluebook/verify_runtime.bluebook",
+    "source": "hecks_genetics/verify_runtime.bluebook",
     "domain": "VerifyRuntime",
     "aggregates": []
   },
   {
-    "source": "hecks_bluebook/workshop.bluebook",
+    "source": "hecks_genetics/workshop.bluebook",
     "domain": "Workshop",
     "aggregates": [
       {

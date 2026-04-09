@@ -41,3 +41,4 @@ lib/hecks/appeal/assets/css/tailwind.css
 hecks_v0
 .hecks_appeal_state.json
 node_modules/
+hecks_life/target/
