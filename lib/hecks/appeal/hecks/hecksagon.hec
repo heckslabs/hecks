@@ -2,7 +2,7 @@ Hecks.hecksagon "HecksAppeal" do
   persistence :sqlite
   concerns :webapp
   concerns :dev_tools, env: :development
-  capabilities :chat_agent, :workbench, :app_builder, :product_executor, :ubiquitous_language, :server_lifecycle
+  capabilities :chat_agent, :workbench, :app_builder, :ubiquitous_language, :server_lifecycle
 
   # AI responder wiring — adapter resolved from World file
   annotate "Collaboration::Agent", "content", :ai_responder, emits: "AgentMessageReceived"

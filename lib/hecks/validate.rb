@@ -77,8 +77,8 @@ module Hecks
       html_files = Dir.glob(File.join(scan_dir, "**/*.{html,js}"))
       return nil if html_files.empty?
 
-      require "hecks/capabilities/product_executor/tag_scanner"
-      tagged = Capabilities::ProductExecutor::TagScanner.scan(scan_dir)
+      require "hecks/tag_scanner"
+      tagged = TagScanner.scan(scan_dir)
       tagged_aggs = tagged.keys.map { |t| t.split(".").first }.uniq
       ul_aggs = domain.aggregates.map(&:name)
       missing = ul_aggs - tagged_aggs

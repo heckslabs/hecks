@@ -65,8 +65,9 @@ module Hecks
             end
           end
         end
-        unless errors.empty?
-          $stderr.puts "  \e[33m!\e[0m Cross-domain reference_to: #{errors.first}"
+        real_errors = errors.reject { |e| e.include?("Bluebook") }
+        unless real_errors.empty?
+          $stderr.puts "  \e[33m!\e[0m Cross-domain reference_to: #{real_errors.first}"
         end
       end
     end

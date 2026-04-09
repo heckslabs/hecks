@@ -71,13 +71,11 @@ module Hecks
           case cmd
           when "OpenFile"
             path = args[:path]
-            if path && File.exist?(path)
-              content = bridge.file_content(path)
-              port.send_json(client, {
-                type: "event", event: "FileOpened", aggregate: "Explorer",
-                data: content
-              })
-            end
+            content = path ? bridge.file_content(path) : { filename: nil, content: "# No path provided" }
+            port.send_json(client, {
+              type: "event", event: "FileOpened", aggregate: "Explorer",
+              data: content
+            })
           when "InspectAggregate"
             name = args[:aggregate_name]
             agg = find_aggregate(bridge, name)
