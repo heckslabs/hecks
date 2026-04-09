@@ -56,8 +56,33 @@ module Hecks
         cmd
       }
 
+      GivenStep = ->(cmd) {
+        if cmd.class.respond_to?(:givens_ir) && cmd.class.givens_ir&.any?
+          require "hecks/runtime/hecksal_interpreter"
+          agg = cmd.respond_to?(:aggregate, true) ? cmd.send(:aggregate) : nil
+          agg ||= cmd.respond_to?(:find_existing_for_postcondition, true) ? cmd.send(:find_existing_for_postcondition) : nil
+          HecksalInterpreter.check_givens(agg || cmd, cmd, cmd.class.givens_ir) if agg || cmd
+        end
+        cmd
+      }
+
+      MutationStep = ->(cmd) {
+        if cmd.class.respond_to?(:mutations_ir) && cmd.class.mutations_ir&.any?
+          require "hecks/runtime/hecksal_interpreter"
+          agg = cmd.instance_variable_get(:@aggregate)
+          if agg
+            HecksalInterpreter.apply_mutations(agg, cmd, cmd.class.mutations_ir)
+          end
+        end
+        cmd
+      }
+
       CallStep = ->(cmd) {
-        result = if cmd.class.command_bus && !cmd.class.command_bus.middleware.empty?
+        result = if cmd.class.respond_to?(:mutations_ir) && cmd.class.mutations_ir&.any? && !cmd.class.respond_to?(:domain_handler)
+          # Pure Bluebook command — mutations handle the state change
+          existing = cmd.respond_to?(:repository, true) ? cmd.send(:repository)&.all&.last : nil
+          existing || cmd
+        elsif cmd.class.command_bus && !cmd.class.command_bus.middleware.empty?
           cmd.class.command_bus.dispatch_with_command(cmd) { cmd.call }
         else
           cmd.call
@@ -88,14 +113,14 @@ module Hecks
       }
 
       PIPELINE = [
-        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep,
-        LifecycleGuardStep, CallStep,
+        GuardStep, HandlerStep, PreconditionStep, GivenStep, ValidateReferencesStep,
+        LifecycleGuardStep, CallStep, MutationStep,
         PostconditionStep, PersistStep, EmitStep, RecordStep
       ].freeze
 
       DRY_RUN_PIPELINE = [
-        GuardStep, HandlerStep, PreconditionStep, ValidateReferencesStep, CallStep,
-        PostconditionStep
+        GuardStep, HandlerStep, PreconditionStep, GivenStep, ValidateReferencesStep,
+        CallStep, MutationStep, PostconditionStep
       ].freeze
     end
   end
