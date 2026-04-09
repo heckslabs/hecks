@@ -34,10 +34,25 @@ module Hecks
                 args = args || {};
                 var correlationId = "c" + (++counter) + "_" + Date.now();
 
-                // Local dispatch — instant UI
+                // Try client-side dispatch first (instant)
                 var localResult = null;
                 if (window.Hecks && window.Hecks.dispatch) {
                   localResult = window.Hecks.dispatch(aggregate, command, args);
+                }
+
+                // If client dispatch didn't produce an event, fire one optimistically
+                if (!localResult && window.HecksApp) {
+                  var eventName = inferEventName(command);
+                  var eventData = Object.assign({}, args);
+                  // For toggle commands, infer the toggled state
+                  if (command.indexOf("Toggle") === 0) {
+                    var field = command.replace("Toggle", "").replace(/([A-Z])/g, "_$1").toLowerCase().substring(1);
+                    var st = window.HecksApp.getState();
+                    var current = st.layout && st.layout[field + "_collapsed"];
+                    eventData[field + "_collapsed"] = !current;
+                  }
+                  localResult = { event: eventName, aggregate: aggregate, data: eventData };
+                  window.HecksApp.handleEvent(localResult);
                 }
 
                 // Save to localStorage
@@ -56,6 +71,16 @@ module Hecks
                 }
 
                 return localResult;
+              }
+
+              function inferEventName(command) {
+                var match = command.match(/^(Toggle|Open|Close|Select|Hide|Show|Set|Clear|Pause|Resume)(.+)$/);
+                if (match) {
+                  var verbs = { Toggle:"Toggled", Open:"Opened", Close:"Closed", Select:"Selected",
+                    Hide:"Hidden", Show:"Shown", Set:"Set", Clear:"Cleared", Pause:"Paused", Resume:"Resumed" };
+                  return match[2] + (verbs[match[1]] || "ed");
+                }
+                return command + "ed";
               }
 
               // -- Dedup incoming events --
