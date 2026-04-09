@@ -42,25 +42,14 @@ module Hecks
         find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
         find_world_files(hecks_dir).each { |f| Kernel.load(f) }
 
-        all_aggregates = []
-        all_policies = []
-        bluebooks.each do |path|
+        domains = bluebooks.map do |path|
           Hecks.instance_variable_set(:@_inferred_bluebook_name,
             File.basename(path, ".bluebook").split("_").map(&:capitalize).join)
           Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
             Kernel.load(path)
           end
-          d = Hecks.last_domain
-          all_aggregates.concat(d.aggregates)
-          all_policies.concat(d.policies)
+          Hecks.last_domain
         end
-
-        project_name = File.basename(dir).split("_").map(&:capitalize).join
-        merged = BluebookModel::Structure::Domain.new(
-          name: project_name, aggregates: all_aggregates, policies: all_policies
-        )
-        merged.source_path = File.join(dir, "hecks")
-        domains = [merged]
         domains.each { |d| load_stubs(dir, d) }
       end
 
@@ -130,15 +119,33 @@ module Hecks
       shared_bus = EventBus.new
       @shared_event_bus = shared_bus
       directionality = Hecks::MultiDomain::Directionality.build(domains)
+      primary = nil
       runtimes = domains.map do |domain|
         bus = directionality.any? ? FilteredEventBus.new(inner: shared_bus, bluebook_gem_name: domain.gem_name, allowed_sources: directionality[domain.gem_name]) : shared_bus
         rt_root = root
-        Runtime.new(domain, event_bus: bus) {
+        skip_caps = !primary.nil?
+        rt = Runtime.new(domain, event_bus: bus, skip_capabilities: skip_caps) {
           if rt_root
             @root = rt_root
             define_singleton_method(:root) { @root }
           end
         }
+        primary ||= rt
+        rt
+      end
+
+      # Share infrastructure from primary runtime
+      if runtimes.size > 1
+        runtimes[1..].each do |rt|
+          %i[websocket websocket_adapter static_assets static_assets_adapter
+             product_executor workbench workbench_js screenshots].each do |m|
+            if primary.respond_to?(m) && !rt.respond_to?(m)
+              val = primary.send(m)
+              rt.instance_variable_set(:"@#{m}", val)
+              rt.define_singleton_method(m) { instance_variable_get(:"@#{m}") }
+            end
+          end
+        end
       end
       Hecks::MultiDomain::QueueWiring.wire(domains, runtimes)
 

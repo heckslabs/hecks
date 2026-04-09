@@ -53,7 +53,7 @@ module Hecks
     # @param hecksagon [Hecksagon::Structure::Hecksagon, nil] optional hecksagon IR
     # @yield optional configuration block
     # @return [Hecks::Runtime]
-    def initialize(domain, gate: nil, event_bus: nil, hecksagon: nil, &config)
+    def initialize(domain, gate: nil, event_bus: nil, hecksagon: nil, skip_capabilities: false, &config)
       @domain = domain
       @gate_name = gate
       @hecksagon = hecksagon || Hecks.last_hecksagon
@@ -81,7 +81,7 @@ module Hecks
       setup_sagas
       hoist_constants
       setup_actor_system
-      apply_hecksagon_capabilities
+      apply_hecksagon_capabilities unless skip_capabilities
     end
 
     def inspect
