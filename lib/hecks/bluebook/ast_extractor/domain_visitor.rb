@@ -126,7 +126,7 @@ module Hecks
         fcall = stmt.children[0]
         return false unless fcall&.type == :FCALL
         name = fcall.children[0].to_s
-        name.match?(/\A[A-Z]/)
+        Hecks::DSL::TypeName.match?(name)
       end
 
       def visit_implicit_aggregate(stmt, domain)

@@ -199,7 +199,7 @@ module Hecksagon
       #
       # @return [AnnotationSelector]
       def method_missing(name, *args, &block)
-        if name.to_s.match?(/\A[A-Z]/)
+        if Hecks::DSL::TypeName.match?(name.to_s)
           AnnotationSelector.new(@annotations, name.to_s)
         else
           super
@@ -207,7 +207,7 @@ module Hecksagon
       end
 
       def respond_to_missing?(name, _ = false)
-        name.to_s.match?(/\A[A-Z]/) || super
+        Hecks::DSL::TypeName.match?(name.to_s) || super
       end
 
       # Build and return the Hecksagon IR object.

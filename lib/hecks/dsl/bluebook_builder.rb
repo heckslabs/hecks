@@ -350,7 +350,7 @@ module Hecks
       # Implicit DSL support. PascalCase calls at the domain level create aggregates.
       # Example: `Pizza do ... end` is sugar for `aggregate "Pizza" do ... end`
       def method_missing(name, *args, **kwargs, &block)
-        if name.to_s =~ /\A[A-Z]/ && block_given?
+        if Hecks::DSL::TypeName.match?(name.to_s) && block_given?
           desc = args.first.is_a?(String) ? args.first : nil
           aggregate(name.to_s, desc, **kwargs, &block)
         else
@@ -359,7 +359,7 @@ module Hecks
       end
 
       def respond_to_missing?(name, include_private = false)
-        name.to_s =~ /\A[A-Z]/ || super
+        Hecks::DSL::TypeName.match?(name.to_s) || super
       end
 
       # Build and return the BluebookModel::Structure::Domain IR object.

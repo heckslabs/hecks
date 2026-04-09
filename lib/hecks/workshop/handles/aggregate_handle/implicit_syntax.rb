@@ -10,7 +10,7 @@ module Hecks
         def method_missing(name, *args, **kwargs, &block)
           name_s = name.to_s
 
-          if name_s =~ /\A[A-Z]/ && block_given?
+          if Hecks::DSL::TypeName.match?(name_s) && block_given?
             value_object(name_s, &block)
           elsif block_given?
             command(infer_command_name(name_s), &block)
@@ -34,7 +34,7 @@ module Hecks
         def type_argument?(arg)
           return false unless arg
           arg.is_a?(Class) ||
-            (arg.is_a?(String) && arg =~ /\A[A-Z]/) ||
+            Hecks::DSL::TypeName.match?(arg) ||
             (arg.respond_to?(:key?) && (arg.key?(:list) || arg.key?(:reference)))
         end
       end

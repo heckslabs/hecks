@@ -24,7 +24,7 @@ module Hecksagon
       #
       # @return [AnnotationSelector, AnnotationApplier]
       def method_missing(name, *args)
-        if name.to_s.match?(/\A[A-Z]/)
+        if Hecks::DSL::TypeName.match?(name.to_s)
           AnnotationSelector.new(@annotations, "#{@aggregate_name}::#{name}")
         else
           AnnotationApplier.new(@annotations, @aggregate_name, name.to_s)

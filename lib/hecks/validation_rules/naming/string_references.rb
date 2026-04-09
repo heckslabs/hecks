@@ -26,7 +26,7 @@ module Hecks
         @domain.aggregates.each do |agg|
           agg.attributes.each do |attr|
             type_s = attr.type.to_s
-            if attr.type.class == String && type_s =~ /\A[A-Z]/
+            if attr.type.class == String && Hecks::DSL::TypeName.match?(type_s)
               result << "#{agg.name}.#{attr.name} uses string type \"#{type_s}\" — use bare constant #{type_s} instead"
             end
           end

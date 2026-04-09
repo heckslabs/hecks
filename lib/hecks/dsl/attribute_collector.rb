@@ -115,7 +115,7 @@ module Hecks
       def type_is_vo?(type)
         return false if type.is_a?(Hash)
         return false if [String, Integer, Float, TrueClass, FalseClass, Date, DateTime].include?(type)
-        type.to_s.match?(/\A[A-Z]/)
+        Hecks::DSL::TypeName.match?(type.to_s)
       end
     end
   end

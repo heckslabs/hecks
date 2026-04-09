@@ -230,7 +230,7 @@ module Hecks
 
       # Implicit DSL support: `name Type` inside a command block → attribute
       def method_missing(name, *args, **kwargs, &block)
-        if args.first.is_a?(Class) || (args.first.is_a?(String) && args.first =~ /\A[A-Z]/)
+        if args.first.is_a?(Class) || Hecks::DSL::TypeName.match?(args.first)
           attribute(name, args.first, **kwargs)
         elsif args.first.is_a?(Hash) && args.first[:list]
           attribute(name, args.first, **kwargs)
