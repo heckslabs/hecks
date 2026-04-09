@@ -81,7 +81,30 @@ module Hecks
       def push_state(port, client)
         world = Hecks.respond_to?(:last_world) ? Hecks.last_world&.to_h : nil
         state = @bridge ? @bridge.to_state.merge(cwd: Dir.pwd, world: world) : { cwd: Dir.pwd, world: world }
+
+        # Restore persisted layout from runtime repo
+        runtime = @runtimes.first
+        if runtime
+          layout = load_persisted_layout(runtime)
+          state[:layout] = layout if layout
+        end
+
         port.send_json(client, { type: "state", data: state })
+      end
+
+      def load_persisted_layout(runtime)
+        repo = runtime["Layout"] rescue nil
+        return nil unless repo
+        records = repo.respond_to?(:all) ? repo.all : []
+        return nil if records.empty?
+        record = records.last
+        {
+          active_tab: record.respond_to?(:active_tab) ? record.active_tab : nil,
+          sidebar_collapsed: record.respond_to?(:sidebar_collapsed) ? record.sidebar_collapsed == "true" : false,
+          events_panel_collapsed: record.respond_to?(:events_panel_collapsed) ? record.events_panel_collapsed == "true" : false
+        }.compact
+      rescue
+        nil
       end
     end
   end
