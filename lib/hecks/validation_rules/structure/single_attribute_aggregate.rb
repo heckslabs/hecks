@@ -35,7 +35,8 @@ module Hecks
         @domain.aggregates.each do |agg|
           vos = agg.respond_to?(:value_objects) ? agg.value_objects : []
           entities = agg.respond_to?(:entities) ? agg.entities : []
-          if agg.attributes.size == 1 && vos.empty? && entities.empty?
+          refs = agg.respond_to?(:references) ? agg.references : []
+          if agg.attributes.size == 1 && vos.empty? && entities.empty? && refs.empty?
             result << "#{agg.name} has only 1 attribute and no value objects or entities -- consider modeling as a value object"
           end
         end

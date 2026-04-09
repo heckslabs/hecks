@@ -20,69 +20,82 @@ Hecks.bluebook "Bluebook" do
 
   aggregate "Grammar", "DSL grammar definition for parsing domain definitions" do
     attribute :name, String
+    attribute :rules, String
     command("RegisterGrammar") { attribute :name, String }
     command("ParseInput") { attribute :grammar_id, String; attribute :input, String }
   end
 
   aggregate "Compiler", "Builds domain gems from IR and loads domains" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :output_module, String
     command("BuildDomain") { attribute :domain_id, String; attribute :output_dir, String }
   end
 
   aggregate "Validator", "Runs validation rules against domain IR" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :errors, String
     command("RunValidation") { attribute :domain_id, String }
   end
 
   aggregate "Visualizer", "Generates Mermaid diagrams from domain IR" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :diagram, String
     command("GenerateDiagram") { attribute :domain_id, String }
   end
 
   aggregate "Glossary", "Generates Ubiquitous Language glossary from domain IR" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :terms, String
     command("GenerateGlossary") { attribute :domain_id, String }
   end
 
   aggregate "DslSerializer", "Serializes domain IR back to DSL source" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :source_output, String
     command("SerializeDomain") { attribute :domain_id, String }
   end
 
   aggregate "AstExtractor", "Extracts domain definitions from Ruby AST" do
     attribute :source, String
+    attribute :definitions, String
     command("ExtractDomain") { attribute :source, String }
   end
 
   aggregate "FlowGenerator", "Traces reactive event flows across policies" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :flows, String
     command("TraceFlows") { attribute :domain_id, String }
   end
 
   aggregate "LlmsGenerator", "Generates llms.txt from domain IR" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :output_text, String
     command("GenerateLlmsTxt") { attribute :domain_id, String }
   end
 
   aggregate "ReadmeGenerator", "Generates README from domain IR" do
     attribute :root, String
+    attribute :readme_content, String
     command("GenerateReadme") { attribute :root, String }
   end
 
   aggregate "EventStorm", "Imports event storming sessions into domain IR" do
     attribute :source, String
+    attribute :stickies, String
     command("ParseEventStorm") { attribute :source, String }
     command("ImportEventStorm") { attribute :source, String; attribute :name, String }
   end
 
   aggregate "Migration", "Diffs domain versions and generates migrations" do
-    attribute :domain_id, String
+    reference_to "Domain"
+    attribute :diff_result, String
     command("DiffDomains") { attribute :domain_id, String }
     command("RunMigration") { attribute :domain_id, String }
   end
 
   aggregate "ContextMap", "Generates context map across multiple domains" do
     attribute :domains, String
+    attribute :relationships, String
     command("GenerateContextMap") { attribute :domains, String }
   end
 
@@ -94,6 +107,7 @@ Hecks.bluebook "Bluebook" do
 
   aggregate "Versioner", "Computes CalVer version from git history" do
     attribute :path, String
+    attribute :version_string, String
     command("ComputeVersion") { attribute :path, String }
   end
 

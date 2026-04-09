@@ -69,13 +69,24 @@ Hecks.bluebook "Workbench" do
       command("OpenPanel")   { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelRevealed" }
       command("ClosePanel")  { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelCollapsed" }
       command("ResizePanel") { role "Developer"; reference_to "Layout"; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
-      command("BindShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
-      command("TriggerShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
-      command("TrackOpenFile") { role "Developer"; reference_to "Layout"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
       command("HideProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsHidden" }
       command("ShowProjects")  { role "Developer"; reference_to "Layout"; emits "ProjectsShown" }
-      command("SaveLayout")    { role "Developer"; reference_to "Layout"; emits "LayoutSaved" }
-      command("RestoreLayout") { role "Developer"; reference_to "Layout"; emits "LayoutRestored" }
+    end
+
+    aggregate "KeyboardShortcut", "Keyboard shortcut bindings for IDE navigation and actions." do
+      attribute :key, String
+      attribute :modifiers, String
+      attribute :target_command, String
+      command("BindShortcut") { role "Developer"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
+      command("TriggerShortcut") { role "Developer"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
+    end
+
+    aggregate "LayoutState", "Persisted layout preferences — current file, saved panel arrangement." do
+      attribute :current_file, String
+      attribute :current_domain, String
+      command("TrackOpenFile") { role "Developer"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
+      command("SaveLayout")    { role "Developer"; emits "LayoutSaved" }
+      command("RestoreLayout") { role "Developer"; emits "LayoutRestored" }
     end
 
     aggregate "Session", "IDE session — sketch vs play mode, WebSocket connection lifecycle." do

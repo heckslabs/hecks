@@ -66,7 +66,7 @@ Hecks.bluebook "SpaghettiWestern" do
   end
 
   aggregate "Bounty" do
-    attribute :type, String
+    attribute :bounty_type, String
     reference_to "Gunslinger"
     reference_to "Gunslinger"
     attribute :amount, Integer
@@ -76,7 +76,7 @@ Hecks.bluebook "SpaghettiWestern" do
     validation :amount, {:presence=>true}
 
     command "CreateBounty" do
-      attribute :type, String
+      attribute :bounty_type, String
       attribute :amount, Integer
       attribute :status, String
       attribute :description, String

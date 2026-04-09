@@ -35,9 +35,9 @@ module Hecks
             v.warnings.each { |w| warnings << "#{name}/#{rt.domain.name}: #{w}" } if v.respond_to?(:warnings)
           end
 
-          # UL tag coverage
+          # UL tag coverage (only if the project has HTML/JS files)
           runtimes.each do |rt|
-            cov = ul_coverage(rt)
+            cov = ul_coverage(rt, path)
             warnings << "#{name}: UL coverage #{cov[:covered]}/#{cov[:total]} (#{cov[:pct]}%) — missing: #{cov[:missing].first(5).join(", ")}" if cov && cov[:missing].any?
           end
 
@@ -66,14 +66,19 @@ module Hecks
         .uniq.sort
     end
 
-    def self.ul_coverage(runtime)
-      domain = runtime.domain
-      return nil unless domain.respond_to?(:source_path) && domain.source_path
-      dir = File.dirname(domain.source_path)
-      return nil unless Dir.exist?(dir)
+    def self.ul_coverage(runtime, project_path = nil)
+      # Only check UL coverage if the project has HTML or JS files
+      scan_dir = project_path || (runtime.domain.respond_to?(:source_path) && runtime.domain.source_path ? File.dirname(runtime.domain.source_path) : nil)
+      return nil unless scan_dir && Dir.exist?(scan_dir)
+      # Only check projects that have their own views/assets, not inherited from parent
+      views_dir = File.join(scan_dir, "views")
+      assets_dir = File.join(scan_dir, "assets")
+      return nil unless Dir.exist?(views_dir) || Dir.exist?(assets_dir)
+      html_files = Dir.glob(File.join(scan_dir, "**/*.{html,js}"))
+      return nil if html_files.empty?
 
       require "hecks/capabilities/product_executor/tag_scanner"
-      tagged = Capabilities::ProductExecutor::TagScanner.scan(dir)
+      tagged = Capabilities::ProductExecutor::TagScanner.scan(scan_dir)
       tagged_aggs = tagged.keys.map { |t| t.split(".").first }.uniq
       ul_aggs = domain.aggregates.map(&:name)
       missing = ul_aggs - tagged_aggs

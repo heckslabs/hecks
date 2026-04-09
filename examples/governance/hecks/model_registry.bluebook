@@ -66,25 +66,25 @@ Hecks.bluebook "ModelRegistry" do
     end
 
     command "ClassifyRisk" do
-      attribute :model_id, String
+      reference_to "AiModel"
       attribute :risk_level, String
     end
 
     command "ApproveModel" do
-      attribute :model_id, String
+      reference_to "AiModel"
       role "governance_board"
       role "admin"
     end
 
     command "SuspendModel" do
-      attribute :model_id, String
+      reference_to "AiModel"
       external "NotificationGateway"
       role "governance_board"
       role "admin"
     end
 
     command "RetireModel" do
-      attribute :model_id, String
+      reference_to "AiModel"
       role "governance_board"
       role "admin"
     end

@@ -552,7 +552,7 @@ Hecks.bluebook "HecksAppeal" do
       attribute :name, String
       attribute :field_type, String
       attribute :required, String, default: "true"
-      attribute :value, String
+      attribute :input_value, String
       attribute :error, String
     end
 
@@ -1100,9 +1100,14 @@ Hecks.bluebook "HecksAppeal" do
       emits "ProjectsShown"
     end
 
+  end
+
+  aggregate "LayoutState", "Persisted layout preferences — current file, saved panel arrangement." do
+    attribute :current_file, String
+    attribute :current_domain, String
+
     command "TrackCurrentFile" do
       description "Record the currently open file and domain for context"
-      reference_to "Layout"
       attribute :path, String
       attribute :domain, String
       emits "CurrentFileTracked"
@@ -1110,13 +1115,11 @@ Hecks.bluebook "HecksAppeal" do
 
     command "SaveState" do
       description "Persist the current layout state to disk"
-      reference_to "Layout"
       emits "StateSaved"
     end
 
     command "RestoreState" do
       description "Load persisted layout state from disk"
-      reference_to "Layout"
       emits "StateRestored"
     end
   end

@@ -34,19 +34,19 @@ Hecks.bluebook "Identity" do
     end
 
     command "AssignRole" do
-      attribute :stakeholder_id, String
+      reference_to "Stakeholder"
       attribute :role, String
     end
 
     command "DeactivateStakeholder" do
-      attribute :stakeholder_id, String
+      reference_to "Stakeholder"
       role "admin"
     end
   end
 
   aggregate "AuditLog" do
     attribute :entity_type, String
-    attribute :entity_id, String
+    reference_to "Stakeholder"
     attribute :action, String
     reference_to "Stakeholder"
     attribute :details, String
@@ -66,7 +66,7 @@ Hecks.bluebook "Identity" do
 
     command "RecordEntry" do
       attribute :entity_type, String
-      attribute :entity_id, String
+      reference_to "Stakeholder"
       attribute :action, String
       reference_to "Stakeholder"
       attribute :details, String

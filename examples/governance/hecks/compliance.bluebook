@@ -117,9 +117,9 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "ComplianceReview" do
-    attribute :model_id, String
+    reference_to "AiModel"
     reference_to "GovernancePolicy"
-    attribute :reviewer_id, String
+    reference_to "Stakeholder"
     attribute :outcome, String
     attribute :notes, String
     attribute :completed_at, DateTime
@@ -151,9 +151,9 @@ Hecks.bluebook "Compliance" do
     end
 
     command "OpenReview" do
-      attribute :model_id, String
+      reference_to "AiModel"
       reference_to "GovernancePolicy"
-      attribute :reviewer_id, String
+      reference_to "Stakeholder"
       role "reviewer"
       role "admin"
     end
@@ -187,11 +187,11 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "Exemption" do
-    attribute :model_id, String
+    reference_to "AiModel"
     reference_to "GovernancePolicy"
     attribute :requirement, String
     attribute :reason, String
-    attribute :approved_by_id, String
+    reference_to "Stakeholder"
     attribute :approved_at, DateTime
     attribute :expires_at, Date
     attribute :scope, String
@@ -214,7 +214,7 @@ Hecks.bluebook "Compliance" do
     end
 
     command "RequestExemption" do
-      attribute :model_id, String
+      reference_to "AiModel"
       reference_to "GovernancePolicy"
       attribute :requirement, String
       attribute :reason, String
@@ -222,7 +222,7 @@ Hecks.bluebook "Compliance" do
 
     command "ApproveExemption" do
       attribute :exemption_id, String
-      attribute :approved_by_id, String
+      reference_to "Stakeholder"
       attribute :expires_at, Date
       role "governance_board"
       role "admin"
@@ -236,7 +236,7 @@ Hecks.bluebook "Compliance" do
   end
 
   aggregate "TrainingRecord" do
-    attribute :stakeholder_id, String
+    reference_to "Stakeholder"
     reference_to "GovernancePolicy"
     attribute :completed_at, DateTime
     attribute :expires_at, Date
@@ -268,7 +268,7 @@ Hecks.bluebook "Compliance" do
     end
 
     command "AssignTraining" do
-      attribute :stakeholder_id, String
+      reference_to "Stakeholder"
       reference_to "GovernancePolicy"
     end
 

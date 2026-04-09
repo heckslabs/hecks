@@ -9,8 +9,8 @@ Hecks.bluebook "Collaboration" do
 
       value_object "FeatureStatus" do
         description "Where a feature sits in its delivery lifecycle"
-        attribute :value, String, default: "draft"
-        invariant("must be a known state") { %w[draft planned building verified done].include?(value) }
+        attribute :phase, String, default: "draft"
+        invariant("must be a known state") { %w[draft planned building verified done].include?(phase) }
       end
 
       value_object "DomainAddition" do
@@ -151,8 +151,8 @@ Hecks.bluebook "Collaboration" do
 
       value_object "ReviewDecision" do
         description "The outcome of a domain change review"
-        attribute :value, String, default: "pending"
-        invariant("must be a known decision") { %w[pending approved rejected needs_changes].include?(value) }
+        attribute :outcome, String, default: "pending"
+        invariant("must be a known decision") { %w[pending approved rejected needs_changes].include?(outcome) }
       end
 
       command "ProposeChange" do

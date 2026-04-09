@@ -63,7 +63,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "OrderStatus" do
-      attribute :value, default: "pending"
+      attribute :status_label, default: "pending"
     end
 
     attribute :status, default: "pending" do

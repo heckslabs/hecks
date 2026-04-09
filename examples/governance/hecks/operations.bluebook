@@ -1,6 +1,6 @@
 Hecks.bluebook "Operations" do
   aggregate "Deployment" do
-    attribute :model_id, String
+    reference_to "AiModel"
     attribute :environment, String
     attribute :endpoint, String
     attribute :purpose, String
@@ -34,7 +34,7 @@ Hecks.bluebook "Operations" do
     end
 
     command "PlanDeployment" do
-      attribute :model_id, String
+      reference_to "AiModel"
       attribute :environment, String
       attribute :endpoint, String
       attribute :purpose, String
@@ -52,7 +52,7 @@ Hecks.bluebook "Operations" do
   end
 
   aggregate "Incident" do
-    attribute :model_id, String
+    reference_to "AiModel"
     attribute :severity, String
     attribute :category, String
     attribute :description, String
@@ -88,7 +88,7 @@ Hecks.bluebook "Operations" do
     end
 
     command "ReportIncident" do
-      attribute :model_id, String
+      reference_to "AiModel"
       attribute :severity, String
       attribute :category, String
       attribute :description, String
@@ -120,7 +120,7 @@ Hecks.bluebook "Operations" do
   end
 
   aggregate "Monitoring" do
-    attribute :model_id, String
+    reference_to "AiModel"
     reference_to "Deployment"
     attribute :metric_name, String
     attribute :value, Float
@@ -148,7 +148,7 @@ Hecks.bluebook "Operations" do
     end
 
     command "RecordMetric" do
-      attribute :model_id, String
+      reference_to "AiModel"
       reference_to "Deployment"
       attribute :metric_name, String
       attribute :value, Float
