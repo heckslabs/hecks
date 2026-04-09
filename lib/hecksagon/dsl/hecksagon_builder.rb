@@ -93,6 +93,18 @@ module Hecksagon
         @excluded_capabilities.concat(Array(except).map(&:to_sym))
       end
 
+      # Declare concerns — bundles of capabilities.
+      # Tracked separately from individual capabilities.
+      #
+      #   concerns :webapp, :dev_tools
+      #
+      def concerns(*names, except: [])
+        @concerns ||= []
+        @concerns.concat(names.map(&:to_sym))
+        @excluded_capabilities ||= []
+        @excluded_capabilities.concat(Array(except).map(&:to_sym))
+      end
+
       # Declare driving (primary/user-side) ports. These are capabilities
       # that drive the application — UI, API, CLI, tests.
       #
@@ -192,6 +204,7 @@ module Hecksagon
           subscriptions: @subscriptions,
           tenancy: @tenancy,
           capabilities: @capabilities,
+          concerns: @concerns || [],
           excluded_capabilities: @excluded_capabilities || [],
           aggregate_capabilities: @aggregate_capabilities,
           annotations: @annotations,

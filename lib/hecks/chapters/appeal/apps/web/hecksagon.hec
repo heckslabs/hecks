@@ -1,3 +1,3 @@
 Hecks.hecksagon "HecksAppeal" do
-  capabilities :webapp, :dev_tools
+  concerns :webapp, :dev_tools
 end

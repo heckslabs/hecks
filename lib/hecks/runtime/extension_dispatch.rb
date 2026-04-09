@@ -57,16 +57,29 @@ module Hecks
       def apply_hecksagon_capabilities
         return unless @hecksagon
         excluded = @hecksagon.excluded_capabilities || []
-        port_only = ((@hecksagon.driving_ports || []) + (@hecksagon.driven_ports || []))
         Hecks.instance_variable_set(:@_excluded_capabilities, excluded)
+
+        # Apply individual capabilities
         (@hecksagon.capabilities || []).each do |cap|
           next if excluded.include?(cap)
           begin
             capability(cap)
           rescue LoadError, RuntimeError
-            raise unless port_only.include?(cap)
+            # Skip capabilities that don't have implementation files yet
           end
         end
+
+        # Apply concerns (bundles of capabilities)
+        (@hecksagon.concerns || []).each do |concern_name|
+          next if excluded.include?(concern_name)
+          begin
+            load_capability(concern_name)
+            hook = Hecks.capability_registry[concern_name.to_sym]
+            hook.call(self) if hook
+          rescue LoadError, RuntimeError
+          end
+        end
+
         Hecks.instance_variable_set(:@_excluded_capabilities, [])
       end
     end
