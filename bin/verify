@@ -1,24 +1,19 @@
 #!/usr/bin/env ruby
 #
-# Bluebook self-verification: the Bluebook IS the spec.
-# Loads every chapter, validates its IR, reports issues.
+# Bluebook self-verification: discovers all projects and validates them.
+# Same output as server boot. One system.
 #
 # Usage:
-#   bin/verify           # quiet — exits 0 or 1
-#   bin/verify --verbose # prints each chapter summary
+#   bin/verify                # validate everything
+#   bin/verify --format json  # machine-readable
 #
 
 $LOAD_PATH.unshift(File.join(__dir__, "../lib"))
 
 require "hecks"
-Kernel.load(File.join(__dir__, "../HecksBluebook"))
-require "hecks/chapters/verify"
+require "hecks/validate"
 
-format = :progress
-format = :documentation if ARGV.include?("--verbose") || ARGV.include?("-v")
+format = ARGV.include?("--format") ? ARGV[ARGV.index("--format") + 1] : "text"
 
-if (idx = ARGV.index("--format"))
-  format = ARGV[idx + 1]&.to_sym || :progress
-end
-
-Hecks::Chapters.verify(format: format)
+result = Hecks::Validate.run(Dir.pwd, format: format)
+exit(result[:errors].any? ? 1 : 0)
