@@ -120,14 +120,32 @@ module Hecks
                   })
                 end
               else
-                # Everything goes to Chris first
+                # Chris gets it first, then auto-dispatches to whoever he @mentions
                 port.send_json(client, { type: "executor_thinking", agent: "chris", thinking: true })
                 runner.send_to("chris", content) do |agent_name, response|
                   port.send_json(client, { type: "executor_thinking", agent: agent_name, thinking: false })
+                  reply = response[:content] || response.to_s
                   port.send_json(client, {
                     type: "executor_message", agent: agent_name,
-                    role: "assistant", content: response[:content] || response.to_s
+                    role: "assistant", content: reply
                   })
+
+                  # Auto-dispatch to anyone Chris @mentioned
+                  mentioned = reply.scan(/@(\w+)/).flatten.map(&:downcase).uniq
+                  mentioned.delete("name") # ignore example text
+                  mentioned.select { |n| runner.agent_names.include?(n) || n == "uncle_bob" }.each do |name|
+                    name = "uncle_bob" if name == "unclebob"
+                    next unless runner.agent_names.include?(name)
+                    next if name == "chris"
+                    port.send_json(client, { type: "executor_thinking", agent: name, thinking: true })
+                    runner.send_to(name, content) do |mentioned_name, mentioned_response|
+                      port.send_json(client, { type: "executor_thinking", agent: mentioned_name, thinking: false })
+                      port.send_json(client, {
+                        type: "executor_message", agent: mentioned_name,
+                        role: "assistant", content: mentioned_response[:content] || mentioned_response.to_s
+                      })
+                    end
+                  end
                 end
               end
             end
