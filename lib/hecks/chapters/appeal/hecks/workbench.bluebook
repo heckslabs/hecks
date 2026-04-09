@@ -3,12 +3,9 @@ Hecks.bluebook "Workbench" do
 
   core do
     aggregate "Layout", "IDE chrome — panels, tabs, sidebar, shortcuts, persisted geometry." do
+      attribute :panel_layout, "PanelLayout"
       attribute :panels, "PanelState"
-      attribute :active_tab, "TabName"
-      attribute :sidebar, "PanelState"
-      attribute :events_panel, "PanelState"
       attribute :shortcuts, "ShortcutBinding"
-
       value_object "TabName" do
         attribute :label, String
         invariant("known tab") { %w[editor diagrams console workbench features tests].include?(label) }
@@ -18,6 +15,12 @@ Hecks.bluebook "Workbench" do
         attribute :collapsed, String, default: "false"
         attribute :width, Integer
         attribute :height, Integer
+      end
+
+      value_object "PanelLayout" do
+        attribute :sidebar, "PanelState"
+        attribute :events_panel, "PanelState"
+        attribute :active_tab, "TabName"
       end
 
       value_object "ShortcutBinding" do

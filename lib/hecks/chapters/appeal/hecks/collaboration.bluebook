@@ -52,7 +52,11 @@ Hecks.bluebook "Collaboration" do
         reference_to "Feature"
         emits "AdditionsVerified"
         handler do |feature|
-          raise "Cannot verify with no additions" if feature.additions.nil? || feature.additions.empty?
+          raise "No additions to verify" if feature.additions.nil? || feature.additions.empty?
+          verified_count = 0
+          feature.additions.each do |addition|
+            verified_count += 1 if addition.respond_to?(:verified) && addition.verified == "true"
+          end
           feature
         end
       end
@@ -77,6 +81,27 @@ Hecks.bluebook "Collaboration" do
       end
 
       validation :title, presence: true
+
+      projection "FeatureDashboard" do
+        on "FeatureProposed" do |event|
+          upsert(event.aggregate_id, title: event.title, phase: "draft", additions: 0, verified: 0)
+        end
+        on "AdditionsPlanned" do |event|
+          update(event.aggregate_id) { |row| row[:phase] = "planned"; row[:additions] = event.additions&.size || 0 }
+        end
+        on "ImplementationStarted" do |event|
+          update(event.aggregate_id) { |row| row[:phase] = "building" }
+        end
+        on "AdditionsVerified" do |event|
+          update(event.aggregate_id) { |row| row[:phase] = "verified" }
+        end
+        on "FeatureAccepted" do |event|
+          update(event.aggregate_id) { |row| row[:phase] = "done" }
+        end
+        query "ByPhase" do
+          group_by { |_id, row| row[:phase] }
+        end
+      end
     end
   end
 
