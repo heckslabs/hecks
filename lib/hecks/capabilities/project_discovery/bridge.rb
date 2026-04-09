@@ -25,22 +25,21 @@ module Hecks
           path = File.expand_path(path)
           return @projects[path] if @projects[path]
 
-          result = Hecks.boot(path)
-          runtimes = result.is_a?(Array) ? result : [result]
-          domains = runtimes.map do |rt|
-            d = rt.domain
-            { name: d.name, aggregates: d.aggregates.map { |a| aggregate_info(a) }, domain: d }
+          hecks_dir = File.join(path, "hecks")
+          bluebooks = Dir.glob(File.join(hecks_dir, "*.bluebook")).sort
+
+          domains = bluebooks.map do |bb|
+            Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
+              d = eval(File.read(bb), TOPLEVEL_BINDING, bb)
+              { name: d.name, aggregates: d.aggregates.map { |a| aggregate_info(a) }, domain: d }
+            end
           end
 
-          world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
           @projects[path] = {
             name: File.basename(path), path: path,
             files: discover_files(path), domains: domains,
-            runtimes: runtimes, world: world&.to_h
+            runtimes: []
           }
-        rescue Hecks::ValidationError => e
-          $stderr.puts "  \e[33m!\e[0m #{File.basename(path)}: #{e.message.split("\n").first}"
-          { name: File.basename(path), path: path, warning: e.message }
         rescue => e
           $stderr.puts "  \e[31m✗\e[0m #{File.basename(path)}: #{e.message.split("\n").first}"
           { name: File.basename(path), path: path, error: e.message }
