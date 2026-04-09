@@ -36,10 +36,14 @@ module Hecks
             "  #{a.name}: #{cmds}"
           }.join("\n")
 
+          domain = @runtime.domain
+          vision = domain.respond_to?(:vision) && domain.vision ? "\nVision: #{domain.vision}\n" : ""
+
           "Plan the domain additions needed for this feature:\n\n" \
           "Title: #{title}\n" \
-          "Description: #{description}\n\n" \
-          "Current domain (#{@runtime.domain.name}):\n#{domain_summary}\n\n" \
+          "Description: #{description}\n" \
+          "#{vision}\n" \
+          "Current domain (#{domain.name}):\n#{domain_summary}\n\n" \
           "Return a JSON array of additions. Each addition has: kind (aggregate/command/event/attribute/policy), " \
           "name, parent (aggregate name for commands/events/attributes), and description.\n\n" \
           "Return ONLY valid JSON, no markdown."

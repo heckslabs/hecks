@@ -19,7 +19,8 @@ module Hecks
         def self.build(domain)
           lines = []
           lines << "You are an AI assistant for the #{domain.name} domain."
-          lines << domain.description if domain.description
+          lines << domain.vision if domain.respond_to?(:vision) && domain.vision
+          lines << domain.description if domain.description && domain.description != domain.vision
 
           domain.aggregates.each { |agg| lines.concat(aggregate_section(agg)) }
           lines.concat(services_section(domain.services)) if domain.services.any?

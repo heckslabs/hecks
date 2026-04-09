@@ -18,6 +18,7 @@ module Hecks
       autoload :NoSelfReferences,          "hecks/validation_rules/references/no_self_references"
       autoload :NoForeignKeyAttributes,    "hecks/validation_rules/references/no_foreign_key_attributes"
       autoload :CrossContextReferences,    "hecks/validation_rules/references/cross_context_references"
+      autoload :SubdomainDirection,        "hecks/validation_rules/references/subdomain_direction"
     end
   end
 end

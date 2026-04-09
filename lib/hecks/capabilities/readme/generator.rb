@@ -36,7 +36,10 @@ module Hecks
         private
 
         def title_section
-          "# #{@domain.name}\n\nGenerated from Bluebook on boot. Do not edit."
+          lines = ["# #{@domain.name}"]
+          lines << "\n#{@domain.vision}" if @domain.respond_to?(:vision) && @domain.vision
+          lines << "\nGenerated from Bluebook on boot. Do not edit."
+          lines.join
         end
 
         def capabilities_section
