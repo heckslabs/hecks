@@ -73,11 +73,6 @@ Hecks.bluebook "Collaboration" do
         emits "FeatureAccepted"
       end
 
-      on_event("FeatureProposed") { |e| }
-      on_event("AdditionsPlanned") { |e| }
-      on_event("ImplementationStarted") { |e| }
-      on_event("AdditionsVerified") { |e| }
-      on_event("FeatureAccepted") { |e| }
 
       lifecycle :lifecycle_state, default: "draft" do
         transition "PlanAdditions" => "planned", from: "draft"

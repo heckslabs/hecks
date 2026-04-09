@@ -32,16 +32,9 @@ module Hecks
       private
 
       def print_projects
-        return unless @bridge.respond_to?(:projects)
-        @bridge.projects.each do |_path, project|
-          if project[:error]
-            puts "  \e[31m✗\e[0m #{project[:name]}: #{project[:error]}"
-          else
-            agg_count = project[:domains]&.sum { |d| d[:aggregates]&.size || 0 } || 0
-            puts "  \e[32m✓\e[0m #{project[:name]} (#{agg_count} aggregates)"
-          end
-        end
-        puts ""
+        return unless @bridge
+        require "hecks/validate"
+        Hecks::Validate.run(Dir.pwd)
       end
 
       def start_websocket(runtime)

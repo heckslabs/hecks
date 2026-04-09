@@ -17,7 +17,7 @@ module Hecks
         def initialize(aggregate_name, &handler)
           @aggregate_name = aggregate_name
           @handler = handler
-          @queue = ::Queue.new
+          @queue = Thread::Queue.new
           @queue_size = 0
           @mutex = Mutex.new
           @thread = start_processor
