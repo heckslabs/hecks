@@ -115,7 +115,7 @@ module Hecks
                 args: { frame_data: base64, captured_at: new Date().toISOString() }
               }));
               flashDot();
-            }).catch(function() {});
+            }).catch(function(e) { console.error("[debug] capture failed:", e.message || e); });
           }
 
           function start() {

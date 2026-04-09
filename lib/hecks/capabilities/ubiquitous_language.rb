@@ -30,8 +30,14 @@ module Hecks
       end
 
       def self.serve_js(runtime)
-        return unless runtime.respond_to?(:static_assets)
-        runtime.static_assets.register_asset("/hecks/accessibility.js", JS_PATH)
+        return unless runtime.respond_to?(:static_assets_adapter)
+        adapter = runtime.static_assets_adapter
+        return unless adapter.respond_to?(:mount)
+        js = File.read(JS_PATH)
+        adapter.mount("/hecks/accessibility.js") do |_req, res|
+          res["Content-Type"] = "application/javascript"
+          res.body = js
+        end
       end
 
       def self.run_coverage(runtime)
