@@ -26,14 +26,16 @@ module Hecks
         # Fire-and-forget — enqueue command, return immediately.
         def tell(command_name, **args)
           @mutex.synchronize { @queue_size += 1 }
-          @queue << { command: command_name, args: args, callback: nil }
+          @queue << { command: command_name, args: args, callback: nil,
+                      role: Hecks.current_role, actor: Hecks.actor }
         end
 
         # Send and wait — enqueue command, block until result.
         def ask(command_name, **args)
           result_queue = ::Queue.new
           @mutex.synchronize { @queue_size += 1 }
-          @queue << { command: command_name, args: args, callback: result_queue }
+          @queue << { command: command_name, args: args, callback: result_queue,
+                      role: Hecks.current_role, actor: Hecks.actor }
           result_queue.pop
         end
 
@@ -61,6 +63,8 @@ module Hecks
         end
 
         def process(msg)
+          Hecks.current_role = msg[:role]
+          Hecks.actor = msg[:actor]
           result = @handler.call(msg[:command], msg[:args])
           msg[:callback]&.push(result)
         rescue => e

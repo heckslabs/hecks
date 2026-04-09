@@ -32,6 +32,7 @@ Hecks.bluebook "Workbench" do
       reference_to "Session"
 
       command "SelectTab" do
+        role "Developer"
         goal "Switch the active IDE panel to a different view"
         reference_to "Layout"
         attribute :tab_label, String
@@ -43,6 +44,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "ToggleSidebar" do
+        role "Developer"
         goal "Show or hide the sidebar to manage screen space"
         reference_to "Layout"
         emits "SidebarToggled"
@@ -54,6 +56,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "ToggleEventsPanel" do
+        role "Developer"
         reference_to "Layout"
         emits "EventsPanelToggled"
         handler do |layout|
@@ -63,14 +66,14 @@ Hecks.bluebook "Workbench" do
         end
       end
 
-      command("OpenPanel")   { reference_to "Layout"; attribute :panel_label, String; emits "PanelRevealed" }
-      command("ClosePanel")  { reference_to "Layout"; attribute :panel_label, String; emits "PanelCollapsed" }
-      command("ResizePanel") { reference_to "Layout"; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
-      command("BindShortcut") { reference_to "Layout"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
-      command("TriggerShortcut") { reference_to "Layout"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
-      command("TrackOpenFile") { reference_to "Layout"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
-      command("SaveLayout")    { reference_to "Layout"; emits "LayoutSaved" }
-      command("RestoreLayout") { reference_to "Layout"; emits "LayoutRestored" }
+      command("OpenPanel")   { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelRevealed" }
+      command("ClosePanel")  { role "Developer"; reference_to "Layout"; attribute :panel_label, String; emits "PanelCollapsed" }
+      command("ResizePanel") { role "Developer"; reference_to "Layout"; attribute :panel_label, String; attribute :width, Integer; attribute :height, Integer; emits "PanelResized" }
+      command("BindShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; attribute :target_command, String; emits "ShortcutBound" }
+      command("TriggerShortcut") { role "Developer"; reference_to "Layout"; attribute :key, String; attribute :modifiers, String; emits "ShortcutFired" }
+      command("TrackOpenFile") { role "Developer"; reference_to "Layout"; attribute :file_path, String; attribute :domain_label, String; emits "OpenFileTracked" }
+      command("SaveLayout")    { role "Developer"; reference_to "Layout"; emits "LayoutSaved" }
+      command("RestoreLayout") { role "Developer"; reference_to "Layout"; emits "LayoutRestored" }
     end
 
     aggregate "Session", "IDE session — sketch vs play mode, WebSocket connection lifecycle." do
@@ -87,6 +90,9 @@ Hecks.bluebook "Workbench" do
         invariant("known state") { %w[connected disconnected reconnecting].include?(label) }
       end
 
+      command("EnterSketch") { role "Developer"; reference_to "Session"; emits "SketchEntered" }
+      command("EnterPlay")   { role "Developer"; reference_to "Session"; emits "PlayEntered" }
+
       lifecycle :mode, default: "sketch" do
         transition "EnterSketch" => "sketch", from: "play"
         transition "EnterPlay" => "play", from: "sketch"
@@ -99,18 +105,19 @@ Hecks.bluebook "Workbench" do
         transition "RestoreConnection" => "connected", from: "reconnecting"
       end
 
-      command("OpenConnection")    { reference_to "Session"; emits "ConnectionOpened" }
-      command("CloseConnection")   { reference_to "Session"; emits "ConnectionClosed" }
-      command("RestoreConnection") { reference_to "Session"; emits "ConnectionRestored" }
+      command("OpenConnection")    { role "Developer"; reference_to "Session"; emits "ConnectionOpened" }
+      command("CloseConnection")   { role "Developer"; reference_to "Session"; emits "ConnectionClosed" }
+      command("RestoreConnection") { role "Developer"; reference_to "Session"; emits "ConnectionRestored" }
     end
 
     aggregate "Workbench", "Live domain interaction — select project and aggregate, dispatch commands." do
       attribute :active_project, String
       attribute :active_aggregate, String
 
-      command("OpenWorkbench") { emits "WorkbenchOpened" }
+      command("OpenWorkbench") { role "Developer"; emits "WorkbenchOpened" }
 
       command "SelectProject" do
+        role "Developer"
         goal "Choose which domain project to work on"
         attribute :project_label, String
         emits "ProjectSelected"
@@ -121,6 +128,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "SelectAggregate" do
+        role "Developer"
         goal "Focus the workbench on a specific aggregate"
         reference_to "Workbench"
         attribute :aggregate_label, String
@@ -145,9 +153,9 @@ Hecks.bluebook "Workbench" do
         attribute :enabled, String, default: "true"
       end
 
-      command("OpenMenu")    { attribute :menu_label, String; emits "MenuOpened" }
-      command("CloseMenu")   { reference_to "Menu"; emits "MenuClosed" }
-      command("SelectEntry") { reference_to "Menu"; attribute :entry_label, String; emits "EntrySelected" }
+      command("OpenMenu")    { role "Developer"; attribute :menu_label, String; emits "MenuOpened" }
+      command("CloseMenu")   { role "Developer"; reference_to "Menu"; emits "MenuClosed" }
+      command("SelectEntry") { role "Developer"; reference_to "Menu"; attribute :entry_label, String; emits "EntrySelected" }
     end
 
     aggregate "EventStream", "Live event feed — streams domain events to the IDE console." do
@@ -172,12 +180,13 @@ Hecks.bluebook "Workbench" do
         transition "StopStreaming" => "idle", from: "paused"
       end
 
-      command("SubscribeToEvents") { reference_to "EventStream"; emits "EventsSubscribed" }
-      command("PauseStream")       { reference_to "EventStream"; emits "StreamPaused" }
-      command("ResumeStream")      { reference_to "EventStream"; emits "StreamResumed" }
-      command("StopStreaming")     { reference_to "EventStream"; emits "StreamingStopped" }
+      command("SubscribeToEvents") { role "Developer"; reference_to "EventStream"; emits "EventsSubscribed" }
+      command("PauseStream")       { role "Developer"; reference_to "EventStream"; emits "StreamPaused" }
+      command("ResumeStream")      { role "Developer"; reference_to "EventStream"; emits "StreamResumed" }
+      command("StopStreaming")     { role "Developer"; reference_to "EventStream"; emits "StreamingStopped" }
 
       command "FlushEvents" do
+        role "Developer"
         reference_to "EventStream"
         emits "EventsFlushed"
         handler do |stream|
@@ -187,6 +196,7 @@ Hecks.bluebook "Workbench" do
       end
 
       command "NarrowEvents" do
+        role "Developer"
         reference_to "EventStream"
         attribute :aggregate_label, String
         attribute :event_label, String

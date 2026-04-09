@@ -245,6 +245,9 @@ module Hecks
     # set Hecks.current_role to a matching role name.
     # No roles declared = anyone can call.
     def enforce_role!
+      # Skip during verification/testing when no role context exists
+      return if Thread.current[:_hecks_skip_role_check]
+
       cmd_ir = find_command_ir
       return unless cmd_ir
       roles = cmd_ir.actors

@@ -40,22 +40,26 @@ Hecks.bluebook "Authoring" do
       attribute :project_path, "ProjectPath"
       attribute :discovered_paths, list_of("ProjectPath")
       command "OpenProject" do
+        role "Developer"
         goal "Load a domain project for editing and exploration"
         description "Load an existing domain project from a directory"
         attribute :project_path, "ProjectPath"
         emits "ProjectOpened"
       end
       command "DiscoverProjects" do
+        role "Developer"
         description "Scan a directory tree for hecks apps -- looks for hecks/*.bluebook"
         attribute :search_path, "ProjectPath"
         emits "ProjectsDiscovered"
       end
       command "LoadProjects" do
+        role "Developer"
         description "Discover and open every project found under a directory"
         attribute :search_path, "ProjectPath"
         emits "ProjectsLoaded"
       end
       command "CloseProject" do
+        role "Developer"
         description "Close the current project and release resources"
         reference_to "Project"
         emits "ProjectClosed"
@@ -67,22 +71,26 @@ Hecks.bluebook "Authoring" do
       attribute :last_opened, "FileContent"
       reference_to "Project"
       command "LoadDomain" do
+        role "Developer"
         description "Parse the project domain and populate the explorer tree"
         reference_to "Project"
         emits "DomainLoaded"
       end
       command "InspectAggregate" do
+        role "Developer"
         description "Show full details of an aggregate -- attributes, commands, value objects"
         attribute :aggregate_name, String
         emits "AggregateInspected"
       end
       command "InspectCommand" do
+        role "Developer"
         description "Show details of a command within an aggregate"
         attribute :aggregate_name, String
         attribute :command_name, String
         emits "CommandInspected"
       end
       command "OpenFile" do
+        role "Developer"
         goal "Open a domain source file for inspection"
         description "Open a source file and record it as the last opened"
         reference_to "Project"
@@ -91,6 +99,7 @@ Hecks.bluebook "Authoring" do
         emits "FileOpened"
       end
       command "ExportBluebook" do
+        role "Developer"
         description "Export the current domain as a .bluebook file"
         attribute :format, String
         emits "BluebookExported"
@@ -100,6 +109,7 @@ Hecks.bluebook "Authoring" do
       attribute :content, "FileContent"
       reference_to "Project"
       command "OpenDocument" do
+        role "Developer"
         goal "Open a domain file for editing in the IDE"
         description "Load a .hec or .bluebook file into the editor"
         reference_to "Project"
@@ -107,17 +117,20 @@ Hecks.bluebook "Authoring" do
         emits "DocumentOpened"
       end
       command "EditDocument" do
+        role "Developer"
         description "Apply a text change to the open document"
         reference_to "Document"
         attribute :content, String
         emits "DocumentEdited"
       end
       command "SaveDocument" do
+        role "Developer"
         description "Persist the document back to disk"
         reference_to "Document"
         emits "DocumentSaved"
       end
       command "ValidateDocument" do
+        role "Developer"
         description "Parse and validate the document, producing diagnostics"
         reference_to "Document"
         emits "DocumentValidated"
@@ -130,6 +143,7 @@ Hecks.bluebook "Authoring" do
       attribute :cursor, Integer, default: 0
       reference_to "Document"
       command "RecordChange" do
+        role "Developer"
         description "Append a change to the timeline after an edit"
         reference_to "Document"
         attribute :action, String
@@ -137,11 +151,13 @@ Hecks.bluebook "Authoring" do
         emits "ChangeRecorded"
       end
       command "Undo" do
+        role "Developer"
         description "Move the cursor back one step and revert the change"
         reference_to "Timeline"
         emits "UndoApplied"
       end
       command "Redo" do
+        role "Developer"
         description "Move the cursor forward and reapply the change"
         reference_to "Timeline"
         emits "RedoApplied"
@@ -152,23 +168,27 @@ Hecks.bluebook "Authoring" do
       attribute :artifacts, list_of("Artifact")
       reference_to "Project"
       command "SelectTarget" do
+        role "Developer"
         description "Choose a build target -- ruby, go, rails, sinatra"
         reference_to "Project"
         attribute :target, "BuildTarget"
         emits "TargetSelected"
       end
       command "BuildTarget" do
+        role "Developer"
         description "Generate all code artifacts for the selected target"
         reference_to "Generator"
         emits "TargetBuilt"
       end
       command "PreviewArtifact" do
+        role "Developer"
         description "Show the content of a single generated file before writing"
         reference_to "Generator"
         attribute :filename, String
         emits "ArtifactPreviewed"
       end
       command "CompareArtifact" do
+        role "Developer"
         description "Diff a generated artifact against the existing file on disk"
         reference_to "Generator"
         attribute :filename, String
@@ -181,6 +201,7 @@ Hecks.bluebook "Authoring" do
       attribute :template, String
       attribute :parameters, list_of("PatternParameter")
       command "DefinePattern" do
+        role "Developer"
         goal "Capture a reusable domain shape for scaffolding"
         description "Create a new reusable pattern from an existing aggregate shape"
         attribute :pattern_name, String
@@ -189,6 +210,7 @@ Hecks.bluebook "Authoring" do
         emits "PatternDefined"
       end
       command "ApplyPattern" do
+        role "Developer"
         description "Scaffold an aggregate by applying a pattern with parameters"
         reference_to "Project"
         attribute :pattern_name, String
@@ -197,6 +219,7 @@ Hecks.bluebook "Authoring" do
         emits "PatternApplied"
       end
       command "ListPatterns" do
+        role "Developer"
         description "Show all available patterns, optionally filtered by category"
         attribute :category, String
         emits "PatternsListed"

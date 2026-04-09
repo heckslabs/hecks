@@ -63,7 +63,7 @@ Hecks.register_extension(:auth) do |domain_mod, domain, runtime, **opts|
     fqn = command.class.name
     required_roles = actor_map[fqn]
 
-    if required_roles
+    if required_roles && !Thread.current[:_hecks_skip_role_check]
       actor = Hecks.actor
       raise Hecks::Unauthenticated, "No actor set. Call Hecks.actor = user before running #{Hecks::Utils.const_short_name(command)}" unless actor
       role = actor.respond_to?(:role) ? actor.role.to_s : actor.to_s

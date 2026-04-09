@@ -11,6 +11,10 @@ require_relative "spec_helper"
 RSpec.describe "Pizzas Domain" do
   let!(:runtime) { Hecks.boot(File.expand_path("..", __dir__)) }
 
+  before do
+    Hecks.current_role = "Chef"
+    Hecks.actor = OpenStruct.new(role: "Chef")
+  end
   after { runtime.actor_system.stop }
 
   # -- Boot ---------------------------------------------------------------
@@ -43,6 +47,8 @@ RSpec.describe "Pizzas Domain" do
 
   describe "PlaceOrder" do
     it "persists an order to the repo" do
+      Hecks.current_role = "Customer"
+      Hecks.actor = OpenStruct.new(role: "Customer")
       Order.place(customer_name: "Alice", quantity: 1)
       expect(Order.count).to eq(1)
       expect(Order.all.first.customer_name).to eq("Alice")
@@ -59,6 +65,8 @@ RSpec.describe "Pizzas Domain" do
     end
 
     it "emits CanceledOrder on cancel" do
+      Hecks.current_role = "Customer"
+      Hecks.actor = OpenStruct.new(role: "Customer")
       order = Order.place(customer_name: "Bob", quantity: 1)
       Order.cancel(order: order.id)
       event_names = runtime.events.map { |e| e.class.name.split("::").last }
@@ -80,6 +88,8 @@ RSpec.describe "Pizzas Domain" do
 
   describe "CancelOrder" do
     it "transitions status from pending to cancelled" do
+      Hecks.current_role = "Customer"
+      Hecks.actor = OpenStruct.new(role: "Customer")
       order = Order.place(customer_name: "Carol", quantity: 1)
       expect(order.status).to eq("pending")
 
@@ -112,6 +122,8 @@ RSpec.describe "Pizzas Domain" do
     end
 
     it "Pending returns only pending orders" do
+      Hecks.current_role = "Customer"
+      Hecks.actor = OpenStruct.new(role: "Customer")
       Order.place(customer_name: "Dave", quantity: 1)
       order2 = Order.place(customer_name: "Eve", quantity: 1)
       Order.cancel(order: order2.id)

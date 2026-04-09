@@ -25,12 +25,14 @@ Hecks.bluebook "Pizzas" do
     end
 
     command "CreatePizza" do
+      role "Chef"
       goal "Add a new pizza to the menu"
       attribute :name
       attribute :description
     end
 
     command "AddTopping" do
+      role "Chef"
       goal "Customize a pizza with ingredients"
       reference_to "Pizza"
       attribute :name
@@ -69,6 +71,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     command "PlaceOrder" do
+      role "Customer"
       goal "Order a pizza for delivery or pickup"
       reference_to "Pizza"
       attribute :customer_name
@@ -76,6 +79,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     command "CancelOrder" do
+      role "Customer"
       goal "Cancel a pending order before preparation starts"
       reference_to "Order"
     end

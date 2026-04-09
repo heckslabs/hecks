@@ -7,6 +7,11 @@
 require_relative "spec_helper"
 
 RSpec.describe "Appeal IDE Domain" do
+  before do
+    Hecks.current_role = "Developer"
+    Hecks.actor = OpenStruct.new(role: "Developer")
+  end
+
   let(:domain) { Hecks::Chapters::Appeal.definition }
   let(:runtime) do
     Hecks.load_bluebook(domain, skip_validation: true)
