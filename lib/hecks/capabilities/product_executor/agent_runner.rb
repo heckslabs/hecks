@@ -38,7 +38,7 @@ module Hecks
               begin
                 messages = build_messages(name, config)
                 response = ChatAgent::Dispatcher.run_loop(
-                  adapter: resolve_adapter, messages: messages, tools: config[:tools],
+                  adapter: resolve_adapter(name), messages: messages, tools: config[:tools],
                   system: config[:system_prompt], runtime: @runtime
                 )
                 if response[:content] && !response[:content].empty?
@@ -75,8 +75,19 @@ module Hecks
 
         private
 
-        def resolve_adapter
-          @adapter ||= Hecks::Capabilities::ChatAgent.resolve_adapter(nil, {})
+        def resolve_adapter(agent_name = nil)
+          @adapters ||= {}
+          @adapters[agent_name] ||= begin
+            base = Hecks::Capabilities::ChatAgent.resolve_adapter(nil, {})
+            if agent_name == "uncle_bob" && base.is_a?(Hecks::Extensions::ClaudeCliAdapter)
+              Hecks::Extensions::ClaudeCliAdapter.new(
+                model: base.instance_variable_get(:@model),
+                dangerously_skip_permissions: true
+              )
+            else
+              base
+            end
+          end
         end
 
         def build_messages(agent_name, _config)

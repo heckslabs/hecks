@@ -100,22 +100,26 @@ module Hecks
           }
 
           function capture() {
-            if (!capturing || !window.HecksIDE || !window.HecksIDE.raw) return;
-            var state = {};
-            if (window.HecksApp) {
-              var s = window.HecksApp.state;
-              state = {
-                tab: s.layout.activeTab,
-                sidebar: s.layout.sidebarCollapsed ? "collapsed" : "open",
-                events: s.events.length,
-                projects: s.projects.length
-              };
-            }
-            window.HecksIDE.raw(JSON.stringify({
-              type: "command", aggregate: "Debug", command: "StateSnapshot",
-              args: { state: JSON.stringify(state), captured_at: new Date().toISOString() }
-            }));
-            flashDot();
+            if (!capturing) return;
+            try {
+              var state = {};
+              if (window.HecksApp) {
+                var s = window.HecksApp.state;
+                state = {
+                  tab: s.layout.activeTab,
+                  sidebar: s.layout.sidebarCollapsed ? "collapsed" : "open",
+                  events: s.events.length,
+                  projects: s.projects.length
+                };
+              }
+              if (window.HecksIDE && window.HecksIDE.raw) {
+                window.HecksIDE.raw(JSON.stringify({
+                  type: "command", aggregate: "Debug", command: "StateSnapshot",
+                  args: { state: JSON.stringify(state), captured_at: new Date().toISOString() }
+                }));
+              }
+              flashDot();
+            } catch(e) {}
           }
 
           function start() {

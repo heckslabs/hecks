@@ -15,9 +15,10 @@ require "open3"
 module Hecks
   module Extensions
     class ClaudeCliAdapter
-      def initialize(model: "sonnet", max_tokens: 4096)
+      def initialize(model: "sonnet", max_tokens: 4096, dangerously_skip_permissions: false)
         @model = model
         @max_tokens = max_tokens
+        @skip_permissions = dangerously_skip_permissions
       end
 
       # Send a chat request through the claude CLI.
@@ -51,9 +52,14 @@ module Hecks
           "--model", @model,
           "--output-format", "json",
           "--system-prompt-file", file.path,
-          "--max-turns", "3",
-          "--disallowedTools", "Bash,Write,Edit,Agent,Glob,Grep,Read,WebSearch,WebFetch,NotebookEdit"
+          "--max-turns", "3"
         ]
+
+        if @skip_permissions
+          cmd += ["--dangerously-skip-permissions"]
+        else
+          cmd += ["--disallowedTools", "Bash,Write,Edit,Agent,Glob,Grep,Read,WebSearch,WebFetch,NotebookEdit"]
+        end
 
         stdout, stderr, status = Open3.capture3(*cmd, stdin_data: prompt)
 
@@ -79,7 +85,9 @@ module Hecks
           parts << "Available domain commands:\n#{tool_desc}"
         end
 
-        parts << "IMPORTANT: Respond with text only. Do not use any tools. Do not read files or run commands. Answer based solely on the domain information provided above."
+        unless @skip_permissions
+          parts << "IMPORTANT: Respond with text only. Do not use any tools. Do not read files or run commands. Answer based solely on the domain information provided above."
+        end
         parts.join("\n\n")
       end
 
