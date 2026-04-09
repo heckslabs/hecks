@@ -87,18 +87,25 @@ module Hecksagon
       # @param names [Array<Symbol>] capability names
       # @param except [Array<Symbol>] capabilities to exclude
       # @return [void]
-      def capabilities(*names, except: [])
+      def capabilities(*names, except: [], env: nil)
+        if env && !env_matches?(env)
+          return # skip capabilities not matching current environment
+        end
         @capabilities.concat(names.map(&:to_sym))
         @excluded_capabilities ||= []
         @excluded_capabilities.concat(Array(except).map(&:to_sym))
       end
 
       # Declare concerns — bundles of capabilities.
-      # Tracked separately from individual capabilities.
+      # Supports env: to restrict to specific environments.
       #
-      #   concerns :webapp, :dev_tools
+      #   concerns :webapp
+      #   concerns :dev_tools, env: :development
       #
-      def concerns(*names, except: [])
+      def concerns(*names, except: [], env: nil)
+        if env && !env_matches?(env)
+          return # skip concerns not matching current environment
+        end
         @concerns ||= []
         @concerns.concat(names.map(&:to_sym))
         @excluded_capabilities ||= []
@@ -216,6 +223,13 @@ module Hecksagon
       end
 
       private
+
+      # Check if the current environment matches.
+      # Reads HECKS_ENV, RACK_ENV, RAILS_ENV, or defaults to :development.
+      def env_matches?(required_env)
+        current = (ENV["HECKS_ENV"] || ENV["RACK_ENV"] || ENV["RAILS_ENV"] || "development").to_sym
+        Array(required_env).map(&:to_sym).include?(current)
+      end
 
       # Infer context map from subscribe declarations.
       # Each subscription implies this context listens to events from another.
