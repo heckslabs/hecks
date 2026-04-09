@@ -79,6 +79,17 @@ require "hecks/registries/bluebook_registry"
 require "hecks/bluebook/event_storm_importer"
 
 module Hecks
+  # Thread-local role for command authorization.
+  # Set before dispatching role-restricted commands:
+  #   Hecks.current_role = "Customer"
+  def self.current_role
+    Thread.current[:_hecks_current_role]
+  end
+
+  def self.current_role=(role)
+    Thread.current[:_hecks_current_role] = role
+  end
+
   extend BluebookInspector
   extend BluebookBuilderMethods
   extend BluebookCompiler

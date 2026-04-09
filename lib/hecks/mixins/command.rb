@@ -240,7 +240,42 @@ module Hecks
     #
     # @return [void]
     # @raise [Hecks::GuardRejected] if the policy returns falsey
+    # Enforce role restrictions on this command.
+    # If the command declares roles (via `role` DSL), the caller must
+    # set Hecks.current_role to a matching role name.
+    # No roles declared = anyone can call.
+    def enforce_role!
+      cmd_ir = find_command_ir
+      return unless cmd_ir
+      roles = cmd_ir.actors
+      return if roles.nil? || roles.empty?
+
+      current = Hecks.respond_to?(:current_role) ? Hecks.current_role : nil
+      role_names = roles.map { |r| r.respond_to?(:name) ? r.name : r.to_s }.map(&:downcase)
+      current_name = current.respond_to?(:role) ? current.role.to_s.downcase : current.to_s.downcase
+
+      unless role_names.include?(current_name)
+        cmd_name = self.class.name.split("::").last
+        raise Hecks::Unauthorized, "#{cmd_name} requires role: #{role_names.join(" or ")}. Current: #{current_name.empty? ? "none" : current_name}"
+      end
+    end
+
+    def find_command_ir
+      return nil unless self.class.respond_to?(:command_bus) && self.class.command_bus
+      bus = self.class.command_bus
+      cmd_name = self.class.name.split("::").last
+      bus.instance_variable_get(:@domain)&.aggregates&.each do |agg|
+        agg.commands.each { |c| return c if c.name == cmd_name }
+      end
+      nil
+    rescue
+      nil
+    end
+
     def run_guard
+      # Role enforcement — if command declares roles, check current role
+      enforce_role!
+
       policy_name = self.class.guarded_by
       return unless policy_name
 
