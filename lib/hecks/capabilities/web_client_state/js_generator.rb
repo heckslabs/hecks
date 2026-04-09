@@ -45,11 +45,15 @@ module Hecks
                   var eventName = inferEventName(command);
                   var eventData = Object.assign({}, args);
                   // For toggle commands, infer the toggled state
-                  if (command.indexOf("Toggle") === 0) {
-                    var field = command.replace("Toggle", "").replace(/([A-Z])/g, "_$1").toLowerCase().substring(1);
+                  if (command === "SelectTab") {
+                    // Tab selection — args already have tab_name
+                  } else if (command.indexOf("Toggle") === 0) {
+                    var field = command.replace("Toggle", "");
+                    var camelField = field.charAt(0).toLowerCase() + field.substring(1) + "Collapsed";
+                    var snakeField = field.replace(/([A-Z])/g, "_$1").toLowerCase().substring(1) + "_collapsed";
                     var st = window.HecksApp.getState();
-                    var current = st.layout && st.layout[field + "_collapsed"];
-                    eventData[field + "_collapsed"] = !current;
+                    var current = st.layout && st.layout[camelField];
+                    eventData[snakeField] = !current;
                   }
                   localResult = { event: eventName, aggregate: aggregate, data: eventData };
                   window.HecksApp.handleEvent(localResult);
