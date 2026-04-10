@@ -1,0 +1,7 @@
+Hecks.bluebook "Multidomain" do
+  vision "Cross-domain operations — promote aggregates, wire context maps, manage bounded contexts"
+
+  aggregate "PromoteCommand", "Extract an aggregate into its own domain" do
+    command("PromoteAggregate") { attribute :aggregate_name, String }
+  end
+end

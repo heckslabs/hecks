@@ -1,0 +1,220 @@
+Hecks.bluebook "HecksAllureCli" do
+  vision "A terminal app that feels like a desktop app — domain concepts express themselves as panels, the CLI composes them into a canvas"
+  core
+
+  # ============================================================
+  # CANVAS — the full-screen terminal layout
+  # ============================================================
+  #
+  # Holds all panels. render_mode from DomainPresentation
+  # maps to terminal widgets:
+  #   tree_node     → blessed list/tree
+  #   form          → blessed form with input fields
+  #   state_machine → blessed box with ASCII state diagram
+  #   log_entry     → blessed log (append-only scroll)
+  #   wire          → blessed box with animated connection lines
+  #   detail        → inline text within parent
+
+  aggregate "Canvas" do
+    description "The full-screen terminal canvas that holds and arranges all panels"
+    attribute :width, Integer
+    attribute :height, Integer
+    attribute :layout
+    attribute :active_panel
+    attribute :panels, list_of(PanelSlot)
+
+    value_object "PanelSlot" do
+      attribute :panel_id
+      attribute :render_mode
+      attribute :color
+      attribute :icon
+      attribute :x, Integer
+      attribute :y, Integer
+      attribute :w, Integer
+      attribute :h, Integer
+    end
+
+    command "StartCanvas" do
+      role "System"
+      goal "Initialize the full-screen terminal with default layout"
+      attribute :width, Integer
+      attribute :height, Integer
+      emits "CanvasStarted"
+    end
+
+    command "AddPanel" do
+      role "System"
+      goal "Place a panel on the canvas — render_mode determines the widget type"
+      reference_to Canvas
+      attribute :panel_id
+      attribute :render_mode
+      attribute :color
+      attribute :icon
+      then_set :panels, append: { panel_id: :panel_id, render_mode: :render_mode, color: :color, icon: :icon }
+      emits "PanelAdded"
+    end
+
+    command "FocusPanel" do
+      role "User"
+      goal "Switch keyboard focus to a panel"
+      reference_to Canvas
+      attribute :panel_id
+      then_set :active_panel, to: :panel_id
+      emits "PanelFocused"
+    end
+
+    command "ResizeCanvas" do
+      role "System"
+      goal "Reflow panels when terminal resizes"
+      reference_to Canvas
+      attribute :width, Integer
+      attribute :height, Integer
+      then_set :width, to: :width
+      then_set :height, to: :height
+      emits "CanvasResized"
+    end
+
+    command "RemovePanel" do
+      role "System"
+      goal "Remove a panel from the canvas"
+      reference_to Canvas
+      attribute :panel_id
+      emits "PanelRemoved"
+    end
+  end
+
+  # ============================================================
+  # PROMPT PANEL — natural language input
+  # ============================================================
+
+  aggregate "PromptPanel" do
+    description "The input panel where you describe a domain in natural language"
+    attribute :prompt_text
+    attribute :history, list_of(String)
+
+    command "SubmitPrompt" do
+      role "User"
+      goal "Describe a system to conceive a domain"
+      attribute :prompt_text
+      then_set :prompt_text, to: :prompt_text
+      emits "PromptSubmitted"
+    end
+
+    command "RecallHistory" do
+      role "User"
+      goal "Navigate prompt history"
+      reference_to PromptPanel
+      emits "HistoryRecalled"
+    end
+  end
+
+  # ============================================================
+  # DOMAIN VIEW — reads AggregatePresentation instances
+  # ============================================================
+  #
+  # Replaces the old DomainPanel + CommandPanel + LifecyclePanel +
+  # EventPanel + PolicyPanel + InstancePanel.
+  #
+  # Instead of knowing how to render each concept, it reads the
+  # SectionExpressions from DomainPresentation and passes
+  # render_mode to Canvas.AddPanel for widget selection.
+
+  aggregate "DomainView" do
+    description "Reads expressed domain panels and lays them out on the canvas"
+    attribute :domain_name
+    attribute :selected_aggregate
+    attribute :panel_count, Integer, default: "0"
+
+    command "RenderDomain" do
+      role "System"
+      goal "Walk all AggregatePresentation instances and add their sections to the canvas"
+      attribute :domain_name
+      then_set :domain_name, to: :domain_name
+      emits "DomainRendered"
+    end
+
+    command "SelectAggregate" do
+      role "User"
+      goal "Focus on one aggregate — show its concept panels"
+      reference_to DomainView
+      attribute :aggregate_name
+      then_set :selected_aggregate, to: :aggregate_name
+      emits "AggregateSelected"
+    end
+
+    command "AddConceptPanel" do
+      role "System"
+      goal "Place a concept's panel on the canvas using its render_mode"
+      reference_to DomainView
+      attribute :panel_id
+      attribute :render_mode
+      then_set :panel_count, increment: 1
+      emits "ConceptPanelAdded"
+    end
+
+    command "ClearPanels" do
+      role "System"
+      goal "Remove all concept panels before re-rendering"
+      reference_to DomainView
+      then_set :panel_count, to: "0"
+      emits "PanelsCleared"
+    end
+  end
+
+  # ============================================================
+  # EXPORT PANEL — domain export and publishing
+  # ============================================================
+
+  aggregate "ExportPanel" do
+    description "Export the domain as Bluebook, add to nursery, or compile to corpus"
+    attribute :export_format
+    attribute :output_path
+
+    command "ExportBluebook" do
+      role "User"
+      goal "Save the domain as a .bluebook file"
+      attribute :output_path
+      emits "BluebookExported"
+    end
+
+    command "AddToNursery" do
+      role "User"
+      goal "Add the domain to the nursery and recompile corpus"
+      emits "AddedToNursery"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — wiring the UI flow
+  # ============================================================
+  #
+  # The key insight: PromptSubmitted triggers domain conception
+  # which triggers AggregateExpressed (in DomainPresentation)
+  # which cascades through concept expressions. DomainView reads
+  # the finished expressions and places panels on the canvas.
+
+  policy "ConceiveOnPrompt" do
+    on "PromptSubmitted"
+    trigger "RenderDomain"
+  end
+
+  policy "ShowConceptsOnSelect" do
+    on "AggregateSelected"
+    trigger "AddConceptPanel"
+  end
+
+  policy "PlacePanelOnCanvas" do
+    on "ConceptPanelAdded"
+    trigger "AddPanel"
+  end
+
+  policy "ClearOnRerender" do
+    on "DomainRendered"
+    trigger "ClearPanels"
+  end
+
+  policy "AnimateOnFire" do
+    on "WireFired"
+    trigger "FocusPanel"
+  end
+end

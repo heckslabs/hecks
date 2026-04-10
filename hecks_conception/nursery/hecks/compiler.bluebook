@@ -1,0 +1,23 @@
+Hecks.bluebook "Compiler" do
+  vision "Build, compile, validate, and generate code from domains"
+
+  aggregate "BuildCommand", "Generate the domain gem" do
+    command("RunBuild") { attribute :target, String }
+  end
+
+  aggregate "CompileCommand", "Compile Hecks into a self-contained binary" do
+    command("RunCompile") { attribute :output, String }
+  end
+
+  aggregate "ValidateCommand", "Validate everything — domains, tags, coverage" do
+    command("RunValidate") { attribute :domain_path, String }
+  end
+
+  aggregate "VerifyCommand", "Verify the Bluebook (the spec)" do
+    command("RunVerify") { attribute :format, String }
+  end
+
+  aggregate "CoverageCommand", "Show missing domain concepts in app code" do
+    command("CheckCoverage") { attribute :domain_path, String }
+  end
+end

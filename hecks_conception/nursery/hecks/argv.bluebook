@@ -1,0 +1,161 @@
+Hecks.bluebook "Argv" do
+  vision "Replace Thor — ARGV parsing, command routing, option handling, and help display as a domain. No gems. Just a bluebook."
+
+  aggregate "Registry" do
+    description "Holds all known commands — built from bluebook aggregates ending in Command"
+    attribute :commands, list_of(CommandEntry)
+
+    value_object "CommandEntry" do
+      attribute :name
+      attribute :description
+      attribute :group
+      attribute :options, list_of(OptionDef)
+      attribute :args, list_of(ArgDef)
+    end
+
+    value_object "OptionDef" do
+      attribute :name
+      attribute :option_type
+      attribute :default
+      attribute :required, Boolean
+    end
+
+    value_object "ArgDef" do
+      attribute :name
+      attribute :required, Boolean
+    end
+
+    command "RegisterCommand" do
+      role "System"
+      goal "Add a command to the registry from a bluebook aggregate"
+      attribute :name
+      attribute :description
+      attribute :group
+      then_set :commands, append: { name: :name, description: :description, group: :group }
+      emits "CommandRegistered"
+    end
+
+    command "BuildFromDomain" do
+      role "System"
+      goal "Walk a domain IR — each aggregate ending in Command becomes a registry entry"
+      attribute :domain_name
+      emits "RegistryBuilt"
+    end
+  end
+
+  aggregate "Parser" do
+    description "Parses raw ARGV into a structured invocation"
+    attribute :command_name
+    attribute :positional_args, list_of(String)
+    attribute :options, list_of(ParsedOption)
+    attribute :raw_argv
+    attribute :status, default: "idle"
+    attribute :error_message
+
+    value_object "ParsedOption" do
+      attribute :key
+      attribute :value
+    end
+
+    command "ParseArgv" do
+      role "System"
+      goal "Split ARGV into command name, positional args, and --options"
+      attribute :raw_argv
+      then_set :raw_argv, to: :raw_argv
+      then_set :status, to: "parsed"
+      emits "ArgvParsed"
+    end
+
+    command "FailParse" do
+      role "System"
+      goal "Record a parse error — unknown command, missing required arg"
+      reference_to Parser
+      attribute :error_message
+      then_set :error_message, to: :error_message
+      then_set :status, to: "failed"
+      emits "ParseFailed"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "ParseArgv" => "parsed"
+      transition "FailParse" => "failed"
+    end
+  end
+
+  aggregate "Router" do
+    description "Matches a parsed command name against the registry and dispatches"
+    attribute :matched_command
+    attribute :status, default: "idle"
+
+    command "RouteCommand" do
+      role "System"
+      goal "Find the command in the registry and dispatch to its handler"
+      attribute :command_name
+      then_set :matched_command, to: :command_name
+      then_set :status, to: "routed"
+      emits "CommandRouted"
+    end
+
+    command "FailRoute" do
+      role "System"
+      goal "No matching command found"
+      reference_to Router
+      attribute :command_name
+      then_set :status, to: "failed"
+      emits "RouteFailed"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "RouteCommand" => "routed"
+      transition "FailRoute" => "failed"
+    end
+  end
+
+  aggregate "HelpPrinter" do
+    description "Renders help text — grouped command list or single command detail"
+    attribute :output
+
+    command "PrintGroupedHelp" do
+      role "System"
+      goal "Print all commands grouped by category"
+      emits "HelpPrinted"
+    end
+
+    command "PrintCommandHelp" do
+      role "System"
+      goal "Print help for a single command — description, options, args"
+      attribute :command_name
+      emits "CommandHelpPrinted"
+    end
+
+    command "PrintVersion" do
+      role "System"
+      goal "Print the version string"
+      emits "VersionPrinted"
+    end
+
+    command "PrintError" do
+      role "System"
+      goal "Print an error message with usage hint"
+      attribute :error_message
+      emits "ErrorPrinted"
+    end
+  end
+
+  # --- Policies ---
+
+  policy "ParseThenRoute" do
+    on "ArgvParsed"
+    trigger "RouteCommand"
+  end
+
+  policy "ShowHelpOnFail" do
+    on "RouteFailed"
+    trigger "PrintError"
+  end
+
+  policy "ShowHelpOnParseError" do
+    on "ParseFailed"
+    trigger "PrintError"
+  end
+end

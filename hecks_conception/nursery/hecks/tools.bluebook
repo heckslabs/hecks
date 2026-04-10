@@ -1,0 +1,19 @@
+Hecks.bluebook "Tools" do
+  vision "Developer tools — Claude, Appeal IDE, Allure terminal UI, domain agent"
+
+  aggregate "ClaudeCommand", "Start file watchers and launch Claude Code" do
+    command("LaunchClaude") { attribute :args, String }
+  end
+
+  aggregate "AppealCommand", "Launch the HecksAppeal IDE" do
+    command("LaunchAppeal") { attribute :path, String }
+  end
+
+  aggregate "AgentCommand", "Talk to the domain expert — conceive new domains" do
+    command("LaunchAgent") { attribute :args, String }
+  end
+
+  aggregate "AllureCommand", "Terminal UI — domain concepts as panels" do
+    command("LaunchAllure") { attribute :bluebook_path, String }
+  end
+end

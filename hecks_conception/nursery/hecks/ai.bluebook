@@ -1,0 +1,153 @@
+Hecks.bluebook "AI" do
+  aggregate "McpServer", "MCP server exposing Workshop API as tools for AI agents" do
+    command "Start"
+    command "RegisterTools"
+  end
+
+  aggregate "SessionTools", "MCP tools for session management: create or load domain sessions" do
+    command "CreateSession" do
+      attribute :name, String
+    end
+    command "LoadDomain" do
+      attribute :path, String
+    end
+  end
+
+  aggregate "AggregateTools", "MCP tools for building domain structure: aggregates, commands, value objects" do
+    command "AddAggregate" do
+      attribute :name, String
+    end
+    command "AddAttribute" do
+      attribute :aggregate, String
+      attribute :name, String
+    end
+    command "AddCommand" do
+      attribute :aggregate, String
+      attribute :name, String
+    end
+  end
+
+  aggregate "AggregateLifecycleTools", "MCP tools for lifecycle, transitions, computed attributes, and removal" do
+    command "AddLifecycle" do
+      attribute :aggregate, String
+      attribute :field, String
+    end
+    command "AddTransition" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "InspectTools", "MCP tools for read-only domain introspection" do
+    command "DescribeDomain"
+    command "ListAggregates"
+    command "PreviewCode"
+  end
+
+  aggregate "BuildTools", "MCP tools for domain lifecycle: validate, build gem, save DSL, serve" do
+    command "Validate"
+    command "BuildGem"
+    command "SaveDsl"
+  end
+
+  aggregate "PlayTools", "MCP tools for play mode: execute commands against in-memory runtime" do
+    command "EnterPlayMode"
+    command "ExecuteCommand" do
+      attribute :command_name, String
+    end
+    command "ShowHistory"
+  end
+
+  aggregate "ServiceTools", "MCP tool for adding cross-aggregate domain services" do
+    command "AddService" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "GovernanceTools", "MCP wrapper around GovernanceGuard for governance checks" do
+    command "RunGovernanceCheck"
+  end
+
+  aggregate "DomainServer", "Generates MCP server from a compiled domain with command/query/repo tools" do
+    command "Run"
+  end
+
+  aggregate "GovernanceGuard", "Entry-point agnostic governance checker against world concerns" do
+    command "Check"
+  end
+
+  aggregate "McpConnection", "MCP protocol connection adapter bridging listens_to declarations to DomainServer" do
+    command "Run"
+  end
+
+  aggregate "TypeResolver", "Converts type strings to Ruby types or descriptor hashes" do
+    command "Resolve" do
+      attribute :type_string, String
+    end
+  end
+
+  aggregate "LlmClient", "Minimal net/http client for Anthropic Messages API with tool_use" do
+    command "GenerateDomain" do
+      attribute :description, String
+    end
+  end
+
+  aggregate "DomainBuilder", "Walks LLM JSON and replays through Workshop API to build a validated domain" do
+    command "Build"
+  end
+
+  aggregate "DomainGeneration", "System prompt with few-shot examples for LLM domain generation" do
+    command "GetPrompt"
+  end
+
+  # --- DomainServer Paragraph ---
+
+  aggregate "CommandTools", "DomainServer mixin: registers MCP tools for domain commands" do
+    command "RegisterCommandTools"
+  end
+
+  aggregate "QueryTools", "DomainServer mixin: registers MCP tools for domain queries" do
+    command "RegisterQueryTools"
+  end
+
+  aggregate "RepositoryTools", "DomainServer mixin: registers Find/All/Count tools per aggregate" do
+    command "RegisterRepositoryTools"
+  end
+
+  # --- Governance Paragraph ---
+
+  aggregate "GovernanceResult", "Immutable result object from a governance check with violations and suggestions" do
+    command "Create" do
+      attribute :violations, String
+      attribute :suggestions, String
+    end
+  end
+
+  aggregate "ConcernChecks", "Rule-based governance checks for transparency, consent, privacy, security" do
+    command "CheckTransparency"
+    command "CheckConsent"
+    command "CheckPrivacy"
+    command "CheckSecurity"
+  end
+
+  # --- Inspect Paragraph ---
+
+  aggregate "DomainSerializer", "Serializes a domain model into structured JSON for MCP tool responses" do
+    command "Serialize"
+  end
+
+  # --- Prompts Paragraph ---
+
+  aggregate "DomainToolSchema", "Anthropic tool_use schema for the define_domain tool" do
+    command "GetSchema"
+  end
+
+  # --- CLI Commands ---
+
+  aggregate "GenerateCommand", "Generate Bluebook DSL from a natural language description" do
+    command("GenerateDomain") { attribute :description, String }
+  end
+
+  aggregate "McpCommand", "Start MCP server — build domains or serve one (--domain)" do
+    command("StartMcp") { attribute :domain, String }
+  end
+end
