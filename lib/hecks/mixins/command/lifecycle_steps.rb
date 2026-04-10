@@ -79,9 +79,12 @@ module Hecks
 
       CallStep = ->(cmd) {
         result = if cmd.class.respond_to?(:mutations_ir) && cmd.class.mutations_ir&.any? && !cmd.class.respond_to?(:domain_handler)
-          # Pure Bluebook command — mutations handle the state change
-          existing = cmd.respond_to?(:repository, true) ? cmd.send(:repository)&.all&.last : nil
-          existing || cmd
+          # Pure Bluebook command — update existing or create new aggregate
+          if has_self_reference?(cmd)
+            find_existing_aggregate(cmd) || build_aggregate_for(cmd)
+          else
+            build_aggregate_for(cmd)
+          end
         elsif cmd.class.command_bus && !cmd.class.command_bus.middleware.empty?
           cmd.class.command_bus.dispatch_with_command(cmd) { cmd.call }
         else
@@ -90,6 +93,44 @@ module Hecks
         cmd.instance_variable_set(:@aggregate, result)
         cmd
       }
+
+      # Does this command have a self-referencing reference_to?
+      # Commands with reference_to Self are updates; without are creates.
+      def self.has_self_reference?(cmd)
+        return false unless cmd.class.respond_to?(:reference_meta) && cmd.class.reference_meta
+        agg_name = cmd.class.name.split("::")[-3]
+        cmd.class.reference_meta.any? { |ref|
+          ref_name = ref.respond_to?(:name) ? ref.name : ref.to_s
+          ref_name.to_s.downcase.tr("_", "") == agg_name.downcase
+        }
+      end
+
+      # Find existing aggregate by ID from the command's reference attribute.
+      def self.find_existing_aggregate(cmd)
+        repo = cmd.respond_to?(:repository, true) ? cmd.send(:repository) : nil
+        return nil unless repo
+        # Look for a reference attribute matching the aggregate name
+        agg_name = cmd.class.name.split("::")[-3]
+        snake = agg_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                        .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+        ref_id = cmd.respond_to?(snake.to_sym) ? cmd.send(snake.to_sym) : nil
+        ref_id ? repo.find(ref_id) : repo.all.last
+      end
+
+      # Instantiate a fresh aggregate for create-style Bluebook commands.
+      # Command lives at Domain::Aggregate::Commands::Name — aggregate is two levels up.
+      def self.build_aggregate_for(cmd)
+        parts = cmd.class.name.split("::")
+        agg_class = Object.const_get(parts[0..-3].join("::"))
+        attrs = {}
+        if agg_class.respond_to?(:hecks_attributes)
+          agg_class.hecks_attributes.each do |attr|
+            key = attr[:name].to_sym
+            attrs[key] = cmd.respond_to?(key) ? cmd.send(key) : nil
+          end
+        end
+        agg_class.new(**attrs)
+      end
 
       PostconditionStep = ->(cmd) {
         before = cmd.send(:find_existing_for_postcondition)

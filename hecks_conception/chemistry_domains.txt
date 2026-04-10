@@ -1,0 +1,15 @@
+ChemicalReaction|pipeline,lifecycle|Reactant,Product,Reaction,Catalyst|Combine,Catalyze,Yield,Quench
+Crystallography|lifecycle,tracking|Crystal,Lattice,Nucleation,GrowthFront|Nucleate,Grow,Anneal,Fracture
+Electrochemistry|cascade,feedback|Electrode,Electrolyte,HalfCell,Current|Oxidize,Reduce,Conduct,Plate
+PolymerChemistry|pipeline,lifecycle|Monomer,Polymer,Chain,Crosslink|Initiate,Propagate,Terminate,Crosslink
+Thermodynamics|feedback,lifecycle|System,HeatTransfer,Entropy,Equilibrium|Heat,Cool,Expand,Compress
+Photochemistry|cascade,event-heavy|Photon,Chromophore,ExcitedState,Emission|Absorb,Excite,Fluoresce,Quench
+OrganicSynthesis|pipeline,complex|StartingMaterial,Intermediate,TargetMolecule,ReactionStep,Purification|Protect,React,Deprotect,Purify
+Catalysis|feedback,cascade|Catalyst,Substrate,ActiveSite,TurnoverCycle|Bind,Convert,Release,Poison
+SolutionChemistry|feedback,simple|Solute,Solvent,Solution,Precipitate|Dissolve,Saturate,Precipitate,Dilute
+NuclearChemistry|lifecycle,cascade|Isotope,Decay,FissionEvent,FusionEvent|Decay,Fission,Fuse,Irradiate
+Chromatography|pipeline,tracking|Sample,Column,Mobile,Fraction|Inject,Separate,Elute,Collect
+Spectroscopy|simple,tracking|Sample,Spectrum,Peak,Instrument|Irradiate,Absorb,Emit,Analyze
+AcidBaseChemistry|feedback,simple|Acid,Base,Buffer,Titration|Donate,Accept,Neutralize,Titrate
+Combustion|cascade,lifecycle|Fuel,Oxidizer,Flame,Exhaust|Ignite,Burn,Propagate,Extinguish
+Fermentation|pipeline,lifecycle,biology|Substrate,Enzyme,Metabolite,Byproduct|Ferment,Metabolize,Inhibit,Yield

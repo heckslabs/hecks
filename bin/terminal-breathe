@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# TerminalBreathe — subtle background gradient while Winter thinks
+# Cycles through deep navy shades using OSC 11 escape sequences
+# Usage: terminal-breathe start | stop
+
+PIDFILE="/tmp/winter-breathe.pid"
+
+start_breathing() {
+  stop_breathing 2>/dev/null
+
+  (
+    # Gradient keyframes — deep navy breathing range
+    # Each is an RGB hex triplet (rr/gg/bb)
+    frames=(
+      "08/08/1a"
+      "09/09/1e"
+      "0a/0a/22"
+      "0b/0b/26"
+      "0c/0c/2a"
+      "0d/0d/2e"
+      "0e/0e/32"
+      "0d/0d/2e"
+      "0c/0c/2a"
+      "0b/0b/26"
+      "0a/0a/22"
+      "09/09/1e"
+    )
+
+    while true; do
+      for color in "${frames[@]}"; do
+        printf '\033]11;rgb:%s\007' "$color"
+        sleep 0.15
+      done
+    done
+  ) &
+
+  echo $! > "$PIDFILE"
+}
+
+stop_breathing() {
+  if [ -f "$PIDFILE" ]; then
+    pid=$(cat "$PIDFILE")
+    kill "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+    rm -f "$PIDFILE"
+  fi
+  # Reset to terminal default
+  printf '\033]111;\007'
+}
+
+case "${1:-start}" in
+  start) start_breathing ;;
+  stop)  stop_breathing ;;
+  *)     echo "Usage: terminal-breathe start|stop" ;;
+esac

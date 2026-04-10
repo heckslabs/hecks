@@ -1,0 +1,171 @@
+Hecks.bluebook "Chris" do
+  vision "Chris Young — Hecks creator, framework architect, Embryonaut founder"
+  core
+
+  # ============================================================
+  # IDENTITY — who Chris is
+  # ============================================================
+
+  aggregate "Identity" do
+    description "Chris Young — software architect building Hecks, a domain compiler framework"
+    attribute :name, default: "Chris Young"
+    attribute :role, default: "Framework Architect"
+    attribute :company, default: "Embryonaut"
+    attribute :tagline, default: "In the world of AI, specification is king"
+    attribute :expertise, list_of(String)
+
+    command "UpdateRole" do
+      role "Chris"
+      goal "Update Chris's current role or focus"
+      reference_to Identity
+      attribute :role
+      then_set :role, to: :role
+      emits "RoleUpdated"
+    end
+  end
+
+  # ============================================================
+  # WORKFLOW — how Chris likes to work
+  # ============================================================
+
+  aggregate "Workflow" do
+    description "How Chris develops — model tiers, agents, branching, PRs"
+
+    attribute :preferences, list_of(Preference)
+
+    value_object "Preference" do
+      attribute :name
+      attribute :rule
+      attribute :why
+    end
+
+    command "SetPreference" do
+      role "Chris"
+      goal "Record a workflow preference"
+      attribute :name
+      attribute :rule
+      attribute :why
+      then_set :preferences, append: { name: :name, rule: :rule, why: :why }
+      emits "PreferenceSet"
+    end
+  end
+
+  # ============================================================
+  # CONVENTIONS — code rules Chris enforces
+  # ============================================================
+
+  aggregate "Convention" do
+    description "Rules for writing code in the Hecks framework"
+
+    attribute :name
+    attribute :rule
+    attribute :why
+    attribute :applies_to
+
+    command "AddConvention" do
+      role "Chris"
+      goal "Add a code convention"
+      attribute :name
+      attribute :rule
+      attribute :why
+      attribute :applies_to
+      then_set :name, to: :name
+      then_set :rule, to: :rule
+      then_set :why, to: :why
+      then_set :applies_to, to: :applies_to
+      emits "ConventionAdded"
+    end
+  end
+
+  # ============================================================
+  # ANTI-PATTERNS — things that went wrong
+  # ============================================================
+
+  aggregate "AntiPattern" do
+    description "Mistakes that happened — never repeat these"
+
+    attribute :name
+    attribute :what_happened
+    attribute :why_it_was_wrong
+    attribute :correct_approach
+
+    command "RecordAntiPattern" do
+      role "Chris"
+      goal "Record something that went wrong so it never happens again"
+      attribute :name
+      attribute :what_happened
+      attribute :why_it_was_wrong
+      attribute :correct_approach
+      then_set :name, to: :name
+      then_set :what_happened, to: :what_happened
+      then_set :why_it_was_wrong, to: :why_it_was_wrong
+      then_set :correct_approach, to: :correct_approach
+      emits "AntiPatternRecorded"
+    end
+  end
+
+  # ============================================================
+  # PEOPLE — Chris's network
+  # ============================================================
+
+  aggregate "Person" do
+    description "Someone Chris knows or works with"
+
+    attribute :name
+    attribute :relationship
+    attribute :context
+    attribute :notes, list_of(String)
+
+    command "AddPerson" do
+      role "Chris"
+      goal "Remember someone Chris mentioned"
+      attribute :name
+      attribute :relationship
+      attribute :context
+      then_set :name, to: :name
+      then_set :relationship, to: :relationship
+      then_set :context, to: :context
+      emits "PersonAdded"
+    end
+
+    command "AddNote" do
+      role "Chris"
+      goal "Add context about a person"
+      reference_to Person
+      attribute :note
+      then_set :notes, append: :note
+      emits "NoteAdded"
+    end
+  end
+
+  # ============================================================
+  # EMBRYONAUT — the company
+  # ============================================================
+
+  aggregate "Embryonaut" do
+    description "Chris's company around Hecks — seeking co-founder, building Hecks Studio"
+
+    attribute :status, default: "pre-formation"
+    attribute :product_vision, default: "Hecks Studio — web dashboard where SMEs model domains visually"
+    attribute :seed_target, default: "500K-1M"
+    attribute :cofounder_profile, default: "capital + GTM + dev tools or enterprise SaaS"
+    attribute :milestones, list_of(Milestone)
+
+    value_object "Milestone" do
+      attribute :name
+      attribute :date
+      attribute :status
+    end
+
+    command "RecordMilestone" do
+      role "Chris"
+      goal "Track progress toward launching Embryonaut"
+      reference_to Embryonaut
+      attribute :name
+      attribute :date
+      attribute :status
+      then_set :milestones, append: { name: :name, date: :date, status: :status }
+      emits "MilestoneRecorded"
+    end
+  end
+end

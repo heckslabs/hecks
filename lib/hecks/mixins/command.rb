@@ -210,8 +210,9 @@ module Hecks
     # @return [Object] the return value from the aggregate method
     # @raise [NoMethodError] if neither the command nor the aggregate responds
     def method_missing(name, *args, **kwargs, &block)
-      if aggregate&.respond_to?(name)
-        kwargs.empty? ? aggregate.send(name, *args, &block) : aggregate.send(name, *args, **kwargs, &block)
+      agg = @aggregate
+      if agg && !agg.equal?(self) && !agg.is_a?(Hecks::Command) && agg.respond_to?(name)
+        kwargs.empty? ? agg.send(name, *args, &block) : agg.send(name, *args, **kwargs, &block)
       else
         super
       end
@@ -223,7 +224,9 @@ module Hecks
     # @param include_private [Boolean] whether to include private methods
     # @return [Boolean]
     def respond_to_missing?(name, include_private = false)
-      aggregate&.respond_to?(name, include_private) || super
+      agg = @aggregate
+      return super if agg.nil? || agg.equal?(self) || agg.is_a?(Hecks::Command)
+      agg.respond_to?(name, include_private) || super
     end
 
     private

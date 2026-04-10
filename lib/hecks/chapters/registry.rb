@@ -78,6 +78,10 @@ module Hecks
     require "active_hecks/railtie" if defined?(::Rails::Railtie)
   end
 
+  ChapterLoader.register(:being,
+    requires: %w[hecks_being]
+  )
+
   ChapterLoader.register(:features,
     requires: %w[hecks/features]
   )

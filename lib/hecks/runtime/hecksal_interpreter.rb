@@ -40,7 +40,9 @@ module Hecks
           aggregate.send(:"#{m.field}=", resolve_value(m.value, command))
         when :append
           collection = aggregate.send(m.field)
+          collection = collection.to_a if collection.respond_to?(:to_a) && !collection.is_a?(Array)
           collection = [] if collection.nil?
+          collection = collection.dup if collection.frozen?
           collection << resolve_value(m.value, command)
           aggregate.send(:"#{m.field}=", collection)
         when :increment

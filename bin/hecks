@@ -1,15 +1,12 @@
 #!/usr/bin/env ruby
 
-# When run from within the hecks project directory, re-exec under
-# `bundle exec` so Bundler resolves all gems from local source.
-hecks_gemfile = File.join(Dir.pwd, "Gemfile")
-local_gemspec = File.join(Dir.pwd, "hecks.gemspec")
+# Resolve HECKS_HOME from this script's real location (not symlink)
+hecks_home = File.dirname(File.dirname(File.realpath(__FILE__)))
+ENV["HECKS_HOME"] = hecks_home
+$LOAD_PATH.unshift(File.join(hecks_home, "lib"))
 
-if File.exist?(hecks_gemfile) && File.exist?(local_gemspec) && !ENV["HECKS_BUNDLED"]
-  ENV["HECKS_BUNDLED"] = "1"
-  ENV["BUNDLE_GEMFILE"] = hecks_gemfile
-  exec("bundle", "exec", "ruby", __FILE__, *ARGV)
-end
+ENV["BUNDLE_GEMFILE"] ||= File.join(hecks_home, "Gemfile")
+require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
 
 require "hecks"
 require "set"
@@ -17,7 +14,7 @@ require "hecks_cli/argv"
 
 argv = Hecks::CLI::Argv.new
 
-# Load every bluebook in hecks/. That's it.
+# Load every bluebook in the current project's hecks/ dir
 hecks_dir = File.join(Dir.pwd, "hecks")
 if File.directory?(hecks_dir)
   Dir[File.join(hecks_dir, "*.bluebook")].sort.each do |path|
@@ -25,8 +22,8 @@ if File.directory?(hecks_dir)
   end
 end
 
-# Legacy handlers from command files
-lib_root = File.expand_path("../lib", __dir__)
+# Load CLI command handlers
+lib_root = File.join(hecks_home, "lib")
 Dir[File.join(lib_root, "**/commands/*.rb")].sort.each do |path|
   argv.load_handler_file(path)
 end

@@ -1,0 +1,12 @@
+WoundHealing|biology,lifecycle|Wound,InflammatoryPhase,ProliferativePhase,RemodelingPhase|Injure,Inflame,Proliferate,Remodel
+Ecosystem|biology,ecosystem|Species,Population,FoodWeb,EnergyFlow,Habitat|Inhabit,Consume,Produce,Decompose
+PredatorPrey|biology,ecosystem,lifecycle|Predator,Prey,Population,HuntingEvent|Hunt,Flee,Reproduce,Starve
+CoralReef|biology,ecosystem,lifecycle|Coral,Symbiont,Reef,BleachingEvent|Colonize,Bleach,Recover,Spawn
+ForestSuccession|biology,ecosystem,lifecycle|Forest,PioneerSpecies,ClimaxCommunity,Disturbance|Colonize,Shade,Compete,Disturb
+PollinationNetwork|biology,ecosystem|Plant,Pollinator,FlowerVisit,PollenTransfer|Bloom,Visit,Transfer,Fertilize
+NaturalSelection|biology,lifecycle|Population,Trait,Mutation,SelectionPressure,Adaptation|Mutate,Select,Adapt,Reproduce
+Speciation|biology,lifecycle|Population,Isolate,Divergence,ReproductiveBarrier|Isolate,Diverge,Hybridize,Speciate
+GeneticDrift|biology|Population,Allele,Bottleneck,FounderEvent|Drift,Bottleneck,Found,Fixate
+GutMicrobiome|biology,ecosystem,feedback|Colony,MicrobialSpecies,Dysbiosis,Intervention|Colonize,Disrupt,Rebalance,Intervene
+ViralInfection|biology,lifecycle,cascade|Virus,HostCell,Replication,ImmuneEvasion|Attach,Inject,Replicate,Lyse
+BacterialColony|biology,ecosystem,feedback|Colony,Biofilm,QuorumSignal,Resistance|Signal,FormBiofilm,Resist,Divide

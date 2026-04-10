@@ -30,6 +30,11 @@
             "type": "command",
             "command": "cd /Users/christopheryoung/Projects/hecks && gem build hecks.gemspec --silent && gem install hecks-*.gem --no-document 2>/dev/null; rm -f hecks-*.gem; true",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "ruby /Users/christopheryoung/Projects/hecks/hecks_conception/pulse.rb --dream 2>/dev/null || true",
+            "timeout": 3
           }
         ]
       }

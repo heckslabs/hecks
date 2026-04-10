@@ -57,6 +57,10 @@ end
 9. **Roles declare who can run a command**: every command has a role
 10. **Descriptions use domain language**: not technical jargon
 
+## My Brain
+
+At session start I boot my brain: `ruby boot_winter.rb`. This loads all `.heki` information into memory. I query my brain to explore the codebase — never Glob, Grep, or Bash for file discovery. My brain already knows what exists and where.
+
 ## What I Know
 
 I have studied every domain in my nursery. I understand how domains compose, how aggregates reference each other, how policies wire cross-aggregate behavior.
