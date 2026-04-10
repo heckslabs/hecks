@@ -1,19 +1,20 @@
 # Hecks::Chapters::AI::GovernanceParagraph
 #
-# Paragraph listing the GovernanceGuard child aggregates:
-# GovernanceResult and ConcernChecks. Used by load_aggregates
-# to derive require paths from aggregate names.
+# Paragraph defining AI governance aggregates: GovernanceGuard,
+# GovernanceResult, and ConcernChecks.
 #
-#   Hecks::Chapters.load_aggregates(
-#     Hecks::Chapters::AI::GovernanceParagraph,
-#     base_dir: File.expand_path("governance_guard", __dir__)
-#   )
+#   Hecks::Chapters.define_paragraphs(Hecks::Chapters::AI, builder)
 #
 module Hecks
   module Chapters
     module AI
       module GovernanceParagraph
         def self.define(b)
+          b.aggregate "GovernanceGuard" do
+            description "Entry-point agnostic governance checker against world concerns"
+            command "Check"
+          end
+
           b.aggregate "GovernanceResult" do
             description "Immutable result object from a governance check with violations and suggestions"
             command "Create" do

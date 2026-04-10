@@ -1,0 +1,108 @@
+Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
+  vision "Generate thousands of valid nursery domains from topic combinations — fast, template-driven, batch-validated"
+
+  aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
+    attribute :industries, list_of(String)
+    attribute :activities, list_of(String)
+    attribute :modifiers, list_of(String)
+    attribute :total_combinations, Integer
+
+    command "LoadTopics" do
+      role "System"
+      description "Load industry, activity, and modifier word lists"
+      attribute :industries, list_of(String)
+      attribute :activities, list_of(String)
+      attribute :modifiers, list_of(String)
+      emits "TopicsLoaded"
+      then_set :industries, to: :industries
+      then_set :activities, to: :activities
+      then_set :modifiers, to: :modifiers
+    end
+  end
+
+  aggregate "Template", "A bluebook template that generates valid domains from topics" do
+    attribute :aggregate_patterns, list_of(String)
+    attribute :command_patterns, list_of(String)
+    attribute :policy_patterns, list_of(String)
+
+    command "DefineTemplate" do
+      role "System"
+      description "Set the patterns used to generate aggregates, commands, and policies"
+      attribute :aggregate_patterns, list_of(String)
+      attribute :command_patterns, list_of(String)
+      attribute :policy_patterns, list_of(String)
+      emits "TemplateDefined"
+      then_set :aggregate_patterns, to: :aggregate_patterns
+      then_set :command_patterns, to: :command_patterns
+      then_set :policy_patterns, to: :policy_patterns
+    end
+  end
+
+  aggregate "Generation", "A batch generation run — produces N domains" do
+    attribute :target_count, Integer
+    attribute :generated, Integer
+    attribute :valid, Integer
+    attribute :invalid, Integer
+    attribute :duration_seconds, Integer
+    attribute :status, String
+
+    command "StartGeneration" do
+      role "Creator"
+      description "Begin generating domains in bulk"
+      attribute :target_count, Integer
+      emits "GenerationStarted"
+      then_set :target_count, to: :target_count
+      then_set :generated, to: 0
+      then_set :valid, to: 0
+      then_set :invalid, to: 0
+      then_set :status, to: "running"
+    end
+
+    command "RecordProgress" do
+      role "System"
+      description "Update generation progress"
+      reference_to Generation
+      attribute :generated, Integer
+      attribute :valid, Integer
+      attribute :invalid, Integer
+      emits "ProgressRecorded"
+      then_set :generated, to: :generated
+      then_set :valid, to: :valid
+      then_set :invalid, to: :invalid
+    end
+
+    command "CompleteGeneration" do
+      role "System"
+      description "All domains generated and validated"
+      reference_to Generation
+      attribute :duration_seconds, Integer
+      emits "GenerationCompleted"
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "StartGeneration" => "running", from: "pending"
+      transition "CompleteGeneration" => "complete", from: "running"
+    end
+  end
+
+  aggregate "Deduplication", "Skip domains that already exist in the nursery" do
+    attribute :existing, Integer
+    attribute :skipped, Integer
+
+    command "CheckExisting" do
+      role "System"
+      description "Scan nursery for existing domain names to avoid duplicates"
+      attribute :existing, Integer
+      emits "ExistingChecked"
+      then_set :existing, to: :existing
+    end
+  end
+
+  policy "ValidateOnGenerate" do
+    on "GenerationCompleted"
+    trigger "CheckExisting"
+    across "Census"
+  end
+end

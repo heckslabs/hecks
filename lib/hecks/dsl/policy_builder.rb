@@ -41,6 +41,7 @@ module Hecks
         @name = name
         @event_name = nil
         @trigger_command = nil
+        @target_domain = nil
         @async = false
         @attribute_map = {}
         @condition = nil
@@ -61,6 +62,18 @@ module Hecks
       # @return [void]
       def trigger(command_name)
         @trigger_command = command_name
+      end
+
+      # Set the target domain for cross-domain policies.
+      #
+      # When a policy triggers a command in another domain, use +across+ to
+      # declare the target. The validator will skip local command checks for
+      # cross-domain triggers.
+      #
+      # @param domain_name [String] the target domain (e.g. "Dream", "StatusBar")
+      # @return [void]
+      def across(domain_name)
+        @target_domain = domain_name
       end
 
       # Set whether this policy runs asynchronously.
@@ -150,6 +163,7 @@ module Hecks
           name: @name,
           event_name: @event_name,
           trigger_command: @trigger_command,
+          target_domain: @target_domain,
           async: @async,
           attribute_map: @attribute_map,
           condition: @condition,

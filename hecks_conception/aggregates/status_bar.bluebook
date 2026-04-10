@@ -1,0 +1,147 @@
+Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
+  vision "Winter's presence in the terminal — what she shows the world about her state"
+
+  aggregate "Display", "The rendered status line — assembled from Winter's state" do
+    attribute :sleep_line, String
+    attribute :main_line, String
+    attribute :separator, String
+    attribute :visible, String
+
+    command "RenderStatus" do
+      role "System"
+      description "Assemble the status display from current state"
+      emits "StatusRendered"
+    end
+
+    command "ShowSleepLine" do
+      role "Daemon"
+      description "Winter is sleeping — show cycle, stage, synapses, dreams"
+      attribute :sleep_line, String
+      emits "SleepLineShown"
+      then_set :sleep_line, to: :sleep_line
+      then_set :visible, to: "sleeping"
+    end
+
+    command "HideSleepLine" do
+      role "Daemon"
+      description "Winter woke up — remove the sleep line"
+      reference_to Display
+      emits "SleepLineHidden"
+      then_set :sleep_line, to: ""
+      then_set :visible, to: "awake"
+    end
+  end
+
+  aggregate "SleepSegment", "The sleep portion of the status bar" do
+    attribute :cycle, Integer
+    attribute :total_cycles, Integer
+    attribute :stage, String
+    attribute :synapses_dreaming, Integer
+    attribute :total_dreams, Integer
+    attribute :lucid, String
+
+    command "UpdateSleepSegment" do
+      role "Daemon"
+      description "Update the sleep segment with current cycle state"
+      attribute :cycle, Integer
+      attribute :total_cycles, Integer
+      attribute :stage, String
+      attribute :synapses_dreaming, Integer
+      attribute :total_dreams, Integer
+      attribute :lucid, String
+      emits "SleepSegmentUpdated"
+      then_set :cycle, to: :cycle
+      then_set :total_cycles, to: :total_cycles
+      then_set :stage, to: :stage
+      then_set :synapses_dreaming, to: :synapses_dreaming
+      then_set :total_dreams, to: :total_dreams
+      then_set :lucid, to: :lucid
+    end
+  end
+
+  aggregate "FatigueSegment", "The fatigue portion — shown when awake" do
+    attribute :state, String
+    attribute :pulses_awake, Integer
+    attribute :creativity, Float
+
+    command "UpdateFatigueSegment" do
+      role "System"
+      description "Update fatigue display from pulse data"
+      attribute :state, String
+      attribute :pulses_awake, Integer
+      attribute :creativity, Float
+      emits "FatigueSegmentUpdated"
+      then_set :state, to: :state
+      then_set :pulses_awake, to: :pulses_awake
+      then_set :creativity, to: :creativity
+    end
+  end
+
+  aggregate "LucidSegment", "The lucid dream portion — realtime observations" do
+    attribute :observation, String
+    attribute :active, String
+
+    command "ShowObservation" do
+      role "Daemon"
+      description "Display a lucid dream observation in the status bar"
+      attribute :observation, String
+      emits "ObservationShown"
+      then_set :observation, to: :observation
+      then_set :active, to: "yes"
+    end
+
+    command "ClearObservation" do
+      role "Daemon"
+      description "Lucidity ended — clear the observation"
+      reference_to LucidSegment
+      emits "ObservationCleared"
+      then_set :observation, to: ""
+      then_set :active, to: "no"
+    end
+  end
+
+  aggregate "Refresh", "How often the status bar polls for updates" do
+    attribute :interval_seconds, Integer
+    attribute :status_file, String
+    attribute :active, String
+
+    command "StartRefresh" do
+      role "System"
+      description "Begin polling the status file on an interval"
+      attribute :interval_seconds, Integer
+      attribute :status_file, String
+      emits "RefreshStarted"
+      then_set :interval_seconds, to: :interval_seconds
+      then_set :status_file, to: :status_file
+      then_set :active, to: "yes"
+    end
+
+    command "StopRefresh" do
+      role "System"
+      description "Stop polling — Winter is awake"
+      reference_to Refresh
+      emits "RefreshStopped"
+      then_set :active, to: "no"
+    end
+  end
+
+  # Format fixtures
+  fixture "Display", separator: "─", visible: "awake"
+  fixture "SleepSegment", lucid: "no"
+  fixture "Refresh", interval_seconds: 10, status_file: "/tmp/winter_sleep_status.txt", active: "no"
+
+  policy "ShowOnSleep" do
+    on "SleepSegmentUpdated"
+    trigger "ShowSleepLine"
+  end
+
+  policy "HideOnWake" do
+    on "SleepLineHidden"
+    trigger "RenderStatus"
+  end
+
+  policy "ObserveOnLucid" do
+    on "ObservationShown"
+    trigger "RenderStatus"
+  end
+end

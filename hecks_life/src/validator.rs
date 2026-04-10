@@ -44,54 +44,20 @@ fn aggregates_have_commands(domain: &Domain) -> Vec<String> {
         .collect()
 }
 
-const VERBS: &[&str] = &[
-    "Create", "Update", "Delete", "Remove", "Add", "Set", "Place",
-    "Cancel", "Send", "Submit", "Approve", "Reject", "Accept",
-    "Decline", "Confirm", "Deny", "Register", "Activate", "Suspend",
-    "Retire", "Deactivate", "Archive", "Open", "Close", "Resolve",
-    "Complete", "Start", "Stop", "Finish", "Assign", "Transfer",
-    "Move", "Promote", "Demote", "Request", "Revoke", "Grant",
-    "Renew", "Extend", "Expire", "Report", "Investigate", "Mitigate",
-    "Escalate", "Deploy", "Decommission", "Plan", "Schedule",
-    "Record", "Log", "Track", "Audit", "Derive", "Classify",
-    "Initiate", "Import", "Export", "Notify", "Alert", "Publish",
-    "Broadcast", "Lock", "Unlock", "Block", "Unblock", "Enable",
-    "Disable", "Verify", "Validate", "Check", "Review", "Inspect",
-    "Sign", "Seal", "Stamp", "Mark", "Tag", "Pay", "Charge",
-    "Refund", "Bill", "Invoice", "Ship", "Deliver", "Return",
-    "Receive", "Connect", "Disconnect", "Link", "Unlink", "Attach",
-    "Detach", "Find", "Lookup", "Compare", "Diff", "Setup",
-    "Initialize", "Configure", "Build", "Generate", "Run", "Execute",
-    "Tokenize", "Parse", "Compile", "Serialize", "Deserialize",
-    "Enqueue", "Dequeue", "Process", "Emit", "Trigger", "Fire",
-    "Scope", "Filter", "Where", "Each", "Map", "Select",
-    "Upcast", "Downcast", "Convert", "Transform", "Translate",
-    "Autoload", "Load", "Require", "Boot", "Wire",
-    "Compute", "Calculate", "Score", "Satisfy",
-    "Perform", "Write", "Dispense", "Refill", "Discontinue",
-    "Issue", "Void", "Dispatch", "Enforce", "Apply",
-    "Persist", "Fail", "Append", "Increment", "Decrement",
-    "Toggle", "Evaluate", "Allocate", "Save", "List",
-    "Subscribe", "Clear", "Is", "Read", "Flush",
-    "Bind", "Unbind", "Mount", "Unmount", "Sync",
-    "Restore", "Backup", "Rollback", "Commit", "Merge",
-    "Split", "Join", "Aggregate", "Reduce", "Fold",
-    "Publish", "Consume", "Replay", "Snapshot", "Hydrate",
-    "Extract", "Pass", "Transition", "Copy", "Handle",
-    "Format", "Route", "Print", "Render", "Display",
-    "Reject", "Normalize", "Enrich", "Annotate", "Index",
-    "Express", "Refresh", "Focus", "Resize", "Recall",
-    "Compose", "Layout", "Project", "Expand", "Collapse",
-    "Show", "Launch", "Dump", "Package", "Interview",
-    "Visualize", "Tree",
-];
+/// Verb list compiled from Ruby + WordNet (source of truth: verbs.txt)
+const VERBS_RAW: &str = include_str!("../../verbs.txt");
+
+fn load_verbs() -> Vec<&'static str> {
+    VERBS_RAW.lines().filter(|l| !l.is_empty()).collect()
+}
 
 /// Command names must start with a verb.
 fn command_naming(domain: &Domain) -> Vec<String> {
+    let verbs = load_verbs();
     let mut errors = vec![];
     for agg in &domain.aggregates {
         for cmd in &agg.commands {
-            let starts_with_verb = VERBS.iter().any(|v| cmd.name.starts_with(v));
+            let starts_with_verb = verbs.iter().any(|v| cmd.name.starts_with(v));
             if !starts_with_verb {
                 errors.push(format!(
                     "Command {} in {} doesn't start with a verb",
@@ -152,6 +118,7 @@ fn valid_policy_triggers(domain: &Domain) -> Vec<String> {
     domain
         .policies
         .iter()
+        .filter(|p| p.target_domain.is_none()) // skip cross-domain
         .filter(|p| !all_commands.contains(p.trigger_command.as_str()))
         .map(|p| {
             format!(
@@ -240,6 +207,7 @@ end"#);
                 },
             ],
             policies: vec![],
+            fixtures: vec![],
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("Duplicate aggregate")));
@@ -259,6 +227,7 @@ end"#);
                 lifecycle: None,
             }],
             policies: vec![],
+            fixtures: vec![],
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("has no commands")));
@@ -287,6 +256,7 @@ end"#);
                 lifecycle: None,
             }],
             policies: vec![],
+            fixtures: vec![],
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("doesn't start with a verb")));
@@ -333,7 +303,9 @@ end"#);
                 name: "NotifyOnOrder".into(),
                 on_event: "OrderPlaced".into(),
                 trigger_command: "GhostCommand".into(),
+                target_domain: None,
             }],
+            fixtures: vec![],
         };
         let errors = validate(&domain);
         assert!(errors.iter().any(|e| e.contains("triggers unknown command")));

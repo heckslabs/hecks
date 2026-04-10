@@ -94,6 +94,9 @@ module Hecks
       #   { name: "Dr. Pizza", expertise: "20 years in pizza operations" }
       attr_reader :sme
 
+      # @return [Array<Fixture>] instances that ship with the domain definition
+      attr_reader :fixtures
+
       # @return [Array<String>] auto-extracted glossary terms from aggregate/VO/command names
       attr_reader :auto_glossary
 
@@ -127,7 +130,7 @@ module Hecks
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
                      version: nil, world_concerns: [], description: nil,
                      entry_points: [],
-                     vision: nil, subdomain: nil, glossary_terms: [], sme: nil)
+                     vision: nil, subdomain: nil, glossary_terms: [], sme: nil, fixtures: [])
         validate_version!(version)
         @name = name
         @version = version
@@ -152,6 +155,7 @@ module Hecks
         @subdomain = subdomain&.to_sym
         @glossary_terms = glossary_terms
         @sme = sme
+        @fixtures = fixtures
         @auto_glossary = build_auto_glossary(aggregates)
       end
 

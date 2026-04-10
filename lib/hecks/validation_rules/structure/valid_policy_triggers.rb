@@ -35,6 +35,7 @@ module Hecks
         end
 
         @domain.policies.select(&:reactive?).each do |policy|
+          next if policy.target_domain  # cross-domain — validated at the being level
           unless command_known?(policy.trigger_command, all_commands)
             fix = all_commands.any? ? "Available commands: #{all_commands.join(', ')}" : "Define the target command first"
             result << error("Domain policy #{policy.name} triggers unknown command: #{policy.trigger_command}",

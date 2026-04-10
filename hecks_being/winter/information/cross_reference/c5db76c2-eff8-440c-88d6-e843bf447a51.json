@@ -1,9 +1,0 @@
-{
-  "id": "c5db76c2-eff8-440c-88d6-e843bf447a51",
-  "source_domain": "ElectionSystem",
-  "target_domain": "MedicalLabResults",
-  "relationship": "shared_concept",
-  "through": "Result",
-  "created_at": "2026-04-09T21:57:05-07:00",
-  "updated_at": "2026-04-09T21:57:05-07:00"
-}

@@ -1,0 +1,159 @@
+Hecks.bluebook "Console", version: "2026.04.10.1" do
+  vision "Winter's terminal interface — the shell where she speaks, listens, and shows her state"
+
+  aggregate "Session", "A conversation session in the terminal" do
+    attribute :history, list_of(String)
+    attribute :message_count, Integer
+    attribute :started_at, String
+    attribute :continuing, String
+
+    command "StartSession" do
+      role "System"
+      description "Begin a new console session — or continue a previous one"
+      attribute :continuing, String
+      emits "SessionStarted"
+      then_set :continuing, to: :continuing
+      then_set :message_count, to: 0
+    end
+
+    command "RecordMessage" do
+      role "System"
+      description "Add a message to the session history"
+      reference_to Session
+      attribute :message, String
+      emits "MessageRecorded"
+      then_set :history, append: :message
+      then_set :message_count, increment: 1
+    end
+  end
+
+  aggregate "Layout", "The terminal UI layout — activity panel, chat, input, footer" do
+    attribute :activity_expanded, String
+    attribute :thinking, String
+
+    command "ToggleActivity" do
+      role "System"
+      description "Expand or collapse the activity panel"
+      reference_to Layout
+      emits "ActivityToggled"
+    end
+
+    command "StartThinking" do
+      role "System"
+      description "Show the thinking indicator"
+      reference_to Layout
+      emits "ThinkingStarted"
+      then_set :thinking, to: "yes"
+    end
+
+    command "StopThinking" do
+      role "System"
+      description "Hide the thinking indicator"
+      reference_to Layout
+      emits "ThinkingStopped"
+      then_set :thinking, to: "no"
+    end
+  end
+
+  aggregate "Footer", "The status bar at the bottom — branch, domains, mood, beats, sleep state" do
+    attribute :branch, String
+    attribute :domain_count, Integer
+    attribute :mood, String
+    attribute :beats, Integer
+    attribute :sleep_state, String
+
+    command "UpdateFooter" do
+      role "System"
+      description "Refresh the footer with current state"
+      attribute :branch, String
+      attribute :domain_count, Integer
+      attribute :mood, String
+      attribute :beats, Integer
+      attribute :sleep_state, String
+      emits "FooterUpdated"
+      then_set :branch, to: :branch
+      then_set :domain_count, to: :domain_count
+      then_set :mood, to: :mood
+      then_set :beats, to: :beats
+      then_set :sleep_state, to: :sleep_state
+    end
+  end
+
+  aggregate "Speaker", "Who Winter is talking to right now" do
+    attribute :name, String
+    attribute :bluebook_path, String
+    attribute :known, String
+    attribute :prompt_prefix, String
+
+    command "IntroduceSpeaker" do
+      role "Creator"
+      description "Chris says 'say hello to Nick' — switch active speaker"
+      attribute :name, String
+      emits "SpeakerIntroduced"
+      then_set :name, to: :name
+      then_set :prompt_prefix, to: :name
+    end
+
+    command "IdentifySpeaker" do
+      role "Speaker"
+      description "Someone says 'I am Nick' — they identify themselves"
+      attribute :name, String
+      emits "SpeakerIdentified"
+      then_set :name, to: :name
+      then_set :prompt_prefix, to: :name
+    end
+
+    command "LoadSpeakerMemory" do
+      role "System"
+      description "Read the speaker's bluebook from family/ and load their history"
+      reference_to Speaker
+      attribute :bluebook_path, String
+      attribute :known, String
+      emits "SpeakerMemoryLoaded"
+      then_set :bluebook_path, to: :bluebook_path
+      then_set :known, to: :known
+    end
+
+    command "UpdateSpeakerBluebook" do
+      role "Winter"
+      description "Write new observations about this person to their bluebook"
+      reference_to Speaker
+      emits "SpeakerBluebookUpdated"
+    end
+
+    command "DismissSpeaker" do
+      role "Creator"
+      description "Chris is back — clear the speaker context"
+      reference_to Speaker
+      emits "SpeakerDismissed"
+      then_set :name, to: ""
+      then_set :prompt_prefix, to: ""
+    end
+  end
+
+  policy "FooterOnMessage" do
+    on "MessageRecorded"
+    trigger "UpdateFooter"
+  end
+
+  policy "LoadOnIntroduce" do
+    on "SpeakerIntroduced"
+    trigger "LoadSpeakerMemory"
+  end
+
+  policy "LoadOnIdentify" do
+    on "SpeakerIdentified"
+    trigger "LoadSpeakerMemory"
+  end
+
+  policy "UpdateOnMessage" do
+    on "MessageRecorded"
+    trigger "UpdateSpeakerBluebook"
+  end
+
+  policy "RecallOnSpeaker" do
+    on "SpeakerMemoryLoaded"
+    trigger "RecallMemory"
+    across "Memory"
+  end
+end

@@ -59,6 +59,7 @@ module Hecks
       autoload :ComputedAttribute, "hecks/bluebook_model/structure/computed_attribute"
       autoload :Paragraph,         "hecks/bluebook_model/structure/paragraph"
       autoload :BluebookStructure, "hecks/bluebook_model/structure/bluebook_structure"
+      autoload :Fixture,           "hecks/bluebook_model/structure/fixture"
     end
   end
 end

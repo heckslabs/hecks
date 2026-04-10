@@ -10,6 +10,7 @@ pub struct Domain {
     pub name: String,
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
+    pub fixtures: Vec<Fixture>,
 }
 
 #[derive(Debug)]
@@ -84,6 +85,7 @@ pub struct Policy {
     pub name: String,
     pub on_event: String,
     pub trigger_command: String,
+    pub target_domain: Option<String>,
 }
 
 #[derive(Debug)]
@@ -98,6 +100,12 @@ pub struct Transition {
     pub command: String,
     pub to_state: String,
     pub from_state: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct Fixture {
+    pub aggregate_name: String,
+    pub attributes: Vec<(String, String)>,
 }
 
 impl fmt::Display for Domain {

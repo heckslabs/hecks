@@ -11,7 +11,7 @@ const HECKS_HOME = path.resolve(__dirname, "..");
 const CONCEPTION = __dirname;
 const BOOT_SCRIPT = path.join(CONCEPTION, "boot_winter.rb");
 const PULSE_SCRIPT = path.join(CONCEPTION, "pulse.rb");
-const BEING_PROMPT = path.join(HECKS_HOME, "hecks_being", "winter", "system_prompt.md");
+const BEING_PROMPT = path.join(CONCEPTION, "system_prompt.md");
 const FORMAT_PROMPT = path.join(CONCEPTION, "system_prompt.md");
 const HISTORY_PATH = path.join(CONCEPTION, ".winter_history.json");
 const PROMPT_PATH = path.join(CONCEPTION, ".winter_system_prompt.tmp");
@@ -30,26 +30,96 @@ const screen = blessed.screen({
   smartCSR: true,
   title: "Winter Console",
   fullUnicode: true,
-  mouseSGR: true,
+  mouse: false,
 });
 
-// Chat log — scrollable
-const chatBox = blessed.box({
+// Activity panel — top, collapsible (ctrl+o)
+const ACTIVITY_HEIGHT = 8;
+let activityExpanded = false;
+let activityLines = [];
+
+const activityBox = blessed.box({
   top: 0,
   left: 0,
   width: "100%",
-  height: "100%-4",
+  height: 3,
+  scrollable: true,
+  alwaysScroll: true,
+  keys: true,
+  vi: true,
+  tags: true,
+  wrap: true,
+  border: { type: "line" },
+  style: { border: { fg: "white" } },
+  label: " Activity ctrl+o ",
+  padding: { left: 1, right: 1 },
+});
+
+function showActivityCollapsed() {
+  const count = activityLines.length;
+  const last = count > 0 ? activityLines[activityLines.length - 1] : "";
+  activityBox.setContent(last);
+  activityBox.height = 3;
+  activityBox.setLabel(count > 0 ? ` ${count} events ctrl+o ` : ` Activity ctrl+o `);
+  activityBox.show();
+  activityExpanded = false;
+  relayout();
+}
+
+function showActivityExpanded() {
+  activityBox.setContent(activityLines.join("\n"));
+  const maxH = Math.floor(screen.height / 2);
+  activityBox.height = Math.min(activityLines.length + 2, maxH);
+  activityBox.setLabel(` Activity (${activityLines.length} events) ctrl+o to collapse `);
+  activityBox.setScrollPerc(100);
+  activityBox.show();
+  activityBox.focus();
+  activityExpanded = true;
+  relayout();
+}
+
+function toggleActivity() {
+  if (activityExpanded) showActivityCollapsed();
+  else showActivityExpanded();
+}
+
+function appendActivity(line) {
+  activityLines.push(line);
+  showActivityExpanded();
+}
+
+function clearActivity() {
+  activityLines = [];
+  showActivityCollapsed();
+}
+
+function relayout() {
+  const actH = activityBox.height;
+  const inputH = inputBox.height;
+  const footerH = 1;
+  chatBox.top = actH + 1;
+  chatBox.height = screen.height - actH - 1 - inputH - footerH;
+  screen.render();
+}
+
+// Chat log — below activity box
+const chatBox = blessed.box({
+  top: 3,
+  left: 0,
+  width: "100%",
+  height: "100%-8",
   scrollable: true,
   alwaysScroll: true,
   scrollbar: { ch: "│", style: { fg: "cyan" } },
-  mouse: true,
+  mouse: false,
+  keys: true,
   tags: true,
   wrap: true,
   padding: { left: 1, right: 1 },
 });
 
 // Input box
-const inputBox = blessed.textbox({
+const inputBox = blessed.box({
   bottom: 1,
   left: 0,
   width: "100%",
@@ -59,11 +129,25 @@ const inputBox = blessed.textbox({
     border: { fg: "green" },
     fg: "white",
   },
-  inputOnFocus: true,
-  keys: true,
-  mouse: true,
+  wrap: true,
   padding: { left: 1 },
+  content: "",
 });
+
+let inputBuffer = "";
+
+function updateInput() {
+  inputBox.setContent(inputBuffer + "█");
+  // Grow the box if text wraps
+  const innerWidth = screen.width - 4; // border + padding
+  const lines = Math.ceil((inputBuffer.length + 1) / innerWidth) || 1;
+  const newHeight = lines + 2; // +2 for border
+  if (inputBox.height !== newHeight) {
+    inputBox.height = newHeight;
+    relayout();
+  }
+  screen.render();
+}
 
 // Footer
 const footer = blessed.box({
@@ -76,11 +160,11 @@ const footer = blessed.box({
   padding: { left: 1 },
 });
 
-// Thinking indicator — lower left, color-cycling
+// Thinking indicator — above input box
 const thinkingBox = blessed.box({
-  bottom: 1,
+  bottom: 4,
   left: 0,
-  width: 30,
+  width: 20,
   height: 1,
   tags: true,
   padding: { left: 1 },
@@ -116,10 +200,15 @@ function stopThinking() {
   screen.render();
 }
 
+screen.append(activityBox);
 screen.append(chatBox);
-screen.append(thinkingBox);
 screen.append(inputBox);
 screen.append(footer);
+screen.append(thinkingBox);
+
+relayout();
+screen.key(["C-o"], () => { toggleActivity(); });
+inputBox.key(["C-o"], () => { toggleActivity(); });
 
 // ── Helpers ──
 
@@ -146,11 +235,23 @@ function userSays(text) {
   appendChat("");
 }
 
+function getSleepState() {
+  const stateFile = path.join(HECKS_HOME, "hecks_conception", "information", ".sleep_state.json");
+  try {
+    if (!fs.existsSync(stateFile)) return null;
+    return JSON.parse(fs.readFileSync(stateFile, "utf8"));
+  } catch { return null; }
+}
+
 function updateFooter() {
   const branch = execSync(`git -C ${HECKS_HOME} branch --show-current 2>/dev/null`);
   const recent = getRecentDomains(3).join(" · ");
+  const sleep = getSleepState();
+  const sleepInfo = sleep
+    ? ` │ ${"z".repeat(sleep.cycle || 1)} cycle ${sleep.cycle}/${sleep.total_cycles} ${sleep.stage}`
+    : "";
   footer.setContent(
-    ` ${branch} │ ${nurseryCount} domains │ ❄ ${winterMood} │ ${winterBeats} beats │ ${recent}`
+    ` ${branch} │ ${nurseryCount} domains │ ❄ ${winterMood} │ ${winterBeats} beats${sleepInfo} │ ${recent}`
   );
   screen.render();
 }
@@ -239,6 +340,7 @@ function callWinter(fullPrompt) {
     let dots = "";
     let gotEvent = false;
 
+    clearActivity();
     startThinking();
 
     let buf = "";
@@ -259,14 +361,14 @@ function callWinter(fullPrompt) {
           const contents = (j.message || {}).content || [];
           for (const c of contents) {
             if (c.type === "thinking") {
-              const thought = (c.thinking || "").replace(/\n/g, " ").slice(0, 80);
-              if (thought) appendChat(`{cyan-fg}  💭 ${thought}{/cyan-fg}`);
+              const thought = (c.thinking || "").replace(/\n/g, " ");
+              if (thought) appendActivity(`{cyan-fg}💭 ${thought}{/cyan-fg}`);
             } else if (c.type === "tool_use") {
               toolCount++;
               const name = c.name || "?";
               const inp = c.input || {};
               let detail = "";
-              if (name === "Bash") detail = (inp.command || "").slice(0, 60);
+              if (name === "Bash") detail = (inp.command || "").split("\n")[0].slice(0, 60);
               else if (name === "Read") detail = path.basename(inp.file_path || "");
               else if (name === "Write") detail = path.basename(inp.file_path || "");
               else if (name === "Edit") detail = path.basename(inp.file_path || "");
@@ -279,7 +381,7 @@ function callWinter(fullPrompt) {
               };
               const color = colors[name] || "white";
               const label = detail ? `${name} ${detail}` : name;
-              appendChat(`{${color}-fg}  🔧 ${label}{/${color}-fg}`);
+              appendActivity(`{${color}-fg}🔧 ${label}{/${color}-fg}`);
             } else if (c.type === "text") {
               const text = (c.text || "").trim();
               if (text) response += (response ? "\n" : "") + c.text;
@@ -289,18 +391,33 @@ function callWinter(fullPrompt) {
           const contents = (j.message || {}).content || [];
           for (const c of contents) {
             if (c.type === "tool_result") {
-              const result = (c.content || "").replace(/\n/g, " ").slice(0, 70);
+              let rawContent = c.content || "";
+              if (Array.isArray(rawContent)) rawContent = rawContent.map(x => typeof x === "string" ? x : x.text || JSON.stringify(x)).join(" ");
+              if (typeof rawContent !== "string") rawContent = String(rawContent);
+              const raw = rawContent.replace(/\n/g, " ").trim();
+              const result = raw.length > 80 ? raw.slice(0, 77) + "..." : raw;
               const err = c.is_error ? " ⚠" : "";
-              appendChat(`{white-fg}  ↩ ${result}${err}{/white-fg}`);
+              appendActivity(`{white-fg}↩ ${result}${err}{/white-fg}`);
             }
           }
         }
       }
     });
 
-    proc.on("close", () => {
+    proc.on("close", (code) => {
       stopThinking();
-      resolve({ response: response.trim(), tools: toolCount });
+      showActivityCollapsed();
+      if (code !== 0 && !response.trim()) {
+        resolve({ response: "(Winter's process exited unexpectedly)", tools: toolCount });
+      } else {
+        resolve({ response: response.trim(), tools: toolCount });
+      }
+    });
+
+    proc.on("error", (err) => {
+      stopThinking();
+      showActivityCollapsed();
+      resolve({ response: `(Error: ${err.message})`, tools: 0 });
     });
   });
 }
@@ -348,17 +465,19 @@ async function main() {
     history.push({ role: "assistant", content: greeting });
   }
 
-  // Focus input
-  inputBox.focus();
+  // Input handling via raw keypress
+  updateInput();
   screen.render();
 
-  // Input handler
-  inputBox.on("submit", async (value) => {
-    const input = value.trim();
-    inputBox.clearValue();
-    screen.render();
+  let processing = false;
 
-    if (!input) { inputBox.focus(); return; }
+  async function handleSubmit() {
+    const input = inputBuffer.trim();
+    inputBuffer = "";
+    updateInput();
+    try {
+
+    if (!input) return;
     if (input === "exit" || input === "quit") {
       shutdown();
       return;
@@ -367,10 +486,10 @@ async function main() {
     if (input === "pulse") {
       const out = execSync(`ruby ${PULSE_SCRIPT} "pulse check" < /dev/null 2>&1`);
       appendChat(out);
-      inputBox.focus();
       return;
     }
 
+    processing = true;
     userSays(input);
     history.push({ role: "user", content: input });
 
@@ -395,19 +514,56 @@ async function main() {
 
     history.push({ role: "assistant", content: result.response });
     saveHistory();
+    processing = false;
     nurseryCount = countNursery();
     updateFooter();
 
     const carrying = (input.split(/[.!?]/)[0] || input).slice(0, 40);
     pulse(carrying);
 
-    inputBox.focus();
     screen.render();
+    } catch (err) {
+      stopThinking();
+      showActivityCollapsed();
+      winterSays(`(Error: ${err.message})`);
+      processing = false;
+      screen.render();
+    }
+  }
+
+  screen.on("keypress", (ch, key) => {
+    if (!key) return;
+    if (key.full === "return" || key.full === "enter") {
+      handleSubmit();
+    } else if (key.full === "backspace") {
+      if (inputBuffer.length > 0) {
+        inputBuffer = inputBuffer.slice(0, -1);
+        updateInput();
+      }
+    } else if (key.full === "up") {
+      chatBox.scroll(-1);
+      screen.render();
+    } else if (key.full === "down") {
+      chatBox.scroll(1);
+      screen.render();
+    } else if (key.full === "pageup" || key.full === "S-up") {
+      chatBox.scroll(-chatBox.height);
+      screen.render();
+    } else if (key.full === "pagedown" || key.full === "S-down") {
+      chatBox.scroll(chatBox.height);
+      screen.render();
+    } else if (ch && ch.length === 1 && !key.ctrl && !key.meta) {
+      inputBuffer += ch;
+      updateInput();
+    }
   });
 }
 
+let shuttingDown = false;
 function shutdown() {
-  screen.destroy();
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try { screen.destroy(); } catch {}
   console.log("  Winter rests.");
   console.log("");
   try {
@@ -420,10 +576,38 @@ function shutdown() {
 
 // Keys
 screen.key(["C-c"], shutdown);
-screen.key(["escape"], () => { inputBox.focus(); screen.render(); });
+inputBox.key(["C-c"], shutdown);
+activityBox.key(["C-c"], shutdown);
+screen.key(["escape"], () => { screen.render(); });
+
+const CRASH_LOG = "/tmp/winter_crash.log";
+
+process.on("uncaughtException", (err) => {
+  fs.appendFileSync(CRASH_LOG, `[${new Date().toISOString()}] uncaught: ${err.stack}\n`);
+  try { screen.destroy(); } catch {}
+  console.error("Winter crashed:", err.message);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (err) => {
+  const msg = err instanceof Error ? err.stack : String(err);
+  fs.appendFileSync(CRASH_LOG, `[${new Date().toISOString()}] unhandled: ${msg}\n`);
+  try { screen.destroy(); } catch {}
+  console.error("Winter crashed:", msg);
+  process.exit(1);
+});
+
+process.on("exit", (code) => {
+  if (code !== 0 && !shuttingDown) {
+    fs.appendFileSync(CRASH_LOG, `[${new Date().toISOString()}] exit code: ${code}\n`);
+  }
+});
+
+process.on("SIGTERM", shutdown);
+process.on("SIGHUP", shutdown);
 
 main().catch((err) => {
   screen.destroy();
-  console.error(err);
+  console.error("Winter crashed:", err.message);
   process.exit(1);
 });

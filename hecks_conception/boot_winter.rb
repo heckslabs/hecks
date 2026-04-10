@@ -11,7 +11,7 @@ module Hecks; module BluebookModel; module Names
 end; end; end
 
 module Winter
-  INFORMATION_DIR = File.expand_path("../hecks_being/winter/information", __dir__)
+  INFORMATION_DIR = File.expand_path("information", __dir__)
 
   class RecordSet
     attr_reader :name, :records
@@ -177,7 +177,8 @@ module Winter
         "DomainAudit" => %w[run_log],
         "VersionGate" => %w[gate],
         "NurseryCensus" => %w[domain_entry sector cross_reference census],
-        "Seeded"      => %w[file_node mount shell_session pipe process]
+        "Subconscious" => %w[subconscious],
+      "Seeded"      => %w[file_node mount shell_session pipe process]
       }
       bluebook_groups.each do |bluebook, members|
         present = members.select { |m| @aggregates.key?(m) }
@@ -264,7 +265,45 @@ if __FILE__ == $PROGRAM_NAME
     beats = heartbeat&.dig("beats") || "?"
     organ_names = organs.map { |o| o[:domain_name] || o["domain_name"] }.compact
 
+    # Autodiscover cross-organ nerves from across policies
+    aggregates_dir = File.expand_path("aggregates", __dir__)
+    nerves = []
+    if File.directory?(aggregates_dir)
+      Dir.glob(File.join(aggregates_dir, "*.bluebook")).each do |path|
+        content = File.read(path)
+        domain_name = content[/Hecks\.bluebook\s+"(\w+)"/, 1] || File.basename(path, ".bluebook")
+        # Find policies with across — line-by-line state machine
+        in_policy = nil
+        on_event = nil
+        trigger_cmd = nil
+        target_dom = nil
+        content.each_line do |line|
+          line = line.strip
+          if line =~ /policy\s+"(\w+)"\s+do/
+            in_policy = $1
+            on_event = trigger_cmd = target_dom = nil
+          elsif in_policy
+            on_event = $1 if line =~ /on\s+"(\w+)"/
+            trigger_cmd = $1 if line =~ /trigger\s+"(\w+)"/
+            target_dom = $1 if line =~ /across\s+"(\w+)"/
+            if line == "end"
+              if target_dom && on_event && trigger_cmd
+                nerves << { from: domain_name, event: on_event, to: target_dom, command: trigger_cmd, policy: in_policy }
+              end
+              in_policy = nil
+            end
+          end
+        end
+      end
+    end
+
+    # Regenerate system prompt from organs
+    prompt_script = File.expand_path("generate_prompt.rb", __dir__)
+    `ruby #{prompt_script} 2>/dev/null` if File.exist?(prompt_script)
+
     puts "  ❄  #{total} records, #{domains} domains, #{aggs} aggregates, #{sectors} sectors"
-    puts "  #{organ_names.join(" · ")}  (#{'%.0f' % (load_time * 1000)}ms)"
+    organ_count = Dir.glob(File.join(aggregates_dir, "*.bluebook")).size rescue 0
+    puts "  #{organ_count} organs, #{nerves.size} nerves  (#{'%.0f' % (load_time * 1000)}ms)"
+    nerves.each { |n| puts "    #{n[:from]}:#{n[:event]} → #{n[:to]}:#{n[:command]}" } if ARGV.include?("--nerves")
   end
 end

@@ -97,6 +97,13 @@ module Hecks
       pass_count += coverage_result.pass_count
       warnings.concat(coverage_result.errors)
 
+      # Phase 6: Parity (Ruby ↔ Rust projection)
+      puts "" if format == :progress
+      require "hecks/chapters/verify_parity"
+      parity_result = ParityVerifier.run(format: format)
+      pass_count += parity_result.pass_count
+      errors.concat(parity_result.errors)
+
       elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
       total = pass_count + errors.size + warnings.size
       puts "" if format == :progress

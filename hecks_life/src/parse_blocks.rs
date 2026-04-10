@@ -127,6 +127,7 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
     let name = extract_string(first).unwrap_or_default();
     let mut on_event = String::new();
     let mut trigger = String::new();
+    let mut target_domain = None;
 
     let mut i = 1;
     while i < lines.len() {
@@ -134,9 +135,10 @@ pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
         if line == "end" { break; }
         if line.starts_with("on") { on_event = extract_string(line).unwrap_or_default(); }
         if line.starts_with("trigger") { trigger = extract_string(line).unwrap_or_default(); }
+        if line.starts_with("across") { target_domain = extract_string(line); }
         i += 1;
     }
-    (Policy { name, on_event, trigger_command: trigger }, i + 1)
+    (Policy { name, on_event, trigger_command: trigger, target_domain }, i + 1)
 }
 
 pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
@@ -184,6 +186,28 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         else { Some(after.split_whitespace().next().unwrap_or(&after).to_string()) }
     } else { None };
     Some(Attribute { name, attr_type, default, list })
+}
+
+pub fn parse_fixture(line: &str) -> Fixture {
+    let aggregate_name = extract_string(line).unwrap_or_default();
+    let mut attributes = vec![];
+
+    // Parse key: "value" pairs after the aggregate name
+    // fixture "NonVerbSuffix", suffix: "ment", part_of_speech: "noun"
+    if let Some(comma_pos) = line.find(',') {
+        let rest = &line[comma_pos + 1..];
+        for part in rest.split(',') {
+            let part = part.trim();
+            if let Some(colon) = part.find(':') {
+                let key = part[..colon].trim().to_string();
+                let val = extract_string(&part[colon + 1..])
+                    .unwrap_or_else(|| part[colon + 1..].trim().to_string());
+                attributes.push((key, val));
+            }
+        }
+    }
+
+    Fixture { aggregate_name, attributes }
 }
 
 pub fn parse_mutation(line: &str) -> Option<Mutation> {

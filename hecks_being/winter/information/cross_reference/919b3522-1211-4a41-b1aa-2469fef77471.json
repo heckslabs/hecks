@@ -1,9 +1,0 @@
-{
-  "id": "919b3522-1211-4a41-b1aa-2469fef77471",
-  "source_domain": "BuildingPermit",
-  "target_domain": "HomeownersAssociation",
-  "relationship": "shared_concept",
-  "through": "Violation",
-  "created_at": "2026-04-09T21:57:05-07:00",
-  "updated_at": "2026-04-09T21:57:05-07:00"
-}

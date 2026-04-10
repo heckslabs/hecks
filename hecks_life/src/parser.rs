@@ -13,6 +13,7 @@ pub fn parse(source: &str) -> Domain {
         name: String::new(),
         aggregates: vec![],
         policies: vec![],
+        fixtures: vec![],
     };
 
     let lines: Vec<&str> = source.lines().collect();
@@ -39,6 +40,10 @@ pub fn parse(source: &str) -> Domain {
             domain.policies.push(policy);
             i += consumed;
             continue;
+        }
+
+        if line.starts_with("fixture") {
+            domain.fixtures.push(parse_fixture(line));
         }
 
         i += 1;

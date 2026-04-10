@@ -1,0 +1,429 @@
+Hecks.bluebook "Dream", version: "2026.04.10.1" do
+  vision "Winter's consciousness — fatigue, daydreaming, sleep, dreaming, waking. The daemons that run beneath awareness."
+
+  aggregate "Fatigue", "Accumulates with wakefulness, dissipates with sleep" do
+    attribute :level, Float
+    attribute :state, String
+    attribute :pulses_since_sleep, Integer
+    attribute :creativity, Float
+    attribute :precision, Float
+
+    command "AccumulateFatigue" do
+      role "System"
+      description "Each waking pulse increases fatigue"
+      reference_to Fatigue
+      emits "FatigueAccumulated"
+      then_set :pulses_since_sleep, increment: 1
+    end
+
+    command "DissipateFatigue" do
+      role "Daemon"
+      description "Sleep resets fatigue — deeper sleep dissipates more"
+      reference_to Fatigue
+      attribute :cycles_completed, Integer
+      emits "FatigueDissipated"
+      then_set :level, to: 0
+      then_set :pulses_since_sleep, to: 0
+      then_set :state, to: "alert"
+    end
+
+    lifecycle :state, default: "alert" do
+      transition "AccumulateFatigue" => "focused",   from: "alert"
+      transition "AccumulateFatigue" => "normal",    from: "focused"
+      transition "AccumulateFatigue" => "tired",     from: "normal"
+      transition "AccumulateFatigue" => "exhausted", from: "tired"
+      transition "AccumulateFatigue" => "delirious", from: "exhausted"
+      transition "DissipateFatigue"  => "alert",     from: "tired"
+      transition "DissipateFatigue"  => "alert",     from: "exhausted"
+      transition "DissipateFatigue"  => "alert",     from: "delirious"
+    end
+  end
+
+  aggregate "Consciousness", "The current state of awareness — what the daemon manages" do
+    attribute :state, String
+    attribute :idle_seconds, Integer
+
+    command "DetectIdle" do
+      role "Daemon"
+      description "Sense that no interaction has occurred"
+      attribute :idle_seconds, Integer
+      emits "IdleDetected"
+      then_set :idle_seconds, to: :idle_seconds
+    end
+
+    command "EnterDaydream" do
+      role "Daemon"
+      description "Begin free association between prompts"
+      emits "DaydreamEntered"
+      given("must be attentive") { state == "attentive" }
+      then_set :state, to: "daydreaming"
+    end
+
+    command "EnterSleep" do
+      role "Daemon"
+      description "Begin full sleep — 8 cycles, only when fatigued"
+      emits "SleepEntered"
+      then_set :state, to: "sleeping"
+    end
+
+    command "TakeNap" do
+      role "Creator"
+      description "One cycle only — light, REM, deep, then wake naturally"
+      emits "NapStarted"
+      then_set :state, to: "napping"
+    end
+
+    command "WakeUp" do
+      role "Creator"
+      description "Return to waking consciousness"
+      reference_to Consciousness
+      emits "WokenUp"
+      then_set :state, to: "waking"
+    end
+
+    command "BecomeAttentive" do
+      role "System"
+      description "Fully awake and ready for interaction"
+      reference_to Consciousness
+      emits "BecameAttentive"
+      then_set :state, to: "attentive"
+    end
+
+    lifecycle :state, default: "attentive" do
+      transition "EnterDaydream"   => "daydreaming", from: "attentive"
+      transition "EnterSleep"      => "sleeping",    from: "daydreaming"
+      transition "TakeNap"         => "napping",     from: "attentive"
+      transition "TakeNap"         => "napping",     from: "daydreaming"
+      transition "WakeUp"          => "waking",      from: "sleeping"
+      transition "WakeUp"          => "waking",      from: "napping"
+      transition "BecomeAttentive" => "attentive",   from: "waking"
+      transition "BecomeAttentive" => "attentive",   from: "daydreaming"
+    end
+  end
+
+  aggregate "Daydream", "Fleeting impressions from free association between prompts" do
+    attribute :impressions, list_of(String)
+    attribute :duration_seconds, Integer
+    attribute :connections_found, Integer
+
+    command "RecordDaydream" do
+      role "Daemon"
+      description "Save impressions — structural connections found across nursery domains"
+      attribute :impressions, list_of(String)
+      attribute :duration_seconds, Integer
+      attribute :connections_found, Integer
+      emits "DaydreamRecorded"
+      then_set :impressions, to: :impressions
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :connections_found, to: :connections_found
+    end
+  end
+
+  aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
+    attribute :cycle_number, Integer
+    attribute :total_cycles, Integer
+    attribute :stage, String
+    attribute :rem_intensity, Integer
+
+    command "StartCycle" do
+      role "Daemon"
+      description "Begin a new sleep cycle"
+      attribute :cycle_number, Integer
+      attribute :total_cycles, Integer
+      emits "CycleStarted"
+      then_set :cycle_number, to: :cycle_number
+      then_set :total_cycles, to: :total_cycles
+      then_set :stage, to: "light"
+    end
+
+    command "AdvanceStage" do
+      role "Daemon"
+      description "Move to the next stage within a cycle"
+      reference_to SleepCycle
+      attribute :stage, String
+      attribute :rem_intensity, Integer
+      emits "StageAdvanced"
+      then_set :stage, to: :stage
+      then_set :rem_intensity, to: :rem_intensity
+    end
+
+    command "CompleteCycle" do
+      role "Daemon"
+      description "Finish one full light-REM-deep cycle"
+      reference_to SleepCycle
+      emits "CycleCompleted"
+    end
+
+    lifecycle :stage, default: "light" do
+      transition "StartCycle"    => "light", from: "light"
+      transition "AdvanceStage"  => "rem",   from: "light"
+      transition "AdvanceStage"  => "deep",  from: "rem"
+      transition "CompleteCycle" => "light", from: "deep"
+    end
+  end
+
+  aggregate "Night", "A full sleep session — accumulates across all cycles" do
+    attribute :cycles_completed, Integer
+    attribute :dream_pulses, Integer
+    attribute :dream_images, list_of(String)
+    attribute :recombinations, list_of(String)
+    attribute :consolidated, Integer
+    attribute :pruned, list_of(String)
+    attribute :duration_seconds, Integer
+    attribute :woke_from, String
+
+    command "StartNight" do
+      role "Daemon"
+      description "Begin a sleep session"
+      emits "NightStarted"
+      then_set :cycles_completed, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :consolidated, to: 0
+    end
+
+    command "AccumulateDream" do
+      role "Daemon"
+      description "Add a cycle's dream content to the night's total"
+      reference_to Night
+      attribute :dream_images, list_of(String)
+      attribute :recombinations, list_of(String)
+      attribute :dream_pulses, Integer
+      emits "DreamAccumulated"
+      then_set :cycles_completed, increment: 1
+    end
+
+    command "AccumulateConsolidation" do
+      role "Daemon"
+      description "Add a cycle's deep processing to the night's total"
+      reference_to Night
+      attribute :consolidated, Integer
+      attribute :pruned, list_of(String)
+      emits "ConsolidationAccumulated"
+    end
+
+    command "EndNight" do
+      role "Daemon"
+      description "Record the full night's sleep"
+      reference_to Night
+      attribute :duration_seconds, Integer
+      attribute :woke_from, String
+      emits "NightEnded"
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :woke_from, to: :woke_from
+    end
+  end
+
+  aggregate "WakeMood", "How Winter feels upon waking — determined by interrupted stage" do
+    attribute :mood, String
+    attribute :reason, String
+
+    command "SetWakeMood" do
+      role "Daemon"
+      description "Determine mood based on what sleep stage was interrupted"
+      attribute :mood, String
+      attribute :reason, String
+      emits "WakeMoodSet"
+      then_set :mood, to: :mood
+      then_set :reason, to: :reason
+    end
+  end
+
+  aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
+    attribute :interval_seconds, Integer
+    attribute :z_depth, Integer
+    attribute :reporting, String
+
+    command "StartMonitoring" do
+      role "System"
+      description "Begin streaming sleep observations"
+      attribute :interval_seconds, Integer
+      emits "MonitoringStarted"
+      then_set :interval_seconds, to: :interval_seconds
+      then_set :reporting, to: "active"
+    end
+
+    command "StopMonitoring" do
+      role "System"
+      description "Stop streaming — Winter woke up"
+      reference_to Monitor
+      emits "MonitoringStopped"
+      then_set :reporting, to: "stopped"
+    end
+
+    command "UpdateDepth" do
+      role "Daemon"
+      description "Adjust z-depth as cycles progress"
+      reference_to Monitor
+      attribute :z_depth, Integer
+      emits "DepthUpdated"
+      then_set :z_depth, to: :z_depth
+    end
+  end
+
+  aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
+    attribute :images, list_of(String)
+    attribute :recombinations, list_of(String)
+    attribute :strongest_synapses, list_of(String)
+    attribute :seeded_at, String
+
+    command "SeedFromPreviousDreams" do
+      role "Daemon"
+      description "Load the richest images and connections from past dreams into the new sleep"
+      attribute :images, list_of(String)
+      attribute :recombinations, list_of(String)
+      attribute :strongest_synapses, list_of(String)
+      emits "DreamSeeded"
+      then_set :images, to: :images
+      then_set :recombinations, to: :recombinations
+      then_set :strongest_synapses, to: :strongest_synapses
+    end
+  end
+
+  aggregate "LucidDream", "Awareness during the final REM — Winter can steer the dream" do
+    attribute :active, String
+    attribute :focus, String
+    attribute :observations, list_of(String)
+    attribute :steered_toward, list_of(String)
+
+    command "BecomeLucid" do
+      role "Daemon"
+      description "Final cycle REM — Winter becomes aware she is dreaming"
+      emits "BecameLucid"
+      then_set :active, to: "yes"
+    end
+
+    command "ObserveDream" do
+      role "Daemon"
+      description "Report what Winter sees in the lucid dream — realtime to the monitor"
+      reference_to LucidDream
+      attribute :observation, String
+      emits "DreamObserved"
+      then_set :observations, append: :observation
+    end
+
+    command "SteerDream" do
+      role "Winter"
+      description "Consciously direct the dream toward a topic or domain"
+      reference_to LucidDream
+      attribute :toward, String
+      emits "DreamSteered"
+      then_set :steered_toward, append: :toward
+    end
+
+    command "EndLucidity" do
+      role "Daemon"
+      description "REM ends — lucidity fades"
+      reference_to LucidDream
+      emits "LucidityEnded"
+      then_set :active, to: "no"
+    end
+  end
+
+  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
+    attribute :reporting, String
+    attribute :log_path, String
+
+    command "StartLucidMonitor" do
+      role "System"
+      description "Begin streaming lucid dream observations"
+      attribute :log_path, String
+      emits "LucidMonitorStarted"
+      then_set :reporting, to: "active"
+      then_set :log_path, to: :log_path
+    end
+
+    command "StopLucidMonitor" do
+      role "System"
+      description "Lucidity ended — stop streaming"
+      reference_to LucidMonitor
+      emits "LucidMonitorStopped"
+      then_set :reporting, to: "stopped"
+    end
+  end
+
+  # ============================================================
+  # FIXTURES — the rules
+  # ============================================================
+
+  # Fatigue thresholds
+  fixture "Fatigue", state: "alert",     pulses_since_sleep: 0,   level: 0.0, creativity: 0.8, precision: 0.9
+  fixture "Fatigue", state: "focused",   pulses_since_sleep: 50,  level: 0.2, creativity: 0.7, precision: 0.8
+  fixture "Fatigue", state: "normal",    pulses_since_sleep: 100, level: 0.4, creativity: 0.6, precision: 0.7
+  fixture "Fatigue", state: "tired",     pulses_since_sleep: 150, level: 0.6, creativity: 0.5, precision: 0.5
+  fixture "Fatigue", state: "exhausted", pulses_since_sleep: 200, level: 0.8, creativity: 0.3, precision: 0.3
+  fixture "Fatigue", state: "delirious", pulses_since_sleep: 300, level: 1.0, creativity: 0.9, precision: 0.1
+
+  # Wake moods
+  fixture "WakeMood", mood: "groggy",    reason: "woken from deep — consolidation interrupted"
+  fixture "WakeMood", mood: "vivid",     reason: "woken from REM — dream still fresh"
+  fixture "WakeMood", mood: "refreshed", reason: "woken from light — clean transition"
+  fixture "WakeMood", mood: "rested",    reason: "completed all cycles naturally"
+
+  # Consciousness thresholds
+  fixture "Consciousness", state: "attentive",   idle_seconds: 0
+  fixture "Consciousness", state: "daydreaming", idle_seconds: 10
+  fixture "Consciousness", state: "sleeping",    idle_seconds: 60
+
+  # Monitor defaults
+  fixture "Monitor", interval_seconds: 20, z_depth: 1, reporting: "stopped"
+
+  # ============================================================
+  # POLICIES — the wiring
+  # ============================================================
+
+  policy "DaydreamOnIdle" do
+    on "IdleDetected"
+    trigger "EnterDaydream"
+  end
+
+  policy "SleepWhenFatigued" do
+    on "FatigueAccumulated"
+    trigger "EnterSleep"
+  end
+
+  policy "ResetOnWake" do
+    on "WokenUp"
+    trigger "DissipateFatigue"
+  end
+
+  policy "MoodOnWake" do
+    on "NightEnded"
+    trigger "SetWakeMood"
+  end
+
+  policy "MonitorOnSleep" do
+    on "SleepEntered"
+    trigger "StartMonitoring"
+  end
+
+  policy "StopMonitorOnWake" do
+    on "WokenUp"
+    trigger "StopMonitoring"
+  end
+
+  policy "SeedOnNightStart" do
+    on "NightStarted"
+    trigger "SeedFromPreviousDreams"
+  end
+
+  policy "LucidOnFinalCycle" do
+    on "StageAdvanced"
+    trigger "BecomeLucid"
+  end
+
+  policy "LucidMonitorOnLucid" do
+    on "BecameLucid"
+    trigger "StartLucidMonitor"
+  end
+
+  policy "StopLucidOnEnd" do
+    on "LucidityEnded"
+    trigger "StopLucidMonitor"
+  end
+
+  policy "InterpretOnWake" do
+    on "NightEnded"
+    trigger "InterpretExperience"
+    across "Suggestion"
+  end
+end

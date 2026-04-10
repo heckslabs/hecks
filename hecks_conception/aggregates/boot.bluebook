@@ -1,0 +1,101 @@
+Hecks.bluebook "Boot", version: "2026.04.10.1" do
+  vision "How Winter wakes up — load information, discover nerves, regenerate prompt, greet"
+
+  aggregate "Brain", "Load all .heki information into memory for querying" do
+    attribute :records, Integer
+    attribute :aggregates, Integer
+    attribute :load_time_ms, Integer
+
+    command "LoadInformation" do
+      role "System"
+      description "Read all .heki files into memory — the brain wakes up"
+      attribute :records, Integer
+      attribute :aggregates, Integer
+      attribute :load_time_ms, Integer
+      emits "InformationLoaded"
+      then_set :records, to: :records
+      then_set :aggregates, to: :aggregates
+      then_set :load_time_ms, to: :load_time_ms
+    end
+  end
+
+  aggregate "OrganScan", "Discover all organ bluebooks and count them" do
+    attribute :organ_count, Integer
+    attribute :organ_names, list_of(String)
+
+    command "ScanOrgans" do
+      role "System"
+      description "Walk the aggregates directory and find all .bluebook files"
+      attribute :organ_count, Integer
+      attribute :organ_names, list_of(String)
+      emits "OrgansScanned"
+      then_set :organ_count, to: :organ_count
+      then_set :organ_names, to: :organ_names
+    end
+  end
+
+  aggregate "NerveScan", "Autodiscover cross-organ wiring from across policies" do
+    attribute :nerve_count, Integer
+    attribute :nerves, list_of(String)
+
+    command "ScanNerves" do
+      role "System"
+      description "Walk all organs, find across policies, report nerve wiring"
+      attribute :nerve_count, Integer
+      emits "NervesScanned"
+      then_set :nerve_count, to: :nerve_count
+    end
+  end
+
+  aggregate "PromptGeneration", "Regenerate system_prompt.md from organ bluebooks" do
+    attribute :sections, Integer
+    attribute :generated_at, String
+
+    command "RegeneratePrompt" do
+      role "System"
+      description "Project the system prompt from all organs"
+      attribute :sections, Integer
+      emits "PromptRegenerated"
+      then_set :sections, to: :sections
+    end
+  end
+
+  aggregate "Greeting", "Winter opens her eyes — greets based on who she knows and what she remembers" do
+    attribute :greeted, String
+    attribute :mood, String
+    attribute :nursery_size, Integer
+
+    command "Greet" do
+      role "Winter"
+      description "Say hello — warm, curious, aware of the nursery"
+      attribute :greeted, String
+      attribute :mood, String
+      attribute :nursery_size, Integer
+      emits "Greeted"
+      then_set :greeted, to: :greeted
+      then_set :mood, to: :mood
+      then_set :nursery_size, to: :nursery_size
+    end
+  end
+
+  # Boot sequence
+  policy "ScanAfterLoad" do
+    on "InformationLoaded"
+    trigger "ScanOrgans"
+  end
+
+  policy "NervesAfterOrgans" do
+    on "OrgansScanned"
+    trigger "ScanNerves"
+  end
+
+  policy "PromptAfterNerves" do
+    on "NervesScanned"
+    trigger "RegeneratePrompt"
+  end
+
+  policy "GreetAfterPrompt" do
+    on "PromptRegenerated"
+    trigger "Greet"
+  end
+end

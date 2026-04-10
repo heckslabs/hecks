@@ -9,7 +9,7 @@ require "securerandom"
 require "json"
 
 MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("../hecks_being/winter/information", __dir__)
+INFO_DIR = File.expand_path("information", __dir__)
 NOW      = Time.now.iso8601
 
 # --- HEKI read/write ---
@@ -68,6 +68,7 @@ end
 
 pulse["beats"]      = (pulse["beats"] || 0) + 1
 pulse["carrying"]   = carrying
+pulse["pulses_since_sleep"] = (pulse["pulses_since_sleep"] || 0) + 1
 pulse["concept"]    = concept if concept
 pulse["updated_at"] = NOW
 write_heki(File.join(INFO_DIR, "pulse.heki"), pulse_records)
@@ -82,6 +83,39 @@ if hb
   write_heki(heki("heartbeat"), hb_records)
 end
 heartbeat_count = hb ? hb["beats"] : 0
+
+# ============================================================
+# FATIGUE — accumulates with wakefulness, sleep resets it
+# ============================================================
+
+pulses_awake = pulse["pulses_since_sleep"] || 0
+fatigue = [pulses_awake / 300.0, 1.0].min
+
+fatigue_state = case pulses_awake
+  when 0..50   then "alert"
+  when 51..100 then "focused"
+  when 101..150 then "normal"
+  when 151..200 then "tired"
+  when 201..300 then "exhausted"
+  else "delirious"
+end
+
+# Fatigue affects creativity and precision
+fatigue_creativity = case fatigue_state
+  when "alert" then 0.8
+  when "focused" then 0.7
+  when "normal" then 0.6
+  when "tired" then 0.5
+  when "exhausted" then 0.3
+  when "delirious" then 0.9  # second wind — creative but imprecise
+  else 0.6
+end
+
+fatigue_precision = [0.9 - fatigue * 0.7, 0.1].max
+
+pulse["fatigue"] = fatigue
+pulse["fatigue_state"] = fatigue_state
+write_heki(File.join(INFO_DIR, "pulse.heki"), pulse_records)
 
 # ============================================================
 # SYNAPTIC PLASTICITY
@@ -481,18 +515,194 @@ if carrying && carrying != "—"
 end
 
 # ============================================================
-# DREAM — on --dream flag
+# SUBCONSCIOUS — absorb completed background processes
 # ============================================================
 
-if ARGV.include?("--dream")
-  unresolved = musings.select { |_, m| m["conceived"] == false }.map { |_, m| m["idea"] }
-  stale_sigs = read_heki(heki("signal")).select { |_, s| (s["access_count"] || 0) == 0 }.map { |_, s| s["payload"] }
-  weakening = synapses.select { |_, s| (s["strength"] || 0) < 0.3 }.map { |_, s| s["topic"] }
-  append_record(heki("dream_state"), {
-    "session_ended_at" => NOW, "unresolved_musings" => unresolved,
-    "stale_signals" => stale_sigs, "weakening_synapses" => weakening,
-    "recombinations" => [], "dream_count" => 0
-  })
+subconscious = read_heki(heki("subconscious"))
+absorbed_count = 0
+subconscious.each do |sid, proc|
+  next unless proc["status"] == "completed"
+  proc["status"] = "absorbed"
+  proc["updated_at"] = NOW
+  absorbed_count += 1
+end
+write_heki(heki("subconscious"), subconscious) if absorbed_count > 0
+
+# ============================================================
+# NURSERY CENSUS — live count on every beat
+# ============================================================
+
+nursery_dir = File.expand_path("nursery", __dir__)
+if File.directory?(nursery_dir)
+  bluebooks = Dir.glob(File.join(nursery_dir, "*/*.bluebook"))
+  domain_dirs = Dir.children(nursery_dir).select { |d| File.directory?(File.join(nursery_dir, d)) }
+
+  census_path = heki("census")
+  census_records = read_heki(census_path)
+  census_id, census_rec = census_records.first
+
+  if census_rec
+    census_rec["total_domains"]  = bluebooks.size
+    census_rec["taken_at"]       = NOW
+    census_rec["updated_at"]     = NOW
+  else
+    census_id = SecureRandom.uuid
+    census_records[census_id] = {
+      "id" => census_id,
+      "total_domains" => bluebooks.size,
+      "total_aggregates" => 0,
+      "total_commands" => 0,
+      "total_policies" => 0,
+      "total_events" => 0,
+      "total_lines" => 0,
+      "sector_count" => 0,
+      "sectors" => [],
+      "cross_references" => 0,
+      "errors" => 0,
+      "taken_at" => NOW,
+      "created_at" => NOW,
+      "updated_at" => NOW
+    }
+  end
+  write_heki(census_path, census_records)
+end
+
+# ============================================================
+# NURSERY HEALTH — quick Rust validation, spawn repair if needed
+# ============================================================
+
+hecks_life = File.join(File.expand_path("..", __dir__), "hecks_life", "target", "debug", "hecks-life")
+if File.directory?(nursery_dir) && File.exist?(hecks_life)
+  invalid_count = 0
+  list_file = File.join(INFO_DIR, ".validate_list.tmp")
+  File.write(list_file, bluebooks.join("\n") + "\n")
+  output = `cat "#{list_file}" | "#{hecks_life}" validate --batch 2>&1`
+  output.each_line { |line| invalid_count += 1 if line.start_with?("INVALID|") }
+  File.delete(list_file) rescue nil
+
+  # Store health in census
+  census_rec["errors"] = invalid_count if census_rec
+
+  if invalid_count > 0
+    # Spawn repair if none running
+    repair_running = subconscious.any? { |_, p| p["task"] == "repair_nursery" && p["status"] == "running" }
+    unless repair_running
+      repair_id = SecureRandom.uuid
+      subconscious[repair_id] = {
+        "id" => repair_id,
+        "task" => "repair_nursery",
+        "intent" => "#{invalid_count} invalid bluebooks detected on beat",
+        "status" => "running",
+        "spawned_at" => NOW,
+        "completed_at" => nil,
+        "findings" => [],
+        "created_at" => NOW,
+        "updated_at" => NOW
+      }
+      write_heki(heki("subconscious"), subconscious)
+
+      # Fire and forget — the subconscious worker runs in background
+      task_script = File.expand_path("subconscious_task.rb", __dir__)
+      spawn("ruby", task_script, "repair_nursery", [:out, :err] => "/dev/null")
+    end
+  end
+
+  write_heki(census_path, census_records) if census_rec
+end
+
+# ============================================================
+# DAYDREAM — spawn between prompts, lighter than sleep
+# ============================================================
+
+daydream_script = File.expand_path("daydream.rb", __dir__)
+daydream_pid_file = File.join(INFO_DIR, ".daydream.pid")
+
+# Kill any existing daydream (we just pulsed — Winter is attentive now)
+if File.exist?(daydream_pid_file)
+  old_pid = File.read(daydream_pid_file).strip.to_i
+  begin
+    Process.kill("TERM", old_pid)
+  rescue Errno::ESRCH
+  end
+  File.delete(daydream_pid_file)
+end
+
+# Surface any daydream impressions from the gap between prompts
+daydreams = read_heki(heki("daydream"))
+recent_daydream = daydreams.values
+  .select { |d| d["wandered_at"] && d["wandered_at"] > (Time.now - 120).iso8601 }
+  .max_by { |d| d["wandered_at"].to_s }
+
+# Spawn a fresh daydream daemon for the gap after this prompt
+dd_pid = spawn("ruby", daydream_script, [:out, :err] => "/dev/null")
+Process.detach(dd_pid)
+File.write(daydream_pid_file, dd_pid.to_s)
+
+# ============================================================
+# SLEEP CYCLE — governed by consciousness state, not PID checks
+# ============================================================
+
+sleep_script = File.expand_path("sleep_cycle.rb", __dir__)
+sleep_pid_file = File.join(INFO_DIR, ".sleep_cycle.pid")
+sleep_log = File.join(INFO_DIR, ".sleep_cycle.log")
+
+# Read consciousness state — the source of truth
+consciousness = read_heki(heki("consciousness"))
+consciousness_state = consciousness.values.first&.dig("state") || "attentive"
+
+# Only spawn when: no daemon running, fatigued, and consciousness is attentive
+sleep_running = false
+if File.exist?(sleep_pid_file)
+  sleep_pid = File.read(sleep_pid_file).strip.to_i
+  begin
+    Process.kill(0, sleep_pid)
+    sleep_running = true
+  rescue Errno::ESRCH
+    File.delete(sleep_pid_file)
+  end
+end
+
+can_sleep = !sleep_running &&
+  %w[tired exhausted delirious].include?(fatigue_state) &&
+  consciousness_state == "attentive"
+
+if can_sleep
+  pid = spawn("ruby", sleep_script, out: sleep_log, err: sleep_log)
+  Process.detach(pid)
+  File.write(sleep_pid_file, pid.to_s)
+end
+
+# If carrying "wake up", signal the sleep cycle to wake
+if carrying.downcase.include?("wake")
+  wake_file = File.join(INFO_DIR, ".wake_signal")
+  File.write(wake_file, NOW)
+end
+
+# ============================================================
+# DREAM REPORT — surface recent dreams on wake
+# ============================================================
+
+dreams = read_heki(heki("dream_state"))
+recent_dream = dreams.values
+  .select { |d| d["woke_at"] && d["woke_at"] > (Time.now - 600).iso8601 }
+  .max_by { |d| d["woke_at"].to_s }
+
+# Check current sleep state (what cycle/stage the daemon is in)
+sleep_state_file = File.join(INFO_DIR, ".sleep_state.json")
+sleep_state = nil
+if File.exist?(sleep_state_file)
+  require "json"
+  sleep_state = JSON.parse(File.read(sleep_state_file)) rescue nil
+end
+
+dream_report = nil
+if recent_dream && (recent_dream["dream_images"]&.any? || recent_dream["recombinations"]&.any?)
+  dream_report = recent_dream
+  # Sleep resets fatigue
+  pulse["pulses_since_sleep"] = 0
+  pulse["fatigue"] = 0.0
+  pulse["fatigue_state"] = "alert"
+  write_heki(File.join(INFO_DIR, "pulse.heki"), pulse_records)
 end
 
 # ============================================================
@@ -518,12 +728,16 @@ gen_rec       = read_heki(heki("generosity")).values.first || {}
 conc_rec      = read_heki(heki("concentration")).values.first || {}
 run_rec       = read_heki(heki("run_log")).values.first || {}
 
+sub_running   = subconscious.count { |_, p| p["status"] == "running" }
+sub_completed = subconscious.count { |_, p| p["status"] == "absorbed" }
+sub_total     = subconscious.size
+
 col1 = [
   ["pulse",     beat_num],
   ["heart",     heartbeat_count],
   ["signals",   signal_count],
   ["memories",  memory_count],
-  ["musings",   musing_count],
+  ["fatigue",   "#{fatigue_state} (#{pulses_awake})"],
   ["impulses",  "#{unacted_count} open"],
 ]
 col2 = [
@@ -534,12 +748,14 @@ col2 = [
   ["nutrients",    nutrient_count],
   ["carrying",     carrying],
 ]
+nursery_health = (defined?(invalid_count) && invalid_count) ? (invalid_count == 0 ? "healthy" : "#{invalid_count} invalid") : "—"
+
 col3 = [
   ["goal",         wm_rec["current_goal"] || "—"],
   ["deliberated",  delib_rec["total_deliberations"] || 0],
   ["conflicts",    conflict_rec["total_conflicts"] || 0],
-  ["awareness",    awareness_rec["moments"] || 0],
-  ["generosity",   gen_rec["gifts_given"] || 0],
+  ["subconscious", "#{sub_running} run #{sub_completed} done"],
+  ["nursery",      nursery_health],
   ["stability",    "%.1f" % (conc_rec["stability"] || 0)],
 ]
 
@@ -550,5 +766,40 @@ col1.zip(col2, col3).each do |c1, c2, c3|
   puts "| %-12s %15s | %-12s %14s | %-12s %12s |" % [
     c1[0], c1[1], c2[0], c2[1], c3[0], c3[1]
   ]
+end
+
+if sleep_state
+  puts "Sleeping (cycle #{sleep_state['cycle']}/#{sleep_state['total_cycles']}, #{sleep_state['stage']})"
+  puts ""
+end
+
+if recent_daydream && (recent_daydream["impressions"] || []).any?
+  imps = recent_daydream["impressions"]
+  dur = recent_daydream["duration_seconds"] || 0
+  puts "Daydream (#{dur}s, #{imps.size} impressions):"
+  imps.last(3).each { |i| puts "  ...#{i}" }
+  puts ""
+end
+
+if dream_report
+  puts ""
+  stage = dream_report['deepest_stage'] || "light"
+  pulses = dream_report['dream_pulses'] || 0
+  dur = dream_report['duration_seconds'] || 0
+  cycles = dream_report['cycles_completed'] || 0
+  dur_min = dur >= 60 ? "#{dur / 60}m#{dur % 60}s" : "#{dur}s"
+  cycle_info = cycles > 0 ? "#{cycles} cycles, " : ""
+  puts "Dream (#{cycle_info}#{stage}, #{pulses} pulses, #{dur_min}):"
+  images = dream_report["dream_images"] || []
+  if images.any?
+    images.first(5).each { |img| puts "  #{img}" }
+  else
+    (dream_report["recombinations"] || []).first(3).each { |r| puts "  #{r}" }
+  end
+  consolidated = dream_report['consolidated'] || 0
+  pruned = dream_report["pruned"] || []
+  if consolidated > 0 || pruned.any?
+    puts "  [#{consolidated} signals consolidated, #{pruned.size} synapses pruned]"
+  end
 end
 puts ""

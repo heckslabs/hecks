@@ -66,6 +66,7 @@ module Hecks
         @actors = []
         @sagas = []
         @glossary_rules = []
+        @fixtures = []
         @modules = []
         @tenancy = nil
         @event_subscribers = []
@@ -318,6 +319,18 @@ module Hecks
         @policies << builder.build
       end
 
+      # Declare a fixture — an instance of an aggregate that ships with the domain.
+      #
+      # Fixtures are the domain's own data, declared inline in the Bluebook.
+      # Both Ruby and Rust runtimes load them as initial state when the domain boots.
+      #
+      # @param aggregate_name [String] which aggregate this is an instance of
+      # @param attributes [Hash] the attribute values for this instance
+      # @return [void]
+      def fixture(aggregate_name, **attributes)
+        @fixtures << Structure::Fixture.new(aggregate_name: aggregate_name, attributes: attributes)
+      end
+
       # Define a read model (view) projected from domain events.
       #
       # Read models are denormalized projections built by applying event
@@ -370,7 +383,7 @@ module Hecks
       # @return [BluebookModel::Structure::Domain] the fully built domain IR object
       def build
         domain = Structure::Domain.new(
-          name: @name, version: @version, aggregates: @aggregates, paragraphs: @paragraphs, policies: @policies,
+          name: @name, version: @version, aggregates: @aggregates, paragraphs: @paragraphs, policies: @policies, fixtures: @fixtures,
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,

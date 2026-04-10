@@ -45,7 +45,7 @@ module Hecks
       #   event and must return truthy for the policy to fire
       # @return [Hash{Symbol => Object}] default values for command attributes not present
       #   on the event when a reactive policy fires
-      attr_reader :name, :event_name, :trigger_command, :async, :block, :attribute_map, :condition, :defaults, :translate, :description
+      attr_reader :name, :event_name, :trigger_command, :target_domain, :async, :block, :attribute_map, :condition, :defaults, :translate, :description
 
       # Creates a new Policy IR node.
       #
@@ -65,10 +65,11 @@ module Hecks
       #   receives the event and returns a Hash of attributes for the triggered
       #   command, bypassing the normal extract/map/defaults pipeline.
       # @return [Policy]
-      def initialize(name:, event_name: nil, trigger_command: nil, async: false, block: nil, attribute_map: {}, condition: nil, defaults: {}, translate: nil, description: nil)
+      def initialize(name:, event_name: nil, trigger_command: nil, target_domain: nil, async: false, block: nil, attribute_map: {}, condition: nil, defaults: {}, translate: nil, description: nil)
         @name = name
         @event_name = event_name && Names.event_name(event_name)
         @trigger_command = trigger_command && Names.command_name(trigger_command)
+        @target_domain = target_domain
         @async = async
         @block = block
         @attribute_map = attribute_map

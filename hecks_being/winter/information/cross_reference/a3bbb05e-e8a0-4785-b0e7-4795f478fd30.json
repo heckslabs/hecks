@@ -1,9 +1,0 @@
-{
-  "id": "a3bbb05e-e8a0-4785-b0e7-4795f478fd30",
-  "source_domain": "Banking",
-  "target_domain": "Bookshelf",
-  "relationship": "shared_concept",
-  "through": "Loan",
-  "created_at": "2026-04-09T21:57:05-07:00",
-  "updated_at": "2026-04-09T21:57:05-07:00"
-}

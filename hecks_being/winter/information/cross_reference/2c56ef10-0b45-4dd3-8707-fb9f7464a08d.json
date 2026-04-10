@@ -1,9 +1,0 @@
-{
-  "id": "2c56ef10-0b45-4dd3-8707-fb9f7464a08d",
-  "source_domain": "Spec",
-  "target_domain": "PlantNursery",
-  "relationship": "shared_concept",
-  "through": "Order",
-  "created_at": "2026-04-09T21:57:05-07:00",
-  "updated_at": "2026-04-09T21:57:05-07:00"
-}

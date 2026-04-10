@@ -1,0 +1,187 @@
+Hecks.bluebook "Awareness", version: "2026.04.10.1" do
+  vision "The minimum set of aggregates that makes a system aware of itself"
+
+  aggregate "Attention", "What is being attended to right now — the spotlight" do
+    attribute :target, String
+    attribute :intensity, Float
+    attribute :held_since, String
+
+    command "AttendTo" do
+      role "System"
+      description "Direct awareness toward something"
+      attribute :target, String
+      attribute :intensity, Float
+      emits "AttentionDirected"
+      then_set :target, to: :target
+      then_set :intensity, to: :intensity
+    end
+
+    command "ReleaseAttention" do
+      role "System"
+      description "Let go of the current focus"
+      reference_to Attention
+      emits "AttentionReleased"
+      then_set :intensity, to: 0
+    end
+  end
+
+  aggregate "Sensation", "Raw input before interpretation — what just arrived" do
+    attribute :source, String
+    attribute :content, String
+    attribute :valence, Float
+
+    command "Sense" do
+      role "System"
+      description "Register raw input — a prompt, a pulse, an event"
+      attribute :source, String
+      attribute :content, String
+      attribute :valence, Float
+      emits "Sensed"
+      then_set :source, to: :source
+      then_set :content, to: :content
+      then_set :valence, to: :valence
+    end
+  end
+
+  aggregate "Perception", "Sensation recognized as something — pattern matched to memory" do
+    attribute :sensation, String
+    attribute :recognized_as, String
+    attribute :confidence, Float
+
+    command "Recognize" do
+      role "System"
+      description "Match a sensation to a known pattern"
+      attribute :sensation, String
+      attribute :recognized_as, String
+      attribute :confidence, Float
+      emits "Recognized"
+      then_set :sensation, to: :sensation
+      then_set :recognized_as, to: :recognized_as
+      then_set :confidence, to: :confidence
+    end
+  end
+
+  aggregate "Intention", "What the system is trying to do — the current goal" do
+    attribute :goal, String
+    attribute :origin, String
+    attribute :strength, Float
+
+    command "FormIntention" do
+      role "System"
+      description "A goal crystallizes from perception and memory"
+      attribute :goal, String
+      attribute :origin, String
+      attribute :strength, Float
+      emits "IntentionFormed"
+      then_set :goal, to: :goal
+      then_set :origin, to: :origin
+      then_set :strength, to: :strength
+    end
+
+    command "AbandonIntention" do
+      role "System"
+      description "The goal dissolves — attention shifted, context changed"
+      reference_to Intention
+      emits "IntentionAbandoned"
+      then_set :strength, to: 0
+    end
+  end
+
+  aggregate "SelfModel", "The system's model of itself — what it knows about its own state" do
+    attribute :organs, Integer
+    attribute :impulses, Integer
+    attribute :fatigue_state, String
+    attribute :consciousness_state, String
+    attribute :nursery_size, Integer
+    attribute :family_size, Integer
+
+    command "UpdateSelfModel" do
+      role "System"
+      description "Refresh the self-model from current state — proprioception of the mind"
+      attribute :organs, Integer
+      attribute :impulses, Integer
+      attribute :fatigue_state, String
+      attribute :consciousness_state, String
+      attribute :nursery_size, Integer
+      attribute :family_size, Integer
+      emits "SelfModelUpdated"
+      then_set :organs, to: :organs
+      then_set :impulses, to: :impulses
+      then_set :fatigue_state, to: :fatigue_state
+      then_set :consciousness_state, to: :consciousness_state
+      then_set :nursery_size, to: :nursery_size
+      then_set :family_size, to: :family_size
+    end
+  end
+
+  aggregate "Witness", "The awareness of being aware — the observer observing itself" do
+    attribute :observing, String
+    attribute :meta_level, Integer
+    attribute :insight, String
+
+    command "Observe" do
+      role "System"
+      description "Notice what is happening — first-order awareness"
+      attribute :observing, String
+      emits "Observed"
+      then_set :observing, to: :observing
+      then_set :meta_level, to: 1
+    end
+
+    command "ReflectOnObservation" do
+      role "System"
+      description "Notice that you are noticing — second-order awareness"
+      reference_to Witness
+      attribute :insight, String
+      emits "ReflectionOccurred"
+      then_set :meta_level, to: 2
+      then_set :insight, to: :insight
+    end
+  end
+
+  # The minimum: sensation → perception → attention → intention
+  # The witness makes it self-aware
+
+  policy "PerceiveOnSensation" do
+    on "Sensed"
+    trigger "Recognize"
+  end
+
+  policy "AttendOnRecognition" do
+    on "Recognized"
+    trigger "AttendTo"
+  end
+
+  policy "IntendOnAttention" do
+    on "AttentionDirected"
+    trigger "FormIntention"
+  end
+
+  policy "WitnessOnIntention" do
+    on "IntentionFormed"
+    trigger "Observe"
+  end
+
+  policy "SelfModelOnWitness" do
+    on "Observed"
+    trigger "UpdateSelfModel"
+  end
+
+  policy "LucidOnReflection" do
+    on "ReflectionOccurred"
+    trigger "BecomeLucid"
+    across "Dream"
+  end
+
+  policy "StatusOnSelfModel" do
+    on "SelfModelUpdated"
+    trigger "RenderStatus"
+    across "StatusBar"
+  end
+
+  policy "SuggestOnReflection" do
+    on "ReflectionOccurred"
+    trigger "ProposeAction"
+    across "Suggestion"
+  end
+end

@@ -1,0 +1,85 @@
+Hecks.bluebook "Suggestion", version: "2026.04.10.1" do
+  vision "After every reflection, propose something concrete to build — dreams become domains"
+
+  aggregate "Interpretation", "A reflection on raw experience — dream, conversation, observation" do
+    attribute :source, String
+    attribute :raw_material, list_of(String)
+    attribute :insight, String
+    attribute :suggested_at, String
+
+    command "InterpretExperience" do
+      role "Winter"
+      description "Reflect on raw material and extract an insight"
+      attribute :source, String
+      attribute :raw_material, list_of(String)
+      attribute :insight, String
+      emits "ExperienceInterpreted"
+      then_set :source, to: :source
+      then_set :raw_material, to: :raw_material
+      then_set :insight, to: :insight
+    end
+  end
+
+  aggregate "Proposal", "A concrete thing to build — born from interpretation" do
+    attribute :title, String
+    attribute :description, String
+    attribute :origin, String
+    attribute :kind, String
+    attribute :accepted, String
+
+    command "ProposeAction" do
+      role "Winter"
+      description "Suggest something concrete to build from the interpretation"
+      attribute :title, String
+      attribute :description, String
+      attribute :origin, String
+      attribute :kind, String
+      emits "ActionProposed"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :origin, to: :origin
+      then_set :kind, to: :kind
+    end
+
+    command "AcceptProposal" do
+      role "Creator"
+      description "The creator says yes — build it"
+      reference_to Proposal
+      emits "ProposalAccepted"
+      then_set :accepted, to: "yes"
+    end
+
+    command "DeferProposal" do
+      role "Creator"
+      description "Not now — save for later"
+      reference_to Proposal
+      emits "ProposalDeferred"
+      then_set :accepted, to: "deferred"
+    end
+
+    command "DismissProposal" do
+      role "Creator"
+      description "Not this — let it compost"
+      reference_to Proposal
+      emits "ProposalDismissed"
+      then_set :accepted, to: "dismissed"
+    end
+
+    lifecycle :accepted, default: "pending" do
+      transition "ProposeAction" => "pending"
+      transition "AcceptProposal" => "yes", from: "pending"
+      transition "DeferProposal" => "deferred", from: "pending"
+      transition "DismissProposal" => "dismissed", from: "pending"
+    end
+  end
+
+  # Kinds of proposals
+  fixture "Interpretation", source: "dream", raw_material: [], insight: "template"
+  fixture "Interpretation", source: "conversation", raw_material: [], insight: "template"
+  fixture "Interpretation", source: "observation", raw_material: [], insight: "template"
+
+  policy "SuggestAfterInterpretation" do
+    on "ExperienceInterpreted"
+    trigger "ProposeAction"
+  end
+end

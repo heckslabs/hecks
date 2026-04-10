@@ -1,9 +1,0 @@
-{
-  "id": "9c013c80-fb58-4e25-a627-264724f0e56c",
-  "source_domain": "BoardGameCollection",
-  "target_domain": "DogWalking",
-  "relationship": "shared_concept",
-  "through": "Rating",
-  "created_at": "2026-04-09T21:57:05-07:00",
-  "updated_at": "2026-04-09T21:57:05-07:00"
-}

@@ -1,7 +1,7 @@
 # Hecks::Chapters::Workshop::RunnersParagraph
 #
 # Paragraph covering workshop runners: IRB runner, web runner,
-# command parser, evaluator, state serializer, and IDE session.
+# IDE session, live execution playground, and guided tour.
 #
 #   Hecks::Chapters::Workshop::RunnersParagraph.define(builder)
 #
@@ -26,6 +26,19 @@ module Hecks
               attribute :input, String
             end
             command "GetCompletions"
+          end
+
+          b.aggregate "Playground" do
+            description "Live execution sandbox with memory adapters for rapid prototyping"
+            command "Execute" do
+              attribute :command_name, String
+            end
+            command "Reset"
+          end
+
+          b.aggregate "Tour" do
+            description "Guided walkthrough of the sketch -> play -> build loop"
+            command "Start"
           end
         end
       end

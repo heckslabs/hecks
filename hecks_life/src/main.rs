@@ -40,6 +40,63 @@ fn main() {
         return;
     }
 
+    // Batch mode: read file paths from stdin, process each
+    if path == "--batch" {
+        use std::io::{self, BufRead};
+        let stdin = io::stdin();
+        let mut valid = 0;
+        let mut invalid = 0;
+        let mut total = 0;
+
+        for line in stdin.lock().lines() {
+            let file_path = match line {
+                Ok(l) => l.trim().to_string(),
+                Err(_) => continue,
+            };
+            if file_path.is_empty() { continue; }
+            total += 1;
+
+            let source = match fs::read_to_string(&file_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("ERROR|{}|{}", file_path, e);
+                    invalid += 1;
+                    continue;
+                }
+            };
+
+            let domain = parser::parse(&source);
+
+            match command {
+                "validate" => {
+                    let errors = validator::validate(&domain);
+                    if errors.is_empty() {
+                        println!("VALID|{}", file_path);
+                        valid += 1;
+                    } else {
+                        println!("INVALID|{}|{}", file_path, errors.join("; "));
+                        invalid += 1;
+                    }
+                }
+                "counts" => {
+                    let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
+                    let policies = domain.policies.len();
+                    let fixtures = domain.fixtures.len();
+                    println!("{}|{}|{}|{}|{}|{}", file_path, domain.name, domain.aggregates.len(), cmds, policies, fixtures);
+                    valid += 1;
+                }
+                _ => {
+                    eprintln!("Batch mode only supports: validate, counts");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        eprintln!("Batch: {} total, {} valid, {} invalid", total, valid, invalid);
+        if invalid > 0 { std::process::exit(1); }
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: hecks-life {} <bluebook-file>", command);
         std::process::exit(1);
@@ -73,6 +130,12 @@ fn main() {
         "inspect" => formatter::inspect(&domain),
         "tree" => formatter::tree(&domain),
         "list" => formatter::list(&domain),
+        "counts" => {
+            let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
+            let policies = domain.policies.len();
+            let fixtures = domain.fixtures.len();
+            println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, policies, fixtures);
+        }
         "run" => {
             let mut rt = Runtime::boot(domain);
             load_seeds(&mut rt, seed_path);
