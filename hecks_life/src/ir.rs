@@ -20,6 +20,7 @@ pub struct Aggregate {
     pub commands: Vec<Command>,
     pub value_objects: Vec<ValueObject>,
     pub references: Vec<Reference>,
+    pub lifecycle: Option<Lifecycle>,
 }
 
 #[derive(Debug)]
@@ -83,6 +84,20 @@ pub struct Policy {
     pub name: String,
     pub on_event: String,
     pub trigger_command: String,
+}
+
+#[derive(Debug)]
+pub struct Lifecycle {
+    pub field: String,
+    pub default: String,
+    pub transitions: Vec<Transition>,
+}
+
+#[derive(Debug)]
+pub struct Transition {
+    pub command: String,
+    pub to_state: String,
+    pub from_state: Option<String>,
 }
 
 impl fmt::Display for Domain {
