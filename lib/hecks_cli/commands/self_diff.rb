@@ -6,7 +6,7 @@
 #   hecks self_diff hecksagon                # domain mode (default)
 #   hecks self_diff hecksagon --framework    # framework skeleton mode
 #
-SELF_DIFF_CHAPTER_MAP = {
+SELF_DIFF_CHAPTER_MAP ||= {
   "hecksagon"  => { mod: "Hecks::Chapters::Hecksagon",  gem: "hecksagon" },
   "bluebook"   => { mod: "Hecks::Chapters::Bluebook",   gem: "bluebook" },
   "runtime"    => { mod: "Hecks::Chapters::Runtime",    gem: "hecksties" },

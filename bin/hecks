@@ -12,4 +12,23 @@ if File.exist?(hecks_gemfile) && File.exist?(local_gemspec) && !ENV["HECKS_BUNDL
 end
 
 require "hecks"
-Hecks::CLI.start(ARGV)
+require "set"
+require "hecks_cli/argv"
+
+argv = Hecks::CLI::Argv.new
+
+# Load every bluebook in hecks/. That's it.
+hecks_dir = File.join(Dir.pwd, "hecks")
+if File.directory?(hecks_dir)
+  Dir[File.join(hecks_dir, "*.bluebook")].sort.each do |path|
+    argv.register_from_bluebook(path)
+  end
+end
+
+# Legacy handlers from command files
+lib_root = File.expand_path("../lib", __dir__)
+Dir[File.join(lib_root, "**/commands/*.rb")].sort.each do |path|
+  argv.load_handler_file(path)
+end
+
+argv.run(ARGV)
