@@ -1,7 +1,0 @@
-Hecks.bluebook "Stats" do
-  vision "Domain metrics — aggregate counts, command coverage, complexity analysis"
-
-  aggregate "StatsCommand", "Show comprehensive domain statistics" do
-    command("ShowStats") { attribute :domain_path, String }
-  end
-end

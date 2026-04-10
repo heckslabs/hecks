@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hecks Documentation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        colors: {
+          attribute: '#7ee787', command: '#58a6ff', event: '#d2a8ff',
+          lifecycle: '#bc8cff', policy: '#f85149', vo: '#f0883e',
+          reference: '#f0883e', given: '#d29922', mutation: '#79c0ff'
+        }
+      }}
+    }
+  </script>
+  <style>
+    [data-render-mode="wire"] .wire-line { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: .4 } 50% { opacity: 1 } }
+    .event-entry { animation: slideIn .3s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .panel-resize { resize: both; overflow: auto; min-height: 80px; min-width: 200px; }
+    .panel-resize::-webkit-resizer { background: transparent; }
+    .resize-handle { position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; cursor: nwse-resize; opacity: .3; transition: opacity .2s; }
+    .resize-handle:hover { opacity: .8; }
+    .resize-handle::after { content: ''; position: absolute; bottom: 3px; right: 3px; width: 8px; height: 8px; border-right: 2px solid #6b7280; border-bottom: 2px solid #6b7280; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-200 min-h-screen">
+
+  <!-- Skip link -->
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-gray-800 focus:text-white focus:px-4 focus:py-2 focus:rounded focus:z-50">
+    Skip to main content
+  </a>
+
+  <!-- Header -->
+  <header role="banner" class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <div>
+      <h1 id="domain-name" class="text-2xl font-bold text-white"></h1>
+      <p id="domain-stats" class="text-sm text-gray-400 mt-1"></p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="sse-status" class="text-xs px-2 py-1 rounded bg-gray-800 text-gray-500" aria-live="polite">connecting</span>
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar nav -->
+    <nav role="navigation" aria-label="Aggregate list" class="w-64 border-r border-gray-800 p-4 sticky top-0 h-screen overflow-y-auto">
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Aggregates</h2>
+      <ul id="agg-nav" role="list" class="space-y-1"></ul>
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-3">Policies</h2>
+      <ul id="policy-nav" role="list" class="space-y-1"></ul>
+    </nav>
+
+    <!-- Main content -->
+    <main id="main" role="main" aria-label="Domain documentation" class="flex-1 p-6 overflow-y-auto">
+      <div id="panels" class="space-y-6"></div>
+    </main>
+
+    <!-- Event stream sidebar -->
+    <aside role="complementary" aria-label="Live event stream" class="w-80 border-l border-gray-800 p-4 sticky top-0 h-screen overflow-y-auto">
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Stream</h2>
+      <div id="event-stream" role="log" aria-live="polite" aria-atomic="false" class="space-y-2 text-sm"></div>
+    </aside>
+  </div>
+
+<script>
+const RENDER = {
+  tree_node(items, expr) {
+    const dl = document.createElement('dl');
+    dl.className = 'space-y-1';
+    items.forEach(item => {
+      const dt = document.createElement('dt');
+      dt.className = 'font-mono text-sm';
+      dt.style.color = expr.color;
+      dt.textContent = `${expr.icon} ${item.name}`;
+      const dd = document.createElement('dd');
+      dd.className = 'text-gray-400 text-xs ml-5';
+      dd.textContent = item.type || item.attributes?.map(a => `${a.name}: ${a.type}`).join(', ') || '';
+      dl.append(dt, dd);
+    });
+    return dl;
+  },
+
+  form(commands, expr) {
+    const div = document.createElement('div');
+    div.className = 'space-y-4';
+    commands.forEach(cmd => {
+      const form = document.createElement('form');
+      form.className = 'border border-gray-700 rounded-lg p-4';
+      form.dataset.aggregate = cmd._agg;
+      form.dataset.command = cmd.name;
+      form.setAttribute('aria-label', `Run ${cmd.name}`);
+
+      const header = document.createElement('div');
+      header.className = 'flex items-center justify-between mb-3';
+      header.innerHTML = `<span class="font-mono font-bold" style="color:${expr.color}">${expr.icon} ${cmd.name}</span>` +
+        (cmd.role ? `<span class="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-400">${cmd.role}</span>` : '') +
+        (cmd.emits ? `<span class="text-xs text-event ml-2">→ ${cmd.emits}</span>` : '');
+      form.append(header);
+
+      if (cmd.givens?.length) {
+        cmd.givens.forEach(g => {
+          const p = document.createElement('p');
+          p.className = 'text-xs mb-2';
+          p.style.color = '#d29922';
+          p.textContent = `✓ given: ${g.message}`;
+          form.append(p);
+        });
+      }
+
+      cmd.attributes.forEach(attr => {
+        const label = document.createElement('label');
+        label.className = 'block mb-2';
+        label.innerHTML = `<span class="text-xs text-gray-400 block mb-1">${attr.name} : ${attr.type}</span>`;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = attr.name;
+        input.placeholder = attr.type;
+        input.className = 'w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 focus:border-command focus:outline-none';
+        input.setAttribute('aria-label', `${attr.name} (${attr.type})`);
+        label.append(input);
+        form.append(label);
+      });
+
+      const btn = document.createElement('button');
+      btn.type = 'submit';
+      btn.className = 'mt-2 px-4 py-1.5 rounded text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 focus:ring-2 focus:ring-blue-400 focus:outline-none';
+      btn.textContent = 'Run';
+      form.append(btn);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {};
+        new FormData(form).forEach((v, k) => { if (v) payload[k] = v; });
+        try {
+          const res = await fetch('/api/dispatch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ aggregate: cmd._agg, command: cmd.name, payload })
+          });
+          const data = await res.json();
+          if (data.error) addEvent({ type: 'error', command: cmd.name, message: data.error });
+        } catch (err) {
+          addEvent({ type: 'error', command: cmd.name, message: err.message });
+        }
+      });
+
+      if (cmd.mutations?.length) {
+        const muts = document.createElement('div');
+        muts.className = 'mt-2 border-t border-gray-800 pt-2';
+        cmd.mutations.forEach(m => {
+          const p = document.createElement('p');
+          p.className = 'text-xs';
+          p.style.color = '#79c0ff';
+          p.textContent = `Δ then_${m.operation} :${m.field} ${m.value}`;
+          muts.append(p);
+        });
+        form.append(muts);
+      }
+
+      div.append(form);
+    });
+    return div;
+  },
+
+  log_entry(events, expr) {
+    const div = document.createElement('div');
+    div.className = 'space-y-1';
+    events.forEach(name => {
+      const p = document.createElement('p');
+      p.className = 'font-mono text-sm';
+      p.style.color = expr.color;
+      p.textContent = `${expr.icon} ${name}`;
+      div.append(p);
+    });
+    return div;
+  },
+
+  state_machine(lifecycle, expr) {
+    if (!lifecycle) return document.createDocumentFragment();
+    const div = document.createElement('div');
+    div.className = 'border border-gray-700 rounded-lg p-4';
+    div.innerHTML = `<p class="font-mono text-sm mb-2" style="color:${expr.color}">${expr.icon} :${lifecycle.field} (default: ${lifecycle.default})</p>`;
+    const states = document.createElement('div');
+    states.className = 'flex flex-wrap gap-2 mb-3';
+    (lifecycle.states || []).forEach(s => {
+      const span = document.createElement('span');
+      span.className = `px-2 py-0.5 rounded text-xs font-mono ${s === lifecycle.default ? 'bg-purple-900 text-purple-300 ring-1 ring-purple-500' : 'bg-gray-800 text-gray-400'}`;
+      span.textContent = s;
+      span.setAttribute('aria-current', s === lifecycle.default ? 'true' : 'false');
+      states.append(span);
+    });
+    div.append(states);
+    (lifecycle.transitions || []).forEach(t => {
+      const p = document.createElement('p');
+      p.className = 'text-xs text-gray-400 font-mono';
+      p.textContent = `${t.command} → "${t.target}"${t.from ? ` from: "${t.from}"` : ''}`;
+      div.append(p);
+    });
+    return div;
+  },
+
+  wire(policies, expr) {
+    const div = document.createElement('div');
+    div.className = 'space-y-2';
+    policies.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 font-mono text-sm';
+      row.dataset.renderMode = 'wire';
+      row.innerHTML = `<span style="color:${expr.color}">${expr.icon} ${p.name}</span>` +
+        `<span class="text-event wire-line">⚡ ${p.event}</span>` +
+        `<span class="text-gray-500">→</span>` +
+        `<span class="text-command">${p.trigger}</span>`;
+      div.append(row);
+    });
+    return div;
+  },
+
+  detail(items, expr) {
+    const div = document.createElement('div');
+    items.forEach(item => {
+      const p = document.createElement('p');
+      p.className = 'text-xs';
+      p.style.color = expr.color;
+      p.textContent = `${expr.icon} ${item.message || `${item.field}: ${item.operation} ${item.value}`}`;
+      div.append(p);
+    });
+    return div;
+  }
+};
+
+function buildAggregatePanel(agg, expressions) {
+  const section = document.createElement('section');
+  section.dataset.aggregate = agg.name;
+  section.setAttribute('role', 'region');
+  section.setAttribute('aria-label', `${agg.name} aggregate`);
+  section.className = 'border border-gray-800 rounded-xl panel-resize relative';
+
+  const header = document.createElement('details');
+  header.open = true;
+  const summary = document.createElement('summary');
+  summary.className = 'px-5 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 flex items-center justify-between';
+  summary.innerHTML = `<span class="font-bold text-white text-lg">${agg.name}</span>` +
+    `<span class="text-sm text-gray-400">${agg.description}</span>`;
+  header.append(summary);
+
+  const body = document.createElement('div');
+  body.className = 'p-5 space-y-5';
+
+  const expr = expressions;
+  if (agg.attributes?.length)
+    body.append(conceptBlock('Attributes', expr.attribute, RENDER.tree_node(agg.attributes, expr.attribute)));
+  if (agg.value_objects?.length)
+    body.append(conceptBlock('Value Objects', expr.value_object, RENDER.tree_node(agg.value_objects, expr.value_object)));
+  if (agg.references?.length)
+    body.append(conceptBlock('References', expr.reference, RENDER.tree_node(agg.references.map(r => ({name: r, type: 'reference_to'})), expr.reference)));
+  if (agg.commands?.length) {
+    const cmds = agg.commands.map(c => ({...c, _agg: agg.name}));
+    body.append(conceptBlock('Commands', expr.command, RENDER.form(cmds, expr.command)));
+  }
+  if (agg.events?.length)
+    body.append(conceptBlock('Events', expr.event, RENDER.log_entry(agg.events, expr.event)));
+  if (agg.lifecycle)
+    body.append(conceptBlock('Lifecycle', expr.lifecycle, RENDER.state_machine(agg.lifecycle, expr.lifecycle)));
+
+  header.append(body);
+  section.append(header);
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  handle.setAttribute('aria-hidden', 'true');
+  section.append(handle);
+  return section;
+}
+
+function conceptBlock(title, expr, content) {
+  const div = document.createElement('div');
+  div.dataset.conceptType = title.toLowerCase().replace(/\s/g, '_');
+  div.dataset.renderMode = expr.render_mode;
+  div.setAttribute('role', 'group');
+  div.setAttribute('aria-label', title);
+  const h = document.createElement('h3');
+  h.className = 'text-xs font-semibold uppercase tracking-wider mb-2';
+  h.style.color = expr.color;
+  h.textContent = `${expr.icon} ${title}`;
+  div.append(h, content);
+  return div;
+}
+
+function addEvent(evt) {
+  const stream = document.getElementById('event-stream');
+  const div = document.createElement('div');
+  div.className = 'event-entry p-2 rounded bg-gray-900 border border-gray-800';
+  const isError = evt.type === 'error';
+  div.innerHTML = `<span class="text-xs ${isError ? 'text-red-400' : 'text-event'}">${isError ? '✗' : '⚡'} ${evt.command || evt.event_type || 'event'}</span>` +
+    `<span class="text-xs text-gray-500 ml-2">${evt.aggregate || ''}</span>` +
+    (evt.message ? `<p class="text-xs text-gray-400 mt-1">${evt.message}</p>` : '') +
+    `<span class="text-xs text-gray-600 block mt-1">${evt.timestamp || new Date().toISOString()}</span>`;
+  stream.prepend(div);
+}
+
+async function init() {
+  const res = await fetch('/api/domain');
+  const domain = await res.json();
+  const expr = domain.expressions;
+
+  document.getElementById('domain-name').textContent = domain.name;
+  document.title = `${domain.name} — Hecks Documentation`;
+  document.getElementById('domain-stats').textContent =
+    `${domain.aggregates.length} aggregates · ${domain.policies.length} policies · ${domain.aggregates.reduce((n, a) => n + a.commands.length, 0)} commands`;
+
+  const nav = document.getElementById('agg-nav');
+  domain.aggregates.forEach(agg => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = `#${agg.name}`;
+    a.className = 'block px-3 py-1.5 rounded text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors';
+    a.textContent = agg.name;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelector(`[data-aggregate="${agg.name}"]`)?.scrollIntoView({ behavior: 'smooth' });
+    });
+    li.append(a);
+    nav.append(li);
+  });
+
+  const policyNav = document.getElementById('policy-nav');
+  domain.policies.forEach(p => {
+    const li = document.createElement('li');
+    li.className = 'text-xs font-mono px-3 py-1';
+    li.style.color = expr.policy.color;
+    li.textContent = `${expr.policy.icon} ${p.name}`;
+    policyNav.append(li);
+  });
+
+  const panels = document.getElementById('panels');
+  domain.aggregates.forEach(agg => panels.append(buildAggregatePanel(agg, expr)));
+
+  if (domain.policies.length) {
+    const pSection = document.createElement('section');
+    pSection.setAttribute('role', 'region');
+    pSection.setAttribute('aria-label', 'Policies');
+    pSection.className = 'border border-gray-800 rounded-xl overflow-hidden';
+    const header = document.createElement('details');
+    header.open = true;
+    const summary = document.createElement('summary');
+    summary.className = 'px-5 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800';
+    summary.innerHTML = '<span class="font-bold text-white text-lg">Policies</span>';
+    header.append(summary);
+    const body = document.createElement('div');
+    body.className = 'p-5';
+    body.append(RENDER.wire(domain.policies, expr.policy));
+    header.append(body);
+    pSection.append(header);
+    panels.append(pSection);
+  }
+
+  // SSE
+  const sse = new EventSource('/api/events');
+  const status = document.getElementById('sse-status');
+  sse.onopen = () => { status.textContent = 'live'; status.className = 'text-xs px-2 py-1 rounded bg-green-900 text-green-300'; };
+  sse.onerror = () => { status.textContent = 'disconnected'; status.className = 'text-xs px-2 py-1 rounded bg-red-900 text-red-300'; };
+  sse.onmessage = (e) => {
+    try { addEvent(JSON.parse(e.data)); } catch {}
+  };
+}
+
+init();
+</script>
+</body>
+</html>
