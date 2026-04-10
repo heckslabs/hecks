@@ -1,11 +1,4 @@
-Hecks::CLI.register_command(:generate_sinatra, "Scaffold a Sinatra app from a domain",
-  options: {
-    domain:  { type: :string,  desc: "Domain gem name or path" },
-    version: { type: :string,  desc: "Domain version" },
-    dir:     { type: :string,  desc: "Output directory (default: {domain}_app)" },
-    force:   { type: :boolean, desc: "Overwrite without prompting" }
-  }
-) do
+Hecks::CLI.handle(:generate_sinatra) do |inv|
 
   domain = resolve_domain_option
   next unless domain

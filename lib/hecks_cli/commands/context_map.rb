@@ -9,13 +9,7 @@
 #   hecks context_map --browser          # open diagram in browser
 #   hecks context_map --output map.md    # write Mermaid to file
 #
-Hecks::CLI.register_command(:context_map, "Show DDD context map of bounded contexts",
-  options: {
-    mermaid: { type: :boolean, desc: "Output Mermaid diagram instead of text", default: false },
-    browser: { type: :boolean, desc: "Open Mermaid diagram as HTML in browser", default: false },
-    output:  { type: :string,  desc: "Write diagram to file (e.g. context_map.md)" }
-  }
-) do
+Hecks::CLI.handle(:context_map) do |inv|
   domains = load_context_map_domains
   next if domains.empty?
 

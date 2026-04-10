@@ -1,9 +1,4 @@
-Hecks::CLI.register_command(:llms, "Generate AI-readable llms.txt summary of the domain",
-  options: {
-    domain:  { type: :string, desc: "Domain gem name or path" },
-    version: { type: :string, desc: "Domain version" }
-  }
-) do
+Hecks::CLI.handle(:llms) do |inv|
   domain = resolve_domain_option
   next unless domain
 

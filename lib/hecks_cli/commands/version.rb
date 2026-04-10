@@ -1,9 +1,4 @@
-Hecks::CLI.register_command(:version, "Show Hecks version, or domain version (--domain)",
-  options: {
-    domain:  { type: :string, desc: "Domain gem name or path" },
-    version: { type: :string, desc: "Domain version" }
-  }
-) do
+Hecks::CLI.handle(:version) do |inv|
   if options[:domain]
     domain = resolve_domain(options[:domain])
     unless domain

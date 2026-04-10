@@ -7,8 +7,7 @@
 #   hecks coverage                    # scan current directory
 #   hecks coverage --views path/to   # scan specific views directory
 #
-Hecks::CLI.register_command(:coverage, "Show missing domain concepts in app code"
-) do
+Hecks::CLI.handle(:coverage) do |inv|
   domain = resolve_domain_option
   next unless domain
 

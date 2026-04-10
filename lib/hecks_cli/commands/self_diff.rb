@@ -18,12 +18,8 @@ SELF_DIFF_CHAPTER_MAP ||= {
   "rails"      => { mod: "Hecks::Chapters::Rails",      gem: "hecks_on_rails" },
 }.freeze
 
-Hecks::CLI.register_command(:self_diff, "Compare generated code against actual gem code",
-  args: ["CHAPTER"],
-  options: {
-    framework: { type: :boolean, desc: "Use framework skeleton mode instead of domain mode" }
-  }
-) do |chapter_name = nil|
+Hecks::CLI.handle(:self_diff) do |inv|
+  chapter_name = inv.args.first
   unless chapter_name
     say "Usage: hecks self_diff <chapter> [--framework]", :red
     say "Available: #{SELF_DIFF_CHAPTER_MAP.keys.join(', ')}", :cyan

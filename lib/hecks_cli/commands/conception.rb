@@ -12,9 +12,10 @@
 #   hecks winter express NAME — reactivate an organ's nerves
 #   hecks winter conceive     — launch Claude for domain conception
 #
-Hecks::CLI.register_command(:winter, "Wake Winter — living domain organism",
-  args: ["ACTION", "DOMAIN"]
-) do |action = nil, domain = nil, *rest|
+Hecks::CLI.handle(:winter) do |inv|
+  action = inv.args[0]
+  domain = inv.args[1]
+  rest   = inv.args[2..]
   require "hecks_being"
 
   case action
@@ -72,7 +73,7 @@ Hecks::CLI.register_command(:winter, "Wake Winter — living domain organism",
       say "  #{organ[:domain]} v#{organ[:version]} — #{organ[:events]} events"
     end
 
-  when "--claude"
+  when "--claude", "claude"
     conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     Dir.chdir(conception_dir) do
       exec "claude", "--dangerously-skip-permissions", "Wake up"
@@ -80,8 +81,14 @@ Hecks::CLI.register_command(:winter, "Wake Winter — living domain organism",
 
   when nil, "boot"
     conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
-    Dir.chdir(conception_dir) do
-      exec "node", "winter_console.js"
+    if options[:claude]
+      Dir.chdir(conception_dir) do
+        exec "claude", "--dangerously-skip-permissions", "Wake up"
+      end
+    else
+      Dir.chdir(conception_dir) do
+        exec "node", "winter_console.js"
+      end
     end
 
   when "continue", "-c"

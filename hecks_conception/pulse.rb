@@ -573,12 +573,33 @@ end
 
 hecks_life = File.join(File.expand_path("..", __dir__), "hecks_life", "target", "debug", "hecks-life")
 if File.directory?(nursery_dir) && File.exist?(hecks_life)
+  # Incremental validation — only validate changed files
+  mtime_cache_path = File.join(INFO_DIR, ".nursery_mtimes.json")
+  require "json"
+  cached_mtimes = File.exist?(mtime_cache_path) ? (JSON.parse(File.read(mtime_cache_path)) rescue {}) : {}
+
+  changed = []
+  current_mtimes = {}
+  bluebooks.each do |path|
+    mtime = File.mtime(path).to_i.to_s
+    current_mtimes[path] = mtime
+    changed << path if cached_mtimes[path] != mtime
+  end
+
+  # Also catch deleted files
+  deleted = cached_mtimes.keys - bluebooks
+
   invalid_count = 0
-  list_file = File.join(INFO_DIR, ".validate_list.tmp")
-  File.write(list_file, bluebooks.join("\n") + "\n")
-  output = `cat "#{list_file}" | "#{hecks_life}" validate --batch 2>&1`
-  output.each_line { |line| invalid_count += 1 if line.start_with?("INVALID|") }
-  File.delete(list_file) rescue nil
+  if changed.any?
+    list_file = File.join(INFO_DIR, ".validate_list.tmp")
+    File.write(list_file, changed.join("\n") + "\n")
+    output = `cat "#{list_file}" | "#{hecks_life}" validate --batch 2>&1`
+    output.each_line { |line| invalid_count += 1 if line.start_with?("INVALID|") }
+    File.delete(list_file) rescue nil
+  end
+
+  # Save mtimes for next beat
+  File.write(mtime_cache_path, JSON.generate(current_mtimes))
 
   # Store health in census
   census_rec["errors"] = invalid_count if census_rec

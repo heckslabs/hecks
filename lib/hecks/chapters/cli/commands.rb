@@ -133,6 +133,58 @@ module Hecks
           b.aggregate "SmoketestCommand", "Runs all example domain tests" do
             command("Run") { attribute :format, String }
           end
+
+          b.aggregate "AllureCommand", "Terminal UI — domain concepts as panels" do
+            command("Launch") { attribute :bluebook, String }
+          end
+
+          b.aggregate "DocsCommand", "Serve domain as executable docs in browser" do
+            command("Serve") { attribute :bluebook, String }
+          end
+
+          b.aggregate "ArchitectureCommand", "Show hexagonal architecture diagram" do
+            command("Show") {}
+          end
+
+          b.aggregate "CoverageCommand", "Show missing domain concepts in app code" do
+            command("Check") {}
+          end
+
+          b.aggregate "WinterCommand", "Wake Winter — living domain organism" do
+            command("Wake") { attribute :action, String; attribute :domain, String }
+          end
+
+          b.aggregate "ConsoleCommand", "Start the interactive workshop" do
+            command("Start") { attribute :name, String }
+          end
+
+          b.aggregate "WebWorkshopCommand", "Start the browser-based workshop" do
+            command("Start") { attribute :name, String }
+          end
+
+          b.aggregate "TourCommand", "Guided walkthrough of the workshop" do
+            command("Start") { attribute :architecture, String }
+          end
+
+          b.aggregate "StatsCommand", "Show comprehensive domain statistics" do
+            command("Show") {}
+          end
+
+          b.aggregate "SmokeCommand", "Run end-to-end smoke test for this domain" do
+            command("Run") {}
+          end
+
+          b.aggregate "RegenerateExamplesCommand", "Regenerate all example outputs from the pizzas domain" do
+            command("Run") {}
+          end
+
+          b.aggregate "McpCommand", "Start MCP server — build domains or serve one" do
+            command("Start") { attribute :domain, String }
+          end
+
+          b.aggregate "PromoteCommand", "Extract an aggregate into its own domain" do
+            command("Promote") { attribute :aggregate, String }
+          end
         end
       end
     end

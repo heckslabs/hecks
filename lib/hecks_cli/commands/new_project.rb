@@ -3,12 +3,8 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:new_project, "Create a new Hecks project",
-  args: ["NAME"],
-  options: {
-    "no-world-goals": { type: :boolean, desc: "Skip world concerns prompt (for CI)", default: false }
-  }
-) do |name|
+Hecks::CLI.handle(:new_project) do |inv|
+  name = inv.args.first
   pascal = Hecks::Utils.sanitize_constant(name)
   dir = name
 

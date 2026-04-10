@@ -1,9 +1,5 @@
-Hecks::CLI.register_command(:version_tag, "Tag current domain as a named version snapshot",
-  args: ["VERSION"],
-  options: {
-    domain: { type: :string, desc: "Domain gem name or path" }
-  }
-) do |version|
+Hecks::CLI.handle(:version_tag) do |inv|
+  version = inv.args.first
   domain = resolve_domain_option
   next unless domain
 

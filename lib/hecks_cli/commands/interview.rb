@@ -3,11 +3,7 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:interview, "Conversational onboarding to define a domain interactively",
-  options: {
-    force: { type: :boolean, desc: "Overwrite without prompting" }
-  }
-) do
+Hecks::CLI.handle(:interview) do |inv|
   say "Welcome to Hecks! Let's build your domain together.", :green
   say ""
 

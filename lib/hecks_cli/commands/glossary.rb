@@ -6,12 +6,7 @@
 #   hecks glossary --export
 #   hecks glossary --domain path/to/domain
 #
-Hecks::CLI.register_command(:glossary, "Print the domain glossary",
-  options: {
-    domain: { type: :string, desc: "Domain gem name or path" },
-    export: { type: :boolean, desc: "Write glossary.md to disk", default: false }
-  }
-) do
+Hecks::CLI.handle(:glossary) do |inv|
   domain = resolve_domain_option
   next unless domain
 

@@ -11,14 +11,8 @@ Hecks::Chapters.load_aggregates(
 #   hecks extract /path/to/rails/app
 #   hecks extract /path/to/app --preview --name Blog
 #
-Hecks::CLI.register_command(:extract, "Extract a domain from an existing project",
-  args: %w[PATH],
-  options: {
-    output:  { type: :string, default: "Bluebook", desc: "Output file path", aliases: "-o" },
-    preview: { type: :boolean, default: false, desc: "Preview without writing" },
-    name:    { type: :string, desc: "Domain name (default: inferred from directory)" }
-  }
-) do |path = nil|
+Hecks::CLI.handle(:extract) do |inv|
+  path = inv.args.first
   unless path
     puts "Usage: hecks extract /path/to/project"
     puts "       hecks extract /path/to/project --preview --name Blog"

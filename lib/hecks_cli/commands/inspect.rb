@@ -15,13 +15,7 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:inspect, "Show full domain definition including business logic",
-  options: {
-    domain:    { type: :string, desc: "Domain gem name or path" },
-    aggregate: { type: :string, desc: "Filter to a single aggregate by name" },
-    format:    { type: :string, desc: "Output format: text (default) or json" }
-  }
-) do
+Hecks::CLI.handle(:inspect) do |inv|
   domain = resolve_domain_option
   next unless domain
 

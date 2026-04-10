@@ -6,11 +6,7 @@
 #   hecks tree
 #   hecks tree --format json
 #
-Hecks::CLI.register_command(:tree, "Print all commands as a grouped tree",
-  options: {
-    format: { type: :string, desc: "Output format: text (default) or json" }
-  }
-) do
+Hecks::CLI.handle(:tree) do |inv|
   groups = self.class.command_groups
 
   if options[:format] == "json"

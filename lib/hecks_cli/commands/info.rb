@@ -1,4 +1,4 @@
-Hecks::CLI.register_command(:info, "Show auto-wiring details for this project") do
+Hecks::CLI.handle(:info) do |inv|
   load_all_domains_local = lambda do
     domains_dir = File.join(Dir.pwd, "domains")
     if File.directory?(domains_dir)

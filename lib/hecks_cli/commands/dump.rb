@@ -1,10 +1,5 @@
-Hecks::CLI.register_command(:dump, "Extract docs from a domain (schema, swagger, rpc, domain, glossary)",
-  options: {
-    domain:  { type: :string, desc: "Domain gem name or path" },
-    version: { type: :string, desc: "Domain version" }
-  },
-  args: ["TYPE"]
-) do |type = nil|
+Hecks::CLI.handle(:dump) do |inv|
+  type = inv.args.first
   domain = resolve_domain_option
   next unless domain
 

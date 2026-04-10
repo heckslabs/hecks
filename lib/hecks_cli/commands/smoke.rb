@@ -5,7 +5,7 @@
 #
 #   cd examples/pizzas && hecks smoke
 #
-Hecks::CLI.register_command(:smoke, "Run end-to-end smoke test for this domain") do
+Hecks::CLI.handle(:smoke) do |inv|
   require "hecks"
 
   begin

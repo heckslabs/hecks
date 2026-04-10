@@ -7,7 +7,7 @@
 #   cd examples/pizzas && hecks smoketest   # tests pizzas
 #   cd /path/to/hecks && hecks smoketest    # tests all examples + appeal
 #
-Hecks::CLI.register_command(:smoketest, "Run smoke tests for this app or all examples") do
+Hecks::CLI.handle(:smoketest) do |inv|
   examples_dir = File.join(Dir.pwd, "examples")
   spec_dir = File.join(Dir.pwd, "spec")
 

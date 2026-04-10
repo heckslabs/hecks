@@ -3,12 +3,7 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:generate_config, "Generate config reflecting current wiring",
-  options: {
-    domain: { type: :string,  desc: "Domain gem name or path" },
-    force:  { type: :boolean, desc: "Overwrite without prompting" }
-  }
-) do
+Hecks::CLI.handle(:generate_config) do |inv|
   rails_app = lambda { File.exist?("config/application.rb") }
 
   discover_domains = lambda do

@@ -3,11 +3,7 @@ Hecks::Chapters.load_aggregates(
   base_dir: __dir__
 )
 
-Hecks::CLI.register_command(:version_log, "List all tagged domain version snapshots",
-  options: {
-    domain: { type: :string, desc: "Domain gem name or path" }
-  }
-) do
+Hecks::CLI.handle(:version_log) do |inv|
   entries = Hecks::DomainVersioning.log(base_dir: Dir.pwd)
 
   if entries.empty?

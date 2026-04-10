@@ -6,9 +6,7 @@
 #   hecks appeal                    # serve current directory
 #   hecks appeal /path/to/project   # serve specific project
 #
-Hecks::CLI.register_command(:appeal, "Launch the HecksAppeal IDE",
-  args: ["PATH..."]
-) do |*args|
+Hecks::CLI.handle(:appeal) do |inv|
   require "hecks/appeal/server"
-  Hecks::Appeal::Server.run(args)
+  Hecks::Appeal::Server.run(inv.args)
 end

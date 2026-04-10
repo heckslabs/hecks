@@ -8,9 +8,8 @@
 #   hecks allure pizzas.bluebook                  # view a specific domain
 #   hecks allure nursery/veterinary/veterinary.bluebook
 #
-Hecks::CLI.register_command(:allure, "Terminal UI — domain concepts as panels",
-  args: ["BLUEBOOK"]
-) do |bluebook_path = nil|
+Hecks::CLI.handle(:allure) do |inv|
+  bluebook_path = inv.args.first
   require "hecks_cli/allure_renderer"
 
   if bluebook_path.nil?

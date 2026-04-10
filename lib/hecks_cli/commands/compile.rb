@@ -8,12 +8,7 @@
 #   hecks compile --output my_binary     # => ./my_binary
 #   hecks compile --plan                 # show what would be compiled
 #
-Hecks::CLI.register_command(:compile, "Compile Hecks into a self-contained binary",
-  options: {
-    output: { type: :string, desc: "Output file path (default: hecks_v0)", default: "hecks_v0" },
-    plan:   { type: :boolean, desc: "Show compilation plan without writing" }
-  }
-) do
+Hecks::CLI.handle(:compile) do |inv|
   require "hecks/compiler"
 
   compiler = Hecks::Compiler::BinaryCompiler.new

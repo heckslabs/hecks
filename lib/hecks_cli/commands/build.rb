@@ -1,12 +1,4 @@
-Hecks::CLI.register_command(:build, "Generate the domain gem",
-  options: {
-    domain:  { type: :string,  desc: "Domain gem name or path" },
-    version: { type: :string,  desc: "Domain version" },
-    target:  { type: :string,  desc: "Build target: ruby (default), static, go, node, rails" },
-    static:  { type: :boolean, desc: "Generate static gem (alias for --target static)" },
-    gem:     { type: :boolean, desc: "Produce a publishable .gem artifact after building" }
-  }
-) do
+Hecks::CLI.handle(:build) do |inv|
 
   domain = resolve_domain_option
   unless domain

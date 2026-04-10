@@ -3,13 +3,9 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:generate_stub, "Scaffold a domain file for hand-editing",
-  options: {
-    domain: { type: :string,  desc: "Domain gem name or path" },
-    force:  { type: :boolean, desc: "Overwrite without prompting" }
-  },
-  args: ["TYPE", "NAME"]
-) do |type, name|
+Hecks::CLI.handle(:generate_stub) do |inv|
+  type = inv.args[0]
+  name = inv.args[1]
   domain = resolve_domain_option
   next unless domain
 

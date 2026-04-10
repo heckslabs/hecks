@@ -26,6 +26,10 @@ module Hecks
 
       # --- Registry ---
 
+      def command_exists?(name)
+        @commands.key?(name.to_s)
+      end
+
       def register(name, description, group: "Commands", options: [])
         name = name.to_s
         @commands[name] = { description: description, group: group, options: options }
@@ -36,7 +40,7 @@ module Hecks
         @handlers[name.to_s] = block
       end
 
-      def register_from_domain(domain, group: nil)
+      def register_from_domain(domain, group: nil, commands_only: false)
         g = group || domain.name
 
         # Meta-commands: aggregates ending in Command (ValidateCommand → validate)
@@ -54,14 +58,16 @@ module Hecks
         end
 
         # Domain commands: every command on every aggregate
-        # CreatePizza on Pizza → create_pizza, with attrs as options
-        domain.aggregates.each do |agg|
-          next if agg.name.end_with?("Command")
-          agg.commands.each do |cmd|
-            cli_name = snake_case(cmd.name)
-            desc = cmd.respond_to?(:goal) && cmd.goal ? cmd.goal.to_s : "#{cmd.name} on #{agg.name}"
-            opts = cmd.attributes.map { |attr| { name: attr.name.to_s, type: attr.type.to_s } }
-            register(cli_name, desc, group: g, options: opts) unless @commands.key?(cli_name)
+        # Only for user domains (Pizzas), not framework chapters
+        unless commands_only
+          domain.aggregates.each do |agg|
+            next if agg.name.end_with?("Command")
+            agg.commands.each do |cmd|
+              cli_name = snake_case(cmd.name)
+              desc = cmd.respond_to?(:goal) && cmd.goal ? cmd.goal.to_s : "#{cmd.name} on #{agg.name}"
+              opts = cmd.attributes.map { |attr| { name: attr.name.to_s, type: attr.type.to_s } }
+              register(cli_name, desc, group: g, options: opts) unless @commands.key?(cli_name)
+            end
           end
         end
       end
@@ -134,6 +140,8 @@ module Hecks
         content = File.read(path)
         if content.include?("register_command")
           load_legacy_handler(expanded)
+        elsif content.include?("Hecks::CLI.handle")
+          load_handle_file(expanded)
         end
       end
 
@@ -275,7 +283,20 @@ module Hecks
       def print_grouped_help
         puts
         max = @commands.keys.map(&:length).max || 20
+
+        # Top-level commands (no group header)
+        top = @groups["Commands"] || []
+        if top.any?
+          top.sort.each do |name|
+            entry = @commands[name]
+            puts "  hecks %-#{max}s  # %s" % [name, entry[:description]]
+          end
+          puts
+        end
+
+        # Named groups
         @groups.each do |group_name, cmd_names|
+          next if group_name == "Commands"
           puts "\e[1m#{group_name}:\e[0m"
           cmd_names.sort.each do |name|
             entry = @commands[name]
@@ -283,6 +304,7 @@ module Hecks
           end
           puts
         end
+
         puts "Run `hecks help <command>` for details."
       end
 
@@ -352,9 +374,21 @@ module Hecks
       # (options, say, etc.), and register it as an Argv handler.
       def load_legacy_handler(path)
         argv_instance = self
+        handler_path = path
         original = Hecks::CLI.method(:register_command) rescue nil
-        Hecks::CLI.define_singleton_method(:register_command) do |name, _desc = nil, **_opts, &block|
+        Hecks::CLI.define_singleton_method(:register_command) do |name, desc = nil, **opts, &block|
           next unless block
+          # If already registered from a Bluebook, just wire the handler — don't re-register
+          if argv_instance.command_exists?(name.to_s)
+            argv_instance.handle(name.to_s) do |inv|
+              LegacyContext.set_argv_ref(argv_instance)
+              ctx = LegacyContext.new(inv, argv_instance)
+              ctx.instance_exec(*inv.args, &block)
+            end
+            next
+          end
+          group = opts[:group] || "Commands"
+          argv_instance.register(name.to_s, desc || name.to_s, group: group)
           argv_instance.handle(name.to_s) do |inv|
             # Build a Thor-like context so legacy blocks work
             LegacyContext.set_argv_ref(argv_instance)
@@ -369,6 +403,31 @@ module Hecks
         ensure
           if original
             Hecks::CLI.define_singleton_method(:register_command, original)
+          end
+        end
+      end
+
+      # Load a new-style handle file. The file calls Hecks::CLI.handle(:name) { |inv| ... }
+      # We intercept that call, wrap the block in a LegacyContext so options/say/ask
+      # helpers are available, and wire it as an Argv handler.
+      def load_handle_file(path)
+        argv_instance = self
+        original = Hecks::CLI.method(:handle) rescue nil
+        Hecks::CLI.define_singleton_method(:handle) do |name, &block|
+          next unless block
+          argv_instance.handle(name.to_s) do |inv|
+            LegacyContext.set_argv_ref(argv_instance)
+            ctx = LegacyContext.new(inv, argv_instance)
+            ctx.instance_exec(inv, &block)
+          end
+        end
+        begin
+          Kernel.load(path)
+        rescue => e
+          $stderr.puts "  [argv] skip #{File.basename(path)}: #{e.message}" if ENV["HECKS_DEBUG"]
+        ensure
+          if original
+            Hecks::CLI.define_singleton_method(:handle, original)
           end
         end
       end

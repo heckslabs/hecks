@@ -7,12 +7,8 @@
 #   hecks docs pizzas.bluebook
 #   hecks docs pizzas.bluebook --port 8080
 #
-Hecks::CLI.register_command(:docs, "Serve domain as executable docs in browser",
-  args: ["BLUEBOOK"],
-  options: {
-    port: { type: :numeric, desc: "Server port", default: 4567 }
-  }
-) do |bluebook_path = nil|
+Hecks::CLI.handle(:docs) do |inv|
+  bluebook_path = inv.args.first
   require "hecks_cli/documentation_server"
 
   if bluebook_path.nil?

@@ -14,7 +14,29 @@ require "hecks_cli/argv"
 
 argv = Hecks::CLI::Argv.new
 
-# Load every bluebook in the current project's hecks/ dir
+# Register commands from chapter Bluebooks — the source of truth
+chapters = {
+  "cli"        => "Commands",
+  "ai"         => "Commands",
+  "persist"    => "Commands",
+  "extensions" => "Commands",
+  "workshop"   => "Commands",
+  "targets"    => "Commands",
+}
+
+chapters.each do |chapter, group_name|
+  begin
+    require "hecks/chapters/#{chapter}"
+    mod_name = chapter == "ai" ? "AI" : chapter.split("_").map(&:capitalize).join
+    mod = Hecks::Chapters.const_get(mod_name)
+    domain = mod.definition
+    argv.register_from_domain(domain, group: group_name, commands_only: true)
+  rescue => e
+    $stderr.puts "  [argv] skip chapter #{chapter}: #{e.message}" if ENV["HECKS_DEBUG"]
+  end
+end
+
+# Also load bluebooks from current project's hecks/ dir (user domains)
 hecks_dir = File.join(Dir.pwd, "hecks")
 if File.directory?(hecks_dir)
   Dir[File.join(hecks_dir, "*.bluebook")].sort.each do |path|
@@ -22,7 +44,7 @@ if File.directory?(hecks_dir)
   end
 end
 
-# Load CLI command handlers
+# Load CLI command handlers (just handler blocks, no registration)
 lib_root = File.join(hecks_home, "lib")
 Dir[File.join(lib_root, "**/commands/*.rb")].sort.each do |path|
   argv.load_handler_file(path)

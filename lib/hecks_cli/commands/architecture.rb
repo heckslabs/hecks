@@ -5,7 +5,7 @@
 #
 #   hecks architecture
 #
-Hecks::CLI.register_command(:architecture, "Show hexagonal architecture diagram") do
+Hecks::CLI.handle(:architecture) do |inv|
   require "hecks"
 
   begin

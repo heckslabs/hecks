@@ -1,11 +1,4 @@
-Hecks::CLI.register_command(:diff, "Show changes between domain versions or since last build",
-  options: {
-    domain:  { type: :string, desc: "Domain gem name or path" },
-    version: { type: :string, desc: "Domain version" },
-    v1:      { type: :string, desc: "First version to compare (older)" },
-    v2:      { type: :string, desc: "Second version to compare (newer)" }
-  }
-) do
+Hecks::CLI.handle(:diff) do |inv|
   # Resolve the two domains to diff
   if options[:v1] && options[:v2]
     old_domain = Hecks::DomainVersioning.load_version(options[:v1], base_dir: Dir.pwd)

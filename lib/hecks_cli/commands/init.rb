@@ -1,9 +1,5 @@
-Hecks::CLI.register_command(:init, "Initialize a Hecks domain in the current directory",
-  options: {
-    force: { type: :boolean, desc: "Overwrite without prompting" }
-  },
-  args: ["NAME"]
-) do |name = nil|
+Hecks::CLI.handle(:init) do |inv|
+  name = inv.args.first
   name ||= Hecks::Utils.sanitize_constant(File.basename(Dir.pwd))
   write_or_diff("bluebook.hec", domain_template(name))
   write_or_diff("verbs.txt", "# Add custom action verbs here (one per line)\n# WordNet handles most English verbs automatically\n")

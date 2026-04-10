@@ -3,14 +3,9 @@ Hecks::Chapters.load_aggregates(
   base_dir: File.expand_path("..", __dir__)
 )
 
-Hecks::CLI.register_command(:import, "Import a Rails app as a Hecks domain",
-  args: %w[SOURCE PATH],
-  options: {
-    output: { type: :string, default: "Bluebook", desc: "Output file path", aliases: "-o" },
-    preview: { type: :boolean, default: false, desc: "Preview without writing" },
-    name: { type: :string, desc: "Domain name (default: inferred from directory)" }
-  }
-) do |source = nil, path = nil|
+Hecks::CLI.handle(:import) do |inv|
+  source = inv.args[0]
+  path   = inv.args[1]
   unless source && path
     puts "Usage: hecks import rails /path/to/app"
     puts "       hecks import schema /path/to/schema.rb"

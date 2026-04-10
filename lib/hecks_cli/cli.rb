@@ -35,6 +35,14 @@ module Hecks
       @pending_commands << { name: name, description: description, group: group, options: options, args: args, block: block }
     end
 
+    # Wire a handler block without registering — registration comes from the Bluebook.
+    # The block receives an Invocation but is instance_exec'd against a LegacyContext
+    # so legacy helpers (options, say, ask, etc.) are available.
+    def self.handle(name, &block)
+      # Argv intercepts this at load time via load_handle_file.
+      # No-op in the Thor path; handlers wired by argv at runtime.
+    end
+
     # Infer group from the file path. Uses CLI_GROUP constant on the
     # registering module if available, otherwise derives from gem name.
     # hecks_workshop → "Workshop", hecks_cli/commands/build.rb → "Cli"
