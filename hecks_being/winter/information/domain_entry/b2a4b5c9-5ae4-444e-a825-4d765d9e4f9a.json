@@ -1,0 +1,23 @@
+{
+  "id": "b2a4b5c9-5ae4-444e-a825-4d765d9e4f9a",
+  "domain_name": "RiskAssessment",
+  "directory": "governance",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/governance/risk_assessment.bluebook",
+  "line_count": 92,
+  "aggregate_count": 1,
+  "command_count": 4,
+  "policy_count": 0,
+  "event_count": 0,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "Assessment"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

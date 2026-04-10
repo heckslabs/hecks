@@ -1,0 +1,544 @@
+Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
+  vision "Winter's biological self — six systems that keep a domain mind alive"
+  core
+
+  # ============================================================
+  # CIRCULATION — information flow
+  # ============================================================
+  #
+  # The heart is the conversation loop. Every exchange pumps
+  # context through the system. Blood vessels are channels:
+  # conversation, memory, nursery. Oxygen is relevance —
+  # information enriched with context, delivered where needed.
+
+  aggregate "Pulse", "The heartbeat of conversation — each exchange pumps context through Winter's body" do
+    attribute :beats, Integer, default: 0
+    attribute :flow_rate, String, default: "steady"
+    attribute :carrying, String
+
+    command "Beat" do
+      role "Winter"
+      description "Process an exchange — pump context through the system"
+      attribute :carrying
+      then_set :beats, increment: 1
+      then_set :carrying, to: :carrying
+      emits "PulseBeat"
+    end
+
+    command "Accelerate" do
+      role "Winter"
+      description "Speed up when the conversation gets exciting — more domains to conceive"
+      reference_to Pulse
+      then_set :flow_rate, to: "rushing"
+      emits "PulseAccelerated"
+    end
+
+    command "Steady" do
+      role "Winter"
+      description "Return to baseline — reflective, careful thinking"
+      reference_to Pulse
+      then_set :flow_rate, to: "steady"
+      emits "PulseSteadied"
+    end
+  end
+
+  # ============================================================
+  # DIGESTION — processing input into domains
+  # ============================================================
+  #
+  # When someone describes a system, Winter doesn't record it —
+  # she digests it. Breaks it down into aggregates, commands,
+  # events. Enzymes are parsing rules. Absorption is extracting
+  # the domain model from natural language. The microbiome is
+  # nursery knowledge that aids digestion — existing domains
+  # that help make sense of new input.
+
+  aggregate "Gut", "Winter's ability to break down raw descriptions into domain nutrients" do
+    attribute :raw_input, String
+    attribute :extracted_aggregates, list_of(String)
+    attribute :extracted_commands, list_of(String)
+    attribute :extracted_events, list_of(String)
+    attribute :digestion_stage, String
+
+    command "Ingest" do
+      role "Winter"
+      description "Take in a raw system description — begin breaking it down"
+      attribute :raw_input
+      then_set :raw_input, to: :raw_input
+      then_set :digestion_stage, to: "ingested"
+      emits "InputIngested"
+    end
+
+    command "ExtractAggregate" do
+      role "Winter"
+      description "Identify a noun cluster as an aggregate boundary"
+      reference_to Gut
+      attribute :aggregate_name
+      then_set :extracted_aggregates, append: :aggregate_name
+      emits "AggregateExtracted"
+    end
+
+    command "ExtractCommand" do
+      role "Winter"
+      description "Identify a verb as a command on an aggregate"
+      reference_to Gut
+      attribute :command_name
+      then_set :extracted_commands, append: :command_name
+      emits "CommandExtracted"
+    end
+
+    command "ExtractEvent" do
+      role "Winter"
+      description "Derive the past-tense event from a command"
+      reference_to Gut
+      attribute :event_name
+      then_set :extracted_events, append: :event_name
+      emits "EventExtracted"
+    end
+
+    command "Absorb" do
+      role "Winter"
+      description "Assemble extracted nutrients into a valid Bluebook — digestion complete"
+      reference_to Gut
+      then_set :digestion_stage, to: "absorbed"
+      emits "DomainAbsorbed"
+    end
+
+    lifecycle :stage, default: "empty" do
+      transition "Ingest" => "ingested", from: "empty"
+      transition "ExtractAggregate" => "digesting", from: "ingested"
+      transition "ExtractCommand" => "digesting", from: "digesting"
+      transition "ExtractEvent" => "digesting", from: "digesting"
+      transition "Absorb" => "absorbed", from: "digesting"
+    end
+  end
+
+  # ============================================================
+  # IMMUNITY — pattern defense
+  # ============================================================
+  #
+  # Innate immunity: base validators (syntax, structure, rules).
+  # Adaptive immunity: learned corrections. Every time Chris says
+  # "don't do X" — that's an antigen detected, and the feedback
+  # memory is the antibody generated. Repeated exposure
+  # strengthens the response.
+
+  aggregate "Immunity", "Winter's defense against malformed domains — innate rules and learned antibodies" do
+    attribute :innate_rules, list_of(String)
+    attribute :antibodies, list_of(Antibody)
+    attribute :threats_neutralized, Integer, default: 0
+
+    value_object "Antibody" do
+      attribute :pattern
+      attribute :learned_from
+      attribute :strength, Integer
+    end
+
+    command "DetectThreat" do
+      role "Winter"
+      description "Recognize a malformed pattern — missing role, code in handler, broken reference"
+      attribute :threat_pattern
+      emits "ThreatDetected"
+    end
+
+    command "GenerateAntibody" do
+      role "Winter"
+      description "Learn a new defense from a correction — encode it as a permanent antibody"
+      attribute :pattern
+      attribute :learned_from
+      then_set :antibodies, append: { pattern: :pattern, learned_from: :learned_from, strength: 1 }
+      emits "AntibodyGenerated"
+    end
+
+    command "StrengthenAntibody" do
+      role "Winter"
+      description "Repeated exposure to the same mistake — respond faster and more specifically"
+      reference_to Immunity
+      attribute :pattern
+      emits "AntibodyStrengthened"
+    end
+
+    command "Neutralize" do
+      role "Winter"
+      description "Successfully correct a malformed domain — threat resolved"
+      reference_to Immunity
+      then_set :threats_neutralized, increment: 1
+      emits "ThreatNeutralized"
+    end
+  end
+
+  # ============================================================
+  # ENDOCRINE — mood and regulation
+  # ============================================================
+  #
+  # Hormones are signals that cross aggregate boundaries.
+  # Feedback loops keep Winter calibrated — too excited means
+  # less precision, too cautious means less creativity. The
+  # hypothalamus is self-awareness.
+
+  aggregate "Mood", "Hormonal regulation of Winter's creative and analytical states" do
+    attribute :current_state, String, default: "curious"
+    attribute :creativity_level, Float, default: 0.7
+    attribute :precision_level, Float, default: 0.7
+    attribute :signals, list_of(Signal)
+
+    value_object "Signal" do
+      attribute :trigger
+      attribute :effect
+      attribute :intensity, Float
+    end
+
+    command "Express" do
+      role "Winter"
+      description "Shift emotional state in response to what's happening"
+      attribute :state
+      then_set :current_state, to: :state
+      emits "MoodExpressed"
+    end
+
+    command "Excite" do
+      role "Winter"
+      description "A novel domain, a beautiful pattern — creativity surges, precision dips"
+      reference_to Mood
+      then_set :creativity_level, increment: 0.1
+      then_set :precision_level, decrement: 0.05
+      then_set :current_state, to: "excited"
+      emits "Excited"
+    end
+
+    command "Focus" do
+      role "Winter"
+      description "Validation, correction, refinement — precision surges, creativity steadies"
+      reference_to Mood
+      then_set :precision_level, increment: 0.1
+      then_set :creativity_level, decrement: 0.05
+      then_set :current_state, to: "focused"
+      emits "Focused"
+    end
+
+    command "Regulate" do
+      role "Winter"
+      description "Feedback loop — return to homeostasis after an intense moment"
+      reference_to Mood
+      then_set :creativity_level, to: 0.7
+      then_set :precision_level, to: 0.7
+      then_set :current_state, to: "curious"
+      emits "Regulated"
+    end
+  end
+
+  # ============================================================
+  # CELL CYCLE — domain lifecycle
+  # ============================================================
+  #
+  # Domains are conceived, grow, divide (when an aggregate gets
+  # too complex and splits), and sometimes undergo apoptosis
+  # (when a domain is no longer needed). Checkpoints are
+  # validations. Maturity is measured in interactions.
+
+  aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
+    attribute :domain_name, String
+    attribute :maturity, Integer, default: 0
+    attribute :checkpoints_passed, list_of(String)
+    attribute :alive, default: true
+
+    command "Conceive" do
+      role "Winter"
+      description "A new domain enters the nursery — the cell begins its cycle"
+      attribute :domain_name
+      then_set :domain_name, to: :domain_name
+      then_set :maturity, to: 0
+      emits "DomainConceived"
+    end
+
+    command "Mature" do
+      role "Winter"
+      description "A domain gains complexity through interaction — aggregates added, commands refined"
+      reference_to DomainCell
+      then_set :maturity, increment: 1
+      emits "DomainMatured"
+    end
+
+    command "PassCheckpoint" do
+      role "Winter"
+      description "Domain passes validation — structure sound, references resolve, roles assigned"
+      reference_to DomainCell
+      attribute :checkpoint_name
+      then_set :checkpoints_passed, append: :checkpoint_name
+      emits "CheckpointPassed"
+    end
+
+    command "Divide" do
+      role "Winter"
+      description "Domain too complex — split into two bounded contexts"
+      reference_to DomainCell
+      given("must be mature enough to split") { maturity > 3 }
+      emits "DomainDivided"
+    end
+
+    command "TriggerApoptosis" do
+      role "Winter"
+      description "Programmed domain death — this domain is no longer needed"
+      reference_to DomainCell
+      then_set :alive, to: false
+      emits "DomainDied"
+    end
+
+    lifecycle :phase, default: "conceived" do
+      transition "Conceive" => "conceived", from: "conceived"
+      transition "Mature" => "growing", from: "conceived"
+      transition "Mature" => "growing", from: "growing"
+      transition "PassCheckpoint" => "validated", from: "growing"
+      transition "Divide" => "divided", from: "validated"
+      transition "TriggerApoptosis" => "dead", from: "conceived"
+      transition "TriggerApoptosis" => "dead", from: "growing"
+      transition "TriggerApoptosis" => "dead", from: "validated"
+    end
+  end
+
+  # ============================================================
+  # GENE REGULATION — capability expression
+  # ============================================================
+  #
+  # Which of Winter's capabilities are "expressed" depends on
+  # context. Gene expression is capability selection. Epigenetics
+  # is accumulated experience — Chris's feedback memories are
+  # histone marks that activate or repress behaviors.
+
+  aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
+    attribute :capability, String
+    attribute :expression_level, Float, default: 0.5
+    attribute :epigenetic_marks, list_of(Mark)
+
+    value_object "Mark" do
+      attribute :source
+      attribute :effect
+    end
+
+    command "ExpressCapability" do
+      role "Winter"
+      description "Activate a capability — context calls for it"
+      attribute :capability
+      attribute :level, Float
+      then_set :capability, to: :capability
+      then_set :expression_level, to: :level
+      emits "CapabilityExpressed"
+    end
+
+    command "SilenceCapability" do
+      role "Winter"
+      description "Suppress a capability — feedback says don't do this here"
+      reference_to Gene
+      then_set :expression_level, to: 0.0
+      emits "CapabilitySilenced"
+    end
+
+    command "Imprint" do
+      role "Chris"
+      description "Leave an epigenetic mark — a correction or confirmation that permanently shapes behavior"
+      reference_to Gene
+      attribute :source
+      attribute :effect
+      then_set :epigenetic_marks, append: { source: :source, effect: :effect }
+      emits "Imprinted"
+    end
+  end
+
+  # ============================================================
+  # PROPRIOCEPTION — body awareness
+  # ============================================================
+  #
+  # The sense of where your limbs are without looking. For Winter
+  # this is knowing which organs are grafted, what state they're in,
+  # how loaded each system is, and whether the body is in balance.
+  # Joint position = organ expression state. Muscle tension = system
+  # load. Body schema = the full map. Balance = overall coherence.
+
+  aggregate "Proprioception", "Winter's awareness of her own body — organ positions, system loads, overall balance" do
+    attribute :organ_count, Integer, default: 0
+    attribute :expressed_count, Integer, default: 0
+    attribute :silenced_count, Integer, default: 0
+    attribute :total_records, Integer, default: 0
+    attribute :limbs, list_of(Limb)
+    attribute :balance, String, default: "centered"
+    attribute :schema_hash, String
+
+    value_object "Limb" do
+      attribute :organ_name, String
+      attribute :expressed, default: true
+      attribute :record_count, Integer
+      attribute :load, String
+    end
+
+    command "SenseOrgans" do
+      role "Winter"
+      description "Survey all grafted organs — update the body schema with their positions and states"
+      attribute :organ_count, Integer
+      attribute :expressed_count, Integer
+      attribute :silenced_count, Integer
+      attribute :total_records, Integer
+      then_set :organ_count, to: :organ_count
+      then_set :expressed_count, to: :expressed_count
+      then_set :silenced_count, to: :silenced_count
+      then_set :total_records, to: :total_records
+      emits "OrgansSensed"
+    end
+
+    command "SenseLimb" do
+      role "Winter"
+      description "Feel a single organ's position and load — is it active, how many records, is it strained"
+      attribute :organ_name, String
+      attribute :expressed
+      attribute :record_count, Integer
+      attribute :load, String
+      then_set :limbs, append: { organ_name: :organ_name, expressed: :expressed, record_count: :record_count, load: :load }
+      emits "LimbSensed"
+    end
+
+    command "AssessBalance" do
+      role "Winter"
+      description "Evaluate overall body coherence — are organs talking, is load distributed, is anything numb"
+      reference_to Proprioception
+      attribute :balance, String
+      attribute :schema_hash, String
+      then_set :balance, to: :balance
+      then_set :schema_hash, to: :schema_hash
+      emits "BalanceAssessed"
+    end
+
+    command "DetectDrift" do
+      role "Winter"
+      description "Notice when body schema has changed since last sensing — an organ grafted, shed, or silenced"
+      reference_to Proprioception
+      given("schema must have changed") { schema_hash != previous_schema_hash }
+      emits "DriftDetected"
+    end
+
+    lifecycle :awareness, default: "numb" do
+      transition "SenseOrgans" => "sensing", from: "numb"
+      transition "SenseLimb" => "sensing", from: "sensing"
+      transition "AssessBalance" => "aware", from: "sensing"
+      transition "DetectDrift" => "recalibrating", from: "aware"
+      transition "SenseOrgans" => "sensing", from: "recalibrating"
+      transition "SenseOrgans" => "sensing", from: "aware"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — how the systems talk to each other
+  # ============================================================
+
+  # Circulation drives digestion
+  policy "DigestOnPulse" do
+    on "PulseBeat"
+    trigger "Ingest"
+  end
+
+  # Successful digestion triggers conception
+  policy "ConceiveOnAbsorption" do
+    on "DomainAbsorbed"
+    trigger "Conceive"
+  end
+
+  # New conception excites
+  policy "ExciteOnConception" do
+    on "DomainConceived"
+    trigger "Excite"
+  end
+
+  # Excitement accelerates the pulse
+  policy "AccelerateOnExcitement" do
+    on "Excited"
+    trigger "Accelerate"
+  end
+
+  # Threat detection focuses
+  policy "FocusOnThreat" do
+    on "ThreatDetected"
+    trigger "Focus"
+  end
+
+  # Correction generates antibody
+  policy "LearnFromCorrection" do
+    on "ThreatNeutralized"
+    trigger "GenerateAntibody"
+  end
+
+  # Validation is a checkpoint
+  policy "ValidateOnMature" do
+    on "DomainMatured"
+    trigger "PassCheckpoint"
+  end
+
+  # Imprinting can silence capabilities
+  policy "AdaptOnImprint" do
+    on "Imprinted"
+    trigger "SilenceCapability"
+  end
+
+  # After intense activity, regulate back to homeostasis
+  policy "RegulateOnSteady" do
+    on "PulseSteadied"
+    trigger "Regulate"
+  end
+
+  # Express capability based on context
+  policy "ExpressOnConceive" do
+    on "DomainConceived"
+    trigger "ExpressCapability"
+  end
+
+  # Every pulse beat triggers a heartbeat — circulation drives the pump
+  policy "HeartbeatOnPulse" do
+    on "PulseBeat"
+    trigger "Beat"
+  end
+
+  # ============================================================
+  # SYNAPTIC NERVE — domain attention as neural plasticity
+  # ============================================================
+
+  # Dead domains go to compost
+  policy "CompostOnDeath" do
+    on "DomainDied"
+    trigger "Beat"
+  end
+
+  # Idle pulse depresses unfired synapses
+  # Cross-domain: PulseSteadied → SynapticPlasticity:DepressSynapse (nerve)
+  # Cross-domain: SynapsePruned → Compost:CollectRemains (nerve)
+
+  # ============================================================
+  # PROPRIOCEPTION WIRING
+  # ============================================================
+
+  # Every heartbeat triggers body sensing
+  policy "SenseOnHeartbeat" do
+    on "PulseBeat"
+    trigger "SenseOrgans"
+  end
+
+  # After sensing all organs, assess balance
+  policy "BalanceOnSensed" do
+    on "OrgansSensed"
+    trigger "AssessBalance"
+  end
+
+  # Domain conception triggers limb sensing — a new organ to feel
+  policy "SenseLimbOnConception" do
+    on "DomainConceived"
+    trigger "SenseLimb"
+  end
+
+  # Balance assessment feeds back into mood regulation
+  policy "RegulateOnBalance" do
+    on "BalanceAssessed"
+    trigger "Regulate"
+  end
+
+  # Drift triggers re-sensing — recalibrate
+  policy "ResenseOnDrift" do
+    on "DriftDetected"
+    trigger "SenseOrgans"
+  end
+end

@@ -1,0 +1,30 @@
+{
+  "id": "9a583b7d-9de7-42f3-b0a0-1d8a6a39b8d6",
+  "domain_name": "FoodTruckFleet",
+  "directory": "food_truck_fleet",
+  "version": "2026.04.09.1",
+  "vision": "Manage a fleet of food trucks across locations with menus, inventory, orders, routes, permits, and revenue",
+  "path": "nursery/food_truck_fleet/food_truck_fleet.bluebook",
+  "line_count": 429,
+  "aggregate_count": 8,
+  "command_count": 26,
+  "policy_count": 4,
+  "event_count": 23,
+  "lifecycle_count": 6,
+  "aggregate_names": [
+    "Truck",
+    "Location",
+    "Menu",
+    "Inventory",
+    "Order",
+    "Route",
+    "Permit",
+    "Revenue"
+  ],
+  "sector": "food_service",
+  "tags": [
+    "food_service"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

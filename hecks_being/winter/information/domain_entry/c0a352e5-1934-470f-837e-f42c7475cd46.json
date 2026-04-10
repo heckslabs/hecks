@@ -1,0 +1,25 @@
+{
+  "id": "c0a352e5-1934-470f-837e-f42c7475cd46",
+  "domain_name": "AirportOperations",
+  "directory": "airport_operations",
+  "version": "2026.04.10.1",
+  "vision": "Manages gate assignments, runway scheduling, and airport facility operations",
+  "path": "nursery/airport_operations/airport_operations.bluebook",
+  "line_count": 124,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Gate",
+    "RunwaySlot",
+    "Facility"
+  ],
+  "sector": "logistics",
+  "tags": [
+    "logistics"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

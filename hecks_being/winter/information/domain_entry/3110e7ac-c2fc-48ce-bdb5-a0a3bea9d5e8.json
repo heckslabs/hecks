@@ -1,0 +1,27 @@
+{
+  "id": "3110e7ac-c2fc-48ce-bdb5-a0a3bea9d5e8",
+  "domain_name": "ClassroomGradebook",
+  "directory": "classroom_gradebook",
+  "version": "2026.04.09.1",
+  "vision": "Track courses, students, assignments, grades, and report cards for a school",
+  "path": "nursery/classroom_gradebook/classroom_gradebook.bluebook",
+  "line_count": 337,
+  "aggregate_count": 5,
+  "command_count": 21,
+  "policy_count": 2,
+  "event_count": 21,
+  "lifecycle_count": 5,
+  "aggregate_names": [
+    "Course",
+    "Student",
+    "Assignment",
+    "Grade",
+    "ReportCard"
+  ],
+  "sector": "education",
+  "tags": [
+    "education"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

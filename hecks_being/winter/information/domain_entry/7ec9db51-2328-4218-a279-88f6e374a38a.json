@@ -1,0 +1,25 @@
+{
+  "id": "7ec9db51-2328-4218-a279-88f6e374a38a",
+  "domain_name": "GraphicNovel",
+  "directory": "graphic_novel",
+  "version": "2026.04.10.1",
+  "vision": "Manages graphic novel production from storyboard to bound volume",
+  "path": "nursery/graphic_novel/graphic_novel.bluebook",
+  "line_count": 117,
+  "aggregate_count": 3,
+  "command_count": 7,
+  "policy_count": 1,
+  "event_count": 7,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "Novel",
+    "Storyboard",
+    "ColorPass"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

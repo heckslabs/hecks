@@ -1,0 +1,25 @@
+{
+  "id": "6fa38dae-ce7f-4a6e-a022-ca8848884912",
+  "domain_name": "NurseryIndex",
+  "directory": "nursery_index",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/nursery_index/nursery_index.bluebook",
+  "line_count": 112,
+  "aggregate_count": 3,
+  "command_count": 4,
+  "policy_count": 1,
+  "event_count": 4,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "DomainEntry",
+    "CrossReference",
+    "NurserySummary"
+  ],
+  "sector": "agriculture",
+  "tags": [
+    "agriculture"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

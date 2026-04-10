@@ -1,0 +1,24 @@
+{
+  "id": "6f3f4bde-1cd5-429e-b8a3-eabbda46c817",
+  "domain_name": "ElderCare",
+  "directory": "elder_care",
+  "version": "2026.04.10.1",
+  "vision": "Manage resident care plans, medication administration, and activity scheduling",
+  "path": "nursery/elder_care/elder_care.bluebook",
+  "line_count": 72,
+  "aggregate_count": 2,
+  "command_count": 4,
+  "policy_count": 1,
+  "event_count": 4,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Resident",
+    "MedicationAdministration"
+  ],
+  "sector": "transportation",
+  "tags": [
+    "transportation"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

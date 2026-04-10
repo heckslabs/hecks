@@ -1,0 +1,25 @@
+{
+  "id": "5502aabb-81ab-4b2d-88f5-7c2758d14ac0",
+  "domain_name": "BoardGameCollection",
+  "directory": "board_game_collection",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/board_game_collection/board_game_collection.bluebook",
+  "line_count": 99,
+  "aggregate_count": 3,
+  "command_count": 6,
+  "policy_count": 0,
+  "event_count": 4,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "Game",
+    "PlaySession",
+    "Rating"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

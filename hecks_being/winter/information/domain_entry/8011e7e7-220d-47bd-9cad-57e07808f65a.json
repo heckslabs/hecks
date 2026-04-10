@@ -1,0 +1,26 @@
+{
+  "id": "8011e7e7-220d-47bd-9cad-57e07808f65a",
+  "domain_name": "GutMicrobiome",
+  "directory": "gut_microbiome",
+  "version": "2026.04.09.4",
+  "vision": "The ecosystem living inside a digestive tract — species diversity, symbiosis, dysbiosis, and the gut-brain axis",
+  "path": "nursery/gut_microbiome/gut_microbiome.bluebook",
+  "line_count": 215,
+  "aggregate_count": 4,
+  "command_count": 13,
+  "policy_count": 6,
+  "event_count": 13,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "MicrobialSpecies",
+    "Diversity",
+    "Dysbiosis",
+    "GutBrainSignal"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "18f8b023-5929-4fd9-9dc2-58dabd7b3f1c",
+  "domain_name": "Inspection",
+  "directory": "hecks",
+  "version": "2026.04.09.1",
+  "vision": "Domain inspection — inspect, tree, list, info, architecture",
+  "path": "nursery/hecks/inspection.bluebook",
+  "line_count": 23,
+  "aggregate_count": 5,
+  "command_count": 0,
+  "policy_count": 0,
+  "event_count": 0,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "InspectCommand",
+    "TreeCommand",
+    "ListCommand",
+    "InfoCommand",
+    "ArchitectureCommand"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

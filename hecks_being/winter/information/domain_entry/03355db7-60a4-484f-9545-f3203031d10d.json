@@ -1,0 +1,26 @@
+{
+  "id": "03355db7-60a4-484f-9545-f3203031d10d",
+  "domain_name": "ExecutiveFunction",
+  "directory": "executive_function",
+  "version": "2026.04.09.1",
+  "vision": "The prefrontal cortex — deliberation, goal maintenance, conflict resolution. The mind that watches the mind.",
+  "path": "nursery/executive_function/executive_function.bluebook",
+  "line_count": 227,
+  "aggregate_count": 4,
+  "command_count": 11,
+  "policy_count": 6,
+  "event_count": 11,
+  "lifecycle_count": 1,
+  "aggregate_names": [
+    "WorkingMemory",
+    "ConflictMonitor",
+    "Deliberation",
+    "Sequencer"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

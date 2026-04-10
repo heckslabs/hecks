@@ -1,0 +1,23 @@
+{
+  "id": "fea14a8c-9a3b-4df3-a27c-8b6e61540daa",
+  "domain_name": "VersionGate",
+  "directory": "version_gate",
+  "version": "2026.04.09.1",
+  "vision": "No domain runs without a version — the gate that enforces CalVer on every execution",
+  "path": "nursery/version_gate/version_gate.bluebook",
+  "line_count": 38,
+  "aggregate_count": 1,
+  "command_count": 2,
+  "policy_count": 1,
+  "event_count": 2,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "Gate"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

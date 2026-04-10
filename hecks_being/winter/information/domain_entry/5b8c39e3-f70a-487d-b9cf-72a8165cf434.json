@@ -1,0 +1,28 @@
+{
+  "id": "5b8c39e3-f70a-487d-b9cf-72a8165cf434",
+  "domain_name": "CrimeProcedural",
+  "directory": "crime_procedural",
+  "version": "2026.04.09.1",
+  "vision": "Dust settles on a western town where a crime has been committed. From the first desperate 911 call through the court's final gavel, every hand-off is a link in the chain — dispatch to detective, lab to prosecution, verdict to prison gate.",
+  "path": "nursery/crime_procedural/crime_procedural.bluebook",
+  "line_count": 453,
+  "aggregate_count": 6,
+  "command_count": 24,
+  "policy_count": 7,
+  "event_count": 24,
+  "lifecycle_count": 5,
+  "aggregate_names": [
+    "CrimeScene",
+    "EvidenceChain",
+    "Investigation",
+    "Suspect",
+    "Prosecution",
+    "Sentence"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

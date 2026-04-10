@@ -1,0 +1,9 @@
+{
+  "id": "37626cce-7000-46b7-bc71-68285d0b0b64",
+  "source_domain": "Spec",
+  "target_domain": "Pizzas",
+  "relationship": "shared_concept",
+  "through": "Order",
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-09T21:57:05-07:00"
+}

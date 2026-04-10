@@ -1,0 +1,25 @@
+{
+  "id": "fc624bd7-5274-4620-85e5-4ed8c441e04d",
+  "domain_name": "RadiationTherapy",
+  "directory": "radiation_therapy",
+  "version": "2026.04.10.1",
+  "vision": "Manages radiation treatment planning, dose delivery, and patient safety monitoring",
+  "path": "nursery/radiation_therapy/radiation_therapy.bluebook",
+  "line_count": 131,
+  "aggregate_count": 3,
+  "command_count": 8,
+  "policy_count": 1,
+  "event_count": 8,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "RadiationPlan",
+    "SimulationSession",
+    "DoseRecord"
+  ],
+  "sector": "healthcare",
+  "tags": [
+    "healthcare"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "709f1bf9-9490-4747-b68a-b00a9881f65f",
+  "domain_name": "NurseryCensus",
+  "directory": "nursery_census",
+  "version": "2026.04.10.1",
+  "vision": "Winter's living awareness of her nursery — every domain classified, counted, cross-referenced, and gap-analyzed",
+  "path": "nursery/nursery_census/nursery_census.bluebook",
+  "line_count": 233,
+  "aggregate_count": 5,
+  "command_count": 16,
+  "policy_count": 5,
+  "event_count": 16,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "DomainEntry",
+    "Sector",
+    "GapAnalysis",
+    "CrossReference",
+    "Census"
+  ],
+  "sector": "agriculture",
+  "tags": [
+    "agriculture"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

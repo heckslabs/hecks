@@ -1,0 +1,3 @@
+Hecks.hecksagon "Winter" do
+  persistence :information, dir: File.join(__dir__, "information")
+end

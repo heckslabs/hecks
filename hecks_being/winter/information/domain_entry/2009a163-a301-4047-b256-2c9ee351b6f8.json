@@ -1,0 +1,29 @@
+{
+  "id": "2009a163-a301-4047-b256-2c9ee351b6f8",
+  "domain_name": "FilmFestival",
+  "directory": "film_festival",
+  "version": "2026.04.09.1",
+  "vision": "Run an independent film festival: submissions, screenings, jury deliberation, awards, after-parties, guest passes, volunteer staffing, and catering for galas",
+  "path": "nursery/film_festival/film_festival.bluebook",
+  "line_count": 466,
+  "aggregate_count": 7,
+  "command_count": 28,
+  "policy_count": 6,
+  "event_count": 28,
+  "lifecycle_count": 7,
+  "aggregate_names": [
+    "Submission",
+    "Screening",
+    "Jury",
+    "Award",
+    "AfterParty",
+    "FestivalPass",
+    "VolunteerPost"
+  ],
+  "sector": "entertainment",
+  "tags": [
+    "entertainment"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

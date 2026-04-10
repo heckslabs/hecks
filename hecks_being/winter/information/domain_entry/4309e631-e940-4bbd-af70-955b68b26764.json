@@ -1,0 +1,25 @@
+{
+  "id": "4309e631-e940-4bbd-af70-955b68b26764",
+  "domain_name": "SoundDesign",
+  "directory": "sound_design",
+  "version": "2026.04.10.1",
+  "vision": "Manages sound design projects from concept to final mix",
+  "path": "nursery/sound_design/sound_design.bluebook",
+  "line_count": 121,
+  "aggregate_count": 3,
+  "command_count": 7,
+  "policy_count": 1,
+  "event_count": 7,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "Project",
+    "SoundLibrary",
+    "MixSession"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

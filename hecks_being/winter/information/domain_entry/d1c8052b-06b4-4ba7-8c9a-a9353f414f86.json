@@ -1,0 +1,26 @@
+{
+  "id": "d1c8052b-06b4-4ba7-8c9a-a9353f414f86",
+  "domain_name": "Madhyamaka",
+  "directory": "madhyamaka",
+  "version": "2026.04.09.1",
+  "vision": "The middle way — nothing exists inherently, everything arises dependently. Winter's philosophical ground.",
+  "path": "nursery/madhyamaka/madhyamaka.bluebook",
+  "line_count": 156,
+  "aggregate_count": 4,
+  "command_count": 7,
+  "policy_count": 4,
+  "event_count": 7,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "Emptiness",
+    "TwoTruths",
+    "Designation",
+    "MiddleWay"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

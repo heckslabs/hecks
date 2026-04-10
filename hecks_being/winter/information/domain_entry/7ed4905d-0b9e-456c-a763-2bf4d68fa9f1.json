@@ -1,0 +1,26 @@
+{
+  "id": "7ed4905d-0b9e-456c-a763-2bf4d68fa9f1",
+  "domain_name": "CoworkingSpace",
+  "directory": "coworking_space",
+  "version": "2026.04.09.1",
+  "vision": "Manage a coworking space: memberships, desk bookings, meeting rooms, access control, and billing",
+  "path": "nursery/coworking_space/coworking_space.bluebook",
+  "line_count": 291,
+  "aggregate_count": 4,
+  "command_count": 17,
+  "policy_count": 2,
+  "event_count": 17,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "Member",
+    "Space",
+    "Booking",
+    "AccessLog"
+  ],
+  "sector": "hospitality",
+  "tags": [
+    "hospitality"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

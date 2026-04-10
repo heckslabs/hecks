@@ -1,0 +1,24 @@
+{
+  "id": "eecf501f-5fb5-4143-bc03-0e7bbef76bf3",
+  "domain_name": "DomainAudit",
+  "directory": "domain_audit",
+  "version": "2026.04.09.1",
+  "vision": "Track every domain Winter runs — what was conceived, validated, wired, or rejected",
+  "path": "nursery/domain_audit/domain_audit.bluebook",
+  "line_count": 77,
+  "aggregate_count": 2,
+  "command_count": 4,
+  "policy_count": 1,
+  "event_count": 4,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "RunLog",
+    "DomainHealth"
+  ],
+  "sector": "finance",
+  "tags": [
+    "finance"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

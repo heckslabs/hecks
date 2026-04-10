@@ -1,0 +1,25 @@
+{
+  "id": "76e12032-bf6f-4fce-aaef-fe9dadf6f0d9",
+  "domain_name": "AnesthesiaManagement",
+  "directory": "anesthesia_management",
+  "version": "2026.04.10.1",
+  "vision": "Manages anesthesia assessments, administration, and patient monitoring during procedures",
+  "path": "nursery/anesthesia_management/anesthesia_management.bluebook",
+  "line_count": 146,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "PreopAssessment",
+    "AnesthesiaRecord",
+    "PACURecovery"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "6cfe4e8f-b0ef-4d48-8c79-ee2f7c238245",
+  "domain_name": "CheeseMaking",
+  "directory": "cheese_making",
+  "version": "2026.04.10.1",
+  "vision": "Manages artisan cheese production from milk to aged wheel",
+  "path": "nursery/cheese_making/cheese_making.bluebook",
+  "line_count": 119,
+  "aggregate_count": 3,
+  "command_count": 8,
+  "policy_count": 1,
+  "event_count": 8,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "MilkBatch",
+    "CheeseWheel",
+    "AgingCave"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

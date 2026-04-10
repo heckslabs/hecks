@@ -1,0 +1,26 @@
+{
+  "id": "1d4b1c64-31e8-4e67-ac5a-839a63de7f5b",
+  "domain_name": "CourtCaseManagement",
+  "directory": "court_case_management",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/court_case_management/court_case_management.bluebook",
+  "line_count": 130,
+  "aggregate_count": 4,
+  "command_count": 7,
+  "policy_count": 1,
+  "event_count": 6,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Case",
+    "Filing",
+    "Hearing",
+    "Ruling"
+  ],
+  "sector": "government",
+  "tags": [
+    "government"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

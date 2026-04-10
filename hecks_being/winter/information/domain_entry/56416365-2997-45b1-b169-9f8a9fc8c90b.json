@@ -1,0 +1,25 @@
+{
+  "id": "56416365-2997-45b1-b169-9f8a9fc8c90b",
+  "domain_name": "DebtCollection",
+  "directory": "debt_collection",
+  "version": "2026.04.10.1",
+  "vision": "Manages the collection of delinquent debts from consumers",
+  "path": "nursery/debt_collection/debt_collection.bluebook",
+  "line_count": 132,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "DebtAccount",
+    "PaymentPlan",
+    "DisputeCase"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

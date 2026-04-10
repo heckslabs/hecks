@@ -1,0 +1,24 @@
+{
+  "id": "51de0b0a-82ac-46bb-91c3-fc51c5ce97ae",
+  "domain_name": "ToolCrib",
+  "directory": "tool_crib",
+  "version": "2026.04.10.1",
+  "vision": "Manages tool inventory checkout and return for the machine shop",
+  "path": "nursery/tool_crib/tool_crib.bluebook",
+  "line_count": 92,
+  "aggregate_count": 2,
+  "command_count": 6,
+  "policy_count": 1,
+  "event_count": 6,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "ToolItem",
+    "ToolOrder"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "6223b602-8ac6-48aa-a049-360bd07e7ebb",
+  "domain_name": "CustomsAgency",
+  "directory": "customs_agency",
+  "version": "2026.04.10.1",
+  "vision": "Process declarations, inspect goods, and calculate duties on imports",
+  "path": "nursery/customs_agency/customs_agency.bluebook",
+  "line_count": 60,
+  "aggregate_count": 1,
+  "command_count": 4,
+  "policy_count": 1,
+  "event_count": 4,
+  "lifecycle_count": 1,
+  "aggregate_names": [
+    "Declaration"
+  ],
+  "sector": "government",
+  "tags": [
+    "government"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

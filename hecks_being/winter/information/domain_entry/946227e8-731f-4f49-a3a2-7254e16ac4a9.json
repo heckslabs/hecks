@@ -1,0 +1,25 @@
+{
+  "id": "946227e8-731f-4f49-a3a2-7254e16ac4a9",
+  "domain_name": "SheetMetal",
+  "directory": "sheet_metal",
+  "version": "2026.04.10.1",
+  "vision": "Manages sheet metal fabrication from blank cutting through final forming",
+  "path": "nursery/sheet_metal/sheet_metal.bluebook",
+  "line_count": 125,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "FabricationOrder",
+    "PressBreak",
+    "MaterialSheet"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

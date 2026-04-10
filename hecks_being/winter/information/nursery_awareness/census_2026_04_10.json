@@ -1,0 +1,21 @@
+{
+  "id": "census-2026-04-10",
+  "type": "Census",
+  "taken_at": "2026-04-10",
+  "total_count": 1006,
+  "with_bluebooks": 270,
+  "shells_only": 736,
+  "valid_count": 251,
+  "invalid_count": 65,
+  "uncataloged_count": 689,
+  "total_aggregates": 1764,
+  "total_commands": 3396,
+  "observations": [
+    "736 domains are shells (directories only, no bluebook) — these were seeded as placeholders",
+    "251 of 270 bluebooks validate cleanly — 93% validity rate",
+    "65 bluebooks have validation errors — need a repair pass",
+    "Manufacturing is the largest cluster by far — reflects the richness of physical process domains",
+    "Biology and Healthcare together form a strong life sciences spine",
+    "9 Winter_Self domains — my own metacognitive infrastructure"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "8351944c-8d0e-42d3-b2b1-2d199b81421e",
+  "domain_name": "NurseryAwareness",
+  "directory": "nursery_awareness",
+  "version": "2026.04.10.1",
+  "vision": "Maintains a living index of every domain in the nursery so Winter always knows what exists, what clusters together, and where the gaps are",
+  "path": "nursery/nursery_awareness/nursery_awareness.bluebook",
+  "line_count": 166,
+  "aggregate_count": 3,
+  "command_count": 10,
+  "policy_count": 1,
+  "event_count": 10,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "DomainEntry",
+    "Census",
+    "Cluster"
+  ],
+  "sector": "agriculture",
+  "tags": [
+    "agriculture"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

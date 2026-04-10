@@ -1,0 +1,25 @@
+{
+  "id": "9793cb44-977f-4e2b-87cc-0b95b4462f96",
+  "domain_name": "DieCasting",
+  "directory": "die_casting",
+  "version": "2026.04.10.1",
+  "vision": "Manages die casting operations from alloy preparation through part trimming",
+  "path": "nursery/die_casting/die_casting.bluebook",
+  "line_count": 113,
+  "aggregate_count": 3,
+  "command_count": 8,
+  "policy_count": 1,
+  "event_count": 8,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "CastingRun",
+    "Die",
+    "AlloyBatch"
+  ],
+  "sector": "manufacturing",
+  "tags": [
+    "manufacturing"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

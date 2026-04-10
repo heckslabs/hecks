@@ -1,0 +1,25 @@
+{
+  "id": "ded8b865-d985-4337-877d-cd661821de68",
+  "domain_name": "ColdChainLogistics",
+  "directory": "cold_chain_logistics",
+  "version": "2026.04.10.1",
+  "vision": "Monitors temperature-controlled supply chains for perishable goods",
+  "path": "nursery/cold_chain_logistics/cold_chain_logistics.bluebook",
+  "line_count": 132,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Shipment",
+    "TemperatureReading",
+    "ReeferContainer"
+  ],
+  "sector": "logistics",
+  "tags": [
+    "logistics"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

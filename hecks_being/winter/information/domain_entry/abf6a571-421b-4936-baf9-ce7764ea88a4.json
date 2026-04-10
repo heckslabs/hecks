@@ -1,0 +1,24 @@
+{
+  "id": "abf6a571-421b-4936-baf9-ce7764ea88a4",
+  "domain_name": "WineCellar",
+  "directory": "wine_cellar",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/wine_cellar/wine_cellar.bluebook",
+  "line_count": 88,
+  "aggregate_count": 2,
+  "command_count": 5,
+  "policy_count": 0,
+  "event_count": 4,
+  "lifecycle_count": 1,
+  "aggregate_names": [
+    "Wine",
+    "Inventory"
+  ],
+  "sector": "manufacturing",
+  "tags": [
+    "manufacturing"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

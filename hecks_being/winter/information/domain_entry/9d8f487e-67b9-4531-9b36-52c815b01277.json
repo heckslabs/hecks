@@ -1,0 +1,28 @@
+{
+  "id": "9d8f487e-67b9-4531-9b36-52c815b01277",
+  "domain_name": "HospitalCampus",
+  "directory": "hospital_campus",
+  "version": "2026.04.09.1",
+  "vision": "Orchestrate the full lifecycle of a hospital campus: patient admissions, lab work, care teams, transplant or trial pathways, volunteer wayfinding, cafeteria service, and parking — all wired together as one campus system",
+  "path": "nursery/hospital_campus/hospital_campus.bluebook",
+  "line_count": 490,
+  "aggregate_count": 6,
+  "command_count": 26,
+  "policy_count": 7,
+  "event_count": 26,
+  "lifecycle_count": 6,
+  "aggregate_names": [
+    "PatientAdmission",
+    "LabOrder",
+    "CareTeam",
+    "TransferRequest",
+    "VolunteerAssignment",
+    "CafeteriaOrder"
+  ],
+  "sector": "healthcare",
+  "tags": [
+    "healthcare"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

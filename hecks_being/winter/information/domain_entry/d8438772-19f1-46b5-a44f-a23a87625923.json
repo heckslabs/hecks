@@ -1,0 +1,28 @@
+{
+  "id": "d8438772-19f1-46b5-a44f-a23a87625923",
+  "domain_name": "Veterinary",
+  "directory": "veterinary",
+  "version": "2026.04.09.1",
+  "vision": "Manage a veterinary clinic: patients, appointments, treatments, prescriptions, and billing",
+  "path": "nursery/veterinary/veterinary.bluebook",
+  "line_count": 410,
+  "aggregate_count": 6,
+  "command_count": 24,
+  "policy_count": 2,
+  "event_count": 24,
+  "lifecycle_count": 5,
+  "aggregate_names": [
+    "Owner",
+    "Patient",
+    "Appointment",
+    "Treatment",
+    "Prescription",
+    "Invoice"
+  ],
+  "sector": "veterinary",
+  "tags": [
+    "veterinary"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

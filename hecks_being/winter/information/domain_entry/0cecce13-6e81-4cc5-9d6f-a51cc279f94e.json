@@ -1,0 +1,26 @@
+{
+  "id": "0cecce13-6e81-4cc5-9d6f-a51cc279f94e",
+  "domain_name": "MovieTheaterChain",
+  "directory": "movie_theater_chain",
+  "version": "2026.04.09.1",
+  "vision": "Manage a movie theater chain: locations, screens, showtimes, ticket sales, concessions, and audience analytics",
+  "path": "nursery/movie_theater_chain/movie_theater_chain.bluebook",
+  "line_count": 280,
+  "aggregate_count": 4,
+  "command_count": 16,
+  "policy_count": 2,
+  "event_count": 16,
+  "lifecycle_count": 4,
+  "aggregate_names": [
+    "Theater",
+    "Showing",
+    "Ticket",
+    "ConcessionOrder"
+  ],
+  "sector": "entertainment",
+  "tags": [
+    "entertainment"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

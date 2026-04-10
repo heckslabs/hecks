@@ -1,0 +1,26 @@
+{
+  "id": "8f587235-bcaf-4ede-a6cd-4be5da62e03b",
+  "domain_name": "DigestiveSystem",
+  "directory": "digestive_system",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/digestive_system/digestive_system.bluebook",
+  "line_count": 126,
+  "aggregate_count": 4,
+  "command_count": 7,
+  "policy_count": 3,
+  "event_count": 7,
+  "lifecycle_count": 1,
+  "aggregate_names": [
+    "Food",
+    "Enzyme",
+    "Absorption",
+    "Microbiome"
+  ],
+  "sector": "environment",
+  "tags": [
+    "environment"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "f92e6910-7ecf-4442-b718-510b99649028",
+  "domain_name": "HecksConception",
+  "directory": "hecks",
+  "version": "2026.04.09.1",
+  "vision": "Conceive new domains from archetypes and patterns in seconds",
+  "path": "nursery/hecks/conception.bluebook",
+  "line_count": 228,
+  "aggregate_count": 4,
+  "command_count": 14,
+  "policy_count": 6,
+  "event_count": 9,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Archetype",
+    "Seed",
+    "Embryo",
+    "Bluebook"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

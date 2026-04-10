@@ -1,0 +1,33 @@
+{
+  "id": "f2ac099f-6939-428e-a2a1-2acb7d13caff",
+  "domain_name": "Templating",
+  "directory": "hecks",
+  "version": "2026.04.09.1",
+  "vision": null,
+  "path": "nursery/hecks/templating.bluebook",
+  "line_count": 70,
+  "aggregate_count": 11,
+  "command_count": 14,
+  "policy_count": 0,
+  "event_count": 0,
+  "lifecycle_count": 0,
+  "aggregate_names": [
+    "NamingHelpers",
+    "SmokeTest",
+    "EventChecks",
+    "BehaviorTests",
+    "FormSubmission",
+    "QueryTests",
+    "PolicyTests",
+    "LifecycleTests",
+    "NegativeTests",
+    "EndpointTests",
+    "DomainLookups"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

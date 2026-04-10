@@ -1,0 +1,25 @@
+{
+  "id": "0ad771a7-d353-4172-8cb0-c34633d4a6d8",
+  "domain_name": "ComicBookPublishing",
+  "directory": "comic_book_publishing",
+  "version": "2026.04.10.1",
+  "vision": "Manages comic book creation from script to printed issue",
+  "path": "nursery/comic_book_publishing/comic_book_publishing.bluebook",
+  "line_count": 110,
+  "aggregate_count": 3,
+  "command_count": 6,
+  "policy_count": 1,
+  "event_count": 6,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "Series",
+    "CreativeTeam",
+    "PrintRun"
+  ],
+  "sector": "media",
+  "tags": [
+    "media"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

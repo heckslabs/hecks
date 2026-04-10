@@ -1,0 +1,23 @@
+{
+  "id": "f793ea5f-698e-48d8-a486-661f72cb7a6c",
+  "domain_name": "GeneticCounseling",
+  "directory": "genetic_counseling",
+  "version": "2026.04.10.1",
+  "vision": "Manage risk assessment, genetic test ordering, family history, and recommendations",
+  "path": "nursery/genetic_counseling/genetic_counseling.bluebook",
+  "line_count": 59,
+  "aggregate_count": 1,
+  "command_count": 4,
+  "policy_count": 1,
+  "event_count": 4,
+  "lifecycle_count": 1,
+  "aggregate_names": [
+    "CounselingSession"
+  ],
+  "sector": "science",
+  "tags": [
+    "science"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

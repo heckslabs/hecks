@@ -1,0 +1,25 @@
+{
+  "id": "39639562-0a23-4f25-a6a9-c3fd33372b1c",
+  "domain_name": "PrintOnDemand",
+  "directory": "print_on_demand",
+  "version": "2026.04.10.1",
+  "vision": "Manages print-on-demand production from artwork to fulfillment",
+  "path": "nursery/print_on_demand/print_on_demand.bluebook",
+  "line_count": 113,
+  "aggregate_count": 3,
+  "command_count": 6,
+  "policy_count": 1,
+  "event_count": 6,
+  "lifecycle_count": 3,
+  "aggregate_names": [
+    "Product",
+    "PrintOrder",
+    "PrintJob"
+  ],
+  "sector": "manufacturing",
+  "tags": [
+    "manufacturing"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

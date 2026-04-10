@@ -1,0 +1,9 @@
+{
+  "id": "ac1b867b-a9d2-408c-9faa-61f7ce302899",
+  "source_domain": "MovieTheaterChain",
+  "target_domain": "ParkingGarage",
+  "relationship": "shared_concept",
+  "through": "Ticket",
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-09T21:57:05-07:00"
+}

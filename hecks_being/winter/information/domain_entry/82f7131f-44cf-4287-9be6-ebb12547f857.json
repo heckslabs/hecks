@@ -1,0 +1,25 @@
+{
+  "id": "82f7131f-44cf-4287-9be6-ebb12547f857",
+  "domain_name": "ContainerShipping",
+  "directory": "container_shipping",
+  "version": "2026.04.10.1",
+  "vision": "Manages ocean container bookings, vessel assignments, and port-to-port logistics",
+  "path": "nursery/container_shipping/container_shipping.bluebook",
+  "line_count": 134,
+  "aggregate_count": 3,
+  "command_count": 9,
+  "policy_count": 1,
+  "event_count": 9,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Booking",
+    "Container",
+    "Vessel"
+  ],
+  "sector": "logistics",
+  "tags": [
+    "logistics"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "06df2d3d-8d74-42c4-a031-f6746580cfbd",
+  "domain_name": "LastMileDelivery",
+  "directory": "last_mile_delivery",
+  "version": "2026.04.10.1",
+  "vision": "Manages final-leg package delivery from hub to customer doorstep",
+  "path": "nursery/last_mile_delivery/last_mile_delivery.bluebook",
+  "line_count": 146,
+  "aggregate_count": 3,
+  "command_count": 10,
+  "policy_count": 1,
+  "event_count": 10,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "DeliveryOrder",
+    "Courier",
+    "DeliveryRoute"
+  ],
+  "sector": "chemical",
+  "tags": [
+    "chemical"
+  ],
+  "created_at": "2026-04-10T01:17:28-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

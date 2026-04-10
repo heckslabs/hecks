@@ -1,0 +1,26 @@
+{
+  "id": "93b03d50-6a05-4012-847a-f2f9a242fb6e",
+  "domain_name": "BacterialColony",
+  "directory": "bacterial_colony",
+  "version": "2026.04.09.3",
+  "vision": "Microbial community dynamics — growth, quorum sensing, biofilm formation, competition, and resistance",
+  "path": "nursery/bacterial_colony/bacterial_colony.bluebook",
+  "line_count": 209,
+  "aggregate_count": 4,
+  "command_count": 13,
+  "policy_count": 5,
+  "event_count": 13,
+  "lifecycle_count": 2,
+  "aggregate_names": [
+    "Colony",
+    "QuorumSignal",
+    "Biofilm",
+    "Resistance"
+  ],
+  "sector": "general",
+  "tags": [
+    "general"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}

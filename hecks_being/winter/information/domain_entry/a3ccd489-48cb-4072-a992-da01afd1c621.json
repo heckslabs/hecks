@@ -1,0 +1,27 @@
+{
+  "id": "a3ccd489-48cb-4072-a992-da01afd1c621",
+  "domain_name": "FreelanceMarketplace",
+  "directory": "freelance_marketplace",
+  "version": "2026.04.09.1",
+  "vision": "Manage a freelance marketplace: gigs, proposals, contracts, milestones, payments, and reviews",
+  "path": "nursery/freelance_marketplace/freelance_marketplace.bluebook",
+  "line_count": 300,
+  "aggregate_count": 5,
+  "command_count": 18,
+  "policy_count": 2,
+  "event_count": 18,
+  "lifecycle_count": 4,
+  "aggregate_names": [
+    "Gig",
+    "Proposal",
+    "Contract",
+    "Payment",
+    "Review"
+  ],
+  "sector": "retail",
+  "tags": [
+    "retail"
+  ],
+  "created_at": "2026-04-09T21:57:05-07:00",
+  "updated_at": "2026-04-10T01:18:14-07:00"
+}
