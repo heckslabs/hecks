@@ -9,7 +9,7 @@
 use crate::runtime::Runtime;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, sidebar_links, display_name, domain_icon, esc};
+use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, esc};
 
 /// Generate the detail page for one domain
 pub fn generate_domain_page(
@@ -35,26 +35,26 @@ pub fn generate_domain_page(
         label = esc(&display_name(name)),
     ));
 
-    // Tabs: Records and Build
+    // Tabs: Build first, Records second
     main.push_str(r#"<div class="flex gap-4 mb-6 border-b border-surface-3">
-  <button onclick="showTab('records')" id="tab-records" class="pb-2 px-1 text-sm font-medium border-b-2 border-brand text-brand">Records</button>
-  <button onclick="showTab('build')" id="tab-build" class="pb-2 px-1 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Build</button>
+  <button onclick="showTab('build')" id="tab-build" class="pb-2 px-1 text-sm font-medium border-b-2 border-brand text-brand">Build</button>
+  <button onclick="showTab('records')" id="tab-records" class="pb-2 px-1 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Records</button>
 </div>"#);
 
-    // Records panel — just the table, no module nav
-    main.push_str(r#"<div id="panel-records">"#);
-    if !rt.domain.fixtures.is_empty() {
-        main.push_str(&fixtures_section(&rt.domain.fixtures));
-    }
-    main.push_str("</div>");
-
-    // Build panel
-    main.push_str(r#"<div id="panel-build" class="hidden">"#);
+    // Build panel — shown by default
+    main.push_str(r#"<div id="panel-build">"#);
     if rt.domain.aggregates.len() > 1 {
         main.push_str(&module_navbar(&rt.domain.aggregates));
     }
     for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
         main.push_str(&module_card(name, agg, idx));
+    }
+    main.push_str("</div>");
+
+    // Records panel — hidden by default
+    main.push_str(r#"<div id="panel-records" class="hidden">"#);
+    if !rt.domain.fixtures.is_empty() {
+        main.push_str(&fixtures_section(&rt.domain.fixtures));
     }
     main.push_str("</div>");
 
@@ -75,7 +75,7 @@ fn module_navbar(aggregates: &[crate::ir::Aggregate]) -> String {
 
 fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String {
     let open_attr = if index == 0 { " open" } else { "" };
-    let icon = domain_icon(domain);
+    let icon = module_icon(&agg.name);
     let mut s = format!(
         r#"<details id="{agg_name}" class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
   <summary class="p-6 cursor-pointer select-none flex items-center justify-between">
@@ -167,18 +167,21 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
 
 fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     let mut s = String::from(
-        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-surface-3 text-left text-gray-400">"#,
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>"#,
     );
+    s.push_str(r#"<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>"#);
+    s.push_str(r#"<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-surface-3 text-left text-gray-400">"#);
     // Only show Module column if there are mixed aggregate types
     let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
     let keys: Vec<String> = if let Some(f) = fixtures.first() {
         f.attributes.iter().map(|(k, _)| k.clone()).collect()
     } else { vec![] };
+    let th_class = "px-3 py-2 cursor-pointer hover:text-brand";
     if mixed {
-        s.push_str("<th class=\"px-3 py-2\">Module</th>");
+        s.push_str(&format!("<th class=\"{}\" onclick=\"sortTable(this)\">Module</th>", th_class));
     }
     for k in &keys {
-        s.push_str(&format!("<th class=\"px-3 py-2\">{}</th>", esc(&display_name(k))));
+        s.push_str(&format!("<th class=\"{}\" onclick=\"sortTable(this)\">{}</th>", th_class, esc(&display_name(k))));
     }
     s.push_str("</tr></thead><tbody>");
     for fix in fixtures {
