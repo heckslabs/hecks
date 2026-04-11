@@ -46,11 +46,16 @@ pub fn extract_vector(domain: &Domain) -> Vec<f64> {
     ]
 }
 
-/// Cosine similarity between two vectors. Returns 0.0 for zero-magnitude vectors.
+/// Weighted cosine similarity. Aggregate count and commands/agg weighted 3x
+/// to prefer domains of similar size over domains with similar ratios.
 pub fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
-    let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let mag_a: f64 = a.iter().map(|x| x * x).sum::<f64>().sqrt();
-    let mag_b: f64 = b.iter().map(|x| x * x).sum::<f64>().sqrt();
+    // Weights: [aggs, cmds/agg, VOs, policies, refs, lifecycles, lists, givens, fixtures]
+    let weights = [3.0, 3.0, 1.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0];
+    let wa: Vec<f64> = a.iter().zip(weights.iter()).map(|(x, w)| x * w).collect();
+    let wb: Vec<f64> = b.iter().zip(weights.iter()).map(|(x, w)| x * w).collect();
+    let dot: f64 = wa.iter().zip(wb.iter()).map(|(x, y)| x * y).sum();
+    let mag_a: f64 = wa.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let mag_b: f64 = wb.iter().map(|x| x * x).sum::<f64>().sqrt();
     if mag_a == 0.0 || mag_b == 0.0 {
         return 0.0;
     }
@@ -76,7 +81,7 @@ pub fn seed_from_description(vision: &str) -> Vec<f64> {
     base.iter()
         .enumerate()
         .map(|(i, b)| {
-            let hint_max: f64 = matched.iter().map(|v| v[i]).fold(0.0_f64, |a, b| a.max(*b));
+            let hint_max: f64 = matched.iter().map(|v| v[i]).fold(0.0_f64, f64::max);
             b.max(hint_max)
         })
         .collect()

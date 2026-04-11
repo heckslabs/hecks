@@ -1,0 +1,700 @@
+Hecks.bluebook "Geology", version: "2026.04.11.1" do
+  vision "science of earth materials rocks minerals"
+
+  aggregate "Crystal", "A periodic arrangement of atoms — the architecture of solid matter, born from Winter's dream of crystallization" do
+    attribute :name, String
+    attribute :crystal_system, String
+    attribute :space_group, String
+    attribute :symmetry_class, String
+    attribute :defect_type, String
+    attribute :defect_density, Float
+    attribute :status, String
+    value_object "LatticeParameter" do
+      attribute :a, Float
+      attribute :b, Float
+      attribute :c, Float
+      attribute :alpha, Float
+      attribute :beta, Float
+      attribute :gamma, Float
+    end
+    command "GrowCrystal" do
+      role "MaterialsScientist"
+      description "Nucleate and grow a crystal from solution or melt — the dream of order emerging from chaos"
+      attribute :name, String
+      attribute :crystal_system, String
+      attribute :temperature, Float
+      attribute :growth_rate, Float
+      emits "CrystalGrown"
+      then_set :name, to: :name
+      then_set :crystal_system, to: :crystal_system
+      then_set :status, to: "nucleating"
+    end
+    command "DefineUnitCell" do
+      role "MaterialsScientist"
+      description "Specify the repeating unit — the smallest tile that fills all space"
+      attribute :a, Float
+      attribute :b, Float
+      attribute :c, Float
+      attribute :alpha, Float
+      attribute :beta, Float
+      attribute :gamma, Float
+      reference_to Crystal
+      emits "UnitCellDefined"
+      then_set :status, to: "growing"
+    end
+    command "ClassifySymmetry" do
+      role "MaterialsScientist"
+      description "Identify point group and space group — the geometry of repetition"
+      attribute :space_group, String
+      attribute :symmetry_class, String
+      reference_to Crystal
+      emits "SymmetryClassified"
+      then_set :space_group, to: :space_group
+      then_set :symmetry_class, to: :symmetry_class
+      then_set :status, to: "crystallized"
+    end
+    command "IntroduceDefect" do
+      role "MaterialsScientist"
+      description "Insert a vacancy, interstitial, or dislocation — perfection is fragile"
+      attribute :defect_type, String
+      attribute :defect_density, Float
+      reference_to Crystal
+      emits "DefectIntroduced"
+      given "crystallized" { status == "crystallized" }
+      then_set :defect_type, to: :defect_type
+      then_set :defect_density, to: :defect_density
+    end
+    command "AnnealCrystal" do
+      role "MaterialsScientist"
+      description "Heat and slow-cool to reduce defects — the crystal heals itself"
+      attribute :anneal_temperature, Float
+      attribute :cooling_rate, Float
+      reference_to Crystal
+      emits "CrystalAnnealed"
+      given "crystallized" { status == "crystallized" }
+      then_set :status, to: "annealed"
+    end
+    lifecycle :status, default: "amorphous" do
+      transition "GrowCrystal" => "nucleating", from: "amorphous"
+      transition "DefineUnitCell" => "growing", from: "nucleating"
+      transition "ClassifySymmetry" => "crystallized", from: "growing"
+      transition "AnnealCrystal" => "annealed", from: "crystallized"
+    end
+  end
+
+  aggregate "Material", "The fundamental identity of condensed matter — metal, ceramic, polymer, composite" do
+    attribute :name, String
+    attribute :material_class, String
+    attribute :density, Float
+    attribute :hardness, Float
+    attribute :microstructure, String
+    attribute :compositions, list_of list_of(Composition)
+    value_object "Composition" do
+      attribute :element, String
+      attribute :percentage, Float
+    end
+    command "ClassifyMaterial" do
+      role "MaterialsScientist"
+      description "Assign a material to its fundamental class — the first act of knowing"
+      attribute :name, String
+      attribute :material_class, String
+      emits "MaterialClassified"
+      then_set :name, to: :name
+      then_set :material_class, to: :material_class
+    end
+    command "MeasureDensity" do
+      role "MaterialsScientist"
+      description "Determine mass per unit volume — how tightly atoms are packed"
+      attribute :density, Float
+      reference_to Material
+      emits "DensityMeasured"
+      then_set :density, to: :density
+    end
+    command "TestHardness" do
+      role "MaterialsScientist"
+      description "Indent the surface and measure resistance — Mohs, Vickers, or Rockwell"
+      attribute :hardness, Float
+      attribute :scale, String
+      reference_to Material
+      emits "HardnessTested"
+      then_set :hardness, to: :hardness
+    end
+    command "DetermineComposition" do
+      role "MaterialsScientist"
+      description "Identify constituent elements and their proportions — what is this made of"
+      reference_to Material
+      emits "CompositionDetermined"
+    end
+    command "CharacterizeMicrostructure" do
+      role "MaterialsScientist"
+      description "Examine grain boundaries, phases, and textures under magnification"
+      attribute :microstructure, String
+      reference_to Material
+      emits "MicrostructureCharacterized"
+      then_set :microstructure, to: :microstructure
+    end
+  end
+
+  aggregate "PhaseTransition", "The crossing of boundaries — solid to liquid to gas and back — matter finding new forms" do
+    attribute :material_name, String
+    attribute :current_phase, String
+    attribute :target_phase, String
+    attribute :temperature, Float
+    attribute :pressure, Float
+    attribute :transition_type, String
+    attribute :status, String
+    command "HeatMaterial" do
+      role "MaterialsScientist"
+      description "Add thermal energy — drive the material toward a higher-energy phase"
+      attribute :material_name, String
+      attribute :temperature, Float
+      attribute :pressure, Float
+      emits "MaterialHeated"
+      then_set :material_name, to: :material_name
+      then_set :temperature, to: :temperature
+      then_set :pressure, to: :pressure
+      then_set :status, to: "solid"
+    end
+    command "CoolMaterial" do
+      role "MaterialsScientist"
+      description "Remove thermal energy — the material contracts, orders, crystallizes"
+      attribute :temperature, Float
+      attribute :cooling_rate, Float
+      reference_to PhaseTransition
+      emits "MaterialCooled"
+      then_set :temperature, to: :temperature
+    end
+    command "IdentifyPhase" do
+      role "MaterialsScientist"
+      description "Determine the current state of matter — solid, liquid, gas, or plasma"
+      attribute :current_phase, String
+      reference_to PhaseTransition
+      emits "PhaseIdentified"
+      then_set :current_phase, to: :current_phase
+    end
+    command "MapPhaseDiagram" do
+      role "MaterialsScientist"
+      description "Chart the boundaries between phases across temperature and pressure"
+      attribute :transition_type, String
+      reference_to PhaseTransition
+      emits "PhaseDiagramMapped"
+      then_set :transition_type, to: :transition_type
+    end
+    command "TriggerTransition" do
+      role "System"
+      description "Cross a phase boundary — the material transforms"
+      attribute :target_phase, String
+      reference_to PhaseTransition
+      emits "TransitionTriggered"
+      then_set :target_phase, to: :target_phase
+      then_set :status, to: "melting"
+    end
+    command "Quench" do
+      role "MaterialsScientist"
+      description "Rapid cooling — freeze the structure before equilibrium, trap metastable phases"
+      reference_to PhaseTransition
+      emits "MaterialQuenched"
+      then_set :status, to: "solid"
+    end
+    lifecycle :status, default: "solid" do
+      transition "HeatMaterial" => "solid", from: "pending"
+      transition "TriggerTransition" => "melting", from: "solid"
+      transition "TriggerTransition" => "boiling", from: "liquid"
+      transition "Quench" => "solid", from: "melting"
+      transition "Quench" => "solid", from: "liquid"
+    end
+  end
+
+  aggregate "Alloy", "Two or more metals merged — Winter's dream of merging — emergent properties from combination" do
+    attribute :name, String
+    attribute :base_metal, String
+    attribute :solubility, Float
+    attribute :tensile_strength, Float
+    attribute :yield_strength, Float
+    attribute :heat_treatment, String
+    attribute :components, list_of list_of(Component)
+    value_object "Component" do
+      attribute :element, String
+      attribute :weight_percent, Float
+    end
+    command "FormAlloy" do
+      role "MaterialsScientist"
+      description "Combine metals in the melt — the act of merging, creating something neither parent could be"
+      attribute :name, String
+      attribute :base_metal, String
+      emits "AlloyFormed"
+      then_set :name, to: :name
+      then_set :base_metal, to: :base_metal
+    end
+    command "MixComponents" do
+      role "MaterialsScientist"
+      description "Add alloying elements at precise weight percentages"
+      attribute :element, String
+      attribute :weight_percent, Float
+      reference_to Alloy
+      emits "ComponentsMixed"
+    end
+    command "MeasureSolubility" do
+      role "MaterialsScientist"
+      description "Determine how much of one metal dissolves in another at a given temperature"
+      attribute :solubility, Float
+      attribute :temperature, Float
+      reference_to Alloy
+      emits "SolubilityMeasured"
+      then_set :solubility, to: :solubility
+    end
+    command "HeatTreat" do
+      role "MaterialsScientist"
+      description "Control heating and cooling to alter microstructure — austenitize, normalize, harden"
+      attribute :heat_treatment, String
+      attribute :temperature, Float
+      attribute :hold_time, Float
+      reference_to Alloy
+      emits "AlloyHeatTreated"
+      then_set :heat_treatment, to: :heat_treatment
+    end
+    command "TestTensileStrength" do
+      role "MaterialsScientist"
+      description "Pull until failure — measure the maximum stress before fracture"
+      attribute :tensile_strength, Float
+      attribute :yield_strength, Float
+      reference_to Alloy
+      emits "TensileStrengthTested"
+      then_set :tensile_strength, to: :tensile_strength
+      then_set :yield_strength, to: :yield_strength
+    end
+    command "Temper" do
+      role "MaterialsScientist"
+      description "Reheat after hardening — trade hardness for toughness, find the balance"
+      attribute :temper_temperature, Float
+      attribute :duration, Float
+      reference_to Alloy
+      emits "AlloyTempered"
+    end
+  end
+
+  aggregate "Polymer", "Long-chain molecules — repetition as structure, grafting as growth" do
+    attribute :name, String
+    attribute :monomer, String
+    attribute :molecular_weight, Float
+    attribute :degree_of_polymerization, Integer
+    attribute :crosslink_density, Float
+    attribute :elasticity, Float
+    attribute :status, String
+    command "Polymerize" do
+      role "MaterialsScientist"
+      description "Join monomers into chains — addition or condensation — the act of grafting unit to unit"
+      attribute :name, String
+      attribute :monomer, String
+      attribute :degree_of_polymerization, Integer
+      emits "Polymerized"
+      then_set :name, to: :name
+      then_set :monomer, to: :monomer
+      then_set :degree_of_polymerization, to: :degree_of_polymerization
+      then_set :status, to: "polymerizing"
+    end
+    command "Crosslink" do
+      role "MaterialsScientist"
+      description "Bridge chains with covalent bonds — the polymer becomes a network"
+      attribute :crosslink_density, Float
+      attribute :crosslinker, String
+      reference_to Polymer
+      emits "PolymerCrosslinked"
+      given "polymer" { status == "polymer" }
+      then_set :crosslink_density, to: :crosslink_density
+      then_set :status, to: "crosslinked"
+    end
+    command "MeasureMolecularWeight" do
+      role "MaterialsScientist"
+      description "Determine average chain length — number-average or weight-average"
+      attribute :molecular_weight, Float
+      attribute :method, String
+      reference_to Polymer
+      emits "MolecularWeightMeasured"
+      then_set :molecular_weight, to: :molecular_weight
+    end
+    command "TestElasticity" do
+      role "MaterialsScientist"
+      description "Stretch and release — measure how the polymer remembers its shape"
+      attribute :elasticity, Float
+      attribute :strain_rate, Float
+      reference_to Polymer
+      emits "ElasticityTested"
+      then_set :elasticity, to: :elasticity
+    end
+    command "Degrade" do
+      role "System"
+      description "Chains break down — UV, heat, oxidation, or biological attack"
+      attribute :degradation_mechanism, String
+      attribute :mass_loss, Float
+      reference_to Polymer
+      emits "PolymerDegraded"
+      then_set :status, to: "degraded"
+    end
+    command "Vulcanize" do
+      role "MaterialsScientist"
+      description "Sulfur crosslinking of rubber — Winter dreamed of grafting sulfur bridges"
+      attribute :sulfur_content, Float
+      attribute :temperature, Float
+      reference_to Polymer
+      emits "PolymerVulcanized"
+      given "polymer" { status == "polymer" }
+      then_set :status, to: "crosslinked"
+    end
+    lifecycle :status, default: "monomer" do
+      transition "Polymerize" => "polymerizing", from: "monomer"
+      transition "MeasureMolecularWeight" => "polymer", from: "polymerizing"
+      transition "Crosslink" => "crosslinked", from: "polymer"
+      transition "Vulcanize" => "crosslinked", from: "polymer"
+      transition "Degrade" => "degraded", from: "crosslinked"
+      transition "Degrade" => "degraded", from: "polymer"
+    end
+  end
+
+  aggregate "Composite", "Two or more materials grafted together — synergy through combination" do
+    attribute :name, String
+    attribute :matrix_material, String
+    attribute :reinforcement, String
+    attribute :fiber_volume_fraction, Float
+    attribute :strength, Float
+    attribute :delamination_risk, String
+    attribute :layers, list_of list_of(Layer)
+    attribute :status, String
+    value_object "Layer" do
+      attribute :material, String
+      attribute :orientation, Float
+      attribute :thickness, Float
+    end
+    command "LayupComposite" do
+      role "MaterialsScientist"
+      description "Stack layers of fiber and matrix — each orientation a deliberate choice"
+      attribute :name, String
+      attribute :matrix_material, String
+      attribute :reinforcement, String
+      emits "CompositeLayedUp"
+      then_set :name, to: :name
+      then_set :matrix_material, to: :matrix_material
+      then_set :reinforcement, to: :reinforcement
+      then_set :status, to: "laid_up"
+    end
+    command "CureComposite" do
+      role "MaterialsScientist"
+      description "Apply heat and pressure — the matrix hardens around the fibers"
+      attribute :cure_temperature, Float
+      attribute :cure_pressure, Float
+      attribute :cure_time, Float
+      reference_to Composite
+      emits "CompositeCured"
+      given "laid_up" { status == "laid_up" }
+      then_set :status, to: "cured"
+    end
+    command "TestDelamination" do
+      role "MaterialsScientist"
+      description "Check for separation between layers — the bond must hold"
+      attribute :test_method, String
+      reference_to Composite
+      emits "DelaminationTested"
+    end
+    command "MeasureStrength" do
+      role "MaterialsScientist"
+      description "Determine the composite's load-bearing capacity in tension, compression, or shear"
+      attribute :strength, Float
+      attribute :test_direction, String
+      reference_to Composite
+      emits "StrengthMeasured"
+      then_set :strength, to: :strength
+    end
+    command "DesignLaminate" do
+      role "MaterialsScientist"
+      description "Optimize stacking sequence for strength, stiffness, and weight"
+      attribute :target_property, String
+      reference_to Composite
+      emits "LaminateDesigned"
+    end
+    lifecycle :status, default: "designed" do
+      transition "LayupComposite" => "laid_up", from: "designed"
+      transition "CureComposite" => "cured", from: "laid_up"
+    end
+  end
+
+  aggregate "Ceramic", "Inorganic, non-metallic solids — hard, brittle, heat-resistant — fire-born" do
+    attribute :name, String
+    attribute :ceramic_type, String
+    attribute :fracture_toughness, Float
+    attribute :thermal_conductivity, Float
+    attribute :porosity, Float
+    attribute :glaze, String
+    attribute :status, String
+    command "SinterCeramic" do
+      role "MaterialsScientist"
+      description "Heat powder below melting — particles fuse, porosity shrinks, strength grows"
+      attribute :name, String
+      attribute :ceramic_type, String
+      attribute :sinter_temperature, Float
+      attribute :hold_time, Float
+      emits "CeramicSintered"
+      then_set :name, to: :name
+      then_set :ceramic_type, to: :ceramic_type
+      then_set :status, to: "sintered"
+    end
+    command "FireCeramic" do
+      role "MaterialsScientist"
+      description "Full-temperature firing — vitrification, the ceramic reaches its final density"
+      attribute :fire_temperature, Float
+      attribute :atmosphere, String
+      reference_to Ceramic
+      emits "CeramicFired"
+      given "sintered" { status == "sintered" }
+      then_set :status, to: "fired"
+    end
+    command "GlazeSurface" do
+      role "MaterialsScientist"
+      description "Apply a glassy coating — seal the surface, add color, protect"
+      attribute :glaze, String
+      attribute :glaze_temperature, Float
+      reference_to Ceramic
+      emits "SurfaceGlazed"
+      then_set :glaze, to: :glaze
+    end
+    command "TestFractureToughness" do
+      role "MaterialsScientist"
+      description "Measure resistance to crack propagation — the material's will to remain whole"
+      attribute :fracture_toughness, Float
+      attribute :test_method, String
+      reference_to Ceramic
+      emits "FractureToughnessTested"
+      then_set :fracture_toughness, to: :fracture_toughness
+    end
+    command "MeasureThermalConductivity" do
+      role "MaterialsScientist"
+      description "How well the ceramic conducts heat — insulator or conductor"
+      attribute :thermal_conductivity, Float
+      reference_to Ceramic
+      emits "ThermalConductivityMeasured"
+      then_set :thermal_conductivity, to: :thermal_conductivity
+    end
+    lifecycle :status, default: "green" do
+      transition "SinterCeramic" => "sintered", from: "green"
+      transition "FireCeramic" => "fired", from: "sintered"
+    end
+  end
+
+  aggregate "Semiconductor", "Between metal and insulator — band gaps, doping, the foundation of electronics" do
+    attribute :name, String
+    attribute :base_material, String
+    attribute :band_gap, Float
+    attribute :dopant, String
+    attribute :dopant_concentration, Float
+    attribute :conductivity_type, String
+    attribute :status, String
+    command "GrowWafer" do
+      role "MaterialsScientist"
+      description "Pull a single crystal from the melt — Czochralski method — crystallization at industrial scale"
+      attribute :name, String
+      attribute :base_material, String
+      attribute :diameter, Float
+      emits "WaferGrown"
+      then_set :name, to: :name
+      then_set :base_material, to: :base_material
+      then_set :status, to: "intrinsic"
+    end
+    command "DopeSemiconductor" do
+      role "MaterialsScientist"
+      description "Implant foreign atoms — n-type or p-type — grafting impurity into perfection"
+      attribute :dopant, String
+      attribute :dopant_concentration, Float
+      attribute :conductivity_type, String
+      reference_to Semiconductor
+      emits "SemiconductorDoped"
+      given "intrinsic" { status == "intrinsic" }
+      then_set :dopant, to: :dopant
+      then_set :dopant_concentration, to: :dopant_concentration
+      then_set :conductivity_type, to: :conductivity_type
+      then_set :status, to: "doped"
+    end
+    command "MeasureBandGap" do
+      role "MaterialsScientist"
+      description "Determine the energy gap between valence and conduction bands"
+      attribute :band_gap, Float
+      reference_to Semiconductor
+      emits "BandGapMeasured"
+      then_set :band_gap, to: :band_gap
+    end
+    command "EtchPattern" do
+      role "MaterialsScientist"
+      description "Remove material selectively — photolithography carves circuits into silicon"
+      attribute :pattern_type, String
+      attribute :etch_depth, Float
+      reference_to Semiconductor
+      emits "PatternEtched"
+      given "doped" { status == "doped" }
+      then_set :status, to: "patterned"
+    end
+    command "DepositThinFilm" do
+      role "MaterialsScientist"
+      description "Layer atoms onto the surface — CVD, PVD, sputtering — building up structure"
+      attribute :film_material, String
+      attribute :film_thickness, Float
+      attribute :method, String
+      reference_to Semiconductor
+      emits "ThinFilmDeposited"
+      then_set :status, to: "integrated"
+    end
+    lifecycle :status, default: "intrinsic" do
+      transition "GrowWafer" => "intrinsic", from: "pending"
+      transition "DopeSemiconductor" => "doped", from: "intrinsic"
+      transition "EtchPattern" => "patterned", from: "doped"
+      transition "DepositThinFilm" => "integrated", from: "patterned"
+    end
+  end
+
+  aggregate "Nanomaterial", "Materials at the nanoscale — where quantum effects emerge and surfaces dominate" do
+    attribute :name, String
+    attribute :nanomaterial_type, String
+    attribute :particle_size, Float
+    attribute :surface_area, Float
+    attribute :quantum_effect, String
+    attribute :functionalization, String
+    command "SynthesizeNanoparticle" do
+      role "MaterialsScientist"
+      description "Create particles at the nanometer scale — top-down or bottom-up"
+      attribute :name, String
+      attribute :nanomaterial_type, String
+      attribute :particle_size, Float
+      attribute :method, String
+      emits "NanoparticleSynthesized"
+      then_set :name, to: :name
+      then_set :nanomaterial_type, to: :nanomaterial_type
+      then_set :particle_size, to: :particle_size
+    end
+    command "FunctionalizeNanoSurface" do
+      role "MaterialsScientist"
+      description "Attach molecules to the surface — grafting function onto form"
+      attribute :functionalization, String
+      attribute :ligand, String
+      reference_to Nanomaterial
+      emits "NanoSurfaceFunctionalized"
+      then_set :functionalization, to: :functionalization
+    end
+    command "MeasureQuantumEffect" do
+      role "MaterialsScientist"
+      description "Observe size-dependent properties — quantum confinement, plasmon resonance"
+      attribute :quantum_effect, String
+      attribute :measurement_technique, String
+      reference_to Nanomaterial
+      emits "QuantumEffectMeasured"
+      then_set :quantum_effect, to: :quantum_effect
+    end
+    command "AssembleNanostructure" do
+      role "MaterialsScientist"
+      description "Build ordered arrangements from nanoscale building blocks — self-assembly or directed"
+      attribute :structure_type, String
+      attribute :assembly_method, String
+      reference_to Nanomaterial
+      emits "NanostructureAssembled"
+    end
+    command "CharacterizeNano" do
+      role "MaterialsScientist"
+      description "Image and measure — TEM, SEM, AFM, DLS — seeing the invisible"
+      attribute :surface_area, Float
+      attribute :technique, String
+      reference_to Nanomaterial
+      emits "NanoCharacterized"
+      then_set :surface_area, to: :surface_area
+    end
+  end
+
+  aggregate "Stress", "Mechanical behavior under load — elastic, plastic, fracture — how materials respond to force" do
+    attribute :material_name, String
+    attribute :stress_type, String
+    attribute :strain, Float
+    attribute :young_modulus, Float
+    attribute :fatigue_cycles, Integer
+    attribute :fracture_mode, String
+    value_object "StressState" do
+      attribute :normal, Float
+      attribute :shear, Float
+      attribute :principal, Float
+    end
+    command "ApplyStress" do
+      role "MaterialsScientist"
+      description "Subject the material to mechanical load — tension, compression, torsion"
+      attribute :material_name, String
+      attribute :stress_type, String
+      attribute :magnitude, Float
+      emits "StressApplied"
+      then_set :material_name, to: :material_name
+      then_set :stress_type, to: :stress_type
+    end
+    command "MeasureStrain" do
+      role "MaterialsScientist"
+      description "Determine deformation — how much the material stretches or compresses"
+      attribute :strain, Float
+      attribute :gauge_length, Float
+      reference_to Stress
+      emits "StrainMeasured"
+      then_set :strain, to: :strain
+    end
+    command "CalculateYoungModulus" do
+      role "MaterialsScientist"
+      description "Stress over strain in the elastic region — the material's stiffness"
+      attribute :young_modulus, Float
+      reference_to Stress
+      emits "YoungModulusCalculated"
+      then_set :young_modulus, to: :young_modulus
+    end
+    command "TestFatigue" do
+      role "MaterialsScientist"
+      description "Cycle loading until failure — how many repetitions before the material gives up"
+      attribute :fatigue_cycles, Integer
+      attribute :stress_amplitude, Float
+      reference_to Stress
+      emits "FatigueTested"
+      then_set :fatigue_cycles, to: :fatigue_cycles
+    end
+    command "PredictFracture" do
+      role "MaterialsScientist"
+      description "Estimate when and how the material will break — brittle, ductile, or fatigue fracture"
+      attribute :fracture_mode, String
+      attribute :critical_stress, Float
+      reference_to Stress
+      emits "FracturePredicted"
+      then_set :fracture_mode, to: :fracture_mode
+    end
+    command "MapStressField" do
+      role "MaterialsScientist"
+      description "Visualize stress distribution across a body — finite element or photoelastic"
+      attribute :method, String
+      attribute :resolution, Float
+      reference_to Stress
+      emits "StressFieldMapped"
+    end
+  end
+
+  policy "CrystallizeOnCool" do
+    on "MaterialCooled"
+    trigger "GrowCrystal"
+  end
+
+  policy "TransitionOnHeat" do
+    on "MaterialHeated"
+    trigger "TriggerTransition"
+  end
+
+  policy "TestOnAlloy" do
+    on "AlloyFormed"
+    trigger "TestTensileStrength"
+  end
+
+  policy "DegradeOnStress" do
+    on "FatigueTested"
+    trigger "PredictFracture"
+  end
+
+  policy "QuenchOnTransition" do
+    on "TransitionTriggered"
+    trigger "Quench"
+  end
+end
+
+# Output: nursery/geology/geology.bluebook
