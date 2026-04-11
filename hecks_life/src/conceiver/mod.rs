@@ -70,11 +70,46 @@ fn scan_dir(dir: &Path, entries: &mut Vec<CorpusEntry>) {
 }
 
 /// Find the k nearest corpus entries to a seed vector.
+/// If category is provided, only match domains with that category.
+/// Falls back to all domains if no category matches are found.
 pub fn find_nearest(seed: &[f64], corpus: Vec<CorpusEntry>, k: usize) -> Vec<Match> {
-    let mut scored: Vec<(f64, CorpusEntry)> = corpus
+    find_nearest_with_category(seed, corpus, k, None)
+}
+
+/// Find nearest with optional category filter.
+pub fn find_nearest_with_category(
+    seed: &[f64],
+    corpus: Vec<CorpusEntry>,
+    k: usize,
+    category: Option<&str>,
+) -> Vec<Match> {
+    let (filtered, fallback) = if let Some(cat) = category {
+        let (matched, rest): (Vec<_>, Vec<_>) = corpus
+            .into_iter()
+            .partition(|e| e.domain.category.as_deref() == Some(cat));
+        if matched.is_empty() {
+            (rest, true)
+        } else {
+            (matched, false)
+        }
+    } else {
+        (corpus, false)
+    };
+
+    if fallback {
+        eprintln!("No domains with category {:?}, falling back to full corpus", category.unwrap_or(""));
+    }
+
+    let mut scored: Vec<(f64, CorpusEntry)> = filtered
         .into_iter()
         .map(|e| {
-            let sim = vector::cosine_similarity(seed, &e.vector);
+            // Euclidean distance — prefers domains with similar absolute shape
+            let dist: f64 = seed.iter().zip(e.vector.iter())
+                .map(|(a, b)| (a - b) * (a - b))
+                .sum::<f64>()
+                .sqrt();
+            // Convert to similarity: 1.0 = identical, 0.0 = very different
+            let sim = 1.0 / (1.0 + dist);
             (sim, e)
         })
         .collect();

@@ -1,5 +1,6 @@
 Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   vision "Born domains with version history — every evolution leaves a trail"
+  category "meta"
 
   aggregate "Entry", "A domain in the catalog — current version plus full history" do
     attribute :name, String

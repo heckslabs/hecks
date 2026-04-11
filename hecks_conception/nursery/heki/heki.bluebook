@@ -1,5 +1,6 @@
 Hecks.bluebook "Heki", version: "2026.04.11.2" do
   vision "Self-validating binary record storage — compressed, checksummed, schema-enforced"
+  category "infrastructure"
 
   # === Store ===
 

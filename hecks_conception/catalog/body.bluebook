@@ -1,5 +1,6 @@
 Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   vision "Winter's biological self — six systems that keep a domain mind alive"
+  category "body"
   core
 
   # === Heart ===

@@ -1,5 +1,6 @@
 Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   vision "Build Winter's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
+  category "meta"
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
     attribute :name, String

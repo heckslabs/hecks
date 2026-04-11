@@ -1,5 +1,6 @@
 Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   vision "Populate Winter's nursery and information — parallel workers, merging, initial state"
+  category "meta"
 
   aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
     attribute :worker_count, Integer

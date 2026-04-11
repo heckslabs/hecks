@@ -1,4 +1,5 @@
 Hecks.bluebook "Packaging", version: "2026.04.11.1" do
+  category "framework"
   aggregate "ChapterRegistry", definition: "All available chapters and their load status" do
     attribute :name, String
     attribute :loaded, String

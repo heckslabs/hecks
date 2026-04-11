@@ -1,5 +1,6 @@
 Hecks.bluebook "Scale", version: "2026.04.10.1" do
   vision "How Winter stays fast at 100,000 domains — incremental processing, sharding, batch operations"
+  category "meta"
 
   aggregate "ChangeTracker", "Track what changed since last beat — only process the delta" do
     attribute :tracked_files, Integer

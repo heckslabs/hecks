@@ -1,5 +1,6 @@
 Hecks.bluebook "Mathematics", version: "2026.04.11.1" do
   vision "The language of pattern and structure — number, space, change, and proof"
+  category "science"
 
   # === Number Theory ===
 

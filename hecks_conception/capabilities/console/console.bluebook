@@ -1,5 +1,6 @@
 Hecks.bluebook "Console", version: "2026.04.10.1" do
   vision "Winter's terminal interface — the shell where she speaks, listens, and shows her state"
+  category "infrastructure"
 
   aggregate "Session", "A conversation session in the terminal" do
     attribute :history, list_of(String)

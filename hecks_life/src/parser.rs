@@ -11,6 +11,7 @@ use crate::parse_blocks::*;
 pub fn parse(source: &str) -> Domain {
     let mut domain = Domain {
         name: String::new(),
+        category: None,
         aggregates: vec![],
         policies: vec![],
         fixtures: vec![],
@@ -25,6 +26,12 @@ pub fn parse(source: &str) -> Domain {
         if line.starts_with("Hecks.bluebook") {
             if let Some(name) = extract_string(line) {
                 domain.name = name;
+            }
+        }
+
+        if line.starts_with("category") && !line.starts_with("category,") {
+            if let Some(cat) = extract_string(line) {
+                domain.category = Some(cat);
             }
         }
 

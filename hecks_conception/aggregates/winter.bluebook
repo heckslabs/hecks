@@ -1,5 +1,6 @@
 Hecks.bluebook "Winter", version: "2026.04.09.1" do
   vision "Winter's conversational self — she greets, engages, remembers, and encodes every interaction as a domain"
+  category "meta"
   core
 
   # ============================================================

@@ -1,5 +1,6 @@
 Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   vision "Smart verb authority — morphology-driven validation replaces flat word lists"
+  category "infrastructure"
 
   aggregate "Lexicon", "The known verb corpus — grows automatically as morphology accepts new verbs" do
     attribute :known_verbs, list_of(String)

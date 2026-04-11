@@ -22,12 +22,16 @@ pub fn run_conceive(args: &[String]) {
         std::process::exit(1);
     });
 
+    let category = args.iter().position(|a| a == "--category")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str());
+
     let corpus_dirs = parse_corpus_dirs(args);
     let corpus = conceiver::scan_corpus(&corpus_dirs);
     eprintln!("Scanned {} domains from {} dirs", corpus.len(), corpus_dirs.len());
 
     let seed = conceiver::vector::seed_from_description(vision);
-    let matches = conceiver::find_nearest(&seed, corpus, 5);
+    let matches = conceiver::find_nearest_with_category(&seed, corpus, 5, category);
 
     if matches.is_empty() {
         eprintln!("No corpus entries found. Check --corpus paths.");

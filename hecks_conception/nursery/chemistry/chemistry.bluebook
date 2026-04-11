@@ -1,5 +1,6 @@
 Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   vision "The language of matter and transformation — elements, bonds, reactions, equilibria"
+  category "science"
 
   # === Atomic Structure ===
 

@@ -1,5 +1,6 @@
 Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
   vision "The language of structure — crystallization, merging, and grafting — where chemistry meets physics in solid form"
+  category "science"
 
   # === Crystal ===
 

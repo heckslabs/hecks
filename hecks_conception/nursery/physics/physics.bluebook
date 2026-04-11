@@ -1,5 +1,6 @@
 Hecks.bluebook "Physics", version: "2026.04.11.1" do
   vision "The language of nature — particles, forces, motion, energy, waves, fields, and the fabric of spacetime"
+  category "science"
 
   # === Particles ===
 

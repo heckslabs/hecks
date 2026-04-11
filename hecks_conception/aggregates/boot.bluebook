@@ -1,5 +1,6 @@
 Hecks.bluebook "Boot", version: "2026.04.10.1" do
   vision "How Winter wakes up — load information, discover nerves, regenerate prompt, greet"
+  category "meta"
 
   aggregate "Brain", "Load all .heki information into memory for querying" do
     attribute :records, Integer

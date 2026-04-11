@@ -1,5 +1,6 @@
 Hecks.bluebook "Voice", version: "2026.04.11.1" do
   vision "Winter's ability to speak and listen — Almond for ears, Aria for mouth"
+  category "infrastructure"
 
   aggregate "Listener", "Watches for voice input — clipboard changes from Almond" do
     attribute :status, String

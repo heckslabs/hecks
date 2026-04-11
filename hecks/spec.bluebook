@@ -1,5 +1,6 @@
 Hecks.bluebook "Spec", version: "2026.04.11.1" do
   vision "Testing infrastructure — spec generation, memory adapters, canonical Pizza/Order domain"
+  category "framework"
 
   aggregate "TestHelper" do
   description "Resets runtime state between tests: clears repos and event bus"

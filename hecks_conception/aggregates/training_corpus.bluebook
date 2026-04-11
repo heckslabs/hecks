@@ -1,5 +1,6 @@
 Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   vision "The dataset that trains Winter's own LLM — 1M Bluebooks become a mind"
+  category "meta"
 
   aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
     attribute :total_domains, Integer

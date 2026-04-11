@@ -1,5 +1,6 @@
 Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   vision "Command verb authority — derives validity from morphology, not a dictionary"
+  category "infrastructure"
 
   aggregate "NonVerbSuffix", "A word ending that signals noun or adjective, not a verb" do
     attribute :suffix, String

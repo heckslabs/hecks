@@ -1,5 +1,6 @@
 Hecks.bluebook "Projection", version: "2026.04.10.1" do
   vision "Every script is a projection of a domain — the domain is the truth, the script is the shadow on the wall"
+  category "infrastructure"
 
   aggregate "Target", "A runtime that domains project into — Ruby, Rust, shell, status bar" do
     attribute :name, String

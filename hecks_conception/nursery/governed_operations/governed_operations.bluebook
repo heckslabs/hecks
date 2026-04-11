@@ -1,5 +1,6 @@
 Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   vision "Every action governed, every rule enforced, every decision traceable — unified compliance for cannabis manufacturing"
+  category "governance"
 
   # === JurisdictionalContract ===
 

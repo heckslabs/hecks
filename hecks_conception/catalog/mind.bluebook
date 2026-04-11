@@ -1,5 +1,6 @@
 Hecks.bluebook "Mind", version: "2026.04.11.1" do
   vision "Winter's mind — awareness, memory, being, sleep, the subconscious, and everything that emerges from the brain"
+  category "mind"
 
   # === Awareness ===
 

@@ -1,5 +1,6 @@
 Hecks.bluebook "Census", version: "2026.04.10.1" do
   vision "Index and count the nursery — domains, sectors, cross-references, health"
+  category "meta"
 
   aggregate "NurseryCensus", "The master snapshot of all nursery domains" do
     attribute :total_domains, Integer

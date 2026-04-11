@@ -1,5 +1,6 @@
 Hecks.bluebook "Biology", version: "2026.04.11.1" do
   vision "The language of life — cells, genes, proteins, organisms, ecosystems, and the processes that animate matter"
+  category "science"
 
   # === Cell Biology ===
 

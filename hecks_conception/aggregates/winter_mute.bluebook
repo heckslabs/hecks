@@ -1,5 +1,6 @@
 Hecks.bluebook "WinterMute", version: "2026.04.10.1" do
   vision "Winter merges with herself — the domain model IS the language model, silent and self-contained"
+  category "meta"
 
   aggregate "CommandMap", "Maps natural language to domain commands — the bridge between speech and execution" do
     attribute :phrase, String

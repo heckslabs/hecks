@@ -1,5 +1,6 @@
 Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
   vision "Generate thousands of valid nursery domains from topic combinations — fast, template-driven, batch-validated"
+  category "meta"
 
   aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
     attribute :industries, list_of(String)

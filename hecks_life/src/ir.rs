@@ -8,6 +8,7 @@ use std::fmt;
 #[derive(Debug)]
 pub struct Domain {
     pub name: String,
+    pub category: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
@@ -110,7 +111,11 @@ pub struct Fixture {
 
 impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{} ({} aggregates)", self.name, self.aggregates.len())?;
+        write!(f, "{} ({} aggregates)", self.name, self.aggregates.len())?;
+        if let Some(ref cat) = self.category {
+            write!(f, " [{}]", cat)?;
+        }
+        writeln!(f)?;
         for agg in &self.aggregates {
             writeln!(f, "  {} — {}", agg.name, agg.description.as_deref().unwrap_or(""))?;
             for cmd in &agg.commands {

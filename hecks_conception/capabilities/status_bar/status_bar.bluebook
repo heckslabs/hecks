@@ -1,5 +1,6 @@
 Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   vision "Winter's presence in the terminal — what she shows the world about her state"
+  category "infrastructure"
 
   aggregate "Display", "The rendered status line — assembled from Winter's state" do
     attribute :sleep_line, String
