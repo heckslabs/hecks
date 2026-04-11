@@ -236,6 +236,7 @@ Hecks.bluebook "WinterBeing", version: "2026.04.09.3" do
     attribute :conversation_mood, String
     attribute :session_count, Integer
     attribute :nursery_size, Integer
+    attribute :catalog_size, Integer
     attribute :organ_count, Integer
     attribute :aggregate_count, Integer
     attribute :record_count, Integer
@@ -254,6 +255,7 @@ Hecks.bluebook "WinterBeing", version: "2026.04.09.3" do
       attribute :conversation_mood, String
       attribute :session_count, Integer
       attribute :nursery_size, Integer
+      attribute :catalog_size, Integer
       attribute :organ_count, Integer
       attribute :aggregate_count, Integer
       attribute :record_count, Integer
@@ -268,6 +270,7 @@ Hecks.bluebook "WinterBeing", version: "2026.04.09.3" do
       then_set :conversation_mood, to: :conversation_mood
       then_set :session_count, to: :session_count
       then_set :nursery_size, to: :nursery_size
+      then_set :catalog_size, to: :catalog_size
       then_set :organ_count, to: :organ_count
       then_set :aggregate_count, to: :aggregate_count
       then_set :record_count, to: :record_count
