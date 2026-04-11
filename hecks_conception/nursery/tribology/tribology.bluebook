@@ -1,0 +1,879 @@
+Hecks.bluebook "Tribology", version: "2026.04.11.1" do
+  vision "The science of friction, lubrication, and wear — how surfaces interact, how lubricants protect, and how engines survive"
+  category "science"
+
+  # === Surface Science ===
+
+  aggregate "Surface", "A contacting surface — roughness, hardness, material, topography" do
+    attribute :name, String
+    attribute :material, String
+    attribute :hardness, Float
+    attribute :elastic_modulus, Float
+    attribute :surface_energy, Float
+    attribute :coating, String
+
+    value_object "RoughnessProfile" do
+      attribute :ra, Float
+      attribute :rz, Float
+      attribute :rq, Float
+      attribute :rsk, Float
+      attribute :rku, Float
+      attribute :measurement_method, String
+    end
+
+    value_object "TopographyMap" do
+      attribute :scan_area_mm2, Float
+      attribute :resolution_um, Float
+      attribute :peak_count, Integer
+      attribute :valley_depth_um, Float
+      attribute :bearing_ratio, Float
+    end
+
+    command "CharacterizeSurface" do
+      role "Tribologist"
+      description "Register a surface with its material properties and initial condition"
+      attribute :name, String
+      attribute :material, String
+      attribute :hardness, Float
+      attribute :elastic_modulus, Float
+      attribute :surface_energy, Float
+      emits "SurfaceCharacterized"
+      then_set :name, to: :name
+      then_set :material, to: :material
+      then_set :hardness, to: :hardness
+      then_set :elastic_modulus, to: :elastic_modulus
+      then_set :surface_energy, to: :surface_energy
+    end
+
+    command "MeasureRoughness" do
+      role "Tribologist"
+      description "Profilometry — measure Ra, Rz, Rq and skewness of the surface texture"
+      reference_to Surface
+      attribute :ra, Float
+      attribute :rz, Float
+      attribute :rq, Float
+      emits "RoughnessMeasured"
+    end
+
+    command "MapTopography" do
+      role "Tribologist"
+      description "3D surface scan — map peaks, valleys, and bearing area for contact prediction"
+      reference_to Surface
+      attribute :scan_area_mm2, Float
+      attribute :resolution_um, Float
+      emits "TopographyMapped"
+    end
+
+    command "AnalyzeMicrostructure" do
+      role "Tribologist"
+      description "Examine grain boundaries, phase composition, and subsurface features"
+      reference_to Surface
+      attribute :method, String
+      attribute :grain_size_um, Float
+      emits "MicrostructureAnalyzed"
+    end
+  end
+
+  # === Friction ===
+
+  aggregate "Friction", "Resistance to relative motion between surfaces — the central phenomenon" do
+    attribute :name, String
+    attribute :surface_a, String
+    attribute :surface_b, String
+    attribute :normal_load, Float
+    attribute :sliding_speed, Float
+    attribute :regime, String
+    attribute :status, String
+
+    value_object "FrictionCoefficient" do
+      attribute :static_cof, Float
+      attribute :kinetic_cof, Float
+      attribute :rolling_cof, Float
+      attribute :temperature_c, Float
+      attribute :measurement_method, String
+    end
+
+    value_object "StribeckPoint" do
+      attribute :hersey_number, Float
+      attribute :cof, Float
+      attribute :regime, String
+    end
+
+    command "MeasureFriction" do
+      role "Tribologist"
+      description "Pin-on-disk or reciprocating test — measure friction force between two surfaces"
+      attribute :name, String
+      attribute :surface_a, String
+      attribute :surface_b, String
+      attribute :normal_load, Float
+      attribute :sliding_speed, Float
+      emits "FrictionMeasured"
+      then_set :name, to: :name
+      then_set :surface_a, to: :surface_a
+      then_set :surface_b, to: :surface_b
+      then_set :normal_load, to: :normal_load
+      then_set :sliding_speed, to: :sliding_speed
+      then_set :status, to: "measured"
+    end
+
+    command "CalculateCoefficient" do
+      role "Tribologist"
+      description "mu = F_friction / F_normal — derive static and kinetic coefficients"
+      reference_to Friction
+      attribute :friction_force, Float
+      attribute :normal_force, Float
+      emits "CoefficientCalculated"
+    end
+
+    command "ClassifyFrictionRegime" do
+      role "Tribologist"
+      description "Determine whether contact is boundary, mixed, or hydrodynamic from Stribeck analysis"
+      reference_to Friction
+      attribute :regime, String
+      emits "FrictionRegimeClassified"
+      then_set :regime, to: :regime
+    end
+
+    command "MapStribeckCurve" do
+      role "Tribologist"
+      description "Plot friction coefficient vs Hersey number — the master curve of tribology"
+      reference_to Friction
+      attribute :speed_range_min, Float
+      attribute :speed_range_max, Float
+      attribute :viscosity, Float
+      emits "StribeckCurveMapped"
+    end
+
+    command "ReduceFriction" do
+      role "Tribologist"
+      description "Apply surface treatment, coating, or lubricant to lower friction coefficient"
+      reference_to Friction
+      attribute :method, String
+      attribute :target_cof, Float
+      emits "FrictionReduced"
+    end
+  end
+
+  # === Wear ===
+
+  aggregate "Wear", "Material loss from surface interaction — the enemy of engine life" do
+    attribute :name, String
+    attribute :mechanism, String
+    attribute :severity, String
+    attribute :test_method, String
+    attribute :status, String
+
+    value_object "WearRate" do
+      attribute :volume_loss_mm3, Float
+      attribute :depth_um, Float
+      attribute :mass_loss_mg, Float
+      attribute :specific_wear_rate, Float
+      attribute :duration_hours, Float
+    end
+
+    value_object "WearDebris" do
+      attribute :particle_size_um, Float
+      attribute :morphology, String
+      attribute :composition, String
+      attribute :color, String
+      attribute :magnetic, String
+    end
+
+    command "MeasureWear" do
+      role "Tribologist"
+      description "Quantify material removal — scar diameter, mass loss, or volume loss"
+      attribute :name, String
+      attribute :test_method, String
+      emits "WearMeasured"
+      then_set :name, to: :name
+      then_set :test_method, to: :test_method
+      then_set :status, to: "measured"
+    end
+
+    command "ClassifyWearMechanism" do
+      role "Tribologist"
+      description "Identify wear type — adhesive, abrasive, corrosive, fatigue, or erosive"
+      reference_to Wear
+      attribute :mechanism, String
+      emits "WearMechanismClassified"
+      then_set :mechanism, to: :mechanism
+    end
+
+    command "PredictWearRate" do
+      role "Tribologist"
+      description "Archard equation — V = K * W * L / H — predict volume loss from load, distance, hardness"
+      reference_to Wear
+      attribute :load, Float
+      attribute :sliding_distance, Float
+      attribute :hardness, Float
+      attribute :wear_coefficient, Float
+      emits "WearRatePredicted"
+    end
+
+    command "AnalyzeWearDebris" do
+      role "Tribologist"
+      description "Ferrography or filtration — characterize debris particles to diagnose wear mechanism"
+      reference_to Wear
+      attribute :particle_size_um, Float
+      attribute :morphology, String
+      attribute :composition, String
+      emits "WearDebrisAnalyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "MeasureWear" => "measured", from: "pending"
+      transition "ClassifyWearMechanism" => "classified", from: "measured"
+    end
+  end
+
+  # === Lubricant ===
+
+  aggregate "Lubricant", "The substance between surfaces — base oil plus additives — what Alan makes" do
+    attribute :name, String
+    attribute :base_oil_type, String
+    attribute :sae_grade, String
+    attribute :pour_point_c, Float
+    attribute :flash_point_c, Float
+    attribute :status, String
+
+    value_object "ViscosityProfile" do
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
+      attribute :viscosity_index, Integer
+      attribute :sae_grade, String
+      attribute :dynamic_viscosity, Float
+    end
+
+    value_object "AdditivePackage" do
+      attribute :anti_wear_ppm, Float
+      attribute :friction_modifier_ppm, Float
+      attribute :extreme_pressure_ppm, Float
+      attribute :detergent_ppm, Float
+      attribute :dispersant_ppm, Float
+      attribute :antioxidant_ppm, Float
+    end
+
+    command "FormulateLubricant" do
+      role "Tribologist"
+      description "Blend base oil with additive package — create a finished lubricant formulation"
+      attribute :name, String
+      attribute :base_oil_type, String
+      attribute :sae_grade, String
+      emits "LubricantFormulated"
+      then_set :name, to: :name
+      then_set :base_oil_type, to: :base_oil_type
+      then_set :sae_grade, to: :sae_grade
+      then_set :status, to: "formulated"
+    end
+
+    command "MeasureViscosity" do
+      role "Tribologist"
+      description "Capillary or rotational viscometry — kinematic viscosity at 40C and 100C"
+      reference_to Lubricant
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
+      emits "ViscosityMeasured"
+    end
+
+    command "CalculateViscosityIndex" do
+      role "Tribologist"
+      description "ASTM D2270 — how much viscosity changes with temperature — higher is better"
+      reference_to Lubricant
+      attribute :kinematic_40c, Float
+      attribute :kinematic_100c, Float
+      emits "ViscosityIndexCalculated"
+    end
+
+    command "TestPourPoint" do
+      role "Tribologist"
+      description "ASTM D97 — lowest temperature at which the oil still flows"
+      reference_to Lubricant
+      attribute :pour_point_c, Float
+      emits "PourPointTested"
+      then_set :pour_point_c, to: :pour_point_c
+    end
+
+    command "TestFlashPoint" do
+      role "Tribologist"
+      description "ASTM D92 Cleveland open cup — temperature at which vapors ignite"
+      reference_to Lubricant
+      attribute :flash_point_c, Float
+      emits "FlashPointTested"
+      then_set :flash_point_c, to: :flash_point_c
+    end
+
+    command "AnalyzeFilmThickness" do
+      role "Tribologist"
+      description "Optical interferometry — measure lubricant film between loaded surfaces"
+      reference_to Lubricant
+      attribute :film_thickness_nm, Float
+      attribute :temperature_c, Float
+      attribute :load_n, Float
+      emits "FilmThicknessAnalyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FormulateLubricant" => "formulated", from: "pending"
+      transition "TestPourPoint" => "tested", from: "formulated"
+      transition "TestFlashPoint" => "tested", from: "formulated"
+    end
+  end
+
+  # === Lubrication Regime ===
+
+  aggregate "LubricationRegime", "The mode of lubrication — boundary, mixed, hydrodynamic, elastohydrodynamic" do
+    attribute :name, String
+    attribute :regime_type, String
+    attribute :lambda_ratio, Float
+    attribute :film_parameter, Float
+    attribute :status, String
+
+    value_object "RegimeCondition" do
+      attribute :speed, Float
+      attribute :load, Float
+      attribute :viscosity, Float
+      attribute :surface_roughness, Float
+      attribute :temperature_c, Float
+    end
+
+    command "IdentifyRegime" do
+      role "Tribologist"
+      description "Determine lubrication regime from lambda ratio — film thickness vs composite roughness"
+      attribute :name, String
+      attribute :lambda_ratio, Float
+      emits "RegimeIdentified"
+      then_set :name, to: :name
+      then_set :lambda_ratio, to: :lambda_ratio
+      then_set :regime_type, to: "pending"
+      then_set :status, to: "identified"
+    end
+
+    command "CalculateFilmParameter" do
+      role "Tribologist"
+      description "Lambda = h_min / sigma_composite — the ratio that determines everything"
+      reference_to LubricationRegime
+      attribute :min_film_thickness, Float
+      attribute :composite_roughness, Float
+      emits "FilmParameterCalculated"
+    end
+
+    command "TransitionRegime" do
+      role "Tribologist"
+      description "Shift between regimes as conditions change — speed up, load changes, temperature rises"
+      reference_to LubricationRegime
+      attribute :from_regime, String
+      attribute :to_regime, String
+      attribute :cause, String
+      emits "RegimeTransitioned"
+      then_set :regime_type, to: :to_regime
+    end
+
+    command "OptimizeRegime" do
+      role "Tribologist"
+      description "Adjust speed, load, or lubricant to move into the lowest-friction regime"
+      reference_to LubricationRegime
+      attribute :target_regime, String
+      attribute :method, String
+      emits "RegimeOptimized"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "IdentifyRegime" => "identified", from: "unknown"
+      transition "TransitionRegime" => "transitioned", from: "identified"
+      transition "OptimizeRegime" => "optimized", from: "identified"
+      transition "OptimizeRegime" => "optimized", from: "transitioned"
+    end
+  end
+
+  # === Additive Action ===
+
+  aggregate "AdditiveAction", "How each additive works at the molecular level — the bridge between chemistry and tribology" do
+    attribute :name, String
+    attribute :additive_type, String
+    attribute :effectiveness, Float
+    attribute :synergy_status, String
+
+    value_object "ActionMechanism" do
+      attribute :mechanism_type, String
+      attribute :description, String
+      attribute :effective_temp_min_c, Float
+      attribute :effective_temp_max_c, Float
+      attribute :concentration_min_ppm, Float
+      attribute :concentration_max_ppm, Float
+      attribute :surface_affinity, String
+    end
+
+    value_object "SynergyResult" do
+      attribute :additive_a, String
+      attribute :additive_b, String
+      attribute :interaction, String
+      attribute :combined_effect, Float
+      attribute :individual_sum, Float
+    end
+
+    command "DescribeAction" do
+      role "Tribologist"
+      description "Document how an additive protects surfaces — film formation, chemical reaction, or physical barrier"
+      attribute :name, String
+      attribute :additive_type, String
+      emits "ActionDescribed"
+      then_set :name, to: :name
+      then_set :additive_type, to: :additive_type
+    end
+
+    command "MeasureEffectiveness" do
+      role "Tribologist"
+      description "Quantify additive performance — reduction in wear scar, friction coefficient, or oxidation"
+      reference_to AdditiveAction
+      attribute :test_method, String
+      attribute :effectiveness, Float
+      emits "EffectivenessMeasured"
+      then_set :effectiveness, to: :effectiveness
+    end
+
+    command "TestSynergy" do
+      role "Tribologist"
+      description "Combine two additives and test if the result exceeds the sum of individual effects"
+      reference_to AdditiveAction
+      attribute :other_additive, String
+      attribute :combined_effect, Float
+      attribute :individual_sum, Float
+      emits "SynergyTested"
+    end
+
+    command "DetectAntagonism" do
+      role "Tribologist"
+      description "Identify when additives interfere — combined performance worse than individual"
+      reference_to AdditiveAction
+      attribute :other_additive, String
+      attribute :performance_loss, Float
+      emits "AntagonismDetected"
+    end
+  end
+
+  # === Contact Mechanics ===
+
+  aggregate "ContactMechanics", "Hertzian contact theory — pressure, deformation, and stress at the interface" do
+    attribute :name, String
+    attribute :contact_type, String
+    attribute :max_pressure, Float
+    attribute :contact_area, Float
+    attribute :deformation_um, Float
+
+    value_object "HertzianContact" do
+      attribute :contact_radius_mm, Float
+      attribute :max_hertzian_pressure, Float
+      attribute :approach_distance_um, Float
+      attribute :reduced_modulus, Float
+      attribute :reduced_radius, Float
+    end
+
+    value_object "StressField" do
+      attribute :von_mises_max, Float
+      attribute :depth_of_max_shear, Float
+      attribute :subsurface_stress_profile, String
+    end
+
+    command "CalculateContactPressure" do
+      role "Tribologist"
+      description "Hertz theory — compute max contact pressure from geometry, load, and elastic properties"
+      attribute :name, String
+      attribute :contact_type, String
+      attribute :load, Float
+      attribute :radius_a, Float
+      attribute :radius_b, Float
+      attribute :modulus_a, Float
+      attribute :modulus_b, Float
+      emits "ContactPressureCalculated"
+      then_set :name, to: :name
+      then_set :contact_type, to: :contact_type
+    end
+
+    command "ModelHertzianContact" do
+      role "Tribologist"
+      description "Full Hertzian model — contact radius, approach, and pressure distribution"
+      reference_to ContactMechanics
+      attribute :load, Float
+      emits "HertzianContactModeled"
+    end
+
+    command "PredictDeformation" do
+      role "Tribologist"
+      description "Elastic or plastic — will the surface deform permanently under this load"
+      reference_to ContactMechanics
+      attribute :yield_strength, Float
+      attribute :applied_load, Float
+      emits "DeformationPredicted"
+    end
+
+    command "AnalyzeStressField" do
+      role "Tribologist"
+      description "Map subsurface von Mises stress — find the depth of maximum shear"
+      reference_to ContactMechanics
+      attribute :max_pressure, Float
+      attribute :poisson_ratio, Float
+      emits "StressFieldAnalyzed"
+    end
+  end
+
+  # === Tribological Testing ===
+
+  aggregate "TribologicalTest", "Standard testing methods — the language of lubricant qualification" do
+    attribute :name, String
+    attribute :test_standard, String
+    attribute :apparatus, String
+    attribute :status, String
+
+    value_object "TestResult" do
+      attribute :parameter, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :pass_fail, String
+      attribute :specification_limit, Float
+    end
+
+    value_object "TestCondition" do
+      attribute :temperature_c, Float
+      attribute :load_n, Float
+      attribute :speed_rpm, Float
+      attribute :duration_min, Float
+      attribute :lubricant_volume_ml, Float
+    end
+
+    command "RunTest" do
+      role "Tribologist"
+      description "Execute a standard tribological test — four-ball, HFRR, block-on-ring, or pin-on-disk"
+      attribute :name, String
+      attribute :test_standard, String
+      attribute :apparatus, String
+      emits "TestRun"
+      then_set :name, to: :name
+      then_set :test_standard, to: :test_standard
+      then_set :apparatus, to: :apparatus
+      then_set :status, to: "running"
+    end
+
+    command "RecordResult" do
+      role "Tribologist"
+      description "Capture the measured parameter — wear scar diameter, friction coefficient, film thickness"
+      reference_to TribologicalTest
+      attribute :parameter, String
+      attribute :value, Float
+      attribute :unit, String
+      emits "ResultRecorded"
+      then_set :status, to: "completed"
+    end
+
+    command "CompareToBaseline" do
+      role "Tribologist"
+      description "Compare test result against a reference oil or specification limit"
+      reference_to TribologicalTest
+      attribute :baseline_value, Float
+      attribute :specification_limit, Float
+      emits "BaselineCompared"
+    end
+
+    command "GenerateReport" do
+      role "Tribologist"
+      description "Produce a formal test report with conditions, results, and pass/fail determination"
+      reference_to TribologicalTest
+      attribute :report_format, String
+      emits "ReportGenerated"
+      then_set :status, to: "reported"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RunTest" => "running", from: "pending"
+      transition "RecordResult" => "completed", from: "running"
+      transition "GenerateReport" => "reported", from: "completed"
+    end
+  end
+
+  # === Film Thickness ===
+
+  aggregate "FilmThickness", "The lubricant film between surfaces — too thin means wear, too thick means drag" do
+    attribute :name, String
+    attribute :minimum_film_nm, Float
+    attribute :central_film_nm, Float
+    attribute :method, String
+    attribute :status, String
+
+    value_object "FilmMeasurement" do
+      attribute :thickness_nm, Float
+      attribute :method, String
+      attribute :temperature_c, Float
+      attribute :load_n, Float
+      attribute :speed_m_s, Float
+    end
+
+    value_object "FilmMap" do
+      attribute :inlet_thickness_nm, Float
+      attribute :central_thickness_nm, Float
+      attribute :outlet_thickness_nm, Float
+      attribute :side_lobe_thickness_nm, Float
+    end
+
+    command "MeasureFilmThickness" do
+      role "Tribologist"
+      description "Optical interferometry or capacitance — directly measure the film separating surfaces"
+      attribute :name, String
+      attribute :method, String
+      attribute :thickness_nm, Float
+      emits "FilmThicknessMeasured"
+      then_set :name, to: :name
+      then_set :method, to: :method
+      then_set :status, to: "measured"
+    end
+
+    command "CalculateMinimumFilm" do
+      role "Tribologist"
+      description "Hamrock-Dowson equation — predict minimum film from speed, load, viscosity, and geometry"
+      reference_to FilmThickness
+      attribute :speed, Float
+      attribute :load, Float
+      attribute :viscosity, Float
+      attribute :reduced_radius, Float
+      emits "MinimumFilmCalculated"
+    end
+
+    command "PredictFilmFailure" do
+      role "Tribologist"
+      description "Determine when the film will break down — starvation, overload, or thermal thinning"
+      reference_to FilmThickness
+      attribute :failure_mode, String
+      attribute :critical_load, Float
+      emits "FilmFailurePredicted"
+    end
+
+    command "OptimizeFilm" do
+      role "Tribologist"
+      description "Adjust viscosity, speed, or additives to achieve target film thickness"
+      reference_to FilmThickness
+      attribute :target_thickness_nm, Float
+      attribute :method, String
+      emits "FilmOptimized"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "MeasureFilmThickness" => "measured", from: "unknown"
+      transition "CalculateMinimumFilm" => "calculated", from: "measured"
+      transition "PredictFilmFailure" => "at_risk", from: "measured"
+      transition "PredictFilmFailure" => "at_risk", from: "calculated"
+      transition "OptimizeFilm" => "optimized", from: "measured"
+      transition "OptimizeFilm" => "optimized", from: "at_risk"
+    end
+  end
+
+  # === Thermal Behavior ===
+
+  aggregate "ThermalBehavior", "How friction generates heat and how lubricants manage it" do
+    attribute :name, String
+    attribute :flash_temperature_c, Float
+    attribute :bulk_temperature_c, Float
+    attribute :heat_dissipation_rate, Float
+    attribute :thermal_status, String
+
+    value_object "TemperatureDistribution" do
+      attribute :surface_temp_c, Float
+      attribute :subsurface_temp_c, Float
+      attribute :oil_film_temp_c, Float
+      attribute :gradient_c_per_mm, Float
+    end
+
+    value_object "ThermalLimit" do
+      attribute :oxidation_onset_c, Float
+      attribute :additive_decomposition_c, Float
+      attribute :base_oil_breakdown_c, Float
+      attribute :flash_point_c, Float
+    end
+
+    command "CalculateFlashTemperature" do
+      role "Tribologist"
+      description "Blok's flash temperature — transient peak temperature at asperity contacts"
+      attribute :name, String
+      attribute :friction_coefficient, Float
+      attribute :load, Float
+      attribute :sliding_speed, Float
+      attribute :thermal_conductivity, Float
+      emits "FlashTemperatureCalculated"
+      then_set :name, to: :name
+      then_set :thermal_status, to: "calculated"
+    end
+
+    command "MeasureHeatDissipation" do
+      role "Tribologist"
+      description "Calorimetry — how fast the lubricant carries heat away from the contact zone"
+      reference_to ThermalBehavior
+      attribute :heat_dissipation_rate, Float
+      attribute :coolant_flow, Float
+      emits "HeatDissipationMeasured"
+      then_set :heat_dissipation_rate, to: :heat_dissipation_rate
+    end
+
+    command "PredictThermalBreakdown" do
+      role "Tribologist"
+      description "Determine when lubricant will degrade — oxidation, coking, or additive depletion"
+      reference_to ThermalBehavior
+      attribute :operating_temp_c, Float
+      attribute :oxidation_onset_c, Float
+      emits "ThermalBreakdownPredicted"
+    end
+
+    command "ModelTemperatureDistribution" do
+      role "Tribologist"
+      description "Finite element or analytical — map temperature through surface, subsurface, and oil film"
+      reference_to ThermalBehavior
+      attribute :boundary_conditions, String
+      attribute :heat_source_watts, Float
+      emits "TemperatureDistributionModeled"
+    end
+  end
+
+  # === Surface Treatment ===
+
+  aggregate "SurfaceTreatment", "Coatings and modifications that alter tribological behavior" do
+    attribute :name, String
+    attribute :treatment_type, String
+    attribute :thickness_um, Float
+    attribute :hardness_increase, Float
+    attribute :friction_reduction, Float
+    attribute :status, String
+
+    value_object "CoatingProperties" do
+      attribute :composition, String
+      attribute :adhesion_strength, Float
+      attribute :wear_resistance, Float
+      attribute :thermal_stability_c, Float
+      attribute :deposition_method, String
+    end
+
+    command "ApplyTreatment" do
+      role "Tribologist"
+      description "Apply a surface treatment — DLC coating, nitriding, shot peening, or phosphating"
+      attribute :name, String
+      attribute :treatment_type, String
+      attribute :thickness_um, Float
+      emits "TreatmentApplied"
+      then_set :name, to: :name
+      then_set :treatment_type, to: :treatment_type
+      then_set :thickness_um, to: :thickness_um
+      then_set :status, to: "applied"
+    end
+
+    command "MeasureTreatmentEffect" do
+      role "Tribologist"
+      description "Before/after testing — quantify the change in friction and wear from treatment"
+      reference_to SurfaceTreatment
+      attribute :friction_reduction, Float
+      attribute :hardness_increase, Float
+      emits "TreatmentEffectMeasured"
+      then_set :friction_reduction, to: :friction_reduction
+      then_set :hardness_increase, to: :hardness_increase
+    end
+
+    command "TestCoatingAdhesion" do
+      role "Tribologist"
+      description "Scratch test or pull-off test — will the coating survive under tribological stress"
+      reference_to SurfaceTreatment
+      attribute :critical_load_n, Float
+      attribute :failure_mode, String
+      emits "CoatingAdhesionTested"
+    end
+
+    command "PredictCoatingLife" do
+      role "Tribologist"
+      description "Estimate service life of coating under given operating conditions"
+      reference_to SurfaceTreatment
+      attribute :operating_load, Float
+      attribute :operating_speed, Float
+      attribute :estimated_hours, Float
+      emits "CoatingLifePredicted"
+    end
+
+    lifecycle :status, default: "untreated" do
+      transition "ApplyTreatment" => "applied", from: "untreated"
+      transition "MeasureTreatmentEffect" => "validated", from: "applied"
+    end
+  end
+
+  # === Policies ===
+
+  policy "RegimeOnViscosity" do
+    on "ViscosityMeasured"
+    trigger "IdentifyRegime"
+  end
+
+  policy "WearOnRegime" do
+    on "RegimeIdentified"
+    trigger "PredictWearRate"
+  end
+
+  policy "FilmOnLubricant" do
+    on "LubricantFormulated"
+    trigger "CalculateMinimumFilm"
+  end
+
+  policy "ThermalOnFriction" do
+    on "FrictionMeasured"
+    trigger "CalculateFlashTemperature"
+  end
+
+  policy "TestOnFormulate" do
+    on "LubricantFormulated"
+    trigger "RunTest"
+  end
+
+  policy "CoefficientOnFriction" do
+    on "FrictionMeasured"
+    trigger "CalculateCoefficient"
+  end
+
+  policy "StressOnContact" do
+    on "ContactPressureCalculated"
+    trigger "AnalyzeStressField"
+  end
+
+  policy "DebrisOnWear" do
+    on "WearMeasured"
+    trigger "AnalyzeWearDebris"
+  end
+
+  policy "BreakdownOnTemperature" do
+    on "FlashTemperatureCalculated"
+    trigger "PredictThermalBreakdown"
+  end
+
+  policy "FilmOnRegimeTransition" do
+    on "RegimeTransitioned"
+    trigger "MeasureFilmThickness"
+  end
+
+  # === Fixtures — ASTM Test Methods ===
+
+  fixture "TribologicalTest", name: "FourBallWear", test_standard: "ASTM D4172", apparatus: "four_ball", status: "standard"
+  fixture "TribologicalTest", name: "ViscosityIndex", test_standard: "ASTM D2270", apparatus: "viscometer", status: "standard"
+  fixture "TribologicalTest", name: "EPLoadCarrying", test_standard: "ASTM D2783", apparatus: "four_ball_ep", status: "standard"
+  fixture "TribologicalTest", name: "ElementalAnalysis", test_standard: "ASTM D5185", apparatus: "icp_spectrometer", status: "standard"
+  fixture "TribologicalTest", name: "HFRR", test_standard: "ASTM D6079", apparatus: "hfrr_rig", status: "standard"
+  fixture "TribologicalTest", name: "PourPoint", test_standard: "ASTM D97", apparatus: "pour_point_bath", status: "standard"
+  fixture "TribologicalTest", name: "FlashPoint", test_standard: "ASTM D92", apparatus: "cleveland_open_cup", status: "standard"
+  fixture "TribologicalTest", name: "TimkenOK", test_standard: "ASTM D2782", apparatus: "timken_machine", status: "standard"
+  fixture "TribologicalTest", name: "FourBallFriction", test_standard: "ASTM D5183", apparatus: "four_ball", status: "standard"
+
+  # === Fixtures — SAE Viscosity Grades ===
+
+  fixture "Lubricant", name: "SAE_0W20", base_oil_type: "group_iii", sae_grade: "0W-20", pour_point_c: -45.0, flash_point_c: 224.0, status: "reference"
+  fixture "Lubricant", name: "SAE_5W30", base_oil_type: "group_iii", sae_grade: "5W-30", pour_point_c: -42.0, flash_point_c: 230.0, status: "reference"
+  fixture "Lubricant", name: "SAE_10W40", base_oil_type: "group_ii", sae_grade: "10W-40", pour_point_c: -36.0, flash_point_c: 235.0, status: "reference"
+  fixture "Lubricant", name: "SAE_15W40", base_oil_type: "group_ii", sae_grade: "15W-40", pour_point_c: -30.0, flash_point_c: 240.0, status: "reference"
+  fixture "Lubricant", name: "SAE_20W50", base_oil_type: "group_i", sae_grade: "20W-50", pour_point_c: -24.0, flash_point_c: 250.0, status: "reference"
+
+  # === Fixtures — Common Additive Types ===
+
+  fixture "AdditiveAction", name: "ZDDP_AntiWear", additive_type: "anti_wear", effectiveness: 0.85, synergy_status: "baseline"
+  fixture "AdditiveAction", name: "MolyFrictionModifier", additive_type: "friction_modifier", effectiveness: 0.78, synergy_status: "baseline"
+  fixture "AdditiveAction", name: "SulfurEP", additive_type: "extreme_pressure", effectiveness: 0.90, synergy_status: "baseline"
+  fixture "AdditiveAction", name: "CalciumDetergent", additive_type: "detergent", effectiveness: 0.82, synergy_status: "baseline"
+  fixture "AdditiveAction", name: "PIBDispersant", additive_type: "dispersant", effectiveness: 0.80, synergy_status: "baseline"
+  fixture "AdditiveAction", name: "AminicAntioxidant", additive_type: "antioxidant", effectiveness: 0.88, synergy_status: "baseline"
+end
