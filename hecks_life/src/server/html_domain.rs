@@ -76,10 +76,10 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate) -> String {
             let color = if state == lc.default.as_str() {
                 "bg-emerald-900 text-emerald-300"
             } else {
-                "bg-gray-700 text-gray-300"
+                "bg-gray-700 text-gray-300 hover:bg-gray-600 cursor-pointer"
             };
             s.push_str(&format!(
-                r#"<span class="text-xs px-2 py-1 rounded {color}">{state}</span>"#,
+                r#"<span class="text-xs px-2 py-1 rounded {color}" onclick="filterByStatus(this, '{state}')">{state}</span>"#,
                 color = color, state = esc(state),
             ));
         }

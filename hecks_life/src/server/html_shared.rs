@@ -36,6 +36,23 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     }});
     return false;
   }}
+  function filterByStatus(el, status) {{
+    const table = el.closest('.bg-gray-800').querySelector('table');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    const isActive = el.classList.contains('ring-2');
+    // Reset all badges
+    el.parentElement.querySelectorAll('span').forEach(s => s.classList.remove('ring-2', 'ring-white'));
+    if (isActive) {{
+      rows.forEach(r => r.style.display = '');
+      return;
+    }}
+    el.classList.add('ring-2', 'ring-white');
+    rows.forEach(r => {{
+      const text = r.textContent.toLowerCase();
+      r.style.display = text.includes(status.toLowerCase()) ? '' : 'none';
+    }});
+  }}
   </script>
 </head>
 <body class="h-full bg-gray-950 text-gray-100">
