@@ -1,134 +1,83 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="duralube">
+<html lang="en" class="dark" data-brand="duralube">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compliance - Alan's Additives</title>
-  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../js/tw-config.js"></script>
 </head>
-<body>
-  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
-  <div class="app-shell" data-domain-aggregate="StorefrontSite">
-    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
-      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
-      <div class="nav-group"><div class="nav-group-label">Operations</div>
-        <a href="dashboard.html" class="nav-link">Dashboard</a>
-        <a href="orders.html" class="nav-link">Sales Orders</a>
-        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
-      <div class="nav-group"><div class="nav-group-label">Products</div>
-        <a href="products.html" class="nav-link">Product Catalog</a>
-        <a href="formulations.html" class="nav-link">Formulations</a>
-        <a href="pipeline.html" class="nav-link">Formulation Lab</a></div>
-      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
-        <a href="campaigns.html" class="nav-link">Campaigns</a>
-        <a href="personas.html" class="nav-link">Buyer Personas</a></div>
-      <div class="nav-group"><div class="nav-group-label">Compliance</div>
-        <a href="compliance.html" class="nav-link active" data-domain-command="ViewCompliance">SDS &amp; Compliance</a></div>
-      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
-        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
-        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
-        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
-    </nav>
-
-    <main class="main-content">
-      <div class="page-header" data-domain-aggregate="ComplianceHeader">
-        <h1>SDS &amp; Regulatory Compliance</h1>
-        <p>EPA, TSCA, Prop 65, CARB VOC, DOT hazmat. Always audit-ready -- never surprised by an inspector.</p>
+<body class="bg-surface-0 text-gray-200 font-sans antialiased">
+  <button id="mobile-toggle" class="lg:hidden fixed top-4 left-4 z-50 bg-surface-2 text-gray-300 px-3 py-2 rounded-lg border border-surface-4 text-sm">Menu</button>
+  <div class="flex min-h-screen" data-domain-aggregate="StorefrontSite">
+    <nav id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-surface-1 border-r border-surface-3 flex flex-col z-40 transform -translate-x-full lg:translate-x-0 transition-transform" data-domain-aggregate="Navigation"></nav>
+    <main class="flex-1 lg:ml-64 p-6 lg:p-10">
+      <div class="mb-8" data-domain-aggregate="ComplianceHeader">
+        <h1 class="text-2xl font-bold text-white">SDS &amp; Regulatory Compliance</h1>
+        <p class="text-sm text-gray-400 mt-1">EPA, TSCA, Prop 65, CARB VOC, DOT hazmat. Always audit-ready.</p>
       </div>
-
-      <div class="metric-grid" data-domain-aggregate="ComplianceMetrics">
-        <div class="card metric" data-domain-aggregate="AuditReadiness">
-          <div class="metric-value" data-domain-attribute="readiness_score">94%</div>
-          <div class="metric-label">Audit Readiness Score</div></div>
-        <div class="card metric" data-domain-aggregate="SDSStatus">
-          <div class="metric-value" data-domain-attribute="documents_current">12</div>
-          <div class="metric-label">SDS Documents Current</div></div>
-        <div class="card metric" data-domain-aggregate="ExpiredDocs">
-          <div class="metric-value" data-domain-attribute="documents_expired">0</div>
-          <div class="metric-label">Expired Documents</div></div>
-        <div class="card metric" data-domain-aggregate="OpenFindings">
-          <div class="metric-value" data-domain-attribute="findings_open">1</div>
-          <div class="metric-label">Open Findings</div></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-domain-aggregate="ComplianceMetrics">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="AuditReadiness">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="readiness_score">94%</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Audit Readiness</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="SDSStatus">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="documents_current">12</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">SDS Current</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ExpiredDocs">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="documents_expired">0</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Expired Docs</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="OpenFindings">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="findings_open">1</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Open Findings</div></div>
       </div>
-
-      <div class="section-grid">
-        <div class="card" data-domain-aggregate="SafetyDataSheet">
-          <h3>Safety Data Sheets</h3>
-          <p style="margin-bottom:var(--space-md)">GHS-compliant 16-section SDS for every formula. Revision-tracked.</p>
-          <div class="list-item" data-searchable data-domain-attribute="formula_name">
-            <div><strong>DL-5W30-Advanced</strong><br>
-              <small style="color:var(--text-muted)">SDS-001 Rev 3 -- GHS: Flammable Liquid Cat 4</small></div>
-            <span class="badge badge-success">current</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="formula_name">
-            <div><strong>MK-HyperLube-V3</strong><br>
-              <small style="color:var(--text-muted)">SDS-003 Rev 2 -- GHS: Not classified hazardous</small></div>
-            <span class="badge badge-success">current</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="formula_name">
-            <div><strong>S50-PTFE-Recharged</strong><br>
-              <small style="color:var(--text-muted)">SDS-005 Rev 1 -- GHS: Eye Irritation Cat 2</small></div>
-            <span class="badge badge-success">current</span></div>
-          <div style="margin-top:var(--space-md)">
-            <button class="btn btn-ghost" data-domain-command="DownloadSDS" aria-label="Download all SDS documents">Download All SDS</button>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="SafetyDataSheet">
+          <h3 class="text-sm font-semibold text-white mb-3">Safety Data Sheets</h3>
+          <p class="text-xs text-gray-400 mb-4">GHS-compliant 16-section SDS for every formula. Revision-tracked.</p>
+          <div class="space-y-2">
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="formula_name"><div><strong class="text-gray-200">DL-5W30-Advanced</strong><br><span class="text-xs text-gray-500">SDS-001 Rev 3 -- GHS: Flammable Liquid Cat 4</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">current</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="formula_name"><div><strong class="text-gray-200">MK-HyperLube-V3</strong><br><span class="text-xs text-gray-500">SDS-003 Rev 2 -- GHS: Not classified hazardous</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">current</span></div>
+            <div class="flex justify-between items-start py-2 text-sm" data-searchable data-domain-attribute="formula_name"><div><strong class="text-gray-200">S50-PTFE-Recharged</strong><br><span class="text-xs text-gray-500">SDS-005 Rev 1 -- GHS: Eye Irritation Cat 2</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">current</span></div>
+          </div>
+          <div class="mt-4"><button class="text-sm text-duralube hover:text-duralube-dim transition" data-domain-command="DownloadSDS">Download All SDS</button></div>
+        </div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="Jurisdiction">
+          <h3 class="text-sm font-semibold text-white mb-3">Regulatory Jurisdictions</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="jurisdiction_name"><div><strong class="text-gray-200">EPA</strong><br><span class="text-xs text-gray-500">Environmental Protection Agency -- Federal</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="jurisdiction_name"><div><strong class="text-gray-200">California OEHHA</strong><br><span class="text-xs text-gray-500">Prop 65 -- Requires product warnings</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">3 SKUs flagged</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="jurisdiction_name"><div><strong class="text-gray-200">California CARB</strong><br><span class="text-xs text-gray-500">VOC limits for automotive products</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">within limits</span></div>
+            <div class="flex justify-between items-start py-2 text-sm" data-searchable data-domain-attribute="jurisdiction_name"><div><strong class="text-gray-200">DOT</strong><br><span class="text-xs text-gray-500">Hazmat shipping classification</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">certified</span></div>
           </div>
         </div>
-
-        <div class="card" data-domain-aggregate="Jurisdiction">
-          <h3>Regulatory Jurisdictions</h3>
-          <div class="list-item" data-searchable data-domain-attribute="jurisdiction_name">
-            <div><strong>EPA</strong><br>
-              <small style="color:var(--text-muted)">Environmental Protection Agency -- Federal</small></div>
-            <span class="badge badge-success">active</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="jurisdiction_name">
-            <div><strong>California OEHHA</strong><br>
-              <small style="color:var(--text-muted)">Prop 65 -- Requires product warnings</small></div>
-            <span class="badge badge-warning">3 SKUs flagged</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="jurisdiction_name">
-            <div><strong>California CARB</strong><br>
-              <small style="color:var(--text-muted)">VOC limits for automotive products</small></div>
-            <span class="badge badge-success">within limits</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="jurisdiction_name">
-            <div><strong>DOT</strong><br>
-              <small style="color:var(--text-muted)">Hazmat shipping classification</small></div>
-            <span class="badge badge-success">certified</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ComplianceObligation">
+          <h3 class="text-sm font-semibold text-white mb-3">Upcoming Obligations</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="obligation"><div><strong class="text-gray-200">CARB VOC Report</strong><br><span class="text-xs text-gray-500">Q2 filing -- California Air Resources Board</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">due May 15</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-searchable data-domain-attribute="obligation"><div><strong class="text-gray-200">EPA TSCA Renewal</strong><br><span class="text-xs text-gray-500">Annual TSCA compliance certification</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">scheduled Jul 1</span></div>
+            <div class="flex justify-between items-start py-2 text-sm" data-searchable data-domain-attribute="obligation"><div><strong class="text-gray-200">DOT Hazmat Training</strong><br><span class="text-xs text-gray-500">Annual recertification for shipping staff</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">scheduled Aug 1</span></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-3" data-domain-aggregate="ObligationEmpty">No overdue obligations. Keep it that way.</p>
         </div>
-
-        <div class="card" data-domain-aggregate="ComplianceObligation">
-          <h3>Upcoming Obligations</h3>
-          <div class="list-item" data-searchable data-domain-attribute="obligation">
-            <div><strong>CARB VOC Report</strong><br>
-              <small style="color:var(--text-muted)">Q2 filing -- California Air Resources Board</small></div>
-            <span class="badge badge-warning">due May 15</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="obligation">
-            <div><strong>EPA TSCA Renewal</strong><br>
-              <small style="color:var(--text-muted)">Annual TSCA compliance certification</small></div>
-            <span class="badge badge-success">scheduled Jul 1</span></div>
-          <div class="list-item" data-searchable data-domain-attribute="obligation">
-            <div><strong>DOT Hazmat Training</strong><br>
-              <small style="color:var(--text-muted)">Annual recertification for shipping staff</small></div>
-            <span class="badge badge-success">scheduled Aug 1</span></div>
-          <div class="empty-state" data-domain-aggregate="ObligationEmpty">
-            No overdue obligations. Keep it that way.</div>
-        </div>
-
-        <div class="card" data-domain-aggregate="LabelCompliance">
-          <h3>Label Audit Status</h3>
-          <p style="margin-bottom:var(--space-md)">Every label element audited per jurisdiction: name, net contents, warnings, first aid, UPC, lot code.</p>
-          <div class="list-item" data-domain-attribute="product_sku">
-            <div>DL-5W30-1QT</div><span class="badge badge-success">certified</span></div>
-          <div class="list-item" data-domain-attribute="product_sku">
-            <div>MK-HYPER-1QT</div><span class="badge badge-success">certified</span></div>
-          <div class="list-item" data-domain-attribute="product_sku">
-            <div>S50-PTFE-1QT</div><span class="badge badge-success">certified</span></div>
-          <div class="list-item" data-domain-attribute="product_sku">
-            <div>MK-FUEL-12OZ</div><span class="badge badge-warning">gap found</span></div>
-          <div class="progress-bar" aria-label="Label compliance progress">
-            <div class="progress-fill" style="width:87%"></div></div>
-          <small style="color:var(--text-muted)">87% labels fully certified</small>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="LabelCompliance">
+          <h3 class="text-sm font-semibold text-white mb-3">Label Audit Status</h3>
+          <p class="text-xs text-gray-400 mb-4">Every label element audited per jurisdiction: name, net contents, warnings, first aid, UPC, lot code.</p>
+          <div class="space-y-2">
+            <div class="flex justify-between py-1.5 border-b border-surface-3 text-sm" data-domain-attribute="product_sku"><span class="text-gray-300">DL-5W30-1QT</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">certified</span></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3 text-sm" data-domain-attribute="product_sku"><span class="text-gray-300">MK-HYPER-1QT</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">certified</span></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3 text-sm" data-domain-attribute="product_sku"><span class="text-gray-300">S50-PTFE-1QT</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">certified</span></div>
+            <div class="flex justify-between py-1.5 text-sm" data-domain-attribute="product_sku"><span class="text-gray-300">MK-FUEL-12OZ</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">gap found</span></div>
+          </div>
+          <div class="mt-4 bg-surface-2 rounded-full h-2 overflow-hidden">
+            <div class="bg-duralube h-full rounded-full" style="width:87%"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">87% labels fully certified</p>
         </div>
       </div>
     </main>
   </div>
   <script src="../js/data.js"></script>
+  <script src="../js/sidebar.js"></script>
   <script src="../js/brand-switcher.js"></script>
   <script src="../js/navigation.js"></script>
   <script src="../app.js"></script>

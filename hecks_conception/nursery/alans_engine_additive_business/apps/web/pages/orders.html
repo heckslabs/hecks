@@ -1,139 +1,77 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="duralube">
+<html lang="en" class="dark" data-brand="duralube">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sales Orders - Alan's Additives</title>
-  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../js/tw-config.js"></script>
 </head>
-<body>
-  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
-  <div class="app-shell" data-domain-aggregate="StorefrontSite">
-    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
-      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
-      <div class="nav-group"><div class="nav-group-label">Operations</div>
-        <a href="dashboard.html" class="nav-link">Dashboard</a>
-        <a href="orders.html" class="nav-link active" data-domain-command="ViewOrders">Sales Orders</a>
-        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
-      <div class="nav-group"><div class="nav-group-label">Products</div>
-        <a href="products.html" class="nav-link">Product Catalog</a>
-        <a href="formulations.html" class="nav-link">Formulations</a>
-        <a href="pipeline.html" class="nav-link">Formulation Lab</a></div>
-      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
-        <a href="campaigns.html" class="nav-link">Campaigns</a>
-        <a href="personas.html" class="nav-link">Buyer Personas</a></div>
-      <div class="nav-group"><div class="nav-group-label">Compliance</div>
-        <a href="compliance.html" class="nav-link">SDS &amp; Compliance</a></div>
-      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
-        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
-        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
-        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
-    </nav>
-
-    <main class="main-content">
-      <div class="page-header" data-domain-aggregate="OrdersHeader">
-        <h1>Sales Orders</h1>
-        <p>Orders across all channels -- Amazon, Walmart, retail, and direct. Fulfillment status at a glance.</p>
+<body class="bg-surface-0 text-gray-200 font-sans antialiased">
+  <button id="mobile-toggle" class="lg:hidden fixed top-4 left-4 z-50 bg-surface-2 text-gray-300 px-3 py-2 rounded-lg border border-surface-4 text-sm">Menu</button>
+  <div class="flex min-h-screen" data-domain-aggregate="StorefrontSite">
+    <nav id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-surface-1 border-r border-surface-3 flex flex-col z-40 transform -translate-x-full lg:translate-x-0 transition-transform" data-domain-aggregate="Navigation"></nav>
+    <main class="flex-1 lg:ml-64 p-6 lg:p-10">
+      <div class="mb-8" data-domain-aggregate="OrdersHeader">
+        <h1 class="text-2xl font-bold text-white">Sales Orders</h1>
+        <p class="text-sm text-gray-400 mt-1">Orders across all channels -- Amazon, Walmart, retail, and direct. Fulfillment status at a glance.</p>
       </div>
-
-      <div class="metric-grid" data-domain-aggregate="OrderMetrics">
-        <div class="card metric" data-domain-aggregate="TotalOrders">
-          <div class="metric-value" data-domain-attribute="total_orders">5</div>
-          <div class="metric-label">Active Orders</div></div>
-        <div class="card metric" data-domain-aggregate="Revenue">
-          <div class="metric-value" data-domain-attribute="total_revenue">$5,383</div>
-          <div class="metric-label">This Week</div></div>
-        <div class="card metric" data-domain-aggregate="FulfillmentRate">
-          <div class="metric-value" data-domain-attribute="fulfillment_rate">87%</div>
-          <div class="metric-label">On-Time Fulfillment</div></div>
-        <div class="card metric" data-domain-aggregate="ChannelMix">
-          <div class="metric-value" data-domain-attribute="channel_count">4</div>
-          <div class="metric-label">Active Channels</div></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-domain-aggregate="OrderMetrics">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="TotalOrders">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="total_orders">5</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Active Orders</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="Revenue">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="total_revenue">$5,383</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">This Week</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="FulfillmentRate">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="fulfillment_rate">87%</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">On-Time Fulfillment</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ChannelMix">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="channel_count">4</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Active Channels</div></div>
       </div>
-
-      <div class="card" data-domain-aggregate="SalesOrderList">
-        <div class="card-header">
-          <h3>All Orders</h3>
-          <button class="btn btn-primary" data-domain-command="PlaceOrder" aria-label="Place a new sales order">Place Order</button>
+      <div class="bg-surface-1 border border-surface-3 rounded-xl overflow-hidden mb-8" data-domain-aggregate="SalesOrderList">
+        <div class="flex justify-between items-center px-5 py-4 border-b border-surface-3">
+          <h3 class="text-sm font-semibold text-white">All Orders</h3>
+          <button class="text-xs px-3 py-1.5 rounded bg-duralube text-white hover:bg-duralube-dim transition" data-domain-command="PlaceOrder">Place Order</button>
         </div>
-        <table class="data-table" aria-label="Sales orders across all channels">
-          <thead><tr>
-            <th data-domain-attribute="order_number">Order</th>
-            <th data-domain-attribute="customer">Customer</th>
-            <th data-domain-attribute="channel">Channel</th>
-            <th>Line Items</th>
-            <th data-domain-attribute="total">Total</th>
-            <th data-domain-attribute="status">Fulfillment</th>
-          </tr></thead>
-          <tbody>
-            <tr data-searchable data-domain-aggregate="SalesOrder">
-              <td data-domain-attribute="order_number"><strong>ORD-2026-0851</strong></td>
-              <td data-domain-attribute="customer">Amazon FBA</td>
-              <td data-domain-attribute="channel"><span class="badge badge-info">Amazon</span></td>
-              <td>120 units</td>
-              <td data-domain-attribute="total">$1,798.80</td>
-              <td><span class="badge badge-success">delivered</span></td></tr>
-            <tr data-searchable data-domain-aggregate="SalesOrder">
-              <td data-domain-attribute="order_number"><strong>ORD-2026-0849</strong></td>
-              <td data-domain-attribute="customer">Walmart DC #7831</td>
-              <td data-domain-attribute="channel"><span class="badge badge-info">Walmart</span></td>
-              <td>48 units</td>
-              <td data-domain-attribute="total">$2,879.52</td>
-              <td><span class="badge badge-info">fulfilling</span></td></tr>
-            <tr data-searchable data-domain-aggregate="SalesOrder">
-              <td data-domain-attribute="order_number"><strong>ORD-2026-0847</strong></td>
-              <td data-domain-attribute="customer">AutoZone #4412</td>
-              <td data-domain-attribute="channel"><span class="badge badge-muted">Retail</span></td>
-              <td>3 units</td>
-              <td data-domain-attribute="total">$449.70</td>
-              <td><span class="badge badge-info">shipped</span></td></tr>
-            <tr data-searchable data-domain-aggregate="SalesOrder">
-              <td data-domain-attribute="order_number"><strong>ORD-2026-0848</strong></td>
-              <td data-domain-attribute="customer">Jim Henderson</td>
-              <td data-domain-attribute="channel"><span class="badge badge-success">Direct</span></td>
-              <td>1 unit</td>
-              <td data-domain-attribute="total">$14.99</td>
-              <td><span class="badge badge-info">confirmed</span></td></tr>
-            <tr data-searchable data-domain-aggregate="SalesOrder">
-              <td data-domain-attribute="order_number"><strong>ORD-2026-0850</strong></td>
-              <td data-domain-attribute="customer">Mike's Fleet Service</td>
-              <td data-domain-attribute="channel"><span class="badge badge-success">Direct</span></td>
-              <td>12 units</td>
-              <td data-domain-attribute="total">$239.88</td>
-              <td><span class="badge badge-warning">placed</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="section-grid" style="margin-top:var(--space-lg)">
-        <div class="card" data-domain-aggregate="ChannelBreakdown">
-          <h3>Channel Performance</h3>
-          <div class="list-item" data-domain-aggregate="Channel" data-domain-attribute="name">
-            <div><strong>Amazon</strong><br><small style="color:var(--text-muted)">Marketplace -- 120 units this week</small></div>
-            <span class="badge badge-success">active</span></div>
-          <div class="list-item" data-domain-aggregate="Channel" data-domain-attribute="name">
-            <div><strong>Walmart.com</strong><br><small style="color:var(--text-muted)">Marketplace -- 48 units this week</small></div>
-            <span class="badge badge-success">active</span></div>
-          <div class="list-item" data-domain-aggregate="Channel" data-domain-attribute="name">
-            <div><strong>Retail</strong><br><small style="color:var(--text-muted)">Brick &amp; mortar -- 3 units</small></div>
-            <span class="badge badge-success">active</span></div>
-          <div class="list-item" data-domain-aggregate="Channel" data-domain-attribute="name">
-            <div><strong>Direct</strong><br><small style="color:var(--text-muted)">Website -- 13 units</small></div>
-            <span class="badge badge-success">active</span></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-surface-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3">Order</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Channel</th>
+              <th class="px-4 py-3">Items</th><th class="px-4 py-3">Total</th><th class="px-4 py-3">Fulfillment</th>
+            </tr></thead>
+            <tbody class="divide-y divide-surface-3">
+              <tr data-searchable data-domain-aggregate="SalesOrder" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">ORD-2026-0851</td><td class="px-4 py-3 text-gray-300">Amazon FBA</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">Amazon</span></td><td class="px-4 py-3 text-gray-400">120 units</td><td class="px-4 py-3 text-gray-300">$1,798.80</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">delivered</span></td></tr>
+              <tr data-searchable data-domain-aggregate="SalesOrder" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">ORD-2026-0849</td><td class="px-4 py-3 text-gray-300">Walmart DC #7831</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">Walmart</span></td><td class="px-4 py-3 text-gray-400">48 units</td><td class="px-4 py-3 text-gray-300">$2,879.52</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">fulfilling</span></td></tr>
+              <tr data-searchable data-domain-aggregate="SalesOrder" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">ORD-2026-0847</td><td class="px-4 py-3 text-gray-300">AutoZone #4412</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-gray-800/50 text-gray-400 border-gray-700">Retail</span></td><td class="px-4 py-3 text-gray-400">3 units</td><td class="px-4 py-3 text-gray-300">$449.70</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">shipped</span></td></tr>
+              <tr data-searchable data-domain-aggregate="SalesOrder" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">ORD-2026-0848</td><td class="px-4 py-3 text-gray-300">Jim Henderson</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">Direct</span></td><td class="px-4 py-3 text-gray-400">1 unit</td><td class="px-4 py-3 text-gray-300">$14.99</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">confirmed</span></td></tr>
+              <tr data-searchable data-domain-aggregate="SalesOrder" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">ORD-2026-0850</td><td class="px-4 py-3 text-gray-300">Mike's Fleet Service</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">Direct</span></td><td class="px-4 py-3 text-gray-400">12 units</td><td class="px-4 py-3 text-gray-300">$239.88</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">placed</span></td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="card" data-domain-aggregate="Prop65Warning">
-          <h3>Prop 65 Order Warnings</h3>
-          <p style="margin-bottom:var(--space-md)">California-bound orders require Proposition 65 warnings per regulatory_compliance domain.</p>
-          <div class="list-item" data-domain-attribute="prop65_warning">
-            <div>ORD-2026-0848 (Jim Henderson, CA)</div>
-            <span class="badge badge-warning">Prop 65</span></div>
-          <div class="empty-state" data-domain-aggregate="Prop65EmptyState">
-            Other orders: no CA-bound shipments detected</div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ChannelBreakdown">
+          <h3 class="text-sm font-semibold text-white mb-3">Channel Performance</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-domain-aggregate="Channel"><div><strong class="text-gray-200">Amazon</strong><br><span class="text-xs text-gray-500">Marketplace -- 120 units this week</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-domain-aggregate="Channel"><div><strong class="text-gray-200">Walmart.com</strong><br><span class="text-xs text-gray-500">Marketplace -- 48 units this week</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+            <div class="flex justify-between items-start py-2 border-b border-surface-3 text-sm" data-domain-aggregate="Channel"><div><strong class="text-gray-200">Retail</strong><br><span class="text-xs text-gray-500">Brick &amp; mortar -- 3 units</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+            <div class="flex justify-between items-start py-2 text-sm" data-domain-aggregate="Channel"><div><strong class="text-gray-200">Direct</strong><br><span class="text-xs text-gray-500">Website -- 13 units</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+          </div>
+        </div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="Prop65Warning">
+          <h3 class="text-sm font-semibold text-white mb-3">Prop 65 Order Warnings</h3>
+          <p class="text-sm text-gray-400 mb-4">California-bound orders require Proposition 65 warnings per regulatory_compliance domain.</p>
+          <div class="flex justify-between items-center py-2 border-b border-surface-3 text-sm" data-domain-attribute="prop65_warning"><span class="text-gray-300">ORD-2026-0848 (Jim Henderson, CA)</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">Prop 65</span></div>
+          <p class="text-xs text-gray-500 mt-3" data-domain-aggregate="Prop65EmptyState">Other orders: no CA-bound shipments detected</p>
         </div>
       </div>
     </main>
   </div>
   <script src="../js/data.js"></script>
+  <script src="../js/sidebar.js"></script>
   <script src="../js/brand-switcher.js"></script>
   <script src="../js/navigation.js"></script>
   <script src="../app.js"></script>

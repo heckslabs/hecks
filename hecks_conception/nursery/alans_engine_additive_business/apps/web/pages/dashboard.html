@@ -1,110 +1,80 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="duralube">
+<html lang="en" class="dark" data-brand="duralube">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - Alan's Engine Additive Business</title>
-  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../js/tw-config.js"></script>
 </head>
-<body>
-  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
-  <div class="app-shell" data-domain-aggregate="StorefrontSite">
-
-    <nav class="sidebar" aria-label="Bounded context navigation" data-domain-aggregate="Navigation">
-      <div class="sidebar-brand" data-domain-attribute="brand"><h1>Alan's Additives</h1>
-        <p class="tagline">16 bounded contexts. One business.</p></div>
-      <div class="nav-group"><div class="nav-group-label">Operations</div>
-        <a href="dashboard.html" class="nav-link active" data-domain-command="ViewDashboard">Dashboard</a>
-        <a href="orders.html" class="nav-link" data-domain-command="ViewOrders">Sales Orders</a>
-        <a href="supply-chain.html" class="nav-link" data-domain-command="ViewSupplyChain">Supply Chain</a></div>
-      <div class="nav-group"><div class="nav-group-label">Products</div>
-        <a href="products.html" class="nav-link" data-domain-command="ViewCatalog">Product Catalog</a>
-        <a href="formulations.html" class="nav-link" data-domain-command="ViewFormulations">Formulations</a>
-        <a href="pipeline.html" class="nav-link" data-domain-command="ViewPipeline">Formulation Lab</a></div>
-      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
-        <a href="campaigns.html" class="nav-link" data-domain-command="ViewCampaigns">Campaigns</a>
-        <a href="personas.html" class="nav-link" data-domain-command="ViewPersonas">Buyer Personas</a></div>
-      <div class="nav-group"><div class="nav-group-label">Compliance</div>
-        <a href="compliance.html" class="nav-link" data-domain-command="ViewCompliance">SDS &amp; Compliance</a></div>
-      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
-        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
-        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
-        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
-    </nav>
-
-    <main class="main-content">
-      <div class="page-header" data-domain-aggregate="DashboardHeader">
-        <h1>Business Dashboard</h1>
-        <p>Real-time view across all 16 bounded contexts. Science-driven, not gut-driven.</p>
+<body class="bg-surface-0 text-gray-200 font-sans antialiased">
+  <button id="mobile-toggle" class="lg:hidden fixed top-4 left-4 z-50 bg-surface-2 text-gray-300 px-3 py-2 rounded-lg border border-surface-4 text-sm">Menu</button>
+  <div class="flex min-h-screen" data-domain-aggregate="StorefrontSite">
+    <nav id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-surface-1 border-r border-surface-3 flex flex-col z-40 transform -translate-x-full lg:translate-x-0 transition-transform" data-domain-aggregate="Navigation"></nav>
+    <main class="flex-1 lg:ml-64 p-6 lg:p-10">
+      <div class="mb-8" data-domain-aggregate="DashboardHeader">
+        <h1 class="text-2xl font-bold text-white">Business Dashboard</h1>
+        <p class="text-sm text-gray-400 mt-1">Real-time view across all 16 bounded contexts. Science-driven, not gut-driven.</p>
       </div>
-
-      <div class="metric-grid" data-domain-aggregate="DashboardMetrics">
-        <div class="card metric" data-domain-aggregate="BrandCount">
-          <div class="metric-value" data-domain-attribute="brand_count">3</div>
-          <div class="metric-label">Active Brands</div></div>
-        <div class="card metric" data-domain-aggregate="SKUCount">
-          <div class="metric-value" data-domain-attribute="active_skus">8</div>
-          <div class="metric-label">Active SKUs</div></div>
-        <div class="card metric" data-domain-aggregate="AuditReadiness">
-          <div class="metric-value" data-domain-attribute="readiness_score">94%</div>
-          <div class="metric-label">Audit Readiness</div></div>
-        <div class="card metric" data-domain-aggregate="PipelineValue">
-          <div class="metric-value" data-domain-attribute="pipeline_value">$2.4M</div>
-          <div class="metric-label">Pipeline Value</div></div>
-        <div class="card metric" data-domain-aggregate="OpenOrders">
-          <div class="metric-value" data-domain-attribute="open_orders">5</div>
-          <div class="metric-label">Open Orders</div></div>
-        <div class="card metric" data-domain-aggregate="InventoryHealth">
-          <div class="metric-value" data-domain-attribute="weeks_supply">8.2</div>
-          <div class="metric-label">Weeks of Supply</div></div>
+      <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8" data-domain-aggregate="DashboardMetrics">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="BrandCount">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="brand_count">3</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Active Brands</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="SKUCount">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="active_skus">8</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Active SKUs</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="AuditReadiness">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="readiness_score">94%</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Audit Readiness</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="PipelineValue">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="pipeline_value">$2.4M</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Pipeline Value</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="OpenOrders">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="open_orders">5</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Open Orders</div></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="InventoryHealth">
+          <div class="text-3xl font-bold text-white" data-domain-attribute="weeks_supply">8.2</div>
+          <div class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Weeks of Supply</div></div>
       </div>
-
-      <div class="section-grid">
-        <div class="card" data-domain-aggregate="BrandPosition">
-          <h3>Brand Positioning</h3>
-          <div class="list-item" data-searchable data-domain-attribute="duralube_position">
-            <div><strong style="color:#3b82f6">DuraLube</strong> <span class="badge badge-info">durability</span></div></div>
-          <div class="list-item" data-searchable data-domain-attribute="motorkote_position">
-            <div><strong style="color:#ef4444">MotorKote</strong> <span class="badge badge-danger">anti-friction</span></div></div>
-          <div class="list-item" data-searchable data-domain-attribute="slick50_position">
-            <div><strong style="color:#f59e0b">Slick 50</strong> <span class="badge badge-warning">PTFE protection</span></div></div>
+      <div class="grid md:grid-cols-2 gap-4" id="dashboard-cards">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="BrandPosition">
+          <h3 class="text-sm font-semibold text-white mb-3">Brand Positioning</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-attribute="duralube_position"><strong class="text-duralube">DuraLube</strong> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">durability</span></div>
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-attribute="motorkote_position"><strong class="text-motorkote">MotorKote</strong> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-red-900/50 text-red-400 border-red-800">anti-friction</span></div>
+            <div class="flex justify-between items-center py-2" data-domain-attribute="slick50_position"><strong class="text-slick50">Slick 50</strong> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">PTFE protection</span></div>
+          </div>
         </div>
-
-        <div class="card" data-domain-aggregate="ComplianceSnapshot">
-          <h3>Compliance Snapshot</h3>
-          <div class="list-item" data-domain-attribute="sds_status">
-            <div>SDS Documents Current</div><span class="badge badge-success">12/12</span></div>
-          <div class="list-item" data-domain-attribute="epa_status">
-            <div>EPA Registrations</div><span class="badge badge-success">active</span></div>
-          <div class="list-item" data-domain-attribute="prop65_status">
-            <div>Prop 65 Warnings</div><span class="badge badge-warning">3 SKUs flagged</span></div>
-          <div class="list-item" data-domain-attribute="voc_status">
-            <div>VOC Compliance (CARB)</div><span class="badge badge-success">within limits</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ComplianceSnapshot">
+          <h3 class="text-sm font-semibold text-white mb-3">Compliance Snapshot</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-attribute="sds_status"><span class="text-sm text-gray-300">SDS Documents Current</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">12/12</span></div>
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-attribute="epa_status"><span class="text-sm text-gray-300">EPA Registrations</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></div>
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-attribute="prop65_status"><span class="text-sm text-gray-300">Prop 65 Warnings</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">3 SKUs flagged</span></div>
+            <div class="flex justify-between items-center py-2" data-domain-attribute="voc_status"><span class="text-sm text-gray-300">VOC Compliance (CARB)</span> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">within limits</span></div>
+          </div>
         </div>
-
-        <div class="card" data-domain-aggregate="RecentOrders">
-          <h3>Recent Sales Orders</h3>
-          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
-            <div><strong>ORD-2026-0851</strong> Amazon FBA</div><span class="badge badge-success">delivered</span></div>
-          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
-            <div><strong>ORD-2026-0849</strong> Walmart DC</div><span class="badge badge-info">fulfilling</span></div>
-          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
-            <div><strong>ORD-2026-0850</strong> Mike's Fleet</div><span class="badge badge-warning">placed</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="RecentOrders">
+          <h3 class="text-sm font-semibold text-white mb-3">Recent Sales Orders</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-aggregate="SalesOrder" data-searchable><div class="text-sm"><strong class="text-white">ORD-2026-0851</strong> <span class="text-gray-400">Amazon FBA</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">delivered</span></div>
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-aggregate="SalesOrder" data-searchable><div class="text-sm"><strong class="text-white">ORD-2026-0849</strong> <span class="text-gray-400">Walmart DC</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">fulfilling</span></div>
+            <div class="flex justify-between items-center py-2" data-domain-aggregate="SalesOrder" data-searchable><div class="text-sm"><strong class="text-white">ORD-2026-0850</strong> <span class="text-gray-400">Mike's Fleet</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-amber-900/50 text-amber-400 border-amber-800">placed</span></div>
+          </div>
         </div>
-
-        <div class="card" data-domain-aggregate="ProductPipeline">
-          <h3>Innovation Pipeline</h3>
-          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
-            <div><strong>EXP-2026-001</strong> Four-ball wear testing</div><span class="badge badge-info">in lab</span></div>
-          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
-            <div><strong>EXP-2026-002</strong> Diesel anti-gel formula</div><span class="badge badge-muted">proposed</span></div>
-          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
-            <div><strong>EXP-2025-019</strong> Next-gen PTFE blend</div><span class="badge badge-success">promoted</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="ProductPipeline">
+          <h3 class="text-sm font-semibold text-white mb-3">Innovation Pipeline</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-aggregate="ExperimentalFormula" data-searchable><div class="text-sm"><strong class="text-white">EXP-2026-001</strong> <span class="text-gray-400">Four-ball wear testing</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-blue-900/50 text-blue-400 border-blue-800">in lab</span></div>
+            <div class="flex justify-between items-center py-2 border-b border-surface-3" data-domain-aggregate="ExperimentalFormula" data-searchable><div class="text-sm"><strong class="text-white">EXP-2026-002</strong> <span class="text-gray-400">Diesel anti-gel formula</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-gray-800/50 text-gray-400 border-gray-700">proposed</span></div>
+            <div class="flex justify-between items-center py-2" data-domain-aggregate="ExperimentalFormula" data-searchable><div class="text-sm"><strong class="text-white">EXP-2025-019</strong> <span class="text-gray-400">Next-gen PTFE blend</span></div> <span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">promoted</span></div>
+          </div>
         </div>
       </div>
     </main>
   </div>
   <script src="../js/data.js"></script>
+  <script src="../js/sidebar.js"></script>
   <script src="../js/brand-switcher.js"></script>
   <script src="../js/navigation.js"></script>
   <script src="../app.js"></script>

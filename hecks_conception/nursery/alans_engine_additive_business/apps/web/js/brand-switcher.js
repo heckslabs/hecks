@@ -1,46 +1,45 @@
-/* Brand switcher — changes accent color and filters product display
+/* Brand switcher -- changes accent color and filters product display
    Domain: StorefrontSite.ConfigureBrand */
 
+const BRAND_STYLES = {
+  duralube:  { bg: 'bg-duralube/20', text: 'text-duralube', border: 'border-duralube/30' },
+  motorkote: { bg: 'bg-motorkote/20', text: 'text-motorkote', border: 'border-motorkote/30' },
+  slick50:   { bg: 'bg-slick50/20', text: 'text-slick50', border: 'border-slick50/30' }
+};
+
 function initBrandSwitcher() {
-  const buttons = document.querySelectorAll('[data-brand-select]');
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const brand = btn.dataset.brandSelect;
-      switchBrand(brand);
-    });
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-brand-select]');
+    if (btn) switchBrand(btn.dataset.brandSelect);
   });
 }
 
 function switchBrand(brandKey) {
-  // Update HTML attribute for CSS variable switching
   document.documentElement.setAttribute('data-brand', brandKey);
 
-  // Update active button state
   document.querySelectorAll('[data-brand-select]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.brandSelect === brandKey);
+    const key = btn.dataset.brandSelect;
+    const s = BRAND_STYLES[key];
+    const isActive = key === brandKey;
+    btn.className = `brand-btn flex-1 py-1.5 rounded text-xs font-medium transition ${
+      isActive ? `${s.bg} ${s.text} border ${s.border}` : 'text-gray-500 hover:text-gray-300'
+    }`;
   });
 
-  // Filter product listings if on products page
-  const productRows = document.querySelectorAll('[data-product-brand]');
-  productRows.forEach(row => {
-    if (brandKey === 'all') {
-      row.style.display = '';
-    } else {
-      row.style.display = row.dataset.productBrand === brandKey ? '' : 'none';
-    }
+  // Filter product rows if present
+  document.querySelectorAll('[data-product-brand]').forEach(row => {
+    row.style.display = row.dataset.productBrand === brandKey ? '' : 'none';
   });
 
-  // Update brand-specific content
-  const brandData = BRANDS.find(b => b.key === brandKey);
+  // Update brand-specific text
+  const brandData = typeof BRANDS !== 'undefined' && BRANDS.find(b => b.key === brandKey);
   if (brandData) {
-    const taglineEl = document.querySelector('[data-domain-attribute="brand_tagline"]');
-    if (taglineEl) taglineEl.textContent = brandData.description;
-
+    const tagEl = document.querySelector('[data-domain-attribute="brand_tagline"]');
+    if (tagEl) tagEl.textContent = brandData.description;
     const wordEl = document.querySelector('[data-domain-attribute="owned_word"]');
     if (wordEl) wordEl.textContent = brandData.owned_word;
   }
 
-  // Dispatch custom event for other components
   document.dispatchEvent(new CustomEvent('brand-switched', { detail: { brand: brandKey } }));
 }
 

@@ -1,158 +1,93 @@
 <!DOCTYPE html>
-<html lang="en" data-brand="duralube">
+<html lang="en" class="dark" data-brand="duralube">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Campaigns - Alan's Additives</title>
-  <link rel="stylesheet" href="../styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../js/tw-config.js"></script>
 </head>
-<body>
-  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
-  <div class="app-shell" data-domain-aggregate="StorefrontSite">
-    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
-      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
-      <div class="nav-group"><div class="nav-group-label">Operations</div>
-        <a href="dashboard.html" class="nav-link">Dashboard</a>
-        <a href="orders.html" class="nav-link">Sales Orders</a>
-        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
-      <div class="nav-group"><div class="nav-group-label">Products</div>
-        <a href="products.html" class="nav-link">Product Catalog</a>
-        <a href="formulations.html" class="nav-link">Formulations</a>
-        <a href="pipeline.html" class="nav-link">Formulation Lab</a></div>
-      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
-        <a href="campaigns.html" class="nav-link active" data-domain-command="ViewCampaigns">Campaigns</a>
-        <a href="personas.html" class="nav-link">Buyer Personas</a></div>
-      <div class="nav-group"><div class="nav-group-label">Compliance</div>
-        <a href="compliance.html" class="nav-link">SDS &amp; Compliance</a></div>
-      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
-        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
-        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
-        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
-    </nav>
-
-    <main class="main-content">
-      <div class="page-header" data-domain-aggregate="CampaignsHeader">
-        <h1>Campaigns &amp; Brand Strategy</h1>
-        <p>Brand positioning, advertising campaigns, and competitor benchmarks. Own a word in the customer's mind.</p>
+<body class="bg-surface-0 text-gray-200 font-sans antialiased">
+  <button id="mobile-toggle" class="lg:hidden fixed top-4 left-4 z-50 bg-surface-2 text-gray-300 px-3 py-2 rounded-lg border border-surface-4 text-sm">Menu</button>
+  <div class="flex min-h-screen" data-domain-aggregate="StorefrontSite">
+    <nav id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-surface-1 border-r border-surface-3 flex flex-col z-40 transform -translate-x-full lg:translate-x-0 transition-transform" data-domain-aggregate="Navigation"></nav>
+    <main class="flex-1 lg:ml-64 p-6 lg:p-10">
+      <div class="mb-8" data-domain-aggregate="CampaignsHeader">
+        <h1 class="text-2xl font-bold text-white">Campaigns &amp; Brand Strategy</h1>
+        <p class="text-sm text-gray-400 mt-1">Brand positioning, advertising campaigns, and competitor benchmarks. Own a word in the customer's mind.</p>
       </div>
-
-      <div class="section-grid" style="margin-bottom:var(--space-lg)">
-        <div class="card" data-domain-aggregate="BrandPosition" data-searchable>
-          <h3 style="color:#3b82f6">DuraLube</h3>
-          <div class="list-item" data-domain-attribute="owned_word">
-            <div>Owns the Word</div><strong style="color:#3b82f6">"Durability"</strong></div>
-          <div class="list-item" data-domain-attribute="differentiator">
-            <div>Differentiator</div><span>Advanced anti-wear chemistry</span></div>
-          <div class="list-item" data-domain-attribute="target_customer">
-            <div>Target</div><span>DIY car owners who want long-term protection</span></div>
-          <div class="list-item" data-domain-attribute="competitor">
-            <div>Primary Competitor</div><span>Lucas (owns "trusted")</span></div>
+      <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="BrandPosition" data-searchable>
+          <h3 class="text-sm font-semibold text-duralube mb-3">DuraLube</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="owned_word"><span class="text-gray-400">Owns the Word</span><strong class="text-duralube">"Durability"</strong></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="differentiator"><span class="text-gray-400">Differentiator</span><span class="text-gray-200">Advanced anti-wear chemistry</span></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="target_customer"><span class="text-gray-400">Target</span><span class="text-gray-200">DIY car owners</span></div>
+            <div class="flex justify-between py-1.5" data-domain-attribute="competitor"><span class="text-gray-400">Competitor</span><span class="text-gray-200">Lucas ("trusted")</span></div>
+          </div>
         </div>
-
-        <div class="card" data-domain-aggregate="BrandPosition" data-searchable>
-          <h3 style="color:#ef4444">MotorKote</h3>
-          <div class="list-item" data-domain-attribute="owned_word">
-            <div>Owns the Word</div><strong style="color:#ef4444">"Anti-Friction"</strong></div>
-          <div class="list-item" data-domain-attribute="differentiator">
-            <div>Differentiator</div><span>Hyper-lubricant metal treatment</span></div>
-          <div class="list-item" data-domain-attribute="target_customer">
-            <div>Target</div><span>Performance enthusiasts and fleet operators</span></div>
-          <div class="list-item" data-domain-attribute="competitor">
-            <div>Primary Competitor</div><span>Lucas (owns "trusted")</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="BrandPosition" data-searchable>
+          <h3 class="text-sm font-semibold text-motorkote mb-3">MotorKote</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="owned_word"><span class="text-gray-400">Owns the Word</span><strong class="text-motorkote">"Anti-Friction"</strong></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="differentiator"><span class="text-gray-400">Differentiator</span><span class="text-gray-200">Hyper-lubricant metal treatment</span></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="target_customer"><span class="text-gray-400">Target</span><span class="text-gray-200">Performance + fleet</span></div>
+            <div class="flex justify-between py-1.5" data-domain-attribute="competitor"><span class="text-gray-400">Competitor</span><span class="text-gray-200">Lucas ("trusted")</span></div>
+          </div>
         </div>
-
-        <div class="card" data-domain-aggregate="BrandPosition" data-searchable>
-          <h3 style="color:#f59e0b">Slick 50</h3>
-          <div class="list-item" data-domain-attribute="owned_word">
-            <div>Owns the Word</div><strong style="color:#f59e0b">"PTFE Protection"</strong></div>
-          <div class="list-item" data-domain-attribute="differentiator">
-            <div>Differentiator</div><span>Original PTFE engine treatment pioneer</span></div>
-          <div class="list-item" data-domain-attribute="target_customer">
-            <div>Target</div><span>Mainstream consumers who want easy engine care</span></div>
-          <div class="list-item" data-domain-attribute="competitor">
-            <div>Primary Competitor</div><span>Lucas (owns "trusted")</span></div>
+        <div class="bg-surface-1 border border-surface-3 rounded-xl p-5" data-domain-aggregate="BrandPosition" data-searchable>
+          <h3 class="text-sm font-semibold text-slick50 mb-3">Slick 50</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="owned_word"><span class="text-gray-400">Owns the Word</span><strong class="text-slick50">"PTFE Protection"</strong></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="differentiator"><span class="text-gray-400">Differentiator</span><span class="text-gray-200">Original PTFE pioneer</span></div>
+            <div class="flex justify-between py-1.5 border-b border-surface-3" data-domain-attribute="target_customer"><span class="text-gray-400">Target</span><span class="text-gray-200">Mainstream consumers</span></div>
+            <div class="flex justify-between py-1.5" data-domain-attribute="competitor"><span class="text-gray-400">Competitor</span><span class="text-gray-200">Lucas ("trusted")</span></div>
+          </div>
         </div>
       </div>
-
-      <div class="card" style="margin-bottom:var(--space-lg)" data-domain-aggregate="CampaignList">
-        <div class="card-header">
-          <h3>Active Campaigns</h3>
-          <button class="btn btn-primary" data-domain-command="LaunchCampaign" aria-label="Launch a new campaign">Launch Campaign</button>
+      <div class="bg-surface-1 border border-surface-3 rounded-xl overflow-hidden mb-8" data-domain-aggregate="CampaignList">
+        <div class="flex justify-between items-center px-5 py-4 border-b border-surface-3">
+          <h3 class="text-sm font-semibold text-white">Active Campaigns</h3>
+          <button class="text-xs px-3 py-1.5 rounded bg-duralube text-white hover:bg-duralube-dim transition" data-domain-command="LaunchCampaign">Launch Campaign</button>
         </div>
-        <table class="data-table" aria-label="Advertising campaigns across brands">
-          <thead><tr>
-            <th data-domain-attribute="name">Campaign</th>
-            <th data-domain-attribute="brand">Brand</th>
-            <th data-domain-attribute="channel">Channel</th>
-            <th data-domain-attribute="budget">Budget</th>
-            <th data-domain-attribute="target_audience">Audience</th>
-            <th data-domain-attribute="status">Status</th>
-          </tr></thead>
-          <tbody>
-            <tr data-searchable data-domain-aggregate="Campaign">
-              <td><strong>DuraLube Q2 Amazon PPC</strong></td>
-              <td style="color:#3b82f6">DuraLube</td>
-              <td>Amazon Sponsored</td>
-              <td>$8,500</td>
-              <td data-domain-attribute="target_audience">Weekend Warrior + High-Mileage Hero</td>
-              <td><span class="badge badge-success">active</span></td></tr>
-            <tr data-searchable data-domain-aggregate="Campaign">
-              <td><strong>MotorKote YouTube Dyno Series</strong></td>
-              <td style="color:#ef4444">MotorKote</td>
-              <td>YouTube Ads</td>
-              <td>$12,000</td>
-              <td data-domain-attribute="target_audience">Performance Junkie</td>
-              <td><span class="badge badge-success">active</span></td></tr>
-            <tr data-searchable data-domain-aggregate="Campaign">
-              <td><strong>Slick 50 Walmart Endcap</strong></td>
-              <td style="color:#f59e0b">Slick 50</td>
-              <td>Retail Co-Op</td>
-              <td>$5,000</td>
-              <td data-domain-attribute="target_audience">Worried Parent</td>
-              <td><span class="badge badge-muted">planned</span></td></tr>
-            <tr data-searchable data-domain-aggregate="Campaign">
-              <td><strong>Fleet Direct Mail + COA</strong></td>
-              <td style="color:#ef4444">MotorKote</td>
-              <td>Direct Mail</td>
-              <td>$3,200</td>
-              <td data-domain-attribute="target_audience">Fleet Manager</td>
-              <td><span class="badge badge-success">active</span></td></tr>
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-surface-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3">Campaign</th><th class="px-4 py-3">Brand</th><th class="px-4 py-3">Channel</th><th class="px-4 py-3">Budget</th><th class="px-4 py-3">Audience</th><th class="px-4 py-3">Status</th>
+            </tr></thead>
+            <tbody class="divide-y divide-surface-3">
+              <tr data-searchable data-domain-aggregate="Campaign" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">DuraLube Q2 Amazon PPC</td><td class="px-4 py-3 text-duralube">DuraLube</td><td class="px-4 py-3 text-gray-300">Amazon Sponsored</td><td class="px-4 py-3 text-gray-300">$8,500</td><td class="px-4 py-3 text-gray-400">Weekend Warrior + High-Mileage Hero</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></td></tr>
+              <tr data-searchable data-domain-aggregate="Campaign" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">MotorKote YouTube Dyno Series</td><td class="px-4 py-3 text-motorkote">MotorKote</td><td class="px-4 py-3 text-gray-300">YouTube Ads</td><td class="px-4 py-3 text-gray-300">$12,000</td><td class="px-4 py-3 text-gray-400">Performance Junkie</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></td></tr>
+              <tr data-searchable data-domain-aggregate="Campaign" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Slick 50 Walmart Endcap</td><td class="px-4 py-3 text-slick50">Slick 50</td><td class="px-4 py-3 text-gray-300">Retail Co-Op</td><td class="px-4 py-3 text-gray-300">$5,000</td><td class="px-4 py-3 text-gray-400">Worried Parent</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-gray-800/50 text-gray-400 border-gray-700">planned</span></td></tr>
+              <tr data-searchable data-domain-aggregate="Campaign" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Fleet Direct Mail + COA</td><td class="px-4 py-3 text-motorkote">MotorKote</td><td class="px-4 py-3 text-gray-300">Direct Mail</td><td class="px-4 py-3 text-gray-300">$3,200</td><td class="px-4 py-3 text-gray-400">Fleet Manager</td><td class="px-4 py-3"><span class="text-[11px] px-2 py-0.5 rounded-full border bg-emerald-900/50 text-emerald-400 border-emerald-800">active</span></td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      <div class="card" data-domain-aggregate="CompetitiveIntelligence">
-        <h3>Competitive Landscape</h3>
-        <p style="margin-bottom:var(--space-md)">What Lucas, Royal Purple, and others are doing. Know the battlefield.</p>
-        <table class="data-table" aria-label="Competitor products and pricing">
-          <thead><tr>
-            <th data-domain-attribute="competitor">Competitor</th>
-            <th data-domain-attribute="product_name">Product</th>
-            <th data-domain-attribute="claimed_technology">Technology</th>
-            <th data-domain-attribute="price_point">Price</th>
-          </tr></thead>
-          <tbody>
-            <tr data-searchable data-domain-aggregate="CompetitorProduct">
-              <td><strong>Lucas Oil</strong></td><td>Heavy Duty Stabilizer</td>
-              <td>Petroleum-based anti-wear</td><td>$12.99/qt</td></tr>
-            <tr data-searchable data-domain-aggregate="CompetitorProduct">
-              <td><strong>Royal Purple</strong></td><td>Max-Boost</td>
-              <td>Synerlec additive tech</td><td>$18.99/qt</td></tr>
-            <tr data-searchable data-domain-aggregate="CompetitorProduct">
-              <td><strong>Liqui Moly</strong></td><td>MoS2 Anti-Friction</td>
-              <td>Molybdenum disulfide</td><td>$15.99/300ml</td></tr>
-            <tr data-searchable data-domain-aggregate="CompetitorProduct">
-              <td><strong>Sea Foam</strong></td><td>Motor Treatment</td>
-              <td>Petroleum-based cleaner</td><td>$9.99/16oz</td></tr>
-            <tr data-searchable data-domain-aggregate="CompetitorProduct">
-              <td><strong>Marvel Mystery Oil</strong></td><td>Mystery Oil</td>
-              <td>Mineral oil lubricant</td><td>$7.99/qt</td></tr>
-          </tbody>
-        </table>
+      <div class="bg-surface-1 border border-surface-3 rounded-xl overflow-hidden" data-domain-aggregate="CompetitiveIntelligence">
+        <div class="px-5 py-4 border-b border-surface-3">
+          <h3 class="text-sm font-semibold text-white">Competitive Landscape</h3>
+          <p class="text-xs text-gray-400 mt-1">What Lucas, Royal Purple, and others are doing. Know the battlefield.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-surface-3 text-left text-xs text-gray-500 uppercase tracking-wider">
+              <th class="px-4 py-3">Competitor</th><th class="px-4 py-3">Product</th><th class="px-4 py-3">Technology</th><th class="px-4 py-3">Price</th>
+            </tr></thead>
+            <tbody class="divide-y divide-surface-3">
+              <tr data-searchable data-domain-aggregate="CompetitorProduct" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Lucas Oil</td><td class="px-4 py-3 text-gray-300">Heavy Duty Stabilizer</td><td class="px-4 py-3 text-gray-400">Petroleum-based anti-wear</td><td class="px-4 py-3 text-gray-300">$12.99/qt</td></tr>
+              <tr data-searchable data-domain-aggregate="CompetitorProduct" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Royal Purple</td><td class="px-4 py-3 text-gray-300">Max-Boost</td><td class="px-4 py-3 text-gray-400">Synerlec additive tech</td><td class="px-4 py-3 text-gray-300">$18.99/qt</td></tr>
+              <tr data-searchable data-domain-aggregate="CompetitorProduct" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Liqui Moly</td><td class="px-4 py-3 text-gray-300">MoS2 Anti-Friction</td><td class="px-4 py-3 text-gray-400">Molybdenum disulfide</td><td class="px-4 py-3 text-gray-300">$15.99/300ml</td></tr>
+              <tr data-searchable data-domain-aggregate="CompetitorProduct" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Sea Foam</td><td class="px-4 py-3 text-gray-300">Motor Treatment</td><td class="px-4 py-3 text-gray-400">Petroleum-based cleaner</td><td class="px-4 py-3 text-gray-300">$9.99/16oz</td></tr>
+              <tr data-searchable data-domain-aggregate="CompetitorProduct" class="hover:bg-surface-2/50"><td class="px-4 py-3 font-medium text-white">Marvel Mystery Oil</td><td class="px-4 py-3 text-gray-300">Mystery Oil</td><td class="px-4 py-3 text-gray-400">Mineral oil lubricant</td><td class="px-4 py-3 text-gray-300">$7.99/qt</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </main>
   </div>
   <script src="../js/data.js"></script>
+  <script src="../js/sidebar.js"></script>
   <script src="../js/brand-switcher.js"></script>
   <script src="../js/navigation.js"></script>
   <script src="../app.js"></script>
