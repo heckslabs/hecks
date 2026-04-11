@@ -1,0 +1,290 @@
+Hecks.bluebook "Verbs", version: "2026.04.11.1" do
+  vision "Smart verb authority — morphology-driven validation replaces flat word lists"
+
+  aggregate "Lexicon", "The known verb corpus — grows automatically as morphology accepts new verbs" do
+    attribute :known_verbs, list_of(String)
+    attribute :total, Integer
+
+    command "RegisterVerb" do
+      role "Linguist"
+      description "Add a verb explicitly to the known corpus"
+      attribute :verb, String
+      emits "VerbRegistered"
+      given :verb, not_in: :known_verbs
+      then_set :known_verbs, append: :verb
+      then_set :total, increment: 1
+    end
+
+    command "ImportFromFile" do
+      role "System"
+      description "Bulk import verbs from a verbs.txt file"
+      attribute :verbs, list_of(String)
+      emits "FileImported"
+      then_set :known_verbs, to: :verbs
+      then_set :total, to: :count
+    end
+
+    command "LearnVerb" do
+      role "System"
+      description "Encounter a new verb in a bluebook and decide if it belongs in the lexicon"
+      attribute :verb, String
+      attribute :source_domain, String
+      emits "VerbLearned"
+      given :verb, not_in: :known_verbs
+      then_set :known_verbs, append: :verb
+      then_set :total, increment: 1
+    end
+  end
+
+  fixture "Lexicon", known_verbs: [], total: 0
+
+  aggregate "Morphology", "Understands how English makes verbs — prefixes, suffixes, derivation rules" do
+    attribute :productive_prefixes, list_of(Prefix)
+    attribute :productive_suffixes, list_of(Suffix)
+    attribute :derivation_rules, list_of(Rule)
+
+    value_object "Prefix" do
+      attribute :name, String
+      attribute :meaning, String
+      attribute :examples, list_of(String)
+    end
+
+    value_object "Suffix" do
+      attribute :name, String
+      attribute :derives_from, String
+      attribute :examples, list_of(String)
+    end
+
+    value_object "Rule" do
+      attribute :pattern, String
+      attribute :example, String
+      attribute :productive, Boolean
+    end
+
+    command "RegisterPrefix" do
+      role "Linguist"
+      description "Add a productive prefix that derives new verbs"
+      attribute :name, String
+      attribute :meaning, String
+      attribute :examples, list_of(String)
+      emits "PrefixRegistered"
+      then_set :productive_prefixes, append: Prefix
+    end
+
+    command "RegisterSuffix" do
+      role "Linguist"
+      description "Add a productive suffix that derives verbs from nouns or adjectives"
+      attribute :name, String
+      attribute :derives_from, String
+      attribute :examples, list_of(String)
+      emits "SuffixRegistered"
+      then_set :productive_suffixes, append: Suffix
+    end
+
+    command "DeriveVerb" do
+      role "System"
+      description "Given a root word and affix, determine if the derived form is a valid verb"
+      attribute :root, String
+      attribute :affix, String
+      emits "VerbDerived"
+    end
+
+    command "ValidateByMorphology" do
+      role "System"
+      description "Check if a word is a verb by its morphological structure alone"
+      attribute :word, String
+      emits "MorphologyAccepted"
+      emits "MorphologyRejected"
+    end
+  end
+
+  fixture "Morphology",
+    productive_prefixes: [
+      { name: "Re",    meaning: "again",        examples: ["Rebuild", "Reopen", "Revalidate"] },
+      { name: "Un",    meaning: "reverse",       examples: ["Undo", "Unlock", "Unload"] },
+      { name: "De",    meaning: "remove",         examples: ["Deactivate", "Decouple", "Defrost"] },
+      { name: "Over",  meaning: "excess",         examples: ["Override", "Overload", "Overflow"] },
+      { name: "Under", meaning: "insufficient",   examples: ["Underestimate", "Underperform"] },
+      { name: "Out",   meaning: "surpass",         examples: ["Outperform", "Outrun", "Outgrow"] },
+      { name: "Pre",   meaning: "before",          examples: ["Preload", "Preheat", "Precompute"] },
+      { name: "Mis",   meaning: "wrong",           examples: ["Misalign", "Misconfigure", "Miscount"] },
+      { name: "Dis",   meaning: "negate",           examples: ["Disconnect", "Disallow", "Discard"] }
+    ],
+    productive_suffixes: [
+      { name: "ize", derives_from: "noun",      examples: ["Ionize", "Serialize", "Normalize"] },
+      { name: "ify", derives_from: "adjective", examples: ["Simplify", "Purify", "Amplify"] },
+      { name: "ate", derives_from: "noun",      examples: ["Activate", "Validate", "Generate"] },
+      { name: "en",  derives_from: "adjective", examples: ["Strengthen", "Widen", "Shorten"] }
+    ],
+    derivation_rules: [
+      { pattern: "prefix + known_verb",   example: "Re + Build = Rebuild",    productive: true },
+      { pattern: "root + ize",            example: "ion + ize = Ionize",      productive: true },
+      { pattern: "root + ify",            example: "simple + ify = Simplify", productive: true },
+      { pattern: "root + ate",            example: "valid + ate = Validate",  productive: true },
+      { pattern: "root + en",             example: "short + en = Shorten",    productive: true }
+    ]
+
+  aggregate "NonVerbSuffix", "Word endings that signal noun or adjective — not a verb" do
+    attribute :suffix, String
+    attribute :part_of_speech, String
+
+    command "RegisterSuffix" do
+      role "Linguist"
+      description "Add a suffix pattern that identifies non-verbs"
+      attribute :suffix, String
+      attribute :part_of_speech, String
+      emits "NonVerbSuffixRegistered"
+      then_set :suffix, to: :suffix
+      then_set :part_of_speech, to: :part_of_speech
+    end
+  end
+
+  fixture "NonVerbSuffix", suffix: "ment",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "tion",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "sion",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ness",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ance",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ence",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ity",   part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ety",   part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ism",   part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ist",   part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "dom",   part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ship",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "hood",  part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "ology", part_of_speech: "noun"
+  fixture "NonVerbSuffix", suffix: "able",  part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ible",  part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ous",   part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ious",  part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ful",   part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "less",  part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ive",   part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "al",    part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ary",   part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ory",   part_of_speech: "adjective"
+  fixture "NonVerbSuffix", suffix: "ical",  part_of_speech: "adjective"
+
+  aggregate "DualWord", "Words that are both noun and verb — exempt from suffix rejection" do
+    attribute :word, String
+
+    command "RegisterDualWord" do
+      role "Linguist"
+      description "Mark a word as valid despite matching a non-verb suffix"
+      attribute :word, String
+      emits "DualWordRegistered"
+      then_set :word, to: :word
+    end
+  end
+
+  fixture "DualWord", word: "Augment"
+  fixture "DualWord", word: "Commission"
+  fixture "DualWord", word: "Decommission"
+  fixture "DualWord", word: "Document"
+  fixture "DualWord", word: "Implement"
+  fixture "DualWord", word: "Position"
+  fixture "DualWord", word: "Transition"
+  fixture "DualWord", word: "Commence"
+  fixture "DualWord", word: "Accession"
+  fixture "DualWord", word: "Advance"
+  fixture "DualWord", word: "Enlist"
+  fixture "DualWord", word: "Delist"
+  fixture "DualWord", word: "Capture"
+  fixture "DualWord", word: "Configure"
+  fixture "DualWord", word: "Manufacture"
+  fixture "DualWord", word: "Measure"
+  fixture "DualWord", word: "Secure"
+  fixture "DualWord", word: "Feature"
+  fixture "DualWord", word: "Venture"
+  fixture "DualWord", word: "Nurture"
+  fixture "DualWord", word: "Culture"
+  fixture "DualWord", word: "Fracture"
+  fixture "DualWord", word: "Structure"
+  fixture "DualWord", word: "Surface"
+  fixture "DualWord", word: "Service"
+  fixture "DualWord", word: "Practice"
+  fixture "DualWord", word: "Notice"
+  fixture "DualWord", word: "Reference"
+  fixture "DualWord", word: "Influence"
+  fixture "DualWord", word: "Experience"
+  fixture "DualWord", word: "License"
+  fixture "DualWord", word: "Balance"
+  fixture "DualWord", word: "Finance"
+  fixture "DualWord", word: "Embrace"
+  fixture "DualWord", word: "Place"
+  fixture "DualWord", word: "Trace"
+  fixture "DualWord", word: "Grace"
+  fixture "DualWord", word: "Inventory"
+  fixture "DualWord", word: "Query"
+  fixture "DualWord", word: "Process"
+  fixture "DualWord", word: "Record"
+  fixture "DualWord", word: "Update"
+  fixture "DualWord", word: "Set"
+  fixture "DualWord", word: "Run"
+
+  aggregate "Validation", "The decision engine — validates command verbs through a layered pipeline" do
+    attribute :last_checked, String
+    attribute :verdict, String
+
+    command "ValidateCommandVerb" do
+      role "System"
+      description "Is this command name's first word a verb? Checks: lexicon, morphology, dual words, non-verb suffixes"
+      attribute :word, String
+      emits "VerbValidated"
+      emits "VerbRejected"
+      emits "VerbAmbiguous"
+      then_set :last_checked, to: :word
+    end
+
+    command "AcceptVerb" do
+      role "System"
+      description "Morphology says yes — accept and add to lexicon automatically"
+      attribute :word, String
+      attribute :reason, String
+      emits "VerbAccepted"
+      then_set :verdict, to: "accepted"
+    end
+
+    command "RejectVerb" do
+      role "System"
+      description "Not a verb by any rule — reject with reason"
+      attribute :word, String
+      attribute :reason, String
+      emits "VerbRejected"
+      then_set :verdict, to: "rejected"
+    end
+
+    command "RequestHumanReview" do
+      role "System"
+      description "Ambiguous case — ask the user to decide"
+      attribute :word, String
+      attribute :reason, String
+      emits "HumanReviewRequested"
+      then_set :verdict, to: "pending_review"
+    end
+
+    lifecycle :verdict, default: "idle" do
+      transition "ValidateCommandVerb" => "checking", from: "idle"
+      transition "AcceptVerb" => "accepted",           from: "checking"
+      transition "RejectVerb" => "rejected",           from: "checking"
+      transition "RequestHumanReview" => "pending_review", from: "checking"
+    end
+  end
+
+  policy "MorphologyOnUnknown" do
+    on "VerbValidated"
+    trigger "ValidateByMorphology"
+    description "When a verb isn't in the lexicon, try morphological derivation before rejecting"
+  end
+
+  policy "LearnOnAccept" do
+    on "VerbAccepted"
+    trigger "LearnVerb"
+    description "When morphology accepts a verb, add it to the lexicon — self-growing corpus"
+  end
+
+  policy "IndexOnRegister" do
+    on "VerbRegistered"
+    description "Every new verb gets indexed for fast lookup"
+  end
+end
