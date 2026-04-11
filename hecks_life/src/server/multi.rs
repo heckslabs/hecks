@@ -16,6 +16,8 @@ use crate::runtime::Runtime;
 use crate::parser;
 use super::{read_request, write_response};
 use super::routes;
+use super::html;
+use super::html_domain;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::TcpListener;
@@ -87,7 +89,9 @@ fn route_multi(
     match (method, seg) {
         ("OPTIONS", _) => ("204 No Content", String::new()),
 
-        ("GET", [""]) | ("GET", []) => ("200 OK", index_html(runtimes)),
+        ("GET", [""]) | ("GET", []) => {
+            ("200 OK", html::generate_index(runtimes))
+        }
 
         ("GET", ["domains"]) => {
             let list: Vec<String> = domain_list(runtimes);
@@ -96,6 +100,15 @@ fn route_multi(
             ("200 OK", format!(
                 r#"{{"count":{},"domains":[{}]}}"#, items.len(), items.join(",")
             ))
+        }
+
+        ("GET", ["domains", name]) => {
+            match runtimes.get(*name) {
+                Some(rt) => ("200 OK", html_domain::generate_domain_page(name, rt, runtimes)),
+                None => ("404 Not Found", format!(
+                    r#"{{"error":"domain not found","name":"{}"}}"#, name
+                )),
+            }
         }
 
         ("GET", ["domains", name, rest @ ..]) |
@@ -124,21 +137,3 @@ fn domain_list(runtimes: &HashMap<String, RefCell<Runtime>>) -> Vec<String> {
     names
 }
 
-fn index_html(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
-    let names = domain_list(runtimes);
-    let links: Vec<String> = names.iter().map(|n| {
-        let rt = runtimes[n].borrow();
-        let agg_count = rt.domain.aggregates.len();
-        format!(
-            "<li><a href=\"/domains/{}/domain\">{}</a> \
-             ({} aggregates)</li>",
-            n, n, agg_count
-        )
-    }).collect();
-
-    format!(
-        "<!DOCTYPE html><html><head><title>Hecks Life</title></head>\
-         <body><h1>Hecks Life — {} domains</h1><ul>{}</ul></body></html>",
-        names.len(), links.join("")
-    )
-}

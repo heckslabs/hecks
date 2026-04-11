@@ -922,6 +922,10 @@
 - Brand switcher: CSS custom property theming driven by bounded context data
 - Cross-domain policies rendered as UI connections (e.g., SDS links from compliance, Prop 65 from regulatory_compliance)
 - Alan's Engine Additive Business: 16 bounded contexts, 9 pages, 491 domain-tagged elements, 3 brand themes
+- **hecks-life serve generates full Tailwind web app** — `hecks-life serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
+- Dark-themed Tailwind UI with sidebar navigation, dashboard metrics, domain detail pages with module cards, command forms, lifecycle badges, and fixture tables
+- Command forms submit via fetch to the JSON dispatch endpoint — no page reload, inline success/error feedback
+- Domain tags (`data-domain-aggregate`, `data-domain-command`) on all generated HTML elements
 
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history

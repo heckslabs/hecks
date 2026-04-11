@@ -9,6 +9,11 @@
 
 pub mod routes;
 pub mod multi;
+pub mod html;
+pub mod html_domain;
+pub mod html_shared;
+
+pub use routes::route;
 
 use crate::runtime::Runtime;
 use std::cell::RefCell;
