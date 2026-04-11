@@ -14,7 +14,7 @@
 #   hecks build --target go
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Go,
+  Hecks::Targets::Go,
   base_dir: File.expand_path("go_hecks", __dir__)
 )
 

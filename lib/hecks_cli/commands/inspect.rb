@@ -11,7 +11,7 @@
 #   hecks inspect --format json            # JSON output for tooling
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliFormatters,
+  Hecks::Cli::CliFormatters,
   base_dir: File.expand_path("..", __dir__)
 )
 

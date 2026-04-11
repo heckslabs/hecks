@@ -9,7 +9,7 @@
 #   gen.generate  # => Ruby source string
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Hecksagon::MongoAdapterParagraph,
+  Hecks::Hecksagon::MongoAdapterParagraph,
   base_dir: File.expand_path("mongo_adapter_generator", __dir__)
 )
 

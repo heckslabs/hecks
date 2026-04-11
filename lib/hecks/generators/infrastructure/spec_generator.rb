@@ -1,9 +1,9 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  Hecks::Bluebook::GeneratorInternalsParagraph,
   base_dir: __dir__
 )
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::SpecGeneratorsParagraph,
+  Hecks::Bluebook::SpecGeneratorsParagraph,
   base_dir: File.expand_path("spec_generator", __dir__)
 )
 

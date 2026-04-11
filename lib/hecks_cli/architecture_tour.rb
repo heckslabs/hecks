@@ -11,7 +11,7 @@
 #   Hecks::ArchitectureTour.new.start
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliInternals,
+  Hecks::Cli::CliInternals,
   base_dir: File.expand_path("architecture_tour", __dir__)
 )
 

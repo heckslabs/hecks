@@ -17,7 +17,7 @@
 #
 require "erb"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::AuthChapter,
+  Hecks::Extensions::AuthChapter,
   base_dir: __dir__
 )
 

@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  Hecks::Extensions::ServeRoutesChapter,
   base_dir: File.expand_path("ui_routes", __dir__)
 )
 

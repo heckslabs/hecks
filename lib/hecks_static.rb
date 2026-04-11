@@ -14,7 +14,7 @@
 #   hecks build --standalone
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Ruby,
+  Hecks::Targets::Ruby,
   base_dir: File.expand_path("hecks_static", __dir__)
 )
 

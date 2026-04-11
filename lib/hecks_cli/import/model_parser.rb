@@ -9,7 +9,7 @@
 #
 require "prism"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliImport,
+  Hecks::Cli::CliImport,
   base_dir: __dir__
 )
 

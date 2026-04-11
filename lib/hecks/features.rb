@@ -7,7 +7,7 @@
 # Uses narrow base_dir to avoid parent-child filter excluding these files.
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::FeaturesParagraph,
+  Hecks::Bluebook::FeaturesParagraph,
   base_dir: File.expand_path("features", __dir__)
 )
 

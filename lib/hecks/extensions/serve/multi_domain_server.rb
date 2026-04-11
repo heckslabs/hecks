@@ -2,11 +2,11 @@ require "webrick"
 require "json"
 require "tmpdir"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::ServeChapter,
+  Hecks::Extensions::ServeChapter,
   base_dir: __dir__
 )
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::ServeRoutesChapter,
+  Hecks::Extensions::ServeRoutesChapter,
   base_dir: __dir__
 )
 require "hecks/extensions/web_explorer/renderer"

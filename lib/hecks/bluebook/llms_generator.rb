@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::GeneratorsParagraph,
+  Hecks::Bluebook::GeneratorsParagraph,
   base_dir: File.expand_path("llms_generator", __dir__)
 )
   # Hecks::LlmsGenerator

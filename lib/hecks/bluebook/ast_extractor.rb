@@ -15,7 +15,7 @@
 #   result[:aggregates]  # => [{ name: "Pizza", attributes: [...], ... }, ...]
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::AstParagraph,
+  Hecks::Bluebook::AstParagraph,
   base_dir: File.expand_path("ast_extractor", __dir__)
 )
 

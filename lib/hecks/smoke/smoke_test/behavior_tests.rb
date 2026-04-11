@@ -9,7 +9,7 @@
 #
 require "hecks/chapters/templating/behavior_tests_children"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Templating::BehaviorTestsChildren,
+  Hecks::Templating::BehaviorTestsChildren,
   base_dir: File.expand_path("behavior_tests", __dir__)
 )
 

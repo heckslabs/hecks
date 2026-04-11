@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::MigrationsParagraph,
+  Hecks::Bluebook::MigrationsParagraph,
   base_dir: File.expand_path("domain_diff", __dir__)
 )
 

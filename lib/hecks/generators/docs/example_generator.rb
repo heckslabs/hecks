@@ -8,7 +8,7 @@
 #   gen.generate  # => { "pizzas.rb" => "...", "bluebook.hec" => "...", "hecksagon.hec" => "..." }
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::GeneratorsParagraph,
+  Hecks::Bluebook::GeneratorsParagraph,
   base_dir: __dir__
 )
 

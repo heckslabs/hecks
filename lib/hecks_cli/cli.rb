@@ -11,7 +11,7 @@ end
 require "fileutils"
 require "hecks/chapters/cli"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliTools,
+  Hecks::Cli::CliTools,
   base_dir: __dir__
 )
 
@@ -132,7 +132,7 @@ module Hecks
 
     # Load CLI internals (version_log_formatter, etc.) — must happen after CLI < Thor
     Hecks::Chapters.load_aggregates(
-      Hecks::Chapters::Cli::CliInternals,
+      Hecks::Cli::CliInternals,
       base_dir: File.expand_path("..", __FILE__)
     )
 

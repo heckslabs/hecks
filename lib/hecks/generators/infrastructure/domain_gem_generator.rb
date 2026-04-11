@@ -1,6 +1,6 @@
 require "fileutils"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::GeneratorInternalsParagraph,
+  Hecks::Bluebook::GeneratorInternalsParagraph,
   base_dir: File.expand_path("domain_gem_generator", __dir__)
 )
 

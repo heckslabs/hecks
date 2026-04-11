@@ -4,7 +4,7 @@
 # a chapter-level spec plus per-paragraph specs. Each aggregate and
 # its commands become executable assertions.
 #
-#   gen = ChapterSpecGenerator.new(Hecks::Chapters::Runtime)  # loads from runtime.bluebook
+#   gen = ChapterSpecGenerator.new(Hecks::Runtime)  # loads from runtime.bluebook
 #   gen.generate          # => { "runtime_spec.rb" => "...", "runtime/ports_spec.rb" => "..." }
 #   gen.chapter_spec      # => just the chapter-level spec string
 #   gen.paragraph_specs   # => { "ports" => "...", "mixins" => "..." }
@@ -12,7 +12,7 @@
 module Hecks
   module Generators
     class ChapterSpecGenerator < Hecks::Generator
-      # @param chapter_module [Module] a Hecks::Chapters::* module
+      # @param chapter_module [Module] a Hecks::* module
       def initialize(chapter_module)
         @chapter = chapter_module
         slug = bluebook_snake_name(chapter_module.name.split("::").last)

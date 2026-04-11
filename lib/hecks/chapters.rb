@@ -138,4 +138,14 @@ module Hecks
     end
     private_class_method :underscore
   end
+
+  # Flatten the Chapters namespace: Hecks::Bluebook resolves to
+  # Hecks::Bluebook when no direct constant exists.
+  def self.const_missing(name)
+    if Chapters.const_defined?(name, false)
+      Chapters.const_get(name)
+    else
+      super
+    end
+  end
 end

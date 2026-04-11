@@ -1,10 +1,10 @@
 require "fileutils"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Ruby,
+  Hecks::Targets::Ruby,
   base_dir: __dir__
 )
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Ruby,
+  Hecks::Targets::Ruby,
   base_dir: File.expand_path("gem_generator", __dir__)
 )
 

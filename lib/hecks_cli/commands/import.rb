@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliInternals,
+  Hecks::Cli::CliInternals,
   base_dir: File.expand_path("..", __dir__)
 )
 

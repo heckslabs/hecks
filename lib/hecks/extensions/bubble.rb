@@ -47,7 +47,7 @@ module HecksBubble
 end
 
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::BubbleChapter,
+  Hecks::Extensions::BubbleChapter,
   base_dir: File.expand_path("bubble", __dir__)
 )
 

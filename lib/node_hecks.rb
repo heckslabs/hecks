@@ -28,7 +28,7 @@ Hecks::Conventions::TypeContract.register_target(:node, {
 }, default: "string")
 
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Node,
+  Hecks::Targets::Node,
   base_dir: File.expand_path("node_hecks", __dir__)
 )
 

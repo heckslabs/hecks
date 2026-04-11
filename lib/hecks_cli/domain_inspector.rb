@@ -10,7 +10,7 @@
 #   inspector.generate(aggregate: "Order") # => String (single aggregate)
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliFormatters,
+  Hecks::Cli::CliFormatters,
   base_dir: File.expand_path("domain_inspector", __dir__)
 )
 

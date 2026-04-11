@@ -9,7 +9,7 @@
 #   Hecks::AI::Prompts::DomainGeneration::TOOL_SCHEMA    # => Hash
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::AI::PromptsParagraph,
+  Hecks::AI::PromptsParagraph,
   base_dir: __dir__
 )
 

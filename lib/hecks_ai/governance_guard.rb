@@ -16,7 +16,7 @@
 #   result.suggestions  # => ["Add visible: false to PII attributes"]
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::AI::GovernanceParagraph,
+  Hecks::AI::GovernanceParagraph,
   base_dir: File.expand_path("governance_guard", __dir__)
 )
 

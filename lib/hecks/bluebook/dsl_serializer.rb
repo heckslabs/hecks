@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::SerializersParagraph,
+  Hecks::Bluebook::SerializersParagraph,
   base_dir: File.expand_path("dsl_serializer", __dir__)
 )
   # Hecks::DslSerializer

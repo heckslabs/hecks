@@ -11,11 +11,11 @@
 #   formatter.format  # => Array<String>
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliFormatters,
+  Hecks::Cli::CliFormatters,
   base_dir: __dir__
 )
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliFormatters,
+  Hecks::Cli::CliFormatters,
   base_dir: File.expand_path("aggregate_formatter", __dir__)
 )
 

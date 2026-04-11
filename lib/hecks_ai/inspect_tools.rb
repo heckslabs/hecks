@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::AI::InspectParagraph,
+  Hecks::AI::InspectParagraph,
   base_dir: __dir__
 )
 

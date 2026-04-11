@@ -1,7 +1,7 @@
 require "mcp"
 
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::AI::DomainServerParagraph,
+  Hecks::AI::DomainServerParagraph,
   base_dir: File.expand_path("domain_server", __dir__)
 )
 

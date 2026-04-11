@@ -12,7 +12,7 @@ Hecks::CLI.handle(:verify) do |inv|
 
   format = options[:format].to_sym
   Hecks::Chapters.verify(format: format)
-rescue Hecks::Chapters::VerificationError => e
+rescue Hecks::VerificationError => e
   say e.message, :red
   exit 1
 end

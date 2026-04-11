@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Ruby,
+  Hecks::Targets::Ruby,
   base_dir: File.expand_path("ui_generator", __dir__)
 )
 

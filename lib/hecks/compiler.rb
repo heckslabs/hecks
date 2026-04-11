@@ -13,6 +13,6 @@ module Hecks
 end
 
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::ToolingParagraph,
+  Hecks::Bluebook::ToolingParagraph,
   base_dir: File.expand_path("compiler", __dir__)
 )

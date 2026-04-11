@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Cli::CliImport,
+  Hecks::Cli::CliImport,
   base_dir: File.expand_path("import", __dir__)
 )
   # Hecks::Import

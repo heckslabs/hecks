@@ -23,7 +23,7 @@
 #   Cat.all                        # => [] (beta has no cats)
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Extensions::TenancyChapter,
+  Hecks::Extensions::TenancyChapter,
   base_dir: File.expand_path("tenancy_support", __dir__)
 )
 

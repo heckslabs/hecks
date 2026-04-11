@@ -14,7 +14,7 @@ require "uri"
 require "json"
 require "hecks/chapters/templating/smoke_test_children"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Templating::SmokeTestChildren,
+  Hecks::Templating::SmokeTestChildren,
   base_dir: File.expand_path("smoke_test", __dir__)
 )
 

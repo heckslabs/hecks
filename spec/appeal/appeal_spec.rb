@@ -12,7 +12,7 @@ RSpec.describe "Appeal IDE Domain" do
     Hecks.actor = OpenStruct.new(role: "Developer")
   end
 
-  let(:domain) { Hecks::Chapters::Appeal.definition }
+  let(:domain) { Hecks::Appeal.definition }
   let(:runtime) do
     Hecks.load_bluebook(domain, skip_validation: true)
     Hecks::Runtime.new(domain)

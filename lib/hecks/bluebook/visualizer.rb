@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::VisualizersParagraph,
+  Hecks::Bluebook::VisualizersParagraph,
   base_dir: File.expand_path("visualizer_parts", __dir__)
 )
   # Hecks::DomainVisualizer

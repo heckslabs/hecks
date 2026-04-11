@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Targets::Go,
+  Hecks::Targets::Go,
   base_dir: File.expand_path("server_generator", __dir__)
 )
 

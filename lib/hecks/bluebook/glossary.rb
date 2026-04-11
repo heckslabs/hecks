@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::ToolingParagraph,
+  Hecks::Bluebook::ToolingParagraph,
   base_dir: File.expand_path("glossary", __dir__)
 )
   # Hecks::DomainGlossary

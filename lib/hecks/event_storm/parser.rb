@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Bluebook::AstParagraph,
+  Hecks::Bluebook::AstParagraph,
   base_dir: File.expand_path("parser", __dir__)
 )
 
