@@ -73,6 +73,23 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
       r.style.display = text.includes(status.toLowerCase()) ? '' : 'none';
     }});
   }}
+  function showDetail(row) {{
+    const cells = row.querySelectorAll('td');
+    const headers = row.closest('table').querySelectorAll('th');
+    let fields = '';
+    headers.forEach((h, i) => {{
+      if (cells[i]) {{
+        const label = h.textContent;
+        const value = cells[i].textContent;
+        fields += '<div><label class="block text-xs text-gray-400 mb-1">' + label + '</label><input value="' + value + '" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100"></div>';
+      }}
+    }});
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    modal.onclick = function(e) {{ if (e.target === modal) modal.remove(); }};
+    modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-lg w-full mx-4 border border-surface-3"><h3 class="text-lg font-bold text-brand mb-4">Record Detail</h3><div class="grid grid-cols-2 gap-3">' + fields + '</div><div class="mt-4 flex gap-3"><button onclick="this.closest(\'div.fixed\').remove()" class="px-4 py-1.5 bg-surface-3 rounded text-sm text-brand border border-surface-4">Close</button></div></div>';
+    document.body.appendChild(modal);
+  }}
   </script>
 </head>
 <body class="h-full bg-surface-0 text-gray-100">

@@ -35,13 +35,13 @@ pub fn generate_domain_page(
         label = esc(&display_name(name)),
     ));
 
-    for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
-        main.push_str(&module_card(name, agg, idx));
-    }
-
-    // Fixtures table
+    // Fixtures table first — records at the top
     if !rt.domain.fixtures.is_empty() {
         main.push_str(&fixtures_section(&rt.domain.fixtures));
+    }
+
+    for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
+        main.push_str(&module_card(name, agg, idx));
     }
 
     wrap_page(&display_name(name), &sidebar, &main)
@@ -156,7 +156,7 @@ fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     }
     s.push_str("</tr></thead><tbody>");
     for fix in fixtures {
-        s.push_str("<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"alert(this.innerText)\">");
+        s.push_str("<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"showDetail(this)\">");
         if mixed {
             s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name)));
         }

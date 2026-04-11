@@ -30,7 +30,7 @@ pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
 
     let mut main = String::new();
     main.push_str(&format!(
-        r#"<h1 class="text-3xl font-bold mb-2">Dashboard</h1>
+        r#"<h1 class="text-3xl font-bold mb-2 text-brand">Dashboard</h1>
 <p class="text-gray-400 mb-8">All domains running on this server</p>
 <div class="grid grid-cols-3 gap-6 mb-10">
   {}</div>
@@ -66,7 +66,7 @@ fn metric_cards(
     };
     format!(
         "{}{}{}{}",
-        card("Domains", domains, "text-blue-400"),
+        card("Domains", domains, "text-brand"),
         card("Modules", modules, "text-emerald-400"),
         card("Commands", commands, "text-amber-400"),
         card("Policies", policies, "text-purple-400"),
