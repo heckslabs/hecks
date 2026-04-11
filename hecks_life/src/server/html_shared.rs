@@ -40,6 +40,17 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     html {{ scroll-behavior: smooth; }}
     details > summary {{ list-style: none; }}
     details > summary::-webkit-details-marker {{ display: none; }}
+    details[open] > div {{ animation: slideDown 0.2s ease-out; }}
+    @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+    body::before {{
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 20% 30%, rgba(255,228,0,0.03) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 70%, rgba(255,228,0,0.02) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }}
   </style>
   <script>
   function submitCmd(form, cmd) {{
@@ -95,6 +106,42 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-lg w-full mx-4 border border-surface-3"><h3 class="text-lg font-bold text-brand mb-4">Record Detail</h3><div class="grid grid-cols-2 gap-3">' + fields + '</div><div class="mt-4 flex gap-3"><button onclick="this.closest(\'div.fixed\').remove()" class="px-4 py-1.5 bg-surface-3 rounded text-sm text-brand border border-surface-4">Close</button></div></div>';
     document.body.appendChild(modal);
   }}
+  function showTab(tab) {{
+    document.getElementById('panel-records').classList.toggle('hidden', tab !== 'records');
+    document.getElementById('panel-build').classList.toggle('hidden', tab !== 'build');
+    document.getElementById('tab-records').classList.toggle('text-brand', tab === 'records');
+    document.getElementById('tab-records').classList.toggle('border-brand', tab === 'records');
+    document.getElementById('tab-records').classList.toggle('text-gray-400', tab !== 'records');
+    document.getElementById('tab-records').classList.toggle('border-transparent', tab !== 'records');
+    document.getElementById('tab-build').classList.toggle('text-brand', tab === 'build');
+    document.getElementById('tab-build').classList.toggle('border-brand', tab === 'build');
+    document.getElementById('tab-build').classList.toggle('text-gray-400', tab !== 'build');
+    document.getElementById('tab-build').classList.toggle('border-transparent', tab !== 'build');
+  }}
+  function searchTable(input) {{
+    const table = input.closest('div').parentElement.querySelector('table');
+    if (!table) return;
+    const query = input.value.toLowerCase();
+    table.querySelectorAll('tbody tr').forEach(row => {{
+      row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    }});
+  }}
+  function sortTable(th) {{
+    const table = th.closest('table');
+    const idx = Array.from(th.parentElement.children).indexOf(th);
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    const asc = th.dataset.sort !== 'asc';
+    rows.sort((a, b) => {{
+      const va = a.children[idx]?.textContent || '';
+      const vb = b.children[idx]?.textContent || '';
+      return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }});
+    th.dataset.sort = asc ? 'asc' : 'desc';
+    const tbody = table.querySelector('tbody');
+    rows.forEach(r => tbody.appendChild(r));
+    th.parentElement.querySelectorAll('th').forEach(t => t.textContent = t.textContent.replace(/ ▲| ▼/g, ''));
+    th.textContent += asc ? ' ▲' : ' ▼';
+  }}
   </script>
 </head>
 <body class="h-full bg-surface-0 text-gray-100">
@@ -130,48 +177,19 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     )
 }
 
-/// Generate sidebar nav links from domain names, highlighting active
+/// Delegate sidebar generation to html_sidebar module
 pub fn sidebar_links(domains: &[(String, usize)], active: Option<&str>) -> String {
-    let mut out = String::new();
-    for (name, count) in domains {
-        let active_class = if active == Some(name.as_str()) {
-            "bg-surface-3 text-brand"
-        } else {
-            "text-gray-400 hover:bg-surface-2 hover:text-white"
-        };
-        let icon = domain_icon(name);
-        out.push_str(&format!(
-            r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="block px-3 py-1 rounded-lg text-sm {active_class} transition">
-  {icon} {label}
-</a>"#,
-            name = name,
-            icon = icon,
-            label = display_name(name),
-            active_class = active_class,
-        ));
-    }
-    out
+    super::html_sidebar::sidebar_links(domains, active)
 }
 
 /// Return an emoji icon for a domain based on keyword matching
 pub fn domain_icon(name: &str) -> &'static str {
-    let lower = name.to_lowercase();
-    if lower.contains("brand") { return "\u{1F3AF}"; }
-    if lower.contains("claim") { return "\u{1F4CB}"; }
-    if lower.contains("compliance") || lower.contains("regulatory") { return "\u{2696}\u{FE0F}"; }
-    if lower.contains("persona") || lower.contains("customer") { return "\u{1F465}"; }
-    if lower.contains("demand") { return "\u{1F4CA}"; }
-    if lower.contains("distribution") { return "\u{1F69A}"; }
-    if lower.contains("lab") { return "\u{1F52C}"; }
-    if lower.contains("formulation") { return "\u{1F9EA}"; }
-    if lower.contains("inventory") { return "\u{1F4E6}"; }
-    if lower.contains("manufactur") { return "\u{1F3ED}"; }
-    if lower.contains("pricing") { return "\u{1F4B0}"; }
-    if lower.contains("quality") { return "\u{2705}"; }
-    if lower.contains("storefront") { return "\u{1F6D2}"; }
-    if lower.contains("supply") { return "\u{1F517}"; }
-    if lower.contains("catalog") { return "\u{1F4E6}"; }
-    "\u{1F4CB}"
+    super::html_icons::domain_icon(name)
+}
+
+/// Return an emoji icon for an aggregate/module based on keyword matching
+pub fn module_icon(name: &str) -> &'static str {
+    super::html_icons::module_icon(name)
 }
 
 /// Convert snake_case domain name to Title Case display name
@@ -196,8 +214,5 @@ pub fn display_name(name: &str) -> String {
 
 /// Escape HTML special characters
 pub fn esc(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }

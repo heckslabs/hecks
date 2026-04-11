@@ -35,30 +35,45 @@ pub fn generate_domain_page(
         label = esc(&display_name(name)),
     ));
 
-    // Fixtures table first — records at the top
+    // Tabs: Records and Build
+    main.push_str(r#"<div class="flex gap-4 mb-6 border-b border-surface-3">
+  <button onclick="showTab('records')" id="tab-records" class="pb-2 px-1 text-sm font-medium border-b-2 border-brand text-brand">Records</button>
+  <button onclick="showTab('build')" id="tab-build" class="pb-2 px-1 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Build</button>
+</div>"#);
+
+    // Records panel
+    main.push_str(r#"<div id="panel-records">"#);
+    if rt.domain.aggregates.len() > 1 {
+        main.push_str(&module_navbar(&rt.domain.aggregates));
+    }
     if !rt.domain.fixtures.is_empty() {
         main.push_str(&fixtures_section(&rt.domain.fixtures));
-        main.push_str(r#"<div class="mb-8"></div>"#);
     }
+    main.push_str("</div>");
 
-    // Module navbar — quick links
+    // Build panel
+    main.push_str(r#"<div id="panel-build" class="hidden">"#);
     if rt.domain.aggregates.len() > 1 {
-        main.push_str("<nav class=\"flex flex-wrap gap-2 mb-6\">");
-        for agg in &rt.domain.aggregates {
-            main.push_str(&format!(
-                "<a href=\"#{}\" onclick=\"var d=document.getElementById('{}');if(d)d.open=true\" class=\"px-3 py-1 text-xs rounded-full bg-surface-2 border border-surface-3 text-gray-400 hover:text-brand hover:border-brand\">{}</a>",
-                esc(&agg.name),
-                esc(&agg.name), esc(&display_name(&agg.name)),
-            ));
-        }
-        main.push_str("</nav>");
+        main.push_str(&module_navbar(&rt.domain.aggregates));
     }
-
     for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
         main.push_str(&module_card(name, agg, idx));
     }
+    main.push_str("</div>");
 
     wrap_page(&display_name(name), &sidebar, &main)
+}
+
+fn module_navbar(aggregates: &[crate::ir::Aggregate]) -> String {
+    let mut s = String::from("<nav class=\"flex flex-wrap gap-2 mb-6\">");
+    for agg in aggregates {
+        s.push_str(&format!(
+            "<a href=\"#{}\" onclick=\"var d=document.getElementById('{}');if(d)d.open=true\" class=\"px-3 py-1 text-xs rounded-full bg-surface-2 border border-surface-3 text-gray-400 hover:text-brand hover:border-brand\">{}</a>",
+            esc(&agg.name), esc(&agg.name), esc(&display_name(&agg.name)),
+        ));
+    }
+    s.push_str("</nav>");
+    s
 }
 
 fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String {

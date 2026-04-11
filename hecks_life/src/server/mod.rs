@@ -11,7 +11,9 @@ pub mod routes;
 pub mod multi;
 pub mod html;
 pub mod html_domain;
+pub mod html_icons;
 pub mod html_shared;
+pub mod html_sidebar;
 
 pub use routes::route;
 
