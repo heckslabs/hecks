@@ -82,9 +82,8 @@ fn domain_card(name: &str, category: &str, description: &str) -> String {
     };
     format!(
         r#"<a href="/domains/{name}" class="bg-surface-2 rounded-lg border border-surface-3 p-6 hover:border-brand/50 hover:shadow-lg hover:shadow-brand/5 transition cursor-pointer block">
-  <div class="flex items-center justify-between mb-2">
+  <div class="mb-2">
     <h3 class="text-lg font-semibold text-white">{icon} {label}</h3>
-    <span class="text-xs px-2 py-1 rounded bg-surface-3 text-gray-300">{category}</span>
   </div>
   <p class="text-sm text-gray-400">{desc}</p>
 </a>"#,
