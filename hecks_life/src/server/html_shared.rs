@@ -8,13 +8,15 @@
 
 /// Wrap content in the full app shell with sidebar
 pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
+    let app_name = "IGB";
+    let app_subtitle = "Engine Additive Platform";
     format!(
         r#"<!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title} — Hecks Life</title>
+  <title>{title} — {app_name}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -40,8 +42,8 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   <div class="flex h-full">
     <aside class="w-64 bg-gray-900 border-r border-gray-700 flex flex-col fixed h-full overflow-y-auto">
       <div class="p-6">
-        <a href="/" class="text-xl font-bold text-white hover:text-blue-400 transition">Hecks Life</a>
-        <p class="text-xs text-gray-500 mt-1">Domain Runtime</p>
+        <a href="/" class="text-xl font-bold text-white hover:text-blue-400 transition">{app_name}</a>
+        <p class="text-xs text-gray-500 mt-1">{app_subtitle}</p>
       </div>
       <nav class="flex-1 px-4 pb-4 space-y-1">
         {sidebar_html}
@@ -59,6 +61,8 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
 </body>
 </html>"#,
         title = title,
+        app_name = app_name,
+        app_subtitle = app_subtitle,
         sidebar_html = sidebar_html,
         main_html = main_html,
     )
