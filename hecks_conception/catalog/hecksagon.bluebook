@@ -227,4 +227,92 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
     command "GenerateMigrations" do
     end
   end
+
+  aggregate "DomainDeclaration", "A bounded context declared in the hecksagon — the unit of composition" do
+    attribute :name, String
+    attribute :listens_to, list_of(String)
+    attribute :expressed, String
+
+    command "DeclareDomain" do
+      role "Architect"
+      description "Register a bounded context in the hecksagon"
+      attribute :name, String
+      emits "DomainDeclared"
+      then_set :name, to: :name
+      then_set :expressed, to: "true"
+    end
+
+    command "WireDependency" do
+      role "Architect"
+      description "This domain listens to events from another domain"
+      reference_to DomainDeclaration
+      attribute :target_domain, String
+      emits "DependencyWired"
+      then_set :listens_to, append: :target_domain
+    end
+
+    command "SilenceDomain" do
+      role "Architect"
+      description "Temporarily disable a domain without removing it"
+      reference_to DomainDeclaration
+      emits "DomainSilenced"
+      then_set :expressed, to: "false"
+    end
+  end
+
+  aggregate "CapabilityDeclaration", "A capability declared in the hecksagon — pluggable behavior" do
+    attribute :name, String
+    attribute :category, String
+    attribute :bluebook_path, String
+
+    command "DeclareCapability" do
+      role "Architect"
+      description "Register a capability — security, voice, heki, projection, etc."
+      attribute :name, String
+      attribute :category, String
+      emits "CapabilityDeclared"
+      then_set :name, to: :name
+      then_set :category, to: :category
+    end
+  end
+
+  aggregate "WorldConfig", "Runtime configuration — database, API keys, adapter selection" do
+    attribute :config_key, String
+    attribute :config_value, String
+    attribute :environment, String
+
+    command "SetConfig" do
+      role "Architect"
+      description "Set a world configuration value for a specific environment"
+      attribute :config_key, String
+      attribute :config_value, String
+      attribute :environment, String
+      emits "ConfigSet"
+      then_set :config_key, to: :config_key
+      then_set :config_value, to: :config_value
+      then_set :environment, to: :environment
+    end
+  end
+
+  aggregate "AppOverride", "Per-app hecksagon and world that merge with the parent" do
+    attribute :app_name, String
+    attribute :app_type, String
+    attribute :overrides_hecksagon, String
+    attribute :overrides_world, String
+
+    command "RegisterApp" do
+      role "Architect"
+      description "Register an app variant — web, cli, mobile — that merges its config with the parent"
+      attribute :app_name, String
+      attribute :app_type, String
+      emits "AppRegistered"
+      then_set :app_name, to: :app_name
+      then_set :app_type, to: :app_type
+    end
+  end
+
+  policy "WireOnDeclare" do
+    on "DomainDeclared"
+    trigger "WireDependency"
+  end
 end
