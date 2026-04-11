@@ -1,0 +1,374 @@
+Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
+  vision "Generate ad campaigns directly from bluebook brand positions — read positioning data and produce ad templates"
+  category "business"
+
+  aggregate "AdTemplate", "A reusable ad format derived from brand position data" do
+    attribute :brand, String
+    attribute :owned_word, String
+    attribute :channel, String
+    attribute :format, String
+    attribute :headline, String
+    attribute :subheadline, String
+    attribute :body_copy, String
+    attribute :proof_point, String
+    attribute :call_to_action, String
+    attribute :image_direction, String
+    attribute :status, String
+
+    command "GenerateTemplate" do
+      role "AdManager"
+      description "Generate an ad template from brand position data — owned word becomes the headline seed"
+      attribute :brand, String
+      attribute :owned_word, String
+      attribute :channel, String
+      attribute :format, String
+      attribute :headline, String
+      attribute :subheadline, String
+      attribute :body_copy, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
+      attribute :image_direction, String
+      emits "TemplateGenerated"
+      then_set :brand, to: :brand
+      then_set :owned_word, to: :owned_word
+      then_set :channel, to: :channel
+      then_set :format, to: :format
+      then_set :headline, to: :headline
+      then_set :subheadline, to: :subheadline
+      then_set :body_copy, to: :body_copy
+      then_set :proof_point, to: :proof_point
+      then_set :call_to_action, to: :call_to_action
+      then_set :image_direction, to: :image_direction
+      then_set :status, to: "draft"
+    end
+
+    command "CustomizeTemplate" do
+      role "AdManager"
+      description "Adjust headline, copy, or image direction for a specific placement"
+      reference_to AdTemplate
+      attribute :headline, String
+      attribute :body_copy, String
+      attribute :image_direction, String
+      emits "TemplateCustomized"
+      then_set :headline, to: :headline
+      then_set :body_copy, to: :body_copy
+      then_set :image_direction, to: :image_direction
+      then_set :status, to: "customized"
+    end
+
+    command "ApproveTemplate" do
+      role "Owner"
+      description "Sign off on a template — it can now be used in campaigns"
+      reference_to AdTemplate
+      emits "TemplateApproved"
+      then_set :status, to: "approved"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "GenerateTemplate" => "draft", from: "pending"
+      transition "CustomizeTemplate" => "customized", from: "draft"
+      transition "ApproveTemplate" => "approved", from: "draft"
+      transition "ApproveTemplate" => "approved", from: "customized"
+    end
+  end
+
+  aggregate "Campaign", "A set of ads targeting a specific channel and audience" do
+    attribute :name, String
+    attribute :brand, String
+    attribute :channel, String
+    attribute :audience, String
+    attribute :budget, Float
+    attribute :duration, String
+    attribute :templates, list_of(AdAssignment)
+    attribute :status, String
+
+    value_object "AdAssignment" do
+      attribute :template_name, String
+      attribute :placement, String
+      attribute :frequency, String
+      attribute :spend_allocation, Float
+    end
+
+    command "PlanCampaign" do
+      role "AdManager"
+      description "Create a campaign targeting a channel and audience with a budget"
+      attribute :name, String
+      attribute :brand, String
+      attribute :channel, String
+      attribute :audience, String
+      attribute :budget, Float
+      attribute :duration, String
+      emits "CampaignPlanned"
+      then_set :name, to: :name
+      then_set :brand, to: :brand
+      then_set :channel, to: :channel
+      then_set :audience, to: :audience
+      then_set :budget, to: :budget
+      then_set :duration, to: :duration
+      then_set :status, to: "planning"
+    end
+
+    command "AssignTemplate" do
+      role "AdManager"
+      description "Add an approved template to this campaign with placement and spend"
+      reference_to Campaign
+      attribute :template_name, String
+      attribute :placement, String
+      attribute :frequency, String
+      attribute :spend_allocation, Float
+      emits "TemplateAssigned"
+    end
+
+    command "LaunchCampaign" do
+      role "Owner"
+      description "Activate the campaign — ads go live"
+      reference_to Campaign
+      emits "CampaignLaunched"
+      then_set :status, to: "active"
+    end
+
+    command "PauseCampaign" do
+      role "AdManager"
+      description "Temporarily halt the campaign — ads stop serving"
+      reference_to Campaign
+      emits "CampaignPaused"
+      then_set :status, to: "paused"
+    end
+
+    command "MeasureCampaign" do
+      role "AdManager"
+      description "Record performance metrics against the campaign KPIs"
+      reference_to Campaign
+      emits "CampaignMeasured"
+    end
+
+    command "EndCampaign" do
+      role "AdManager"
+      description "Close the campaign and capture results"
+      reference_to Campaign
+      emits "CampaignEnded"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "planning" do
+      transition "PlanCampaign" => "planning", from: "pending"
+      transition "LaunchCampaign" => "active", from: "planning"
+      transition "PauseCampaign" => "paused", from: "active"
+      transition "LaunchCampaign" => "active", from: "paused"
+      transition "EndCampaign" => "completed", from: "active"
+      transition "EndCampaign" => "completed", from: "paused"
+    end
+  end
+
+  aggregate "AudienceSegment", "Target customers derived from brand position data" do
+    attribute :name, String
+    attribute :brand, String
+    attribute :demographics, String
+    attribute :interests, String
+    attribute :pain_points, String
+    attribute :buying_triggers, String
+
+    command "DefineSegment" do
+      role "AdManager"
+      description "Define an audience segment from brand position target customer data"
+      attribute :name, String
+      attribute :brand, String
+      attribute :demographics, String
+      attribute :interests, String
+      attribute :pain_points, String
+      attribute :buying_triggers, String
+      emits "SegmentDefined"
+      then_set :name, to: :name
+      then_set :brand, to: :brand
+      then_set :demographics, to: :demographics
+      then_set :interests, to: :interests
+      then_set :pain_points, to: :pain_points
+      then_set :buying_triggers, to: :buying_triggers
+    end
+
+    command "RefineSegment" do
+      role "AdManager"
+      description "Narrow or adjust the segment based on campaign performance"
+      reference_to AudienceSegment
+      attribute :demographics, String
+      attribute :interests, String
+      emits "SegmentRefined"
+      then_set :demographics, to: :demographics
+      then_set :interests, to: :interests
+    end
+
+    command "EstimateReach" do
+      role "AdManager"
+      description "Estimate how many people this segment covers on a given channel"
+      reference_to AudienceSegment
+      emits "ReachEstimated"
+    end
+  end
+
+  aggregate "CreativeDirection", "Visual and tonal guidelines per brand" do
+    attribute :brand, String
+    attribute :tone_of_voice, String
+    attribute :visual_style, String
+    attribute :color_emphasis, String
+    attribute :photography_style, String
+    attribute :forbidden_terms, list_of(String)
+
+    command "SetDirection" do
+      role "Owner"
+      description "Establish the creative direction for a brand — tone, visuals, photography"
+      attribute :brand, String
+      attribute :tone_of_voice, String
+      attribute :visual_style, String
+      attribute :color_emphasis, String
+      attribute :photography_style, String
+      emits "DirectionSet"
+      then_set :brand, to: :brand
+      then_set :tone_of_voice, to: :tone_of_voice
+      then_set :visual_style, to: :visual_style
+      then_set :color_emphasis, to: :color_emphasis
+      then_set :photography_style, to: :photography_style
+    end
+
+    command "AddForbiddenTerm" do
+      role "Owner"
+      description "Add a word or phrase that must never appear in this brand's ads"
+      reference_to CreativeDirection
+      attribute :term, String
+      emits "ForbiddenTermAdded"
+      then_set :forbidden_terms, append: :term
+    end
+  end
+
+  fixture "CreativeDirection", brand: "DuraLube", tone_of_voice: "rugged, trustworthy, plain-spoken", visual_style: "industrial, bold typography, dark backgrounds", color_emphasis: "deep blue and steel gray", photography_style: "close-up engine parts, working hands, garage environments", forbidden_terms: []
+  fixture "CreativeDirection", brand: "MotorKote", tone_of_voice: "technical, precise, performance-driven", visual_style: "clean lines, data-forward, minimal", color_emphasis: "silver and racing red", photography_style: "cutaway engines, dyno charts, fleet vehicles", forbidden_terms: []
+  fixture "CreativeDirection", brand: "Slick 50", tone_of_voice: "mainstream, approachable, heritage-proud", visual_style: "warm, familiar, easy to read", color_emphasis: "classic red and white", photography_style: "everyday cars, family garages, nostalgic Americana", forbidden_terms: []
+
+  aggregate "AdCopy", "Generated copy variations for A/B testing" do
+    attribute :template_name, String
+    attribute :variation, String
+    attribute :headline, String
+    attribute :body, String
+    attribute :cta, String
+    attribute :performance_score, Float
+
+    command "GenerateCopy" do
+      role "AdManager"
+      description "Generate a copy variation from an approved template — 3 to 5 per template"
+      attribute :template_name, String
+      attribute :variation, String
+      attribute :headline, String
+      attribute :body, String
+      attribute :cta, String
+      emits "CopyGenerated"
+      then_set :template_name, to: :template_name
+      then_set :variation, to: :variation
+      then_set :headline, to: :headline
+      then_set :body, to: :body
+      then_set :cta, to: :cta
+      then_set :performance_score, to: 0.0
+    end
+
+    command "ScoreCopy" do
+      role "AdManager"
+      description "Record the performance score for this variation — CTR, conversion, engagement"
+      reference_to AdCopy
+      attribute :performance_score, Float
+      emits "CopyScored"
+      then_set :performance_score, to: :performance_score
+    end
+
+    command "SelectWinner" do
+      role "AdManager"
+      description "Mark this variation as the winner — highest performing copy becomes the default"
+      reference_to AdCopy
+      emits "WinnerSelected"
+    end
+  end
+
+  aggregate "ChannelSpec", "Ad specs per platform — character limits, image sizes, video lengths" do
+    attribute :channel, String
+    attribute :format, String
+    attribute :headline_max_chars, Integer
+    attribute :body_max_chars, Integer
+    attribute :image_size, String
+    attribute :video_length, String
+
+    command "DefineSpec" do
+      role "AdManager"
+      description "Define the ad spec constraints for a channel and format"
+      attribute :channel, String
+      attribute :format, String
+      attribute :headline_max_chars, Integer
+      attribute :body_max_chars, Integer
+      attribute :image_size, String
+      attribute :video_length, String
+      emits "SpecDefined"
+      then_set :channel, to: :channel
+      then_set :format, to: :format
+      then_set :headline_max_chars, to: :headline_max_chars
+      then_set :body_max_chars, to: :body_max_chars
+      then_set :image_size, to: :image_size
+      then_set :video_length, to: :video_length
+    end
+  end
+
+  fixture "ChannelSpec", channel: "Amazon Sponsored", format: "search", headline_max_chars: 150, body_max_chars: 0, image_size: "1200x628", video_length: "n/a"
+  fixture "ChannelSpec", channel: "Walmart Connect", format: "search", headline_max_chars: 100, body_max_chars: 0, image_size: "1200x628", video_length: "n/a"
+  fixture "ChannelSpec", channel: "Google Ads", format: "search", headline_max_chars: 30, body_max_chars: 90, image_size: "n/a", video_length: "n/a"
+  fixture "ChannelSpec", channel: "Facebook/Instagram", format: "social", headline_max_chars: 40, body_max_chars: 125, image_size: "1080x1080", video_length: "15s"
+  fixture "ChannelSpec", channel: "Email", format: "email", headline_max_chars: 60, body_max_chars: 500, image_size: "600x400", video_length: "n/a"
+
+  aggregate "CompetitorBenchmark", "Track what Lucas and others are doing in the ad space" do
+    attribute :competitor, String
+    attribute :channel, String
+    attribute :observed_message, String
+    attribute :observed_positioning, String
+    attribute :observed_at, String
+
+    command "RecordObservation" do
+      role "AdManager"
+      description "Capture a competitor ad sighting — what they said, where, when"
+      attribute :competitor, String
+      attribute :channel, String
+      attribute :observed_message, String
+      attribute :observed_positioning, String
+      attribute :observed_at, String
+      emits "ObservationRecorded"
+      then_set :competitor, to: :competitor
+      then_set :channel, to: :channel
+      then_set :observed_message, to: :observed_message
+      then_set :observed_positioning, to: :observed_positioning
+      then_set :observed_at, to: :observed_at
+    end
+
+    command "AnalyzePattern" do
+      role "AdManager"
+      description "Identify recurring themes in competitor advertising"
+      reference_to CompetitorBenchmark
+      emits "PatternAnalyzed"
+    end
+
+    command "IdentifyGap" do
+      role "AdManager"
+      description "Find positioning gaps competitors are not addressing"
+      reference_to CompetitorBenchmark
+      emits "GapIdentified"
+    end
+  end
+
+  policy "GenerateOnPosition" do
+    on "BrandPositionDefined"
+    across "BrandStrategy"
+    trigger "GenerateTemplate"
+  end
+
+  policy "CopyOnTemplate" do
+    on "TemplateApproved"
+    trigger "GenerateCopy"
+  end
+
+  policy "SpecCheckOnGenerate" do
+    on "TemplateGenerated"
+    trigger "DefineSpec"
+  end
+end
