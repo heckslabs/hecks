@@ -1,0 +1,89 @@
+Hecks.bluebook "Alan", version: "2026.04.11.1" do
+  vision "Alan — engine additive entrepreneur, owner of DuraLube, MotorKote, and Slick 50"
+
+  aggregate "Identity", "Who Alan is" do
+    attribute :name, String
+    attribute :relationship, String
+    attribute :industry, String
+    attribute :role, String
+    attribute :brands, list_of(String)
+
+    command "UpdateIdentity" do
+      role "Chris"
+      description "Update what we know about Alan"
+      reference_to Identity
+      attribute :role, String
+      emits "IdentityUpdated"
+      then_set :role, to: :role
+    end
+  end
+
+  # Identity:
+  #   name: Alan
+  #   relationship: Chris's friend
+  #   industry: Lubricant additives
+  #   role: Owner — formulates, contracts manufacturing, resells
+  #   brands: DuraLube, MotorKote, Slick 50
+
+  aggregate "Business", "Alan's business model and operations" do
+    attribute :model, String
+    attribute :channels, list_of(String)
+    attribute :competitors, list_of(String)
+    attribute :pain_points, list_of(String)
+    attribute :notes, list_of(String)
+
+    command "RecordInsight" do
+      role "Chris"
+      description "Note something about Alan's business"
+      reference_to Business
+      attribute :note, String
+      emits "InsightRecorded"
+      then_set :notes, append: :note
+    end
+
+    command "AddPainPoint" do
+      role "Chris"
+      description "Record a business challenge Alan faces"
+      reference_to Business
+      attribute :pain_point, String
+      emits "PainPointAdded"
+      then_set :pain_points, append: :pain_point
+    end
+  end
+
+  # Business:
+  #   model: Formulates additives, others manufacture, he resells
+  #   channels: Amazon, Walmart.com, major retailers, online (DuraLube, MotorKote, Slick 50 websites)
+  #   competitors: Lucas Oil (much more well known)
+  #   pain_points:
+  #     - Lucas is much more well known brand
+  #     - Needs marketing strategy to differentiate three brands
+
+  aggregate "Demo", "Tracking what we're building for Alan's demo" do
+    attribute :domains_conceived, list_of(String)
+    attribute :demo_date, String
+    attribute :status, String
+    attribute :notes, list_of(String)
+
+    command "RecordDemoProgress" do
+      role "Chris"
+      description "Track what's been built for the demo"
+      reference_to Demo
+      attribute :note, String
+      emits "DemoProgressRecorded"
+      then_set :notes, append: :note
+    end
+  end
+
+  # Demo:
+  #   domains_conceived: formulation, catalog, manufacturing, inventory, distribution,
+  #     brand_strategy, quality, pricing, compliance, demand, claims, formulation_lab,
+  #     customer_personas, regulatory_compliance, advertising_generation, tribology
+  #   status: building
+  #   notes:
+  #     - Alan doesn't know much about AI
+  #     - When he sees his business specified, he'll love it
+  #     - Show his three brands positioned against Lucas
+  #     - Show the formulation lab pipeline
+  #     - Use his language — ASTM, SDS, MAP, COA
+end
