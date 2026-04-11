@@ -368,4 +368,23 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   fixture "DesignPrinciple", name: "Records Not Seed Data", principle: "Tables say Records — never mention seeds, fixtures, or test data", enforced: "true"
   fixture "DesignPrinciple", name: "Client Branding", principle: "Sidebar shows client company name, not Hecks — pull name from hecksagon or world config", enforced: "true"
   fixture "DesignPrinciple", name: "Domain-Rich Rendering", principle: "Use domain concepts to make the UI rich — recipes show ingredients, journeys show funnels, tests show pass/fail with ASTM labels", enforced: "true"
+
+  # === UX Research Principles (SaaS Dashboard Best Practices 2026) ===
+
+  fixture "DesignPrinciple", name: "F-Pattern Layout", principle: "Most critical metric goes top-left. Primary KPIs across top row. Secondary metrics down left column. Users scan in F-pattern.", enforced: "true"
+  fixture "DesignPrinciple", name: "Traffic Light Status", principle: "Green=working, Amber=warning, Red=critical. Use color ONLY for status and urgency. Red triggers immediate action.", enforced: "true"
+  fixture "DesignPrinciple", name: "Progressive Disclosure", principle: "Show summary first, reveal details on demand. Collapsed panels, tabs, expandable sections. Never show all data at once.", enforced: "true"
+  fixture "DesignPrinciple", name: "Right-Align Numbers", principle: "Numbers right-aligned to stack decimal points vertically. Text left-aligned. Dates left-aligned.", enforced: "true"
+  fixture "DesignPrinciple", name: "Zebra Striping", principle: "Alternating row backgrounds on tables for readability. Subtle — surface-2/surface-1 alternation.", enforced: "true"
+  fixture "DesignPrinciple", name: "Empty States Guide Action", principle: "Empty tables show helpful message: 'No records yet — use the Build tab to create one.' Never blank.", enforced: "true"
+  fixture "DesignPrinciple", name: "Bar Charts Over Pie Charts", principle: "Humans compare lengths 3-4x faster than angles. Use horizontal bars for comparisons. Never pie charts with 5+ slices.", enforced: "true"
+  fixture "DesignPrinciple", name: "Row Count Above Table", principle: "Show 'N records' count above every table. User knows scope before reading data.", enforced: "true"
+  fixture "DesignPrinciple", name: "Default Sort Obvious", principle: "First column sorted ascending by default. Show ▲ indicator on the sorted column. User knows the sort order.", enforced: "true"
+  fixture "DesignPrinciple", name: "Large Touch Targets", principle: "Minimum 44x44 pixels for clickable elements. Command buttons have generous padding. No tiny links.", enforced: "true"
+  fixture "DesignPrinciple", name: "Success Feedback Prominent", principle: "After successful action, show green banner — not tiny text. Clear the form. User knows it worked.", enforced: "true"
+  fixture "DesignPrinciple", name: "Command Button Shows Action", principle: "Button says 'Create Formula' not 'Execute'. User knows what will happen before clicking.", enforced: "true"
+  fixture "DesignPrinciple", name: "Workflow Step Counts", principle: "Each workflow step shows how many records are at that stage as a count badge. User sees pipeline health at a glance.", enforced: "true"
+  fixture "DesignPrinciple", name: "Sticky Table Headers", principle: "Table headers stay visible while scrolling. Fixed height container with overflow-y-auto. Sticky top-0 on thead.", enforced: "true"
+  fixture "DesignPrinciple", name: "Hover Title On Sidebar", principle: "Sidebar links have title attribute with domain description. User sees context on hover without clicking.", enforced: "true"
+  fixture "DesignPrinciple", name: "No Data Vomit", principle: "Never display all data simultaneously. Every dashboard serves one purpose. Operational dashboards show status. Analytical dashboards show trends.", enforced: "true"
 end
