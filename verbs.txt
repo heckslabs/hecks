@@ -1,4 +1,5 @@
 Absorb
+Accelerate
 Accept
 Accession
 Accredit
@@ -6,6 +7,7 @@ Achieve
 Acknowledge
 Acquire
 Activate
+Adapt
 Add
 Adjourn
 Adjust
@@ -18,6 +20,7 @@ Allocate
 Allow
 Amend
 Analyze
+Annihilate
 Announce
 Appeal
 Apply
@@ -42,6 +45,7 @@ Band
 Batch
 Begin
 Bill
+Bind
 Blend
 Block
 Board
@@ -62,6 +66,7 @@ Cancel
 Capture
 Cast
 Catalog
+Catalyze
 Categorize
 Certify
 Challenge
@@ -74,6 +79,7 @@ Classify
 Clean
 Clear
 Close
+Collapse
 Collect
 Combine
 Commence
@@ -81,6 +87,7 @@ Commission
 Compare
 Compile
 Complete
+Compose
 Compute
 Conceive
 Conclude
@@ -103,12 +110,17 @@ Cool
 Correct
 Count
 Create
+Cross
 Crush
 Culture
 Curate
 Cure
+Curve
 Cut
+Date
 Deactivate
+Decay
+Decelerate
 Decide
 Declare
 Decline
@@ -122,9 +134,11 @@ Delist
 Deliver
 Demold
 Demote
+Denature
 Deny
 Depart
 Deploy
+Depolarize
 Deposit
 Deprecate
 Dequeue
@@ -138,6 +152,8 @@ Determine
 Develop
 Diagnose
 Diff
+Differentiate
+Diffract
 Digitize
 Dilute
 Disable
@@ -156,6 +172,7 @@ Dispose
 Dispute
 Disqualify
 Distribute
+Divide
 Dock
 Document
 Downcast
@@ -171,9 +188,11 @@ Enact
 End
 Enforce
 Engage
+Engulf
 Enlist
 Enqueue
 Enroll
+Entangle
 Enter
 Escalate
 Establish
@@ -181,6 +200,7 @@ Estimate
 Etch
 Evacuate
 Evaluate
+Evolve
 Examine
 Excite
 Execute
@@ -190,12 +210,15 @@ Expand
 Expire
 Export
 Expose
+Express
 Extend
 Extract
 Fabricate
+Factor
 Fail
 Feature
 Feed
+Ferment
 File
 Fill
 Fillet
@@ -206,6 +229,7 @@ Finish
 Fire
 Flag
 Flood
+Fold
 Follow
 Form
 Found
@@ -243,6 +267,7 @@ Index
 Induce
 Ingest
 Inherit
+Inhibit
 Initialize
 Initiate
 Inject
@@ -253,8 +278,11 @@ Instal
 Install
 Insure
 Integrate
+Interfere
 Interpret
+Intersect
 Introduce
+Invert
 Invest
 Investigate
 Invoice
@@ -263,6 +291,7 @@ Isolate
 Issue
 Jar
 Join
+Kill
 Kit
 Label
 Launch
@@ -289,18 +318,24 @@ Mark
 Match
 Measure
 Melt
+Metabolize
+Methylate
 Migrate
 Mint
 Mitigate
 Mix
+Model
 Modify
 Mold
 Monitor
 Moor
 Mount
 Move
+Multiply
 Mutate
+Negate
 Negotiate
+Normalize
 Notify
 Nourish
 Observe
@@ -312,6 +347,7 @@ Operate
 Optimize
 Order
 Organize
+Oxidize
 Pack
 Package
 Park
@@ -320,6 +356,7 @@ Pass
 Pause
 Pay
 Perform
+Phosphorylate
 Pick
 Pitch
 Place
@@ -351,6 +388,7 @@ Progress
 Promote
 Propagate
 Propose
+Prove
 Provide
 Prune
 Publish
@@ -362,6 +400,7 @@ Quarantine
 Quench
 Queue
 Rack
+Radiate
 Raise
 Rate
 Reach
@@ -383,6 +422,8 @@ Redefine
 Reduce
 Refill
 Refine
+Reflect
+Refract
 Refuel
 Refund
 Refurbish
@@ -397,6 +438,7 @@ Relax
 Release
 Relocate
 Remediate
+Remember
 Remove
 Render
 Renew
@@ -408,7 +450,10 @@ Repay
 Replace
 Replant
 Replenish
+Replicate
+Repolarize
 Report
+Reproduce
 Request
 Require
 Reschedule
@@ -435,6 +480,7 @@ Ring
 Root
 Rotate
 Run
+Sample
 Satisfy
 Saturate
 Saw
@@ -452,6 +498,7 @@ Seed
 Select
 Sell
 Send
+Sequence
 Serialize
 Serve
 Service
@@ -463,12 +510,16 @@ Ship
 Shut
 Sieve
 Sign
+Simplify
 Skip
+Solve
 Sort
 Source
 Sow
 Spawn
+Speciate
 Specify
+Splice
 Stabilize
 Stack
 Stamp
@@ -481,6 +532,7 @@ Store
 Stream
 Submit
 Suggest
+Superpose
 Surrender
 Survey
 Suspend
@@ -497,12 +549,14 @@ Top
 Track
 Trade
 Train
+Transcribe
 Transfer
 Transform
 Transition
 Translate
 Transplant
 Transport
+Transpose
 Treat
 Trigger
 Trim
@@ -510,6 +564,7 @@ Trip
 Tune
 Unblock
 Undock
+Unite
 Unlink
 Unload
 Unlock

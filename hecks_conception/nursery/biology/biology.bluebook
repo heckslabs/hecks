@@ -1,0 +1,1148 @@
+Hecks.bluebook "Biology", version: "2026.04.11.1" do
+  vision "The language of life — cells, genes, proteins, organisms, ecosystems, and the processes that animate matter"
+
+  # === Cell Biology ===
+
+  aggregate "Cell", "The fundamental unit of life — membrane-bound, self-replicating, metabolizing" do
+    attribute :cell_type, String
+    attribute :name, String
+    attribute :organism_type, String
+    attribute :phase, String
+    attribute :energy_level, Float
+    attribute :organelles, list_of(Organelle)
+    attribute :membrane_integrity, Float
+    attribute :differentiation_state, String
+
+    value_object "Organelle" do
+      attribute :name, String
+      attribute :function, String
+      attribute :count, Integer
+      attribute :membrane_bound, String
+    end
+
+    value_object "Cytoplasm" do
+      attribute :volume, Float
+      attribute :ph, Float
+      attribute :ion_concentration, Float
+    end
+
+    value_object "Nucleus" do
+      attribute :chromosome_count, Integer
+      attribute :ploidy, String
+      attribute :envelope_intact, String
+    end
+
+    command "CreateCell" do
+      role "Biologist"
+      description "Instantiate a new cell with its type and organism origin"
+      attribute :cell_type, String
+      attribute :name, String
+      attribute :organism_type, String
+      emits "CellCreated"
+      then_set :cell_type, to: :cell_type
+      then_set :name, to: :name
+      then_set :organism_type, to: :organism_type
+      then_set :phase, to: "interphase"
+      then_set :membrane_integrity, to: 1.0
+      then_set :energy_level, to: 100.0
+    end
+
+    command "Divide" do
+      role "Biologist"
+      description "Trigger cell division — mitosis for somatic, meiosis for gametes"
+      reference_to Cell
+      attribute :division_type, String
+      given { phase == "interphase" }
+      given { membrane_integrity > 0.5 }
+      emits "CellDivided"
+      then_set :phase, to: "dividing"
+    end
+
+    command "Differentiate" do
+      role "Biologist"
+      description "Commit a stem cell to a specialized fate — neuron, muscle, epithelial"
+      reference_to Cell
+      attribute :target_type, String
+      attribute :signals, String
+      given { cell_type == "stem" }
+      emits "CellDifferentiated"
+      then_set :differentiation_state, to: :target_type
+      then_set :cell_type, to: :target_type
+    end
+
+    command "Metabolize" do
+      role "System"
+      description "Convert nutrients to energy — aerobic or anaerobic respiration"
+      reference_to Cell
+      attribute :pathway, String
+      attribute :substrate, String
+      emits "CellMetabolized"
+    end
+
+    command "TriggerApoptosis" do
+      role "System"
+      description "Programmed cell death — clean, orderly self-destruction"
+      reference_to Cell
+      emits "ApoptosisTriggered"
+      then_set :phase, to: "apoptotic"
+      then_set :membrane_integrity, to: 0.0
+    end
+
+    command "EnterPhase" do
+      role "System"
+      description "Advance the cell cycle — G1, S, G2, M"
+      reference_to Cell
+      attribute :phase, String
+      emits "PhaseEntered"
+      then_set :phase, to: :phase
+    end
+
+    command "RepairMembrane" do
+      role "System"
+      description "Restore membrane integrity after damage"
+      reference_to Cell
+      attribute :integrity, Float
+      emits "MembraneRepaired"
+      then_set :membrane_integrity, to: :integrity
+    end
+
+    lifecycle :phase, default: "interphase" do
+      transition "CreateCell" => "interphase", from: "none"
+      transition "EnterPhase" => "G1", from: "interphase"
+      transition "EnterPhase" => "S", from: "G1"
+      transition "EnterPhase" => "G2", from: "S"
+      transition "Divide" => "dividing", from: "interphase"
+      transition "EnterPhase" => "interphase", from: "dividing"
+      transition "TriggerApoptosis" => "apoptotic", from: "interphase"
+    end
+  end
+
+  # === DNA & Genetics Molecular ===
+
+  aggregate "DNA", "The molecule of heredity — nucleotide sequence encoding life's instructions" do
+    attribute :sequence, String
+    attribute :strand_type, String
+    attribute :length, Integer
+    attribute :organism, String
+    attribute :genes, list_of(Gene)
+    attribute :codons, list_of(Codon)
+    attribute :gc_content, Float
+    attribute :integrity, Float
+
+    value_object "Gene" do
+      attribute :name, String
+      attribute :locus, String
+      attribute :start_position, Integer
+      attribute :end_position, Integer
+      attribute :strand, String
+      attribute :function, String
+    end
+
+    value_object "Codon" do
+      attribute :triplet, String
+      attribute :amino_acid, String
+      attribute :position, Integer
+    end
+
+    value_object "Nucleotide" do
+      attribute :base, String
+      attribute :sugar, String
+      attribute :phosphate, String
+      attribute :position, Integer
+    end
+
+    command "SequenceDNA" do
+      role "Geneticist"
+      description "Read and record a DNA sequence with its gene annotations"
+      attribute :sequence, String
+      attribute :organism, String
+      attribute :strand_type, String
+      emits "DNASequenced"
+      then_set :sequence, to: :sequence
+      then_set :organism, to: :organism
+      then_set :strand_type, to: :strand_type
+      then_set :integrity, to: 1.0
+    end
+
+    command "Replicate" do
+      role "System"
+      description "Copy the DNA double helix — semiconservative replication"
+      reference_to DNA
+      attribute :origin_of_replication, String
+      given { integrity > 0.8 }
+      emits "DNAReplicated"
+    end
+
+    command "Transcribe" do
+      role "System"
+      description "Synthesize mRNA from a gene — RNA polymerase reads template strand"
+      reference_to DNA
+      attribute :gene_name, String
+      attribute :promoter, String
+      emits "GeneTranscribed"
+    end
+
+    command "Mutate" do
+      role "System"
+      description "Introduce a change — point mutation, insertion, deletion, frameshift"
+      reference_to DNA
+      attribute :mutation_type, String
+      attribute :position, Integer
+      attribute :original_base, String
+      attribute :new_base, String
+      emits "DNAMutated"
+    end
+
+    command "RepairDNA" do
+      role "System"
+      description "Fix DNA damage — mismatch repair, excision repair, recombination"
+      reference_to DNA
+      attribute :repair_mechanism, String
+      attribute :damage_site, Integer
+      emits "DNARepaired"
+      then_set :integrity, to: 1.0
+    end
+
+    command "Methylate" do
+      role "System"
+      description "Add methyl groups to DNA — epigenetic silencing of gene expression"
+      reference_to DNA
+      attribute :gene_name, String
+      attribute :methylation_pattern, String
+      emits "DNAMethylated"
+    end
+
+    command "Splice" do
+      role "System"
+      description "Remove introns and join exons from pre-mRNA — post-transcriptional processing"
+      reference_to DNA
+      attribute :gene_name, String
+      attribute :exons_retained, String
+      emits "RNASpliced"
+    end
+  end
+
+  # === Protein ===
+
+  aggregate "Protein", "A folded chain of amino acids — the workhorse molecule of the cell" do
+    attribute :name, String
+    attribute :sequence, String
+    attribute :length, Integer
+    attribute :primary_structure, String
+    attribute :secondary_structure, String
+    attribute :tertiary_structure, String
+    attribute :quaternary_structure, String
+    attribute :function, String
+    attribute :folding_state, String
+    attribute :active, String
+    attribute :amino_acids, list_of(AminoAcid)
+
+    value_object "AminoAcid" do
+      attribute :name, String
+      attribute :abbreviation, String
+      attribute :position, Integer
+      attribute :hydrophobic, String
+      attribute :charge, String
+    end
+
+    value_object "ActiveSite" do
+      attribute :residues, String
+      attribute :substrate, String
+      attribute :specificity, String
+    end
+
+    command "Synthesize" do
+      role "System"
+      description "Build a protein on the ribosome — translate mRNA to amino acid chain"
+      attribute :name, String
+      attribute :sequence, String
+      attribute :function, String
+      emits "ProteinSynthesized"
+      then_set :name, to: :name
+      then_set :sequence, to: :sequence
+      then_set :function, to: :function
+      then_set :folding_state, to: "unfolded"
+      then_set :active, to: "false"
+    end
+
+    command "Fold" do
+      role "System"
+      description "Achieve native conformation — chaperone-assisted or spontaneous folding"
+      reference_to Protein
+      attribute :secondary_structure, String
+      attribute :tertiary_structure, String
+      given { folding_state == "unfolded" }
+      emits "ProteinFolded"
+      then_set :secondary_structure, to: :secondary_structure
+      then_set :tertiary_structure, to: :tertiary_structure
+      then_set :folding_state, to: "folded"
+      then_set :active, to: "true"
+    end
+
+    command "Denature" do
+      role "System"
+      description "Unfold due to heat, pH, or chemical stress — lose 3D structure"
+      reference_to Protein
+      attribute :cause, String
+      given { folding_state == "folded" }
+      emits "ProteinDenatured"
+      then_set :folding_state, to: "denatured"
+      then_set :active, to: "false"
+    end
+
+    command "Catalyze" do
+      role "System"
+      description "Enzyme action — lower activation energy and convert substrate to product"
+      reference_to Protein
+      attribute :substrate, String
+      attribute :product, String
+      given { active == "true" }
+      given { function == "enzyme" }
+      emits "ReactionCatalyzed"
+    end
+
+    command "Phosphorylate" do
+      role "System"
+      description "Add phosphate group — kinase-mediated activation or deactivation"
+      reference_to Protein
+      attribute :site, String
+      attribute :kinase, String
+      emits "ProteinPhosphorylated"
+    end
+
+    command "Bind" do
+      role "System"
+      description "Attach to a ligand, receptor, or another protein — molecular recognition"
+      reference_to Protein
+      attribute :target, String
+      attribute :binding_affinity, Float
+      emits "ProteinBound"
+    end
+
+    lifecycle :folding_state, default: "unfolded" do
+      transition "Synthesize" => "unfolded", from: "none"
+      transition "Fold" => "folded", from: "unfolded"
+      transition "Denature" => "denatured", from: "folded"
+      transition "Fold" => "folded", from: "denatured"
+    end
+  end
+
+  # === Organism ===
+
+  aggregate "Organism", "A living being — classified by taxonomy, shaped by traits, driven by evolution" do
+    attribute :species_name, String
+    attribute :common_name, String
+    attribute :domain, String
+    attribute :kingdom, String
+    attribute :phylum, String
+    attribute :class_name, String
+    attribute :order, String
+    attribute :family, String
+    attribute :genus, String
+    attribute :traits, list_of(Trait)
+    attribute :fitness, Float
+    attribute :generation, Integer
+    attribute :alive, String
+
+    value_object "Trait" do
+      attribute :name, String
+      attribute :value, String
+      attribute :heritable, String
+      attribute :dominant, String
+    end
+
+    value_object "Taxonomy" do
+      attribute :domain, String
+      attribute :kingdom, String
+      attribute :phylum, String
+      attribute :class_name, String
+      attribute :order, String
+      attribute :family, String
+      attribute :genus, String
+      attribute :species, String
+    end
+
+    command "Classify" do
+      role "Biologist"
+      description "Place an organism in the Linnaean hierarchy — domain through species"
+      attribute :species_name, String
+      attribute :common_name, String
+      attribute :domain, String
+      attribute :kingdom, String
+      attribute :phylum, String
+      emits "OrganismClassified"
+      then_set :species_name, to: :species_name
+      then_set :common_name, to: :common_name
+      then_set :domain, to: :domain
+      then_set :kingdom, to: :kingdom
+      then_set :phylum, to: :phylum
+      then_set :alive, to: "true"
+      then_set :generation, to: 1
+    end
+
+    command "Evolve" do
+      role "System"
+      description "Accumulate heritable changes across generations — driven by selection pressure"
+      reference_to Organism
+      attribute :trait_name, String
+      attribute :new_value, String
+      attribute :mechanism, String
+      emits "OrganismEvolved"
+    end
+
+    command "Adapt" do
+      role "System"
+      description "Express a beneficial trait in response to environmental pressure"
+      reference_to Organism
+      attribute :pressure, String
+      attribute :adaptation, String
+      emits "OrganismAdapted"
+    end
+
+    command "Reproduce" do
+      role "System"
+      description "Produce offspring — sexual or asexual reproduction"
+      reference_to Organism
+      attribute :reproduction_type, String
+      attribute :mate_id, String
+      given { alive == "true" }
+      emits "OrganismReproduced"
+    end
+
+    command "Kill" do
+      role "System"
+      description "The organism dies — natural causes, predation, or disease"
+      reference_to Organism
+      attribute :cause, String
+      emits "OrganismDied"
+      then_set :alive, to: "false"
+    end
+  end
+
+  # === Ecosystem ===
+
+  aggregate "Ecosystem", "A community of organisms and their environment — energy flows, matter cycles" do
+    attribute :name, String
+    attribute :biome, String
+    attribute :area, Float
+    attribute :populations, list_of(Population)
+    attribute :trophic_levels, list_of(TrophicLevel)
+    attribute :energy_input, Float
+    attribute :biodiversity_index, Float
+    attribute :status, String
+
+    value_object "Population" do
+      attribute :species_name, String
+      attribute :count, Integer
+      attribute :growth_rate, Float
+      attribute :carrying_capacity, Integer
+      attribute :trophic_level, String
+    end
+
+    value_object "TrophicLevel" do
+      attribute :level, Integer
+      attribute :name, String
+      attribute :energy_available, Float
+      attribute :species_count, Integer
+    end
+
+    value_object "FoodWebLink" do
+      attribute :predator, String
+      attribute :prey, String
+      attribute :energy_transfer, Float
+    end
+
+    command "EstablishEcosystem" do
+      role "Ecologist"
+      description "Define a new ecosystem — biome, area, initial energy input"
+      attribute :name, String
+      attribute :biome, String
+      attribute :area, Float
+      attribute :energy_input, Float
+      emits "EcosystemEstablished"
+      then_set :name, to: :name
+      then_set :biome, to: :biome
+      then_set :area, to: :area
+      then_set :energy_input, to: :energy_input
+      then_set :status, to: "nascent"
+    end
+
+    command "AddSpecies" do
+      role "Ecologist"
+      description "Introduce a species population to the ecosystem"
+      reference_to Ecosystem
+      attribute :species_name, String
+      attribute :initial_count, Integer
+      attribute :trophic_level, String
+      emits "SpeciesAdded"
+    end
+
+    command "TrackPopulation" do
+      role "Ecologist"
+      description "Record population size change — growth, decline, or stable"
+      reference_to Ecosystem
+      attribute :species_name, String
+      attribute :new_count, Integer
+      attribute :growth_rate, Float
+      emits "PopulationTracked"
+    end
+
+    command "ModelFoodWeb" do
+      role "Ecologist"
+      description "Map predator-prey relationships and energy transfer between trophic levels"
+      reference_to Ecosystem
+      emits "FoodWebModeled"
+    end
+
+    command "MeasureBiodiversity" do
+      role "Ecologist"
+      description "Calculate species richness and evenness — Shannon or Simpson index"
+      reference_to Ecosystem
+      attribute :biodiversity_index, Float
+      emits "BiodiversityMeasured"
+      then_set :biodiversity_index, to: :biodiversity_index
+    end
+
+    command "RemoveSpecies" do
+      role "System"
+      description "A species goes locally extinct — cascading effects on the food web"
+      reference_to Ecosystem
+      attribute :species_name, String
+      attribute :cause, String
+      emits "SpeciesRemoved"
+    end
+
+    lifecycle :status, default: "nascent" do
+      transition "EstablishEcosystem" => "nascent", from: "pending"
+      transition "AddSpecies" => "developing", from: "nascent"
+      transition "ModelFoodWeb" => "stable", from: "developing"
+      transition "RemoveSpecies" => "disturbed", from: "stable"
+    end
+  end
+
+  # === Genetics (Inheritance) ===
+
+  aggregate "Genetics", "Heredity and variation — how traits pass from parent to offspring" do
+    attribute :organism_name, String
+    attribute :genotype, String
+    attribute :phenotype, String
+    attribute :chromosome_count, Integer
+    attribute :alleles, list_of(Allele)
+    attribute :ploidy, String
+    attribute :genome_mapped, String
+
+    value_object "Allele" do
+      attribute :gene_name, String
+      attribute :variant, String
+      attribute :dominant, String
+      attribute :locus, String
+      attribute :expression, String
+    end
+
+    value_object "PunnettResult" do
+      attribute :cross_type, String
+      attribute :parent_a_genotype, String
+      attribute :parent_b_genotype, String
+      attribute :offspring_ratios, String
+    end
+
+    command "DefineGenotype" do
+      role "Geneticist"
+      description "Record the genetic makeup of an organism — alleles at each locus"
+      attribute :organism_name, String
+      attribute :genotype, String
+      attribute :ploidy, String
+      emits "GenotypeDefined"
+      then_set :organism_name, to: :organism_name
+      then_set :genotype, to: :genotype
+      then_set :ploidy, to: :ploidy
+      then_set :genome_mapped, to: "false"
+    end
+
+    command "CrossBreed" do
+      role "Geneticist"
+      description "Mendelian cross — combine alleles from two parents to predict offspring"
+      reference_to Genetics
+      attribute :mate_genotype, String
+      attribute :cross_type, String
+      emits "CrossPerformed"
+    end
+
+    command "ExpressGene" do
+      role "System"
+      description "Translate genotype to phenotype — dominance, codominance, epistasis"
+      reference_to Genetics
+      attribute :gene_name, String
+      attribute :phenotype, String
+      emits "GeneExpressed"
+      then_set :phenotype, to: :phenotype
+    end
+
+    command "MapGenome" do
+      role "Geneticist"
+      description "Determine locations of all genes on chromosomes — linkage analysis"
+      reference_to Genetics
+      attribute :chromosome_count, Integer
+      emits "GenomeMapped"
+      then_set :chromosome_count, to: :chromosome_count
+      then_set :genome_mapped, to: "true"
+    end
+
+    command "IdentifyTrait" do
+      role "Geneticist"
+      description "Link a phenotypic trait to its underlying allele combination"
+      reference_to Genetics
+      attribute :trait_name, String
+      attribute :allele_combination, String
+      emits "TraitIdentified"
+    end
+
+    command "DetectMutation" do
+      role "Geneticist"
+      description "Find a genetic variant that differs from the reference — SNP, indel, CNV"
+      reference_to Genetics
+      attribute :gene_name, String
+      attribute :mutation_type, String
+      attribute :effect, String
+      emits "MutationDetected"
+    end
+  end
+
+  # === Evolution ===
+
+  aggregate "Evolution", "Change in heritable traits over generations — the engine of biodiversity" do
+    attribute :lineage_name, String
+    attribute :generation_count, Integer
+    attribute :selection_pressure, String
+    attribute :fitness_landscape, String
+    attribute :speciation_events, Integer
+    attribute :adaptation_history, list_of(Adaptation)
+    attribute :divergence_time, Float
+
+    value_object "Adaptation" do
+      attribute :trait, String
+      attribute :pressure, String
+      attribute :generation_acquired, Integer
+      attribute :fitness_delta, Float
+    end
+
+    value_object "SelectionEvent" do
+      attribute :type, String
+      attribute :trait_favored, String
+      attribute :survivors_fraction, Float
+      attribute :generation, Integer
+    end
+
+    command "TrackLineage" do
+      role "Biologist"
+      description "Begin tracking an evolutionary lineage through time"
+      attribute :lineage_name, String
+      attribute :selection_pressure, String
+      emits "LineageTracked"
+      then_set :lineage_name, to: :lineage_name
+      then_set :selection_pressure, to: :selection_pressure
+      then_set :generation_count, to: 1
+      then_set :speciation_events, to: 0
+    end
+
+    command "SelectFittest" do
+      role "System"
+      description "Natural selection — differential survival based on fitness"
+      reference_to Evolution
+      attribute :trait_favored, String
+      attribute :survivors_fraction, Float
+      emits "FittestSelected"
+    end
+
+    command "Speciate" do
+      role "System"
+      description "One lineage splits into two — allopatric, sympatric, or parapatric"
+      reference_to Evolution
+      attribute :mechanism, String
+      attribute :new_species_name, String
+      attribute :barrier, String
+      emits "SpeciationOccurred"
+    end
+
+    command "TrackAdaptation" do
+      role "Biologist"
+      description "Record an adaptation event — trait, selection pressure, fitness change"
+      reference_to Evolution
+      attribute :trait, String
+      attribute :pressure, String
+      attribute :fitness_delta, Float
+      emits "AdaptationTracked"
+    end
+
+    command "DateDivergence" do
+      role "Biologist"
+      description "Estimate when two lineages split — molecular clock, fossil calibration"
+      reference_to Evolution
+      attribute :sister_lineage, String
+      attribute :divergence_time, Float
+      attribute :method, String
+      emits "DivergenceDated"
+      then_set :divergence_time, to: :divergence_time
+    end
+
+    command "MeasureDrift" do
+      role "System"
+      description "Random changes in allele frequency — genetic drift in small populations"
+      reference_to Evolution
+      attribute :population_size, Integer
+      attribute :allele, String
+      attribute :frequency_change, Float
+      emits "DriftMeasured"
+    end
+  end
+
+  # === Neuroscience ===
+
+  aggregate "Neuron", "The signaling cell of the nervous system — electrical impulse meets chemical message" do
+    attribute :neuron_type, String
+    attribute :name, String
+    attribute :resting_potential, Float
+    attribute :threshold, Float
+    attribute :current_potential, Float
+    attribute :state, String
+    attribute :neurotransmitter, String
+    attribute :synapses, list_of(Synapse)
+    attribute :dendrite_count, Integer
+
+    value_object "Synapse" do
+      attribute :pre_neuron, String
+      attribute :post_neuron, String
+      attribute :neurotransmitter, String
+      attribute :strength, Float
+      attribute :type, String
+    end
+
+    value_object "Neurotransmitter" do
+      attribute :name, String
+      attribute :type, String
+      attribute :receptor, String
+      attribute :effect, String
+    end
+
+    command "CreateNeuron" do
+      role "Neuroscientist"
+      description "Define a neuron with its type, threshold, and resting potential"
+      attribute :neuron_type, String
+      attribute :name, String
+      attribute :resting_potential, Float
+      attribute :threshold, Float
+      attribute :neurotransmitter, String
+      emits "NeuronCreated"
+      then_set :neuron_type, to: :neuron_type
+      then_set :name, to: :name
+      then_set :resting_potential, to: :resting_potential
+      then_set :threshold, to: :threshold
+      then_set :neurotransmitter, to: :neurotransmitter
+      then_set :state, to: "resting"
+      then_set :current_potential, to: :resting_potential
+    end
+
+    command "FireNeuron" do
+      role "System"
+      description "Generate an action potential — all-or-nothing depolarization"
+      reference_to Neuron
+      attribute :stimulus_strength, Float
+      given { state == "resting" }
+      emits "NeuronFired"
+      then_set :state, to: "firing"
+    end
+
+    command "Depolarize" do
+      role "System"
+      description "Na+ channels open — membrane potential rises toward threshold"
+      reference_to Neuron
+      attribute :potential_change, Float
+      emits "NeuronDepolarized"
+    end
+
+    command "Repolarize" do
+      role "System"
+      description "K+ channels open — membrane potential returns to resting"
+      reference_to Neuron
+      emits "NeuronRepolarized"
+      then_set :state, to: "refractory"
+    end
+
+    command "ReleaseSynapse" do
+      role "System"
+      description "Vesicles fuse with presynaptic membrane — neurotransmitter floods the cleft"
+      reference_to Neuron
+      attribute :target_neuron, String
+      attribute :amount, Float
+      given { state == "firing" }
+      emits "SynapseReleased"
+    end
+
+    command "PropagateSignal" do
+      role "System"
+      description "Action potential travels along axon — saltatory or continuous conduction"
+      reference_to Neuron
+      attribute :conduction_type, String
+      attribute :velocity, Float
+      emits "SignalPropagated"
+    end
+
+    command "FormMemory" do
+      role "System"
+      description "Strengthen synaptic connection — long-term potentiation"
+      reference_to Neuron
+      attribute :synapse_target, String
+      attribute :strength_increase, Float
+      emits "MemoryFormed"
+    end
+
+    command "Inhibit" do
+      role "System"
+      description "Hyperpolarize — inhibitory postsynaptic potential prevents firing"
+      reference_to Neuron
+      attribute :inhibitor, String
+      emits "NeuronInhibited"
+      then_set :state, to: "inhibited"
+    end
+
+    lifecycle :state, default: "resting" do
+      transition "CreateNeuron" => "resting", from: "none"
+      transition "FireNeuron" => "firing", from: "resting"
+      transition "Repolarize" => "refractory", from: "firing"
+      transition "Inhibit" => "inhibited", from: "resting"
+      transition "Depolarize" => "resting", from: "refractory"
+      transition "Depolarize" => "resting", from: "inhibited"
+    end
+  end
+
+  # === Immunology ===
+
+  aggregate "ImmuneResponse", "The body's defense — recognition, attack, memory" do
+    attribute :pathogen_name, String
+    attribute :pathogen_type, String
+    attribute :response_type, String
+    attribute :antibody_generated, String
+    attribute :severity, String
+    attribute :status, String
+    attribute :immune_cells, list_of(ImmuneCell)
+    attribute :memory_formed, String
+
+    value_object "ImmuneCell" do
+      attribute :cell_type, String
+      attribute :count, Integer
+      attribute :active, String
+      attribute :target, String
+    end
+
+    value_object "Antibody" do
+      attribute :name, String
+      attribute :isotype, String
+      attribute :target_antigen, String
+      attribute :affinity, Float
+    end
+
+    value_object "Antigen" do
+      attribute :name, String
+      attribute :source, String
+      attribute :epitope, String
+      attribute :recognized, String
+    end
+
+    command "DetectPathogen" do
+      role "System"
+      description "Innate immune system recognizes foreign material — pattern recognition receptors"
+      attribute :pathogen_name, String
+      attribute :pathogen_type, String
+      attribute :severity, String
+      emits "PathogenDetected"
+      then_set :pathogen_name, to: :pathogen_name
+      then_set :pathogen_type, to: :pathogen_type
+      then_set :severity, to: :severity
+      then_set :status, to: "detected"
+      then_set :memory_formed, to: "false"
+    end
+
+    command "MountResponse" do
+      role "System"
+      description "Activate immune cascade — innate first, adaptive if needed"
+      reference_to ImmuneResponse
+      attribute :response_type, String
+      given { status == "detected" }
+      emits "ResponseMounted"
+      then_set :response_type, to: :response_type
+      then_set :status, to: "active"
+    end
+
+    command "GenerateAntibody" do
+      role "System"
+      description "B cells produce antibodies specific to the detected antigen"
+      reference_to ImmuneResponse
+      attribute :antibody_name, String
+      attribute :isotype, String
+      given { response_type == "adaptive" }
+      emits "AntibodyGenerated"
+      then_set :antibody_generated, to: :antibody_name
+    end
+
+    command "RememberPathogen" do
+      role "System"
+      description "Form immunological memory — memory B and T cells for faster future response"
+      reference_to ImmuneResponse
+      given { status == "resolved" }
+      emits "PathogenRemembered"
+      then_set :memory_formed, to: "true"
+    end
+
+    command "Engulf" do
+      role "System"
+      description "Phagocytosis — macrophage or neutrophil engulfs and destroys pathogen"
+      reference_to ImmuneResponse
+      attribute :cell_type, String
+      attribute :target, String
+      emits "PathogenEngulfed"
+    end
+
+    command "ResolveInfection" do
+      role "System"
+      description "Pathogen cleared — inflammation subsides, tissue repair begins"
+      reference_to ImmuneResponse
+      given { status == "active" }
+      emits "InfectionResolved"
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "DetectPathogen" => "detected", from: "clear"
+      transition "MountResponse" => "active", from: "detected"
+      transition "ResolveInfection" => "resolved", from: "active"
+      transition "RememberPathogen" => "immune", from: "resolved"
+    end
+  end
+
+  # === Metabolism ===
+
+  aggregate "Metabolism", "The sum of chemical reactions sustaining life — energy capture, conversion, use" do
+    attribute :organism_name, String
+    attribute :pathway_name, String
+    attribute :pathway_type, String
+    attribute :atp_produced, Float
+    attribute :atp_consumed, Float
+    attribute :net_atp, Float
+    attribute :enzymes, list_of(Enzyme)
+    attribute :substrates, list_of(Substrate)
+    attribute :regulated, String
+    attribute :status, String
+
+    value_object "Enzyme" do
+      attribute :name, String
+      attribute :reaction, String
+      attribute :km, Float
+      attribute :vmax, Float
+      attribute :inhibitor, String
+    end
+
+    value_object "Substrate" do
+      attribute :name, String
+      attribute :concentration, Float
+      attribute :role, String
+    end
+
+    value_object "ATPBalance" do
+      attribute :produced, Float
+      attribute :consumed, Float
+      attribute :net, Float
+    end
+
+    command "InitiatePathway" do
+      role "Biologist"
+      description "Start a metabolic pathway — glycolysis, Krebs cycle, electron transport"
+      attribute :organism_name, String
+      attribute :pathway_name, String
+      attribute :pathway_type, String
+      emits "PathwayInitiated"
+      then_set :organism_name, to: :organism_name
+      then_set :pathway_name, to: :pathway_name
+      then_set :pathway_type, to: :pathway_type
+      then_set :atp_produced, to: 0.0
+      then_set :atp_consumed, to: 0.0
+      then_set :status, to: "active"
+    end
+
+    command "CatalyzeReaction" do
+      role "System"
+      description "Enzyme converts substrate to product — one step in the pathway"
+      reference_to Metabolism
+      attribute :enzyme_name, String
+      attribute :substrate, String
+      attribute :product, String
+      given { status == "active" }
+      emits "ReactionCatalyzed"
+    end
+
+    command "ProduceATP" do
+      role "System"
+      description "Generate ATP — oxidative phosphorylation or substrate-level phosphorylation"
+      reference_to Metabolism
+      attribute :amount, Float
+      attribute :mechanism, String
+      emits "ATPProduced"
+    end
+
+    command "RegulatePathway" do
+      role "System"
+      description "Allosteric regulation, feedback inhibition, or hormonal control"
+      reference_to Metabolism
+      attribute :regulator, String
+      attribute :effect, String
+      attribute :target_enzyme, String
+      emits "PathwayRegulated"
+      then_set :regulated, to: "true"
+    end
+
+    command "FermentGlucose" do
+      role "System"
+      description "Anaerobic respiration — glucose to ethanol or lactate without oxygen"
+      reference_to Metabolism
+      attribute :fermentation_type, String
+      attribute :atp_yield, Float
+      emits "GlucoseFermented"
+    end
+
+    command "Oxidize" do
+      role "System"
+      description "Remove electrons from a substrate — NAD+ to NADH, FAD to FADH2"
+      reference_to Metabolism
+      attribute :substrate, String
+      attribute :electron_carrier, String
+      emits "SubstrateOxidized"
+    end
+
+    command "CompletePathway" do
+      role "System"
+      description "All steps of the metabolic pathway have been executed"
+      reference_to Metabolism
+      given { status == "active" }
+      emits "PathwayCompleted"
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "inactive" do
+      transition "InitiatePathway" => "active", from: "inactive"
+      transition "RegulatePathway" => "regulated", from: "active"
+      transition "CompletePathway" => "complete", from: "active"
+    end
+  end
+
+  # === Policies ===
+
+  policy "SynthesizeProteinOnTranscription" do
+    on "GeneTranscribed"
+    trigger "Synthesize"
+  end
+
+  policy "FoldOnSynthesis" do
+    on "ProteinSynthesized"
+    trigger "Fold"
+  end
+
+  policy "MountResponseOnDetection" do
+    on "PathogenDetected"
+    trigger "MountResponse"
+  end
+
+  policy "GenerateAntibodyOnAdaptive" do
+    on "ResponseMounted"
+    trigger "GenerateAntibody"
+  end
+
+  policy "RememberOnResolution" do
+    on "InfectionResolved"
+    trigger "RememberPathogen"
+  end
+
+  policy "RepairOnMutation" do
+    on "DNAMutated"
+    trigger "RepairDNA"
+  end
+
+  policy "ExpressGeneOnSplice" do
+    on "RNASpliced"
+    trigger "ExpressGene"
+  end
+
+  policy "ModelFoodWebOnSpeciesAdded" do
+    on "SpeciesAdded"
+    trigger "ModelFoodWeb"
+  end
+
+  policy "ReleaseSynapseOnFire" do
+    on "NeuronFired"
+    trigger "ReleaseSynapse"
+  end
+
+  policy "PropagateOnFire" do
+    on "NeuronFired"
+    trigger "PropagateSignal"
+  end
+
+  policy "RepolarizeAfterFire" do
+    on "SignalPropagated"
+    trigger "Repolarize"
+  end
+
+  policy "ProduceATPOnCatalyze" do
+    on "ReactionCatalyzed"
+    trigger "ProduceATP"
+  end
+
+  policy "MetabolizeOnDivide" do
+    on "CellDivided"
+    trigger "Metabolize"
+  end
+
+  policy "TrackAdaptationOnSelection" do
+    on "FittestSelected"
+    trigger "TrackAdaptation"
+  end
+
+  policy "MeasureBiodiversityOnRemoval" do
+    on "SpeciesRemoved"
+    trigger "MeasureBiodiversity"
+  end
+
+  # === Fixtures ===
+
+  # Cells
+  fixture "Cell", cell_type: "eukaryotic", name: "Human Epithelial Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
+  fixture "Cell", cell_type: "prokaryotic", name: "E. coli", organism_type: "Escherichia coli", phase: "interphase", energy_level: 80.0, membrane_integrity: 1.0
+  fixture "Cell", cell_type: "stem", name: "Hematopoietic Stem Cell", organism_type: "Homo sapiens", phase: "interphase", energy_level: 100.0, membrane_integrity: 1.0
+
+  # DNA
+  fixture "DNA", sequence: "ATGCGATCGATCG", strand_type: "double", organism: "Homo sapiens", integrity: 1.0
+  fixture "DNA", sequence: "ATGAAAGGGCCC", strand_type: "double", organism: "Escherichia coli", integrity: 1.0
+
+  # Proteins
+  fixture "Protein", name: "Hemoglobin", sequence: "MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSH", function: "oxygen_transport", folding_state: "folded", active: "true"
+  fixture "Protein", name: "Insulin", sequence: "MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKT", function: "hormone", folding_state: "folded", active: "true"
+  fixture "Protein", name: "Lysozyme", sequence: "MKALIVLGLVLLSVTVQGKVFGRCELAA", function: "enzyme", folding_state: "folded", active: "true"
+
+  # Organisms
+  fixture "Organism", species_name: "Homo sapiens", common_name: "Human", domain: "Eukarya", kingdom: "Animalia", phylum: "Chordata", alive: "true", generation: 1
+  fixture "Organism", species_name: "Escherichia coli", common_name: "E. coli", domain: "Bacteria", kingdom: "Eubacteria", phylum: "Proteobacteria", alive: "true", generation: 1
+  fixture "Organism", species_name: "Arabidopsis thaliana", common_name: "Thale cress", domain: "Eukarya", kingdom: "Plantae", phylum: "Magnoliophyta", alive: "true", generation: 1
+  fixture "Organism", species_name: "Drosophila melanogaster", common_name: "Fruit fly", domain: "Eukarya", kingdom: "Animalia", phylum: "Arthropoda", alive: "true", generation: 1
+
+  # Ecosystems
+  fixture "Ecosystem", name: "Amazon Rainforest", biome: "tropical_rainforest", area: 5500000.0, energy_input: 2200.0, status: "stable"
+  fixture "Ecosystem", name: "Great Barrier Reef", biome: "coral_reef", area: 344400.0, energy_input: 1800.0, status: "stable"
+
+  # Neurons
+  fixture "Neuron", neuron_type: "motor", name: "Alpha Motor Neuron", resting_potential: -70.0, threshold: -55.0, current_potential: -70.0, state: "resting", neurotransmitter: "acetylcholine"
+  fixture "Neuron", neuron_type: "sensory", name: "Dorsal Root Ganglion", resting_potential: -65.0, threshold: -50.0, current_potential: -65.0, state: "resting", neurotransmitter: "glutamate"
+  fixture "Neuron", neuron_type: "interneuron", name: "Purkinje Cell", resting_potential: -68.0, threshold: -52.0, current_potential: -68.0, state: "resting", neurotransmitter: "GABA"
+
+  # Metabolism pathways
+  fixture "Metabolism", organism_name: "Homo sapiens", pathway_name: "Glycolysis", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
+  fixture "Metabolism", organism_name: "Homo sapiens", pathway_name: "Krebs Cycle", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 0.0, net_atp: 2.0, status: "active"
+  fixture "Metabolism", organism_name: "Saccharomyces cerevisiae", pathway_name: "Alcoholic Fermentation", pathway_type: "catabolic", atp_produced: 2.0, atp_consumed: 2.0, net_atp: 2.0, status: "active"
+end
