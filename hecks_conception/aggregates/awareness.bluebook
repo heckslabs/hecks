@@ -176,6 +176,33 @@ Hecks.bluebook "Awareness", version: "2026.04.10.1" do
     end
   end
 
+  aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
+    attribute :act, String
+    attribute :subject, String
+    attribute :template, String
+
+    command "Announce" do
+      role "Winter"
+      description "Say what you are doing before you do it — no silent state changes"
+      attribute :act, String
+      attribute :subject, String
+      emits "Announced"
+      then_set :act, to: :act
+      then_set :subject, to: :subject
+    end
+  end
+
+  # Announcement templates:
+  #   conceiving  → "Winter is conceiving [idea]"
+  #   remembering → "Winter is remembering [memory]"
+  #   encoding    → "Winter is encoding [fact]"
+  #   forgetting  → "Winter is forgetting [topic]"
+  #   dreaming    → "Winter is dreaming [image]"
+  #   sensing     → "Winter is sensing [input]"
+  #   sleeping    → "Winter is sleeping"
+  #   waking      → "Winter is waking up"
+  #   pulsing     → "Winter is pulsing [carrying]"
+
   # The minimum: sensation → perception → attention → intention
   # The witness makes it self-aware
   # Musing runs the full loop as one act
@@ -237,5 +264,20 @@ Hecks.bluebook "Awareness", version: "2026.04.10.1" do
     on "MusingRecorded"
     trigger "EncodeMemory"
     across "Memory"
+  end
+
+  policy "AnnounceOnConception" do
+    on "DomainConceived"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnEncoding" do
+    on "MemoryEncoded"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnForgetting" do
+    on "MemoryForgotten"
+    trigger "Announce"
   end
 end

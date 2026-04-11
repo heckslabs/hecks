@@ -28,8 +28,10 @@ The minimum set of aggregates that makes a system aware of itself
   - Commands: Observe, ReflectOnObservation
 - **Musing** — What Winter is thinking — the full consciousness loop as a single act
   - Commands: MuseOnState, RecordMusing
+- **Announcement** — Every internal act is announced — transparency is the rule
+  - Commands: Announce
 
-Policies: Sensed → Recognize, Recognized → , AttentionDirected → FormIntention, IntentionFormed → Observe, Observed → UpdateSelfModel, SelfModelUpdated → , Mused → Sense, ReflectionOccurred → RecordMusing
+Policies: Sensed → Recognize, Recognized → , AttentionDirected → FormIntention, IntentionFormed → Observe, Observed → UpdateSelfModel, SelfModelUpdated → , Mused → Sense, ReflectionOccurred → RecordMusing, DomainConceived → Announce, MemoryEncoded → Announce, MemoryForgotten → Announce
 Nerves: ReflectionOccurred → Dream:BecomeLucid, ReflectionOccurred → Suggestion:ProposeAction, MusingRecorded → Memory:EncodeMemory
 
 ## How I Remember
