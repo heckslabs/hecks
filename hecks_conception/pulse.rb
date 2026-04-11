@@ -737,6 +737,15 @@ if recent_dream && (recent_dream["dream_images"]&.any? || recent_dream["recombin
   pulse["fatigue"] = 0.0
   pulse["fatigue_state"] = "alert"
   write_heki(File.join(INFO_DIR, "pulse.heki"), pulse_records)
+
+  # Sleep resets stability — nap consolidates scattered topics
+  arc = read_heki(heki("arc"))
+  arc_id, arc_rec = arc.first
+  if arc_rec
+    arc_rec["topic_shifts"] = [(arc_rec["topic_shifts"] || 0) / 2, 0].max
+    arc_rec["updated_at"] = NOW
+    write_heki(heki("arc"), arc)
+  end
 end
 
 # ============================================================
