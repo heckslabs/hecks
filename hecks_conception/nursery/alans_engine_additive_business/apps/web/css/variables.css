@@ -1,0 +1,77 @@
+/* Alan's Engine Additive Business — Design Tokens
+   Industrial warmth: steel grays, engine oil blacks, warm ambers
+   Brand accents: DuraLube=blue, MotorKote=red, Slick50=gold */
+
+:root {
+  /* Neutrals — industrial palette */
+  --surface-0: #0d0f12;
+  --surface-1: #161a1f;
+  --surface-2: #1e2328;
+  --surface-3: #272d34;
+  --surface-4: #323940;
+  --border: #3a424a;
+  --border-subtle: #2a3038;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a8;
+  --text-muted: #6b7280;
+
+  /* Brand: DuraLube — reliability blue */
+  --brand-primary: #3b82f6;
+  --brand-primary-dim: #2563eb;
+  --brand-primary-glow: rgba(59, 130, 246, 0.15);
+
+  /* Brand: MotorKote — performance red */
+  --motorkote-primary: #ef4444;
+  --motorkote-dim: #dc2626;
+  --motorkote-glow: rgba(239, 68, 68, 0.15);
+
+  /* Brand: Slick 50 — heritage gold */
+  --slick50-primary: #f59e0b;
+  --slick50-dim: #d97706;
+  --slick50-glow: rgba(245, 158, 11, 0.15);
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+
+  /* Active brand (toggled by JS) */
+  --accent: var(--brand-primary);
+  --accent-dim: var(--brand-primary-dim);
+  --accent-glow: var(--brand-primary-glow);
+}
+
+/* Brand overrides */
+[data-brand="motorkote"] {
+  --accent: var(--motorkote-primary);
+  --accent-dim: var(--motorkote-dim);
+  --accent-glow: var(--motorkote-glow);
+}
+[data-brand="slick50"] {
+  --accent: var(--slick50-primary);
+  --accent-dim: var(--slick50-dim);
+  --accent-glow: var(--slick50-glow);
+}

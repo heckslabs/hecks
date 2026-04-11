@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alan's Engine Additive Business</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+
+    <nav class="sidebar" aria-label="Bounded context navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand" data-domain-attribute="brand">
+        <h1>Alan's Additives</h1>
+        <p class="tagline">16 bounded contexts. One business.</p>
+      </div>
+
+      <div class="nav-group" data-domain-aggregate="OperationsNav">
+        <div class="nav-group-label">Operations</div>
+        <a href="pages/dashboard.html" class="nav-link active" data-domain-command="ViewDashboard">Dashboard</a>
+        <a href="pages/orders.html" class="nav-link" data-domain-command="ViewOrders">Sales Orders</a>
+        <a href="pages/supply-chain.html" class="nav-link" data-domain-command="ViewSupplyChain">Supply Chain</a>
+      </div>
+
+      <div class="nav-group" data-domain-aggregate="ProductsNav">
+        <div class="nav-group-label">Products</div>
+        <a href="pages/products.html" class="nav-link" data-domain-command="ViewCatalog">Product Catalog</a>
+        <a href="pages/formulations.html" class="nav-link" data-domain-command="ViewFormulations">Formulations</a>
+        <a href="pages/pipeline.html" class="nav-link" data-domain-command="ViewPipeline">Formulation Lab</a>
+      </div>
+
+      <div class="nav-group" data-domain-aggregate="SalesNav">
+        <div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="pages/campaigns.html" class="nav-link" data-domain-command="ViewCampaigns">Campaigns</a>
+        <a href="pages/personas.html" class="nav-link" data-domain-command="ViewPersonas">Buyer Personas</a>
+      </div>
+
+      <div class="nav-group" data-domain-aggregate="ComplianceNav">
+        <div class="nav-group-label">Compliance</div>
+        <a href="pages/compliance.html" class="nav-link" data-domain-command="ViewCompliance">SDS &amp; Compliance</a>
+      </div>
+
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand"
+                aria-label="Switch to DuraLube brand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand"
+                aria-label="Switch to MotorKote brand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand"
+                aria-label="Switch to Slick 50 brand">Slick 50</button>
+      </div>
+    </nav>
+
+    <main class="main-content" id="page-content">
+      <!-- Pages load here via JS, or this is the landing -->
+      <div class="page-header" data-domain-aggregate="DashboardHeader">
+        <h1 data-domain-attribute="tagline">Welcome to the Hecksagon</h1>
+        <p>Alan's engine additive business -- 16 bounded contexts, 3 brands, real tribology data.</p>
+      </div>
+
+      <div class="metric-grid" data-domain-aggregate="KeyMetrics">
+        <div class="card metric" data-domain-aggregate="BrandMetric">
+          <div class="metric-value" data-domain-attribute="brand_count">3</div>
+          <div class="metric-label">Active Brands</div>
+        </div>
+        <div class="card metric" data-domain-aggregate="FormulaMetric">
+          <div class="metric-value" data-domain-attribute="formula_count">12</div>
+          <div class="metric-label">Formulations</div>
+        </div>
+        <div class="card metric" data-domain-aggregate="ComplianceMetric">
+          <div class="metric-value" data-domain-attribute="readiness_score">94%</div>
+          <div class="metric-label">Compliance Score</div>
+        </div>
+        <div class="card metric" data-domain-aggregate="PipelineMetric">
+          <div class="metric-value" data-domain-attribute="pipeline_value">$2.4M</div>
+          <div class="metric-label">Pipeline Value</div>
+        </div>
+      </div>
+
+      <div class="section-grid">
+        <div class="card" data-domain-aggregate="BrandPosition">
+          <h3>Brand Positioning</h3>
+          <p>DuraLube owns "durability." MotorKote owns "anti-friction." Slick 50 owns "PTFE protection."</p>
+        </div>
+        <div class="card" data-domain-aggregate="ProductPipeline">
+          <h3>Innovation Pipeline</h3>
+          <p>3 proposed, 2 in lab, 1 promoted this quarter. Next up: EXP-2026-001 four-ball wear testing.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/data.js"></script>
+  <script src="js/brand-switcher.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

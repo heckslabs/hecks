@@ -521,4 +521,46 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     on "ListingPublished"
     trigger "ImportReviews"
   end
+
+  policy "PriceOnListing" do
+    on "PriceListSet"
+    across "pricing"
+    trigger "UpdateStock"
+    description "Show MAP-compliant prices per channel on every product listing"
+  end
+
+  policy "ScienceFromTribology" do
+    on "LabResultRecorded"
+    across "formulation_lab"
+    trigger "LinkToLabData"
+    description "Link lab data to product pages — real ASTM results, not marketing fluff"
+  end
+
+  policy "SDSOnProduct" do
+    on "SafetyDataSheetCreated"
+    across "compliance"
+    trigger "EnrichWithScience"
+    description "SDS download link on every product listing"
+  end
+
+  policy "Prop65OnOrder" do
+    on "RegulationAdded"
+    across "regulatory_compliance"
+    trigger "PlaceOrder"
+    description "Display California Prop 65 warnings on orders shipping to CA"
+  end
+
+  policy "WarrantyOnAccount" do
+    on "ClaimResolved"
+    across "claims"
+    trigger "RecordPurchase"
+    description "Show claim history in the customer account section"
+  end
+
+  policy "PipelinePreview" do
+    on "PreviewGenerated"
+    across "formulation_lab"
+    trigger "CreateListing"
+    description "Tease upcoming products from the formulation lab pipeline"
+  end
 end

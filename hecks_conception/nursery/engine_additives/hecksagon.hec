@@ -1,3 +1,0 @@
-Hecks.hecksagon "EngineAdditives" do
-  capabilities :crud
-end
