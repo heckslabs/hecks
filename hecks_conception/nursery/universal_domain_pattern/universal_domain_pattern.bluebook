@@ -1,0 +1,302 @@
+Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
+  vision "The meta-pattern all domains share — every domain is the same thing seen from different sides"
+  category "meta"
+
+  # === The Universal Structure ===
+
+  aggregate "DomainShape", "The universal structure every domain follows — the shape beneath all domains" do
+    attribute :name, String
+    attribute :description, String
+    attribute :structural_elements, list_of(StructuralElement)
+
+    value_object "StructuralElement" do
+      attribute :name, String
+      attribute :purpose, String
+      attribute :always_present, String
+      attribute :examples, list_of(String)
+    end
+
+    command "DefineShape" do
+      role "MetaArchitect"
+      description "Name and describe the universal structure that every domain follows"
+      attribute :name, String
+      attribute :description, String
+      emits "ShapeDefined"
+      then_set :name, to: :name
+      then_set :description, to: :description
+    end
+
+    command "ValidateShape" do
+      role "MetaArchitect"
+      description "Confirm that a domain conforms to the universal shape"
+      reference_to DomainShape
+      attribute :domain_name, String
+      emits "ShapeValidated"
+    end
+
+    command "CompareToCorpus" do
+      role "System"
+      description "Check this shape definition against every domain in the nursery and catalog"
+      reference_to DomainShape
+      emits "CorpusCompared"
+    end
+  end
+
+  # === Recurring Patterns ===
+
+  aggregate "Archetype", "A recurring structural pattern across domains — the shapes that keep appearing" do
+    attribute :name, String
+    attribute :description, String
+    attribute :structural_signature, list_of(Float)
+    attribute :example_domains, list_of(String)
+    attribute :frequency, Integer
+
+    command "IdentifyArchetype" do
+      role "MetaArchitect"
+      description "Recognize a recurring pattern across multiple domains"
+      attribute :name, String
+      attribute :description, String
+      emits "ArchetypeIdentified"
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :frequency, to: 1
+    end
+
+    command "ExtractSignature" do
+      role "System"
+      description "Compute the structural vector that fingerprints this archetype"
+      reference_to Archetype
+      emits "SignatureExtracted"
+    end
+
+    command "MatchArchetype" do
+      role "System"
+      description "Determine which archetype a given domain most closely resembles"
+      reference_to Archetype
+      attribute :domain_name, String
+      attribute :similarity, Float
+      emits "ArchetypeMatched"
+    end
+
+    command "NameArchetype" do
+      role "MetaArchitect"
+      description "Give a memorable name to a newly identified archetype"
+      reference_to Archetype
+      attribute :name, String
+      emits "ArchetypeNamed"
+      then_set :name, to: :name
+    end
+  end
+
+  # === Well-Formedness Rules ===
+
+  aggregate "PatternRule", "A rule about what makes a domain well-formed — the grammar of domain shape" do
+    attribute :name, String
+    attribute :rule, String
+    attribute :applies_to, String
+    attribute :severity, String
+    attribute :examples, list_of(String)
+
+    command "DefineRule" do
+      role "MetaArchitect"
+      description "State a rule that all well-formed domains must follow"
+      attribute :name, String
+      attribute :rule, String
+      attribute :applies_to, String
+      attribute :severity, String
+      emits "RuleDefined"
+      then_set :name, to: :name
+      then_set :rule, to: :rule
+      then_set :applies_to, to: :applies_to
+      then_set :severity, to: :severity
+    end
+
+    command "ValidateAgainstRule" do
+      role "System"
+      description "Check a domain against this rule and report pass or fail"
+      reference_to PatternRule
+      attribute :domain_name, String
+      emits "RuleValidated"
+    end
+
+    command "WaiveRule" do
+      role "MetaArchitect"
+      description "Explicitly waive a rule for a domain with documented reason"
+      reference_to PatternRule
+      attribute :domain_name, String
+      attribute :reason, String
+      emits "RuleWaived"
+    end
+  end
+
+  # === Domain Fingerprint ===
+
+  aggregate "DomainDNA", "The structural vector that fingerprints a domain — its genetic code" do
+    attribute :domain_name, String
+    attribute :vector, list_of(Float)
+    attribute :archetype_match, String
+    attribute :category, String
+    attribute :born_at, String
+
+    command "ExtractDNA" do
+      role "System"
+      description "Parse a bluebook and compute its structural vector — aggregates, cmds/agg, VOs, policies, refs, lifecycles, lists, givens, fixtures"
+      attribute :domain_name, String
+      attribute :category, String
+      attribute :born_at, String
+      emits "DNAExtracted"
+      then_set :domain_name, to: :domain_name
+      then_set :category, to: :category
+      then_set :born_at, to: :born_at
+    end
+
+    command "CompareDNA" do
+      role "System"
+      description "Compute similarity between two domain vectors — cosine distance"
+      reference_to DomainDNA
+      attribute :other_domain_name, String
+      emits "DNACompared"
+    end
+
+    command "FindRelatives" do
+      role "System"
+      description "Search the corpus for domains with similar DNA — nearest neighbors"
+      reference_to DomainDNA
+      attribute :threshold, Float
+      emits "RelativesFound"
+    end
+
+    command "MapEvolution" do
+      role "System"
+      description "Track how a domain's DNA changes across versions"
+      reference_to DomainDNA
+      emits "EvolutionMapped"
+    end
+  end
+
+  # === Structural Equivalence ===
+
+  aggregate "Isomorphism", "Proof that two domains have the same shape — chemistry and code, the same thing" do
+    attribute :domain_a, String
+    attribute :domain_b, String
+    attribute :structural_similarity, Float
+    attribute :shared_archetypes, list_of(String)
+    attribute :vocabulary_overlap, Float
+
+    command "DetectIsomorphism" do
+      role "System"
+      description "Compare two domains and determine if they share the same deep structure"
+      attribute :domain_a, String
+      attribute :domain_b, String
+      emits "IsomorphismDetected"
+      then_set :domain_a, to: :domain_a
+      then_set :domain_b, to: :domain_b
+    end
+
+    command "ProveEquivalence" do
+      role "MetaArchitect"
+      description "Formally demonstrate that two domains are structurally equivalent"
+      reference_to Isomorphism
+      attribute :structural_similarity, Float
+      attribute :vocabulary_overlap, Float
+      emits "EquivalenceProven"
+      then_set :structural_similarity, to: :structural_similarity
+      then_set :vocabulary_overlap, to: :vocabulary_overlap
+    end
+
+    command "MapCorrespondence" do
+      role "MetaArchitect"
+      description "Map each element in domain_a to its counterpart in domain_b"
+      reference_to Isomorphism
+      emits "CorrespondenceMapped"
+    end
+  end
+
+  # === Meta-Pattern Evolution ===
+
+  aggregate "MetaEvolution", "How the universal pattern itself evolves as the corpus grows" do
+    attribute :corpus_snapshot_date, String
+    attribute :dominant_archetype, String
+    attribute :emerging_patterns, list_of(String)
+    attribute :deprecated_patterns, list_of(String)
+
+    command "SnapshotMetaState" do
+      role "System"
+      description "Capture the current state of the meta-pattern — what archetypes dominate, what is emerging"
+      attribute :corpus_snapshot_date, String
+      emits "MetaStateSnapshotted"
+      then_set :corpus_snapshot_date, to: :corpus_snapshot_date
+    end
+
+    command "DetectEmergingPattern" do
+      role "System"
+      description "Identify a new structural pattern appearing across recent domains"
+      reference_to MetaEvolution
+      attribute :pattern_name, String
+      emits "EmergingPatternDetected"
+    end
+
+    command "DeprecatePattern" do
+      role "MetaArchitect"
+      description "Mark a pattern as no longer appearing in new domains"
+      reference_to MetaEvolution
+      attribute :pattern_name, String
+      emits "PatternDeprecated"
+    end
+
+    command "PublishEvolution" do
+      role "System"
+      description "Announce the latest meta-evolution to all listening systems"
+      reference_to MetaEvolution
+      emits "EvolutionPublished"
+    end
+  end
+
+  # === Policies ===
+
+  policy "DNAOnConceive" do
+    on "DomainConceived"
+    trigger "ExtractDNA"
+    cross_domain true
+  end
+
+  policy "ArchetypeOnDNA" do
+    on "DNAExtracted"
+    trigger "MatchArchetype"
+  end
+
+  policy "IsomorphismOnMatch" do
+    on "ArchetypeMatched"
+    trigger "DetectIsomorphism"
+  end
+
+  policy "MetaOnGrowth" do
+    on "CorpusGrown"
+    trigger "SnapshotMetaState"
+    cross_domain true
+  end
+
+  # === Fixtures — The 13 Structural Elements ===
+
+  fixture "DomainShape", name: "UniversalShape", description: "The shape all domains share"
+
+  # === Fixtures — The 7 Archetypes ===
+
+  fixture "Archetype", name: "LifecycleEntity", description: "Aggregate with status lifecycle, create/update/transition commands", example_domains: "Formula,Batch,Order,Star,Reaction", frequency: 12
+  fixture "Archetype", name: "GovernanceGate", description: "Aggregate that evaluates rules before allowing action", example_domains: "GovernanceGate,AccessGate,DomainCompliance", frequency: 5
+  fixture "Archetype", name: "Measurement", description: "Aggregate that observes and records", example_domains: "QualityTest,TribologicalTest,LabTest,DemandSignal", frequency: 8
+  fixture "Archetype", name: "Classification", description: "Aggregate that categorizes", example_domains: "Element,Galaxy,Persona,BrandPosition", frequency: 7
+  fixture "Archetype", name: "Pipeline", description: "Lifecycle from conception to completion", example_domains: "ExperimentalFormula,Feature,Batch,Conception", frequency: 6
+  fixture "Archetype", name: "Index", description: "Aggregate that counts and catalogs", example_domains: "Corpus,AppRegistry,FamilyIndex,Census", frequency: 4
+  fixture "Archetype", name: "Traceability", description: "Lot and version tracking through a chain", example_domains: "MaterialTraceability,Version,DomainLifecycle", frequency: 3
+
+  # === Fixtures — The Pattern Rules ===
+
+  fixture "PatternRule", name: "CommandsRequired", rule: "Every aggregate must have at least one command", applies_to: "Aggregate", severity: "error"
+  fixture "PatternRule", name: "VerbCommands", rule: "Commands start with verbs", applies_to: "Command", severity: "error"
+  fixture "PatternRule", name: "CommandImpliesEvent", rule: "Every command implies an event", applies_to: "Command", severity: "warning"
+  fixture "PatternRule", name: "ReachableLifecycles", rule: "Lifecycles must be reachable — no dead states", applies_to: "Lifecycle", severity: "error"
+  fixture "PatternRule", name: "ExplicitReferences", rule: "References should be bidirectional or explicitly one-way", applies_to: "Reference", severity: "warning"
+  fixture "PatternRule", name: "SevenAggregateMax", rule: "7 aggregates max per bounded context", applies_to: "Domain", severity: "warning"
+  fixture "PatternRule", name: "VisionRequired", rule: "Vision must exist — a domain without purpose is a bug", applies_to: "Domain", severity: "error"
+end
