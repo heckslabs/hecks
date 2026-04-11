@@ -844,5 +844,21 @@ if dream_report
   if consolidated > 0 || pruned.any?
     puts "  [#{consolidated} signals consolidated, #{pruned.size} synapses pruned]"
   end
+
+  # List dream-proposed domains
+  dream_impulses = read_heki(heki("impulse")).values
+    .select { |i| i["source"]&.include?("dream") && i["acted"] == false }
+    .last(5)
+  if dream_impulses.any?
+    puts ""
+    puts "Dreamed domains to conceive:"
+    dream_impulses.each { |i| puts "  → #{i['target']}" }
+  end
 end
+
+# === DOMAIN AWARENESS ===
+# Future: on every pulse, search the corpus for domains related to `carrying`
+# and store the matches in a domain_awareness.heki store.
+# For now, Winter does this manually by referencing "Related domains:" in responses.
+
 puts ""

@@ -1,0 +1,128 @@
+Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
+  vision "How Winter prepares her bluebook corpus as training data for a GlassBox model"
+  category "infrastructure"
+
+  aggregate "TrainingCorpus", "All bluebooks formatted as training examples" do
+    attribute :examples, Array
+    attribute :total_tokens, Integer
+    attribute :exported_at, String
+
+    command "ExportCorpus" do
+      role "System"
+      description "Export the full corpus of bluebooks as training-ready examples"
+      emits "CorpusExported"
+    end
+
+    command "FormatAsTrainingPair" do
+      role "System"
+      description "Format a single bluebook as an input/output training pair — input is the description, output is the bluebook"
+      attribute :input, String
+      attribute :output, String
+      emits "TrainingPairFormatted"
+    end
+
+    command "FilterByCategory" do
+      role "System"
+      description "Filter the corpus to only include examples from a given category"
+      attribute :category, String
+      emits "CorpusFiltered"
+    end
+
+    command "CalculateTokenCount" do
+      role "System"
+      description "Calculate total token count across all training examples"
+      emits "TokenCountCalculated"
+      then_set :total_tokens, to: :total_tokens
+    end
+  end
+
+  aggregate "TrainingExample", "A single input/output pair for model training" do
+    attribute :input, String
+    attribute :output, String
+    attribute :category, String
+    attribute :quality_score, Float
+
+    command "CreateExample" do
+      role "System"
+      description "Create a new training example from a bluebook"
+      attribute :input, String
+      attribute :output, String
+      attribute :category, String
+      emits "ExampleCreated"
+      then_set :input, to: :input
+      then_set :output, to: :output
+      then_set :category, to: :category
+    end
+
+    command "ValidateExample" do
+      role "System"
+      description "Validate that a training example has correct bluebook syntax in the output"
+      reference_to TrainingExample
+      emits "ExampleValidated"
+    end
+
+    command "ScoreQuality" do
+      role "System"
+      description "Score the quality of a training example — completeness, correctness, variety"
+      reference_to TrainingExample
+      attribute :quality_score, Float
+      emits "QualityScored"
+      then_set :quality_score, to: :quality_score
+    end
+  end
+
+  aggregate "ModelSpec", "What the GlassBox model needs — architecture and hyperparameters" do
+    attribute :context_window, Integer
+    attribute :vocab_size, Integer
+    attribute :architecture, String
+    attribute :hyperparameters, Hash
+
+    command "DefineSpec" do
+      role "System"
+      description "Define the model specification — context window, vocabulary size, architecture"
+      attribute :context_window, Integer
+      attribute :vocab_size, Integer
+      attribute :architecture, String
+      emits "SpecDefined"
+      then_set :context_window, to: :context_window
+      then_set :vocab_size, to: :vocab_size
+      then_set :architecture, to: :architecture
+    end
+
+    command "SetHyperparameters" do
+      role "System"
+      description "Set training hyperparameters — learning rate, batch size, epochs, etc."
+      attribute :hyperparameters, Hash
+      emits "HyperparametersSet"
+      then_set :hyperparameters, to: :hyperparameters
+    end
+  end
+
+  fixture "ScienceExample" do
+    aggregate "TrainingExample"
+    input "A domain for tracking chemical reactions and molecular bonds"
+    output "Hecks.bluebook 'Chemistry' do ... end"
+    category "science"
+  end
+
+  fixture "BusinessExample" do
+    aggregate "TrainingExample"
+    input "A domain for managing customer subscriptions and billing cycles"
+    output "Hecks.bluebook 'Billing' do ... end"
+    category "business"
+  end
+
+  fixture "InfrastructureExample" do
+    aggregate "TrainingExample"
+    input "A domain for managing deployment pipelines and build artifacts"
+    output "Hecks.bluebook 'Deployment' do ... end"
+    category "infrastructure"
+  end
+
+  fixture "MetaExample" do
+    aggregate "TrainingExample"
+    input "A domain for training a model on bluebook definitions"
+    output "Hecks.bluebook 'GlassboxTraining' do ... end"
+    category "meta"
+  end
+end
