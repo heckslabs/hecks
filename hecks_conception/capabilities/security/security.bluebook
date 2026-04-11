@@ -1,0 +1,90 @@
+Hecks.bluebook "Security", version: "2026.04.11.1" do
+  vision "How Winter protects sensitive data — hashing, encryption, access control"
+
+  aggregate "HashedSecret", "A secret stored as salted hash — no plaintext ever" do
+    attribute :name, String
+    attribute :salt, String
+    attribute :hash, String
+    attribute :algorithm, String
+    attribute :owner, String
+
+    command "StoreSecret" do
+      role "System"
+      description "Hash a secret with a random salt and store — plaintext is never persisted"
+      attribute :name, String
+      attribute :plaintext, String
+      attribute :owner, String
+      emits "SecretStored"
+      then_set :name, to: :name
+      then_set :owner, to: :owner
+      then_set :algorithm, to: "sha256"
+    end
+
+    command "VerifySecret" do
+      role "System"
+      description "Hash the candidate with the stored salt and compare to stored hash"
+      reference_to HashedSecret
+      attribute :candidate, String
+      emits "SecretVerified"
+    end
+
+    command "RejectSecret" do
+      role "System"
+      description "Candidate did not match the stored hash"
+      reference_to HashedSecret
+      emits "SecretRejected"
+    end
+  end
+
+  aggregate "AccessGate", "Controls access to protected contexts — passcode, role, or token" do
+    attribute :protected_context, String
+    attribute :gate_type, String
+    attribute :status, String
+
+    command "RequestAccess" do
+      role "Speaker"
+      description "Someone requests access to a protected context"
+      attribute :protected_context, String
+      emits "AccessRequested"
+      then_set :protected_context, to: :protected_context
+      then_set :status, to: "challenging"
+    end
+
+    command "GrantAccess" do
+      role "System"
+      description "Secret verified — grant access to the protected context"
+      reference_to AccessGate
+      emits "AccessGranted"
+      then_set :status, to: "granted"
+    end
+
+    command "DenyAccess" do
+      role "System"
+      description "Secret rejected — deny access, stay in current context"
+      reference_to AccessGate
+      emits "AccessDenied"
+      then_set :status, to: "denied"
+    end
+
+    lifecycle :status, default: "locked" do
+      transition "RequestAccess" => "challenging", from: "locked"
+      transition "GrantAccess" => "granted", from: "challenging"
+      transition "DenyAccess" => "denied", from: "challenging"
+    end
+  end
+
+  policy "VerifyOnRequest" do
+    on "AccessRequested"
+    trigger "VerifySecret"
+  end
+
+  policy "GrantOnVerified" do
+    on "SecretVerified"
+    trigger "GrantAccess"
+  end
+
+  policy "DenyOnRejected" do
+    on "SecretRejected"
+    trigger "DenyAccess"
+  end
+end

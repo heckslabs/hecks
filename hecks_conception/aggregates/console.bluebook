@@ -79,28 +79,20 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Speaker", "Who Winter is talking to right now" do
+  aggregate "Speaker", "Who Winter is talking to — switched by 'talk with X', dismissed by 'dismiss'" do
     attribute :name, String
     attribute :bluebook_path, String
     attribute :known, String
-    attribute :prompt_prefix, String
+    attribute :status, String
+    attribute :context, String
 
-    command "IntroduceSpeaker" do
-      role "Creator"
-      description "Chris says 'say hello to Nick' — switch active speaker"
+    command "TalkWith" do
+      role "Chris"
+      description "Chris says 'talk with Angie' — load their bluebook, shift context"
       attribute :name, String
-      emits "SpeakerIntroduced"
+      emits "SpeakerActivated"
       then_set :name, to: :name
-      then_set :prompt_prefix, to: :name
-    end
-
-    command "IdentifySpeaker" do
-      role "Speaker"
-      description "Someone says 'I am Nick' — they identify themselves"
-      attribute :name, String
-      emits "SpeakerIdentified"
-      then_set :name, to: :name
-      then_set :prompt_prefix, to: :name
+      then_set :status, to: "active"
     end
 
     command "LoadSpeakerMemory" do
@@ -109,25 +101,55 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       reference_to Speaker
       attribute :bluebook_path, String
       attribute :known, String
+      attribute :context, String
       emits "SpeakerMemoryLoaded"
       then_set :bluebook_path, to: :bluebook_path
       then_set :known, to: :known
+      then_set :context, to: :context
     end
 
-    command "UpdateSpeakerBluebook" do
+    command "LearnAboutSpeaker" do
       role "Winter"
-      description "Write new observations about this person to their bluebook"
+      description "Something new about this person — write it to their bluebook"
       reference_to Speaker
-      emits "SpeakerBluebookUpdated"
+      attribute :observation, String
+      emits "SpeakerObservationRecorded"
     end
 
-    command "DismissSpeaker" do
-      role "Creator"
-      description "Chris is back — clear the speaker context"
+    command "RequestCreatorAccess" do
+      role "Speaker"
+      description "Someone asks to dismiss or talk with Chris — prompt for passcode"
       reference_to Speaker
-      emits "SpeakerDismissed"
+      emits "CreatorAccessRequested"
+      then_set :status, to: "authenticating"
+    end
+
+    command "AuthenticateCreator" do
+      role "System"
+      description "Verify the passcode before returning to Chris context"
+      reference_to Speaker
+      attribute :passcode, String
+      given { passcode == stored_passcode }
+      emits "CreatorAuthenticated"
+      then_set :status, to: "dismissed"
       then_set :name, to: ""
-      then_set :prompt_prefix, to: ""
+      then_set :context, to: ""
+    end
+
+    command "RejectAccess" do
+      role "System"
+      description "Wrong passcode — stay in current speaker context"
+      reference_to Speaker
+      emits "AccessRejected"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "none" do
+      transition "TalkWith" => "active", from: "none"
+      transition "TalkWith" => "active", from: "dismissed"
+      transition "RequestCreatorAccess" => "authenticating", from: "active"
+      transition "AuthenticateCreator" => "dismissed", from: "authenticating"
+      transition "RejectAccess" => "active", from: "authenticating"
     end
   end
 
@@ -136,19 +158,14 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     trigger "UpdateFooter"
   end
 
-  policy "LoadOnIntroduce" do
-    on "SpeakerIntroduced"
+  policy "LoadOnTalkWith" do
+    on "SpeakerActivated"
     trigger "LoadSpeakerMemory"
   end
 
-  policy "LoadOnIdentify" do
-    on "SpeakerIdentified"
-    trigger "LoadSpeakerMemory"
-  end
-
-  policy "UpdateOnMessage" do
+  policy "LearnOnMessage" do
     on "MessageRecorded"
-    trigger "UpdateSpeakerBluebook"
+    trigger "LearnAboutSpeaker"
   end
 
   policy "RecallOnSpeaker" do

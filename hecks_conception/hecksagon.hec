@@ -1,3 +1,7 @@
 Hecks.hecksagon "Winter" do
+  capabilities :security
+  capabilities :voice
+  capabilities :heki
+
   persistence :information, dir: File.join(__dir__, "information")
 end
