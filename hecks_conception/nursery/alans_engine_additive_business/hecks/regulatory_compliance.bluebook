@@ -64,7 +64,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "active" do
-      transition "RegisterJurisdiction" => "active", from: "pending"
+      transition "RegisterJurisdiction" => "active"
     end
   end
 
@@ -132,7 +132,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "identified" do
-      transition "IdentifyObligation" => "identified", from: "pending"
+      transition "IdentifyObligation" => "identified"
       transition "AssignResponsibility" => "assigned", from: "identified"
       transition "ScheduleDeadline" => "scheduled", from: "assigned"
       transition "MarkComplete" => "completed", from: "scheduled"
@@ -216,7 +216,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "drafting" do
-      transition "DraftSDS" => "drafting", from: "pending"
+      transition "DraftSDS" => "drafting"
       transition "ReviewSDS" => "under_review", from: "drafting"
       transition "ApproveSDS" => "approved", from: "under_review"
       transition "PublishSDS" => "published", from: "approved"
@@ -276,7 +276,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "audited" do
-      transition "AuditLabel" => "audited", from: "pending"
+      transition "AuditLabel" => "audited"
       transition "IdentifyGap" => "gap_found", from: "audited"
       transition "CorrectLabel" => "corrected", from: "gap_found"
       transition "CertifyLabel" => "certified", from: ["audited", "corrected"]
@@ -339,7 +339,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "classified" do
-      transition "ClassifyShipment" => "classified", from: "pending"
+      transition "ClassifyShipment" => "classified"
       transition "GenerateShippingPaper" => "documented", from: "classified"
       transition "ValidatePackaging" => "validated", from: "documented"
       transition "CertifyCompliance" => "certified", from: "validated"
@@ -407,7 +407,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "calculated" do
-      transition "CalculateVOC" => "calculated", from: "pending"
+      transition "CalculateVOC" => "calculated"
       transition "PrepareReport" => "prepared", from: "calculated"
       transition "FileReport" => "filed", from: "prepared"
     end
@@ -540,7 +540,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "detected" do
-      transition "DetectChange" => "detected", from: "pending"
+      transition "DetectChange" => "detected"
       transition "AssessImpact" => "assessed", from: "detected"
       transition "PlanResponse" => "planned", from: "assessed"
       transition "ImplementChange" => "implemented", from: "planned"

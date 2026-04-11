@@ -58,5 +58,23 @@ Hecks.bluebook "Quality", version: "2026.04.11.1" do
     end
   end
 
-  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "DuraLube Advanced Engine Treatment", batch_number: "LOT-DL-20260411", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.45, actual_value: 0.38, out_of_spec: "false"
+  # DuraLube Advanced Engine Treatment tests
+  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "DuraLube Advanced Engine Treatment", batch_number: "BR-001", lot_number: "LOT-DL-20260411", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.45, actual_value: 0.38, result: "pass", out_of_spec: "false", certificate_of_analysis: "COA-DL-20260411"
+  fixture "QualityTest", test_name: "Viscosity at 100C", formula_name: "DuraLube Advanced Engine Treatment", batch_number: "BR-001", lot_number: "LOT-DL-20260411", astm_test_method: "ASTM D445", specification_min: 12.5, specification_max: 16.3, actual_value: 14.2, result: "pass", out_of_spec: "false"
+  fixture "QualityTest", test_name: "Pour Point", formula_name: "DuraLube Advanced Engine Treatment", batch_number: "BR-001", lot_number: "LOT-DL-20260411", astm_test_method: "ASTM D97", specification_min: -50.0, specification_max: -35.0, actual_value: -42.0, result: "pass", out_of_spec: "false"
+
+  # MotorKote Hyper Lubricant tests
+  fixture "QualityTest", test_name: "Viscosity Index", formula_name: "MotorKote Hyper Lubricant", batch_number: "BR-002", lot_number: "LOT-MK-20260408", astm_test_method: "ASTM D2270", specification_min: 140.0, specification_max: 999.0, actual_value: 158.0, result: "pass", out_of_spec: "false"
+  fixture "QualityTest", test_name: "Flash Point", formula_name: "MotorKote Hyper Lubricant", batch_number: "BR-005", lot_number: "LOT-MK-20260408", astm_test_method: "ASTM D92", specification_min: 200.0, specification_max: 280.0, actual_value: 232.0, result: "pass", out_of_spec: "false"
+  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "MotorKote Hyper Lubricant", batch_number: "BR-005", lot_number: "LOT-MK-20260408", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.40, actual_value: 0.35, result: "pass", out_of_spec: "false"
+
+  # Slick 50 Recharged tests
+  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "Slick 50 Recharged Engine Treatment", batch_number: "BR-003", lot_number: "LOT-S50-20260403", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.50, actual_value: 0.42, result: "pass", out_of_spec: "false", certificate_of_analysis: "COA-S50-20260403"
+  fixture "QualityTest", test_name: "Copper Corrosion", formula_name: "Slick 50 Recharged Engine Treatment", batch_number: "BR-003", lot_number: "LOT-S50-20260403", astm_test_method: "ASTM D130", specification_min: 1.0, specification_max: 1.0, actual_value: 1.0, result: "pass", out_of_spec: "false"
+
+  # Failed test — DuraLube Classic V1 (rejected batch)
+  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "DuraLube Classic V1", batch_number: "BR-007", lot_number: "LOT-DL-20260312", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.45, actual_value: 0.52, result: "fail", out_of_spec: "true"
+
+  # Slick 50 Complete Engine Flush
+  fixture "QualityTest", test_name: "Viscosity at 100C", formula_name: "Slick 50 Complete Engine Flush", batch_number: "BR-011", lot_number: "LOT-S50-20260418", astm_test_method: "ASTM D445", specification_min: 5.0, specification_max: 9.0, actual_value: 7.1, result: "pass", out_of_spec: "false"
 end

@@ -52,7 +52,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "active" do
-      transition "CreateProduct" => "active", from: "pending"
+      transition "CreateProduct" => "active"
       transition "DiscontinueProduct" => "discontinued", from: "active"
     end
   end
@@ -84,7 +84,14 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     end
   end
 
-  fixture "Brand", name: "DuraLube", description: "Advanced engine treatment and protection", product_count: 0, channels: []
-  fixture "Brand", name: "MotorKote", description: "Anti-friction engine treatment", product_count: 0, channels: []
-  fixture "Brand", name: "Slick 50", description: "Engine treatment with PTFE technology", product_count: 0, channels: []
+  fixture "Product", sku: "DL-ET-32OZ", name: "DuraLube Advanced Engine Treatment 32oz", brand: "DuraLube", formula_name: "DuraLube Advanced Engine Treatment", size: "32 oz", upc: "851927002001", msrp: 14.99, status: "active"
+  fixture "Product", sku: "DL-ET-16OZ", name: "DuraLube Advanced Engine Treatment 16oz", brand: "DuraLube", formula_name: "DuraLube Advanced Engine Treatment", size: "16 oz", upc: "851927002018", msrp: 9.99, status: "active"
+  fixture "Product", sku: "MK-HL-16OZ", name: "MotorKote Hyper Lubricant 16oz", brand: "MotorKote", formula_name: "MotorKote Hyper Lubricant", size: "16 oz", upc: "851927003001", msrp: 19.99, status: "active"
+  fixture "Product", sku: "MK-HL-8OZ", name: "MotorKote Hyper Lubricant 8oz", brand: "MotorKote", formula_name: "MotorKote Hyper Lubricant", size: "8 oz", upc: "851927003018", msrp: 12.99, status: "active"
+  fixture "Product", sku: "S50-RE-32OZ", name: "Slick 50 Recharged Engine Treatment 32oz", brand: "Slick 50", formula_name: "Slick 50 Recharged Engine Treatment", size: "32 oz", upc: "851927004001", msrp: 12.99, status: "active"
+  fixture "Product", sku: "S50-RE-16OZ", name: "Slick 50 Recharged Engine Treatment 16oz", brand: "Slick 50", formula_name: "Slick 50 Recharged Engine Treatment", size: "16 oz", upc: "851927004018", msrp: 8.99, status: "active"
+
+  fixture "Brand", name: "DuraLube", description: "Advanced engine treatment and protection", product_count: 2, channels: ["Amazon", "Walmart", "Retail"]
+  fixture "Brand", name: "MotorKote", description: "Anti-friction engine treatment", product_count: 2, channels: ["Amazon", "Specialty Auto"]
+  fixture "Brand", name: "Slick 50", description: "Engine treatment with PTFE technology", product_count: 2, channels: ["Amazon", "Walmart", "Retail"]
 end

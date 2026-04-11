@@ -105,7 +105,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "proposed" do
-      transition "ProposeFormula" => "proposed", from: "pending"
+      transition "ProposeFormula" => "proposed"
       transition "SendToLabTest" => "in_lab", from: "proposed"
       transition "ReviewLabResults" => "tested", from: "in_lab"
       transition "PromoteToProduction" => "promoted", from: "tested"
@@ -245,7 +245,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "draft" do
-      transition "WriteThesis" => "draft", from: "pending"
+      transition "WriteThesis" => "draft"
       transition "ValidateThesis" => "validated", from: "draft"
       transition "ScoreConfidence" => "high_confidence", from: "validated"
       transition "ScoreConfidence" => "low_confidence", from: "validated"
@@ -338,7 +338,7 @@ Hecks.bluebook "FormulationLab", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "concept" do
-      transition "GeneratePreview" => "concept", from: "pending"
+      transition "GeneratePreview" => "concept"
       transition "PresentToStakeholder" => "presented", from: "concept"
       transition "ApproveForDevelopment" => "approved", from: "presented"
       transition "RejectPreview" => "rejected", from: "presented"

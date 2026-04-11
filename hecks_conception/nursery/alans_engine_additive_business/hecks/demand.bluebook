@@ -136,11 +136,29 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "GenerateReorderRecommendation" => "pending", from: "new"
+      transition "GenerateReorderRecommendation" => "pending"
       transition "ApproveReorderRecommendation" => "approved", from: "pending"
       transition "RejectReorderRecommendation" => "rejected", from: "pending"
     end
   end
+
+  # Demand signals
+  fixture "DemandSignal", sku: "DL-ET-32OZ", channel: "Amazon", period: "2026-Q1", units_sold: 4200, sell_through_rate: 0.82, weeks_of_supply: 6.5, seasonal_index: 1.1
+  fixture "DemandSignal", sku: "DL-ET-32OZ", channel: "Walmart.com", period: "2026-Q1", units_sold: 2800, sell_through_rate: 0.75, weeks_of_supply: 8.2, seasonal_index: 1.05
+  fixture "DemandSignal", sku: "MK-HL-16OZ", channel: "Amazon", period: "2026-Q1", units_sold: 1900, sell_through_rate: 0.68, weeks_of_supply: 10.1, seasonal_index: 0.95
+  fixture "DemandSignal", sku: "S50-RE-32OZ", channel: "Walmart.com", period: "2026-Q1", units_sold: 2400, sell_through_rate: 0.91, weeks_of_supply: 12.0, seasonal_index: 1.2
+  fixture "DemandSignal", sku: "S50-RE-32OZ", channel: "Direct", period: "2026-Q1", units_sold: 850, sell_through_rate: 0.55, weeks_of_supply: 14.0, seasonal_index: 0.90
+
+  # Forecasts — active and draft
+  fixture "Forecast", sku: "DL-ET-32OZ", channel: "Amazon", forecast_period: "2026-Q2", forecasted_units: 5100, confidence_interval_low: 4200, confidence_interval_high: 6000, model_type: "exponential_smoothing", safety_stock_units: 800, status: "active"
+  fixture "Forecast", sku: "MK-HL-16OZ", channel: "Amazon", forecast_period: "2026-Q2", forecasted_units: 2200, confidence_interval_low: 1800, confidence_interval_high: 2600, model_type: "exponential_smoothing", safety_stock_units: 400, status: "active"
+  fixture "Forecast", sku: "S50-RE-32OZ", channel: "Walmart.com", forecast_period: "2026-Q2", forecasted_units: 2800, confidence_interval_low: 2400, confidence_interval_high: 3200, model_type: "exponential_smoothing", safety_stock_units: 600, status: "active"
+  fixture "Forecast", sku: "S50-RE-32OZ", channel: "Direct", forecast_period: "2026-Q2", forecasted_units: 1000, confidence_interval_low: 700, confidence_interval_high: 1300, model_type: "linear_regression", safety_stock_units: 200, status: "draft"
+
+  # Reorder recommendations — all states
+  fixture "ReorderRecommendation", sku: "DL-ET-32OZ", recommended_quantity: 6000, economic_order_quantity: 5000, lead_time_days: 21, safety_stock_units: 800, reorder_date: "2026-04-20", status: "pending"
+  fixture "ReorderRecommendation", sku: "MK-HL-16OZ", recommended_quantity: 3000, economic_order_quantity: 2500, lead_time_days: 21, safety_stock_units: 400, reorder_date: "2026-04-25", status: "approved"
+  fixture "ReorderRecommendation", sku: "S50-RE-32OZ", recommended_quantity: 1000, economic_order_quantity: 1500, lead_time_days: 28, safety_stock_units: 300, reorder_date: "2026-05-01", status: "rejected"
 
   policy "ForecastOnSignal" do
     on "DemandSignalCaptured"

@@ -90,7 +90,7 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "placed" do
-      transition "PlaceOrder" => "placed", from: "pending"
+      transition "PlaceOrder" => "placed"
       transition "FulfillOrder" => "fulfilled", from: "placed"
       transition "CancelOrder" => "cancelled", from: "placed"
     end
@@ -108,8 +108,23 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
     trigger "ShipStock"
   end
 
-  fixture "Channel", name: "Amazon", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
-  fixture "Channel", name: "Walmart.com", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
-  fixture "Channel", name: "Retail", channel_type: "brick_and_mortar", account_id: "", active_skus: [], status: "active"
-  fixture "Channel", name: "Direct", channel_type: "website", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Amazon", channel_type: "marketplace", account_id: "AMZ-ALAN-001", edi_capable: "true", active_skus: ["DL-ET-32OZ", "DL-ET-16OZ", "MK-HL-16OZ", "S50-RE-32OZ"], status: "active"
+  fixture "Channel", name: "Walmart.com", channel_type: "marketplace", account_id: "WMT-ALAN-002", edi_capable: "true", active_skus: ["DL-ET-32OZ", "S50-RE-32OZ", "S50-RE-16OZ"], status: "active"
+  fixture "Channel", name: "Retail", channel_type: "brick_and_mortar", account_id: "RTL-ALAN-003", edi_capable: "false", active_skus: ["DL-ET-32OZ", "MK-HL-16OZ"], status: "active"
+  fixture "Channel", name: "Direct", channel_type: "website", account_id: "DTC-ALAN-004", edi_capable: "false", active_skus: ["DL-ET-32OZ", "DL-ET-16OZ", "MK-HL-16OZ", "MK-HL-8OZ", "S50-RE-32OZ", "S50-RE-16OZ"], status: "active"
+
+  # Placed orders
+  fixture "SalesOrder", order_number: "SO-2026-001", channel: "Amazon", customer: "John Smith", purchase_order_number: "AMZ-PO-99281", total: 29.98, status: "placed"
+  fixture "SalesOrder", order_number: "SO-2026-003", channel: "Amazon", customer: "Mike Johnson", purchase_order_number: "AMZ-PO-99345", total: 19.99, status: "placed"
+  fixture "SalesOrder", order_number: "SO-2026-005", channel: "Direct", customer: "Western Fleet LLC", purchase_order_number: "WF-PO-2026-042", total: 2249.50, status: "placed"
+  fixture "SalesOrder", order_number: "SO-2026-007", channel: "Walmart.com", customer: "Advance Auto Parts", purchase_order_number: "WMT-PO-44198", total: 3890.00, status: "placed"
+
+  # Fulfilled orders
+  fixture "SalesOrder", order_number: "SO-2026-002", channel: "Walmart.com", customer: "AutoZone Distribution", purchase_order_number: "WMT-PO-44120", total: 1949.70, status: "fulfilled"
+  fixture "SalesOrder", order_number: "SO-2026-006", channel: "Amazon", customer: "Sarah Chen", purchase_order_number: "AMZ-PO-99401", total: 44.97, status: "fulfilled"
+  fixture "SalesOrder", order_number: "SO-2026-008", channel: "Direct", customer: "Bob's Auto Shop", purchase_order_number: "BA-PO-2026-011", total: 899.80, status: "fulfilled"
+
+  # Cancelled orders
+  fixture "SalesOrder", order_number: "SO-2026-004", channel: "Direct", customer: "Fleet Services Inc", purchase_order_number: "FS-PO-2026-018", total: 4497.00, status: "cancelled"
+  fixture "SalesOrder", order_number: "SO-2026-009", channel: "Amazon", customer: "Tom Davis", purchase_order_number: "AMZ-PO-99450", total: 14.99, status: "cancelled"
 end

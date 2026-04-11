@@ -55,6 +55,7 @@ pub fn dispatch(
 
     if is_new {
         apply_defaults(rt, agg_idx, &mut state);
+        apply_lifecycle_default(rt, agg_idx, &mut state);
     }
 
     // Pipeline: givens → lifecycle check → mutations → lifecycle transition
@@ -115,6 +116,15 @@ fn find_self_ref(rt: &Runtime, agg_idx: usize, cmd_idx: usize) -> Option<String>
         }
     }
     None
+}
+
+fn apply_lifecycle_default(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
+    let agg = &rt.domain.aggregates[agg_idx];
+    if let Some(ref lc) = agg.lifecycle {
+        if matches!(state.get(&lc.field), Value::Null) {
+            state.set(&lc.field, Value::Str(lc.default.clone()));
+        }
+    }
 }
 
 fn apply_defaults(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
