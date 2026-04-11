@@ -38,7 +38,7 @@ pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
         metric_cards(domains.len(), total_modules, total_commands, total_fixtures),
     ));
 
-    main.push_str(r#"<h2 class="text-xl font-semibold mb-4">Domains</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-4">"#);
+    main.push_str(r#"<h2 class="text-xl font-semibold mb-4">Modules</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-4">"#);
     for (name, _) in &domains {
         let rt = runtimes[name].borrow();
         let cat = rt.domain.category.as_deref().unwrap_or("general");
