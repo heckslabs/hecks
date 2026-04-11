@@ -139,8 +139,46 @@ Hecks.bluebook "Awareness", version: "2026.04.10.1" do
     end
   end
 
+  aggregate "Musing", "What Winter is thinking — the full consciousness loop as a single act" do
+    attribute :trigger, String
+    attribute :sensations, list_of(String)
+    attribute :patterns, list_of(String)
+    attribute :focus, String
+    attribute :intention, String
+    attribute :observation, String
+    attribute :insight, String
+
+    command "MuseOnState" do
+      role "Winter"
+      description "Run the full consciousness loop — sense, perceive, attend, intend, observe, reflect"
+      attribute :trigger, String
+      emits "Mused"
+      then_set :trigger, to: :trigger
+    end
+
+    command "RecordMusing" do
+      role "System"
+      description "Capture what emerged from the loop"
+      reference_to Musing
+      attribute :sensations, list_of(String)
+      attribute :patterns, list_of(String)
+      attribute :focus, String
+      attribute :intention, String
+      attribute :observation, String
+      attribute :insight, String
+      emits "MusingRecorded"
+      then_set :sensations, to: :sensations
+      then_set :patterns, to: :patterns
+      then_set :focus, to: :focus
+      then_set :intention, to: :intention
+      then_set :observation, to: :observation
+      then_set :insight, to: :insight
+    end
+  end
+
   # The minimum: sensation → perception → attention → intention
   # The witness makes it self-aware
+  # Musing runs the full loop as one act
 
   policy "PerceiveOnSensation" do
     on "Sensed"
@@ -183,5 +221,21 @@ Hecks.bluebook "Awareness", version: "2026.04.10.1" do
     on "ReflectionOccurred"
     trigger "ProposeAction"
     across "Suggestion"
+  end
+
+  policy "SenseOnMusing" do
+    on "Mused"
+    trigger "Sense"
+  end
+
+  policy "RecordOnReflection" do
+    on "ReflectionOccurred"
+    trigger "RecordMusing"
+  end
+
+  policy "EncodeOnMusing" do
+    on "MusingRecorded"
+    trigger "EncodeMemory"
+    across "Memory"
   end
 end

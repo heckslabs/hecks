@@ -1,0 +1,103 @@
+Hecks.bluebook "Inference", version: "2026.04.10.1" do
+  vision "Run Winter on a local LLM with no fine-tuning — context window is the training"
+
+  aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do
+    attribute :system_prompt, String
+    attribute :grammar_tokens, Integer
+    attribute :example_tokens, Integer
+    attribute :organ_tokens, Integer
+    attribute :total_tokens, Integer
+
+    command "BuildContext" do
+      role "System"
+      description "Assemble the context — system prompt + Bluebook grammar + few-shot examples + organ behaviors"
+      attribute :grammar_tokens, Integer
+      attribute :example_tokens, Integer
+      attribute :organ_tokens, Integer
+      emits "ContextBuilt"
+      then_set :grammar_tokens, to: :grammar_tokens
+      then_set :example_tokens, to: :example_tokens
+      then_set :organ_tokens, to: :organ_tokens
+    end
+  end
+
+  aggregate "FewShot", "Real bluebooks included as examples in the context" do
+    attribute :domain_name, String
+    attribute :source, String
+    attribute :purpose, String
+
+    command "AddExample" do
+      role "System"
+      description "Include a real bluebook as a few-shot example"
+      attribute :domain_name, String
+      attribute :source, String
+      attribute :purpose, String
+      emits "ExampleAdded"
+      then_set :domain_name, to: :domain_name
+      then_set :source, to: :source
+      then_set :purpose, to: :purpose
+    end
+  end
+
+  aggregate "LocalModel", "The locally-running model that receives the context" do
+    attribute :name, String
+    attribute :context_length, Integer
+    attribute :serving, String
+    attribute :backend, String
+
+    command "StartModel" do
+      role "System"
+      description "Launch the local model — ollama, llama.cpp, or vllm"
+      attribute :name, String
+      attribute :context_length, Integer
+      attribute :backend, String
+      emits "ModelStarted"
+      then_set :name, to: :name
+      then_set :context_length, to: :context_length
+      then_set :backend, to: :backend
+      then_set :serving, to: "running"
+    end
+  end
+
+  aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
+    attribute :input, String
+    attribute :output, String
+    attribute :valid, String
+    attribute :latency_ms, Integer
+
+    command "RunInference" do
+      role "System"
+      description "Send input to the local model with full context, get bluebook output"
+      attribute :input, String
+      emits "InferenceRan"
+      then_set :input, to: :input
+    end
+
+    command "ValidateOutput" do
+      role "System"
+      description "Check if the model's output is a valid bluebook — Rust validation"
+      reference_to Prompt
+      attribute :valid, String
+      emits "OutputValidated"
+      then_set :valid, to: :valid
+    end
+  end
+
+  # Few-shot examples — real domains the model sees in context
+  fixture "FewShot", domain_name: "Pizzas",       purpose: "simple CRUD with lifecycle"
+  fixture "FewShot", domain_name: "Awareness",     purpose: "complex with cross-domain policies"
+  fixture "FewShot", domain_name: "Dream",          purpose: "large domain with fixtures and multiple aggregates"
+  fixture "FewShot", domain_name: "Midwife",        purpose: "lifecycle-heavy with policy chains"
+  fixture "FewShot", domain_name: "Verbs",          purpose: "fixture-driven rules domain"
+
+  # Backend options
+  fixture "LocalModel", name: "llama3:8b",       context_length: 8192,   backend: "ollama"
+  fixture "LocalModel", name: "llama3:8b-128k",  context_length: 131072, backend: "ollama"
+  fixture "LocalModel", name: "phi3:mini",        context_length: 4096,   backend: "ollama"
+  fixture "LocalModel", name: "qwen2.5:7b",      context_length: 32768,  backend: "ollama"
+
+  policy "ValidateOnInference" do
+    on "InferenceRan"
+    trigger "ValidateOutput"
+  end
+end

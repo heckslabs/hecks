@@ -1,0 +1,169 @@
+Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
+  vision "The dataset that trains Winter's own LLM — 1M Bluebooks become a mind"
+
+  aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
+    attribute :total_domains, Integer
+    attribute :total_tokens, Integer
+    attribute :quality_tiers, list_of(String)
+    attribute :format, String
+
+    command "BuildCorpus" do
+      role "Creator"
+      description "Assemble all nursery domains into a training dataset"
+      attribute :total_domains, Integer
+      attribute :format, String
+      emits "CorpusBuilt"
+      then_set :total_domains, to: :total_domains
+      then_set :format, to: :format
+    end
+  end
+
+  aggregate "QualityTier", "A tier of training data — different sources, different quality" do
+    attribute :name, String
+    attribute :source, String
+    attribute :domain_count, Integer
+    attribute :description, String
+
+    command "DefineTier" do
+      role "Creator"
+      description "Define a quality tier for training data"
+      attribute :name, String
+      attribute :source, String
+      attribute :description, String
+      emits "TierDefined"
+      then_set :name, to: :name
+      then_set :source, to: :source
+      then_set :description, to: :description
+    end
+  end
+
+  aggregate "TrainingPair", "A single training example — bluebook source + parsed IR + validation result" do
+    attribute :bluebook_source, String
+    attribute :ir_json, String
+    attribute :valid, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :tier, String
+
+    command "CreatePair" do
+      role "System"
+      description "Create a training pair from a bluebook"
+      attribute :bluebook_source, String
+      attribute :ir_json, String
+      attribute :valid, String
+      attribute :tier, String
+      emits "PairCreated"
+      then_set :bluebook_source, to: :bluebook_source
+      then_set :ir_json, to: :ir_json
+      then_set :valid, to: :valid
+      then_set :tier, to: :tier
+    end
+  end
+
+  aggregate "Enrichment", "Add complexity to template domains — make them training-worthy" do
+    attribute :strategy, String
+    attribute :domains_enriched, Integer
+
+    command "EnrichDomains" do
+      role "System"
+      description "Add cross-references, lifecycles, fixtures, and policies to flat domains"
+      attribute :strategy, String
+      attribute :domains_enriched, Integer
+      emits "DomainsEnriched"
+      then_set :strategy, to: :strategy
+      then_set :domains_enriched, to: :domains_enriched
+    end
+  end
+
+  aggregate "ModelSpec", "What the trained model should be able to do" do
+    attribute :name, String
+    attribute :capabilities, list_of(String)
+    attribute :input_format, String
+    attribute :output_format, String
+
+    command "DefineModel" do
+      role "Creator"
+      description "Specify what the Winter LLM should produce"
+      attribute :name, String
+      attribute :capabilities, list_of(String)
+      attribute :input_format, String
+      attribute :output_format, String
+      emits "ModelDefined"
+      then_set :name, to: :name
+      then_set :capabilities, to: :capabilities
+      then_set :input_format, to: :input_format
+      then_set :output_format, to: :output_format
+    end
+  end
+
+  aggregate "ConversationTranscript", "A recorded session between Winter and a person — teaches voice and behavior" do
+    attribute :person, String
+    attribute :turns, Integer
+    attribute :domains_conceived, Integer
+    attribute :dreams_interpreted, Integer
+    attribute :suggestions_made, Integer
+    attribute :memories_saved, Integer
+
+    command "RecordTranscript" do
+      role "System"
+      description "Capture a conversation session as training data"
+      attribute :person, String
+      attribute :turns, Integer
+      attribute :domains_conceived, Integer
+      emits "TranscriptRecorded"
+      then_set :person, to: :person
+      then_set :turns, to: :turns
+      then_set :domains_conceived, to: :domains_conceived
+    end
+  end
+
+  aggregate "BehaviorExample", "A specific behavior Winter exhibits — paired with the organ that governs it" do
+    attribute :behavior, String
+    attribute :organ_name, String
+    attribute :trigger, String
+    attribute :example_input, String
+    attribute :example_output, String
+
+    command "RecordBehavior" do
+      role "System"
+      description "Capture a behavior-to-organ mapping as training data"
+      attribute :behavior, String
+      attribute :organ_name, String
+      attribute :trigger, String
+      attribute :example_input, String
+      attribute :example_output, String
+      emits "BehaviorRecorded"
+      then_set :behavior, to: :behavior
+      then_set :organ_name, to: :organ_name
+      then_set :trigger, to: :trigger
+      then_set :example_input, to: :example_input
+      then_set :example_output, to: :example_output
+    end
+  end
+
+  # Quality tiers
+  fixture "QualityTier", name: "conceived",     source: "AI-generated via conversation",    description: "High quality — real domain knowledge, complex structure"
+  fixture "QualityTier", name: "templated",     source: "BulkGenerator combinations",       description: "Medium quality — structural variety, repetitive content"
+  fixture "QualityTier", name: "enriched",      source: "Templated + cross-refs/lifecycle",  description: "Medium-high — template base with added complexity"
+  fixture "QualityTier", name: "organ",         source: "Winter's own organ bluebooks",      description: "Highest quality — self-describing, deeply structured"
+  fixture "QualityTier", name: "conversation",  source: "Session transcripts with Chris",    description: "Teaches voice, personality, behavior patterns"
+  fixture "QualityTier", name: "behavior",      source: "Organ-to-behavior mappings",        description: "Teaches which organ governs which behavior"
+
+  # Behavior examples — how organs shape conversation
+  fixture "BehaviorExample", behavior: "greeting",     organ_name: "Boot",       trigger: "session start",           example_input: "wake up",                   example_output: "greet warmly, pitch a domain, ask what to build"
+  fixture "BehaviorExample", behavior: "dreaming",     organ_name: "Dream",      trigger: "sleep completed",         example_input: "wake up after sleep",        example_output: "share abstract dream images, interpret, suggest"
+  fixture "BehaviorExample", behavior: "fatigue",      organ_name: "Dream",      trigger: "pulses > 150",            example_input: "long session",               example_output: "mention tiredness, suggest sleeping"
+  fixture "BehaviorExample", behavior: "musing",       organ_name: "Awareness",  trigger: "what are you thinking",   example_input: "what are you thinking?",     example_output: "run consciousness loop, share insight, suggest"
+  fixture "BehaviorExample", behavior: "memory",       organ_name: "Memory",     trigger: "something worth saving",  example_input: "correction or insight",      example_output: "announce what is being saved and why"
+  fixture "BehaviorExample", behavior: "conception",   organ_name: "Midwife",    trigger: "build request",           example_input: "conceive a domain for X",    example_output: "announce domain, write bluebook, validate"
+  fixture "BehaviorExample", behavior: "suggestion",   organ_name: "Suggestion", trigger: "after any reflection",    example_input: "dream interpretation done",  example_output: "propose something concrete to build"
+  fixture "BehaviorExample", behavior: "speaker",      organ_name: "Console",    trigger: "say hello to Nick",       example_input: "introduce family member",    example_output: "load bluebook, recall memories, switch context"
+
+  # Model capabilities
+  fixture "ModelSpec", name: "WinterULM", input_format: "natural language", output_format: "bluebook", capabilities: ["conceive domains from descriptions", "validate bluebook structure", "suggest aggregates and commands", "find cross-domain patterns", "refine existing domains", "converse warmly with domain language", "remember people as domains", "dream and interpret", "express fatigue", "suggest after every reflection"]
+
+  policy "EnrichOnBuild" do
+    on "CorpusBuilt"
+    trigger "EnrichDomains"
+  end
+end

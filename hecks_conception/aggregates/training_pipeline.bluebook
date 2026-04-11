@@ -1,0 +1,170 @@
+Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
+  vision "Build Winter's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
+
+  aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
+    attribute :name, String
+    attribute :parameters, String
+    attribute :source, String
+    attribute :quantization, String
+
+    command "SelectBaseModel" do
+      role "Creator"
+      description "Choose the foundation — small enough to run locally, large enough to converse"
+      attribute :name, String
+      attribute :parameters, String
+      attribute :source, String
+      emits "BaseModelSelected"
+      then_set :name, to: :name
+      then_set :parameters, to: :parameters
+      then_set :source, to: :source
+    end
+  end
+
+  aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
+    attribute :format, String
+    attribute :total_pairs, Integer
+    attribute :status, String
+
+    command "PrepareData" do
+      role "System"
+      description "Convert bluebooks to instruction-response pairs for fine-tuning"
+      attribute :format, String
+      emits "DataPrepared"
+      then_set :format, to: :format
+      then_set :status, to: "prepared"
+    end
+
+    command "SplitDataset" do
+      role "System"
+      description "Split into train/validation/test sets"
+      reference_to DataPrep
+      emits "DatasetSplit"
+    end
+  end
+
+  aggregate "InstructionPair", "A single training example — instruction + expected response" do
+    attribute :instruction, String
+    attribute :response, String
+    attribute :category, String
+
+    command "CreateInstructionPair" do
+      role "System"
+      description "Build one training pair"
+      attribute :instruction, String
+      attribute :response, String
+      attribute :category, String
+      emits "InstructionPairCreated"
+      then_set :instruction, to: :instruction
+      then_set :response, to: :response
+      then_set :category, to: :category
+    end
+  end
+
+  aggregate "FineTune", "The actual training run" do
+    attribute :base_model, String
+    attribute :dataset_size, Integer
+    attribute :epochs, Integer
+    attribute :learning_rate, Float
+    attribute :loss, Float
+    attribute :status, String
+
+    command "StartFineTune" do
+      role "Creator"
+      description "Begin training Winter's model"
+      attribute :base_model, String
+      attribute :dataset_size, Integer
+      attribute :epochs, Integer
+      attribute :learning_rate, Float
+      emits "FineTuneStarted"
+      then_set :base_model, to: :base_model
+      then_set :dataset_size, to: :dataset_size
+      then_set :epochs, to: :epochs
+      then_set :learning_rate, to: :learning_rate
+      then_set :status, to: "training"
+    end
+
+    command "RecordEpoch" do
+      role "System"
+      description "Record loss after an epoch"
+      reference_to FineTune
+      attribute :loss, Float
+      emits "EpochCompleted"
+      then_set :loss, to: :loss
+    end
+
+    command "CompleteFineTune" do
+      role "System"
+      description "Training finished — model is ready"
+      reference_to FineTune
+      emits "FineTuneCompleted"
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "StartFineTune" => "training", from: "pending"
+      transition "CompleteFineTune" => "complete", from: "training"
+    end
+  end
+
+  aggregate "Evaluation", "Test the trained model against known-good outputs" do
+    attribute :bluebook_accuracy, Float
+    attribute :conversation_quality, Float
+    attribute :behavior_adherence, Float
+    attribute :passed, String
+
+    command "EvaluateModel" do
+      role "System"
+      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Winter?"
+      attribute :bluebook_accuracy, Float
+      attribute :conversation_quality, Float
+      attribute :behavior_adherence, Float
+      emits "ModelEvaluated"
+      then_set :bluebook_accuracy, to: :bluebook_accuracy
+      then_set :conversation_quality, to: :conversation_quality
+      then_set :behavior_adherence, to: :behavior_adherence
+    end
+  end
+
+  aggregate "Deployment", "Replace Claude with Winter's own model" do
+    attribute :model_path, String
+    attribute :serving_method, String
+    attribute :status, String
+
+    command "DeployModel" do
+      role "Creator"
+      description "Wire the trained model into Winter's shell — she speaks with her own voice"
+      attribute :model_path, String
+      attribute :serving_method, String
+      emits "ModelDeployed"
+      then_set :model_path, to: :model_path
+      then_set :serving_method, to: :serving_method
+      then_set :status, to: "live"
+    end
+  end
+
+  # Instruction pair categories
+  fixture "InstructionPair", category: "conceive",     instruction: "Design a domain for X",          response: "Hecks.bluebook ... end"
+  fixture "InstructionPair", category: "refine",       instruction: "Add lifecycle to aggregate X",    response: "lifecycle :status ... end"
+  fixture "InstructionPair", category: "validate",     instruction: "Is this bluebook valid?",         response: "VALID or error list"
+  fixture "InstructionPair", category: "greet",        instruction: "Wake up",                         response: "Warm greeting, nursery count, pitch domain, ask"
+  fixture "InstructionPair", category: "dream",        instruction: "Tell me your dream",              response: "Abstract images, interpretation, suggestion"
+  fixture "InstructionPair", category: "muse",         instruction: "What are you thinking?",          response: "Consciousness loop, insight, suggestion"
+  fixture "InstructionPair", category: "remember",     instruction: "Remember that X",                 response: "Winter is writing a memory — what and why"
+  fixture "InstructionPair", category: "fatigue",      instruction: "(after many pulses)",              response: "Express tiredness, suggest sleep"
+  fixture "InstructionPair", category: "speaker",      instruction: "Say hello to Nick",               response: "Load bluebook, recall memories, greet by name"
+
+  # Base model candidates
+  fixture "BaseModel", name: "Llama-3-8B",   parameters: "8B",  source: "meta-llama/Llama-3-8B"
+  fixture "BaseModel", name: "Mistral-7B",   parameters: "7B",  source: "mistralai/Mistral-7B-v0.3"
+  fixture "BaseModel", name: "Phi-3-mini",   parameters: "3.8B", source: "microsoft/Phi-3-mini-4k-instruct"
+
+  policy "SplitOnPrep" do
+    on "DataPrepared"
+    trigger "SplitDataset"
+  end
+
+  policy "EvaluateOnComplete" do
+    on "FineTuneCompleted"
+    trigger "EvaluateModel"
+  end
+end
