@@ -72,22 +72,13 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     if (form) form.classList.toggle('hidden');
   }}
   function filterByStatus(el, status) {{
-    const section = el.closest('[data-domain-aggregate]') || el.parentElement.parentElement;
-    const table = section.querySelector('table') || document.querySelector('table');
+    const table = (el.closest('[data-domain-aggregate]') || el.parentElement.parentElement).querySelector('table') || document.querySelector('table');
     if (!table) return;
-    const rows = table.querySelectorAll('tbody tr');
-    const isActive = el.classList.contains('ring-2');
-    // Reset all badges
+    const rows = table.querySelectorAll('tbody tr'), isActive = el.classList.contains('ring-2');
     el.parentElement.querySelectorAll('span').forEach(s => s.classList.remove('ring-2', 'ring-white'));
-    if (isActive) {{
-      rows.forEach(r => r.style.display = '');
-      return;
-    }}
+    if (isActive) {{ rows.forEach(r => r.style.display = ''); return; }}
     el.classList.add('ring-2', 'ring-white');
-    rows.forEach(r => {{
-      const text = r.textContent.toLowerCase();
-      r.style.display = text.includes(status.toLowerCase()) ? '' : 'none';
-    }});
+    rows.forEach(r => {{ r.style.display = r.textContent.toLowerCase().includes(status.toLowerCase()) ? '' : 'none'; }});
   }}
   function showDetail(row) {{
     const cells = row.querySelectorAll('td');
@@ -107,16 +98,14 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     document.body.appendChild(modal);
   }}
   function showTab(tab) {{
-    document.getElementById('panel-records').classList.toggle('hidden', tab !== 'records');
-    document.getElementById('panel-build').classList.toggle('hidden', tab !== 'build');
-    document.getElementById('tab-records').classList.toggle('text-brand', tab === 'records');
-    document.getElementById('tab-records').classList.toggle('border-brand', tab === 'records');
-    document.getElementById('tab-records').classList.toggle('text-gray-400', tab !== 'records');
-    document.getElementById('tab-records').classList.toggle('border-transparent', tab !== 'records');
-    document.getElementById('tab-build').classList.toggle('text-brand', tab === 'build');
-    document.getElementById('tab-build').classList.toggle('border-brand', tab === 'build');
-    document.getElementById('tab-build').classList.toggle('text-gray-400', tab !== 'build');
-    document.getElementById('tab-build').classList.toggle('border-transparent', tab !== 'build');
+    ['records','build'].forEach(t => {{
+      document.getElementById('panel-'+t).classList.toggle('hidden', tab !== t);
+      const btn = document.getElementById('tab-'+t);
+      btn.classList.toggle('text-brand', tab === t);
+      btn.classList.toggle('border-brand', tab === t);
+      btn.classList.toggle('text-gray-400', tab !== t);
+      btn.classList.toggle('border-transparent', tab !== t);
+    }});
   }}
   function searchTable(input) {{
     const table = input.closest('div').parentElement.querySelector('table');
