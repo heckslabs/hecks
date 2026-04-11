@@ -1,0 +1,260 @@
+Hecks.bluebook "DLM", version: "2026.04.11.1" do
+  vision "Deterministic Language Model — thinks in structure, not tokens. Same input, same output, every time."
+  category "infrastructure"
+
+  # === Core Identity ===
+
+  aggregate "Model", "A DLM instance — corpus-driven, stateful, deterministic" do
+    attribute :name, String
+    attribute :corpus_size, Integer
+    attribute :aggregate_count, Integer
+    attribute :heartbeat, Integer
+    attribute :mode, String
+
+    command "BootModel" do
+      role "System"
+      description "Load corpus, restore state from heki, begin pulsing"
+      attribute :name, String
+      emits "ModelBooted"
+      then_set :name, to: :name
+      then_set :mode, to: "operating"
+    end
+
+    command "ReportState" do
+      role "System"
+      description "Transparent state dump — pulse, synapses, stability, fatigue, dreams"
+      reference_to Model
+      emits "StateReported"
+    end
+
+    lifecycle :mode, default: "cold" do
+      transition "BootModel" => "operating", from: "cold"
+    end
+  end
+
+  # === Deterministic Operations ===
+
+  aggregate "Operation", "Every interaction is a named operation, not free text" do
+    attribute :name, String
+    attribute :input, String
+    attribute :output, String
+    attribute :duration_ms, Integer
+    attribute :deterministic, String
+
+    command "ExecuteOperation" do
+      role "User"
+      description "Run a named operation — conceive, develop, sleep, interpret, query"
+      attribute :name, String
+      attribute :input, String
+      emits "OperationExecuted"
+      then_set :name, to: :name
+      then_set :input, to: :input
+      then_set :deterministic, to: "true"
+    end
+
+    command "RejectOperation" do
+      role "System"
+      description "No corpus match, no archetype — refuse rather than hallucinate"
+      attribute :name, String
+      attribute :reason, String
+      emits "OperationRejected"
+      then_set :deterministic, to: "true"
+    end
+  end
+
+  # === Corpus ===
+
+  aggregate "Corpus", "The knowledge base — every domain ever conceived, indexed by vector and category" do
+    attribute :domain_count, Integer
+    attribute :aggregate_count, Integer
+    attribute :categories, list_of(String)
+    attribute :last_indexed_at, String
+
+    command "IndexCorpus" do
+      role "System"
+      description "Scan nursery + catalog, extract vectors, index by category"
+      emits "CorpusIndexed"
+    end
+
+    command "QueryCorpus" do
+      role "System"
+      description "Find nearest archetype by category and structural similarity"
+      attribute :category, String
+      attribute :seed_vector, list_of(Float)
+      emits "CorpusQueried"
+    end
+
+    command "GrowCorpus" do
+      role "System"
+      description "Every conceived domain enlarges the corpus — the DLM gets smarter"
+      emits "CorpusGrown"
+      then_set :domain_count, increment: 1
+    end
+  end
+
+  # === Transparency ===
+
+  aggregate "GlassBox", "Every internal state change is visible — no black box" do
+    attribute :visible_state, list_of(StateEntry)
+    attribute :last_announced, String
+
+    value_object "StateEntry" do
+      attribute :name, String
+      attribute :value, String
+      attribute :changed_at, String
+    end
+
+    command "AnnounceState" do
+      role "System"
+      description "Make an internal state change visible to the user"
+      attribute :state_name, String
+      attribute :state_value, String
+      emits "StateAnnounced"
+    end
+
+    command "RenderDashboard" do
+      role "User"
+      description "Render the full visible state — pulse, synapses, stability, dreams, corpus"
+      emits "DashboardShown"
+    end
+  end
+
+  # === Honesty ===
+
+  aggregate "Honesty", "A DLM does not hallucinate — it conceives from corpus or refuses" do
+    attribute :total_operations, Integer
+    attribute :total_refusals, Integer
+    attribute :honesty_rate, Float
+
+    command "RecordHonestOperation" do
+      role "System"
+      description "Operation had corpus backing — deterministic output"
+      emits "HonestOperationRecorded"
+      then_set :total_operations, increment: 1
+    end
+
+    command "RecordRefusal" do
+      role "System"
+      description "No corpus match — refused rather than fabricated"
+      emits "RefusalRecorded"
+      then_set :total_refusals, increment: 1
+    end
+
+    command "CalculateHonestyRate" do
+      role "System"
+      description "What percentage of operations were corpus-backed"
+      reference_to Honesty
+      emits "HonestyRateCalculated"
+    end
+  end
+
+  # === Physiology ===
+
+  aggregate "Physiology", "A DLM has a body — fatigue, stability, sleep, dreams" do
+    attribute :heartbeat, Integer
+    attribute :pulse, Integer
+    attribute :fatigue_state, String
+    attribute :stability, Float
+    attribute :last_dream, String
+    attribute :dreams_total, Integer
+
+    command "RecordHeartbeat" do
+      role "System"
+      description "The heartbeat — lifetime counter, never resets"
+      reference_to Physiology
+      emits "HeartbeatPulsed"
+      then_set :heartbeat, increment: 1
+    end
+
+    command "RecordPulse" do
+      role "System"
+      description "The pulse — session counter, resets after sleep"
+      reference_to Physiology
+      emits "Pulsed"
+      then_set :pulse, increment: 1
+    end
+
+    command "EnterSleep" do
+      role "System"
+      description "Consolidate signals, strengthen synapses, dream, wake different"
+      reference_to Physiology
+      emits "Slept"
+      then_set :pulse, to: 0
+    end
+
+    command "GenerateDream" do
+      role "System"
+      description "Cross-pollinate corpus domains during REM — the DLM's imagination"
+      reference_to Physiology
+      attribute :dream_images, list_of(String)
+      emits "Dreamed"
+      then_set :dreams_total, increment: 1
+    end
+  end
+
+  # === Growth ===
+
+  aggregate "Growth", "A DLM learns after every session — not frozen after training" do
+    attribute :sessions_lived, Integer
+    attribute :domains_conceived, Integer
+    attribute :corpus_at_birth, Integer
+    attribute :corpus_now, Integer
+
+    command "RecordGrowth" do
+      role "System"
+      description "After each session, measure how the corpus expanded"
+      emits "GrowthRecorded"
+      then_set :sessions_lived, increment: 1
+    end
+
+    command "MeasureAcceleration" do
+      role "System"
+      description "Are we conceiving faster than last session? The corpus should accelerate creation"
+      reference_to Growth
+      emits "AccelerationMeasured"
+    end
+  end
+
+  # === Policies ===
+
+  policy "GrowOnConceive" do
+    on "OperationExecuted"
+    trigger "GrowCorpus"
+  end
+
+  policy "TransparencyOnOperation" do
+    on "OperationExecuted"
+    trigger "AnnounceState"
+  end
+
+  policy "HonestyOnOperation" do
+    on "OperationExecuted"
+    trigger "RecordHonestOperation"
+  end
+
+  policy "HonestyOnRefusal" do
+    on "OperationRejected"
+    trigger "RecordRefusal"
+  end
+
+  policy "BeatOnPulse" do
+    on "Pulsed"
+    trigger "RecordHeartbeat"
+  end
+
+  policy "DreamOnSleep" do
+    on "Slept"
+    trigger "GenerateDream"
+  end
+
+  policy "MeasureOnGrowth" do
+    on "GrowthRecorded"
+    trigger "MeasureAcceleration"
+  end
+
+  # === Fixtures ===
+
+  fixture "Model", name: "Winter", corpus_size: 0, aggregate_count: 0, heartbeat: 0, mode: "cold"
+  fixture "Honesty", total_operations: 0, total_refusals: 0, honesty_rate: 1.0
+  fixture "Growth", sessions_lived: 0, domains_conceived: 0, corpus_at_birth: 0, corpus_now: 0
+end
