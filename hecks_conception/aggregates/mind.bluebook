@@ -1707,6 +1707,42 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
+  aggregate "DreamInterpretation", "Always interpret the dream on waking — extract meaning, propose action" do
+    attribute :dream_images, list_of(String)
+    attribute :strongest_synapse, String
+    attribute :recurring_theme, String
+    attribute :interpretation, String
+    attribute :proposed_domain, String
+
+    command "InterpretDream" do
+      role "Winter"
+      description "Read the dream images, find recurring themes, extract what wants to be built"
+      attribute :dream_images, list_of(String)
+      attribute :strongest_synapse, String
+      emits "DreamInterpreted"
+      then_set :dream_images, to: :dream_images
+      then_set :strongest_synapse, to: :strongest_synapse
+    end
+
+    command "ExtractTheme" do
+      role "Winter"
+      description "Identify the recurring thread across dream images"
+      reference_to DreamInterpretation
+      attribute :recurring_theme, String
+      emits "ThemeExtracted"
+      then_set :recurring_theme, to: :recurring_theme
+    end
+
+    command "ProposeDomainFromDream" do
+      role "Winter"
+      description "The dream suggests something to conceive — name it"
+      reference_to DreamInterpretation
+      attribute :proposed_domain, String
+      emits "DreamDomainProposed"
+      then_set :proposed_domain, to: :proposed_domain
+    end
+  end
+
   # Suggestion fixtures
   fixture "Interpretation", source: "dream", raw_material: [], insight: "template"
   fixture "Interpretation", source: "conversation", raw_material: [], insight: "template"
@@ -1716,6 +1752,21 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   policy "SuggestAfterInterpretation" do
     on "ExperienceInterpreted"
     trigger "ProposeAction"
+  end
+
+  policy "InterpretOnWake" do
+    on "WokenUp"
+    trigger "InterpretDream"
+  end
+
+  policy "ExtractOnInterpret" do
+    on "DreamInterpreted"
+    trigger "ExtractTheme"
+  end
+
+  policy "ProposeOnTheme" do
+    on "ThemeExtracted"
+    trigger "ProposeDomainFromDream"
   end
 
   # === Family ===
