@@ -8,6 +8,9 @@ Hecks.hecksagon "Winter" do
   capabilities :dynamic_projection
   capabilities :web_application_creation
   capabilities :status_bar
+  capabilities :project_management
+  capabilities :voice_corpus_query
+  capabilities :dlm_state
 
   persistence :information, dir: File.join(__dir__, "information")
 end
