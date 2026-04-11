@@ -21,6 +21,7 @@ Allow
 Amend
 Analyze
 Annihilate
+Anneal
 Announce
 Appeal
 Apply
@@ -111,6 +112,7 @@ Correct
 Count
 Create
 Cross
+Crosslink
 Crush
 Culture
 Curate
@@ -127,6 +129,7 @@ Decline
 Decommission
 Deduct
 Deepen
+Degrade
 Defer
 Define
 Delete
@@ -175,6 +178,7 @@ Distribute
 Divide
 Dock
 Document
+Dope
 Downcast
 Draft
 Drain
@@ -236,6 +240,7 @@ Found
 Freeze
 Fulfil
 Fulfill
+Functionalize
 Fund
 Generate
 Give
@@ -296,6 +301,7 @@ Kit
 Label
 Launch
 Lay
+Layup
 Lead
 Lease
 Lend
@@ -513,6 +519,7 @@ Shut
 Sieve
 Sign
 Simplify
+Sinter
 Skip
 Solve
 Sort
@@ -586,6 +593,7 @@ Verify
 Veto
 View
 Vote
+Vulcanize
 Waive
 Wean
 Weigh
