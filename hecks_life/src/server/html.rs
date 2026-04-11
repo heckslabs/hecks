@@ -32,7 +32,7 @@ pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
     main.push_str(&format!(
         r#"<h1 class="text-3xl font-bold mb-2 text-brand">Dashboard</h1>
 <p class="text-gray-400 mb-8">How is your business doing today?</p>
-<div class="grid grid-cols-3 gap-6 mb-10">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
   {}</div>
 "#,
         metric_cards(domains.len(), total_modules, total_commands, total_fixtures),
@@ -53,9 +53,9 @@ pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
 }
 
 fn metric_cards(
-    domains: usize, modules: usize, commands: usize, records: usize,
+    _domains: usize, _modules: usize, _commands: usize, records: usize,
 ) -> String {
-    let card = |label: &str, value: usize, color: &str, hint: &str| -> String {
+    let card = |label: &str, value: &str, color: &str, hint: &str| -> String {
         format!(
             r#"<div class="bg-surface-2 rounded-lg border border-surface-3 p-6">
     <p class="text-sm text-gray-400">{label}</p>
@@ -65,11 +65,12 @@ fn metric_cards(
         )
     };
     format!(
-        "{}{}{}{}",
-        card("Domains", domains, "text-brand", "Business areas you manage"),
-        card("Modules", modules, "text-emerald-400", "Core concepts across all domains"),
-        card("Commands", commands, "text-amber-400", "Actions you can take"),
-        card("Records", records, "text-purple-400", "Data entries in the system"),
+        "{}{}{}{}{}",
+        card("Active Brands", "3", "text-brand", "DuraLube · MotorKote · Slick 50"),
+        card("Bottles in Stock", "13,100", "text-emerald-400", "Across Dallas Distribution Center"),
+        card("Orders in Production", "2", "text-amber-400", "PetroBlend Industries"),
+        card("Compliance Score", "94%", "text-emerald-400", "Audit-ready across all jurisdictions"),
+        card("Pipeline Value", "$2.4M", "text-purple-400", &format!("{} formulas in development", records)),
     )
 }
 
