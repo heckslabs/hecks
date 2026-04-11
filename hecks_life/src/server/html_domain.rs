@@ -78,7 +78,7 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String
     let icon = module_icon(&agg.name);
     let mut s = format!(
         r#"<details id="{agg_name}" class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
-  <summary class="p-6 cursor-pointer select-none flex items-center justify-between">
+  <summary class="p-6 cursor-pointer flex items-center justify-between">
     <div>
       <h2 class="text-xl font-bold">{icon} {label}</h2>
       <p class="text-gray-400 text-sm mt-1">{desc}</p>
@@ -170,7 +170,7 @@ fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
         r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>"#,
     );
     s.push_str(r#"<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>"#);
-    s.push_str(r#"<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-surface-3 text-left text-gray-400">"#);
+    s.push_str(r#"<div class="max-h-96 overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#);
     // Only show Module column if there are mixed aggregate types
     let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
     let keys: Vec<String> = if let Some(f) = fixtures.first() {

@@ -151,9 +151,6 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
       <div class="p-8 max-w-6xl flex-1">
         {main_html}
       </div>
-      <footer class="p-4 text-center">
-        <p class="text-xs text-gray-600">Empowered by Hecks</p>
-      </footer>
     </main>
   </div>
 </body>
