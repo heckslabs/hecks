@@ -842,9 +842,9 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  # Being — Evolution (vector-driven domain growth)
+  # Being — Development (vector-driven domain growth)
 
-  aggregate "Evolution", "Evolve existing domains using nursery vectors — more domains = faster evolution" do
+  aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
     attribute :domain_name, String
     attribute :current_vector, list_of(Float)
     attribute :target_vector, list_of(Float)
@@ -876,43 +876,43 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     command "FindArchetype" do
       role "System"
       description "Search the nursery corpus for the nearest domain by cosine similarity"
-      reference_to Evolution
+      reference_to Development
       emits "ArchetypeFound"
       then_set :status, to: "matched"
     end
 
-    command "PlanEvolution" do
+    command "PlanDevelopment" do
       role "Winter"
       description "Diff current vector against target — identify what to add from the archetype"
-      reference_to Evolution
+      reference_to Development
       attribute :target_vector, list_of(Float)
-      emits "EvolutionPlanned"
+      emits "DevelopmentPlanned"
       then_set :target_vector, to: :target_vector
       then_set :status, to: "planned"
     end
 
-    command "ApplyEvolution" do
+    command "DevelopDomain" do
       role "Winter"
       description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
-      reference_to Evolution
-      emits "EvolutionApplied"
-      then_set :status, to: "evolved"
+      reference_to Development
+      emits "DomainDeveloped"
+      then_set :status, to: "developed"
     end
 
-    command "RejectEvolution" do
+    command "RejectDevelopment" do
       role "Winter"
       description "Archetype doesn't fit — the domain stays as it is"
-      reference_to Evolution
-      emits "EvolutionRejected"
+      reference_to Development
+      emits "DevelopmentRejected"
       then_set :status, to: "rejected"
     end
 
     lifecycle :status, default: "pending" do
       transition "ComputeVector" => "vectorized", from: "pending"
       transition "FindArchetype" => "matched", from: "vectorized"
-      transition "PlanEvolution" => "planned", from: "matched"
-      transition "ApplyEvolution" => "evolved", from: "planned"
-      transition "RejectEvolution" => "rejected", from: "planned"
+      transition "PlanDevelopment" => "planned", from: "matched"
+      transition "DevelopDomain" => "developed", from: "planned"
+      transition "RejectDevelopment" => "rejected", from: "planned"
     end
   end
 
@@ -946,7 +946,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  # Evolution policies
+  # Development policies
   policy "FindOnVector" do
     on "VectorComputed"
     trigger "FindArchetype"
@@ -957,20 +957,20 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     trigger "IndexDomain"
   end
 
-  policy "IndexOnEvolution" do
-    on "EvolutionApplied"
+  policy "IndexOnDevelopment" do
+    on "DomainDeveloped"
     trigger "IndexDomain"
   end
 
-  # Evolution triggers versioning in the Catalog
-  policy "VersionOnEvolution" do
-    on "EvolutionApplied"
-    trigger "EvolveDomain"
+  # Development triggers versioning in the Catalog
+  policy "VersionOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "DevelopDomain"
     across "Catalog"
   end
 
-  policy "SyncOnEvolution" do
-    on "EvolutionApplied"
+  policy "SyncOnDevelopment" do
+    on "DomainDeveloped"
     trigger "SyncFromCannon"
     across "Catalog"
   end
@@ -1168,6 +1168,14 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       role "Creator"
       description "One cycle only — light, REM, deep, then wake naturally"
       emits "NapStarted"
+      then_set :state, to: "napping"
+    end
+
+    command "TakeStabilityNap" do
+      role "System"
+      description "Stability below threshold but not tired — nap to consolidate, not to rest"
+      given("unstable but alert") { stability < 0.3 }
+      emits "StabilityNapStarted"
       then_set :state, to: "napping"
     end
 
@@ -1469,6 +1477,11 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     trigger "EnterSleep"
   end
 
+  policy "NapWhenUnstable" do
+    on "BalanceAssessed"
+    trigger "TakeStabilityNap"
+  end
+
   policy "ResetOnWake" do
     on "WokenUp"
     trigger "DissipateFatigue"
@@ -1743,7 +1756,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     command "UpdateMember" do
       role "Winter"
-      description "A family member evolved — new version, new shape"
+      description "A family member developed — new version, new shape"
       reference_to Member
       attribute :version, String
       attribute :aggregate_count, Integer

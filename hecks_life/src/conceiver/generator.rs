@@ -79,7 +79,7 @@ fn emit_scaffold(out: &mut Vec<String>, index: usize, agg: &Aggregate) {
     out.push("  end".into());
 }
 
-/// Emit a single aggregate as bluebook DSL lines. Shared by generator and evolve.
+/// Emit a single aggregate as bluebook DSL lines. Shared by generator and develop.
 /// When scaffold=true, uses placeholder names. When false, copies archetype names.
 pub fn emit_aggregate(out: &mut Vec<String>, agg: &Aggregate, _domain_name: &str) {
     emit_aggregate_impl(out, agg, _domain_name, false)

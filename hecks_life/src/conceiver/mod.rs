@@ -1,16 +1,16 @@
-//! Conceiver — corpus-driven domain generation and evolution
+//! Conceiver — corpus-driven domain generation and development
 //!
 //! Scans existing .bluebook files to extract structural vectors,
 //! finds nearest archetypes by cosine similarity, and generates
-//! new domains or evolves existing ones.
+//! new domains or develops existing ones.
 //!
 //! Usage:
 //!   hecks-life conceive "Geology" "science of earth materials"
-//!   hecks-life evolve target.bluebook --add "audit logging"
+//!   hecks-life develop target.bluebook --add "audit logging"
 
 pub mod vector;
 pub mod generator;
-pub mod evolve;
+pub mod develop;
 pub mod commands;
 
 use crate::ir::Domain;

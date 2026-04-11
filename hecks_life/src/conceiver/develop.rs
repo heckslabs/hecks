@@ -1,17 +1,17 @@
-//! Evolve — graft new aggregates onto an existing domain
+//! Develop — graft new aggregates onto an existing domain
 //!
 //! Reads a target bluebook and a source domain, finds aggregates
 //! in the source that match the requested feature keyword, and
 //! grafts them into the target with a version bump.
 //!
 //! Usage:
-//!   let text = evolve_bluebook(&target, &source, "audit logging");
+//!   let text = develop_bluebook(&target, &source, "audit logging");
 
 use crate::ir::{Domain, Aggregate};
 use super::generator::emit_aggregate;
 
-/// Evolve an existing domain by grafting aggregates from a source.
-pub fn evolve_bluebook(target: &Domain, source: &Domain, feature: &str) -> String {
+/// Develop an existing domain by grafting aggregates from a source.
+pub fn develop_bluebook(target: &Domain, source: &Domain, feature: &str) -> String {
     let existing_names: Vec<&str> = target.aggregates.iter().map(|a| a.name.as_str()).collect();
 
     let new_aggs: Vec<&Aggregate> = source

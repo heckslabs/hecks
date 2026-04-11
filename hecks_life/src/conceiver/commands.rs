@@ -1,11 +1,11 @@
-//! Conceiver CLI commands — conceive and evolve entry points
+//! Conceiver CLI commands — conceive and develop entry points
 //!
 //! Handles argument parsing and orchestration for the `conceive`
-//! and `evolve` subcommands of hecks-life.
+//! and `develop` subcommands of hecks-life.
 //!
 //! Usage:
 //!   hecks-life conceive "Geology" "science of rocks" --corpus nursery catalog
-//!   hecks-life evolve target.bluebook --add "audit logging"
+//!   hecks-life develop target.bluebook --add "audit logging"
 
 use crate::conceiver;
 use crate::parser;
@@ -62,10 +62,10 @@ pub fn run_conceive(args: &[String]) {
     println!("  Commands: {}", cmds);
 }
 
-/// Run the `evolve` command: graft features onto an existing domain.
-pub fn run_evolve(args: &[String]) {
+/// Run the `develop` command: graft features onto an existing domain.
+pub fn run_develop(args: &[String]) {
     let bluebook_path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life evolve <path> --add <feature> [--from <path>]");
+        eprintln!("Usage: hecks-life develop <path> --add <feature> [--from <path>]");
         std::process::exit(1);
     });
     let feature = args.iter().position(|a| a == "--add")
@@ -93,20 +93,20 @@ pub fn run_evolve(args: &[String]) {
     };
 
     let old_vec = conceiver::vector::extract_vector(&target);
-    let text = conceiver::evolve::evolve_bluebook(&target, &source_domain, feature);
-    let evolved = parser::parse(&text);
-    let new_vec = conceiver::vector::extract_vector(&evolved);
+    let text = conceiver::develop::develop_bluebook(&target, &source_domain, feature);
+    let developed = parser::parse(&text);
+    let new_vec = conceiver::vector::extract_vector(&developed);
 
     std::fs::write(bluebook_path, &text).unwrap_or_else(|e| {
         eprintln!("Cannot write {}: {}", bluebook_path, e);
         std::process::exit(1);
     });
 
-    println!("Evolved {}", bluebook_path);
+    println!("Developed {}", bluebook_path);
     println!("  Feature: {}", feature);
     println!("  Old vector: {:?}", old_vec);
     println!("  New vector: {:?}", new_vec);
-    println!("  Aggregates: {} -> {}", target.aggregates.len(), evolved.aggregates.len());
+    println!("  Aggregates: {} -> {}", target.aggregates.len(), developed.aggregates.len());
 }
 
 fn find_corpus_match(args: &[String], feature: &str) -> crate::ir::Domain {

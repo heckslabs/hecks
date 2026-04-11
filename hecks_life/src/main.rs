@@ -12,7 +12,7 @@
 //!   hecks-life run       pizzas.bluebook [--seed seeds.txt]
 //!   hecks-life serve     pizzas.bluebook [--seed seeds.txt] [port]
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
-//!   hecks-life evolve    target.bluebook --add "feature"
+//!   hecks-life develop   target.bluebook --add "feature"
 
 use hecks_life::{parser, formatter, validator, server, repl, conceiver};
 use hecks_life::runtime::Runtime;
@@ -47,8 +47,8 @@ fn main() {
         return;
     }
 
-    if command == "evolve" {
-        conceiver::commands::run_evolve(&args);
+    if command == "develop" {
+        conceiver::commands::run_develop(&args);
         return;
     }
 
@@ -171,10 +171,10 @@ fn print_usage() {
     eprintln!("  run        Boot runtime with interactive REPL");
     eprintln!("  serve      Boot runtime as HTTP JSON API");
     eprintln!("  conceive   Generate a new domain from corpus archetypes");
-    eprintln!("  evolve     Add features to an existing domain\n");
+    eprintln!("  develop    Develop features in an existing domain\n");
     eprintln!("Options:");
     eprintln!("  --seed <file>      Load seed commands at boot (run/serve)");
-    eprintln!("  --corpus <dirs>    Corpus directories (conceive/evolve)");
-    eprintln!("  --add <feature>    Feature to add (evolve)");
-    eprintln!("  --from <path>      Source archetype bluebook (evolve)");
+    eprintln!("  --corpus <dirs>    Corpus directories (conceive/develop)");
+    eprintln!("  --add <feature>    Feature to add (develop)");
+    eprintln!("  --from <path>      Source archetype bluebook (develop)");
 }
