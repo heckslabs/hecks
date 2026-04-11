@@ -1,0 +1,253 @@
+Hecks.bluebook "VoiceCorpusQuery", version: "2026.04.11.1" do
+  vision "Ask questions by speaking, get domain answers spoken back — wires Voice to Corpus"
+  category "infrastructure"
+
+  aggregate "VoiceQuery", "A spoken question about the corpus" do
+    attribute :transcript, String
+    attribute :intent, String
+    attribute :matched_domains, list_of(DomainMatch)
+    attribute :answer, String
+    attribute :spoken_at, String
+    attribute :status, String
+
+    value_object "DomainMatch" do
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :relevance, Float
+      attribute :reason, String
+    end
+
+    command "ReceiveQuery" do
+      role "System"
+      description "Receive a spoken query from Almond clipboard transcription"
+      attribute :transcript, String
+      emits "QueryReceived"
+      then_set :transcript, to: :transcript
+      then_set :status, to: "received"
+    end
+
+    command "ParseIntent" do
+      role "System"
+      description "Extract the intent from the spoken transcript"
+      reference_to VoiceQuery
+      attribute :intent, String
+      emits "IntentParsed"
+      then_set :intent, to: :intent
+      then_set :status, to: "parsed"
+    end
+
+    command "SearchCorpus" do
+      role "System"
+      description "Search indexed domains for matches against the parsed intent"
+      reference_to VoiceQuery
+      attribute :matched_domains, list_of(DomainMatch)
+      emits "CorpusSearched"
+      then_set :matched_domains, to: :matched_domains
+      then_set :status, to: "searched"
+    end
+
+    command "FormulateAnswer" do
+      role "System"
+      description "Compose a concise spoken answer from corpus search results"
+      reference_to VoiceQuery
+      attribute :answer, String
+      emits "AnswerFormulated"
+      then_set :answer, to: :answer
+      then_set :status, to: "answered"
+    end
+
+    command "SpeakAnswer" do
+      role "System"
+      description "Deliver the answer via edge-tts Aria — cross-domain to Voice"
+      reference_to VoiceQuery
+      attribute :spoken_at, String
+      emits "AnswerSpoken"
+      then_set :spoken_at, to: :spoken_at
+      then_set :status, to: "spoken"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "ReceiveQuery" => "received", from: "idle"
+      transition "ParseIntent" => "parsed", from: "received"
+      transition "SearchCorpus" => "searched", from: "parsed"
+      transition "FormulateAnswer" => "answered", from: "searched"
+      transition "SpeakAnswer" => "spoken", from: "answered"
+    end
+  end
+
+  aggregate "QueryIntent", "What the user is actually asking — classified intent with confidence" do
+    attribute :raw_query, String
+    attribute :intent_type, String
+    attribute :target, String
+    attribute :confidence, Float
+    attribute :status, String
+
+    command "ClassifyIntent" do
+      role "System"
+      description "Classify the raw query into an intent type and target"
+      attribute :raw_query, String
+      attribute :intent_type, String
+      attribute :target, String
+      attribute :confidence, Float
+      emits "IntentClassified"
+      then_set :raw_query, to: :raw_query
+      then_set :intent_type, to: :intent_type
+      then_set :target, to: :target
+      then_set :confidence, to: :confidence
+      then_set :status, to: "classified"
+    end
+
+    command "RefineIntent" do
+      role "System"
+      description "Narrow an ambiguous intent with additional context"
+      reference_to QueryIntent
+      attribute :intent_type, String
+      attribute :target, String
+      attribute :confidence, Float
+      emits "IntentRefined"
+      then_set :intent_type, to: :intent_type
+      then_set :target, to: :target
+      then_set :confidence, to: :confidence
+      then_set :status, to: "refined"
+    end
+
+    command "RejectAmbiguous" do
+      role "System"
+      description "Confidence too low — ask the speaker to rephrase"
+      reference_to QueryIntent
+      emits "IntentRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ClassifyIntent" => "classified", from: "pending"
+      transition "RefineIntent" => "refined", from: "classified"
+      transition "RejectAmbiguous" => "rejected", from: "classified"
+    end
+  end
+
+  aggregate "CorpusAnswer", "The response formulated from domain data — concise for speech" do
+    attribute :query_id, String
+    attribute :answer_text, String
+    attribute :sources, list_of(String)
+    attribute :confidence, Float
+    attribute :spoken, String
+    attribute :status, String
+
+    command "ComposeAnswer" do
+      role "System"
+      description "Build a concise spoken answer from search results and sources"
+      attribute :query_id, String
+      attribute :answer_text, String
+      attribute :sources, list_of(String)
+      attribute :confidence, Float
+      emits "AnswerComposed"
+      then_set :query_id, to: :query_id
+      then_set :answer_text, to: :answer_text
+      then_set :sources, to: :sources
+      then_set :confidence, to: :confidence
+      then_set :status, to: "composed"
+    end
+
+    command "AddSource" do
+      role "System"
+      description "Append an additional source to the answer"
+      reference_to CorpusAnswer
+      attribute :source, String
+      emits "SourceAdded"
+      then_set :sources, append: :source
+    end
+
+    command "SimplifyForSpeech" do
+      role "System"
+      description "Trim the answer for spoken delivery — no paragraphs, clear summaries"
+      reference_to CorpusAnswer
+      attribute :answer_text, String
+      emits "AnswerSimplified"
+      then_set :answer_text, to: :answer_text
+      then_set :status, to: "simplified"
+    end
+
+    command "DeliverAnswer" do
+      role "System"
+      description "Mark the answer as delivered to the speaker"
+      reference_to CorpusAnswer
+      emits "AnswerDelivered"
+      then_set :spoken, to: "yes"
+      then_set :status, to: "delivered"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ComposeAnswer" => "composed", from: "pending"
+      transition "SimplifyForSpeech" => "simplified", from: "composed"
+      transition "DeliverAnswer" => "delivered", from: "simplified"
+      transition "DeliverAnswer" => "delivered", from: "composed"
+    end
+  end
+
+  aggregate "QueryHistory", "Track what was asked — learn what domains are most queried" do
+    attribute :queries, list_of(QueryRecord)
+    attribute :total_queries, Integer
+    attribute :most_queried_domain, String
+
+    value_object "QueryRecord" do
+      attribute :query, String
+      attribute :intent_type, String
+      attribute :matched_domain, String
+      attribute :answered_at, String
+    end
+
+    command "RecordQuery" do
+      role "System"
+      description "Log a completed query for pattern analysis"
+      attribute :query, String
+      attribute :intent_type, String
+      attribute :matched_domain, String
+      attribute :answered_at, String
+      emits "QueryRecorded"
+      then_set :total_queries, increment: 1
+    end
+
+    command "AnalyzePatterns" do
+      role "System"
+      description "Review query history to find trends and most-queried domains"
+      reference_to QueryHistory
+      attribute :most_queried_domain, String
+      emits "PatternsAnalyzed"
+      then_set :most_queried_domain, to: :most_queried_domain
+    end
+
+    command "IdentifyGaps" do
+      role "System"
+      description "Find queries that had no good answers — corpus gaps"
+      reference_to QueryHistory
+      emits "GapsIdentified"
+    end
+  end
+
+  policy "ParseOnReceive" do
+    on "QueryReceived"
+    trigger "ClassifyIntent"
+  end
+
+  policy "SearchOnParse" do
+    on "IntentClassified"
+    trigger "SearchCorpus"
+  end
+
+  policy "AnswerOnSearch" do
+    on "CorpusSearched"
+    trigger "ComposeAnswer"
+  end
+
+  policy "SpeakOnAnswer" do
+    on "AnswerComposed"
+    trigger "SpeakAnswer"
+    across "Voice"
+  end
+
+  policy "LogOnAnswer" do
+    on "AnswerDelivered"
+    trigger "RecordQuery"
+  end
+end

@@ -542,6 +542,7 @@ Sort
 Source
 Sow
 Spawn
+Speak
 Speciate
 Specify
 Splice
