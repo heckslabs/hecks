@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Alan's Engine Additive Business</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+
+    <nav class="sidebar" aria-label="Bounded context navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand" data-domain-attribute="brand"><h1>Alan's Additives</h1>
+        <p class="tagline">16 bounded contexts. One business.</p></div>
+      <div class="nav-group"><div class="nav-group-label">Operations</div>
+        <a href="dashboard.html" class="nav-link active" data-domain-command="ViewDashboard">Dashboard</a>
+        <a href="orders.html" class="nav-link" data-domain-command="ViewOrders">Sales Orders</a>
+        <a href="supply-chain.html" class="nav-link" data-domain-command="ViewSupplyChain">Supply Chain</a></div>
+      <div class="nav-group"><div class="nav-group-label">Products</div>
+        <a href="products.html" class="nav-link" data-domain-command="ViewCatalog">Product Catalog</a>
+        <a href="formulations.html" class="nav-link" data-domain-command="ViewFormulations">Formulations</a>
+        <a href="pipeline.html" class="nav-link" data-domain-command="ViewPipeline">Formulation Lab</a></div>
+      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="campaigns.html" class="nav-link" data-domain-command="ViewCampaigns">Campaigns</a>
+        <a href="personas.html" class="nav-link" data-domain-command="ViewPersonas">Buyer Personas</a></div>
+      <div class="nav-group"><div class="nav-group-label">Compliance</div>
+        <a href="compliance.html" class="nav-link" data-domain-command="ViewCompliance">SDS &amp; Compliance</a></div>
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header" data-domain-aggregate="DashboardHeader">
+        <h1>Business Dashboard</h1>
+        <p>Real-time view across all 16 bounded contexts. Science-driven, not gut-driven.</p>
+      </div>
+
+      <div class="metric-grid" data-domain-aggregate="DashboardMetrics">
+        <div class="card metric" data-domain-aggregate="BrandCount">
+          <div class="metric-value" data-domain-attribute="brand_count">3</div>
+          <div class="metric-label">Active Brands</div></div>
+        <div class="card metric" data-domain-aggregate="SKUCount">
+          <div class="metric-value" data-domain-attribute="active_skus">8</div>
+          <div class="metric-label">Active SKUs</div></div>
+        <div class="card metric" data-domain-aggregate="AuditReadiness">
+          <div class="metric-value" data-domain-attribute="readiness_score">94%</div>
+          <div class="metric-label">Audit Readiness</div></div>
+        <div class="card metric" data-domain-aggregate="PipelineValue">
+          <div class="metric-value" data-domain-attribute="pipeline_value">$2.4M</div>
+          <div class="metric-label">Pipeline Value</div></div>
+        <div class="card metric" data-domain-aggregate="OpenOrders">
+          <div class="metric-value" data-domain-attribute="open_orders">5</div>
+          <div class="metric-label">Open Orders</div></div>
+        <div class="card metric" data-domain-aggregate="InventoryHealth">
+          <div class="metric-value" data-domain-attribute="weeks_supply">8.2</div>
+          <div class="metric-label">Weeks of Supply</div></div>
+      </div>
+
+      <div class="section-grid">
+        <div class="card" data-domain-aggregate="BrandPosition">
+          <h3>Brand Positioning</h3>
+          <div class="list-item" data-searchable data-domain-attribute="duralube_position">
+            <div><strong style="color:#3b82f6">DuraLube</strong> <span class="badge badge-info">durability</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="motorkote_position">
+            <div><strong style="color:#ef4444">MotorKote</strong> <span class="badge badge-danger">anti-friction</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="slick50_position">
+            <div><strong style="color:#f59e0b">Slick 50</strong> <span class="badge badge-warning">PTFE protection</span></div></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="ComplianceSnapshot">
+          <h3>Compliance Snapshot</h3>
+          <div class="list-item" data-domain-attribute="sds_status">
+            <div>SDS Documents Current</div><span class="badge badge-success">12/12</span></div>
+          <div class="list-item" data-domain-attribute="epa_status">
+            <div>EPA Registrations</div><span class="badge badge-success">active</span></div>
+          <div class="list-item" data-domain-attribute="prop65_status">
+            <div>Prop 65 Warnings</div><span class="badge badge-warning">3 SKUs flagged</span></div>
+          <div class="list-item" data-domain-attribute="voc_status">
+            <div>VOC Compliance (CARB)</div><span class="badge badge-success">within limits</span></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="RecentOrders">
+          <h3>Recent Sales Orders</h3>
+          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
+            <div><strong>ORD-2026-0851</strong> Amazon FBA</div><span class="badge badge-success">delivered</span></div>
+          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
+            <div><strong>ORD-2026-0849</strong> Walmart DC</div><span class="badge badge-info">fulfilling</span></div>
+          <div class="list-item" data-domain-aggregate="SalesOrder" data-searchable>
+            <div><strong>ORD-2026-0850</strong> Mike's Fleet</div><span class="badge badge-warning">placed</span></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="ProductPipeline">
+          <h3>Innovation Pipeline</h3>
+          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
+            <div><strong>EXP-2026-001</strong> Four-ball wear testing</div><span class="badge badge-info">in lab</span></div>
+          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
+            <div><strong>EXP-2026-002</strong> Diesel anti-gel formula</div><span class="badge badge-muted">proposed</span></div>
+          <div class="list-item" data-domain-aggregate="ExperimentalFormula" data-searchable>
+            <div><strong>EXP-2025-019</strong> Next-gen PTFE blend</div><span class="badge badge-success">promoted</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/brand-switcher.js"></script>
+  <script src="../js/navigation.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

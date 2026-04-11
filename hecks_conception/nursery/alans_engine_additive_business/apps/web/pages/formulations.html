@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulations - Alan's Additives</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
+      <div class="nav-group"><div class="nav-group-label">Operations</div>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="orders.html" class="nav-link">Sales Orders</a>
+        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
+      <div class="nav-group"><div class="nav-group-label">Products</div>
+        <a href="products.html" class="nav-link">Product Catalog</a>
+        <a href="formulations.html" class="nav-link active" data-domain-command="ViewFormulations">Formulations</a>
+        <a href="pipeline.html" class="nav-link">Formulation Lab</a></div>
+      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="campaigns.html" class="nav-link">Campaigns</a>
+        <a href="personas.html" class="nav-link">Buyer Personas</a></div>
+      <div class="nav-group"><div class="nav-group-label">Compliance</div>
+        <a href="compliance.html" class="nav-link">SDS &amp; Compliance</a></div>
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header" data-domain-aggregate="FormulationHeader">
+        <h1>Formulations</h1>
+        <p>Proprietary additive recipes -- the chemistry that makes DuraLube, MotorKote, and Slick 50 work.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:var(--space-lg)" data-domain-aggregate="FormulaList">
+        <table class="data-table" aria-label="Active formulations">
+          <thead><tr>
+            <th data-domain-attribute="name">Formula</th>
+            <th data-domain-attribute="brand">Brand</th>
+            <th data-domain-attribute="product_type">Type</th>
+            <th data-domain-attribute="viscosity_grade">Viscosity</th>
+            <th data-domain-attribute="base_oil_type">Base Oil</th>
+            <th data-domain-attribute="status">Status</th>
+          </tr></thead>
+          <tbody>
+            <tr data-searchable data-domain-aggregate="Formula">
+              <td data-domain-attribute="name"><strong>DL-5W30-Advanced</strong></td>
+              <td><span style="color:#3b82f6">DuraLube</span></td>
+              <td data-domain-attribute="product_type">Engine Treatment</td>
+              <td>5W-30</td><td>Group II</td>
+              <td><span class="badge badge-success">finalized</span></td></tr>
+            <tr data-searchable data-domain-aggregate="Formula">
+              <td data-domain-attribute="name"><strong>DL-10W40-HeavyDuty</strong></td>
+              <td><span style="color:#3b82f6">DuraLube</span></td>
+              <td data-domain-attribute="product_type">Heavy Duty Treatment</td>
+              <td>10W-40</td><td>Group II</td>
+              <td><span class="badge badge-success">finalized</span></td></tr>
+            <tr data-searchable data-domain-aggregate="Formula">
+              <td data-domain-attribute="name"><strong>MK-HyperLube-V3</strong></td>
+              <td><span style="color:#ef4444">MotorKote</span></td>
+              <td data-domain-attribute="product_type">Hyper Lubricant</td>
+              <td>Multi</td><td>Group III</td>
+              <td><span class="badge badge-success">finalized</span></td></tr>
+            <tr data-searchable data-domain-aggregate="Formula">
+              <td data-domain-attribute="name"><strong>S50-PTFE-Recharged</strong></td>
+              <td><span style="color:#f59e0b">Slick 50</span></td>
+              <td data-domain-attribute="product_type">PTFE Treatment</td>
+              <td>Universal</td><td>Group II + PTFE</td>
+              <td><span class="badge badge-success">finalized</span></td></tr>
+            <tr data-searchable data-domain-aggregate="Formula">
+              <td data-domain-attribute="name"><strong>DL-Diesel-V2</strong></td>
+              <td><span style="color:#3b82f6">DuraLube</span></td>
+              <td data-domain-attribute="product_type">Diesel Treatment</td>
+              <td>15W-40</td><td>Group II</td>
+              <td><span class="badge badge-success">finalized</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-grid">
+        <div class="card" data-domain-aggregate="FormulaDetail">
+          <h3>DL-5W30-Advanced</h3>
+          <h4 style="margin:var(--space-md) 0 var(--space-sm)">Ingredient Stack</h4>
+          <div class="list-item" data-domain-aggregate="Ingredient" data-domain-attribute="chemical_name">
+            <div>ZDDP (Zinc Dialkyl Dithiophosphate)<br><small style="color:var(--text-muted)">Anti-wear -- 1.2% treat rate</small></div>
+            <span class="badge badge-info">CAS 68649-42-3</span></div>
+          <div class="list-item" data-domain-aggregate="Ingredient" data-domain-attribute="chemical_name">
+            <div>Molybdenum Dithiocarbamate<br><small style="color:var(--text-muted)">Friction modifier -- 0.8%</small></div>
+            <span class="badge badge-info">CAS 68412-26-0</span></div>
+          <div class="list-item" data-domain-aggregate="Ingredient" data-domain-attribute="chemical_name">
+            <div>Calcium Sulfonate Detergent<br><small style="color:var(--text-muted)">Detergent -- 3.5%</small></div>
+            <span class="badge badge-info">CAS 68783-96-0</span></div>
+          <div class="list-item" data-domain-aggregate="Ingredient" data-domain-attribute="chemical_name">
+            <div>Polyisobutylene Succinimide<br><small style="color:var(--text-muted)">Dispersant -- 4.0%</small></div>
+            <span class="badge badge-info">CAS 84605-20-9</span></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="BillOfMaterials">
+          <h3>Bill of Materials: DL-5W30-1QT</h3>
+          <h4 style="margin:var(--space-md) 0 var(--space-sm)">Materials</h4>
+          <div class="list-item" data-domain-aggregate="MaterialLine">
+            <div>Group II Base Oil<br><small style="color:var(--text-muted)">Chevron -- 0.85L/unit</small></div>
+            <strong>$2.14</strong></div>
+          <div class="list-item" data-domain-aggregate="MaterialLine">
+            <div>Additive Package<br><small style="color:var(--text-muted)">Afton Chemical -- 0.12L/unit</small></div>
+            <strong>$1.89</strong></div>
+          <h4 style="margin:var(--space-md) 0 var(--space-sm)">Packaging</h4>
+          <div class="list-item" data-domain-aggregate="PackagingLine">
+            <div>HDPE Bottle 1qt<br><small style="color:var(--text-muted)">Berry Global</small></div>
+            <strong>$0.34</strong></div>
+          <div class="list-item" data-domain-aggregate="PackagingLine">
+            <div>Cap + Seal<br><small style="color:var(--text-muted)">Berry Global</small></div>
+            <strong>$0.08</strong></div>
+          <div class="list-item" data-domain-aggregate="PackagingLine">
+            <div>Label (brand-specific)<br><small style="color:var(--text-muted)">Multi-Color Corp</small></div>
+            <strong>$0.12</strong></div>
+          <div style="margin-top:var(--space-md);padding-top:var(--space-md);border-top:1px solid var(--border)">
+            <div class="list-item" data-domain-attribute="total_cost_per_unit">
+              <div><strong>Total COGS per Unit</strong></div><strong style="color:var(--accent)">$4.57</strong></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/brand-switcher.js"></script>
+  <script src="../js/navigation.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

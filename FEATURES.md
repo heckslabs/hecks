@@ -912,6 +912,13 @@
 - `TimeTravel#at_version(stream_id, version, appliers)` returns state at a specific version
 - Built on `EventStore#read_stream_until` and `read_stream_to_version`
 
+## Domain-Driven Web Applications
+- **Nursery web apps** — static HTML/CSS/JS applications generated from Bluebook domains with full domain tagging
+- Domain tags on every element: `data-domain-aggregate`, `data-domain-command`, `data-domain-attribute`
+- Brand switcher: CSS custom property theming driven by bounded context data
+- Cross-domain policies rendered as UI connections (e.g., SDS links from compliance, Prop 65 from regulatory_compliance)
+- Alan's Engine Additive Business: 16 bounded contexts, 9 pages, 491 domain-tagged elements, 3 brand themes
+
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history
 - Pizzas static Ruby: generated standalone Ruby project with HTTP server, UI, roles, filesystem persistence

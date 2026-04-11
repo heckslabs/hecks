@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buyer Personas - Alan's Additives</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
+      <div class="nav-group"><div class="nav-group-label">Operations</div>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="orders.html" class="nav-link">Sales Orders</a>
+        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
+      <div class="nav-group"><div class="nav-group-label">Products</div>
+        <a href="products.html" class="nav-link">Product Catalog</a>
+        <a href="formulations.html" class="nav-link">Formulations</a>
+        <a href="pipeline.html" class="nav-link">Formulation Lab</a></div>
+      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="campaigns.html" class="nav-link">Campaigns</a>
+        <a href="personas.html" class="nav-link active" data-domain-command="ViewPersonas">Buyer Personas</a></div>
+      <div class="nav-group"><div class="nav-group-label">Compliance</div>
+        <a href="compliance.html" class="nav-link">SDS &amp; Compliance</a></div>
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header" data-domain-aggregate="PersonasHeader">
+        <h1>Buyer Personas</h1>
+        <p>6 archetypes. Real motivations, real objections, real buying triggers. Not fictional user stories.</p>
+      </div>
+
+      <div class="section-grid" data-domain-aggregate="PersonaGrid">
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">Weekend Warrior</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">DIY Enthusiast</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">Does own oil changes, trusts YouTube reviews, shops at AutoZone and O'Reilly.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>25-45</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Truck / Muscle Car</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>YouTube reviews</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-danger">high</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">YouTube video -> AutoZone visit -> grabs off shelf -> repeat if it works</p>
+        </div>
+
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">Fleet Manager</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">Commercial B2B</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">Manages 50+ vehicles, needs bulk pricing, wants data and proof, buys direct.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>35-55</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Mixed Fleet</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>ASTM data &amp; field trials</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-warning">medium</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">Reads ASTM report -> requests COA -> pilot on 5 trucks -> fleet-wide rollout</p>
+        </div>
+
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">High-Mileage Hero</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">Maintenance Buyer</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">150K+ miles, worried about engine longevity, buys additives as insurance.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>35-65</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Sedan / SUV</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>Amazon reviews</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-danger">high</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">Engine noise -> Amazon search -> reads reviews -> buys cheapest 4-star+</p>
+        </div>
+
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">Performance Junkie</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">Enthusiast</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">Modified vehicles, track days, wants maximum HP, trusts dyno results.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>20-40</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Sports / Modified</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>Dyno results &amp; forums</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-success">low</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">Forum discussion -> dyno video -> specialty retailer -> posts own results</p>
+        </div>
+
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">Worried Parent</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">Mainstream Consumer</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">Family car, doesn't know engines, wants simple solution, trusts brand name.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>30-50</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Minivan / SUV</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>Brand name &amp; shelf presence</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-warning">medium</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">Mechanic suggests -> sees at Walmart -> recognizes Slick 50 name -> buys</p>
+        </div>
+
+        <div class="card" data-searchable data-domain-aggregate="Persona">
+          <h3 data-domain-attribute="name" style="color:var(--accent)">Professional Mechanic</h3>
+          <span class="badge badge-info" data-domain-attribute="segment">Trade Professional</span>
+          <p style="margin:var(--space-md) 0" data-domain-attribute="description">Recommends to customers, wants proven products with COA, buys wholesale.</p>
+          <div class="list-item" data-domain-attribute="age_range"><div>Age</div><span>25-60</span></div>
+          <div class="list-item" data-domain-attribute="vehicle_type"><div>Vehicle</div><span>Customer Vehicles</span></div>
+          <div class="list-item" data-domain-attribute="trust_source"><div>Trust Source</div><span>ASTM data &amp; COA</span></div>
+          <div class="list-item" data-domain-attribute="price_sensitivity"><div>Price Sensitivity</div>
+            <span class="badge badge-warning">medium</span></div>
+          <h4 style="margin-top:var(--space-md)">Journey</h4>
+          <p style="font-size:0.8125rem">Sees COA -> tests on own car -> recommends to customers -> buys wholesale case</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/brand-switcher.js"></script>
+  <script src="../js/navigation.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

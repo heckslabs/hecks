@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Catalog - Alan's Additives</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
+      <div class="nav-group"><div class="nav-group-label">Operations</div>
+        <a href="dashboard.html" class="nav-link" data-domain-command="ViewDashboard">Dashboard</a>
+        <a href="orders.html" class="nav-link" data-domain-command="ViewOrders">Sales Orders</a>
+        <a href="supply-chain.html" class="nav-link" data-domain-command="ViewSupplyChain">Supply Chain</a></div>
+      <div class="nav-group"><div class="nav-group-label">Products</div>
+        <a href="products.html" class="nav-link active" data-domain-command="ViewCatalog">Product Catalog</a>
+        <a href="formulations.html" class="nav-link" data-domain-command="ViewFormulations">Formulations</a>
+        <a href="pipeline.html" class="nav-link" data-domain-command="ViewPipeline">Formulation Lab</a></div>
+      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="campaigns.html" class="nav-link" data-domain-command="ViewCampaigns">Campaigns</a>
+        <a href="personas.html" class="nav-link" data-domain-command="ViewPersonas">Buyer Personas</a></div>
+      <div class="nav-group"><div class="nav-group-label">Compliance</div>
+        <a href="compliance.html" class="nav-link" data-domain-command="ViewCompliance">SDS &amp; Compliance</a></div>
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header" data-domain-aggregate="CatalogHeader">
+        <h1>Product Catalog</h1>
+        <p>Science content, ASTM data, and MAP-compliant pricing. Not just marketing fluff.</p>
+      </div>
+
+      <div class="search-box">
+        <input type="search" placeholder="Search by SKU, formula, or brand..."
+               data-domain-command="SearchAggregates" aria-label="Search product catalog">
+      </div>
+
+      <div class="card" data-domain-aggregate="ProductListing" style="margin-bottom:var(--space-lg)">
+        <table class="data-table" aria-label="Product listings with science data">
+          <thead><tr>
+            <th data-domain-attribute="sku">SKU</th>
+            <th data-domain-attribute="name">Product</th>
+            <th data-domain-attribute="brand">Brand</th>
+            <th data-domain-attribute="price">MAP Price</th>
+            <th data-domain-attribute="in_stock">Stock</th>
+            <th data-domain-attribute="status">Status</th>
+          </tr></thead>
+          <tbody>
+            <tr data-searchable data-product-brand="duralube" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>DL-5W30-1QT</code></td>
+              <td data-domain-attribute="name">DuraLube Engine Treatment 5W-30</td>
+              <td><span style="color:#3b82f6" data-domain-attribute="brand">DuraLube</span></td>
+              <td data-domain-attribute="price">$14.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="duralube" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>DL-10W40-1QT</code></td>
+              <td data-domain-attribute="name">DuraLube Heavy Duty 10W-40</td>
+              <td><span style="color:#3b82f6" data-domain-attribute="brand">DuraLube</span></td>
+              <td data-domain-attribute="price">$16.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="duralube" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>DL-DIESEL-1GAL</code></td>
+              <td data-domain-attribute="name">DuraLube Diesel Treatment</td>
+              <td><span style="color:#3b82f6" data-domain-attribute="brand">DuraLube</span></td>
+              <td data-domain-attribute="price">$34.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="motorkote" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>MK-HYPER-1QT</code></td>
+              <td data-domain-attribute="name">MotorKote Hyper Lubricant</td>
+              <td><span style="color:#ef4444" data-domain-attribute="brand">MotorKote</span></td>
+              <td data-domain-attribute="price">$19.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="motorkote" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>MK-FUEL-12OZ</code></td>
+              <td data-domain-attribute="name">MotorKote Fuel Optimizer</td>
+              <td><span style="color:#ef4444" data-domain-attribute="brand">MotorKote</span></td>
+              <td data-domain-attribute="price">$11.99</td>
+              <td><span class="badge badge-danger">Out of Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="motorkote" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>MK-TRANS-1QT</code></td>
+              <td data-domain-attribute="name">MotorKote Transmission Treatment</td>
+              <td><span style="color:#ef4444" data-domain-attribute="brand">MotorKote</span></td>
+              <td data-domain-attribute="price">$22.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="slick50" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>S50-PTFE-1QT</code></td>
+              <td data-domain-attribute="name">Slick 50 Recharged Engine Treatment</td>
+              <td><span style="color:#f59e0b" data-domain-attribute="brand">Slick 50</span></td>
+              <td data-domain-attribute="price">$12.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-success">published</span></td></tr>
+            <tr data-searchable data-product-brand="slick50" data-domain-aggregate="Product">
+              <td data-domain-attribute="sku"><code>S50-HMLG-1QT</code></td>
+              <td data-domain-attribute="name">Slick 50 High Mileage Treatment</td>
+              <td><span style="color:#f59e0b" data-domain-attribute="brand">Slick 50</span></td>
+              <td data-domain-attribute="price">$14.99</td>
+              <td><span class="badge badge-success">In Stock</span></td>
+              <td><span class="badge badge-muted">draft</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-grid">
+        <div class="card" data-domain-aggregate="ScienceContent">
+          <h3>Science Content: DL-5W30-1QT</h3>
+          <h4 data-domain-attribute="tribology_summary">Tribology Summary</h4>
+          <p>ASTM D4172 four-ball wear test: 40% reduction in wear scar diameter vs untreated oil. Not "trusted" -- proven.</p>
+          <h4 data-domain-attribute="test_results_summary" style="margin-top:var(--space-md)">ASTM Test Results</h4>
+          <div class="list-item"><div>Four-Ball Wear (D4172)</div><span class="badge badge-success">0.38mm scar</span></div>
+          <div class="list-item"><div>Viscosity Index (D2270)</div><span class="badge badge-success">VI 156</span></div>
+          <div class="list-item"><div>Pour Point (D97)</div><span class="badge badge-success">-42C</span></div>
+          <div class="list-item"><div>Flash Point (D92)</div><span class="badge badge-success">234C</span></div>
+        </div>
+        <div class="card" data-domain-aggregate="Specification">
+          <h3>Pricing Tiers</h3>
+          <p style="margin-bottom:var(--space-md)">MAP-compliant pricing per channel. No violations tolerated.</p>
+          <div class="list-item" data-domain-attribute="msrp"><div>MSRP</div><strong>$14.99</strong></div>
+          <div class="list-item" data-domain-attribute="map_price"><div>MAP Price</div><strong>$13.49</strong></div>
+          <div class="list-item" data-domain-attribute="distributor_price"><div>Distributor</div><strong>$8.99</strong></div>
+          <div class="list-item" data-domain-attribute="jobber_price"><div>Jobber</div><strong>$10.49</strong></div>
+          <div style="margin-top:var(--space-md)">
+            <a href="#" data-domain-command="DownloadSDS" class="btn btn-ghost" aria-label="Download Safety Data Sheet">Download SDS</a>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/brand-switcher.js"></script>
+  <script src="../js/navigation.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

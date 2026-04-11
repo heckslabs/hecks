@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-brand="duralube">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulation Lab - Alan's Additives</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button class="mobile-toggle" aria-label="Open navigation">Menu</button>
+  <div class="app-shell" data-domain-aggregate="StorefrontSite">
+    <nav class="sidebar" aria-label="Navigation" data-domain-aggregate="Navigation">
+      <div class="sidebar-brand"><h1>Alan's Additives</h1></div>
+      <div class="nav-group"><div class="nav-group-label">Operations</div>
+        <a href="dashboard.html" class="nav-link">Dashboard</a>
+        <a href="orders.html" class="nav-link">Sales Orders</a>
+        <a href="supply-chain.html" class="nav-link">Supply Chain</a></div>
+      <div class="nav-group"><div class="nav-group-label">Products</div>
+        <a href="products.html" class="nav-link">Product Catalog</a>
+        <a href="formulations.html" class="nav-link">Formulations</a>
+        <a href="pipeline.html" class="nav-link active" data-domain-command="ViewPipeline">Formulation Lab</a></div>
+      <div class="nav-group"><div class="nav-group-label">Sales &amp; Brand</div>
+        <a href="campaigns.html" class="nav-link">Campaigns</a>
+        <a href="personas.html" class="nav-link">Buyer Personas</a></div>
+      <div class="nav-group"><div class="nav-group-label">Compliance</div>
+        <a href="compliance.html" class="nav-link">SDS &amp; Compliance</a></div>
+      <div class="brand-switcher" data-domain-aggregate="BrandSwitcher">
+        <button class="brand-btn active" data-brand-select="duralube" data-domain-command="SelectBrand">DuraLube</button>
+        <button class="brand-btn" data-brand-select="motorkote" data-domain-command="SelectBrand">MotorKote</button>
+        <button class="brand-btn" data-brand-select="slick50" data-domain-command="SelectBrand">Slick 50</button></div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header" data-domain-aggregate="PipelineHeader">
+        <h1>Formulation Lab</h1>
+        <p>Where new products are born. Propose, test, validate, preview -- before spending a dollar on manufacturing.</p>
+      </div>
+
+      <div class="metric-grid" data-domain-aggregate="PipelineMetrics">
+        <div class="card metric" data-domain-aggregate="ProductPipeline">
+          <div class="metric-value" data-domain-attribute="total_proposed">3</div>
+          <div class="metric-label">Proposed</div></div>
+        <div class="card metric" data-domain-aggregate="ProductPipeline">
+          <div class="metric-value" data-domain-attribute="total_in_lab">2</div>
+          <div class="metric-label">In Lab</div></div>
+        <div class="card metric" data-domain-aggregate="ProductPipeline">
+          <div class="metric-value" data-domain-attribute="total_promoted">1</div>
+          <div class="metric-label">Promoted</div></div>
+        <div class="card metric" data-domain-aggregate="ProductPipeline">
+          <div class="metric-value" data-domain-attribute="pipeline_value">$2.4M</div>
+          <div class="metric-label">Pipeline Value</div></div>
+      </div>
+
+      <div class="section-grid">
+        <div class="card" data-domain-aggregate="ExperimentalFormula">
+          <h3>EXP-2026-001: Next-Gen Anti-Wear</h3>
+          <span class="badge badge-info" style="margin-bottom:var(--space-md);display:inline-block">in lab</span>
+          <div class="list-item" data-domain-attribute="hypothesis">
+            <div><strong>Hypothesis</strong></div></div>
+          <p style="margin-bottom:var(--space-md)">MoDTC + ZDDP synergy at reduced treat rates can match Royal Purple performance at 60% of their cost.</p>
+          <div class="list-item" data-domain-attribute="base_oil_type">
+            <div>Base Oil</div><span>Group III synthetic</span></div>
+          <div class="list-item" data-domain-attribute="treat_rate_pct">
+            <div>Treat Rate</div><span>8.5%</span></div>
+          <div class="list-item" data-domain-attribute="projected_cost_per_unit">
+            <div>Projected Cost</div><span>$5.20/unit</span></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="LabTest">
+          <h3>ASTM Bench Test Results</h3>
+          <p style="margin-bottom:var(--space-md)">EXP-2026-001 -- all five tests passing specification</p>
+          <div class="list-item" data-searchable data-domain-attribute="test_method">
+            <div><strong>D4172 Four-Ball Wear</strong><br>
+              <small style="color:var(--text-muted)">Spec: scar &lt; 0.45mm</small></div>
+            <div><span class="badge badge-success">0.38mm PASS</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="test_method">
+            <div><strong>D2270 Viscosity Index</strong><br>
+              <small style="color:var(--text-muted)">Spec: VI &gt; 140</small></div>
+            <div><span class="badge badge-success">156 PASS</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="test_method">
+            <div><strong>D97 Pour Point</strong><br>
+              <small style="color:var(--text-muted)">Spec: &lt; -35C</small></div>
+            <div><span class="badge badge-success">-42C PASS</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="test_method">
+            <div><strong>D92 Flash Point</strong><br>
+              <small style="color:var(--text-muted)">Spec: &gt; 220C</small></div>
+            <div><span class="badge badge-success">234C PASS</span></div></div>
+          <div class="list-item" data-searchable data-domain-attribute="test_method">
+            <div><strong>D2896 Total Base Number</strong><br>
+              <small style="color:var(--text-muted)">Spec: TBN &gt; 8.0</small></div>
+            <div><span class="badge badge-success">9.2 PASS</span></div></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="MarketThesis">
+          <h3>Market Thesis: EXP-2026-001</h3>
+          <div class="list-item" data-domain-attribute="target_segment">
+            <div>Target Segment</div><span>Performance Enthusiast + Fleet</span></div>
+          <div class="list-item" data-domain-attribute="competitive_gap">
+            <div>Competitive Gap</div><span>Royal Purple price vs Lucas performance</span></div>
+          <div class="list-item" data-domain-attribute="price_point_estimate">
+            <div>Price Point</div><span>$16.99/qt</span></div>
+          <div class="list-item" data-domain-attribute="annual_volume_estimate">
+            <div>Annual Volume</div><span>45,000 units</span></div>
+          <div class="list-item" data-domain-attribute="revenue_projection">
+            <div>Revenue Projection</div><strong style="color:var(--accent)">$764K/yr</strong></div>
+          <div class="list-item" data-domain-attribute="confidence_level">
+            <div>Confidence</div><span class="badge badge-success">high</span></div>
+        </div>
+
+        <div class="card" data-domain-aggregate="MarketingPreview">
+          <h3>Marketing Preview</h3>
+          <p style="margin-bottom:var(--space-md);font-style:italic;color:var(--accent)"
+             data-domain-attribute="headline">"Outperform Royal Purple. Pay Less Than Lucas."</p>
+          <div class="list-item" data-domain-attribute="brand_assignment">
+            <div>Brand</div><span>DuraLube (proposed)</span></div>
+          <div class="list-item" data-domain-attribute="proposed_product_name">
+            <div>Product Name</div><span>DuraLube Pro Series</span></div>
+          <div class="list-item" data-domain-attribute="channel_strategy">
+            <div>Channel</div><span>Amazon + AutoZone first, then Walmart</span></div>
+          <div class="list-item" data-domain-attribute="shelf_position">
+            <div>Shelf Position</div><span>Next to Royal Purple, half the price</span></div>
+          <div style="margin-top:var(--space-md)">
+            <span class="badge badge-muted" data-domain-attribute="status">concept</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/data.js"></script>
+  <script src="../js/brand-switcher.js"></script>
+  <script src="../js/navigation.js"></script>
+  <script src="../app.js"></script>
+</body>
+</html>

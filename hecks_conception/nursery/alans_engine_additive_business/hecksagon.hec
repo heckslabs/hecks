@@ -55,6 +55,10 @@ Hecks.hecksagon "AlansEngineAdditiveBusiness" do
     listens_to "regulatory_compliance"
     listens_to "claims"
   end
+  domain "formulation_lab" do
+    listens_to "formulation"
+    listens_to "quality"
+  end
   domain "supply_chain" do
     listens_to "formulation"
     listens_to "manufacturing"
