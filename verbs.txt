@@ -2,8 +2,8 @@ Absorb
 Accelerate
 Accept
 Accession
-Accrete
 Accredit
+Accrete
 Achieve
 Acknowledge
 Acquire
@@ -21,8 +21,8 @@ Allocate
 Allow
 Amend
 Analyze
-Annihilate
 Anneal
+Annihilate
 Announce
 Appeal
 Apply
@@ -112,6 +112,7 @@ Cook
 Cool
 Correct
 Count
+Craft
 Create
 Cross
 Crosslink
@@ -131,9 +132,9 @@ Decline
 Decommission
 Deduct
 Deepen
-Degrade
 Defer
 Define
+Degrade
 Delete
 Delist
 Deliver
@@ -473,6 +474,7 @@ Reset
 Resight
 Resolder
 Resolve
+Respond
 Restart
 Restock
 Restore
@@ -522,8 +524,8 @@ Ship
 Shut
 Sieve
 Sign
-Simulate
 Simplify
+Simulate
 Sinter
 Skip
 Solve
