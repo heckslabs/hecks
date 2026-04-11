@@ -35,7 +35,7 @@ pub fn module_fixtures(fixtures: &[Fixture], aggregate_name: &str) -> String {
         if count == 1 { "" } else { "s" },
     ));
     s.push_str(r#"<div class="max-h-48 overflow-x-auto overflow-y-auto rounded border border-surface-3">"#);
-    s.push_str(r#"<table class="w-full text-xs">"#);
+    s.push_str(r#"<table class="min-w-full text-xs">"#);
     s.push_str(r#"<thead class="sticky top-0 bg-surface-2">"#);
     s.push_str(r#"<tr class="border-b border-surface-3 text-left text-gray-400">"#);
     for (i, k) in keys.iter().enumerate() {
@@ -53,7 +53,13 @@ pub fn module_fixtures(fixtures: &[Fixture], aggregate_name: &str) -> String {
             r#"<tr class="border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition" onclick="showDetail(this)">"#,
         );
         for (_, v) in &fix.attributes {
-            s.push_str(&format!(r#"<td class="px-2 py-1">{}</td>"#, esc(v)));
+            // Clean snake_case values for display
+            let clean = if v.contains('_') && !v.contains('/') && !v.contains(' ') {
+                display_name(v)
+            } else {
+                v.clone()
+            };
+            s.push_str(&format!(r#"<td class="px-2 py-1 whitespace-nowrap">{}</td>"#, esc(&clean)));
         }
         s.push_str("</tr>");
     }

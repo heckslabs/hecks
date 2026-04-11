@@ -8,6 +8,23 @@
 
 use crate::ir::{Lifecycle, Command};
 use super::html_shared::{display_name, esc};
+
+/// Turn code expressions into human language
+fn humanize_given(expr: &str) -> String {
+    // 'status == "draft"' → 'Requires: Draft status'
+    if expr.contains("==") {
+        let parts: Vec<&str> = expr.split("==").collect();
+        if parts.len() == 2 {
+            let field = parts[0].trim().trim_matches(|c: char| !c.is_alphanumeric());
+            let value = parts[1].trim().trim_matches(|c| c == '"' || c == ' ' || c == '\'');
+            return format!("Requires {} to be {}", display_name(field).to_lowercase(), display_name(value).to_lowercase());
+        }
+    }
+    if expr.contains(">") {
+        return format!("Requires: {}", expr.replace(">", "greater than").replace("_", " "));
+    }
+    format!("Requires: {}", expr.replace("_", " "))
+}
 use std::collections::HashMap;
 
 /// Render a lifecycle as a horizontal workflow pipeline
@@ -71,14 +88,17 @@ fn step_node(state: &str, is_default: bool, cmds: Option<&Vec<&Command>>) -> Str
     if let Some(commands) = cmds {
         for cmd in commands {
             let dimmed = if !cmd.givens.is_empty() { " opacity-60" } else { "" };
+            let raw = esc(&cmd.name);
             s.push_str(&format!(
-                r#"<div class="mt-1.5"><span class="inline-block text-xs px-2 py-0.5 rounded-full bg-surface-4 text-gray-300 cursor-default{}">{}</span></div>"#,
-                dimmed, esc(&display_name(&cmd.name)),
+                r#"<div class="mt-1.5"><button onclick="var d=document.querySelector('[data-domain-command=&quot;{raw}&quot;]');if(d){{d.open=true;d.scrollIntoView({{behavior:'smooth',block:'center'}})}}" class="text-xs px-2 py-0.5 rounded-full bg-surface-4 text-gray-300 hover:bg-brand/30 hover:text-brand cursor-pointer transition{dimmed}">{display}</button></div>"#,
+                raw = raw, dimmed = dimmed, display = esc(&display_name(&cmd.name)),
             ));
             for g in &cmd.givens {
+                // Humanize: 'status == "draft"' → 'Requires: Draft status'
+                let human = humanize_given(&g.expression);
                 s.push_str(&format!(
-                    r#"<div class="text-xs text-amber-400 mt-0.5">{}</div>"#,
-                    esc(&g.expression),
+                    r#"<div class="text-xs text-amber-400/70 mt-0.5">⚠ {}</div>"#,
+                    esc(&human),
                 ));
             }
         }

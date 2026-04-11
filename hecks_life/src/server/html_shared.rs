@@ -138,11 +138,11 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   </script>
 </head>
 <body class="h-full bg-surface-0 text-gray-100">
-  <div class="page-blob" style="width:600px;height:600px;top:-10%;left:-5%;background:#ffe400;animation:blob-drift-1 25s ease-in-out infinite"></div>
-  <div class="page-blob" style="width:400px;height:400px;top:40%;right:-8%;background:#ef4444;animation:blob-drift-2 30s ease-in-out infinite"></div>
-  <div class="page-blob" style="width:500px;height:500px;bottom:-15%;left:30%;background:#22c55e;animation:blob-drift-1 35s ease-in-out infinite reverse"></div>
-  <div class="page-blob" style="width:350px;height:350px;top:10%;right:20%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
-  <div class="page-blob" style="width:450px;height:450px;bottom:-5%;right:-10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
+  <div class="page-blob" style="width:500px;height:500px;top:5%;left:20%;background:#ffe400;animation:blob-drift-1 25s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:400px;height:400px;top:60%;right:10%;background:#ef4444;animation:blob-drift-2 30s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:450px;height:450px;bottom:10%;left:50%;background:#22c55e;animation:blob-drift-1 35s ease-in-out infinite reverse"></div>
+  <div class="page-blob" style="width:350px;height:350px;top:30%;right:40%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:400px;height:400px;bottom:30%;left:10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
   <div class="flex h-full relative z-10">
     <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
       <div class="p-6">

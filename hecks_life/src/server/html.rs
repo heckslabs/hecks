@@ -74,7 +74,7 @@ fn metric_cards(
     )
 }
 
-fn domain_card(name: &str, category: &str, description: &str) -> String {
+fn domain_card(name: &str, _category: &str, description: &str) -> String {
     let desc = if description.is_empty() {
         format!("Manage your {}", display_name(name).to_lowercase())
     } else {
@@ -90,7 +90,6 @@ fn domain_card(name: &str, category: &str, description: &str) -> String {
         name = name,
         icon = domain_icon(name),
         label = esc(&display_name(name)),
-        category = esc(category),
         desc = esc(&desc),
     )
 }
