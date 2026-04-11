@@ -28,7 +28,7 @@ pub fn generate_domain_page(
     let rt = rt.borrow();
     let mut main = String::new();
     main.push_str(&format!(
-        r#"<div class="mb-1">
+        r#"<div class="mb-8">
   <h1 class="text-3xl font-bold text-brand">{label}</h1>
 </div>
 "#,
@@ -38,6 +38,19 @@ pub fn generate_domain_page(
     // Fixtures table first — records at the top
     if !rt.domain.fixtures.is_empty() {
         main.push_str(&fixtures_section(&rt.domain.fixtures));
+        main.push_str(r#"<div class="mb-8"></div>"#);
+    }
+
+    // Module navbar — quick links
+    if rt.domain.aggregates.len() > 1 {
+        main.push_str("<nav class=\"flex flex-wrap gap-2 mb-6\">");
+        for agg in &rt.domain.aggregates {
+            main.push_str(&format!(
+                "<a href=\"#{}\" class=\"px-3 py-1 text-xs rounded-full bg-surface-2 border border-surface-3 text-gray-400 hover:text-brand hover:border-brand\">{}</a>",
+                esc(&agg.name), esc(&display_name(&agg.name)),
+            ));
+        }
+        main.push_str("</nav>");
     }
 
     for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
@@ -51,7 +64,7 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String
     let open_attr = if index == 0 { " open" } else { "" };
     let icon = domain_icon(domain);
     let mut s = format!(
-        r#"<details class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
+        r#"<details id="{agg_name}" class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
   <summary class="p-6 cursor-pointer select-none flex items-center justify-between">
     <div>
       <h2 class="text-xl font-bold">{icon} {label}</h2>

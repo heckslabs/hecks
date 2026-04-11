@@ -136,7 +136,7 @@ pub fn sidebar_links(domains: &[(String, usize)], active: Option<&str>) -> Strin
         };
         let icon = domain_icon(name);
         out.push_str(&format!(
-            r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="block px-3 py-2 rounded-lg text-sm {active_class} transition">
+            r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="block px-3 py-1 rounded-lg text-sm {active_class} transition">
   {icon} {label}
 </a>"#,
             name = name,
