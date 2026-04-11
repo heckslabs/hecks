@@ -1,6 +1,6 @@
 //! HTML domain page — detail view for a single domain
 //!
-//! Shows modules (aggregates), commands, lifecycle states, and fixtures
+//! Shows modules (aggregates), commands, lifecycle states, and records
 //! for one domain. Forms submit to the JSON dispatch endpoint.
 //!
 //! Usage:
@@ -135,13 +135,13 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
 
 fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     let mut s = String::from(
-        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Seed Data</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-700 text-left text-gray-400">"#,
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-700 text-left text-gray-400">"#,
     );
     // Collect all keys
     let keys: Vec<String> = if let Some(f) = fixtures.first() {
         f.attributes.iter().map(|(k, _)| k.clone()).collect()
     } else { vec![] };
-    s.push_str(&format!("<th class=\"px-3 py-2\">Type</th>"));
+    s.push_str("<th class=\"px-3 py-2\">Module</th>");
     for k in &keys {
         s.push_str(&format!("<th class=\"px-3 py-2\">{}</th>", esc(&display_name(k))));
     }
