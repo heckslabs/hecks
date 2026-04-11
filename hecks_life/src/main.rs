@@ -11,6 +11,7 @@
 //!   hecks-life list      pizzas.bluebook
 //!   hecks-life run       pizzas.bluebook [--seed seeds.txt]
 //!   hecks-life serve     pizzas.bluebook [--seed seeds.txt] [port]
+//!   hecks-life serve     path/to/hecks/ [port]
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
@@ -59,8 +60,16 @@ fn main() {
     }
 
     if path.is_empty() {
-        eprintln!("Usage: hecks-life {} <bluebook-file>", command);
+        eprintln!("Usage: hecks-life {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
+    }
+
+    // Multi-domain serve: if path is a directory, serve all bluebooks
+    if command == "serve" && std::path::Path::new(path).is_dir() {
+        let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
+            .and_then(|s| s.parse().ok()).unwrap_or(3100);
+        server::multi::serve_directory(path, port);
+        return;
     }
 
     let source = fs::read_to_string(path).unwrap_or_else(|e| {
@@ -175,7 +184,7 @@ fn print_usage() {
     eprintln!("  tree       Tree view of aggregates and commands");
     eprintln!("  list       Summary list of aggregates and commands");
     eprintln!("  run        Boot runtime with interactive REPL");
-    eprintln!("  serve      Boot runtime as HTTP JSON API");
+    eprintln!("  serve      Boot runtime as HTTP JSON API (file or directory)");
     eprintln!("  conceive   Generate a new domain from corpus archetypes");
     eprintln!("  develop    Develop features in an existing domain\n");
     eprintln!("Options:");
