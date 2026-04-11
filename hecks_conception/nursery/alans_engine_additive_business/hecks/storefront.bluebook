@@ -495,6 +495,8 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
     end
   end
 
+  fixture "ScienceContent", product_sku: "DL-ET-32OZ", tribology_summary: "Reduces four-ball wear scar diameter by 40% (ASTM D4172, 75C, 40kg load, 1200rpm). Boundary lubrication regime enhanced by anti-wear additive package.", how_it_works: "Advanced anti-wear additives form a protective tribofilm on metal surfaces under boundary and mixed lubrication conditions, reducing metal-to-metal contact.", comparison_to_competitor: "Lucas Oil Stabilizer: general viscosity thickener. DuraLube: targeted anti-wear chemistry with ASTM-verified results."
+
   policy "StockOnOrder" do
     on "OrderPlaced"
     trigger "UpdateStock"

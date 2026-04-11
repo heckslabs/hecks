@@ -312,6 +312,10 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
     end
   end
 
+  fixture "AdTemplate", brand: "DuraLube", owned_word: "durability", channel: "Amazon", format: "sponsored_product", headline: "Your Engine's Best Defense", subheadline: "ASTM-proven 40% wear reduction", body_copy: "DuraLube Advanced Engine Treatment doesn't just claim protection — it proves it. Independent ASTM D4172 testing shows 40% reduction in wear scar diameter.", proof_point: "ASTM D4172 four-ball wear test", call_to_action: "Protect Your Engine Today", status: "approved"
+  fixture "AdTemplate", brand: "MotorKote", owned_word: "anti-friction", channel: "Google", format: "search", headline: "Stop Friction. Start Saving.", subheadline: "Hyper-lubricant metal treatment by MotorKote", body_copy: "Fleet-proven anti-friction technology. Reduce operating costs with MotorKote's hyper-lubricant metal treatment.", proof_point: "Used by fleet operators managing 50+ vehicles", call_to_action: "Get a Fleet Quote", status: "approved"
+  fixture "AdTemplate", brand: "Slick 50", owned_word: "PTFE protection", channel: "Walmart", format: "display", headline: "The Original PTFE Engine Treatment", subheadline: "Trusted since 1978", body_copy: "Slick 50 pioneered PTFE engine treatment technology. Easy pour-in protection for everyday drivers.", proof_point: "The original — over 40 years of engine protection", call_to_action: "Add to Cart", status: "approved"
+
   fixture "ChannelSpec", channel: "Amazon Sponsored", format: "search", headline_max_chars: 150, body_max_chars: 0, image_size: "1200x628", video_length: "n/a"
   fixture "ChannelSpec", channel: "Walmart Connect", format: "search", headline_max_chars: 100, body_max_chars: 0, image_size: "1200x628", video_length: "n/a"
   fixture "ChannelSpec", channel: "Google Ads", format: "search", headline_max_chars: 30, body_max_chars: 90, image_size: "n/a", video_length: "n/a"

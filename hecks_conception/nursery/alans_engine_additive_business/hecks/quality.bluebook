@@ -57,4 +57,6 @@ Hecks.bluebook "Quality", version: "2026.04.11.1" do
       then_set :certificate_of_analysis, to: :certificate_of_analysis
     end
   end
+
+  fixture "QualityTest", test_name: "Four-Ball Wear", formula_name: "DuraLube Advanced Engine Treatment", batch_number: "LOT-DL-20260411", astm_test_method: "ASTM D4172", specification_min: 0.0, specification_max: 0.45, actual_value: 0.38, out_of_spec: "false"
 end

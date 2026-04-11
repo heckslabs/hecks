@@ -81,4 +81,8 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
       transition "RetireFormula" => "retired", from: "finalized"
     end
   end
+
+  fixture "Formula", name: "DuraLube Advanced Engine Treatment", brand: "DuraLube", product_type: "engine_treatment", base_oil_type: "Group III", viscosity_index: 140, pour_point_celsius: -42, flash_point_celsius: 220, status: "finalized"
+  fixture "Formula", name: "MotorKote Hyper Lubricant", brand: "MotorKote", product_type: "metal_treatment", base_oil_type: "synthetic blend", viscosity_index: 155, status: "finalized"
+  fixture "Formula", name: "Slick 50 Recharged Engine Treatment", brand: "Slick 50", product_type: "engine_treatment", base_oil_type: "Group II", viscosity_index: 130, status: "finalized"
 end

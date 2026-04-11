@@ -63,6 +63,10 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
     end
   end
 
+  fixture "Inventory", sku: "DL-ET-32OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 4200, quantity_reserved: 350, safety_stock: 500, weeks_of_supply: 8
+  fixture "Inventory", sku: "MK-HL-16OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 2800, quantity_reserved: 200, safety_stock: 400, weeks_of_supply: 6
+  fixture "Inventory", sku: "S50-RE-32OZ", warehouse: "Dallas Distribution Center", quantity_on_hand: 6100, quantity_reserved: 800, safety_stock: 600, weeks_of_supply: 12
+
   policy "ReorderOnLowStock" do
     on "StockShipped"
     trigger "TriggerReorder"

@@ -486,6 +486,10 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
     end
   end
 
+  fixture "Supplier", name: "Afton Chemical", supplier_type: "chemical", lead_time_days: 14, quality_rating: 0.97, approved: "true"
+  fixture "Supplier", name: "Chevron Base Oils", supplier_type: "chemical", lead_time_days: 21, quality_rating: 0.99, approved: "true"
+  fixture "Supplier", name: "Berry Global", supplier_type: "packaging", lead_time_days: 10, quality_rating: 0.95, approved: "true"
+
   policy "InspectOnReceive" do
     on "MaterialReceived"
     trigger "InspectMaterial"

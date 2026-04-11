@@ -84,6 +84,9 @@ Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
     end
   end
 
+  fixture "ManufacturingOrder", order_number: "MO-2026-001", manufacturer: "PetroBlend Industries", formula_name: "DuraLube Advanced Engine Treatment", quantity: 5000, unit: "gallons", status: "in_production", lot_number: "LOT-DL-20260411", batch_record_number: "BR-001"
+  fixture "ManufacturingOrder", order_number: "MO-2026-002", manufacturer: "PetroBlend Industries", formula_name: "MotorKote Hyper Lubricant", quantity: 3000, unit: "gallons", status: "placed"
+
   policy "TestOnReceive" do
     on "OrderReceived"
     across "Quality"
