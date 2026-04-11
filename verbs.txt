@@ -398,6 +398,7 @@ Purify
 Qualify
 Quarantine
 Quench
+Query
 Queue
 Rack
 Radiate
@@ -479,6 +480,7 @@ Rework
 Ring
 Root
 Rotate
+Route
 Run
 Sample
 Satisfy
@@ -533,6 +535,7 @@ Stream
 Submit
 Suggest
 Superpose
+Supersede
 Surrender
 Survey
 Suspend
