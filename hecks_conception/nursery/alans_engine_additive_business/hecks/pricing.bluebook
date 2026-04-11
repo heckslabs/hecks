@@ -1,0 +1,182 @@
+Hecks.bluebook "Pricing", version: "2026.04.11.1" do
+  vision "Manage MAP, MSRP, and tiered channel pricing — protect margins and enforce price discipline"
+  category "business"
+
+  aggregate "PriceList", "Pricing tiers for a SKU — MAP, MSRP, distributor, jobber, and retail margin targets" do
+    attribute :sku, String
+    attribute :msrp, Float
+    attribute :map_price, Float
+    attribute :distributor_price, Float
+    attribute :jobber_price, Float
+    attribute :retail_margin_target, Float
+    attribute :channel_prices, list_of(ChannelPrice)
+    attribute :effective_date, String
+    attribute :status, String
+
+    value_object "ChannelPrice" do
+      attribute :channel, String
+      attribute :unit_price, Float
+      attribute :margin_percent, Float
+    end
+
+    command "SetPriceList" do
+      role "PricingManager"
+      description "Establish MAP, MSRP, distributor, and jobber pricing for a SKU"
+      attribute :sku, String
+      attribute :msrp, Float
+      attribute :map_price, Float
+      attribute :distributor_price, Float
+      attribute :jobber_price, Float
+      attribute :retail_margin_target, Float
+      attribute :effective_date, String
+      emits "PriceListSet"
+      then_set :sku, to: :sku
+      then_set :msrp, to: :msrp
+      then_set :map_price, to: :map_price
+      then_set :distributor_price, to: :distributor_price
+      then_set :jobber_price, to: :jobber_price
+      then_set :retail_margin_target, to: :retail_margin_target
+      then_set :effective_date, to: :effective_date
+      then_set :status, to: "active"
+    end
+
+    command "SetChannelPrice" do
+      role "PricingManager"
+      description "Set channel-specific pricing — resolve channel conflict with tier discipline"
+      reference_to PriceList
+      attribute :channel, String
+      attribute :unit_price, Float
+      attribute :margin_percent, Float
+      emits "ChannelPriceSet"
+    end
+
+    command "RevisePriceList" do
+      role "PricingManager"
+      description "Update pricing tiers — triggered by cost changes or competitive pressure"
+      reference_to PriceList
+      attribute :msrp, Float
+      attribute :map_price, Float
+      attribute :distributor_price, Float
+      attribute :jobber_price, Float
+      emits "PriceListRevised"
+      then_set :msrp, to: :msrp
+      then_set :map_price, to: :map_price
+      then_set :distributor_price, to: :distributor_price
+      then_set :jobber_price, to: :jobber_price
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "SetPriceList" => "active", from: "draft"
+    end
+  end
+
+  aggregate "PricingPolicy", "MAP enforcement rules, promotional windows, and volume discount tiers" do
+    attribute :name, String
+    attribute :map_enforcement_level, String
+    attribute :promotional_windows, list_of(PromotionalWindow)
+    attribute :volume_discount_tiers, list_of(VolumeTier)
+    attribute :status, String
+
+    value_object "PromotionalWindow" do
+      attribute :name, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :discount_percent, Float
+    end
+
+    value_object "VolumeTier" do
+      attribute :min_quantity, Integer
+      attribute :discount_percent, Float
+      attribute :tier_name, String
+    end
+
+    command "CreatePricingPolicy" do
+      role "PricingManager"
+      description "Define MAP enforcement rules and volume discount structure"
+      attribute :name, String
+      attribute :map_enforcement_level, String
+      emits "PricingPolicyCreated"
+      then_set :name, to: :name
+      then_set :map_enforcement_level, to: :map_enforcement_level
+      then_set :status, to: "active"
+    end
+
+    command "AddPromotionalWindow" do
+      role "PricingManager"
+      description "Open a time-bound promotional pricing window"
+      reference_to PricingPolicy
+      attribute :name, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :discount_percent, Float
+      emits "PromotionalWindowAdded"
+    end
+
+    command "AddVolumeTier" do
+      role "PricingManager"
+      description "Add a volume discount tier — reward larger orders"
+      reference_to PricingPolicy
+      attribute :min_quantity, Integer
+      attribute :discount_percent, Float
+      attribute :tier_name, String
+      emits "VolumeTierAdded"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreatePricingPolicy" => "active", from: "draft"
+    end
+  end
+
+  aggregate "PricingViolation", "A detected MAP breach on a channel — Amazon, Walmart, or other" do
+    attribute :sku, String
+    attribute :channel, String
+    attribute :advertised_price, Float
+    attribute :map_price, Float
+    attribute :violation_date, String
+    attribute :corrective_action, String
+    attribute :status, String
+
+    command "DetectViolation" do
+      role "System"
+      description "Flag a MAP breach — advertised price below minimum on a channel"
+      attribute :sku, String
+      attribute :channel, String
+      attribute :advertised_price, Float
+      attribute :map_price, Float
+      attribute :violation_date, String
+      emits "ViolationDetected"
+      then_set :sku, to: :sku
+      then_set :channel, to: :channel
+      then_set :advertised_price, to: :advertised_price
+      then_set :map_price, to: :map_price
+      then_set :violation_date, to: :violation_date
+      then_set :status, to: "open"
+    end
+
+    command "CorrectViolation" do
+      role "PricingManager"
+      description "Record corrective action taken to resolve the MAP breach"
+      reference_to PricingViolation
+      attribute :corrective_action, String
+      given { status == "open" }
+      emits "ViolationCorrected"
+      then_set :corrective_action, to: :corrective_action
+      then_set :status, to: "corrected"
+    end
+
+    command "EscalateViolation" do
+      role "PricingManager"
+      description "Escalate unresolved MAP violation — channel conflict requires intervention"
+      reference_to PricingViolation
+      given { status == "open" }
+      emits "ViolationEscalated"
+      then_set :status, to: "escalated"
+    end
+
+    lifecycle :status, default: "open" do
+      transition "DetectViolation" => "open", from: "pending"
+      transition "CorrectViolation" => "corrected", from: "open"
+      transition "EscalateViolation" => "escalated", from: "open"
+    end
+  end
+end

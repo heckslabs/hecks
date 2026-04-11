@@ -1,0 +1,60 @@
+Hecks.bluebook "Quality", version: "2026.04.11.1" do
+  vision "Test batches and formulas against performance specifications — gate quality before distribution"
+  category "business"
+
+  aggregate "QualityTest", "Testing a batch against ASTM test methods and specification limits" do
+    attribute :test_name, String
+    attribute :astm_test_method, String
+    attribute :formula_name, String
+    attribute :batch_number, String
+    attribute :lot_number, String
+    attribute :specification_min, Float
+    attribute :specification_max, Float
+    attribute :actual_value, Float
+    attribute :result, String
+    attribute :out_of_spec, String
+    attribute :certificate_of_analysis, String
+
+    command "RunTest" do
+      role "QualityManager"
+      description "Execute an ASTM test method against specification limits for a lot"
+      attribute :test_name, String
+      attribute :astm_test_method, String
+      attribute :formula_name, String
+      attribute :batch_number, String
+      attribute :lot_number, String
+      attribute :specification_min, Float
+      attribute :specification_max, Float
+      emits "TestRun"
+      then_set :test_name, to: :test_name
+      then_set :astm_test_method, to: :astm_test_method
+      then_set :formula_name, to: :formula_name
+      then_set :batch_number, to: :batch_number
+      then_set :lot_number, to: :lot_number
+      then_set :specification_min, to: :specification_min
+      then_set :specification_max, to: :specification_max
+    end
+
+    command "RecordResult" do
+      role "QualityManager"
+      description "Record actual value — flag out-of-spec if outside specification limits"
+      reference_to QualityTest
+      attribute :actual_value, Float
+      attribute :result, String
+      attribute :out_of_spec, String
+      emits "ResultRecorded"
+      then_set :actual_value, to: :actual_value
+      then_set :result, to: :result
+      then_set :out_of_spec, to: :out_of_spec
+    end
+
+    command "IssueCertificateOfAnalysis" do
+      role "QualityManager"
+      description "Issue a COA for the lot — confirms all tests passed specification limits"
+      reference_to QualityTest
+      attribute :certificate_of_analysis, String
+      emits "CertificateOfAnalysisIssued"
+      then_set :certificate_of_analysis, to: :certificate_of_analysis
+    end
+  end
+end

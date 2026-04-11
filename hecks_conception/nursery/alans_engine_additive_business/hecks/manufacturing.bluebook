@@ -1,0 +1,92 @@
+Hecks.bluebook "Manufacturing", version: "2026.04.11.1" do
+  vision "Place and track contract manufacturing orders — from order through delivery"
+  category "business"
+
+  aggregate "ManufacturingOrder", "An order placed with a contract manufacturer to produce a batch" do
+    attribute :order_number, String
+    attribute :manufacturer, String
+    attribute :formula_name, String
+    attribute :quantity, Integer
+    attribute :unit, String
+    attribute :requested_delivery, String
+    attribute :actual_delivery, String
+    attribute :lot_number, String
+    attribute :batch_record_number, String
+    attribute :bill_of_materials, list_of(String)
+    attribute :certificate_of_analysis, String
+    attribute :cost, Float
+    attribute :status, String
+
+    command "PlaceManufacturingOrder" do
+      role "Owner"
+      description "Order a production run from the contract manufacturer"
+      attribute :order_number, String
+      attribute :manufacturer, String
+      attribute :formula_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
+      attribute :requested_delivery, String
+      emits "ManufacturingOrderPlaced"
+      then_set :order_number, to: :order_number
+      then_set :manufacturer, to: :manufacturer
+      then_set :formula_name, to: :formula_name
+      then_set :quantity, to: :quantity
+      then_set :unit, to: :unit
+      then_set :requested_delivery, to: :requested_delivery
+      then_set :status, to: "placed"
+    end
+
+    command "ConfirmProduction" do
+      role "Manufacturer"
+      description "Manufacturer confirms the order is in production"
+      reference_to ManufacturingOrder
+      emits "ProductionConfirmed"
+      then_set :status, to: "in_production"
+    end
+
+    command "ShipOrder" do
+      role "Manufacturer"
+      description "Manufacturer ships the finished goods"
+      reference_to ManufacturingOrder
+      emits "OrderShipped"
+      then_set :status, to: "shipped"
+    end
+
+    command "ReceiveOrder" do
+      role "Owner"
+      description "Goods received at warehouse — inspect and accept with lot number and COA"
+      reference_to ManufacturingOrder
+      attribute :actual_delivery, String
+      attribute :lot_number, String
+      attribute :certificate_of_analysis, String
+      emits "OrderReceived"
+      then_set :actual_delivery, to: :actual_delivery
+      then_set :lot_number, to: :lot_number
+      then_set :certificate_of_analysis, to: :certificate_of_analysis
+      then_set :status, to: "received"
+    end
+
+    command "RejectOrder" do
+      role "Owner"
+      description "Goods failed inspection — quality issue with manufacturer"
+      reference_to ManufacturingOrder
+      attribute :reason, String
+      emits "OrderRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlaceManufacturingOrder" => "placed", from: "draft"
+      transition "ConfirmProduction" => "in_production", from: "placed"
+      transition "ShipOrder" => "shipped", from: "in_production"
+      transition "ReceiveOrder" => "received", from: "shipped"
+      transition "RejectOrder" => "rejected", from: "shipped"
+    end
+  end
+
+  policy "TestOnReceive" do
+    on "OrderReceived"
+    across "Quality"
+    trigger "RunTest"
+  end
+end

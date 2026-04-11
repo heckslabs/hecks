@@ -1,0 +1,35 @@
+Hecks.hecksagon "AlansEngineAdditiveBusiness" do
+  domain "formulation"
+  domain "catalog"
+  domain "manufacturing" do
+    listens_to "formulation"
+  end
+  domain "inventory" do
+    listens_to "manufacturing"
+    listens_to "distribution"
+  end
+  domain "distribution" do
+    listens_to "catalog"
+  end
+  domain "brand_strategy" do
+    listens_to "catalog"
+  end
+  domain "quality" do
+    listens_to "manufacturing"
+  end
+  domain "pricing" do
+    listens_to "catalog"
+    listens_to "distribution"
+  end
+  domain "compliance" do
+    listens_to "formulation"
+  end
+  domain "demand" do
+    listens_to "distribution"
+    listens_to "inventory"
+  end
+  domain "claims" do
+    listens_to "distribution"
+    listens_to "quality"
+  end
+end

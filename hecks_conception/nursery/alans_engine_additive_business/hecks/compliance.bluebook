@@ -1,0 +1,170 @@
+Hecks.bluebook "Compliance", version: "2026.04.11.1" do
+  vision "Manage SDS authoring, chemical registrations, and regulatory audit readiness — EPA, TSCA, VOC, Prop 65, REACH"
+  category "business"
+
+  aggregate "SafetyDataSheet", "A GHS-compliant 16-section SDS for a formula — revision tracked per regulatory requirement" do
+    attribute :formula_name, String
+    attribute :sds_number, String
+    attribute :revision, Integer
+    attribute :ghs_classification, String
+    attribute :hmis_rating, String
+    attribute :nfpa_rating, String
+    attribute :cas_numbers, list_of(String)
+    attribute :revision_date, String
+    attribute :status, String
+
+    command "CreateSafetyDataSheet" do
+      role "RegulatorySpecialist"
+      description "Author a new GHS-compliant 16-section SDS for a formula"
+      attribute :formula_name, String
+      attribute :sds_number, String
+      attribute :ghs_classification, String
+      attribute :hmis_rating, String
+      attribute :nfpa_rating, String
+      attribute :cas_numbers, list_of(String)
+      emits "SafetyDataSheetCreated"
+      then_set :formula_name, to: :formula_name
+      then_set :sds_number, to: :sds_number
+      then_set :ghs_classification, to: :ghs_classification
+      then_set :hmis_rating, to: :hmis_rating
+      then_set :nfpa_rating, to: :nfpa_rating
+      then_set :cas_numbers, to: :cas_numbers
+      then_set :revision, to: 1
+      then_set :status, to: "active"
+    end
+
+    command "ReviseSafetyDataSheet" do
+      role "RegulatorySpecialist"
+      description "Issue a new revision of the SDS — ingredient or classification change"
+      reference_to SafetyDataSheet
+      attribute :ghs_classification, String
+      attribute :revision_date, String
+      emits "SafetyDataSheetRevised"
+      then_set :ghs_classification, to: :ghs_classification
+      then_set :revision_date, to: :revision_date
+      then_set :revision, increment: 1
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateSafetyDataSheet" => "active", from: "draft"
+    end
+  end
+
+  aggregate "ChemicalRegistration", "EPA, state VOC, California Prop 65, TSCA, and REACH registration for a formula" do
+    attribute :formula_name, String
+    attribute :registration_type, String
+    attribute :jurisdiction, String
+    attribute :registration_number, String
+    attribute :voc_content_grams_per_liter, Float
+    attribute :prop_65_listed, String
+    attribute :tsca_compliant, String
+    attribute :reach_registered, String
+    attribute :expiration_date, String
+    attribute :status, String
+
+    command "RegisterChemical" do
+      role "RegulatorySpecialist"
+      description "File EPA, VOC, Prop 65, TSCA, or REACH registration for a formula"
+      attribute :formula_name, String
+      attribute :registration_type, String
+      attribute :jurisdiction, String
+      attribute :registration_number, String
+      attribute :voc_content_grams_per_liter, Float
+      attribute :prop_65_listed, String
+      attribute :tsca_compliant, String
+      emits "ChemicalRegistered"
+      then_set :formula_name, to: :formula_name
+      then_set :registration_type, to: :registration_type
+      then_set :jurisdiction, to: :jurisdiction
+      then_set :registration_number, to: :registration_number
+      then_set :voc_content_grams_per_liter, to: :voc_content_grams_per_liter
+      then_set :prop_65_listed, to: :prop_65_listed
+      then_set :tsca_compliant, to: :tsca_compliant
+      then_set :status, to: "active"
+    end
+
+    command "RenewRegistration" do
+      role "RegulatorySpecialist"
+      description "Renew an expiring chemical registration before lapse"
+      reference_to ChemicalRegistration
+      attribute :expiration_date, String
+      emits "RegistrationRenewed"
+      then_set :expiration_date, to: :expiration_date
+    end
+
+    command "RevokeRegistration" do
+      role "RegulatorySpecialist"
+      description "Registration revoked or withdrawn — formula cannot ship to this jurisdiction"
+      reference_to ChemicalRegistration
+      emits "RegistrationRevoked"
+      then_set :status, to: "revoked"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterChemical" => "active", from: "pending"
+      transition "RevokeRegistration" => "revoked", from: "active"
+    end
+  end
+
+  aggregate "RegulatoryAudit", "Inspection readiness — documentation trail for EPA, state, and customer audits" do
+    attribute :audit_type, String
+    attribute :auditor, String
+    attribute :scheduled_date, String
+    attribute :findings, list_of(String)
+    attribute :documentation_complete, String
+    attribute :status, String
+
+    command "ScheduleAudit" do
+      role "RegulatorySpecialist"
+      description "Schedule an upcoming regulatory inspection or customer audit"
+      attribute :audit_type, String
+      attribute :auditor, String
+      attribute :scheduled_date, String
+      emits "AuditScheduled"
+      then_set :audit_type, to: :audit_type
+      then_set :auditor, to: :auditor
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :documentation_complete, to: "false"
+      then_set :status, to: "scheduled"
+    end
+
+    command "PrepareDocumentation" do
+      role "RegulatorySpecialist"
+      description "Confirm all SDS, registrations, and batch records are audit-ready"
+      reference_to RegulatoryAudit
+      emits "DocumentationPrepared"
+      then_set :documentation_complete, to: "true"
+    end
+
+    command "RecordFindings" do
+      role "RegulatorySpecialist"
+      description "Capture audit findings — observations, non-conformances, corrective actions"
+      reference_to RegulatoryAudit
+      attribute :findings, list_of(String)
+      emits "FindingsRecorded"
+      then_set :findings, to: :findings
+      then_set :status, to: "completed"
+    end
+
+    command "CloseAudit" do
+      role "RegulatorySpecialist"
+      description "Close the audit — all findings addressed"
+      reference_to RegulatoryAudit
+      given { status == "completed" }
+      emits "AuditClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "ScheduleAudit" => "scheduled", from: "pending"
+      transition "RecordFindings" => "completed", from: "scheduled"
+      transition "CloseAudit" => "closed", from: "completed"
+    end
+  end
+
+  policy "SdsOnFormulaFinalized" do
+    on "FormulaFinalized"
+    across "Formulation"
+    trigger "CreateSafetyDataSheet"
+  end
+end

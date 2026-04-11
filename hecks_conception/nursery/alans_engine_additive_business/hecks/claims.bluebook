@@ -1,0 +1,179 @@
+Hecks.bluebook "Claims", version: "2026.04.11.1" do
+  vision "Handle warranty claims, RMA returns, and customer complaints — lot traceability, root cause analysis, and CAPA linkage"
+  category "business"
+
+  aggregate "WarrantyClaim", "A product performance complaint — investigation through resolution with lot traceability" do
+    attribute :claim_number, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :customer, String
+    attribute :complaint_description, String
+    attribute :investigation_notes, String
+    attribute :root_cause, String
+    attribute :resolution, String
+    attribute :status, String
+
+    command "FileWarrantyClaim" do
+      role "CustomerService"
+      description "Open a warranty claim — product performance complaint with lot traceability"
+      attribute :claim_number, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :customer, String
+      attribute :complaint_description, String
+      emits "WarrantyClaimFiled"
+      then_set :claim_number, to: :claim_number
+      then_set :sku, to: :sku
+      then_set :lot_number, to: :lot_number
+      then_set :customer, to: :customer
+      then_set :complaint_description, to: :complaint_description
+      then_set :status, to: "open"
+    end
+
+    command "InvestigateClaim" do
+      role "QualityManager"
+      description "Conduct root cause analysis using 8D methodology — link to lot and batch records"
+      reference_to WarrantyClaim
+      attribute :investigation_notes, String
+      attribute :root_cause, String
+      given { status == "open" }
+      emits "ClaimInvestigated"
+      then_set :investigation_notes, to: :investigation_notes
+      then_set :root_cause, to: :root_cause
+      then_set :status, to: "investigated"
+    end
+
+    command "ResolveClaim" do
+      role "QualityManager"
+      description "Close the claim with resolution — replacement, refund, or no-fault finding"
+      reference_to WarrantyClaim
+      attribute :resolution, String
+      given { status == "investigated" }
+      emits "ClaimResolved"
+      then_set :resolution, to: :resolution
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "open" do
+      transition "FileWarrantyClaim" => "open", from: "pending"
+      transition "InvestigateClaim" => "investigated", from: "open"
+      transition "ResolveClaim" => "resolved", from: "investigated"
+    end
+  end
+
+  aggregate "ReturnAuthorization", "RMA process — return reason codes, disposition (restock, scrap, or rework)" do
+    attribute :rma_number, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :customer, String
+    attribute :return_reason_code, String
+    attribute :disposition, String
+    attribute :status, String
+
+    command "IssueReturnAuthorization" do
+      role "CustomerService"
+      description "Issue an RMA — authorize product return with reason code"
+      attribute :rma_number, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :customer, String
+      attribute :return_reason_code, String
+      emits "ReturnAuthorizationIssued"
+      then_set :rma_number, to: :rma_number
+      then_set :sku, to: :sku
+      then_set :lot_number, to: :lot_number
+      then_set :customer, to: :customer
+      then_set :return_reason_code, to: :return_reason_code
+      then_set :status, to: "issued"
+    end
+
+    command "ReceiveReturn" do
+      role "WarehouseManager"
+      description "Receive returned goods — inspect and determine disposition"
+      reference_to ReturnAuthorization
+      attribute :disposition, String
+      emits "ReturnReceived"
+      then_set :disposition, to: :disposition
+      then_set :status, to: "received"
+    end
+
+    command "CloseReturnAuthorization" do
+      role "CustomerService"
+      description "Close the RMA — disposition complete (restocked, scrapped, or reworked)"
+      reference_to ReturnAuthorization
+      given { status == "received" }
+      emits "ReturnAuthorizationClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "issued" do
+      transition "IssueReturnAuthorization" => "issued", from: "pending"
+      transition "ReceiveReturn" => "received", from: "issued"
+      transition "CloseReturnAuthorization" => "closed", from: "received"
+    end
+  end
+
+  aggregate "CustomerComplaint", "Complaint tracking — root cause analysis and CAPA linkage" do
+    attribute :complaint_number, String
+    attribute :customer, String
+    attribute :sku, String
+    attribute :lot_number, String
+    attribute :description, String
+    attribute :root_cause, String
+    attribute :capa_reference, String
+    attribute :eight_d_report, String
+    attribute :status, String
+
+    command "LogComplaint" do
+      role "CustomerService"
+      description "Record a customer complaint — link to SKU and lot for traceability"
+      attribute :complaint_number, String
+      attribute :customer, String
+      attribute :sku, String
+      attribute :lot_number, String
+      attribute :description, String
+      emits "ComplaintLogged"
+      then_set :complaint_number, to: :complaint_number
+      then_set :customer, to: :customer
+      then_set :sku, to: :sku
+      then_set :lot_number, to: :lot_number
+      then_set :description, to: :description
+      then_set :status, to: "open"
+    end
+
+    command "InvestigateComplaint" do
+      role "QualityManager"
+      description "Perform root cause analysis — 8D methodology, link CAPA"
+      reference_to CustomerComplaint
+      attribute :root_cause, String
+      attribute :capa_reference, String
+      attribute :eight_d_report, String
+      given { status == "open" }
+      emits "ComplaintInvestigated"
+      then_set :root_cause, to: :root_cause
+      then_set :capa_reference, to: :capa_reference
+      then_set :eight_d_report, to: :eight_d_report
+      then_set :status, to: "investigated"
+    end
+
+    command "CloseComplaint" do
+      role "QualityManager"
+      description "Close the complaint — CAPA actions verified effective"
+      reference_to CustomerComplaint
+      given { status == "investigated" }
+      emits "ComplaintClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "open" do
+      transition "LogComplaint" => "open", from: "pending"
+      transition "InvestigateComplaint" => "investigated", from: "open"
+      transition "CloseComplaint" => "closed", from: "investigated"
+    end
+  end
+
+  policy "ComplaintOnClaimFiled" do
+    on "WarrantyClaimFiled"
+    trigger "LogComplaint"
+  end
+end

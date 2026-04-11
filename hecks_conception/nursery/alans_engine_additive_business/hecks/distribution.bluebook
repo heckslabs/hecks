@@ -1,0 +1,115 @@
+Hecks.bluebook "Distribution", version: "2026.04.11.1" do
+  vision "Manage sales channels and customer orders — from listing through fulfillment"
+  category "business"
+
+  aggregate "Channel", "A distribution channel — Amazon, Walmart.com, retail stores, direct" do
+    attribute :name, String
+    attribute :channel_type, String
+    attribute :account_id, String
+    attribute :edi_capable, String
+    attribute :active_skus, list_of(String)
+    attribute :status, String
+
+    command "RegisterChannel" do
+      role "Owner"
+      description "Set up a new sales channel"
+      attribute :name, String
+      attribute :channel_type, String
+      attribute :account_id, String
+      emits "ChannelRegistered"
+      then_set :name, to: :name
+      then_set :channel_type, to: :channel_type
+      then_set :account_id, to: :account_id
+      then_set :status, to: "active"
+    end
+
+    command "ListProduct" do
+      role "ProductManager"
+      description "Make a SKU available on this channel"
+      reference_to Channel
+      attribute :sku, String
+      emits "ProductListed"
+      then_set :active_skus, append: :sku
+    end
+
+    command "DelistProduct" do
+      role "ProductManager"
+      description "Remove a SKU from this channel"
+      reference_to Channel
+      attribute :sku, String
+      emits "ProductDelisted"
+    end
+  end
+
+  aggregate "SalesOrder", "A customer or retailer order for products" do
+    attribute :order_number, String
+    attribute :channel, String
+    attribute :customer, String
+    attribute :items, list_of(OrderItem)
+    attribute :purchase_order_number, String
+    attribute :advance_ship_notice, String
+    attribute :total, Float
+    attribute :status, String
+
+    value_object "OrderItem" do
+      attribute :sku, String
+      attribute :quantity, Integer
+      attribute :unit_price, Float
+    end
+
+    command "PlaceOrder" do
+      role "Customer"
+      description "Place an order through a sales channel"
+      attribute :order_number, String
+      attribute :channel, String
+      attribute :customer, String
+      attribute :purchase_order_number, String
+      emits "OrderPlaced"
+      then_set :order_number, to: :order_number
+      then_set :channel, to: :channel
+      then_set :customer, to: :customer
+      then_set :purchase_order_number, to: :purchase_order_number
+      then_set :status, to: "placed"
+    end
+
+    command "FulfillOrder" do
+      role "WarehouseManager"
+      description "Pick, pack, and ship the order"
+      reference_to SalesOrder
+      emits "OrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+
+    command "CancelOrder" do
+      role "Customer"
+      description "Cancel a pending order"
+      reference_to SalesOrder
+      given { status == "placed" }
+      emits "OrderCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    lifecycle :status, default: "placed" do
+      transition "PlaceOrder" => "placed", from: "pending"
+      transition "FulfillOrder" => "fulfilled", from: "placed"
+      transition "CancelOrder" => "cancelled", from: "placed"
+    end
+  end
+
+  policy "ReserveOnOrder" do
+    on "OrderPlaced"
+    across "Inventory"
+    trigger "ReserveStock"
+  end
+
+  policy "ShipOnFulfill" do
+    on "OrderFulfilled"
+    across "Inventory"
+    trigger "ShipStock"
+  end
+
+  fixture "Channel", name: "Amazon", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Walmart.com", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Retail", channel_type: "brick_and_mortar", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Direct", channel_type: "website", account_id: "", active_skus: [], status: "active"
+end
