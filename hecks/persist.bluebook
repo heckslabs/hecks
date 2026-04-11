@@ -1,4 +1,4 @@
-Hecks.bluebook "Persist" do
+Hecks.bluebook "Persist", version: "2026.04.11.1" do
   aggregate "DatabaseConnection", definition: "Connects to databases via Sequel, supports MySQL/Postgres/SQLite and Rails auto-detection" do
 
     command "Connect" do

@@ -1,4 +1,4 @@
-Hecks.bluebook "Rails" do
+Hecks.bluebook "Rails", version: "2026.04.11.1" do
   aggregate "ActiveHecks", definition: "Adds full ActiveModel compatibility to generated domain objects for Rails" do
 
     command "Activate" do

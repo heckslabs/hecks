@@ -1,0 +1,97 @@
+Hecks.bluebook "Templating", version: "2026.04.11.1" do
+  aggregate "NamingHelpers", definition: "Mixin providing domain naming convention methods for modules, gems, slugs, and routes" do
+
+    command "ResolveDomainModuleName" do
+      attribute :name, String
+    end
+
+    command "DomainGemName" do
+      attribute :name, String
+    end
+
+    command "DomainAggregateSlug" do
+      attribute :name, String
+    end
+
+    command "DomainCommandMethod" do
+      attribute :command_name, String
+      attribute :aggregate_name, String
+    end
+
+    command "DomainRoutePath" do
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "SmokeTest", definition: "Browser-style HTTP smoke test that exercises every page like a real user" do
+
+    command "Run" do
+      attribute :base_url, String
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "EventChecks", definition: "Validates event log entries via /_events endpoint" do
+
+    command "CheckEventsContain" do
+      attribute :expected_events, String
+    end
+  end
+
+  aggregate "BehaviorTests", definition: "Composite mixin aggregating all domain behavior smoke tests" do
+
+    command "TestQueries" do
+    end
+
+    command "TestPolicies" do
+    end
+
+    command "TestLifecycles" do
+    end
+  end
+
+  aggregate "FormSubmission", definition: "Navigates to forms, fills fields, and submits via POST" do
+
+    command "SubmitForm" do
+      attribute :form_path, String
+    end
+  end
+
+  aggregate "QueryTests", definition: "Smoke tests for query objects via /_queries endpoint" do
+
+    command "TestQueries" do
+    end
+  end
+
+  aggregate "PolicyTests", definition: "Smoke tests for policy event triggers" do
+
+    command "TestPolicies" do
+    end
+  end
+
+  aggregate "LifecycleTests", definition: "Smoke tests for lifecycle state transitions" do
+
+    command "TestLifecycles" do
+    end
+  end
+
+  aggregate "NegativeTests", definition: "Smoke tests for validation error paths" do
+
+    command "TestNegativeCases" do
+    end
+  end
+
+  aggregate "EndpointTests", definition: "Smoke tests for custom endpoint routes" do
+
+    command "TestEndpoints" do
+    end
+  end
+
+  aggregate "DomainLookups", definition: "Helper for resolving aggregates and commands by name during smoke tests" do
+
+    command "LookupAggregate" do
+      attribute :name, String
+    end
+  end
+end

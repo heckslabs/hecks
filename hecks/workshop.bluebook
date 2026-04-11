@@ -1,4 +1,4 @@
-Hecks.bluebook "Workshop" do
+Hecks.bluebook "Workshop", version: "2026.04.11.1" do
   aggregate "ConstantHoister", definition: "Manages hoisting and cleanup of constants on WorkshopRunner" do
 
     command "HoistAggregate" do

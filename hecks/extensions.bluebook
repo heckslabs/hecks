@@ -1,4 +1,4 @@
-Hecks.bluebook "Extensions" do
+Hecks.bluebook "Extensions", version: "2026.04.11.1" do
   aggregate "Logging", definition: "Structured logging for command dispatch" do
 
     command "Log" do

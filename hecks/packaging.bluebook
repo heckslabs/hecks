@@ -1,4 +1,4 @@
-Hecks.bluebook "Packaging" do
+Hecks.bluebook "Packaging", version: "2026.04.11.1" do
   aggregate "ChapterRegistry", definition: "All available chapters and their load status" do
     attribute :name, String
     attribute :loaded, String
@@ -17,7 +17,7 @@ Hecks.bluebook "Packaging" do
   end
 
   aggregate "ChapterSelector", definition: "DSL for selecting which chapters to load" do
-    attribute :selected, list_of("String")
+    attribute :selected, list_of(String)
 
     command "SelectChapters" do
       attribute :names, String

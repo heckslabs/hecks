@@ -637,7 +637,7 @@ end
     end
 end
 
-b.policy "ShowDiagramOnTabSelect" do
+policy "ShowDiagramOnTabSelect" do
   on "TabSelected"
   trigger "GenerateDiagram"
   condition do |event|
@@ -1342,7 +1342,7 @@ end
   end
 end
 
-b.policy "SwitchToEditorOnFileOpen" do
+policy "SwitchToEditorOnFileOpen" do
   on "FileOpened"
   trigger "SelectTab"
   defaults tab: "editor"

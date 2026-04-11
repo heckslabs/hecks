@@ -1,4 +1,4 @@
-Hecks.bluebook "Targets" do
+Hecks.bluebook "Targets", version: "2026.04.11.1" do
   aggregate "Target", definition: "Language backend registration and build dispatch" do
     attribute :name, String
     attribute :language, String

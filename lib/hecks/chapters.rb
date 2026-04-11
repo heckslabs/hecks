@@ -30,15 +30,20 @@ module Hecks
       require_aggregates(builder.build.aggregates, base_dir: base_dir)
     end
 
-    # Load all aggregates from a chapter (inline + paragraphs).
+    # Load implementation files for a chapter from its base directories.
+    # Discovers aggregate names by scanning the .bluebook source file
+    # with a lightweight regex -- avoids calling .definition which would
+    # trigger the full DSL before Grammar infrastructure is ready.
     #
     #   Chapters.load_chapter(Bluebook, base_dir: "bluebook/lib")
     #   Chapters.load_chapter(Bluebook, base_dirs: ["lib/hecks/domain", "lib/hecks/dsl"])
     #
     def self.load_chapter(chapter_module, base_dir: nil, base_dirs: nil)
       dirs = base_dirs || [base_dir]
-      if chapter_module.respond_to?(:definition)
-        dirs.each { |d| require_aggregates(chapter_module.definition.aggregates, base_dir: d) }
+      names = aggregate_names_from_bluebook(chapter_module)
+      if names
+        agg_structs = names.map { |n| OpenStruct.new(name: n) }
+        dirs.each { |d| require_aggregates(agg_structs, base_dir: d) }
       end
       chapter_module.constants.each do |const|
         mod = chapter_module.const_get(const)
@@ -57,6 +62,45 @@ module Hecks
         mod.define(builder) if mod.respond_to?(:define)
       end
     end
+
+    # Load a chapter definition from a .bluebook file in the hecks/ directory.
+    # Replaces paragraph-based definitions with pure bluebook source.
+    #
+    #   Chapters.definition_from_bluebook("runtime")
+    #
+    BLUEBOOK_DIR = File.expand_path("../../../hecks", __FILE__)
+
+    def self.definition_from_bluebook(name)
+      path = File.join(BLUEBOOK_DIR, "#{name}.bluebook")
+      return nil unless File.exist?(path)
+
+      source = File.read(path)
+      # Extract domain name and block body from the Hecks.bluebook header
+      header = /\AHecks\.bluebook\s+"([^"]+)"[^\n]*\s+do\s*\n/
+      domain_name = source[header, 1] || name.capitalize
+      body = source.sub(header, "").sub(/\nend\s*\z/, "")
+
+      DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
+        builder = DSL::BluebookBuilder.new(domain_name)
+        builder.instance_eval(body, path, 2)
+        domain = builder.build
+        domain.source_path = path
+        Hecks.last_domain = domain if Hecks.respond_to?(:last_domain=)
+        domain
+      end
+    end
+
+    # Extract aggregate names from a chapter's .bluebook file using a
+    # lightweight regex scan. Returns nil if no .bluebook file exists.
+    # This avoids triggering the full DSL / Grammar infrastructure.
+    def self.aggregate_names_from_bluebook(chapter_module)
+      slug = chapter_module.name.to_s.split("::").last
+      return nil unless slug
+      path = File.join(BLUEBOOK_DIR, "#{underscore(slug)}.bluebook")
+      return nil unless File.exist?(path)
+      File.read(path).scan(/^\s*aggregate\s+"([^"]+)"/).flatten
+    end
+    private_class_method :aggregate_names_from_bluebook
 
     # Require files matching aggregate names from base_dir.
     # Indexes files by basename, filters child files loaded by parents,

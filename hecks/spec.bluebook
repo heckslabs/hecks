@@ -159,6 +159,4 @@ end
   end
 end
 
-Chapters.define_paragraphs(Spec, b)
-
 end

@@ -7,6 +7,10 @@ module Hecks
   module Chapters
     module Appeal
       def self.summary = "Browser-based IDE for domain modeling"
+
+      def self.definition
+        @definition ||= Chapters.definition_from_bluebook("appeal")
+      end
     end
   end
 end

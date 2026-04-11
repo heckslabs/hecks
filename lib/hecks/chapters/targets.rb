@@ -13,24 +13,7 @@ module Hecks
 
     module Targets
       def self.definition
-        @definition ||= DSL::BluebookBuilder.new("Targets").tap { |b|
-          b.aggregate "Target", "Language backend registration and build dispatch" do
-            attribute :name, String
-            attribute :language, String
-
-            command "RegisterTarget" do
-              attribute :name, String
-              attribute :language, String
-            end
-
-            command "Build" do
-              attribute :target_id, String
-              attribute :domain_id, String
-            end
-          end
-
-          Chapters.define_paragraphs(Targets, b)
-        }.build
+        @definition ||= Chapters.definition_from_bluebook("targets")
       end
     end
   end

@@ -1,4 +1,4 @@
-Hecks.bluebook "Hecksagon" do
+Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   aggregate "SerializationLines", definition: "Mixin for MongoAdapterGenerator that builds serialize/deserialize method source" do
 
     command "SerializeLines" do

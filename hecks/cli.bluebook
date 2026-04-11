@@ -1,4 +1,4 @@
-Hecks.bluebook "Cli" do
+Hecks.bluebook "Cli", version: "2026.04.11.1" do
   aggregate "CLI", definition: "Thor-based command-line interface entry point" do
 
     command "Start" do

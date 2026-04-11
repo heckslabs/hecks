@@ -1,4 +1,4 @@
-Hecks.bluebook "Runtime" do
+Hecks.bluebook "Runtime", version: "2026.04.11.1" do
   aggregate "ViewBinding", definition: "Wires read model projections to event bus" do
 
     command "BindView" do

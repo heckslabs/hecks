@@ -19,14 +19,7 @@ module Hecks
       def self.summary = "Hexagonal architecture wiring DSL for Hecks"
 
       def self.definition
-        Hecks::DSL::BluebookBuilder.new("Hecksagon").tap { |b|
-          # Entry points — autoload files
-          b.entry_point "hecksagon"
-          b.entry_point "hecks_persist"
-          b.entry_point "hecks_mongodb"
-
-          Chapters.define_paragraphs(Hecksagon, b)
-        }.build
+        @definition ||= Chapters.definition_from_bluebook("hecksagon")
       end
     end
   end

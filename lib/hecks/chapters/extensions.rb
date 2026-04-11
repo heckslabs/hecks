@@ -16,9 +16,7 @@ module Hecks
     #
     module Extensions
       def self.definition
-        DSL::BluebookBuilder.new("Extensions").tap { |b|
-          Chapters.define_paragraphs(Extensions, b)
-        }.build
+        @definition ||= Chapters.definition_from_bluebook("extensions")
       end
     end
   end

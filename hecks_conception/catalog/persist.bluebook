@@ -1,0 +1,78 @@
+Hecks.bluebook "Persist", version: "2026.04.11.1" do
+  aggregate "DatabaseConnection", definition: "Connects to databases via Sequel, supports MySQL/Postgres/SQLite and Rails auto-detection" do
+
+    command "Connect" do
+      attribute :url, String
+    end
+
+    command "ConnectByType" do
+      attribute :database, String
+      attribute :host, String
+    end
+
+    command "ConnectFromRails" do
+    end
+  end
+
+  aggregate "SqlAdapterGenerator", definition: "Generates Sequel-based repository adapter classes from aggregate IR" do
+
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :domain_module, String
+    end
+  end
+
+  aggregate "SqlBuilder", definition: "Mixin with Sequel-based generation helpers for insert, update, build, and delete methods" do
+
+    command "InsertLines" do
+    end
+
+    command "UpdateLines" do
+    end
+
+    command "BuildLines" do
+    end
+
+    command "DeleteLines" do
+    end
+  end
+
+  aggregate "SqlMigrationGenerator", definition: "Generates CREATE TABLE SQL statements from a domain model" do
+
+    command "Generate" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "SqlStrategy", definition: "Generates SQL migration files from domain changes with ALTER TABLE and CREATE TABLE" do
+
+    command "Generate" do
+      attribute :changes, String
+    end
+  end
+
+  aggregate "SqlHelpers", definition: "Shared helpers for SQL type mapping, naming conventions, and literal quoting" do
+
+    command "SqlType" do
+      attribute :attribute_type, String
+    end
+
+    command "TableName" do
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "SqlBoot", definition: "Handles SQL adapter lifecycle: connect, generate adapters, create tables at boot" do
+
+    command "Boot" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "SqlSetup", definition: "Generates and evals SQL adapter classes for each aggregate during Hecks.configure" do
+
+    command "Setup" do
+      attribute :domain_name, String
+    end
+  end
+end

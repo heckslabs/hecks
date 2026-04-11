@@ -1,4 +1,4 @@
-Hecks.bluebook "Bluebook" do
+Hecks.bluebook "Bluebook", version: "2026.04.11.1" do
   aggregate "Domain", definition: "Root of the domain model IR, holds aggregates and policies" do
     attribute :name, String
     attribute :version, String

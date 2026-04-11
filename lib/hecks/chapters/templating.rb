@@ -18,38 +18,7 @@ module Hecks
     #
     module Templating
       def self.definition
-        DSL::BluebookBuilder.new("Templating").tap { |b|
-          b.aggregate "NamingHelpers" do
-            description "Mixin providing domain naming convention methods for modules, gems, slugs, and routes"
-            command "ResolveDomainModuleName" do
-              attribute :name, String
-            end
-            command "DomainGemName" do
-              attribute :name, String
-            end
-            command "DomainAggregateSlug" do
-              attribute :name, String
-            end
-            command "DomainCommandMethod" do
-              attribute :command_name, String
-              attribute :aggregate_name, String
-            end
-            command "DomainRoutePath" do
-              attribute :domain_name, String
-              attribute :aggregate_name, String
-            end
-          end
-
-          b.aggregate "SmokeTest" do
-            description "Browser-style HTTP smoke test that exercises every page like a real user"
-            command "Run" do
-              attribute :base_url, String
-              attribute :domain_name, String
-            end
-          end
-
-          Chapters.define_paragraphs(Templating, b)
-        }.build
+        @definition ||= Chapters.definition_from_bluebook("templating")
       end
     end
   end

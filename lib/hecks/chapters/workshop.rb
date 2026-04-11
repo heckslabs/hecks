@@ -18,9 +18,7 @@ module Hecks
       def self.summary = "Interactive REPL and MCP server for Hecks"
 
       def self.definition
-        Hecks::DSL::BluebookBuilder.new("Workshop").tap { |b|
-          Chapters.define_paragraphs(Workshop, b)
-        }.build
+        @definition ||= Chapters.definition_from_bluebook("workshop")
       end
     end
   end

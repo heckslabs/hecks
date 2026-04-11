@@ -61,15 +61,6 @@ require "hecks/chapters/registry"
 # When no HecksChapters file exists, all chapters are loaded (default).
 Hecks::ChapterLoader.load_from_file || Hecks.chapters(:all)
 
-# = Hecks
-#
-# Top-level entry point. Chapters load selectively — configure via
-# HecksChapters file or Hecks.chapters in code.
-#
-# Hecks
-#
-# Top-level framework module: DSL entry point, registry methods, and configuration for all domain components.
-#
 require "hecks/bluebook/inspector"
 require "hecks/bluebook/builder_methods"
 require "hecks/bluebook/compiler"

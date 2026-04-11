@@ -1,0 +1,438 @@
+Hecks.bluebook "Extensions", version: "2026.04.11.1" do
+  aggregate "Logging", definition: "Structured logging for command dispatch" do
+
+    command "Log" do
+      attribute :message, String
+    end
+  end
+
+  aggregate "Metrics", definition: "Runtime metrics collection" do
+
+    command "Record" do
+      attribute :metric_name, String
+      attribute :value, Integer
+    end
+  end
+
+  aggregate "Bubble", definition: "Anti-Corruption Layer for legacy system translation" do
+
+    command "TranslateInbound" do
+      attribute :legacy_data, String
+    end
+
+    command "TranslateOutbound" do
+      attribute :domain_data, String
+    end
+  end
+
+  aggregate "Tenancy", definition: "Multi-tenant data isolation" do
+
+    command "SetTenant" do
+      attribute :tenant_id, String
+    end
+  end
+
+  aggregate "RetryPolicy", definition: "Automatic command retry with backoff" do
+
+    command "RetryCommand" do
+      attribute :command_name, String
+      attribute :max_retries, Integer
+    end
+  end
+
+  aggregate "WebExplorer", definition: "HTML UI for browsing aggregates and events" do
+
+    command "Browse" do
+      attribute :domain_name, String
+    end
+
+    command "RenderView" do
+      attribute :template, String
+    end
+  end
+
+  aggregate "ReadmeWriter", definition: "Generates per-extension Markdown README files from metadata" do
+
+    command "Generate" do
+      attribute :root, String
+    end
+  end
+
+  aggregate "IRIntrospector", definition: "Structural queries from Bluebook IR for web explorer display" do
+
+    command "Introspect" do
+      attribute :domain_name, String
+    end
+
+    command "FindCommand" do
+      attribute :aggregate_name, String
+      attribute :command_name, String
+    end
+  end
+
+  aggregate "EventIntrospector", definition: "Reads and filters events from EventBus instances for web display" do
+
+    command "ListEvents" do
+      attribute :type_filter, String
+      attribute :aggregate_filter, String
+    end
+  end
+
+  aggregate "Paginator", definition: "Offset-based pagination for web explorer list views" do
+
+    command "Paginate" do
+      attribute :page, Integer
+      attribute :per_page, Integer
+    end
+  end
+
+  aggregate "Renderer", definition: "ERB template rendering with layout wrapping and HTML escaping" do
+
+    command "Render" do
+      attribute :template_name, String
+    end
+  end
+
+  aggregate "RuntimeBridge", definition: "Isolates runtime CRUD access behind a clean interface for web explorer" do
+
+    command "FindAll" do
+      attribute :aggregate_name, String
+    end
+
+    command "ExecuteCommand" do
+      attribute :aggregate_name, String
+      attribute :method_name, String
+    end
+  end
+
+  aggregate "WebExplorerTemplateBinding", definition: "Clean binding for ERB templates where locals become methods" do
+
+    command "Bind" do
+      attribute :template_name, String
+    end
+  end
+
+  aggregate "Slack", definition: "Slack notification integration" do
+
+    command "Notify" do
+      attribute :channel, String
+      attribute :message, String
+    end
+  end
+
+  aggregate "OutboxExtension", definition: "Outbox pattern for reliable messaging" do
+
+    command "Enqueue" do
+      attribute :message, String
+    end
+
+    command "Poll" do
+      attribute :batch_size, Integer
+    end
+  end
+
+  aggregate "FilesystemRepository", definition: "JSON file-based persistence" do
+
+    command "Save" do
+      attribute :aggregate_name, String
+      attribute :data, String
+    end
+
+    command "Load" do
+      attribute :aggregate_name, String
+      attribute :id, String
+    end
+
+    command "Delete" do
+      attribute :id, String
+    end
+  end
+
+  aggregate "FileAdapter", definition: "Low-level file read/write adapter" do
+
+    command "Write" do
+      attribute :path, String
+      attribute :content, String
+    end
+
+    command "Read" do
+      attribute :path, String
+    end
+  end
+
+  aggregate "RabbitMqAdapter", definition: "RabbitMQ queue adapter that publishes events by routing key" do
+
+    command "Publish" do
+      attribute :routing_key, String
+      attribute :payload, String
+    end
+  end
+
+  aggregate "DomainServer", definition: "WEBrick REST server for a single domain" do
+
+    command "Start" do
+      attribute :port, Integer
+    end
+
+    command "Stop" do
+      attribute :reason, String
+    end
+  end
+
+  aggregate "MultiDomainServer", definition: "Serves multiple domains on one port" do
+
+    command "Start" do
+      attribute :port, Integer
+    end
+  end
+
+  aggregate "RpcServer", definition: "JSON-RPC 2.0 server over HTTP" do
+
+    command "HandleRequest" do
+      attribute :method, String
+      attribute :params, String
+    end
+  end
+
+  aggregate "RouteBuilder", definition: "Generates route definitions from aggregates" do
+
+    command "BuildRoutes" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "CommandBusPort", definition: "HTTP-to-command-bus bridge" do
+
+    command "Dispatch" do
+      attribute :command_name, String
+      attribute :params, String
+    end
+  end
+
+  aggregate "Connection", definition: "HTTP connection wrapper for boot blocks" do
+
+    command "Connect" do
+      attribute :host, String
+      attribute :port, Integer
+    end
+  end
+
+  aggregate "DomainWatcher", definition: "File watcher for auto-reload during serve" do
+
+    command "Watch" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "RequestWrapper", definition: "Wraps WEBrick request for consistent route handler interface" do
+
+    command "Wrap" do
+      attribute :path, String
+      attribute :method, String
+    end
+  end
+
+  aggregate "CorsHeaders", definition: "ENV-driven CORS origin header middleware" do
+
+    command "ApplyOrigin" do
+      attribute :origin, String
+    end
+  end
+
+  aggregate "CsrfHelpers", definition: "Double-submit cookie CSRF protection mixin" do
+
+    command "Validate" do
+      attribute :cookie_token, String
+      attribute :header_token, String
+    end
+
+    command "EnsureCookie" do
+      attribute :request_id, String
+    end
+  end
+
+  aggregate "RouteDispatcher", definition: "Dispatches UI requests to index/show/form handlers by URL path" do
+
+    command "Dispatch" do
+      attribute :path, String
+      attribute :method, String
+    end
+  end
+
+  aggregate "IndexRoute", definition: "Serves aggregate index pages with search, filtering, and computed attributes" do
+
+    command "ServeIndex" do
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "ShowRoute", definition: "Serves aggregate detail pages with user and computed attributes" do
+
+    command "ServeShow" do
+      attribute :aggregate_name, String
+      attribute :id, String
+    end
+  end
+
+  aggregate "FormRoute", definition: "Renders command forms and handles form submission with CSRF" do
+
+    command "ServeForm" do
+      attribute :command_name, String
+    end
+
+    command "ServeSubmit" do
+      attribute :command_name, String
+      attribute :params, String
+    end
+  end
+
+  aggregate "EventRoutes", definition: "Handles event listing and JSON endpoints with filtering and pagination" do
+
+    command "ServeEvents" do
+      attribute :type_filter, String
+    end
+
+    command "ServeEventsJson" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "UIRoutes", definition: "Multi-domain UI route composition module" do
+
+    command "Mount" do
+      attribute :domain_slug, String
+    end
+  end
+
+  aggregate "HttpConnection", definition: "Connection wrapper for declarative boot block HTTP listeners" do
+
+    command "Connect" do
+      attribute :host, String
+      attribute :port, Integer
+    end
+
+    command "Start" do
+      attribute :reason, String
+    end
+  end
+
+  aggregate "ScreenRoutes", definition: "Login, signup, and logout HTTP route handlers for auth screens" do
+
+    command "HandleAuthRoute" do
+      attribute :path, String
+      attribute :method, String
+    end
+  end
+
+  aggregate "SessionStore", definition: "In-memory credential store with cookie-based session management" do
+
+    command "SetSession" do
+      attribute :email, String
+      attribute :role, String
+    end
+
+    command "RestoreSession" do
+      attribute :cookie, String
+    end
+  end
+
+  aggregate "TemplateBinding", definition: "Minimal binding for auth screen ERB templates" do
+
+    command "Bind" do
+      attribute :template_name, String
+    end
+  end
+
+  aggregate "Auth", definition: "Actor-based authentication and authorization" do
+
+    command "Authenticate" do
+      attribute :actor, String
+    end
+
+    command "Authorize" do
+      attribute :command_name, String
+      attribute :role, String
+    end
+  end
+
+  aggregate "Audit", definition: "Command execution audit trail" do
+
+    command "Record" do
+      attribute :command_name, String
+      attribute :actor, String
+    end
+  end
+
+  aggregate "PII", definition: "PII attribute marking, masking, and erasure" do
+
+    command "MarkPII" do
+      attribute :field, String
+    end
+
+    command "Erase" do
+      attribute :aggregate_id, String
+    end
+  end
+
+  aggregate "RateLimit", definition: "Per-command rate limiting" do
+
+    command "Check" do
+      attribute :command_name, String
+      attribute :actor, String
+    end
+  end
+
+  aggregate "Idempotency", definition: "Idempotency key tracking for commands" do
+
+    command "Check" do
+      attribute :idempotency_key, String
+    end
+  end
+
+  aggregate "AggregateMapper", definition: "Collects inbound/outbound field mappings for a single aggregate" do
+
+    command "TranslateLegacy" do
+      attribute :action, String
+      attribute :data, String
+    end
+
+    command "ReverseTranslate" do
+      attribute :action, String
+      attribute :data, String
+    end
+  end
+
+  aggregate "Context", definition: "DSL host grouping aggregate mappers with translate and reverse entry points" do
+
+    command "MapAggregate" do
+      attribute :aggregate_name, String
+    end
+
+    command "Translate" do
+      attribute :aggregate_name, String
+      attribute :action, String
+    end
+  end
+
+  aggregate "OwnershipScopedRepository", definition: "Repository proxy filtering by ownership field identity" do
+
+    command "ScopeToOwner" do
+      attribute :owner_id, String
+    end
+
+    command "VerifyOwnership" do
+      attribute :record_id, String
+    end
+  end
+
+  aggregate "TenantScopedRepository", definition: "Repository proxy maintaining separate instances per tenant" do
+
+    command "ScopeToTenant" do
+      attribute :tenant_id, String
+    end
+
+    command "ForTenant" do
+      attribute :tenant_id, String
+    end
+  end
+end

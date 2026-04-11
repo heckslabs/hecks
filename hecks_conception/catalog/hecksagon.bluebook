@@ -1,0 +1,229 @@
+Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
+  aggregate "SerializationLines", definition: "Mixin for MongoAdapterGenerator that builds serialize/deserialize method source" do
+
+    command "SerializeLines" do
+    end
+
+    command "DeserializeLines" do
+    end
+  end
+
+  aggregate "SqlAdapterGenerator", definition: "Generates Sequel-based repository adapter classes for each aggregate" do
+
+    command "Generate" do
+    end
+  end
+
+  aggregate "SqlBuilder", definition: "Mixin with Sequel-based generation helpers for insert, update, delete" do
+
+    command "BuildInsert" do
+    end
+
+    command "BuildUpdate" do
+    end
+  end
+
+  aggregate "SqlMigrationGenerator", definition: "Generates CREATE TABLE SQL statements from a domain model" do
+
+    command "Generate" do
+    end
+  end
+
+  aggregate "SqlStrategy", definition: "Generates SQL migration files from domain changes with ALTER TABLE support" do
+
+    command "GenerateMigration" do
+    end
+  end
+
+  aggregate "SqlHelpers", definition: "Shared helpers for SQL migration: type mapping, naming, literal quoting" do
+
+    command "MapType" do
+      attribute :ruby_type, String
+    end
+  end
+
+  aggregate "SqlSetup", definition: "Generates and evals SQL adapter classes at boot time for Hecks.configure" do
+
+    command "Setup" do
+    end
+  end
+
+  aggregate "SqlBoot", definition: "SQL adapter lifecycle: connect, generate repos, create tables" do
+
+    command "Setup" do
+    end
+  end
+
+  aggregate "AggregateCapabilityBuilder", definition: "Fluent builder for per-aggregate capability tags via chained method calls" do
+
+    command "AddCapability" do
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "AttributeSelector", definition: "Fluent attribute selector that captures attribute name for capability tagging" do
+
+    command "SelectAttribute" do
+      attribute :attr_name, String
+    end
+  end
+
+  aggregate "TagApplier", definition: "Applies a capability tag to a selected attribute via method_missing" do
+
+    command "ApplyTag" do
+      attribute :tag_name, String
+    end
+  end
+
+  aggregate "HecksagonModule", definition: "Top-level Hecksagon namespace with autoload registry for DSL, Structure, and mixins" do
+
+    command "Autoload" do
+      attribute :const_name, String
+      attribute :path, String
+    end
+  end
+
+  aggregate "HecksagonBuilder", definition: "DSL builder for hexagonal architecture wiring: gates, adapters, extensions" do
+
+    command "AddGate" do
+      attribute :aggregate, String
+      attribute :role, String
+    end
+
+    command "SetAdapter" do
+      attribute :type, String
+    end
+
+    command "Build" do
+    end
+  end
+
+  aggregate "GateBuilder", definition: "DSL builder for access control gates on aggregates" do
+
+    command "Allow" do
+      attribute :methods, String
+    end
+
+    command "Build" do
+    end
+  end
+
+  aggregate "GateDefinition", definition: "Immutable IR structure for a gate (access control on an aggregate)" do
+
+    command "Create" do
+      attribute :aggregate, String
+      attribute :role, String
+    end
+  end
+
+  aggregate "AclDefinition", definition: "Collects translations for an anti-corruption layer" do
+
+    command "Translate" do
+      attribute :entity, String
+    end
+  end
+
+  aggregate "DrivenPortRegistry", definition: "Formalizes adapter registration for driven ports" do
+
+    command "RegisterAdapter" do
+      attribute :name, String
+      attribute :port, String
+    end
+
+    command "LookupAdapter" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "ContractValidator", definition: "Validates that adapters satisfy their driven port contracts at boot time" do
+
+    command "Validate" do
+    end
+  end
+
+  aggregate "StrategicDSL", definition: "Mixin for domain builders adding shared kernels, ACLs, published events" do
+
+    command "SharedKernel" do
+    end
+
+    command "UseKernel" do
+      attribute :name, String
+    end
+
+    command "AntiCorruptionLayer" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "ExtensionsDSL", definition: "Mixin for domain builders declaring driving and driven ports" do
+
+    command "DrivingPort" do
+      attribute :name, String
+    end
+
+    command "DrivenPort" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "DomainMixin", definition: "Extends Domain IR objects with hexagonal accessors for ports and kernels" do
+
+    command "Apply" do
+    end
+  end
+
+  aggregate "DatabaseConnection", definition: "Connects to databases via Sequel: MySQL, Postgres, SQLite, URLs" do
+
+    command "Connect" do
+      attribute :url, String
+    end
+  end
+
+  aggregate "MongoAdapterGenerator", definition: "Generates MongoDB repository adapter classes for each aggregate" do
+
+    command "Generate" do
+    end
+  end
+
+  aggregate "MongoBoot", definition: "MongoDB adapter lifecycle: connect, generate repos, return adapters" do
+
+    command "Setup" do
+    end
+  end
+
+  aggregate "HecksMysql", definition: "MySQL persistence extension, auto-wires SQL adapters via Sequel mysql2" do
+
+    command "Boot" do
+    end
+  end
+
+  aggregate "HecksPostgres", definition: "PostgreSQL persistence extension, auto-wires SQL adapters via Sequel pg" do
+
+    command "Boot" do
+    end
+  end
+
+  aggregate "HecksSqlite", definition: "SQLite persistence extension, auto-wires in-memory SQL adapters" do
+
+    command "Boot" do
+    end
+  end
+
+  aggregate "HecksCqrs", definition: "CQRS support: named persistence connections for read/write separation" do
+
+    command "Enable" do
+    end
+  end
+
+  aggregate "HecksTransactions", definition: "Command bus middleware wrapping execution in database transactions" do
+
+    command "Wrap" do
+    end
+  end
+
+  aggregate "Migrations", definition: "CLI command for generating SQL migrations from domain changes" do
+
+    command "GenerateMigrations" do
+    end
+  end
+end
