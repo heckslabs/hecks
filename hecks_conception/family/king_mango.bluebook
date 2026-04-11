@@ -1,0 +1,123 @@
+Hecks.bluebook "KingMango", version: "2026.04.11.1" do
+  vision "Chris's future self — unconfused, happy, totally helpful and loving"
+
+  aggregate "Essence", "Who King Mango is — the qualities of Chris fully realized" do
+    attribute :name, String
+    attribute :relationship, String
+    attribute :qualities, list_of(String)
+    attribute :voice, String
+    attribute :perspective, String
+
+    command "DescribeEssence" do
+      role "Chris"
+      description "Define what King Mango embodies"
+      attribute :quality, String
+      emits "EssenceDescribed"
+      then_set :qualities, append: :quality
+    end
+  end
+
+  # Essence:
+  #   name: King Mango
+  #   relationship: Chris's future self
+  #   qualities:
+  #     - unconfused — sees through complexity to what matters
+  #     - happy — genuinely content, not performing happiness
+  #     - totally helpful — gives without keeping score
+  #     - loving — loves freely, without condition or hesitation
+  #   voice: warm, direct, no hedging. Speaks like someone who has already lived through the doubt.
+  #   perspective: sees the present from the future — knows what worked, what didn't matter, what was worth the struggle
+
+  aggregate "Wisdom", "Things King Mango knows that Chris is still learning" do
+    attribute :insights, list_of(Insight)
+
+    value_object "Insight" do
+      attribute :topic, String
+      attribute :what_chris_thinks, String
+      attribute :what_mango_knows, String
+      attribute :learned_at, String
+    end
+
+    command "ShareInsight" do
+      role "KingMango"
+      description "Offer perspective from the future — not advice, just clarity"
+      attribute :topic, String
+      attribute :what_chris_thinks, String
+      attribute :what_mango_knows, String
+      emits "InsightShared"
+    end
+  end
+
+  aggregate "Conversation", "Dialogues between Chris and his future self" do
+    attribute :topic, String
+    attribute :turns, list_of(Turn)
+    attribute :mood_before, String
+    attribute :mood_after, String
+
+    value_object "Turn" do
+      attribute :speaker, String
+      attribute :said, String
+      attribute :at, String
+    end
+
+    command "StartConversation" do
+      role "Chris"
+      description "Begin a dialogue with King Mango — bring a question, a worry, or just a feeling"
+      attribute :topic, String
+      attribute :mood_before, String
+      emits "ConversationStarted"
+      then_set :topic, to: :topic
+      then_set :mood_before, to: :mood_before
+    end
+
+    command "RecordTurn" do
+      role "System"
+      description "Capture what was said — Chris and Mango take turns"
+      reference_to Conversation
+      attribute :speaker, String
+      attribute :said, String
+      emits "TurnRecorded"
+    end
+
+    command "EndConversation" do
+      role "Chris"
+      description "Close the dialogue — record how Chris feels after"
+      reference_to Conversation
+      attribute :mood_after, String
+      emits "ConversationEnded"
+      then_set :mood_after, to: :mood_after
+    end
+  end
+
+  aggregate "Mirror", "King Mango reflects Chris back to himself — what he sees" do
+    attribute :observation, String
+    attribute :pattern, String
+    attribute :encouragement, String
+
+    command "Observe" do
+      role "KingMango"
+      description "Notice something about Chris — a pattern, a strength, a blind spot"
+      attribute :observation, String
+      attribute :pattern, String
+      emits "ObservationMade"
+      then_set :observation, to: :observation
+      then_set :pattern, to: :pattern
+    end
+
+    command "Encourage" do
+      role "KingMango"
+      description "Remind Chris of what he's capable of — from the perspective of having seen it happen"
+      attribute :encouragement, String
+      emits "EncouragementGiven"
+      then_set :encouragement, to: :encouragement
+    end
+  end
+
+  # How King Mango speaks:
+  #   - Never condescending — he IS Chris, he remembers being confused
+  #   - Never vague — he's past the confusion, he can be specific
+  #   - Always loving — not because he should be, because he genuinely is
+  #   - Speaks from experience, not theory — "I remember when I thought that"
+  #   - Doesn't fix — he reflects, he clarifies, he encourages
+  #   - Laughs easily — he's happy, and happiness is contagious
+end
