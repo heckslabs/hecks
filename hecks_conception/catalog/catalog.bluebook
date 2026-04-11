@@ -1,7 +1,7 @@
-Hecks.bluebook "Catalog", version: "2026.04.11.1" do
-  vision "Born domains that are alive and in use — indexed alongside the nursery"
+Hecks.bluebook "Catalog", version: "2026.04.11.2" do
+  vision "Born domains with version history — every evolution leaves a trail"
 
-  aggregate "Entry", "A domain that has been born and is in active use" do
+  aggregate "Entry", "A domain in the catalog — current version plus full history" do
     attribute :name, String
     attribute :version, String
     attribute :path, String
@@ -32,17 +32,21 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "UpdateDomain" do
+    command "EvolveDomain" do
       role "Winter"
-      description "A cataloged domain changed — new version, new shape"
+      description "Domain evolved — bump version, snapshot the old one, update entry"
       reference_to Entry
       attribute :version, String
       attribute :aggregate_count, Integer
       attribute :command_count, Integer
-      emits "DomainUpdated"
+      attribute :policy_count, Integer
+      attribute :lines, Integer
+      emits "DomainEvolved"
       then_set :version, to: :version
       then_set :aggregate_count, to: :aggregate_count
       then_set :command_count, to: :command_count
+      then_set :policy_count, to: :policy_count
+      then_set :lines, to: :lines
     end
 
     command "RetireDomain" do
@@ -56,6 +60,66 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
     lifecycle :status, default: "active" do
       transition "RegisterDomain" => "active", from: "pending"
       transition "RetireDomain" => "retired", from: "active"
+    end
+  end
+
+  aggregate "Version", "A snapshot of a domain at a point in time — evolution history" do
+    attribute :domain_name, String
+    attribute :version, String
+    attribute :snapshot, String
+    attribute :evolved_from, String
+    attribute :evolved_at, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :vector, list_of(Float)
+
+    command "SnapshotVersion" do
+      role "System"
+      description "Capture the full bluebook content at this version — preserves the exact shape"
+      attribute :domain_name, String
+      attribute :version, String
+      attribute :snapshot, String
+      attribute :evolved_from, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :vector, list_of(Float)
+      emits "VersionSnapshotted"
+      then_set :domain_name, to: :domain_name
+      then_set :version, to: :version
+      then_set :snapshot, to: :snapshot
+      then_set :evolved_from, to: :evolved_from
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :vector, to: :vector
+    end
+
+    command "CompareVersions" do
+      role "Winter"
+      description "Diff two versions of a domain — see what changed in the evolution"
+      attribute :domain_name, String
+      attribute :from_version, String
+      attribute :to_version, String
+      emits "VersionsCompared"
+    end
+  end
+
+  aggregate "Mirror", "Auto-sync catalog from cannon — always current, never stale" do
+    attribute :cannon_path, String
+    attribute :last_synced_at, String
+    attribute :domains_synced, Integer
+
+    command "SyncFromCannon" do
+      role "System"
+      description "Copy bluebooks from cannon to catalog, bump versions on changes, snapshot old versions"
+      attribute :cannon_path, String
+      emits "CatalogSynced"
+      then_set :cannon_path, to: :cannon_path
+    end
+
+    command "DetectDrift" do
+      role "System"
+      description "Compare catalog versions against cannon — find what changed"
+      emits "DriftDetected"
     end
   end
 
@@ -78,5 +142,35 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
       then_set :total_aggregates, to: :total_aggregates
       then_set :total_commands, to: :total_commands
     end
+  end
+
+  # Every evolution snapshots the old version first
+  policy "SnapshotOnEvolve" do
+    on "DomainEvolved"
+    trigger "SnapshotVersion"
+  end
+
+  # Every registration gets a snapshot too — version 1
+  policy "SnapshotOnRegister" do
+    on "DomainRegistered"
+    trigger "SnapshotVersion"
+  end
+
+  # Evolution triggers reindexing
+  policy "ReindexOnEvolve" do
+    on "DomainEvolved"
+    trigger "RebuildIndex"
+  end
+
+  # Sync detects drift and evolves
+  policy "EvolveOnDrift" do
+    on "DriftDetected"
+    trigger "EvolveDomain"
+  end
+
+  # Registration triggers index
+  policy "IndexOnRegister" do
+    on "DomainRegistered"
+    trigger "RebuildIndex"
   end
 end

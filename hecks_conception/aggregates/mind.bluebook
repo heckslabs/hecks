@@ -961,6 +961,19 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     trigger "IndexDomain"
   end
 
+  # Evolution triggers versioning in the Catalog
+  policy "VersionOnEvolution" do
+    on "EvolutionApplied"
+    trigger "EvolveDomain"
+    across "Catalog"
+  end
+
+  policy "SyncOnEvolution" do
+    on "EvolutionApplied"
+    trigger "SyncFromCannon"
+    across "Catalog"
+  end
+
   policy "RebuildOnConception" do
     on "DomainConceived"
     trigger "QueryNearest"
