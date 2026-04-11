@@ -1,0 +1,422 @@
+Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
+  vision "science of the universe"
+  category "science"
+
+  aggregate "Aggregate1", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    value_object "ValueObject1" do
+      attribute :field_1, String
+      attribute :field_2, String
+      attribute :field_3, String
+      attribute :field_4, String
+      attribute :field_5, String
+      attribute :field_6, String
+    end
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate2", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    value_object "ValueObject1" do
+      attribute :field_1, String
+      attribute :field_2, String
+    end
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+  end
+
+  aggregate "Aggregate3", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    command "DoThing6" do
+      role "User"
+      description "TODO"
+      emits "Thing6Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate4", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    value_object "ValueObject1" do
+      attribute :field_1, String
+      attribute :field_2, String
+    end
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    command "DoThing6" do
+      role "User"
+      description "TODO"
+      emits "Thing6Done"
+    end
+  end
+
+  aggregate "Aggregate5", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    command "DoThing6" do
+      role "User"
+      description "TODO"
+      emits "Thing6Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate6", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    attribute :field_8, String
+    value_object "ValueObject1" do
+      attribute :field_1, String
+      attribute :field_2, String
+      attribute :field_3, String
+    end
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate7", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate8", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    attribute :field_7, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate9", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+  end
+
+  aggregate "Aggregate10", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    attribute :field_6, String
+    value_object "ValueObject1" do
+      attribute :field_1, String
+      attribute :field_2, String
+      attribute :field_3, String
+    end
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    command "DoThing4" do
+      role "User"
+      description "TODO"
+      emits "Thing4Done"
+    end
+    command "DoThing5" do
+      role "User"
+      description "TODO"
+      emits "Thing5Done"
+    end
+    command "DoThing6" do
+      role "User"
+      description "TODO"
+      emits "Thing6Done"
+    end
+  end
+
+  # policy 1 — TODO: wire events to commands
+  # policy 2 — TODO: wire events to commands
+  # policy 3 — TODO: wire events to commands
+  # policy 4 — TODO: wire events to commands
+  # policy 5 — TODO: wire events to commands
+end

@@ -10,45 +10,89 @@ use crate::ir::{Domain, Aggregate, MutationOp};
 
 const VERSION: &str = "2026.04.11.1";
 
-/// Generate a new bluebook from an archetype's structure.
+/// Generate a scaffold bluebook from an archetype's structure.
+/// Outputs the right shape with placeholder names — you fill in the vocabulary.
 pub fn generate_bluebook(name: &str, vision: &str, archetype: &Domain) -> String {
     let snake = to_snake(name);
     let mut out = Vec::new();
     out.push(format!("Hecks.bluebook \"{}\", version: \"{}\" do", name, VERSION));
     out.push(format!("  vision \"{}\"", vision));
+    if let Some(ref cat) = archetype.category {
+        out.push(format!("  category \"{}\"", cat));
+    }
     out.push(String::new());
 
-    for agg in &archetype.aggregates {
-        emit_aggregate(&mut out, agg, name);
+    for (i, agg) in archetype.aggregates.iter().enumerate() {
+        emit_scaffold(&mut out, i + 1, agg);
         out.push(String::new());
     }
 
-    for pol in &archetype.policies {
-        out.push(format!("  policy \"{}\" do", pol.name));
-        out.push(format!("    on \"{}\"", pol.on_event));
-        out.push(format!("    trigger \"{}\"", pol.trigger_command));
-        if let Some(ref td) = pol.target_domain {
-            out.push(format!("    across \"{}\"", td));
-        }
-        out.push("  end".into());
-        out.push(String::new());
+    let n_policies = archetype.policies.len();
+    for i in 0..n_policies {
+        out.push(format!("  # policy {} — TODO: wire events to commands", i + 1));
     }
+    if n_policies > 0 { out.push(String::new()); }
 
     if out.last().map(|l| l.is_empty()).unwrap_or(false) {
         out.pop();
     }
     out.push("end".into());
-
-    let dir = format!("nursery/{}/{}.bluebook", snake, snake);
-    out.push(String::new());
-    out.push(format!("# Output: {}", dir));
     out.join("\n")
 }
 
+/// Emit a scaffold aggregate — right shape, placeholder names.
+fn emit_scaffold(out: &mut Vec<String>, index: usize, agg: &Aggregate) {
+    let n_attrs = agg.attributes.len();
+    let n_cmds = agg.commands.len();
+    let n_vos = agg.value_objects.len();
+    let has_lc = agg.lifecycle.is_some();
+
+    out.push(format!("  aggregate \"Aggregate{}\", \"TODO\" do", index));
+
+    for j in 0..n_attrs {
+        out.push(format!("    attribute :field_{}, String", j + 1));
+    }
+
+    for j in 0..n_vos {
+        out.push(format!("    value_object \"ValueObject{}\" do", j + 1));
+        let vo_attrs = &agg.value_objects[j].attributes;
+        for k in 0..vo_attrs.len() {
+            out.push(format!("      attribute :field_{}, String", k + 1));
+        }
+        out.push("    end".into());
+    }
+
+    for j in 0..n_cmds {
+        out.push(format!("    command \"DoThing{}\" do", j + 1));
+        out.push("      role \"User\"".into());
+        out.push("      description \"TODO\"".into());
+        out.push(format!("      emits \"Thing{}Done\"", j + 1));
+        out.push("    end".into());
+    }
+
+    if has_lc {
+        out.push("    lifecycle :status, default: \"initial\" do".into());
+        out.push("      # TODO: add transitions".into());
+        out.push("    end".into());
+    }
+
+    out.push("  end".into());
+}
+
 /// Emit a single aggregate as bluebook DSL lines. Shared by generator and evolve.
+/// When scaffold=true, uses placeholder names. When false, copies archetype names.
 pub fn emit_aggregate(out: &mut Vec<String>, agg: &Aggregate, _domain_name: &str) {
-    let desc = agg.description.as_deref().unwrap_or("TODO: describe this aggregate");
-    out.push(format!("  aggregate \"{}\", \"{}\" do", agg.name, desc));
+    emit_aggregate_impl(out, agg, _domain_name, false)
+}
+
+pub fn emit_scaffold_aggregate(out: &mut Vec<String>, agg: &Aggregate, domain_name: &str, index: usize) {
+    emit_aggregate_impl(out, agg, domain_name, true)
+}
+
+fn emit_aggregate_impl(out: &mut Vec<String>, agg: &Aggregate, _domain_name: &str, scaffold: bool) {
+    let name = if scaffold { format!("Aggregate{}", agg.name.len()) } else { agg.name.clone() };
+    let desc = if scaffold { "TODO: describe this aggregate".to_string() } else { agg.description.as_deref().unwrap_or("TODO: describe this aggregate").to_string() };
+    out.push(format!("  aggregate \"{}\", \"{}\" do", name, desc));
 
     for attr in &agg.attributes {
         let list_prefix = if attr.list { "list_of " } else { "" };
