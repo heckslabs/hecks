@@ -170,6 +170,7 @@
 
 ### Bluebook Capabilities (Winter)
 - **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Winter. 7 aggregates, 3 policies, seeded with current Linear issues.
+- **DLMState** — the DLM tracks itself in Heki. SessionState, GrowthTracker, HonestyTracker, DreamLog, PerformanceMetric, SynapseHistory — 6 aggregates, 18 commands, 5 cross-domain policies. Acceleration rate measures domains conceived per session. Persists across sleep cycles.
 
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call

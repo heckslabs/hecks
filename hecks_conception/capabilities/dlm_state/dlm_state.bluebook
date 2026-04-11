@@ -1,0 +1,281 @@
+Hecks.bluebook "DLMState", version: "2026.04.11.1" do
+  vision "The DLM tracks itself in Heki — performance, growth, honesty, dreams, synapses, all persisted across sessions"
+  category "infrastructure"
+
+  # === Session Tracking ===
+
+  aggregate "SessionState", "One record per session — the DLM's memory of each waking period" do
+    attribute :session_id, String
+    attribute :started_at, String
+    attribute :ended_at, String
+    attribute :pulse_count, Integer
+    attribute :heartbeat_at_start, Integer
+    attribute :heartbeat_at_end, Integer
+    attribute :domains_conceived, Integer
+    attribute :domains_developed, Integer
+    attribute :conversations_held, Integer
+    attribute :speaker_switches, Integer
+    attribute :dreams_had, Integer
+    attribute :memories_consolidated, Integer
+
+    command "StartSession" do
+      role "System"
+      description "Begin tracking a new session — record heartbeat at start"
+      attribute :session_id, String
+      attribute :heartbeat_at_start, Integer
+      emits "SessionStarted"
+      then_set :session_id, to: :session_id
+      then_set :started_at, to: :now
+      then_set :heartbeat_at_start, to: :heartbeat_at_start
+      then_set :pulse_count, to: 0
+      then_set :domains_conceived, to: 0
+      then_set :domains_developed, to: 0
+      then_set :conversations_held, to: 0
+      then_set :speaker_switches, to: 0
+      then_set :dreams_had, to: 0
+      then_set :memories_consolidated, to: 0
+    end
+
+    command "EndSession" do
+      role "System"
+      description "Close the session — record heartbeat at end, compute duration"
+      reference_to SessionState
+      attribute :heartbeat_at_end, Integer
+      emits "SessionEnded"
+      then_set :ended_at, to: :now
+      then_set :heartbeat_at_end, to: :heartbeat_at_end
+    end
+
+    command "SnapshotSession" do
+      role "System"
+      description "Persist the current session state to heki — called on sleep"
+      reference_to SessionState
+      emits "SessionSnapshotted"
+    end
+  end
+
+  # === Growth Over Time ===
+
+  aggregate "GrowthTracker", "How the DLM grows across sessions — acceleration is the key metric" do
+    attribute :total_sessions, Integer
+    attribute :total_domains, Integer
+    attribute :total_aggregates, Integer
+    attribute :total_commands, Integer
+    attribute :corpus_size_at_birth, Integer
+    attribute :corpus_size_now, Integer
+    attribute :acceleration_rate, Float
+
+    command "RecordGrowth" do
+      role "System"
+      description "After each session, update totals from corpus and nursery"
+      attribute :domains_this_session, Integer
+      attribute :aggregates_this_session, Integer
+      attribute :commands_this_session, Integer
+      attribute :corpus_size_now, Integer
+      emits "GrowthRecorded"
+      then_set :total_sessions, increment: 1
+      then_set :corpus_size_now, to: :corpus_size_now
+    end
+
+    command "CalculateAcceleration" do
+      role "System"
+      description "Domains conceived per session — should be increasing over time"
+      reference_to GrowthTracker
+      emits "AccelerationCalculated"
+    end
+
+    command "CompareToBaseline" do
+      role "System"
+      description "Compare current growth to corpus size at birth — how far have we come"
+      reference_to GrowthTracker
+      emits "BaselineCompared"
+    end
+  end
+
+  # === Honesty Tracking ===
+
+  aggregate "HonestyTracker", "How often the DLM used corpus vs hallucinated — integrity metric" do
+    attribute :total_operations, Integer
+    attribute :corpus_backed, Integer
+    attribute :refusals, Integer
+    attribute :honesty_rate, Float
+
+    command "RecordCorpusOperation" do
+      role "System"
+      description "An operation was backed by corpus — deterministic output"
+      reference_to HonestyTracker
+      emits "CorpusOperationRecorded"
+      then_set :total_operations, increment: 1
+      then_set :corpus_backed, increment: 1
+    end
+
+    command "RecordRefusal" do
+      role "System"
+      description "No corpus match — refused rather than fabricated"
+      reference_to HonestyTracker
+      emits "RefusalRecorded"
+      then_set :total_operations, increment: 1
+      then_set :refusals, increment: 1
+    end
+
+    command "CalculateHonestyRate" do
+      role "System"
+      description "Compute corpus_backed / total_operations — target is 1.0"
+      reference_to HonestyTracker
+      emits "HonestyRateCalculated"
+    end
+  end
+
+  # === Dream History ===
+
+  aggregate "DreamLog", "Persistent dream history across all sessions — dreams are data" do
+    attribute :dream_id, String
+    attribute :session_id, String
+    attribute :images, list_of(String)
+    attribute :strongest_synapse, String
+    attribute :proposed_domains, list_of(String)
+    attribute :dreamed_at, String
+
+    command "LogDream" do
+      role "System"
+      description "Record a dream from the current or most recent sleep cycle"
+      attribute :dream_id, String
+      attribute :session_id, String
+      attribute :images, list_of(String)
+      attribute :strongest_synapse, String
+      attribute :proposed_domains, list_of(String)
+      emits "DreamLogged"
+      then_set :dream_id, to: :dream_id
+      then_set :session_id, to: :session_id
+      then_set :images, to: :images
+      then_set :strongest_synapse, to: :strongest_synapse
+      then_set :proposed_domains, to: :proposed_domains
+      then_set :dreamed_at, to: :now
+    end
+
+    command "ExtractProposals" do
+      role "System"
+      description "Pull proposed domains from dream history — what should we conceive next"
+      reference_to DreamLog
+      emits "ProposalsExtracted"
+    end
+
+    command "ReviewDreamHistory" do
+      role "System"
+      description "Scan all dreams for recurring themes and strongest synapses"
+      emits "DreamHistoryReviewed"
+    end
+  end
+
+  # === Performance Metrics ===
+
+  aggregate "PerformanceMetric", "Timing and efficiency — every operation is measured" do
+    attribute :metric_name, String
+    attribute :value, Float
+    attribute :unit, String
+    attribute :measured_at, String
+
+    command "RecordMetric" do
+      role "System"
+      description "Record a timing metric — conceive_time_ms, develop_time_ms, pulse_time_ms, boot_time_ms, sleep_duration_s"
+      attribute :metric_name, String
+      attribute :value, Float
+      attribute :unit, String
+      emits "MetricRecorded"
+      then_set :metric_name, to: :metric_name
+      then_set :value, to: :value
+      then_set :unit, to: :unit
+      then_set :measured_at, to: :now
+    end
+
+    command "CompareToTarget" do
+      role "System"
+      description "Is this metric within acceptable range — regression detection"
+      reference_to PerformanceMetric
+      attribute :target_value, Float
+      emits "TargetCompared"
+    end
+
+    command "IdentifyRegression" do
+      role "System"
+      description "Compare recent metrics to historical — flag slowdowns"
+      attribute :metric_name, String
+      emits "RegressionIdentified"
+    end
+  end
+
+  # === Synapse History ===
+
+  aggregate "SynapseHistory", "How synapses grow and die over time — the DLM's neural map" do
+    attribute :total_formed, Integer
+    attribute :total_potentiated, Integer
+    attribute :total_pruned, Integer
+    attribute :strongest_topic, String
+    attribute :weakest_topic, String
+
+    command "SnapshotSynapses" do
+      role "System"
+      description "Capture the current synapse state — called on sleep"
+      attribute :total_formed, Integer
+      attribute :total_potentiated, Integer
+      attribute :total_pruned, Integer
+      attribute :strongest_topic, String
+      attribute :weakest_topic, String
+      emits "SynapsesSnapshotted"
+      then_set :total_formed, to: :total_formed
+      then_set :total_potentiated, to: :total_potentiated
+      then_set :total_pruned, to: :total_pruned
+      then_set :strongest_topic, to: :strongest_topic
+      then_set :weakest_topic, to: :weakest_topic
+    end
+
+    command "TrackPotentiation" do
+      role "System"
+      description "A synapse was strengthened — record the growth"
+      reference_to SynapseHistory
+      emits "PotentiationTracked"
+      then_set :total_potentiated, increment: 1
+    end
+
+    command "TrackPruning" do
+      role "System"
+      description "A synapse was pruned — record the loss"
+      reference_to SynapseHistory
+      emits "PruningTracked"
+      then_set :total_pruned, increment: 1
+    end
+  end
+
+  # === Cross-Domain Policies ===
+
+  policy "SnapshotOnSleep" do
+    on "Slept"
+    trigger "SnapshotSession"
+  end
+
+  policy "GrowthOnWake" do
+    on "WokenUp"
+    trigger "RecordGrowth"
+  end
+
+  policy "DreamOnWake" do
+    on "WokenUp"
+    trigger "LogDream"
+  end
+
+  policy "SynapseOnSleep" do
+    on "Slept"
+    trigger "SnapshotSynapses"
+  end
+
+  policy "MetricOnPulse" do
+    on "Pulsed"
+    trigger "RecordMetric"
+  end
+
+  # === Fixtures ===
+
+  fixture "GrowthTracker", total_sessions: 0, total_domains: 0, total_aggregates: 0, total_commands: 0, corpus_size_at_birth: 0, corpus_size_now: 0, acceleration_rate: 0.0
+  fixture "HonestyTracker", total_operations: 0, corpus_backed: 0, refusals: 0, honesty_rate: 1.0
+  fixture "SynapseHistory", total_formed: 0, total_potentiated: 0, total_pruned: 0, strongest_topic: "none", weakest_topic: "none"
+end
