@@ -1,422 +1,685 @@
 Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
-  vision "science of the universe"
+  vision "The science of the universe at the largest scales — galaxies, dark matter, spacetime, and the origin of everything"
   category "science"
 
-  aggregate "Aggregate1", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    value_object "ValueObject1" do
-      attribute :field_1, String
-      attribute :field_2, String
-      attribute :field_3, String
-      attribute :field_4, String
-      attribute :field_5, String
-      attribute :field_6, String
+  # === Universe ===
+
+  aggregate "Universe", "The whole observable cosmos — age, size, curvature, expansion rate" do
+    attribute :name, String
+    attribute :age, Float
+    attribute :radius, Float
+    attribute :curvature, Float
+    attribute :expansion_rate, Float
+    attribute :total_mass, Float
+    attribute :geometry, String
+
+    value_object "CosmologicalParameters" do
+      attribute :hubble_constant, Float
+      attribute :omega_matter, Float
+      attribute :omega_radiation, Float
+      attribute :omega_lambda, Float
+      attribute :omega_curvature, Float
     end
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+
+    command "MeasureAge" do
+      role "Cosmologist"
+      description "Determine the age of the universe from CMB and expansion data"
+      attribute :name, String
+      attribute :age, Float
+      attribute :radius, Float
+      emits "AgeMeasured"
+      then_set :name, to: :name
+      then_set :age, to: :age
+      then_set :radius, to: :radius
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "DetermineGeometry" do
+      role "Cosmologist"
+      description "Measure the spatial curvature of the universe — flat, open, or closed"
+      reference_to Universe
+      attribute :curvature, Float
+      attribute :geometry, String
+      emits "GeometryDetermined"
+      then_set :curvature, to: :curvature
+      then_set :geometry, to: :geometry
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "CalculateExpansionRate" do
+      role "Cosmologist"
+      description "Compute the Hubble parameter from redshift-distance observations"
+      reference_to Universe
+      attribute :expansion_rate, Float
+      emits "ExpansionRateCalculated"
+      then_set :expansion_rate, to: :expansion_rate
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
-    end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    command "EstimateMass" do
+      role "Cosmologist"
+      description "Estimate the total mass-energy content of the observable universe"
+      reference_to Universe
+      attribute :total_mass, Float
+      emits "MassEstimated"
+      then_set :total_mass, to: :total_mass
     end
   end
 
-  aggregate "Aggregate2", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    value_object "ValueObject1" do
-      attribute :field_1, String
-      attribute :field_2, String
+  # === Galaxy ===
+
+  aggregate "Galaxy", "A gravitationally bound system of stars, gas, dust, and dark matter" do
+    attribute :name, String
+    attribute :morphology, String
+    attribute :redshift, Float
+    attribute :mass, Float
+    attribute :rotation_velocity, Float
+    attribute :distance, Float
+    attribute :status, String
+
+    value_object "MorphologyType" do
+      attribute :classification, String
+      attribute :hubble_type, String
+      attribute :bar_present, String
+      attribute :arm_count, Integer
     end
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+
+    command "ClassifyGalaxy" do
+      role "Cosmologist"
+      description "Assign a morphological type — spiral, elliptical, irregular, or lenticular"
+      attribute :name, String
+      attribute :morphology, String
+      attribute :distance, Float
+      emits "GalaxyClassified"
+      then_set :name, to: :name
+      then_set :morphology, to: :morphology
+      then_set :distance, to: :distance
+      then_set :status, to: "observed"
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "MeasureRedshift" do
+      role "Cosmologist"
+      description "Measure the cosmological redshift — how fast the galaxy recedes"
+      reference_to Galaxy
+      attribute :redshift, Float
+      emits "RedshiftMeasured"
+      then_set :redshift, to: :redshift
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "MapRotationCurve" do
+      role "Cosmologist"
+      description "Plot orbital velocity vs radius — reveals dark matter presence"
+      reference_to Galaxy
+      attribute :rotation_velocity, Float
+      emits "RotationCurveMapped"
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "EstimateGalaxyMass" do
+      role "Cosmologist"
+      description "Estimate total mass from rotation curves and gravitational lensing"
+      reference_to Galaxy
+      attribute :mass, Float
+      emits "GalaxyMassEstimated"
+      then_set :mass, to: :mass
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
+
+    command "DetectMerger" do
+      role "Cosmologist"
+      description "Identify two galaxies undergoing gravitational merger"
+      reference_to Galaxy
+      attribute :companion_name, String
+      emits "MergerDetected"
+      then_set :status, to: "merging"
+    end
+
+    lifecycle :status, default: "unobserved" do
+      transition "ClassifyGalaxy" => "observed", from: "unobserved"
+      transition "DetectMerger" => "merging", from: "observed"
     end
   end
 
-  aggregate "Aggregate3", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+  # === Star ===
+
+  aggregate "Star", "A fusion engine — protostar to end state through main sequence and giant phases" do
+    attribute :name, String
+    attribute :mass, Float
+    attribute :luminosity, Float
+    attribute :temperature, Float
+    attribute :spectral_class, String
+    attribute :fuel_remaining, Float
+    attribute :status, String
+
+    value_object "StellarClassification" do
+      attribute :spectral_type, String
+      attribute :luminosity_class, String
+      attribute :absolute_magnitude, Float
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "FormStar" do
+      role "System"
+      description "Gravitational collapse of a molecular cloud into a protostar"
+      attribute :name, String
+      attribute :mass, Float
+      attribute :temperature, Float
+      emits "StarFormed"
+      then_set :name, to: :name
+      then_set :mass, to: :mass
+      then_set :temperature, to: :temperature
+      then_set :fuel_remaining, to: :mass
+      then_set :status, to: "protostar"
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "IgniteFusion" do
+      role "System"
+      description "Core temperature reaches threshold — hydrogen fusion begins"
+      reference_to Star
+      attribute :luminosity, Float
+      attribute :spectral_class, String
+      given { status == "protostar" }
+      emits "FusionIgnited"
+      then_set :luminosity, to: :luminosity
+      then_set :spectral_class, to: :spectral_class
+      then_set :status, to: "main_sequence"
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "EvolveStar" do
+      role "System"
+      description "Star leaves the main sequence — core contracts, envelope expands"
+      reference_to Star
+      given { status == "main_sequence" }
+      emits "StarEvolved"
+      then_set :status, to: "giant"
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
+
+    command "ExhaustFuel" do
+      role "System"
+      description "Fusion fuel depleted — the star can no longer sustain equilibrium"
+      reference_to Star
+      given { status == "giant" }
+      emits "FuelExhausted"
+      then_set :fuel_remaining, to: 0.0
+      then_set :status, to: "exhausted"
     end
-    command "DoThing6" do
-      role "User"
-      description "TODO"
-      emits "Thing6Done"
+
+    command "CollapseStar" do
+      role "System"
+      description "Core collapses under gravity — fate depends on mass"
+      reference_to Star
+      given { status == "exhausted" }
+      emits "StarCollapsed"
+      then_set :status, to: "collapsed"
     end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    command "GoSupernova" do
+      role "System"
+      description "Massive star explodes — outer layers ejected, core remnant left behind"
+      reference_to Star
+      given { status == "collapsed" }
+      emits "SupernovaOccurred"
+      then_set :status, to: "remnant"
+    end
+
+    lifecycle :status, default: "molecular_cloud" do
+      transition "FormStar" => "protostar", from: "molecular_cloud"
+      transition "IgniteFusion" => "main_sequence", from: "protostar"
+      transition "EvolveStar" => "giant", from: "main_sequence"
+      transition "ExhaustFuel" => "exhausted", from: "giant"
+      transition "CollapseStar" => "collapsed", from: "exhausted"
+      transition "GoSupernova" => "remnant", from: "collapsed"
     end
   end
 
-  aggregate "Aggregate4", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    value_object "ValueObject1" do
-      attribute :field_1, String
-      attribute :field_2, String
+  # === BlackHole ===
+
+  aggregate "BlackHole", "A spacetime singularity — mass, spin, charge, event horizon" do
+    attribute :name, String
+    attribute :mass, Float
+    attribute :spin, Float
+    attribute :charge, Float
+    attribute :schwarzschild_radius, Float
+    attribute :temperature, Float
+    attribute :status, String
+
+    value_object "EventHorizon" do
+      attribute :radius, Float
+      attribute :surface_gravity, Float
+      attribute :area, Float
     end
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+
+    command "FormBlackHole" do
+      role "System"
+      description "Stellar remnant or direct collapse produces a black hole"
+      attribute :name, String
+      attribute :mass, Float
+      attribute :spin, Float
+      attribute :charge, Float
+      emits "BlackHoleFormed"
+      then_set :name, to: :name
+      then_set :mass, to: :mass
+      then_set :spin, to: :spin
+      then_set :charge, to: :charge
+      then_set :status, to: "active"
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "CalculateSchwarzschildRadius" do
+      role "System"
+      description "r_s = 2GM/c^2 — compute the event horizon radius from mass"
+      reference_to BlackHole
+      attribute :schwarzschild_radius, Float
+      emits "SchwarzschildRadiusCalculated"
+      then_set :schwarzschild_radius, to: :schwarzschild_radius
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "AccreteMatter" do
+      role "System"
+      description "Matter falls past the event horizon — mass increases"
+      reference_to BlackHole
+      attribute :accreted_mass, Float
+      given { status == "active" }
+      emits "MatterAccreted"
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "EmitHawkingRadiation" do
+      role "System"
+      description "Quantum effects near the horizon — black hole slowly evaporates"
+      reference_to BlackHole
+      attribute :temperature, Float
+      given { status == "active" }
+      emits "HawkingRadiationEmitted"
+      then_set :temperature, to: :temperature
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    command "DoThing6" do
-      role "User"
-      description "TODO"
-      emits "Thing6Done"
+
+    command "MergeBlackHoles" do
+      role "System"
+      description "Two black holes spiral inward and merge — gravitational waves emitted"
+      reference_to BlackHole
+      attribute :companion_mass, Float
+      given { status == "active" }
+      emits "BlackHolesMerged"
     end
   end
 
-  aggregate "Aggregate5", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+  # === DarkMatter ===
+
+  aggregate "DarkMatter", "Invisible mass — halos, gravitational lensing, WIMP candidates" do
+    attribute :name, String
+    attribute :halo_mass, Float
+    attribute :density, Float
+    attribute :distribution, String
+    attribute :lensing_strength, Float
+    attribute :candidate_type, String
+
+    value_object "HaloProfile" do
+      attribute :profile_type, String
+      attribute :scale_radius, Float
+      attribute :concentration, Float
+      attribute :virial_mass, Float
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "DetectDarkMatter" do
+      role "Cosmologist"
+      description "Infer dark matter presence from rotation curves or lensing anomalies"
+      attribute :name, String
+      attribute :halo_mass, Float
+      attribute :candidate_type, String
+      emits "DarkMatterDetected"
+      then_set :name, to: :name
+      then_set :halo_mass, to: :halo_mass
+      then_set :candidate_type, to: :candidate_type
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "MapDistribution" do
+      role "Cosmologist"
+      description "Map the spatial distribution of dark matter in a galaxy or cluster"
+      reference_to DarkMatter
+      attribute :distribution, String
+      attribute :density, Float
+      emits "DistributionMapped"
+      then_set :distribution, to: :distribution
+      then_set :density, to: :density
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "MeasureGravitationalLensing" do
+      role "Cosmologist"
+      description "Quantify the bending of light by dark matter — strong or weak lensing"
+      reference_to DarkMatter
+      attribute :lensing_strength, Float
+      emits "GravitationalLensingMeasured"
+      then_set :lensing_strength, to: :lensing_strength
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    command "DoThing6" do
-      role "User"
-      description "TODO"
-      emits "Thing6Done"
-    end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    command "ModelHalo" do
+      role "Cosmologist"
+      description "Fit an NFW or Einasto profile to the dark matter halo"
+      reference_to DarkMatter
+      attribute :profile_type, String
+      attribute :scale_radius, Float
+      emits "HaloModeled"
     end
   end
 
-  aggregate "Aggregate6", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    attribute :field_8, String
-    value_object "ValueObject1" do
-      attribute :field_1, String
-      attribute :field_2, String
-      attribute :field_3, String
+  # === DarkEnergy ===
+
+  aggregate "DarkEnergy", "The force accelerating cosmic expansion — cosmological constant, equation of state" do
+    attribute :name, String
+    attribute :energy_density, Float
+    attribute :equation_of_state, Float
+    attribute :acceleration_rate, Float
+    attribute :cosmological_constant, Float
+
+    value_object "ExpansionModel" do
+      attribute :model_type, String
+      attribute :w_parameter, Float
+      attribute :scale_factor, Float
+      attribute :deceleration_parameter, Float
     end
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+
+    command "MeasureAcceleration" do
+      role "Cosmologist"
+      description "Use Type Ia supernovae to measure the acceleration of cosmic expansion"
+      attribute :name, String
+      attribute :acceleration_rate, Float
+      attribute :energy_density, Float
+      emits "AccelerationMeasured"
+      then_set :name, to: :name
+      then_set :acceleration_rate, to: :acceleration_rate
+      then_set :energy_density, to: :energy_density
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "ConstrainEquationOfState" do
+      role "Cosmologist"
+      description "Narrow the value of w — the dark energy equation of state parameter"
+      reference_to DarkEnergy
+      attribute :equation_of_state, Float
+      emits "EquationOfStateConstrained"
+      then_set :equation_of_state, to: :equation_of_state
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
-    end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
-    end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    command "ModelExpansionHistory" do
+      role "Cosmologist"
+      description "Reconstruct how the expansion rate evolved over cosmic time"
+      reference_to DarkEnergy
+      attribute :cosmological_constant, Float
+      emits "ExpansionHistoryModeled"
+      then_set :cosmological_constant, to: :cosmological_constant
     end
   end
 
-  aggregate "Aggregate7", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+  # === CosmicMicrowaveBackground ===
+
+  aggregate "CosmicMicrowaveBackground", "The afterglow of the big bang — temperature, anisotropy, polarization" do
+    attribute :name, String
+    attribute :temperature, Float
+    attribute :anisotropy_amplitude, Float
+    attribute :polarization_mode, String
+    attribute :angular_power_spectrum, String
+    attribute :redshift, Float
+
+    value_object "AnisotropyMap" do
+      attribute :resolution, Float
+      attribute :multipole_max, Integer
+      attribute :temperature_variance, Float
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "MapCMB" do
+      role "Cosmologist"
+      description "Produce a full-sky map of the cosmic microwave background"
+      attribute :name, String
+      attribute :redshift, Float
+      emits "CMBMapped"
+      then_set :name, to: :name
+      then_set :redshift, to: :redshift
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "MeasureCMBTemperature" do
+      role "Cosmologist"
+      description "Measure the mean temperature of the CMB — 2.725 K blackbody"
+      reference_to CosmicMicrowaveBackground
+      attribute :temperature, Float
+      emits "CMBTemperatureMeasured"
+      then_set :temperature, to: :temperature
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "AnalyzeAnisotropy" do
+      role "Cosmologist"
+      description "Decompose temperature fluctuations into angular power spectrum"
+      reference_to CosmicMicrowaveBackground
+      attribute :anisotropy_amplitude, Float
+      attribute :angular_power_spectrum, String
+      emits "AnisotropyAnalyzed"
+      then_set :anisotropy_amplitude, to: :anisotropy_amplitude
+      then_set :angular_power_spectrum, to: :angular_power_spectrum
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    command "DetectPolarization" do
+      role "Cosmologist"
+      description "Detect E-mode and B-mode polarization patterns in the CMB"
+      reference_to CosmicMicrowaveBackground
+      attribute :polarization_mode, String
+      emits "PolarizationDetected"
+      then_set :polarization_mode, to: :polarization_mode
     end
   end
 
-  aggregate "Aggregate8", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    attribute :field_7, String
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+  # === BigBang ===
+
+  aggregate "BigBang", "The origin of the universe — inflation, nucleosynthesis, recombination, structure formation" do
+    attribute :name, String
+    attribute :inflation_duration, Float
+    attribute :nucleosynthesis_temperature, Float
+    attribute :recombination_redshift, Float
+    attribute :helium_fraction, Float
+    attribute :status, String
+
+    value_object "PrimordialAbundance" do
+      attribute :element, String
+      attribute :mass_fraction, Float
+      attribute :predicted, Float
+      attribute :observed, Float
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "ModelInflation" do
+      role "Cosmologist"
+      description "Simulate the exponential expansion in the first fraction of a second"
+      attribute :name, String
+      attribute :inflation_duration, Float
+      emits "InflationModeled"
+      then_set :name, to: :name
+      then_set :inflation_duration, to: :inflation_duration
+      then_set :status, to: "inflation"
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "SimulateNucleosynthesis" do
+      role "Cosmologist"
+      description "Model the formation of light elements in the first three minutes"
+      reference_to BigBang
+      attribute :nucleosynthesis_temperature, Float
+      attribute :helium_fraction, Float
+      given { status == "inflation" }
+      emits "NucleosynthesisSimulated"
+      then_set :nucleosynthesis_temperature, to: :nucleosynthesis_temperature
+      then_set :helium_fraction, to: :helium_fraction
+      then_set :status, to: "nucleosynthesis"
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "CalculateRecombination" do
+      role "Cosmologist"
+      description "Compute when electrons combined with nuclei — the universe became transparent"
+      reference_to BigBang
+      attribute :recombination_redshift, Float
+      given { status == "nucleosynthesis" }
+      emits "RecombinationCalculated"
+      then_set :recombination_redshift, to: :recombination_redshift
+      then_set :status, to: "recombination"
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
+
+    command "TraceStructureFormation" do
+      role "Cosmologist"
+      description "Follow density perturbations from recombination to galaxies and clusters"
+      reference_to BigBang
+      given { status == "recombination" }
+      emits "StructureFormationTraced"
+      then_set :status, to: "structure_formation"
     end
-    lifecycle :status, default: "initial" do
-      # TODO: add transitions
+
+    lifecycle :status, default: "singularity" do
+      transition "ModelInflation" => "inflation", from: "singularity"
+      transition "SimulateNucleosynthesis" => "nucleosynthesis", from: "inflation"
+      transition "CalculateRecombination" => "recombination", from: "nucleosynthesis"
+      transition "TraceStructureFormation" => "structure_formation", from: "recombination"
     end
   end
 
-  aggregate "Aggregate9", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+  # === Spacetime ===
+
+  aggregate "Spacetime", "The fabric of the universe — curvature, metric, geodesics, gravitational waves" do
+    attribute :name, String
+    attribute :curvature, Float
+    attribute :metric_type, String
+    attribute :dimension, Integer
+    attribute :gravitational_wave_strain, Float
+
+    value_object "MetricTensor" do
+      attribute :metric_name, String
+      attribute :signature, String
+      attribute :components, String
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "CurveSpacetime" do
+      role "Cosmologist"
+      description "Mass-energy curves the geometry of spacetime — Einstein field equations"
+      attribute :name, String
+      attribute :curvature, Float
+      attribute :metric_type, String
+      emits "SpacetimeCurved"
+      then_set :name, to: :name
+      then_set :curvature, to: :curvature
+      then_set :metric_type, to: :metric_type
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "CalculateMetric" do
+      role "System"
+      description "Solve for the metric tensor given a mass-energy distribution"
+      reference_to Spacetime
+      attribute :dimension, Integer
+      emits "MetricCalculated"
+      then_set :dimension, to: :dimension
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "TraceGeodesic" do
+      role "System"
+      description "Find the path of a free particle through curved spacetime"
+      reference_to Spacetime
+      emits "GeodesicTraced"
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
+
+    command "DetectGravitationalWave" do
+      role "Cosmologist"
+      description "Observe ripples in spacetime from merging compact objects"
+      reference_to Spacetime
+      attribute :gravitational_wave_strain, Float
+      emits "GravitationalWaveDetected"
+      then_set :gravitational_wave_strain, to: :gravitational_wave_strain
+    end
+
+    command "MeasureCurvature" do
+      role "Cosmologist"
+      description "Determine the local curvature of spacetime from observations"
+      reference_to Spacetime
+      attribute :curvature, Float
+      emits "CurvatureMeasured"
+      then_set :curvature, to: :curvature
     end
   end
 
-  aggregate "Aggregate10", "TODO" do
-    attribute :field_1, String
-    attribute :field_2, String
-    attribute :field_3, String
-    attribute :field_4, String
-    attribute :field_5, String
-    attribute :field_6, String
-    value_object "ValueObject1" do
-      attribute :field_1, String
-      attribute :field_2, String
-      attribute :field_3, String
+  # === CosmicStructure ===
+
+  aggregate "CosmicStructure", "The cosmic web — filaments, voids, clusters, and superclusters" do
+    attribute :name, String
+    attribute :structure_type, String
+    attribute :scale, Float
+    attribute :mass, Float
+    attribute :density_contrast, Float
+    attribute :correlation_length, Float
+
+    value_object "WebElement" do
+      attribute :element_type, String
+      attribute :extent, Float
+      attribute :galaxy_count, Integer
+      attribute :mean_density, Float
     end
-    command "DoThing1" do
-      role "User"
-      description "TODO"
-      emits "Thing1Done"
+
+    command "MapFilament" do
+      role "Cosmologist"
+      description "Trace a filament of galaxies connecting clusters across megaparsecs"
+      attribute :name, String
+      attribute :structure_type, String
+      attribute :scale, Float
+      emits "FilamentMapped"
+      then_set :name, to: :name
+      then_set :structure_type, to: "filament"
+      then_set :scale, to: :scale
     end
-    command "DoThing2" do
-      role "User"
-      description "TODO"
-      emits "Thing2Done"
+
+    command "IdentifyVoid" do
+      role "Cosmologist"
+      description "Locate a cosmic void — a vast underdense region between filaments"
+      reference_to CosmicStructure
+      attribute :density_contrast, Float
+      emits "VoidIdentified"
+      then_set :density_contrast, to: :density_contrast
     end
-    command "DoThing3" do
-      role "User"
-      description "TODO"
-      emits "Thing3Done"
+
+    command "DetectCluster" do
+      role "Cosmologist"
+      description "Detect a galaxy cluster from X-ray emission or gravitational lensing"
+      reference_to CosmicStructure
+      attribute :mass, Float
+      emits "ClusterDetected"
+      then_set :mass, to: :mass
     end
-    command "DoThing4" do
-      role "User"
-      description "TODO"
-      emits "Thing4Done"
+
+    command "SimulateStructureFormation" do
+      role "System"
+      description "N-body simulation of how cosmic structure grows from primordial fluctuations"
+      reference_to CosmicStructure
+      emits "StructureFormationSimulated"
     end
-    command "DoThing5" do
-      role "User"
-      description "TODO"
-      emits "Thing5Done"
-    end
-    command "DoThing6" do
-      role "User"
-      description "TODO"
-      emits "Thing6Done"
+
+    command "MeasureCorrelation" do
+      role "Cosmologist"
+      description "Compute the two-point correlation function — how galaxies cluster"
+      reference_to CosmicStructure
+      attribute :correlation_length, Float
+      emits "CorrelationMeasured"
+      then_set :correlation_length, to: :correlation_length
     end
   end
 
-  # policy 1 — TODO: wire events to commands
-  # policy 2 — TODO: wire events to commands
-  # policy 3 — TODO: wire events to commands
-  # policy 4 — TODO: wire events to commands
-  # policy 5 — TODO: wire events to commands
+  # === Policies ===
+
+  policy "CollapseOnFuelExhaustion" do
+    on "FuelExhausted"
+    trigger "CollapseStar"
+  end
+
+  policy "LensOnDarkMatter" do
+    on "DarkMatterDetected"
+    trigger "MeasureGravitationalLensing"
+  end
+
+  policy "StructureOnRecombination" do
+    on "RecombinationCalculated"
+    trigger "TraceStructureFormation"
+  end
+
+  policy "RadiateOnAccretion" do
+    on "MatterAccreted"
+    trigger "EmitHawkingRadiation"
+  end
+
+  # === Fixtures — Cosmological Constants ===
+
+  fixture "Universe", name: "ObservableUniverse", age: 13.8e9, radius: 46.5e9, curvature: 0.0, expansion_rate: 67.4, total_mass: 1.5e53, geometry: "flat"
+  fixture "CosmicMicrowaveBackground", name: "CMBBlackbody", temperature: 2.725, anisotropy_amplitude: 1.0e-5, polarization_mode: "E-mode", angular_power_spectrum: "Planck2018", redshift: 1089.0
+  fixture "DarkEnergy", name: "CosmologicalConstant", energy_density: 6.91e-27, equation_of_state: -1.0, acceleration_rate: 73.3, cosmological_constant: 1.1056e-52
+  fixture "Spacetime", name: "SpeedOfLight", curvature: 0.0, metric_type: "Minkowski", dimension: 4, gravitational_wave_strain: 0.0
+  fixture "DarkMatter", name: "CosmicDarkMatter", halo_mass: 1.0e12, density: 2.241e-27, distribution: "NFW", lensing_strength: 0.0, candidate_type: "WIMP"
 end

@@ -2,6 +2,7 @@ Absorb
 Accelerate
 Accept
 Accession
+Accrete
 Accredit
 Achieve
 Acknowledge
@@ -98,6 +99,7 @@ Configure
 Confirm
 Connect
 Conserve
+Constrain
 Construct
 Consume
 Contain
@@ -209,6 +211,7 @@ Examine
 Excite
 Execute
 Exercise
+Exhaust
 Exit
 Expand
 Expire
@@ -324,6 +327,7 @@ Mark
 Match
 Measure
 Melt
+Merge
 Metabolize
 Methylate
 Migrate
@@ -518,6 +522,7 @@ Ship
 Shut
 Sieve
 Sign
+Simulate
 Simplify
 Sinter
 Skip
@@ -556,6 +561,7 @@ Terminate
 Test
 Tokenize
 Top
+Trace
 Track
 Trade
 Train
