@@ -9,7 +9,7 @@
 use crate::runtime::Runtime;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, sidebar_links, display_name, esc};
+use super::html_shared::{wrap_page, sidebar_links, display_name, domain_icon, esc};
 
 /// Generate the full index page listing all domains
 pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
@@ -57,7 +57,7 @@ fn metric_cards(
 ) -> String {
     let card = |label: &str, value: usize, color: &str| -> String {
         format!(
-            r#"<div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+            r#"<div class="bg-surface-2 rounded-lg border border-surface-3 p-6">
     <p class="text-sm text-gray-400">{label}</p>
     <p class="text-3xl font-bold {color} mt-1">{value}</p>
   </div>"#,
@@ -75,14 +75,15 @@ fn metric_cards(
 
 fn domain_card(name: &str, category: &str, modules: usize, commands: usize) -> String {
     format!(
-        r#"<a href="/domains/{name}" class="bg-gray-800 rounded-lg border border-gray-700 p-6 hover:border-gray-500 transition block">
+        r#"<a href="/domains/{name}" class="bg-surface-2 rounded-lg border border-surface-3 p-6 hover:border-gray-500 transition block">
   <div class="flex items-center justify-between mb-2">
-    <h3 class="text-lg font-semibold text-white">{label}</h3>
-    <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">{category}</span>
+    <h3 class="text-lg font-semibold text-white">{icon} {label}</h3>
+    <span class="text-xs px-2 py-1 rounded bg-surface-3 text-gray-300">{category}</span>
   </div>
   <p class="text-sm text-gray-400">{modules} modules, {commands} commands</p>
 </a>"#,
         name = name,
+        icon = domain_icon(name),
         label = esc(&display_name(name)),
         category = esc(category),
         modules = modules,

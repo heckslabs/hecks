@@ -9,7 +9,7 @@
 use crate::runtime::Runtime;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, sidebar_links, display_name, esc};
+use super::html_shared::{wrap_page, sidebar_links, display_name, domain_icon, esc};
 
 /// Generate the detail page for one domain
 pub fn generate_domain_page(
@@ -29,16 +29,14 @@ pub fn generate_domain_page(
     let mut main = String::new();
     main.push_str(&format!(
         r#"<div class="mb-1">
-  <h1 class="text-3xl font-bold">{label}</h1>
+  <h1 class="text-3xl font-bold text-brand">{label}</h1>
 </div>
-<p class="text-gray-400 mb-8">{modules} modules, {policies} policies</p>"#,
+"#,
         label = esc(&display_name(name)),
-        modules = rt.domain.aggregates.len(),
-        policies = rt.domain.policies.len(),
     ));
 
-    for agg in &rt.domain.aggregates {
-        main.push_str(&module_card(name, agg));
+    for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
+        main.push_str(&module_card(name, agg, idx));
     }
 
     // Fixtures table
@@ -49,12 +47,22 @@ pub fn generate_domain_page(
     wrap_page(&display_name(name), &sidebar, &main)
 }
 
-fn module_card(domain: &str, agg: &crate::ir::Aggregate) -> String {
+fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String {
+    let open_attr = if index == 0 { " open" } else { "" };
+    let icon = domain_icon(domain);
     let mut s = format!(
-        r#"<div class="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6" data-domain-aggregate="{agg_name}">
-  <h2 class="text-xl font-semibold text-white mb-1">{label}</h2>
-  <p class="text-sm text-gray-400 mb-4">{desc}</p>"#,
+        r#"<details class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
+  <summary class="p-6 cursor-pointer select-none flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold">{icon} {label}</h2>
+      <p class="text-gray-400 text-sm mt-1">{desc}</p>
+    </div>
+    <span class="text-gray-500">▾</span>
+  </summary>
+  <div class="px-6 pb-6">"#,
         agg_name = esc(&agg.name),
+        open_attr = open_attr,
+        icon = icon,
         label = esc(&display_name(&agg.name)),
         desc = esc(agg.description.as_deref().unwrap_or("")),
     );
@@ -72,7 +80,7 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate) -> String {
             let color = if state == lc.default.as_str() {
                 "bg-emerald-900 text-emerald-300"
             } else {
-                "bg-gray-700 text-gray-300 hover:bg-gray-600 cursor-pointer"
+                "bg-surface-3 text-gray-300 hover:bg-gray-600 cursor-pointer"
             };
             s.push_str(&format!(
                 r#"<span class="text-xs px-2 py-1 rounded {color}" onclick="filterByStatus(this, '{state}')">{state}</span>"#,
@@ -87,7 +95,7 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate) -> String {
     for cmd in &agg.commands {
         s.push_str(&command_section(domain, cmd));
     }
-    s.push_str("</div></div>");
+    s.push_str("</div></div></details>");
     s
 }
 
@@ -97,7 +105,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
         fields.push_str(&format!(
             r#"<div>
   <label class="block text-xs text-gray-400 mb-1">{label}</label>
-  <input name="{name}" type="text" placeholder="{atype}" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-gray-100 focus:border-blue-500 focus:outline-none">
+  <input name="{name}" type="text" placeholder="{atype}" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none">
 </div>"#,
             label = esc(&display_name(&attr.name)),
             name = esc(&attr.name),
@@ -107,14 +115,16 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     let desc = cmd.description.as_deref().unwrap_or("");
     format!(
         r#"<details data-domain-command="{cmd_name}">
-  <summary class="cursor-pointer px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">{label}{role}</summary>
-  <div class="mt-2 p-4 bg-gray-900 rounded-lg border border-gray-700">
+  <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition">▸ {label}{role}</summary>
+  <div class="mt-2 p-4 bg-surface-1 rounded-lg border border-surface-3">
     <p class="text-xs text-gray-500 mb-3">{desc}</p>
-    <form method="POST" action="/domains/{domain}/dispatch" class="space-y-3"
+    <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 gap-3"
           onsubmit="return submitCmd(this, '{cmd_name}')">
       {fields}
-      <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium transition">Run</button>
-      <span class="cmd-result text-xs text-gray-400 ml-3"></span>
+      <div class="col-span-2 flex items-center gap-3">
+        <button type="submit" class="px-4 py-1.5 bg-surface-3 hover:bg-surface-4 border border-surface-4 rounded text-sm font-medium transition text-brand">Execute</button>
+        <span class="cmd-result text-xs text-gray-400"></span>
+      </div>
     </form>
   </div>
 </details>"#,
@@ -131,7 +141,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
 
 fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     let mut s = String::from(
-        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-700 text-left text-gray-400">"#,
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-surface-3 text-left text-gray-400">"#,
     );
     // Only show Module column if there are mixed aggregate types
     let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
@@ -146,7 +156,7 @@ fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     }
     s.push_str("</tr></thead><tbody>");
     for fix in fixtures {
-        s.push_str("<tr class=\"border-b border-gray-800\">");
+        s.push_str("<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"alert(this.innerText)\">");
         if mixed {
             s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name)));
         }

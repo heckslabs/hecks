@@ -19,8 +19,23 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   <title>{title} — {app_name}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>body {{ font-family: 'Inter', sans-serif; }}</style>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&family=Cabin:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {{ font-family: 'Cabin', sans-serif; }}
+    h1, h2, h3 {{ font-family: 'Roboto Slab', serif; }}
+  </style>
+  <script>
+  tailwind.config = {{
+    theme: {{
+      extend: {{
+        colors: {{
+          brand: {{ DEFAULT: '#ffe400', dim: '#ffd200', glow: 'rgba(255,228,0,0.15)' }},
+          surface: {{ 0: '#111111', 1: '#1a1a1a', 2: '#222222', 3: '#333e48', 4: '#444444' }}
+        }}
+      }}
+    }}
+  }}
+  </script>
   <script>
   function submitCmd(form, cmd) {{
     const data = {{}};
@@ -60,11 +75,11 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   }}
   </script>
 </head>
-<body class="h-full bg-gray-950 text-gray-100">
+<body class="h-full bg-surface-0 text-gray-100">
   <div class="flex h-full">
-    <aside class="w-64 bg-gray-900 border-r border-gray-700 flex flex-col fixed h-full overflow-y-auto">
+    <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
       <div class="p-6">
-        <a href="/" class="text-xl font-bold text-white hover:text-blue-400 transition">{app_name}</a>
+        <a href="/" class="text-xl font-bold text-brand hover:text-brand-dim transition">{app_name}</a>
         <p class="text-xs text-gray-500 mt-1">{app_subtitle}</p>
       </div>
       <nav class="flex-1 px-4 pb-4 space-y-1">
@@ -74,10 +89,13 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         <p class="text-xs text-gray-600 text-center">Empowered by Hecks</p>
       </div>
     </aside>
-    <main class="flex-1 ml-64 overflow-y-auto">
-      <div class="p-8 max-w-6xl">
+    <main class="flex-1 ml-64 overflow-y-auto flex flex-col min-h-full">
+      <div class="p-8 max-w-6xl flex-1">
         {main_html}
       </div>
+      <footer class="p-4 text-center">
+        <p class="text-xs text-gray-600">Empowered by Hecks</p>
+      </footer>
     </main>
   </div>
 </body>
@@ -95,22 +113,43 @@ pub fn sidebar_links(domains: &[(String, usize)], active: Option<&str>) -> Strin
     let mut out = String::new();
     for (name, count) in domains {
         let active_class = if active == Some(name.as_str()) {
-            "bg-gray-800 text-white"
+            "bg-surface-3 text-brand"
         } else {
-            "text-gray-400 hover:bg-gray-800 hover:text-white"
+            "text-gray-400 hover:bg-surface-2 hover:text-white"
         };
+        let icon = domain_icon(name);
         out.push_str(&format!(
-            r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm {active_class} transition">
-  <span>{label}</span>
-  <span class="text-xs text-gray-600">{count}</span>
+            r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="block px-3 py-2 rounded-lg text-sm {active_class} transition">
+  {icon} {label}
 </a>"#,
             name = name,
+            icon = icon,
             label = display_name(name),
-            count = count,
             active_class = active_class,
         ));
     }
     out
+}
+
+/// Return an emoji icon for a domain based on keyword matching
+pub fn domain_icon(name: &str) -> &'static str {
+    let lower = name.to_lowercase();
+    if lower.contains("brand") { return "\u{1F3AF}"; }
+    if lower.contains("claim") { return "\u{1F4CB}"; }
+    if lower.contains("compliance") || lower.contains("regulatory") { return "\u{2696}\u{FE0F}"; }
+    if lower.contains("persona") || lower.contains("customer") { return "\u{1F465}"; }
+    if lower.contains("demand") { return "\u{1F4CA}"; }
+    if lower.contains("distribution") { return "\u{1F69A}"; }
+    if lower.contains("lab") { return "\u{1F52C}"; }
+    if lower.contains("formulation") { return "\u{1F9EA}"; }
+    if lower.contains("inventory") { return "\u{1F4E6}"; }
+    if lower.contains("manufactur") { return "\u{1F3ED}"; }
+    if lower.contains("pricing") { return "\u{1F4B0}"; }
+    if lower.contains("quality") { return "\u{2705}"; }
+    if lower.contains("storefront") { return "\u{1F6D2}"; }
+    if lower.contains("supply") { return "\u{1F517}"; }
+    if lower.contains("catalog") { return "\u{1F4E6}"; }
+    "\u{1F4CB}"
 }
 
 /// Convert snake_case domain name to Title Case display name
