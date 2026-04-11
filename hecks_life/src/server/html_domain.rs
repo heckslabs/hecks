@@ -7,9 +7,12 @@
 //!   let page = generate_domain_page(&rt, &all_domains);
 
 use crate::runtime::Runtime;
+use crate::ir::Fixture;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, esc};
+use super::html_workflow::workflow_pipeline;
+use super::html_fixtures::module_fixtures;
 
 /// Generate the detail page for one domain
 pub fn generate_domain_page(
@@ -47,7 +50,7 @@ pub fn generate_domain_page(
         main.push_str(&module_navbar(&rt.domain.aggregates));
     }
     for (idx, agg) in rt.domain.aggregates.iter().enumerate() {
-        main.push_str(&module_card(name, agg, idx));
+        main.push_str(&module_card(name, agg, idx, &rt.domain.fixtures));
     }
     main.push_str("</div>");
 
@@ -73,7 +76,9 @@ fn module_navbar(aggregates: &[crate::ir::Aggregate]) -> String {
     s
 }
 
-fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String {
+fn module_card(
+    domain: &str, agg: &crate::ir::Aggregate, index: usize, fixtures: &[Fixture],
+) -> String {
     let open_attr = if index == 0 { " open" } else { "" };
     let icon = module_icon(&agg.name);
     let mut s = format!(
@@ -93,27 +98,9 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String
         desc = esc(agg.description.as_deref().unwrap_or("")),
     );
 
-    // Lifecycle badges
+    // Workflow pipeline (replaces lifecycle badges)
     if let Some(ref lc) = agg.lifecycle {
-        s.push_str(r#"<div class="flex gap-2 mb-4">"#);
-        let mut states: Vec<&str> = vec![&lc.default];
-        for t in &lc.transitions {
-            if !states.contains(&t.to_state.as_str()) {
-                states.push(&t.to_state);
-            }
-        }
-        for state in states {
-            let color = if state == lc.default.as_str() {
-                "bg-emerald-900 text-emerald-300"
-            } else {
-                "bg-surface-3 text-gray-300 hover:bg-gray-600 cursor-pointer"
-            };
-            s.push_str(&format!(
-                r#"<span class="text-xs px-2 py-1 rounded {color}" onclick="filterByStatus(this, '{state}')">{state}</span>"#,
-                color = color, state = esc(state),
-            ));
-        }
-        s.push_str("</div>");
+        s.push_str(&workflow_pipeline(lc, &agg.commands));
     }
 
     // Command buttons and forms
@@ -121,7 +108,12 @@ fn module_card(domain: &str, agg: &crate::ir::Aggregate, index: usize) -> String
     for cmd in &agg.commands {
         s.push_str(&command_section(domain, cmd));
     }
-    s.push_str("</div></div></details>");
+    s.push_str("</div>");
+
+    // Per-module fixture table
+    s.push_str(&module_fixtures(fixtures, &agg.name));
+
+    s.push_str("</div></details>");
     s
 }
 

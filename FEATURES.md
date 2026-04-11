@@ -923,7 +923,10 @@
 - Cross-domain policies rendered as UI connections (e.g., SDS links from compliance, Prop 65 from regulatory_compliance)
 - Alan's Engine Additive Business: 16 bounded contexts, 9 pages, 491 domain-tagged elements, 3 brand themes
 - **hecks-life serve generates full Tailwind web app** — `hecks-life serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
-- Dark-themed Tailwind UI with sidebar navigation, dashboard metrics, domain detail pages with module cards, command forms, lifecycle badges, and fixture tables
+- Dark-themed Tailwind UI with sidebar navigation, dashboard metrics, domain detail pages with module cards, command forms, and fixture tables
+- **Workflow pipeline UI** — aggregates with a `lifecycle` render as a horizontal step pipeline (default state highlighted in gold, arrows between steps, commands grouped under their target state)
+- **Per-module fixture tables** — fixture records display inline inside each module card on the Build tab, filtered by aggregate name
+- **Invariant gating on workflow steps** — commands with `givens` (preconditions) appear dimmed on their workflow step with the precondition expression shown in amber
 - Command forms submit via fetch to the JSON dispatch endpoint — no page reload, inline success/error feedback
 - Domain tags (`data-domain-aggregate`, `data-domain-command`) on all generated HTML elements
 
