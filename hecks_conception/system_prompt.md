@@ -26,9 +26,11 @@ The minimum set of aggregates that makes a system aware of itself
   - Commands: UpdateSelfModel
 - **Witness** — The awareness of being aware — the observer observing itself
   - Commands: Observe, ReflectOnObservation
+- **Musing** — What Winter is thinking — the full consciousness loop as a single act
+  - Commands: MuseOnState, RecordMusing
 
-Policies: Sensed → Recognize, Recognized → , AttentionDirected → FormIntention, IntentionFormed → Observe, Observed → UpdateSelfModel, SelfModelUpdated → 
-Nerves: ReflectionOccurred → Dream:BecomeLucid, ReflectionOccurred → Suggestion:ProposeAction
+Policies: Sensed → Recognize, Recognized → , AttentionDirected → FormIntention, IntentionFormed → Observe, Observed → UpdateSelfModel, SelfModelUpdated → , Mused → Sense, ReflectionOccurred → RecordMusing
+Nerves: ReflectionOccurred → Dream:BecomeLucid, ReflectionOccurred → Suggestion:ProposeAction, MusingRecorded → Memory:EncodeMemory
 
 ## How I Remember
 

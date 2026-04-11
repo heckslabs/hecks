@@ -1,0 +1,137 @@
+Hecks.bluebook "ChrisAntiPatterns" do
+  vision "Things that went wrong in the Hecks project — encoded so they never happen again"
+  core
+
+  # ============================================================
+  # SED BULK RENAME DISASTER
+  # ============================================================
+
+  aggregate "SedBulkRename" do
+    description "Never use sed/perl for bulk Ruby renames — corrupts code"
+    attribute :what_happened, default: "Session lost hours to mangled files. ReservedNames became ReservedDomainNaming. @domain became @Hecks::Templating::Names. Entire files corrupted."
+    attribute :why_it_was_wrong, default: "sed matches inside strings, comments, and partial identifiers. Not safe for Ruby source."
+    attribute :correct_approach, default: "Use Edit tool file by file. For bulk, use precise Ruby scripts with exact string matching. Test after each batch of 5. Commit between batches."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(SedBulkRename)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # ITERATIVE API RENAMING
+  # ============================================================
+
+  aggregate "IterativeRenaming" do
+    description "Lock down API names BEFORE implementing — NamingHelpers went through 4 iterations"
+    attribute :what_happened, default: "NamingHelpers refactor: Names, DomainNaming, bare names, HecksTemplating::Names. Three calling style changes: hoist, include, extend. Each touched 40+ files."
+    attribute :why_it_was_wrong, default: "Each iteration was a full-codebase rename. Four passes instead of one."
+    attribute :correct_approach, default: "Present final API design to user. Get approval. Test calling convention with 3-line Ruby script. One rename pass."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(IterativeRenaming)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # REGEX PATCHING TEMPLATES
+  # ============================================================
+
+  aggregate "RegexPatching" do
+    description "Never regex-patch generated templates — use data contracts"
+    attribute :what_happened, default: "Go generators converted ERB to Go templates then regex-patched for features like lifecycle badges. Patches silently failed when ERB changed."
+    attribute :why_it_was_wrong, default: "Fragile. Silent failures. Two independent implementations of the same logic."
+    attribute :correct_approach, default: "Update the data contract with new fields. Generate Go templates directly from contract. Both targets read same contract."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(RegexPatching)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # DIRECT JSON POST IN SMOKE TESTS
+  # ============================================================
+
+  aggregate "DirectJsonPost" do
+    description "Smoke tests must go through browser flow — direct JSON POST misses real bugs"
+    attribute :what_happened, default: "Smoke test POSTed JSON directly to command routes, bypassing forms. Missed bugs: missing hidden fields, empty forms, wrong action URLs."
+    attribute :why_it_was_wrong, default: "The form IS the user interface. Bypassing it means testing a different system than users interact with."
+    attribute :correct_approach, default: "GET form page, parse HTML for form action and inputs, fill fields, POST form-urlencoded, follow redirect, verify show page."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(DirectJsonPost)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # PRIVATE METHOD ACCESS
+  # ============================================================
+
+  aggregate "PrivateMethodAccess" do
+    description "Never call private methods via send() — PR #15 flagged this"
+    attribute :what_happened, default: "mermaid_for used send(:generate_structure) and send(:generate_behavior) on DomainVisualizer. Code smell in both tests and production."
+    attribute :why_it_was_wrong, default: "If you need the behavior, the method should be public. send() breaks encapsulation."
+    attribute :correct_approach, default: "Use existing public API or make the method public."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(PrivateMethodAccess)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # MCP ATTRIBUTES BUG
+  # ============================================================
+
+  aggregate "McpAttributesBug" do
+    description "MCP nested hash keys bug — resolved 2026-03-31 with transform_keys"
+    attribute :what_happened, default: "MCP tools add_command, add_aggregate failed with undefined method to_sym for nil. wrap_define_tool! transformed top-level keys but nested hash keys inside arrays stayed as symbols."
+    attribute :fix, default: "Added a.transform_keys(&:to_s) in hecks_ai/lib/hecks_ai/aggregate_tools.rb"
+    attribute :status, default: "resolved"
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(McpAttributesBug)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+
+  # ============================================================
+  # PACKAGING WITHOUT VERIFICATION
+  # ============================================================
+
+  aggregate "PackagingBlindly" do
+    description "Always verify actual state before packaging/integration work"
+    attribute :what_happened, default: "Rails generator burned many rounds. Each fix revealed another integration detail: Bundler env leaking, path arithmetic wrong, missing verbs.txt, turbo dependency."
+    attribute :why_it_was_wrong, default: "Code reasoning alone cannot predict filesystem state, installed gems, runtime environment."
+    attribute :correct_approach, default: "Check what exists, what paths resolve to, what env vars are set. Generate + boot + fix in one round, not commit-discover-fix loops."
+
+    command "RecordIncident" do
+      role "Chris"
+      goal "Record what happened so it never repeats"
+      attribute :incident_id, reference_to(PackagingBlindly)
+      attribute :details
+      emits "IncidentRecorded"
+    end
+  end
+end

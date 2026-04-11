@@ -13,31 +13,17 @@
 # Usage: ruby daydream.rb &
 #        (spawned by pulse.rb, runs until pulse detected)
 
-require "zlib"
-require "securerandom"
-require "time"
+require_relative "heki"
 
-MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("information", __dir__)
 NURSERY  = File.expand_path("nursery", __dir__)
 
 DAYDREAM_AFTER   = 10   # start daydreaming after 10s idle
 SLEEP_THRESHOLD  = 60   # hand off to sleep cycle at 60s
 WANDER_INTERVAL  = 8    # wander every 8 seconds (Rust parsing takes time)
 
-def read_heki(path)
-  return {} unless File.exist?(path)
-  data = File.binread(path)
-  return {} unless data[0..3] == MAGIC
-  Marshal.load(Zlib::Inflate.inflate(data[8..]))
-end
-
-def write_heki(path, records)
-  blob = Zlib::Deflate.deflate(Marshal.dump(records), Zlib::BEST_SPEED)
-  File.binwrite(path, MAGIC + [records.size].pack("N") + blob)
-end
-
-def heki(name) = File.join(INFO_DIR, "#{name}.heki")
+def read_heki(path)  = Heki.read(path)
+def write_heki(path, records) = Heki.write(path, records)
+def heki(name) = Heki.store(name)
 
 def last_pulse_at
   pulse = read_heki(heki("pulse"))

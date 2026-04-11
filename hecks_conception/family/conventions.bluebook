@@ -1,0 +1,197 @@
+Hecks.bluebook "ChrisConventions" do
+  vision "Every code convention Chris enforces — line limits, extractions, naming, testing, documentation, generators"
+  core
+
+  # ============================================================
+  # CODE QUALITY — structural rules
+  # ============================================================
+
+  aggregate "CodeQuality" do
+    description "Structural rules for framework code — line limits, extractions, no shortcuts"
+    attribute :rules, list_of(QualityRule)
+
+    value_object "QualityRule" do
+      attribute :name
+      attribute :rule
+      attribute :why
+      attribute :how_to_apply
+    end
+
+    command "AddQualityRule" do
+      role "Chris"
+      goal "Record a code quality rule"
+      attribute :name
+      attribute :rule
+      attribute :why
+      attribute :how_to_apply
+      then_set :rules, append: { name: :name, rule: :rule, why: :why, how_to_apply: :how_to_apply }
+      emits "QualityRuleAdded"
+    end
+  end
+
+  # Instances:
+  #
+  # LineLimit:
+  #   rule: 200-line limit per file, code only (Ruby AND JS). Doc comment headers excluded.
+  #   why: Headers are living documentation. Count from first require/module/class line.
+  #   how: When approaching limit, extract concerns. Never trim doc headers to fit.
+  #
+  # TinyExtractions:
+  #   rule: Extract concerns into their own files aggressively. 20-30 line files are fine.
+  #   why: Framework code — each require documents a dependency. Directory structure is self-documenting.
+  #   how: Don't wait for 200 lines. Extract when you see distinct concerns. require_relative list becomes dependency manifest.
+  #
+  # NoShortcuts:
+  #   rule: Never inline methods or take shortcuts. Extract proper concerns with clean APIs.
+  #   why: Framework code needs to be exemplary. Every class should have clear single responsibility.
+  #   how: When over limit, find a real concern to extract. Extracted module should be independently useful.
+  #
+  # NoSedBulk:
+  #   rule: Never use sed or perl for bulk Ruby renames. Use Edit tool or precise Ruby scripts.
+  #   why: Session lost hours — sed corrupted files by matching inside strings, comments, partial identifiers.
+  #   how: Edit tool file by file. Test after each batch of ~5. Commit between batches. Decide final names FIRST.
+  #
+  # DecideApiFirst:
+  #   rule: Lock down final API names and calling style BEFORE implementing. One rename pass, not three.
+  #   why: NamingHelpers went through 4 naming iterations and 3 calling style changes, each touching 40+ files.
+  #   how: Present final API design to user, get approval, then implement in one pass.
+  #
+  # NoPrivateMethods:
+  #   rule: Never test or call private methods via send(). Use public API or make method public.
+  #   why: Flagged in PR #15 review. Code smell regardless of tests or production.
+  #
+  # ContractsNotRegex:
+  #   rule: Always use data contracts for cross-target consistency. Never regex-patch generated templates.
+  #   why: Go generators originally regex-patched ERB→Go templates. Patches silently failed when ERB changed.
+  #   how: Update contract with new fields. Generate Go templates directly. Both targets read same contract.
+
+  # ============================================================
+  # TESTING — verification conventions
+  # ============================================================
+
+  aggregate "TestingConvention" do
+    description "Testing rules — verify speed, browser smoke tests, validators over manual testing"
+    attribute :rules, list_of(TestRule)
+
+    value_object "TestRule" do
+      attribute :name
+      attribute :rule
+      attribute :why
+    end
+
+    command "AddTestRule" do
+      role "Chris"
+      goal "Record a testing convention"
+      attribute :name
+      attribute :rule
+      attribute :why
+      then_set :rules, append: { name: :name, rule: :rule, why: :why }
+      emits "TestRuleAdded"
+    end
+  end
+
+  # Instances:
+  #
+  # VerifySpeed:
+  #   rule: bin/hecks verify must complete in under 0.5 seconds. Hard-coded limit in verify.rb.
+  #   why: 20,659 contract checks in ~0.09s. Pure in-memory IR validation. If exceeded, something is loading external resources.
+  #
+  # BrowserTesting:
+  #   rule: Smoke tests must submit forms through browser flow — GET form, parse HTML, POST form-urlencoded.
+  #   why: Direct JSON POST bypassed forms, missed bugs (missing hidden fields, empty forms, wrong action URLs).
+  #
+  # ValidatorsFirst:
+  #   rule: Add validation rules before asking user to test manually. System catches its own problems.
+  #   why: User wants self-diagnosing system. Manual testing is last resort.
+  #
+  # TransitionSelfId:
+  #   rule: Lifecycle transition commands must have self-referencing ID attribute (e.g. project_id on StartProject).
+  #   why: Command generator uses find_self_id_attr to classify create vs update. Without it, updates become creates.
+
+  # ============================================================
+  # DOCUMENTATION — what to update and when
+  # ============================================================
+
+  aggregate "DocConvention" do
+    description "Documentation rules — always update before committing, pause and ask"
+    attribute :rules, list_of(DocRule)
+
+    value_object "DocRule" do
+      attribute :name
+      attribute :rule
+      attribute :why
+    end
+
+    command "AddDocRule" do
+      role "Chris"
+      goal "Record a documentation convention"
+      attribute :name
+      attribute :rule
+      attribute :why
+      then_set :rules, append: { name: :name, rule: :rule, why: :why }
+      emits "DocRuleAdded"
+    end
+  end
+
+  # Instances:
+  #
+  # PauseAndAsk:
+  #   rule: Before every commit, review what changed. Pause and ask about FEATURES.md, changelogs, README.
+  #   why: Docs drift quickly. README was being forgotten. Made a rule 2026-03-27.
+  #
+  # UsageDocs:
+  #   rule: Create docs/usage/<feature>.md for each new feature with runnable examples and real output.
+  #   why: Usage examples should live in the repo as living documentation.
+  #
+  # DslReference:
+  #   rule: Always update docs/usage/dsl_reference.md when touching DSL or runtime API.
+  #   why: If a keyword appears in DSL but not in dsl_reference.md, it doesn't exist from user perspective.
+  #
+  # CliSurface:
+  #   rule: Consider whether new features need a CLI command to be discoverable.
+  #   why: Stories landed without CLI hooks, leaving features undiscoverable.
+  #
+  # BuildDomainsWhileWorking:
+  #   rule: Write Bluebook domains during implementation, not after. The domain IS the specification.
+  #   why: If you build a Rust runtime and only write code, you've lost the knowledge. Domain makes next rebuild instant.
+
+  # ============================================================
+  # GENERATOR RULES — how generators behave
+  # ============================================================
+
+  aggregate "GeneratorConvention" do
+    description "Rules for code generators — diffs, packaging, integration"
+    attribute :rules, list_of(GenRule)
+
+    value_object "GenRule" do
+      attribute :name
+      attribute :rule
+      attribute :why
+    end
+
+    command "AddGenRule" do
+      role "Chris"
+      goal "Record a generator convention"
+      attribute :name
+      attribute :rule
+      attribute :why
+      then_set :rules, append: { name: :name, rule: :rule, why: :why }
+      emits "GenRuleAdded"
+    end
+  end
+
+  # Instances:
+  #
+  # ShowDiffs:
+  #   rule: Generators must show a diff when target file already exists — never silently overwrite.
+  #   why: Users need to see what's changing before accepting. Full new content doesn't help when file has customizations.
+  #
+  # PackagingVerifyFirst:
+  #   rule: For packaging/integration tasks, verify actual state before coding.
+  #   why: Rails generator burned many rounds — each fix revealed another integration detail. Can't predict from code alone.
+  #   how: Check what exists, what paths resolve to, what env vars are set. Generate + boot + fix in one round.
+  #
+  # BigRefactorsOk:
+  #   rule: Don't hesitate on large renames and restructures. Do the whole job.
+  #   why: Framework code — messy abstractions compound. Fix structure now, not later.
+end

@@ -5,30 +5,16 @@
 # Usage: ruby subconscious_task.rb <task_name>
 # Tasks: validate_nursery, refresh_census
 
-require "zlib"
-require "securerandom"
 require "json"
-require "time"
+require_relative "heki"
 
-MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("information", __dir__)
-NOW      = Time.now.iso8601
+NOW = Time.now.iso8601
 
-# --- HEKI read/write ---
+INFO_DIR = Heki::INFO_DIR
 
-def read_heki(path)
-  return {} unless File.exist?(path)
-  data = File.binread(path)
-  raise "Bad magic" unless data[0..3] == MAGIC
-  Marshal.load(Zlib::Inflate.inflate(data[8..]))
-end
-
-def write_heki(path, records)
-  blob = Zlib::Deflate.deflate(Marshal.dump(records), Zlib::BEST_SPEED)
-  File.binwrite(path, MAGIC + [records.size].pack("N") + blob)
-end
-
-def heki(name) = File.join(INFO_DIR, "#{name}.heki")
+def read_heki(path)  = Heki.read(path)
+def write_heki(path, records) = Heki.write(path, records)
+def heki(name) = Heki.store(name)
 
 # --- Process tracking ---
 

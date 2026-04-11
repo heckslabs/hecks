@@ -1,0 +1,285 @@
+Hecks.bluebook "ChrisProjectKnowledge" do
+  vision "Everything Chris knows about the Hecks architecture — compiler design, contracts, capabilities, renames, decisions"
+  core
+
+  # ============================================================
+  # ARCHITECTURE — how Hecks works
+  # ============================================================
+
+  aggregate "Architecture" do
+    description "Hecks is a domain compiler. Ruby DSL is source language, domain IR is AST, validators are type checker, generators are code emitters."
+
+    attribute :tagline, default: "In the world of AI, specification is king"
+    attribute :modes, list_of(String)
+    attribute :modules, list_of(HecksModule)
+
+    value_object "HecksModule" do
+      attribute :name
+      attribute :purpose
+    end
+
+    command "DocumentArchitecture" do
+      role "Chris"
+      goal "Record architectural knowledge"
+      attribute :name
+      attribute :purpose
+      then_set :modules, append: { name: :name, purpose: :purpose }
+      emits "ArchitectureDocumented"
+    end
+  end
+
+  # Three modes:
+  # Dynamic — Hecks.boot(__dir__) loads domain at runtime. Extensions auto-wire from Gemfile.
+  # Static Ruby — hecks build --static generates self-contained Ruby project. Zero hecks dependency.
+  # Static Go — Hecks.build_go(domain) generates complete Go project. Single binary.
+  #
+  # Modules:
+  # bluebook (formerly hecks_model) — DSL builders, domain IR (Structure + Behavior), validation rules, generators, compiler
+  # hecks_runtime — dynamic runtime (event bus, command bus, ports, mixins), extensions
+  # hecks_static — static Ruby generator
+  # hecks_go — static Go generator, direct Go templates
+  # hecks_templating — data contracts (11), smoke test
+  # hecks_cli — Thor CLI
+  # hecks_workshop — REPL/sketch/play (formerly session/workbench)
+  # hecks_persist — SQL adapters (Sequel)
+  # hecks_watchers — file watchers for Claude Code
+
+  # ============================================================
+  # CONTRACTS — the 12 data contracts
+  # ============================================================
+
+  aggregate "ContractSystem" do
+    description "12 shared contracts guarantee Ruby/Go generators produce identical behavior. Central to preventing cross-target drift."
+
+    attribute :contracts, list_of(Contract)
+
+    value_object "Contract" do
+      attribute :name
+      attribute :purpose
+    end
+
+    command "AddContract" do
+      role "Chris"
+      goal "Register a data contract"
+      attribute :name
+      attribute :purpose
+      then_set :contracts, append: { name: :name, purpose: :purpose }
+      emits "ContractAdded"
+    end
+  end
+
+  # Instances:
+  # AggregateContract — self-ref detection, command partitioning, rules, direct_action?. Most critical.
+  # TypeContract — IR type to Go/SQL/JSON/OpenAPI mappings. format_go_literal().
+  # ViewContract — template data shapes (layout, home, index, show, form, config). Go structs.
+  # EventContract — event interface, REQUIRED_FIELDS, field validation.
+  # EventLogContract — JSON shape for GET /_events. go_struct, go_mapper, ruby_mapper.
+  # FormParsingContract — Go type to HTML input spec. go_parse_line, ruby_coerce.
+  # UILabelContract — field name to display label. Strips _id suffix for references.
+  # DisplayContract — cell expressions, lifecycle labels, reference display fields.
+  # MigrationContract — round-trip serialization for domain snapshots.
+  # CommandContract — command method name derivation.
+  # NamingContract — naming conventions enforcement.
+  # RouteContract — URL patterns: form_path, submit_path for command routes.
+
+  # ============================================================
+  # CAPABILITIES — the two-file pattern
+  # ============================================================
+
+  aggregate "CapabilitySystem" do
+    description "Two-file pattern: Bluebook (pure domain) + Hecksagon (infrastructure capabilities). Capabilities are IR visitors."
+
+    attribute :capability_count, Integer, default: "15"
+    attribute :composite_count, Integer, default: "5"
+    attribute :capabilities, list_of(Capability)
+
+    value_object "Capability" do
+      attribute :name
+      attribute :purpose
+    end
+
+    command "AddCapability" do
+      role "Chris"
+      goal "Register a capability"
+      attribute :name
+      attribute :purpose
+      then_set :capabilities, append: { name: :name, purpose: :purpose }
+      then_set :capability_count, increment: 1
+      emits "CapabilityAdded"
+    end
+  end
+
+  # Built capabilities (15):
+  # websocket, static_assets, live_reload, client_commands, project_discovery,
+  # readme, tailwind, workbench, acceptance_test, app_builder, web_client_state,
+  # crud, chat_agent, persistence (sqlite)
+  #
+  # Composites (5): webapp, api, observable, webstack, microservice
+  #
+  # Port+adapter pattern: each capability has port (runtime-facing) + adapter (swappable transport)
+  # World config: capabilities read from Hecks.last_world.config_for(:name)
+  # Concerns self-activate from usage (.pii implies PII concern)
+
+  # ============================================================
+  # DESIGN DECISIONS — resolved questions
+  # ============================================================
+
+  aggregate "DesignDecision" do
+    description "Key design decisions and their rationale"
+    attribute :name
+    attribute :decision
+    attribute :why
+    attribute :date
+
+    command "RecordDecision" do
+      role "Chris"
+      goal "Record a design decision"
+      attribute :name
+      attribute :decision
+      attribute :why
+      attribute :date
+      then_set :name, to: :name
+      then_set :decision, to: :decision
+      then_set :why, to: :why
+      then_set :date, to: :date
+      emits "DecisionRecorded"
+    end
+  end
+
+  # Instances:
+  # TargetUser: Someone who wants DDD without ActiveRecord. Framework teaches through constraints.
+  # PortsAsAuth: Port definitions in DSL enforced at domain level via check_port_access. Not middleware.
+  # PersistenceAsExtensions: Memory default, filesystem and SQL opt-in. All work in dynamic and static mode.
+  # ContractsOverInterfaces: Ruby shape conformance, not .NET interface declarations. Tests are the type system.
+  # MemoryFirst: Everything defaults to memory — adapters, persistence, chat agents. Never specify default: "memory".
+  # NoDotHecks: Cancelled .hecks language (HEC-231). Ruby DSL is the language.
+  # ImplicitDSL: Sugar on explicit DSL. PascalCase=aggregate, snake_case=command. Export always outputs explicit.
+
+  # ============================================================
+  # RENAMES — major naming changes
+  # ============================================================
+
+  aggregate "Rename" do
+    description "Major naming changes in the project history"
+    attribute :from_name
+    attribute :to_name
+    attribute :date
+    attribute :scope
+    attribute :files_changed, Integer
+
+    command "RecordRename" do
+      role "Chris"
+      goal "Record a major rename"
+      attribute :from_name
+      attribute :to_name
+      attribute :date
+      attribute :scope
+      attribute :files_changed, Integer
+      then_set :from_name, to: :from_name
+      then_set :to_name, to: :to_name
+      then_set :date, to: :date
+      then_set :scope, to: :scope
+      then_set :files_changed, to: :files_changed
+      emits "RenameRecorded"
+    end
+  end
+
+  # Instances:
+  # DomainToBluebook: domain→bluebook 2026-04-08, 644 files. Hecks.domain→Hecks.bluebook, DomainModel→BluebookModel, etc.
+  # SessionToWorkshop: Session→Workbench→Workshop. User still says "workbench" colloquially.
+  # HecksCodeToHecksUL: HecksCode→HecksUL. Every domain is its own programming language.
+  # DomainNaming: All domain_* helpers→bluebook_*. bluebook_module_name, bluebook_gem_name, etc.
+
+  # ============================================================
+  # ACTIVE SYSTEMS — things currently built
+  # ============================================================
+
+  aggregate "ActiveSystem" do
+    description "Systems currently built and running in Hecks"
+    attribute :name
+    attribute :description
+    attribute :date_built
+    attribute :key_insight
+
+    command "RecordSystem" do
+      role "Chris"
+      goal "Record a system that was built"
+      attribute :name
+      attribute :description
+      attribute :date_built
+      attribute :key_insight
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :date_built, to: :date_built
+      then_set :key_insight, to: :key_insight
+      emits "SystemRecorded"
+    end
+  end
+
+  # Instances:
+  #
+  # ActorModel (2026-04-08):
+  #   Every aggregate is an actor. Mailbox (Queue-based), Supervisor (restart/stop), ActorRef (tell/ask), ActorSystem.
+  #   API: runtime.actor_system["Pizza"].tell("CreatePizza", name: "Margherita")
+  #   Note: Use ::Queue not Queue — Hecks has a Queue extension that shadows Ruby's built-in.
+  #
+  # AppealIDE (2026-04-08):
+  #   Rebuilt from 3623 to 138 lines Ruby. All behavior in capabilities. 6 tabs: Editor, Diagrams, Console, Workbench, Features, Tests.
+  #   Key: No hand-rolled infrastructure. Everything is a capability. dispatch() for all actions.
+  #
+  # AppsDirectory (2026-04-08):
+  #   One domain, multiple apps. apps/ holds per-platform hecksagons that merge into defaults.
+  #   Boot: Hecks.boot(source_dir: "chapters/appeal/apps/web")
+  #
+  # SelfHosting (HEC-509):
+  #   15/15 chapters boot as runtimes. 670 aggregates, 836 commands, 836 events. Self-hosting boot test exists.
+  #   Commands ARE ports — chapter defines interface, adapter provides behavior.
+  #
+  # Autophagy:
+  #   Self-hosting compilation pipeline. Hecks::Autophagy.digest(lib_root:) strips requires, analyzes deps, compiles binary.
+  #   Uses Prism AST for constants + Bluebook IR for method-call dependencies.
+  #
+  # ChatAgent:
+  #   :chat_agent capability. Chat.prompt.ai_responder adapter: :claude. Auto-generates tools from all commands, system prompt from IR.
+  #   Memory adapter default — no API call in tests/workshop. World file provides credentials.
+  #
+  # ProductExecutor:
+  #   8-agent team: Jesper (PO), Chris (SM), Alberto (event storming), Eric (planner), Alistair (domain builder),
+  #   Uncle Bob (app builder), Don (UX), Jony (UI). Group chat, feature flags, UL tagging, SME support.
+  #
+  # MultiDomain:
+  #   hecks_domains/ directory. FilteredEventBus per domain. EventDirectionality introspects reactive policies.
+  #   Configuration DSL: domain "identity" do listens_to "model_registry" end
+  #
+  # Migrations:
+  #   Snapshot-based diffing. .hecks_domain_snapshot.rb. DomainDiff produces incremental SQL.
+  #   CLI: hecks generate:migrations, hecks db:migrate. Rails: generator + rake tasks.
+
+  # ============================================================
+  # FUTURE WORK — what's next
+  # ============================================================
+
+  aggregate "FutureWork" do
+    description "Things Chris wants to build next"
+    attribute :name
+    attribute :description
+    attribute :priority
+
+    command "AddFutureWork" do
+      role "Chris"
+      goal "Record something to build in the future"
+      attribute :name
+      attribute :description
+      attribute :priority
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :priority, to: :priority
+      emits "FutureWorkAdded"
+    end
+  end
+
+  # Instances:
+  # AllureWeb: hecks allure pizzas.bluebook --serve — browser UI with live dispatch, SSE events, render_mode widgets
+  # QualifiedRefs: reference_to path infers composition vs aggregation from target scope (HEC-352)
+  # CLICleanup: ~25 files with stale "hecks domain X" references need text replacement (HEC-212)
+end

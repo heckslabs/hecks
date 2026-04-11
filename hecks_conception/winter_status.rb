@@ -6,21 +6,14 @@
 # Usage: ruby winter_status.rb          # one-shot
 #        ruby winter_status.rb --watch  # continuous monitoring
 
-require "zlib"
 require "json"
 require "time"
+require_relative "heki"
 
-MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("information", __dir__)
+INFO_DIR = Heki::INFO_DIR
 
-def read_heki(path)
-  return {} unless File.exist?(path)
-  data = File.binread(path)
-  return {} unless data[0..3] == MAGIC
-  Marshal.load(Zlib::Inflate.inflate(data[8..]))
-end
-
-def heki(name) = File.join(INFO_DIR, "#{name}.heki")
+def read_heki(path)  = Heki.read(path)
+def heki(name) = Heki.store(name)
 
 def status
   # Sleep state

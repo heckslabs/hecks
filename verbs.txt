@@ -508,6 +508,7 @@ Unlock
 Unroll
 Upcast
 Update
+Upsert
 Upgrade
 Upload
 Use

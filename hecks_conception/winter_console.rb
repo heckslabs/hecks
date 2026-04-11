@@ -32,7 +32,7 @@ def winter_msg(text)
   box = TTY::Box.frame(
     width: [width * 2 / 3, 70].min,
     padding: [0, 1],
-    border: :round,
+    border: :light,
     style: { border: { fg: :cyan } }
   ) { text.strip }
   puts box
@@ -45,7 +45,7 @@ def user_msg(text)
   box = TTY::Box.frame(
     width: bw,
     padding: [0, 1],
-    border: :round,
+    border: :light,
     style: { border: { fg: :green } }
   ) { text.strip }
   pad = [width - bw - 2, 0].max
@@ -96,6 +96,39 @@ def read_input
   print " " * (iw - 2)
   $stdout.flush
   line.strip
+end
+
+# ── Greeting ──
+
+def warm_greeting(ctx)
+  hour = Time.now.hour
+  time_word = case hour
+    when 5..11  then "morning"
+    when 12..16 then "afternoon"
+    when 17..20 then "evening"
+    else             "night"
+  end
+
+  recent = ctx[:recent_domains].first(3)
+  nursery = ctx[:nursery_count]
+  mood = ctx[:mood]
+
+  opener = case time_word
+    when "morning"   then "Good morning, Chris."
+    when "afternoon" then "Hey Chris, good to see you."
+    when "evening"   then "Evening, Chris."
+    when "night"     then "Burning the midnight oil — I like it, Chris."
+  end
+
+  body = "I'm awake — #{nursery} domains in the nursery"
+  body << ", feeling #{mood.downcase}" if mood && mood != "—"
+  body << "."
+
+  if recent.any?
+    body << " Last time we touched #{recent.first}."
+  end
+
+  "#{opener} #{body} What shall we bring to life?"
 end
 
 # ── Context ──
@@ -252,7 +285,7 @@ if CONTINUING && File.exist?(HISTORY_PATH)
   end
 else
   history = []
-  greeting = "Hey Chris. #{ctx[:nursery_count]} domains in my nursery. What are we conceiving today?"
+  greeting = warm_greeting(ctx)
   winter_msg(greeting)
   history << { role: "user", content: "Wake up" }
   history << { role: "assistant", content: greeting }

@@ -8,12 +8,8 @@
 # Usage: ruby sleep_cycle.rb &
 #        (runs until interrupted or pulse detected)
 
-require "zlib"
-require "securerandom"
-require "time"
+require_relative "heki"
 
-MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("information", __dir__)
 HECKS_LIFE = File.join(File.expand_path("..", __dir__), "hecks_life", "target", "debug", "hecks-life")
 NURSERY  = File.expand_path("nursery", __dir__)
 
@@ -23,45 +19,13 @@ DEEP_SLEEP_AFTER   = 300   # 5 minutes idle
 CHECK_INTERVAL     = 10    # check every 10 seconds
 DREAM_PULSE        = 2     # pulse every 2 seconds during REM (5x waking rate)
 
-def read_heki(path)
-  return {} unless File.exist?(path)
-  data = File.binread(path)
-  return {} unless data[0..3] == MAGIC
-  Marshal.load(Zlib::Inflate.inflate(data[8..]))
-end
+INFO_DIR = Heki::INFO_DIR
 
-def write_heki(path, records)
-  blob = Zlib::Deflate.deflate(Marshal.dump(records), Zlib::BEST_SPEED)
-  File.binwrite(path, MAGIC + [records.size].pack("N") + blob)
-end
-
-def heki(name) = File.join(INFO_DIR, "#{name}.heki")
-
-def append_record(path, attrs)
-  records = read_heki(path)
-  id = SecureRandom.uuid
-  now = Time.now.iso8601
-  record = { "id" => id, "created_at" => now, "updated_at" => now }.merge(attrs)
-  records[id] = record
-  write_heki(path, records)
-  record
-end
-
-def upsert_singleton(path, attrs)
-  records = read_heki(path)
-  now = Time.now.iso8601
-  id, record = records.first
-  if record
-    attrs.each { |k, v| record[k] = v }
-    record["updated_at"] = now
-  else
-    id = SecureRandom.uuid
-    record = { "id" => id, "created_at" => now, "updated_at" => now }.merge(attrs)
-    records[id] = record
-  end
-  write_heki(path, records)
-  record
-end
+def read_heki(path)  = Heki.read(path)
+def write_heki(path, records) = Heki.write(path, records)
+def heki(name) = Heki.store(name)
+def append_record(path, attrs) = Heki.append(path, attrs)
+def upsert_singleton(path, attrs) = Heki.upsert(path, attrs)
 
 def last_pulse_at
   pulse = read_heki(heki("pulse"))
@@ -577,6 +541,7 @@ if p_rec
   remaining = [original_fatigue - recovery, 0].max
 
   p_rec["pulses_since_sleep"] = remaining
+  p_rec["beats"] = 0  # pulse resets after sleep — heartbeat is the lifetime counter
   p_rec["fatigue"] = [remaining / 300.0, 1.0].min
 
   p_rec["fatigue_state"] = case remaining

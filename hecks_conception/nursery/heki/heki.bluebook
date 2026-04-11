@@ -1,0 +1,106 @@
+Hecks.bluebook "Heki", version: "2026.04.11.1" do
+  vision "Binary record storage for Winter's brain — compressed, fast, self-describing"
+
+  aggregate "Store", "A named .heki file holding records — one aggregate per file" do
+    attribute :name, String
+    attribute :path, String
+    attribute :record_count, Integer
+    attribute :status, String
+
+    command "CreateStore" do
+      role "Winter"
+      description "Create a new .heki store on disk"
+      attribute :name, String
+      attribute :path, String
+      emits "StoreCreated"
+      then_set :name, to: :name
+      then_set :path, to: :path
+      then_set :record_count, to: 0
+      then_set :status, to: "empty"
+    end
+
+    command "AppendRecord" do
+      role "Winter"
+      description "Add a new record to the store — generates UUID, timestamps, compresses"
+      reference_to Store
+      attribute :attrs, String
+      emits "RecordAppended"
+      then_set :record_count, increment: 1
+      then_set :status, to: "active"
+    end
+
+    command "UpsertSingleton" do
+      role "Winter"
+      description "Write or update the single record in a singleton store"
+      reference_to Store
+      attribute :attrs, String
+      emits "SingletonUpserted"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "CreateStore" => "empty", from: "pending"
+      transition "AppendRecord" => "active", from: "empty"
+      transition "UpsertSingleton" => "active", from: "empty"
+    end
+  end
+
+  aggregate "Record", "A single entry in a store — UUID keyed, timestamped" do
+    attribute :record_id, String
+    attribute :store_name, String
+    attribute :created_at, String
+    attribute :updated_at, String
+    attribute :payload, String
+
+    command "WriteRecord" do
+      role "Winter"
+      description "Write a record into a store"
+      attribute :store_name, String
+      attribute :payload, String
+      emits "RecordWritten"
+      then_set :store_name, to: :store_name
+      then_set :payload, to: :payload
+    end
+
+    command "ReadRecord" do
+      role "Winter"
+      description "Read a record by ID from a store"
+      reference_to Record
+      attribute :store_name, String
+      emits "RecordRead"
+    end
+
+    command "DeleteRecord" do
+      role "Winter"
+      description "Remove a record from a store"
+      reference_to Record
+      emits "RecordDeleted"
+    end
+  end
+
+  aggregate "Codec", "Compression and serialization — Marshal + Zlib with HEKI magic header" do
+    attribute :magic, String
+    attribute :compression_level, Integer
+    attribute :format, String
+
+    command "Compress" do
+      role "System"
+      description "Serialize and compress records to binary with HEKI magic header"
+      attribute :records, String
+      emits "Compressed"
+      then_set :format, to: "marshal+zlib"
+    end
+
+    command "Decompress" do
+      role "System"
+      description "Read magic header, inflate, and deserialize records"
+      attribute :data, String
+      emits "Decompressed"
+    end
+  end
+
+  policy "CompressOnWrite" do
+    on "RecordWritten"
+    trigger "Compress"
+  end
+end

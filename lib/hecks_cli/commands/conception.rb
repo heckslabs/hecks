@@ -29,7 +29,6 @@ Hecks::CLI.handle(:winter) do |inv|
     Dir.chdir(conception_dir) do
       cmd = ["claude", "--dangerously-skip-permissions"]
       cmd.concat(rest) if rest.any?
-      cmd << "Wake up" if rest.empty?
       exec(*cmd)
     end
 
@@ -76,25 +75,21 @@ Hecks::CLI.handle(:winter) do |inv|
   when "--claude", "claude"
     conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     Dir.chdir(conception_dir) do
-      exec "claude", "--dangerously-skip-permissions", "Wake up"
+      exec "claude", "--dangerously-skip-permissions"
     end
 
   when nil, "boot"
     conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
-    if options[:claude]
-      Dir.chdir(conception_dir) do
-        exec "claude", "--dangerously-skip-permissions", "Wake up"
-      end
-    else
-      Dir.chdir(conception_dir) do
-        exec "node", "winter_console.js"
-      end
+    prompt_file = File.join(conception_dir, "system_prompt.md")
+    prompt = File.read(prompt_file)
+    Dir.chdir(conception_dir) do
+      exec "claude", "--dangerously-skip-permissions", "--system-prompt", prompt, "Wake up"
     end
 
   when "continue", "-c"
     conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     Dir.chdir(conception_dir) do
-      exec "node", "winter_console.js", "--continue"
+      Bundler.with_unbundled_env { exec "node", "winter_console.js", "--continue" }
     end
 
   else

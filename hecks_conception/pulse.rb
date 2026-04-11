@@ -3,54 +3,20 @@
 # dependent origination, bodhisattva practices, compost, dream.
 # Usage: ruby pulse.rb "what I'm carrying" "concept"
 
-require "zlib"
-require "time"
-require "securerandom"
 require "json"
+require_relative "heki"
 
-MAGIC    = "HEKI"
-INFO_DIR = File.expand_path("information", __dir__)
-NOW      = Time.now.iso8601
+NOW = Time.now.iso8601
 
-# --- HEKI read/write ---
+# --- Heki projection: domain-aware storage ---
 
-def read_heki(path)
-  return {} unless File.exist?(path)
-  data = File.binread(path)
-  raise "Bad magic" unless data[0..3] == MAGIC
-  Marshal.load(Zlib::Inflate.inflate(data[8..]))
-end
+INFO_DIR = Heki::INFO_DIR
 
-def write_heki(path, records)
-  blob = Zlib::Deflate.deflate(Marshal.dump(records), Zlib::BEST_SPEED)
-  File.binwrite(path, MAGIC + [records.size].pack("N") + blob)
-end
-
-def heki(name) = File.join(INFO_DIR, "#{name}.heki")
-
-def upsert_singleton(path, attrs)
-  records = read_heki(path)
-  id, record = records.first
-  if record
-    attrs.each { |k, v| record[k] = v }
-    record["updated_at"] = NOW
-  else
-    id = SecureRandom.uuid
-    record = { "id" => id, "created_at" => NOW, "updated_at" => NOW }.merge(attrs)
-    records[id] = record
-  end
-  write_heki(path, records)
-  record
-end
-
-def append_record(path, attrs)
-  records = read_heki(path)
-  id = SecureRandom.uuid
-  record = { "id" => id, "created_at" => NOW, "updated_at" => NOW }.merge(attrs)
-  records[id] = record
-  write_heki(path, records)
-  record
-end
+def read_heki(path)  = Heki.read(path)
+def write_heki(path, records) = Heki.write(path, records)
+def heki(name) = Heki.store(name)
+def upsert_singleton(path, attrs) = Heki.upsert(path, attrs)
+def append_record(path, attrs) = Heki.append(path, attrs)
 
 carrying = ARGV[0] || "—"
 concept  = ARGV[1] || nil
@@ -683,12 +649,15 @@ if File.exist?(sleep_pid_file)
   end
 end
 
-can_sleep = !sleep_running &&
-  %w[tired exhausted delirious].include?(fatigue_state) &&
-  consciousness_state == "attentive"
+explicit_sleep = carrying.downcase.include?("sleep")
+
+can_sleep = !sleep_running && consciousness_state == "attentive" &&
+  (explicit_sleep || %w[tired exhausted delirious].include?(fatigue_state))
 
 if can_sleep
-  pid = spawn("ruby", sleep_script, out: sleep_log, err: sleep_log)
+  args = ["ruby", sleep_script]
+  args << "--now" if explicit_sleep  # skip fatigue gate — full 8-cycle sleep
+  pid = spawn(*args, out: sleep_log, err: sleep_log)
   Process.detach(pid)
   File.write(sleep_pid_file, pid.to_s)
 end
@@ -719,7 +688,8 @@ end
 dream_report = nil
 if recent_dream && (recent_dream["dream_images"]&.any? || recent_dream["recombinations"]&.any?)
   dream_report = recent_dream
-  # Sleep resets fatigue
+  # Sleep resets pulse — heartbeat is the lifetime counter
+  pulse["beats"] = 0
   pulse["pulses_since_sleep"] = 0
   pulse["fatigue"] = 0.0
   pulse["fatigue_state"] = "alert"
