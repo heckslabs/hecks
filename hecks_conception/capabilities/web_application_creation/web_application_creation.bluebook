@@ -387,4 +387,16 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   fixture "DesignPrinciple", name: "Sticky Table Headers", principle: "Table headers stay visible while scrolling. Fixed height container with overflow-y-auto. Sticky top-0 on thead.", enforced: "true"
   fixture "DesignPrinciple", name: "Hover Title On Sidebar", principle: "Sidebar links have title attribute with domain description. User sees context on hover without clicking.", enforced: "true"
   fixture "DesignPrinciple", name: "No Data Vomit", principle: "Never display all data simultaneously. Every dashboard serves one purpose. Operational dashboards show status. Analytical dashboards show trends.", enforced: "true"
+
+  # === Interaction Patterns (learned from Alan's demo session) ===
+
+  fixture "DesignPrinciple", name: "Creation Wizard", principle: "Creating a lifecycle entity uses a popup wizard — multi-step, guided, validates each step. Steps derive from lifecycle transitions. Never separate disconnected forms.", enforced: "true"
+  fixture "DesignPrinciple", name: "Row Action Buttons", principle: "Commands with reference_to become action buttons on table rows — Revise, Retire, Add Ingredient. Actions live where the data lives.", enforced: "true"
+  fixture "DesignPrinciple", name: "Create vs Update Pattern", principle: "Commands WITHOUT reference_to = create (wizard popup). Commands WITH reference_to = update (row action or inline). Detect from IR automatically.", enforced: "true"
+  fixture "DesignPrinciple", name: "Guided Workflow Flow", principle: "On command success, collapse current panel, open next step, reference the created record. Each step flows into the next with context.", enforced: "true"
+  fixture "DesignPrinciple", name: "Humanize Code Expressions", principle: "Given expressions like status==\"draft\" display as 'Requires status to be draft'. Never show raw code to users.", enforced: "true"
+  fixture "DesignPrinciple", name: "Clean Snake Case Values", principle: "Table values like engine_treatment display as Engine Treatment. Clean snake_case in fixture data automatically.", enforced: "true"
+  fixture "DesignPrinciple", name: "Event Stream Sidebar", principle: "Right sidebar shows live event stream — events flow through as commands are dispatched. Real-time domain activity feed.", enforced: "true"
+  fixture "DesignPrinciple", name: "Multicolor Background Blobs", principle: "Floating blobs in yellow, red, green, blue, white — spread across whole page, very subtle opacity, drifting animation. Adds life.", enforced: "true"
+  fixture "DesignPrinciple", name: "KPI Headers Per Domain", principle: "Every domain page shows 3-4 key metrics at top — record counts, status distribution, domain-specific indicators.", enforced: "true"
 end
