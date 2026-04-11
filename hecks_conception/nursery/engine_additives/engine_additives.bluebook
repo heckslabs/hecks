@@ -1,0 +1,466 @@
+Hecks.bluebook "EngineAdditives", version: "2026.04.11.1" do
+  vision "Formulate, contract manufacture, and distribute engine additives across DuraLube, MotorKote, and Slick 50"
+  category "business"
+
+  # === Formulation ===
+
+  aggregate "Formula", "A proprietary additive formulation — the recipe that defines the product" do
+    attribute :name, String
+    attribute :version, String
+    attribute :brand, String
+    attribute :product_type, String
+    attribute :ingredients, list_of(Ingredient)
+    attribute :performance_claims, list_of(String)
+    attribute :viscosity_grade, String
+    attribute :status, String
+
+    value_object "Ingredient" do
+      attribute :chemical_name, String
+      attribute :cas_number, String
+      attribute :percentage, Float
+      attribute :function, String
+      attribute :supplier, String
+    end
+
+    command "CreateFormula" do
+      role "Formulator"
+      description "Define a new additive formulation with ingredients and performance targets"
+      attribute :name, String
+      attribute :brand, String
+      attribute :product_type, String
+      emits "FormulaCreated"
+      then_set :name, to: :name
+      then_set :brand, to: :brand
+      then_set :product_type, to: :product_type
+      then_set :status, to: "draft"
+    end
+
+    command "AddIngredient" do
+      role "Formulator"
+      description "Add a chemical component to the formula with its function and percentage"
+      reference_to Formula
+      attribute :chemical_name, String
+      attribute :cas_number, String
+      attribute :percentage, Float
+      attribute :function, String
+      attribute :supplier, String
+      emits "IngredientAdded"
+    end
+
+    command "FinalizeFormula" do
+      role "Formulator"
+      description "Lock the formula for manufacturing — no more changes without a new version"
+      reference_to Formula
+      given { status == "draft" }
+      emits "FormulaFinalized"
+      then_set :status, to: "finalized"
+    end
+
+    command "ReviseFormula" do
+      role "Formulator"
+      description "Create a new version of the formula with updated ingredients"
+      reference_to Formula
+      emits "FormulaRevised"
+      then_set :status, to: "draft"
+    end
+
+    command "RetireFormula" do
+      role "Formulator"
+      description "This formula is no longer in production"
+      reference_to Formula
+      emits "FormulaRetired"
+      then_set :status, to: "retired"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateFormula" => "draft", from: "pending"
+      transition "FinalizeFormula" => "finalized", from: "draft"
+      transition "ReviseFormula" => "draft", from: "finalized"
+      transition "RetireFormula" => "retired", from: "finalized"
+    end
+  end
+
+  # === Products ===
+
+  aggregate "Product", "A branded product — a formula packaged for a specific brand and market" do
+    attribute :sku, String
+    attribute :name, String
+    attribute :brand, String
+    attribute :formula_name, String
+    attribute :size, String
+    attribute :upc, String
+    attribute :retail_price, Float
+    attribute :wholesale_price, Float
+    attribute :status, String
+
+    command "CreateProduct" do
+      role "ProductManager"
+      description "Define a product SKU — a formula packaged under a brand at a specific size"
+      attribute :sku, String
+      attribute :name, String
+      attribute :brand, String
+      attribute :formula_name, String
+      attribute :size, String
+      attribute :upc, String
+      emits "ProductCreated"
+      then_set :sku, to: :sku
+      then_set :name, to: :name
+      then_set :brand, to: :brand
+      then_set :formula_name, to: :formula_name
+      then_set :size, to: :size
+      then_set :upc, to: :upc
+      then_set :status, to: "active"
+    end
+
+    command "SetPricing" do
+      role "ProductManager"
+      description "Set retail and wholesale pricing for this SKU"
+      reference_to Product
+      attribute :retail_price, Float
+      attribute :wholesale_price, Float
+      emits "PricingSet"
+      then_set :retail_price, to: :retail_price
+      then_set :wholesale_price, to: :wholesale_price
+    end
+
+    command "DiscontinueProduct" do
+      role "ProductManager"
+      description "Remove this SKU from the active catalog"
+      reference_to Product
+      emits "ProductDiscontinued"
+      then_set :status, to: "discontinued"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "CreateProduct" => "active", from: "pending"
+      transition "DiscontinueProduct" => "discontinued", from: "active"
+    end
+  end
+
+  # === Brands ===
+
+  aggregate "Brand", "A product brand — DuraLube, MotorKote, or Slick 50" do
+    attribute :name, String
+    attribute :description, String
+    attribute :product_count, Integer
+    attribute :channels, list_of(String)
+
+    command "RegisterBrand" do
+      role "Owner"
+      description "Register a brand in the portfolio"
+      attribute :name, String
+      attribute :description, String
+      emits "BrandRegistered"
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :product_count, to: 0
+    end
+
+    command "AssignChannel" do
+      role "Owner"
+      description "Add a distribution channel to this brand — Amazon, Walmart, retail"
+      reference_to Brand
+      attribute :channel, String
+      emits "ChannelAssigned"
+      then_set :channels, append: :channel
+    end
+  end
+
+  # === Contract Manufacturing ===
+
+  aggregate "ManufacturingOrder", "An order placed with a contract manufacturer to produce a batch" do
+    attribute :order_number, String
+    attribute :manufacturer, String
+    attribute :formula_name, String
+    attribute :quantity, Integer
+    attribute :unit, String
+    attribute :requested_delivery, String
+    attribute :actual_delivery, String
+    attribute :cost, Float
+    attribute :status, String
+
+    command "PlaceManufacturingOrder" do
+      role "Owner"
+      description "Order a production run from the contract manufacturer"
+      attribute :order_number, String
+      attribute :manufacturer, String
+      attribute :formula_name, String
+      attribute :quantity, Integer
+      attribute :unit, String
+      attribute :requested_delivery, String
+      emits "ManufacturingOrderPlaced"
+      then_set :order_number, to: :order_number
+      then_set :manufacturer, to: :manufacturer
+      then_set :formula_name, to: :formula_name
+      then_set :quantity, to: :quantity
+      then_set :unit, to: :unit
+      then_set :requested_delivery, to: :requested_delivery
+      then_set :status, to: "placed"
+    end
+
+    command "ConfirmProduction" do
+      role "Manufacturer"
+      description "Manufacturer confirms the order is in production"
+      reference_to ManufacturingOrder
+      emits "ProductionConfirmed"
+      then_set :status, to: "in_production"
+    end
+
+    command "ShipOrder" do
+      role "Manufacturer"
+      description "Manufacturer ships the finished goods"
+      reference_to ManufacturingOrder
+      emits "OrderShipped"
+      then_set :status, to: "shipped"
+    end
+
+    command "ReceiveOrder" do
+      role "Owner"
+      description "Goods received at warehouse — inspect and accept"
+      reference_to ManufacturingOrder
+      attribute :actual_delivery, String
+      emits "OrderReceived"
+      then_set :actual_delivery, to: :actual_delivery
+      then_set :status, to: "received"
+    end
+
+    command "RejectOrder" do
+      role "Owner"
+      description "Goods failed inspection — quality issue with manufacturer"
+      reference_to ManufacturingOrder
+      attribute :reason, String
+      emits "OrderRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlaceManufacturingOrder" => "placed", from: "draft"
+      transition "ConfirmProduction" => "in_production", from: "placed"
+      transition "ShipOrder" => "shipped", from: "in_production"
+      transition "ReceiveOrder" => "received", from: "shipped"
+      transition "RejectOrder" => "rejected", from: "shipped"
+    end
+  end
+
+  # === Inventory ===
+
+  aggregate "Inventory", "Stock levels across warehouses and fulfillment centers" do
+    attribute :sku, String
+    attribute :warehouse, String
+    attribute :quantity_on_hand, Integer
+    attribute :quantity_reserved, Integer
+    attribute :quantity_available, Integer
+    attribute :reorder_point, Integer
+
+    command "ReceiveStock" do
+      role "WarehouseManager"
+      description "Add inventory from a manufacturing order or transfer"
+      attribute :sku, String
+      attribute :warehouse, String
+      attribute :quantity, Integer
+      emits "StockReceived"
+      then_set :sku, to: :sku
+      then_set :warehouse, to: :warehouse
+      then_set :quantity_on_hand, increment: :quantity
+    end
+
+    command "ReserveStock" do
+      role "System"
+      description "Hold inventory for a pending order"
+      reference_to Inventory
+      attribute :quantity, Integer
+      given { quantity_available > 0 }
+      emits "StockReserved"
+      then_set :quantity_reserved, increment: :quantity
+    end
+
+    command "ShipStock" do
+      role "WarehouseManager"
+      description "Ship reserved inventory — decrement on-hand and reserved"
+      reference_to Inventory
+      attribute :quantity, Integer
+      emits "StockShipped"
+      then_set :quantity_on_hand, decrement: :quantity
+      then_set :quantity_reserved, decrement: :quantity
+    end
+
+    command "AdjustInventory" do
+      role "WarehouseManager"
+      description "Manual adjustment — count correction, damage, shrinkage"
+      reference_to Inventory
+      attribute :adjustment, Integer
+      attribute :reason, String
+      emits "InventoryAdjusted"
+    end
+
+    command "TriggerReorder" do
+      role "System"
+      description "Stock fell below reorder point — signal to place a manufacturing order"
+      reference_to Inventory
+      given { quantity_available <= reorder_point }
+      emits "ReorderTriggered"
+    end
+  end
+
+  # === Sales Channels ===
+
+  aggregate "Channel", "A distribution channel — Amazon, Walmart.com, retail stores, direct" do
+    attribute :name, String
+    attribute :channel_type, String
+    attribute :account_id, String
+    attribute :active_skus, list_of(String)
+    attribute :status, String
+
+    command "RegisterChannel" do
+      role "Owner"
+      description "Set up a new sales channel"
+      attribute :name, String
+      attribute :channel_type, String
+      attribute :account_id, String
+      emits "ChannelRegistered"
+      then_set :name, to: :name
+      then_set :channel_type, to: :channel_type
+      then_set :account_id, to: :account_id
+      then_set :status, to: "active"
+    end
+
+    command "ListProduct" do
+      role "ProductManager"
+      description "Make a SKU available on this channel"
+      reference_to Channel
+      attribute :sku, String
+      emits "ProductListed"
+      then_set :active_skus, append: :sku
+    end
+
+    command "DelistProduct" do
+      role "ProductManager"
+      description "Remove a SKU from this channel"
+      reference_to Channel
+      attribute :sku, String
+      emits "ProductDelisted"
+    end
+  end
+
+  # === Orders ===
+
+  aggregate "SalesOrder", "A customer or retailer order for products" do
+    attribute :order_number, String
+    attribute :channel, String
+    attribute :customer, String
+    attribute :items, list_of(OrderItem)
+    attribute :total, Float
+    attribute :status, String
+
+    value_object "OrderItem" do
+      attribute :sku, String
+      attribute :quantity, Integer
+      attribute :unit_price, Float
+    end
+
+    command "PlaceOrder" do
+      role "Customer"
+      description "Place an order through a sales channel"
+      attribute :order_number, String
+      attribute :channel, String
+      attribute :customer, String
+      emits "OrderPlaced"
+      then_set :order_number, to: :order_number
+      then_set :channel, to: :channel
+      then_set :customer, to: :customer
+      then_set :status, to: "placed"
+    end
+
+    command "FulfillOrder" do
+      role "WarehouseManager"
+      description "Pick, pack, and ship the order"
+      reference_to SalesOrder
+      emits "OrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+
+    command "CancelOrder" do
+      role "Customer"
+      description "Cancel a pending order"
+      reference_to SalesOrder
+      given { status == "placed" }
+      emits "OrderCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    lifecycle :status, default: "placed" do
+      transition "PlaceOrder" => "placed", from: "pending"
+      transition "FulfillOrder" => "fulfilled", from: "placed"
+      transition "CancelOrder" => "cancelled", from: "placed"
+    end
+  end
+
+  # === Quality ===
+
+  aggregate "QualityTest", "Testing a batch or formula against performance specifications" do
+    attribute :test_name, String
+    attribute :formula_name, String
+    attribute :batch_number, String
+    attribute :specification, String
+    attribute :result, String
+    attribute :passed, String
+
+    command "RunTest" do
+      role "QualityManager"
+      description "Execute a quality test against specifications"
+      attribute :test_name, String
+      attribute :formula_name, String
+      attribute :batch_number, String
+      attribute :specification, String
+      emits "TestRun"
+      then_set :test_name, to: :test_name
+      then_set :formula_name, to: :formula_name
+      then_set :batch_number, to: :batch_number
+      then_set :specification, to: :specification
+    end
+
+    command "RecordResult" do
+      role "QualityManager"
+      description "Record the test outcome — pass or fail"
+      reference_to QualityTest
+      attribute :result, String
+      attribute :passed, String
+      emits "ResultRecorded"
+      then_set :result, to: :result
+      then_set :passed, to: :passed
+    end
+  end
+
+  # === Policies ===
+
+  policy "ReorderOnLowStock" do
+    on "StockShipped"
+    trigger "TriggerReorder"
+  end
+
+  policy "ReserveOnOrder" do
+    on "OrderPlaced"
+    trigger "ReserveStock"
+  end
+
+  policy "ShipOnFulfill" do
+    on "OrderFulfilled"
+    trigger "ShipStock"
+  end
+
+  policy "TestOnReceive" do
+    on "OrderReceived"
+    trigger "RunTest"
+  end
+
+  # === Fixtures ===
+
+  fixture "Brand", name: "DuraLube", description: "Advanced engine treatment and protection", product_count: 0, channels: []
+  fixture "Brand", name: "MotorKote", description: "Anti-friction engine treatment", product_count: 0, channels: []
+  fixture "Brand", name: "Slick 50", description: "Engine treatment with PTFE technology", product_count: 0, channels: []
+
+  fixture "Channel", name: "Amazon", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Walmart.com", channel_type: "marketplace", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Retail", channel_type: "brick_and_mortar", account_id: "", active_skus: [], status: "active"
+  fixture "Channel", name: "Direct", channel_type: "website", account_id: "", active_skus: [], status: "active"
+end
