@@ -78,7 +78,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Codec", "Compression and serialization — Marshal + Zlib with HEKI magic header" do
+  aggregate "Codec", "Compression and serialization — JSON + Zlib with HEKI magic header" do
     attribute :magic, String
     attribute :compression_level, Integer
     attribute :format, String
@@ -88,7 +88,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
       description "Serialize and compress records to binary with HEKI magic header"
       attribute :records, String
       emits "Compressed"
-      then_set :format, to: "marshal+zlib"
+      then_set :format, to: "json+zlib"
     end
 
     command "Decompress" do

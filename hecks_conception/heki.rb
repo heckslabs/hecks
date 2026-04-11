@@ -14,25 +14,36 @@
 #   Heki.delete(store, id)                         # DeleteRecord
 
 require "zlib"
+require "json"
 require "securerandom"
 require "time"
 
 module Heki
   MAGIC = "HEKI"
-  COMPRESSION = Zlib::BEST_SPEED
+  VERSION = 2  # v1 = Marshal, v2 = JSON
+  COMPRESSION = Zlib::BEST_COMPRESSION
   INFO_DIR = File.expand_path("information", __dir__)
 
   # -- Codec: Decompress --
+  # Reads both v1 (Marshal) and v2 (JSON) formats
   def self.read(path)
     return {} unless File.exist?(path)
     data = File.binread(path)
     return {} unless data[0..3] == MAGIC
-    Marshal.load(Zlib::Inflate.inflate(data[8..]))
+    count, version = data[4..7].unpack("N").first, data[4..7].unpack("N").first
+    inflated = Zlib::Inflate.inflate(data[8..])
+    begin
+      JSON.parse(inflated)
+    rescue JSON::ParserError
+      # v1 fallback: Marshal format
+      Marshal.load(inflated)
+    end
   end
 
   # -- Codec: Compress --
+  # Always writes v2 (JSON + BEST_COMPRESSION)
   def self.write(path, records)
-    blob = Zlib::Deflate.deflate(Marshal.dump(records), COMPRESSION)
+    blob = Zlib::Deflate.deflate(JSON.generate(records), COMPRESSION)
     File.binwrite(path, MAGIC + [records.size].pack("N") + blob)
   end
 
