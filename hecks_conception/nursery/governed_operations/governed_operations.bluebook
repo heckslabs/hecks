@@ -1,0 +1,1022 @@
+Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
+  vision "Every action governed, every rule enforced, every decision traceable — unified compliance for cannabis manufacturing"
+
+  # === JurisdictionalContract ===
+
+  aggregate "JurisdictionalContract", "External regulatory rules — state and federal compliance requirements" do
+    attribute :jurisdiction, String
+    attribute :regulation_code, String
+    attribute :rules, list_of(Rule)
+    attribute :effective_date, String
+    attribute :status, String
+
+    value_object "Rule" do
+      attribute :code, String
+      attribute :description, String
+      attribute :requirement, String
+      attribute :penalty, String
+      attribute :category, String
+    end
+
+    command "DefineContract" do
+      role "ComplianceOfficer"
+      description "Create a new jurisdictional contract for a regulatory body"
+      attribute :jurisdiction, String
+      attribute :regulation_code, String
+      attribute :effective_date, String
+      emits "ContractDefined"
+      then_set :jurisdiction, to: :jurisdiction
+      then_set :regulation_code, to: :regulation_code
+      then_set :effective_date, to: :effective_date
+      then_set :rules, to: []
+      then_set :status, to: "draft"
+    end
+
+    command "AddRule" do
+      role "ComplianceOfficer"
+      description "Add a regulatory rule to the contract"
+      reference_to JurisdictionalContract
+      attribute :rule, Rule
+      emits "RuleAdded"
+    end
+
+    command "UpdateRule" do
+      role "ComplianceOfficer"
+      description "Modify an existing rule within the contract"
+      reference_to JurisdictionalContract
+      attribute :rule_code, String
+      attribute :rule, Rule
+      emits "RuleUpdated"
+    end
+
+    command "ActivateContract" do
+      role "ComplianceOfficer"
+      description "Make the contract enforceable — all rules become active"
+      reference_to JurisdictionalContract
+      given { status == "draft" }
+      emits "ContractActivated"
+      then_set :status, to: "active"
+    end
+
+    command "SuspendContract" do
+      role "ComplianceOfficer"
+      description "Temporarily suspend enforcement of this contract"
+      reference_to JurisdictionalContract
+      given { status == "active" }
+      emits "ContractSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    command "SupersedeContract" do
+      role "ComplianceOfficer"
+      description "Replace this contract with an updated version"
+      reference_to JurisdictionalContract
+      given { status == "active" || status == "suspended" }
+      emits "ContractSuperseded"
+      then_set :status, to: "superseded"
+    end
+
+    command "CheckCompliance" do
+      role "System"
+      description "Evaluate an action against all rules in this contract"
+      reference_to JurisdictionalContract
+      attribute :action_type, String
+      attribute :action_id, String
+      emits "ComplianceChecked"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "DefineContract" => "draft"
+      transition "ActivateContract" => "active", from: "draft"
+      transition "SuspendContract" => "suspended", from: "active"
+      transition "ActivateContract" => "active", from: "suspended"
+      transition "SupersedeContract" => "superseded", from: "active"
+      transition "SupersedeContract" => "superseded", from: "suspended"
+    end
+  end
+
+  # === OperationalContract ===
+
+  aggregate "OperationalContract", "Internal company standards — SOPs, ISO requirements, quality policies" do
+    attribute :name, String
+    attribute :department, String
+    attribute :rules, list_of(Standard)
+    attribute :version, Integer
+    attribute :status, String
+
+    value_object "Standard" do
+      attribute :name, String
+      attribute :description, String
+      attribute :requirement, String
+      attribute :owner, String
+      attribute :severity, String
+    end
+
+    command "CreateOperationalContract" do
+      role "QualityManager"
+      description "Create a new operational contract for a department"
+      attribute :name, String
+      attribute :department, String
+      emits "OperationalContractCreated"
+      then_set :name, to: :name
+      then_set :department, to: :department
+      then_set :rules, to: []
+      then_set :version, to: 1
+      then_set :status, to: "draft"
+    end
+
+    command "AddStandard" do
+      role "QualityManager"
+      description "Add an internal standard to the contract"
+      reference_to OperationalContract
+      attribute :standard, Standard
+      emits "StandardAdded"
+    end
+
+    command "UpdateStandard" do
+      role "QualityManager"
+      description "Modify an existing standard within the contract"
+      reference_to OperationalContract
+      attribute :standard_name, String
+      attribute :standard, Standard
+      emits "StandardUpdated"
+    end
+
+    command "ApproveContract" do
+      role "QualityDirector"
+      description "Approve the contract for enforcement"
+      reference_to OperationalContract
+      given { status == "pending_approval" }
+      emits "ContractApproved"
+      then_set :status, to: "active"
+    end
+
+    command "SubmitContract" do
+      role "QualityManager"
+      description "Submit the contract for approval"
+      reference_to OperationalContract
+      given { status == "draft" }
+      emits "ContractSubmitted"
+      then_set :status, to: "pending_approval"
+    end
+
+    command "RetireContract" do
+      role "QualityDirector"
+      description "Retire a contract — no longer enforced"
+      reference_to OperationalContract
+      given { status == "active" }
+      emits "ContractRetired"
+      then_set :status, to: "retired"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateOperationalContract" => "draft"
+      transition "SubmitContract" => "pending_approval", from: "draft"
+      transition "ApproveContract" => "active", from: "pending_approval"
+      transition "RetireContract" => "retired", from: "active"
+    end
+  end
+
+  # === Batch ===
+
+  aggregate "Batch", "A production batch under governance — tracked from creation through release or quarantine" do
+    attribute :batch_number, String
+    attribute :product, String
+    attribute :quantity, Integer
+    attribute :produced_at, String
+    attribute :status, String
+    attribute :violations, list_of(Violation)
+
+    value_object "Violation" do
+      attribute :rule_code, String
+      attribute :description, String
+      attribute :severity, String
+      attribute :detected_at, String
+    end
+
+    command "CreateBatch" do
+      role "ProductionOperator"
+      description "Register a new production batch"
+      attribute :batch_number, String
+      attribute :product, String
+      attribute :quantity, Integer
+      emits "BatchCreated"
+      then_set :batch_number, to: :batch_number
+      then_set :product, to: :product
+      then_set :quantity, to: :quantity
+      then_set :violations, to: []
+      then_set :status, to: "created"
+    end
+
+    command "RecordProduction" do
+      role "ProductionOperator"
+      description "Mark the batch as actively being produced"
+      reference_to Batch
+      attribute :produced_at, String
+      given { status == "created" }
+      emits "ProductionRecorded"
+      then_set :produced_at, to: :produced_at
+      then_set :status, to: "in_production"
+    end
+
+    command "SubmitForRelease" do
+      role "ProductionSupervisor"
+      description "Submit the batch for quality release — requires no open violations"
+      reference_to Batch
+      given { status == "in_production" }
+      given { violations.empty? }
+      emits "BatchSubmittedForRelease"
+      then_set :status, to: "pending_release"
+    end
+
+    command "ApproveBatch" do
+      role "QualityManager"
+      description "Approve the batch for release after governance checks pass"
+      reference_to Batch
+      given { status == "pending_release" }
+      emits "BatchApproved"
+      then_set :status, to: "approved"
+    end
+
+    command "RejectBatch" do
+      role "QualityManager"
+      description "Reject the batch due to compliance failures"
+      reference_to Batch
+      attribute :reason, String
+      given { status == "pending_release" }
+      emits "BatchRejected"
+      then_set :status, to: "rejected"
+    end
+
+    command "QuarantineBatch" do
+      role "QualityManager"
+      description "Place the batch in quarantine pending investigation"
+      reference_to Batch
+      attribute :reason, String
+      emits "BatchQuarantined"
+      then_set :status, to: "quarantined"
+    end
+
+    command "ReleaseBatch" do
+      role "QualityDirector"
+      description "Release the approved batch for distribution"
+      reference_to Batch
+      given { status == "approved" }
+      emits "BatchReleased"
+      then_set :status, to: "released"
+    end
+
+    command "RecordViolation" do
+      role "System"
+      description "Record a compliance violation against the batch"
+      reference_to Batch
+      attribute :violation, Violation
+      emits "ViolationRecorded"
+    end
+
+    lifecycle :status, default: "created" do
+      transition "CreateBatch" => "created"
+      transition "RecordProduction" => "in_production", from: "created"
+      transition "SubmitForRelease" => "pending_release", from: "in_production"
+      transition "ApproveBatch" => "approved", from: "pending_release"
+      transition "RejectBatch" => "rejected", from: "pending_release"
+      transition "QuarantineBatch" => "quarantined", from: "rejected"
+      transition "ReleaseBatch" => "released", from: "approved"
+    end
+  end
+
+  # === ChangeRequest ===
+
+  aggregate "ChangeRequest", "Change control — every modification to process or equipment is tracked and approved" do
+    attribute :title, String
+    attribute :description, String
+    attribute :requester, String
+    attribute :impact_area, String
+    attribute :risk_level, String
+    attribute :status, String
+    attribute :approvals, list_of(Approval)
+
+    value_object "Approval" do
+      attribute :approver, String
+      attribute :role, String
+      attribute :decision, String
+      attribute :decided_at, String
+      attribute :comments, String
+    end
+
+    command "SubmitChangeRequest" do
+      role "Employee"
+      description "Submit a request to change a process, procedure, or equipment"
+      attribute :title, String
+      attribute :description, String
+      attribute :requester, String
+      attribute :impact_area, String
+      emits "ChangeRequestSubmitted"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :requester, to: :requester
+      then_set :impact_area, to: :impact_area
+      then_set :approvals, to: []
+      then_set :status, to: "submitted"
+    end
+
+    command "AssessImpact" do
+      role "QualityManager"
+      description "Evaluate the risk and impact of the proposed change"
+      reference_to ChangeRequest
+      attribute :risk_level, String
+      given { status == "submitted" }
+      emits "ImpactAssessed"
+      then_set :risk_level, to: :risk_level
+      then_set :status, to: "assessing"
+    end
+
+    command "RouteForApproval" do
+      role "System"
+      description "Route the change request to the required approvers based on risk"
+      reference_to ChangeRequest
+      given { status == "assessing" }
+      emits "ChangeRequestRouted"
+      then_set :status, to: "pending_approval"
+    end
+
+    command "ApproveChange" do
+      role "Approver"
+      description "Approve the change request"
+      reference_to ChangeRequest
+      attribute :approval, Approval
+      given { status == "pending_approval" }
+      emits "ChangeApproved"
+      then_set :status, to: "approved"
+    end
+
+    command "RejectChange" do
+      role "Approver"
+      description "Reject the change request"
+      reference_to ChangeRequest
+      attribute :approval, Approval
+      given { status == "pending_approval" }
+      emits "ChangeRejected"
+      then_set :status, to: "rejected"
+    end
+
+    command "ImplementChange" do
+      role "Employee"
+      description "Execute the approved change"
+      reference_to ChangeRequest
+      given { status == "approved" }
+      emits "ChangeImplemented"
+      then_set :status, to: "implementing"
+    end
+
+    command "VerifyChange" do
+      role "QualityManager"
+      description "Verify the change was implemented correctly"
+      reference_to ChangeRequest
+      given { status == "implementing" }
+      emits "ChangeVerified"
+      then_set :status, to: "verified"
+    end
+
+    lifecycle :status, default: "submitted" do
+      transition "SubmitChangeRequest" => "submitted"
+      transition "AssessImpact" => "assessing", from: "submitted"
+      transition "RouteForApproval" => "pending_approval", from: "assessing"
+      transition "ApproveChange" => "approved", from: "pending_approval"
+      transition "RejectChange" => "rejected", from: "pending_approval"
+      transition "ImplementChange" => "implementing", from: "approved"
+      transition "VerifyChange" => "verified", from: "implementing"
+    end
+  end
+
+  # === CAPA ===
+
+  aggregate "CAPA", "Corrective and Preventive Action — systematic issue resolution with root cause analysis" do
+    attribute :title, String
+    attribute :issue_description, String
+    attribute :root_cause, String
+    attribute :corrective_action, String
+    attribute :preventive_action, String
+    attribute :status, String
+    attribute :evidence, list_of(Evidence)
+
+    value_object "Evidence" do
+      attribute :description, String
+      attribute :document_path, String
+      attribute :collected_at, String
+      attribute :collector, String
+    end
+
+    command "OpenCAPA" do
+      role "QualityManager"
+      description "Open a CAPA for a detected issue or rejected batch"
+      attribute :title, String
+      attribute :issue_description, String
+      emits "CAPAOpened"
+      then_set :title, to: :title
+      then_set :issue_description, to: :issue_description
+      then_set :evidence, to: []
+      then_set :status, to: "opened"
+    end
+
+    command "InvestigateIssue" do
+      role "QualityInvestigator"
+      description "Begin investigation into the reported issue"
+      reference_to CAPA
+      given { status == "opened" }
+      emits "IssueInvestigated"
+      then_set :status, to: "investigating"
+    end
+
+    command "IdentifyRootCause" do
+      role "QualityInvestigator"
+      description "Document the root cause of the issue"
+      reference_to CAPA
+      attribute :root_cause, String
+      given { status == "investigating" }
+      emits "RootCauseIdentified"
+      then_set :root_cause, to: :root_cause
+      then_set :status, to: "root_cause_identified"
+    end
+
+    command "DefineCorrectiveAction" do
+      role "QualityManager"
+      description "Define the corrective action to fix the immediate issue"
+      reference_to CAPA
+      attribute :corrective_action, String
+      given { status == "root_cause_identified" }
+      emits "CorrectiveActionDefined"
+      then_set :corrective_action, to: :corrective_action
+    end
+
+    command "DefinePreventiveAction" do
+      role "QualityManager"
+      description "Define the preventive action to stop recurrence"
+      reference_to CAPA
+      attribute :preventive_action, String
+      given { status == "root_cause_identified" }
+      emits "PreventiveActionDefined"
+      then_set :preventive_action, to: :preventive_action
+      then_set :status, to: "action_defined"
+    end
+
+    command "ImplementAction" do
+      role "QualityManager"
+      description "Execute the corrective and preventive actions"
+      reference_to CAPA
+      given { status == "action_defined" }
+      emits "ActionImplemented"
+      then_set :status, to: "implementing"
+    end
+
+    command "VerifyEffectiveness" do
+      role "QualityDirector"
+      description "Verify the actions were effective in resolving the issue"
+      reference_to CAPA
+      given { status == "implementing" }
+      emits "EffectivenessVerified"
+      then_set :status, to: "verifying"
+    end
+
+    command "CollectEvidence" do
+      role "QualityInvestigator"
+      description "Attach supporting evidence to the CAPA"
+      reference_to CAPA
+      attribute :evidence, Evidence
+      emits "EvidenceCollected"
+    end
+
+    command "CloseCAPA" do
+      role "QualityDirector"
+      description "Close the CAPA — all actions verified effective"
+      reference_to CAPA
+      given { status == "verifying" }
+      emits "CAPAClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "opened" do
+      transition "OpenCAPA" => "opened"
+      transition "InvestigateIssue" => "investigating", from: "opened"
+      transition "IdentifyRootCause" => "root_cause_identified", from: "investigating"
+      transition "DefinePreventiveAction" => "action_defined", from: "root_cause_identified"
+      transition "ImplementAction" => "implementing", from: "action_defined"
+      transition "VerifyEffectiveness" => "verifying", from: "implementing"
+      transition "CloseCAPA" => "closed", from: "verifying"
+    end
+  end
+
+  # === Recall ===
+
+  aggregate "Recall", "Recall management — coordinated response when product must be pulled from market" do
+    attribute :recall_number, String
+    attribute :product, String
+    attribute :reason, String
+    attribute :affected_batches, list_of(String)
+    attribute :scope, String
+    attribute :status, String
+    attribute :notifications, list_of(Notification)
+
+    value_object "Notification" do
+      attribute :recipient, String
+      attribute :channel, String
+      attribute :sent_at, String
+      attribute :acknowledged, String
+    end
+
+    command "InitiateRecall" do
+      role "QualityDirector"
+      description "Initiate a product recall"
+      attribute :recall_number, String
+      attribute :product, String
+      attribute :reason, String
+      attribute :scope, String
+      emits "RecallInitiated"
+      then_set :recall_number, to: :recall_number
+      then_set :product, to: :product
+      then_set :reason, to: :reason
+      then_set :scope, to: :scope
+      then_set :affected_batches, to: []
+      then_set :notifications, to: []
+      then_set :status, to: "initiated"
+    end
+
+    command "IdentifyAffectedBatches" do
+      role "QualityManager"
+      description "Determine which batches are affected by the recall"
+      reference_to Recall
+      attribute :batch_numbers, list_of(String)
+      given { status == "initiated" }
+      emits "AffectedBatchesIdentified"
+      then_set :affected_batches, to: :batch_numbers
+      then_set :status, to: "identifying"
+    end
+
+    command "NotifyStakeholders" do
+      role "ComplianceOfficer"
+      description "Send recall notifications to all required parties"
+      reference_to Recall
+      attribute :notification, Notification
+      given { status == "identifying" }
+      emits "StakeholdersNotified"
+      then_set :status, to: "notifying"
+    end
+
+    command "ExecuteRecall" do
+      role "QualityDirector"
+      description "Execute the recall — pull affected product"
+      reference_to Recall
+      given { status == "notifying" }
+      emits "RecallExecuted"
+      then_set :status, to: "executing"
+    end
+
+    command "DocumentRecall" do
+      role "ComplianceOfficer"
+      description "Document all recall actions for regulatory reporting"
+      reference_to Recall
+      given { status == "executing" }
+      emits "RecallDocumented"
+      then_set :status, to: "documented"
+    end
+
+    command "CloseRecall" do
+      role "QualityDirector"
+      description "Close the recall after all actions are complete"
+      reference_to Recall
+      given { status == "documented" }
+      emits "RecallClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "initiated" do
+      transition "InitiateRecall" => "initiated"
+      transition "IdentifyAffectedBatches" => "identifying", from: "initiated"
+      transition "NotifyStakeholders" => "notifying", from: "identifying"
+      transition "ExecuteRecall" => "executing", from: "notifying"
+      transition "DocumentRecall" => "documented", from: "executing"
+      transition "CloseRecall" => "closed", from: "documented"
+    end
+  end
+
+  # === Audit ===
+
+  aggregate "Audit", "Audit readiness and execution — scheduled inspections with findings and resolution" do
+    attribute :audit_type, String
+    attribute :auditor, String
+    attribute :scope, String
+    attribute :scheduled_at, String
+    attribute :status, String
+    attribute :findings, list_of(Finding)
+
+    value_object "Finding" do
+      attribute :area, String
+      attribute :observation, String
+      attribute :severity, String
+      attribute :recommendation, String
+      attribute :resolved, String
+    end
+
+    command "ScheduleAudit" do
+      role "ComplianceOfficer"
+      description "Schedule a new audit"
+      attribute :audit_type, String
+      attribute :auditor, String
+      attribute :scope, String
+      attribute :scheduled_at, String
+      emits "AuditScheduled"
+      then_set :audit_type, to: :audit_type
+      then_set :auditor, to: :auditor
+      then_set :scope, to: :scope
+      then_set :scheduled_at, to: :scheduled_at
+      then_set :findings, to: []
+      then_set :status, to: "scheduled"
+    end
+
+    command "PrepareAuditPackage" do
+      role "QualityManager"
+      description "Assemble documentation and evidence for the audit"
+      reference_to Audit
+      given { status == "scheduled" }
+      emits "AuditPackagePrepared"
+      then_set :status, to: "preparing"
+    end
+
+    command "ConductAudit" do
+      role "Auditor"
+      description "Begin the audit inspection"
+      reference_to Audit
+      given { status == "preparing" }
+      emits "AuditConducted"
+      then_set :status, to: "in_progress"
+    end
+
+    command "RecordFinding" do
+      role "Auditor"
+      description "Record an observation or non-conformance"
+      reference_to Audit
+      attribute :finding, Finding
+      given { status == "in_progress" }
+      emits "FindingRecorded"
+      then_set :status, to: "findings_recorded"
+    end
+
+    command "ResolveFinding" do
+      role "QualityManager"
+      description "Address and resolve an audit finding"
+      reference_to Audit
+      attribute :finding_area, String
+      attribute :resolution, String
+      emits "FindingResolved"
+      then_set :status, to: "resolved"
+    end
+
+    command "CloseAudit" do
+      role "ComplianceOfficer"
+      description "Close the audit — all findings addressed"
+      reference_to Audit
+      given { status == "resolved" }
+      emits "AuditClosed"
+      then_set :status, to: "closed"
+    end
+
+    command "GenerateReport" do
+      role "ComplianceOfficer"
+      description "Generate the final audit report for regulatory submission"
+      reference_to Audit
+      emits "ReportGenerated"
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "ScheduleAudit" => "scheduled"
+      transition "PrepareAuditPackage" => "preparing", from: "scheduled"
+      transition "ConductAudit" => "in_progress", from: "preparing"
+      transition "RecordFinding" => "findings_recorded", from: "in_progress"
+      transition "ResolveFinding" => "resolved", from: "findings_recorded"
+      transition "CloseAudit" => "closed", from: "resolved"
+    end
+  end
+
+  # === GovernanceGate ===
+
+  aggregate "GovernanceGate", "The decision engine — every governed action flows through this gate for compliance checks" do
+    attribute :action_type, String
+    attribute :action_id, String
+    attribute :contracts_checked, list_of(ContractCheck)
+    attribute :verdict, String
+    attribute :decided_at, String
+    attribute :status, String
+
+    value_object "ContractCheck" do
+      attribute :contract_name, String
+      attribute :contract_type, String
+      attribute :rule_code, String
+      attribute :passed, String
+      attribute :reason, String
+    end
+
+    command "EvaluateAction" do
+      role "System"
+      description "Begin evaluating an action against all applicable contracts"
+      attribute :action_type, String
+      attribute :action_id, String
+      emits "ActionEvaluated"
+      then_set :action_type, to: :action_type
+      then_set :action_id, to: :action_id
+      then_set :contracts_checked, to: []
+      then_set :status, to: "evaluating"
+    end
+
+    command "CheckJurisdictional" do
+      role "System"
+      description "Check the action against all active jurisdictional contracts"
+      reference_to GovernanceGate
+      emits "JurisdictionalChecked"
+    end
+
+    command "CheckOperational" do
+      role "System"
+      description "Check the action against all active operational contracts"
+      reference_to GovernanceGate
+      emits "OperationalChecked"
+    end
+
+    command "RouteApproval" do
+      role "System"
+      description "Route the action for human approval if required by contracts"
+      reference_to GovernanceGate
+      emits "ApprovalRouted"
+      then_set :status, to: "routing"
+    end
+
+    command "AllowAction" do
+      role "System"
+      description "Allow the action — all checks passed"
+      reference_to GovernanceGate
+      emits "ActionAllowed"
+      then_set :verdict, to: "allowed"
+      then_set :status, to: "decided"
+    end
+
+    command "BlockAction" do
+      role "System"
+      description "Block the action — one or more checks failed"
+      reference_to GovernanceGate
+      attribute :reason, String
+      emits "ActionBlocked"
+      then_set :verdict, to: "blocked"
+      then_set :status, to: "decided"
+    end
+
+    command "LogDecision" do
+      role "System"
+      description "Record the governance decision for audit trail"
+      reference_to GovernanceGate
+      attribute :decided_at, String
+      emits "DecisionLogged"
+      then_set :decided_at, to: :decided_at
+      then_set :status, to: "logged"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "EvaluateAction" => "evaluating", from: "pending"
+      transition "RouteApproval" => "routing", from: "evaluating"
+      transition "AllowAction" => "decided", from: "evaluating"
+      transition "AllowAction" => "decided", from: "routing"
+      transition "BlockAction" => "decided", from: "evaluating"
+      transition "BlockAction" => "decided", from: "routing"
+      transition "LogDecision" => "logged", from: "decided"
+    end
+  end
+
+  # === ApprovalWorkflow ===
+
+  aggregate "ApprovalWorkflow", "Routing and tracking approvals — quorum-based decision making" do
+    attribute :action_type, String
+    attribute :action_id, String
+    attribute :required_approvers, list_of(String)
+    attribute :approvals, list_of(ApprovalRecord)
+    attribute :status, String
+
+    value_object "ApprovalRecord" do
+      attribute :approver, String
+      attribute :role, String
+      attribute :decision, String
+      attribute :timestamp, String
+      attribute :comments, String
+    end
+
+    command "InitiateApproval" do
+      role "System"
+      description "Start an approval workflow for a governed action"
+      attribute :action_type, String
+      attribute :action_id, String
+      attribute :required_approvers, list_of(String)
+      emits "ApprovalInitiated"
+      then_set :action_type, to: :action_type
+      then_set :action_id, to: :action_id
+      then_set :required_approvers, to: :required_approvers
+      then_set :approvals, to: []
+      then_set :status, to: "initiated"
+    end
+
+    command "RequestApproval" do
+      role "System"
+      description "Send approval requests to required approvers"
+      reference_to ApprovalWorkflow
+      given { status == "initiated" }
+      emits "ApprovalRequested"
+      then_set :status, to: "pending"
+    end
+
+    command "RecordApproval" do
+      role "Approver"
+      description "Record an approver's approval decision"
+      reference_to ApprovalWorkflow
+      attribute :record, ApprovalRecord
+      given { status == "pending" }
+      emits "ApprovalRecorded"
+    end
+
+    command "RecordRejection" do
+      role "Approver"
+      description "Record an approver's rejection decision"
+      reference_to ApprovalWorkflow
+      attribute :record, ApprovalRecord
+      given { status == "pending" }
+      emits "RejectionRecorded"
+    end
+
+    command "CheckQuorum" do
+      role "System"
+      description "Check if enough approvals have been received"
+      reference_to ApprovalWorkflow
+      emits "QuorumChecked"
+    end
+
+    command "CompleteApproval" do
+      role "System"
+      description "Complete the workflow — quorum reached, action approved"
+      reference_to ApprovalWorkflow
+      given { status == "pending" }
+      emits "ApprovalCompleted"
+      then_set :status, to: "approved"
+    end
+
+    command "RejectWorkflow" do
+      role "System"
+      description "Reject the workflow — rejection received"
+      reference_to ApprovalWorkflow
+      given { status == "pending" }
+      emits "WorkflowRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "initiated" do
+      transition "InitiateApproval" => "initiated"
+      transition "RequestApproval" => "pending", from: "initiated"
+      transition "CompleteApproval" => "approved", from: "pending"
+      transition "RejectWorkflow" => "rejected", from: "pending"
+    end
+  end
+
+  # === AuditLog ===
+
+  aggregate "AuditLog", "Immutable record of everything — every action, decision, and violation" do
+    attribute :total_entries, Integer
+
+    command "LogEvent" do
+      role "System"
+      description "Record an event in the immutable audit log"
+      attribute :event_type, String
+      attribute :event_data, String
+      attribute :occurred_at, String
+      attribute :actor, String
+      emits "EventLogged"
+      then_set :total_entries, increment: 1
+    end
+
+    command "QueryLog" do
+      role "ComplianceOfficer"
+      description "Search the audit log by criteria"
+      attribute :criteria, String
+      emits "LogQueried"
+    end
+
+    command "ExportLog" do
+      role "ComplianceOfficer"
+      description "Export audit log entries for external reporting"
+      attribute :format, String
+      attribute :date_range, String
+      emits "LogExported"
+    end
+
+    command "GenerateComplianceReport" do
+      role "ComplianceOfficer"
+      description "Generate a compliance report from audit log data"
+      attribute :report_type, String
+      attribute :period, String
+      emits "ComplianceReportGenerated"
+    end
+  end
+
+  # === Token ===
+
+  aggregate "Token", "Usage-based billing — every governed action consumes a token" do
+    attribute :account, String
+    attribute :balance, Integer
+    attribute :consumed, Integer
+
+    command "AllocateTokens" do
+      role "AccountManager"
+      description "Add tokens to an account balance"
+      attribute :account, String
+      attribute :amount, Integer
+      emits "TokensAllocated"
+      then_set :account, to: :account
+      then_set :balance, increment: :amount
+    end
+
+    command "ConsumeToken" do
+      role "System"
+      description "Deduct one token for a governed action"
+      reference_to Token
+      given { balance > 0 }
+      emits "TokenConsumed"
+      then_set :balance, increment: -1
+      then_set :consumed, increment: 1
+    end
+
+    command "RefundToken" do
+      role "AccountManager"
+      description "Refund a token for a blocked or reversed action"
+      reference_to Token
+      emits "TokenRefunded"
+      then_set :balance, increment: 1
+      then_set :consumed, increment: -1
+    end
+
+    command "CheckBalance" do
+      role "System"
+      description "Check the current token balance for an account"
+      reference_to Token
+      emits "BalanceChecked"
+    end
+  end
+
+  # === Policies — the governance chain ===
+
+  policy "EvaluateOnBatchSubmit" do
+    on "BatchSubmittedForRelease"
+    trigger "EvaluateAction"
+  end
+
+  policy "EvaluateOnChangeRequest" do
+    on "ChangeRequestSubmitted"
+    trigger "EvaluateAction"
+  end
+
+  policy "CheckJurisdictionalOnEvaluate" do
+    on "ActionEvaluated"
+    trigger "CheckJurisdictional"
+  end
+
+  policy "CheckOperationalOnJurisdictional" do
+    on "JurisdictionalChecked"
+    trigger "CheckOperational"
+  end
+
+  policy "RouteOnOperational" do
+    on "OperationalChecked"
+    trigger "RouteApproval"
+  end
+
+  policy "LogOnDecision" do
+    on "DecisionLogged"
+    trigger "LogEvent"
+  end
+
+  policy "ConsumeOnAction" do
+    on "ActionAllowed"
+    trigger "ConsumeToken"
+  end
+
+  policy "OpenCAPAOnViolation" do
+    on "BatchRejected"
+    trigger "OpenCAPA"
+  end
+
+  policy "QuarantineOnRecall" do
+    on "RecallInitiated"
+    trigger "QuarantineBatch"
+  end
+
+  # === Fixtures ===
+
+  fixture "JurisdictionalContract", jurisdiction: "California DCC", regulation_code: "DCC-2024-001", effective_date: "2024-01-01", status: "active"
+  fixture "JurisdictionalContract", jurisdiction: "Oregon OLCC", regulation_code: "OLCC-2024-001", effective_date: "2024-01-01", status: "active"
+  fixture "OperationalContract", name: "ISO 9001 Quality Management", department: "Quality", version: 1, status: "active"
+  fixture "OperationalContract", name: "GMP Manufacturing Standards", department: "Production", version: 1, status: "active"
+  fixture "Batch", batch_number: "BATCH-2024-001", product: "Blue Dream Flower", quantity: 500, status: "created"
+  fixture "Token", account: "default", balance: 1000, consumed: 0
+end
