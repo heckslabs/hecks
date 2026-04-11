@@ -36,6 +36,11 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     }}
   }}
   </script>
+  <style>
+    html {{ scroll-behavior: smooth; }}
+    details > summary {{ list-style: none; }}
+    details > summary::-webkit-details-marker {{ display: none; }}
+  </style>
   <script>
   function submitCmd(form, cmd) {{
     const data = {{}};

@@ -46,7 +46,8 @@ pub fn generate_domain_page(
         main.push_str("<nav class=\"flex flex-wrap gap-2 mb-6\">");
         for agg in &rt.domain.aggregates {
             main.push_str(&format!(
-                "<a href=\"#{}\" class=\"px-3 py-1 text-xs rounded-full bg-surface-2 border border-surface-3 text-gray-400 hover:text-brand hover:border-brand\">{}</a>",
+                "<a href=\"#{}\" onclick=\"var d=document.getElementById('{}');if(d)d.open=true\" class=\"px-3 py-1 text-xs rounded-full bg-surface-2 border border-surface-3 text-gray-400 hover:text-brand hover:border-brand\">{}</a>",
+                esc(&agg.name),
                 esc(&agg.name), esc(&display_name(&agg.name)),
             ));
         }
@@ -128,7 +129,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     let desc = cmd.description.as_deref().unwrap_or("");
     format!(
         r#"<details data-domain-command="{cmd_name}">
-  <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition">▸ {label}{role}</summary>
+  <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition list-none [&::-webkit-details-marker]:hidden">{label}{role}</summary>
   <div class="mt-2 p-4 bg-surface-1 rounded-lg border border-surface-3">
     <p class="text-xs text-gray-500 mb-3">{desc}</p>
     <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 gap-3"
