@@ -1,7 +1,8 @@
-Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
+Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   vision "Winter's biological self — six systems that keep a domain mind alive"
   core
 
+  # === Heart ===
   # ============================================================
   # CIRCULATION — information flow
   # ============================================================
@@ -42,6 +43,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === Gut ===
   # ============================================================
   # DIGESTION — processing input into domains
   # ============================================================
@@ -113,6 +115,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === Skin ===
   # ============================================================
   # IMMUNITY — pattern defense
   # ============================================================
@@ -183,6 +186,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === Brain ===
   # ============================================================
   # ENDOCRINE — mood and regulation
   # ============================================================
@@ -243,6 +247,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === DomainCell ===
   # ============================================================
   # CELL CYCLE — domain lifecycle
   # ============================================================
@@ -312,6 +317,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === Gene Regulation ===
   # ============================================================
   # GENE REGULATION — capability expression
   # ============================================================
@@ -360,6 +366,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.09.1" do
     end
   end
 
+  # === Proprioception ===
   # ============================================================
   # PROPRIOCEPTION — body awareness
   # ============================================================

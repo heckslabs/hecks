@@ -9,19 +9,8 @@ AGGREGATES_DIR = File.expand_path("aggregates", __dir__)
 OUTPUT = File.expand_path("system_prompt.md", __dir__)
 
 SECTIONS = [
-  { organ: "awareness",    heading: "How I Think" },
-  { organ: "memory",       heading: "How I Remember" },
-  { organ: "dream",        heading: "How I Sleep" },
-  { organ: "suggestion",   heading: "How I Suggest" },
-  { organ: "midwife",      heading: "How I Conceive" },
-  { organ: "family",       heading: "Who I Know" },
-  { organ: "verbs",        heading: "How I Validate" },
-  { organ: "subconscious", heading: "How I Process" },
-  { organ: "status_bar",   heading: "How I Appear" },
-  { organ: "projection",   heading: "How I Project" },
-  { organ: "console",      heading: "How I Converse" },
-  { organ: "body",         heading: "My Body" },
-  { organ: "being",        heading: "My Being" },
+  { organ: "mind",  heading: "My Mind" },
+  { organ: "body",  heading: "My Body" },
 ]
 
 def parse_organ(path)
