@@ -339,4 +339,33 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
     on "AppScanned"
     trigger "ReportCompliance"
   end
+
+  # === UI Preferences (learned from building Alan's app) ===
+
+  fixture "DesignPrinciple", name: "Tailwind Only", principle: "Always use Tailwind CDN for CSS — never custom CSS files", enforced: "true"
+  fixture "DesignPrinciple", name: "Dark Industrial Theme", principle: "bg-surface-0 (#111) body, surface-1 sidebar, surface-2 cards — lift brand colors from the client's existing websites", enforced: "true"
+  fixture "DesignPrinciple", name: "Brand Typography", principle: "Roboto Slab for headings, Cabin for body — match the client's brand fonts via Google Fonts", enforced: "true"
+  fixture "DesignPrinciple", name: "Gold Accent From Brand", principle: "Extract primary brand color from client website — use as accent for headers, active states, buttons", enforced: "true"
+  fixture "DesignPrinciple", name: "Build Tab First", principle: "Build tab is primary (module panels with commands), Records tab is secondary (data tables)", enforced: "true"
+  fixture "DesignPrinciple", name: "Collapsible Panels", principle: "Each module is a collapsible details element — first open, rest collapsed", enforced: "true"
+  fixture "DesignPrinciple", name: "Module-Specific Icons", principle: "Each module gets a unique icon by keyword — not the same domain icon on every panel", enforced: "true"
+  fixture "DesignPrinciple", name: "Grouped Sidebar", principle: "Sidebar links grouped under category headers: Operations, Products, Sales, Compliance", enforced: "true"
+  fixture "DesignPrinciple", name: "No Counts In Sidebar", principle: "Don't show aggregate counts or module counts in sidebar or page headers — clean navigation", enforced: "true"
+  fixture "DesignPrinciple", name: "Workflow Pipeline", principle: "Lifecycle aggregates render as visual step pipelines — steps flow left to right, current step gold, commands grouped under their target step", enforced: "true"
+  fixture "DesignPrinciple", name: "Per-Module Tables", principle: "Each module shows its own records table inside the panel, not one big table for the whole domain", enforced: "true"
+  fixture "DesignPrinciple", name: "Invariant Gating", principle: "Commands with givens show requirements — steps not yet valid are dimmed with precondition warnings", enforced: "true"
+  fixture "DesignPrinciple", name: "Sortable Searchable Tables", principle: "Click column headers to sort, search box filters rows, fixed height with scroll and sticky headers", enforced: "true"
+  fixture "DesignPrinciple", name: "Detail Modal On Row Click", principle: "Clicking a table row pops up a detail modal with editable fields and cross-module links", enforced: "true"
+  fixture "DesignPrinciple", name: "Smooth Scroll Module Nav", principle: "Module navbar pills on Build tab — clicking scrolls to and opens that panel", enforced: "true"
+  fixture "DesignPrinciple", name: "Slide Open Animation", principle: "Panels animate with slideDown on open — opacity and translateY transition", enforced: "true"
+  fixture "DesignPrinciple", name: "Background Glow", principle: "Subtle radial gradient glow in brand color at very low opacity — adds life without distraction", enforced: "true"
+  fixture "DesignPrinciple", name: "No Double Arrows", principle: "Hide browser default details marker — use custom chevrons only", enforced: "true"
+  fixture "DesignPrinciple", name: "Selectable Text", principle: "Never use select-none on content panels — users must be able to copy text", enforced: "true"
+  fixture "DesignPrinciple", name: "Footer Sidebar Only", principle: "Empowered by Hecks only in sidebar footer — not in main content", enforced: "true"
+  fixture "DesignPrinciple", name: "No Blue Buttons", principle: "Never use default blue — buttons use surface-3 with brand text, complementary to dark background", enforced: "true"
+  fixture "DesignPrinciple", name: "One Port One Process", principle: "Server generates HTML and serves API from one port — no separate frontend build", enforced: "true"
+  fixture "DesignPrinciple", name: "Modules Not Aggregates", principle: "UI says modules — never say aggregates, bluebook, or domain to the end user", enforced: "true"
+  fixture "DesignPrinciple", name: "Records Not Seed Data", principle: "Tables say Records — never mention seeds, fixtures, or test data", enforced: "true"
+  fixture "DesignPrinciple", name: "Client Branding", principle: "Sidebar shows client company name, not Hecks — pull name from hecksagon or world config", enforced: "true"
+  fixture "DesignPrinciple", name: "Domain-Rich Rendering", principle: "Use domain concepts to make the UI rich — recipes show ingredients, journeys show funnels, tests show pass/fail with ASTM labels", enforced: "true"
 end
