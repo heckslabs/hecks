@@ -1,0 +1,519 @@
+Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
+  vision "Track the inbound supply chain — one contract manufacturer, many suppliers, full lot traceability"
+  category "business"
+
+  aggregate "Supplier", "A company that supplies raw materials or packaging to the manufacturer" do
+    attribute :name, String
+    attribute :supplier_type, String
+    attribute :contact, String
+    attribute :lead_time_days, Integer
+    attribute :payment_terms, String
+    attribute :quality_rating, Float
+    attribute :approved, String
+    attribute :status, String
+
+    command "RegisterSupplier" do
+      role "ProcurementManager"
+      description "Add a new supplier to the Approved Supplier List"
+      attribute :name, String
+      attribute :supplier_type, String
+      attribute :contact, String
+      attribute :lead_time_days, Integer
+      attribute :payment_terms, String
+      emits "SupplierRegistered"
+      then_set :name, to: :name
+      then_set :supplier_type, to: :supplier_type
+      then_set :contact, to: :contact
+      then_set :lead_time_days, to: :lead_time_days
+      then_set :payment_terms, to: :payment_terms
+      then_set :approved, to: "false"
+      then_set :status, to: "pending"
+    end
+
+    command "ApproveSupplier" do
+      role "QualityManager"
+      description "Approve supplier for the ASL after qualification"
+      reference_to Supplier
+      given { status == "pending" }
+      emits "SupplierApproved"
+      then_set :approved, to: "true"
+      then_set :status, to: "approved"
+    end
+
+    command "RateSupplier" do
+      role "QualityManager"
+      description "Update the supplier quality rating based on performance"
+      reference_to Supplier
+      attribute :quality_rating, Float
+      emits "SupplierRated"
+      then_set :quality_rating, to: :quality_rating
+    end
+
+    command "SuspendSupplier" do
+      role "QualityManager"
+      description "Suspend a supplier due to quality or delivery failures"
+      reference_to Supplier
+      given { status == "approved" }
+      emits "SupplierSuspended"
+      then_set :approved, to: "false"
+      then_set :status, to: "suspended"
+    end
+
+    command "RestoreSupplier" do
+      role "QualityManager"
+      description "Restore a suspended supplier after corrective action"
+      reference_to Supplier
+      given { status == "suspended" }
+      emits "SupplierRestored"
+      then_set :approved, to: "true"
+      then_set :status, to: "approved"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterSupplier" => "pending"
+      transition "ApproveSupplier" => "approved", from: "pending"
+      transition "SuspendSupplier" => "suspended", from: "approved"
+      transition "RestoreSupplier" => "approved", from: "suspended"
+    end
+  end
+
+  aggregate "RawMaterial", "A chemical ingredient or base oil sourced from a supplier" do
+    attribute :chemical_name, String
+    attribute :cas_number, String
+    attribute :supplier, String
+    attribute :grade, String
+    attribute :unit_cost, Float
+    attribute :unit, String
+    attribute :lot_number, String
+    attribute :coa_on_file, String
+    attribute :shelf_life_days, Integer
+    attribute :msds_current, String
+    attribute :status, String
+
+    command "SourceMaterial" do
+      role "ProcurementManager"
+      description "Identify and order a raw material from an approved supplier"
+      attribute :chemical_name, String
+      attribute :cas_number, String
+      attribute :supplier, String
+      attribute :grade, String
+      attribute :unit_cost, Float
+      attribute :unit, String
+      emits "MaterialSourced"
+      then_set :chemical_name, to: :chemical_name
+      then_set :cas_number, to: :cas_number
+      then_set :supplier, to: :supplier
+      then_set :grade, to: :grade
+      then_set :unit_cost, to: :unit_cost
+      then_set :unit, to: :unit
+      then_set :coa_on_file, to: "false"
+      then_set :msds_current, to: "false"
+      then_set :status, to: "ordered"
+    end
+
+    command "ReceiveMaterial" do
+      role "WarehouseManager"
+      description "Material arrived at dock — log lot number and begin inspection"
+      reference_to RawMaterial
+      attribute :lot_number, String
+      emits "MaterialReceived"
+      then_set :lot_number, to: :lot_number
+      then_set :status, to: "received"
+    end
+
+    command "InspectMaterial" do
+      role "QualityManager"
+      description "Begin quality inspection of received material"
+      reference_to RawMaterial
+      given { status == "received" }
+      emits "MaterialInspecting"
+      then_set :status, to: "inspecting"
+    end
+
+    command "AcceptMaterial" do
+      role "QualityManager"
+      description "Material passed inspection — cleared for use in production"
+      reference_to RawMaterial
+      attribute :coa_on_file, String
+      given { status == "inspecting" }
+      emits "MaterialAccepted"
+      then_set :coa_on_file, to: :coa_on_file
+      then_set :status, to: "accepted"
+    end
+
+    command "RejectMaterial" do
+      role "QualityManager"
+      description "Material failed inspection — quarantine and notify supplier"
+      reference_to RawMaterial
+      attribute :reason, String
+      given { status == "inspecting" }
+      emits "MaterialRejected"
+      then_set :status, to: "rejected"
+    end
+
+    command "TrackLot" do
+      role "QualityManager"
+      description "Record lot-level traceability data for this material"
+      reference_to RawMaterial
+      emits "LotTracked"
+    end
+
+    lifecycle :status, default: "ordered" do
+      transition "SourceMaterial" => "ordered"
+      transition "ReceiveMaterial" => "received", from: "ordered"
+      transition "InspectMaterial" => "inspecting", from: "received"
+      transition "AcceptMaterial" => "accepted", from: "inspecting"
+      transition "RejectMaterial" => "rejected", from: "inspecting"
+    end
+  end
+
+  aggregate "PackagingComponent", "Bottles, caps, labels, boxes, shrink wrap sourced from packaging suppliers" do
+    attribute :component_type, String
+    attribute :supplier, String
+    attribute :specification, String
+    attribute :unit_cost, Float
+    attribute :moq, Integer
+    attribute :lot_number, String
+    attribute :status, String
+
+    command "OrderPackaging" do
+      role "ProcurementManager"
+      description "Place an order for packaging components from a supplier"
+      attribute :component_type, String
+      attribute :supplier, String
+      attribute :specification, String
+      attribute :unit_cost, Float
+      attribute :moq, Integer
+      emits "PackagingOrdered"
+      then_set :component_type, to: :component_type
+      then_set :supplier, to: :supplier
+      then_set :specification, to: :specification
+      then_set :unit_cost, to: :unit_cost
+      then_set :moq, to: :moq
+      then_set :status, to: "ordered"
+    end
+
+    command "ReceivePackaging" do
+      role "WarehouseManager"
+      description "Packaging arrived at dock — log lot number"
+      reference_to PackagingComponent
+      attribute :lot_number, String
+      emits "PackagingReceived"
+      then_set :lot_number, to: :lot_number
+      then_set :status, to: "received"
+    end
+
+    command "InspectPackaging" do
+      role "QualityManager"
+      description "Inspect received packaging against specification"
+      reference_to PackagingComponent
+      given { status == "received" }
+      emits "PackagingInspecting"
+      then_set :status, to: "inspecting"
+    end
+
+    command "AcceptPackaging" do
+      role "QualityManager"
+      description "Packaging passed inspection — cleared for use"
+      reference_to PackagingComponent
+      given { status == "inspecting" }
+      emits "PackagingAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    command "RejectPackaging" do
+      role "QualityManager"
+      description "Packaging failed inspection — return to supplier"
+      reference_to PackagingComponent
+      attribute :reason, String
+      given { status == "inspecting" }
+      emits "PackagingRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "ordered" do
+      transition "OrderPackaging" => "ordered"
+      transition "ReceivePackaging" => "received", from: "ordered"
+      transition "InspectPackaging" => "inspecting", from: "received"
+      transition "AcceptPackaging" => "accepted", from: "inspecting"
+      transition "RejectPackaging" => "rejected", from: "inspecting"
+    end
+  end
+
+  aggregate "BillOfMaterials", "What goes into each finished product — traces every component to its supplier" do
+    attribute :product_sku, String
+    attribute :formula_name, String
+    attribute :materials, list_of(MaterialLine)
+    attribute :packaging, list_of(PackagingLine)
+    attribute :total_cost_per_unit, Float
+
+    value_object "MaterialLine" do
+      attribute :chemical_name, String
+      attribute :supplier, String
+      attribute :quantity_per_unit, Float
+      attribute :unit, String
+      attribute :cost_per_unit, Float
+    end
+
+    value_object "PackagingLine" do
+      attribute :component_type, String
+      attribute :supplier, String
+      attribute :quantity_per_unit, Integer
+      attribute :cost_per_unit, Float
+    end
+
+    command "CreateBOM" do
+      role "Formulator"
+      description "Define a new bill of materials for a product SKU"
+      attribute :product_sku, String
+      attribute :formula_name, String
+      emits "BOMCreated"
+      then_set :product_sku, to: :product_sku
+      then_set :formula_name, to: :formula_name
+    end
+
+    command "AddMaterialLine" do
+      role "Formulator"
+      description "Add a raw material line to the BOM"
+      reference_to BillOfMaterials
+      attribute :chemical_name, String
+      attribute :supplier, String
+      attribute :quantity_per_unit, Float
+      attribute :unit, String
+      attribute :cost_per_unit, Float
+      emits "MaterialLineAdded"
+    end
+
+    command "AddPackagingLine" do
+      role "Formulator"
+      description "Add a packaging component line to the BOM"
+      reference_to BillOfMaterials
+      attribute :component_type, String
+      attribute :supplier, String
+      attribute :quantity_per_unit, Integer
+      attribute :cost_per_unit, Float
+      emits "PackagingLineAdded"
+    end
+
+    command "CalculateUnitCost" do
+      role "Formulator"
+      description "Sum all material and packaging line costs into total cost per unit"
+      reference_to BillOfMaterials
+      emits "UnitCostCalculated"
+    end
+
+    command "UpdateBOM" do
+      role "Formulator"
+      description "Revise the BOM when formula or suppliers change"
+      reference_to BillOfMaterials
+      emits "BOMUpdated"
+    end
+  end
+
+  aggregate "PurchaseOrder", "An order for materials or packaging placed with a supplier" do
+    attribute :po_number, String
+    attribute :supplier, String
+    attribute :items, list_of(POLine)
+    attribute :total, Float
+    attribute :delivery_date, String
+    attribute :status, String
+
+    value_object "POLine" do
+      attribute :material_or_component, String
+      attribute :quantity, Integer
+      attribute :unit_price, Float
+      attribute :lot_required, String
+    end
+
+    command "CreatePurchaseOrder" do
+      role "ProcurementManager"
+      description "Draft a new purchase order for a supplier"
+      attribute :po_number, String
+      attribute :supplier, String
+      attribute :delivery_date, String
+      emits "PurchaseOrderCreated"
+      then_set :po_number, to: :po_number
+      then_set :supplier, to: :supplier
+      then_set :delivery_date, to: :delivery_date
+      then_set :status, to: "draft"
+    end
+
+    command "SubmitPurchaseOrder" do
+      role "ProcurementManager"
+      description "Send the PO to the supplier for confirmation"
+      reference_to PurchaseOrder
+      given { status == "draft" }
+      emits "PurchaseOrderSubmitted"
+      then_set :status, to: "submitted"
+    end
+
+    command "ConfirmPurchaseOrder" do
+      role "Supplier"
+      description "Supplier acknowledges and confirms the PO"
+      reference_to PurchaseOrder
+      given { status == "submitted" }
+      emits "PurchaseOrderConfirmed"
+      then_set :status, to: "confirmed"
+    end
+
+    command "ReceivePurchaseOrder" do
+      role "WarehouseManager"
+      description "All items on the PO have been received at dock"
+      reference_to PurchaseOrder
+      given { status == "confirmed" }
+      emits "PurchaseOrderReceived"
+      then_set :status, to: "received"
+    end
+
+    command "ClosePurchaseOrder" do
+      role "ProcurementManager"
+      description "PO is complete — all items received and inspected"
+      reference_to PurchaseOrder
+      given { status == "received" }
+      emits "PurchaseOrderClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreatePurchaseOrder" => "draft"
+      transition "SubmitPurchaseOrder" => "submitted", from: "draft"
+      transition "ConfirmPurchaseOrder" => "confirmed", from: "submitted"
+      transition "ReceivePurchaseOrder" => "received", from: "confirmed"
+      transition "ClosePurchaseOrder" => "closed", from: "received"
+    end
+  end
+
+  aggregate "SupplierQuality", "Tracking supplier performance over time — acceptance rates, COA compliance, delivery" do
+    attribute :supplier, String
+    attribute :total_lots_received, Integer
+    attribute :lots_accepted, Integer
+    attribute :lots_rejected, Integer
+    attribute :acceptance_rate, Float
+    attribute :coa_compliance_rate, Float
+    attribute :on_time_delivery_rate, Float
+
+    command "RecordReceipt" do
+      role "QualityManager"
+      description "Record that a lot was received from this supplier"
+      reference_to SupplierQuality
+      emits "ReceiptRecorded"
+      then_set :total_lots_received, increment: 1
+    end
+
+    command "RecordRejection" do
+      role "QualityManager"
+      description "Record that a lot from this supplier was rejected"
+      reference_to SupplierQuality
+      emits "RejectionRecorded"
+      then_set :lots_rejected, increment: 1
+    end
+
+    command "CalculateMetrics" do
+      role "QualityManager"
+      description "Recalculate acceptance rate, COA compliance, and on-time delivery"
+      reference_to SupplierQuality
+      emits "MetricsCalculated"
+    end
+
+    command "FlagUnderperformer" do
+      role "QualityManager"
+      description "Flag a supplier whose metrics fall below threshold"
+      reference_to SupplierQuality
+      emits "UnderperformerFlagged"
+    end
+
+    command "IssueCorrectiveAction" do
+      role "QualityManager"
+      description "Issue a formal corrective action request to the supplier"
+      reference_to SupplierQuality
+      attribute :reason, String
+      emits "CorrectiveActionIssued"
+    end
+  end
+
+  aggregate "MaterialTraceability", "Lot-level tracing from supplier through to finished product — critical for recalls" do
+    attribute :lot_number, String
+    attribute :material_name, String
+    attribute :supplier, String
+    attribute :received_date, String
+    attribute :used_in_batches, list_of(String)
+    attribute :used_in_products, list_of(String)
+
+    command "TrackInboundLot" do
+      role "QualityManager"
+      description "Begin tracking a lot from the moment it is accepted"
+      attribute :lot_number, String
+      attribute :material_name, String
+      attribute :supplier, String
+      attribute :received_date, String
+      emits "InboundLotTracked"
+      then_set :lot_number, to: :lot_number
+      then_set :material_name, to: :material_name
+      then_set :supplier, to: :supplier
+      then_set :received_date, to: :received_date
+    end
+
+    command "LinkToBatch" do
+      role "QualityManager"
+      description "Link this lot to a manufacturing batch that consumed it"
+      reference_to MaterialTraceability
+      attribute :batch_id, String
+      emits "LotLinkedToBatch"
+      then_set :used_in_batches, append: :batch_id
+    end
+
+    command "LinkToProduct" do
+      role "QualityManager"
+      description "Link this lot to a finished product SKU"
+      reference_to MaterialTraceability
+      attribute :product_sku, String
+      emits "LotLinkedToProduct"
+      then_set :used_in_products, append: :product_sku
+    end
+
+    command "TraceForward" do
+      role "QualityManager"
+      description "Given a supplier lot, find all products it ended up in"
+      reference_to MaterialTraceability
+      emits "ForwardTraceCompleted"
+    end
+
+    command "TraceBackward" do
+      role "QualityManager"
+      description "Given a finished product, find all supplier lots that went into it"
+      reference_to MaterialTraceability
+      emits "BackwardTraceCompleted"
+    end
+  end
+
+  policy "InspectOnReceive" do
+    on "MaterialReceived"
+    trigger "InspectMaterial"
+  end
+
+  policy "COAOnReceive" do
+    on "MaterialReceived"
+    trigger "TrackLot"
+  end
+
+  policy "MetricsOnReceipt" do
+    on "ReceiptRecorded"
+    trigger "CalculateMetrics"
+  end
+
+  policy "POOnReorder" do
+    on "ReorderTriggered"
+    across "Inventory"
+    trigger "CreatePurchaseOrder"
+  end
+
+  policy "TraceOnAccept" do
+    on "MaterialAccepted"
+    trigger "TrackInboundLot"
+  end
+
+  policy "FlagOnRejection" do
+    on "MaterialRejected"
+    trigger "FlagUnderperformer"
+  end
+end

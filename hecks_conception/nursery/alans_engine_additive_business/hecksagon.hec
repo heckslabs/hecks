@@ -49,4 +49,9 @@ Hecks.hecksagon "AlansEngineAdditiveBusiness" do
     listens_to "brand_strategy"
     listens_to "quality"
   end
+  domain "supply_chain" do
+    listens_to "formulation"
+    listens_to "manufacturing"
+    listens_to "inventory"
+  end
 end
