@@ -14,8 +14,8 @@ module Hecks
           b.aggregate "Diagram" do
             description "Generated domain visualizations -- aggregate maps, event flows, command graphs."
             attribute :view_type, String
-            attribute :nodes, list_of("DiagramNode")
-            attribute :edges, list_of("DiagramEdge")
+            attribute :nodes, list_of(DiagramNode)
+            attribute :edges, list_of(DiagramEdge)
 
             value_object "DiagramNode" do
               description "An element in the diagram -- aggregate, command, event, or value object"
@@ -67,7 +67,7 @@ module Hecks
             description "Interactive event storming session. Stickies represent domain concepts."
             attribute :name, String
             attribute :status, String, default: "active"
-            attribute :stickies, list_of("Sticky")
+            attribute :stickies, list_of(Sticky)
 
             value_object "Sticky" do
               description "A virtual sticky note -- event, command, policy, hotspot, or external system"
@@ -106,7 +106,7 @@ module Hecks
 
           b.aggregate "Glossary" do
             description "Ubiquitous language dictionary. Defines terms, enforces naming consistency."
-            attribute :terms, list_of("Term")
+            attribute :terms, list_of(Term)
 
             value_object "Term" do
               description "A domain term with its definition and category"

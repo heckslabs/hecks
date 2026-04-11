@@ -63,7 +63,7 @@ module Hecks
           b.aggregate "Search" do
             description "Full-text search across domains, aggregates, commands, and attributes."
             attribute :query_text, String
-            attribute :results, list_of("SearchResult")
+            attribute :results, list_of(SearchResult)
             attribute :result_count, Integer, default: 0
 
             value_object "SearchResult" do

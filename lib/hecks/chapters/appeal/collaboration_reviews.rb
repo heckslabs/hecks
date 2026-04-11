@@ -17,7 +17,7 @@ module Hecks
             attribute :status, String, default: "open"
             attribute :author, String
             attribute :changes_summary, String
-            attribute :comments, list_of("ReviewComment")
+            attribute :comments, list_of(ReviewComment)
 
             value_object "ReviewComment" do
               description "A comment on a proposed domain change"
@@ -61,7 +61,7 @@ module Hecks
             attribute :element_name, String
             attribute :body, String
             attribute :resolved, String, default: "false"
-            attribute :replies, list_of("Reply")
+            attribute :replies, list_of(Reply)
 
             value_object "Reply" do
               description "A threaded reply to an annotation"
@@ -96,8 +96,8 @@ module Hecks
             description "AI assistant for domain modeling. Ask questions, get suggestions, apply changes."
             attribute :adapter_mode, String
             attribute :thinking, String
-            attribute :messages, list_of("Message")
-            attribute :suggestions, list_of("Suggestion")
+            attribute :messages, list_of(Message)
+            attribute :suggestions, list_of(Suggestion)
             attribute :loaded_domain, String
 
             value_object "Message" do

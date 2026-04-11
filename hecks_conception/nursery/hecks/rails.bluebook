@@ -1,0 +1,66 @@
+Hecks.bluebook "Rails" do
+  aggregate "ActiveHecks", definition: "Adds full ActiveModel compatibility to generated domain objects for Rails" do
+
+    command "Activate" do
+      attribute :domain_module, String
+    end
+  end
+
+  aggregate "BluebookModelCompat", definition: "Shared ActiveModel compatibility: naming, conversion, JSON serialization" do
+
+    command "Include" do
+    end
+  end
+
+  aggregate "AggregateCompat", definition: "Aggregate-specific ActiveModel mixin: identity, validations, lifecycle callbacks" do
+
+    command "Include" do
+    end
+  end
+
+  aggregate "ValueObjectCompat", definition: "Value object-specific mixin: no identity, immutable semantics" do
+
+    command "Include" do
+    end
+  end
+
+  aggregate "ValidationWiring", definition: "Converts DSL validation rules into ActiveModel validates calls" do
+
+    command "Bind" do
+      attribute :klass, String
+    end
+  end
+
+  aggregate "PersistenceWrapper", definition: "Wraps save/destroy with validation checks and lifecycle callbacks" do
+
+    command "Bind" do
+      attribute :klass, String
+    end
+  end
+
+  aggregate "Railtie", definition: "Rails integration hook: boots Hecks after initializers, provides rake tasks" do
+
+    command "Boot" do
+    end
+  end
+
+  aggregate "InitGenerator", definition: "Rails generator that sets up a Hecks domain gem in a Rails app" do
+
+    command "Generate" do
+    end
+  end
+
+  aggregate "MigrationGenerator", definition: "Rails generator that produces SQL migration files from domain changes" do
+
+    command "Generate" do
+    end
+  end
+
+  aggregate "RailsGenerator", definition: "Generates Rails integration files (initializer, routes, controllers)" do
+
+    command "GenerateRails" do
+      attribute :domain_id, String
+      attribute :output_dir, String
+    end
+  end
+end

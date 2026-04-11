@@ -17,8 +17,8 @@ module Hecks
             attribute :selected_command, String
             attribute :status, String, default: "idle"
             attribute :last_result, String
-            attribute :event_log, list_of("ConsoleEvent")
-            attribute :form, list_of("FormField")
+            attribute :event_log, list_of(ConsoleEvent)
+            attribute :form, list_of(FormField)
 
             value_object "FormField" do
               description "A generated input field from a command attribute"
@@ -63,7 +63,7 @@ module Hecks
           b.aggregate "AcceptanceTest" do
             description "Automated test runner. Dispatches every domain command and validates the event log."
             attribute :status, String, default: "idle"
-            attribute :results, list_of("TestResult")
+            attribute :results, list_of(TestResult)
             attribute :passed, Integer, default: 0
             attribute :failed, Integer, default: 0
             attribute :total, Integer, default: 0
@@ -104,7 +104,7 @@ module Hecks
           b.aggregate "EventStream" do
             description "Live event feed. Subscribes to domain events and streams them to the UI."
             attribute :status, String, default: "streaming"
-            attribute :events, list_of("StreamEvent")
+            attribute :events, list_of(StreamEvent)
             attribute :filter_aggregate, String
             attribute :filter_event_type, String
 

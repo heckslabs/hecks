@@ -15,7 +15,7 @@ module Hecks
             attribute :title, String
             attribute :description, String
             attribute :status, String, default: "draft"
-            attribute :additions, list_of("DomainAddition")
+            attribute :additions, list_of(DomainAddition)
             attribute :total_additions, Integer, default: 0
             attribute :completed_additions, Integer, default: 0
 
@@ -77,7 +77,7 @@ module Hecks
           b.aggregate "Backlog" do
             description "Ordered collection of features. Tracks progress."
             attribute :name, String
-            attribute :features, list_of("BacklogEntry")
+            attribute :features, list_of(BacklogEntry)
 
             value_object "BacklogEntry" do
               description "A feature in the backlog with its position"
@@ -110,7 +110,7 @@ module Hecks
           b.aggregate "ProductExecutor" do
             description "Eight-agent product team: plan, build domain, build app, UX, UI, product owner, scrum master, event storming"
             attribute :active_agent, String
-            attribute :conversations, list_of("AgentConversation")
+            attribute :conversations, list_of(AgentConversation)
 
             value_object "AgentConversation" do
               description "A named agent's chat history"

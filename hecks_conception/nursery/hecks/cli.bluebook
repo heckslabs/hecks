@@ -1,0 +1,527 @@
+Hecks.bluebook "Cli" do
+  aggregate "CLI", definition: "Thor-based command-line interface entry point" do
+
+    command "Start" do
+      attribute :argv, String
+    end
+  end
+
+  aggregate "InitCommand", definition: "Scaffolds a new Hecks domain project" do
+
+    command "Init" do
+      attribute :project_name, String
+    end
+  end
+
+  aggregate "BuildCommand", definition: "Compiles domain DSL into Ruby classes" do
+
+    command "Build" do
+      attribute :target, String
+    end
+  end
+
+  aggregate "ValidateCommand", definition: "Lints a domain definition for errors" do
+
+    command "Validate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "ListCommand", definition: "Lists aggregates and commands in a domain" do
+
+    command "List" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "InspectCommand", definition: "Displays detailed domain structure" do
+
+    command "Inspect" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "TreeCommand", definition: "Renders domain as ASCII tree" do
+
+    command "Tree" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "DiffCommand", definition: "Shows diff between domain versions" do
+
+    command "Diff" do
+      attribute :from_version, String
+      attribute :to_version, String
+    end
+  end
+
+  aggregate "DumpCommand", definition: "Exports domain in various formats" do
+
+    command "Dump" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "GemCommand", definition: "Packages domain as a Ruby gem" do
+
+    command "Package" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "ImportCommand", definition: "Imports Rails models into domain DSL" do
+
+    command "Import" do
+      attribute :source_path, String
+    end
+  end
+
+  aggregate "InterviewCommand", definition: "Runs interactive domain wizard" do
+
+    command "Interview" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "VersionCommand", definition: "Shows framework version" do
+
+    command "Show" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "VersionTagCommand", definition: "Tags a domain version snapshot" do
+
+    command "Tag" do
+      attribute :version, String
+    end
+  end
+
+  aggregate "VersionLogCommand", definition: "Lists domain version history" do
+
+    command "Log" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "VisualizeCommand", definition: "Generates domain diagrams" do
+
+    command "Visualize" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "ContextMapCommand", definition: "Generates context map for multi-domain" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "GlossaryCommand", definition: "Outputs ubiquitous language glossary" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "LlmsCommand", definition: "Generates LLM context file" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "ExtractCommand", definition: "Extracts aggregate to new domain" do
+
+    command "Extract" do
+      attribute :aggregate_name, String
+    end
+  end
+
+  aggregate "GenerateStubCommand", definition: "Generates test stubs for domain" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "GenerateSinatraCommand", definition: "Generates Sinatra app from domain" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "GenerateConfigCommand", definition: "Generates configuration files" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "InfoCommand", definition: "Shows domain metadata and stats" do
+
+    command "Show" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "CompileCommand", definition: "Compiles Hecks into a self-contained binary" do
+
+    command "Compile" do
+      attribute :output, String
+    end
+  end
+
+  aggregate "ClaudeCommand", definition: "Starts file watchers and launches Claude Code" do
+
+    command "Launch" do
+      attribute :args, String
+    end
+  end
+
+  aggregate "AppealCommand", definition: "Launches the HecksAppeal IDE server" do
+
+    command "Launch" do
+      attribute :path, String
+    end
+  end
+
+  aggregate "NewProjectCommand", definition: "Scaffolds a new Hecks domain project" do
+
+    command "Create" do
+      attribute :project_name, String
+    end
+  end
+
+  aggregate "SelfDiffCommand", definition: "Compares generated code against actual gem code" do
+
+    command "Diff" do
+      attribute :chapter, String
+      attribute :framework, String
+    end
+  end
+
+  aggregate "VerifyCommand", definition: "Runs Bluebook self-verification" do
+
+    command "Verify" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "SmoketestCommand", definition: "Runs all example domain tests" do
+
+    command "Run" do
+      attribute :format, String
+    end
+  end
+
+  aggregate "AllureCommand", definition: "Terminal UI — domain concepts as panels" do
+
+    command "Launch" do
+      attribute :bluebook, String
+    end
+  end
+
+  aggregate "DocsCommand", definition: "Serve domain as executable docs in browser" do
+
+    command "Serve" do
+      attribute :bluebook, String
+    end
+  end
+
+  aggregate "ArchitectureCommand", definition: "Show hexagonal architecture diagram" do
+
+    command "Show" do
+    end
+  end
+
+  aggregate "CoverageCommand", definition: "Show missing domain concepts in app code" do
+
+    command "Check" do
+    end
+  end
+
+  aggregate "WinterCommand", definition: "Wake Winter — living domain organism" do
+
+    command "Wake" do
+      attribute :action, String
+      attribute :domain, String
+    end
+  end
+
+  aggregate "ConsoleCommand", definition: "Start the interactive workshop" do
+
+    command "Start" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "WebWorkshopCommand", definition: "Start the browser-based workshop" do
+
+    command "Start" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "TourCommand", definition: "Guided walkthrough of the workshop" do
+
+    command "Start" do
+      attribute :architecture, String
+    end
+  end
+
+  aggregate "StatsCommand", definition: "Show comprehensive domain statistics" do
+
+    command "Show" do
+    end
+  end
+
+  aggregate "SmokeCommand", definition: "Run end-to-end smoke test for this domain" do
+
+    command "Run" do
+    end
+  end
+
+  aggregate "RegenerateExamplesCommand", definition: "Regenerate all example outputs from the pizzas domain" do
+
+    command "Run" do
+    end
+  end
+
+  aggregate "McpCommand", definition: "Start MCP server — build domains or serve one" do
+
+    command "Start" do
+      attribute :domain, String
+    end
+  end
+
+  aggregate "PromoteCommand", definition: "Extract an aggregate into its own domain" do
+
+    command "Promote" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "VersionLogFormatter", definition: "Formats version history with change summaries between snapshots" do
+
+    command "Format" do
+      attribute :entries, String
+    end
+  end
+
+  aggregate "Steps", definition: "Step definitions for the guided architecture tour" do
+
+    command "BuildSteps" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "SinatraAppGenerator", definition: "Generates Sinatra app scaffold from domain IR" do
+
+    command "Generate" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "Interviewer", definition: "Interactive domain definition wizard" do
+
+    command "Interview" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "WorldConcernsPrompt", definition: "Prompts user for world concerns during init" do
+
+    command "Prompt" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "Cli", definition: "Thor-based command-line interface entry point" do
+
+    command "Start" do
+      attribute :argv, String
+    end
+  end
+
+  aggregate "ArchitectureTour", definition: "Guided walkthrough of a domain" do
+
+    command "RunTour" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "Import", definition: "Reverse-engineers Rails apps into Hecks domain definitions" do
+
+    command "FromRails" do
+      attribute :app_path, String
+    end
+  end
+
+  aggregate "DomainStats", definition: "Aggregate/command/event/policy counts" do
+
+    command "Calculate" do
+      attribute :domain, String
+    end
+  end
+
+  aggregate "ProjectStats", definition: "Project-wide metrics across all domains" do
+
+    command "Calculate" do
+      attribute :project_path, String
+    end
+  end
+
+  aggregate "ImportPipeline", definition: "Rails model import: parse, assemble, generate" do
+
+    command "ParseModels" do
+      attribute :source_path, String
+    end
+
+    command "ParseSchemas" do
+      attribute :schema_path, String
+    end
+
+    command "AssembleDomain" do
+      attribute :models, String
+    end
+  end
+
+  aggregate "StubGenerator", definition: "Generates test stub files for a domain" do
+
+    command "Generate" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "DomainHelpers", definition: "Shared helpers for CLI domain loading" do
+
+    command "LoadDomain" do
+      attribute :domain_path, String
+    end
+  end
+
+  aggregate "GemBuilder", definition: "Builds and installs Hecks component gems" do
+
+    command "Build" do
+      attribute :root, String
+    end
+  end
+
+  aggregate "DomainIntrospector", definition: "Analyzes cross-domain connections and extension wiring" do
+
+    command "Introspect" do
+      attribute :domains, String
+    end
+  end
+
+  aggregate "ConflictHandler", definition: "Handles file conflicts during generation" do
+
+    command "Resolve" do
+      attribute :file_path, String
+    end
+  end
+
+  aggregate "AggregateFormatter", definition: "Formats a single aggregate IR into readable terminal output" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "BehaviorFormatters", definition: "Formats commands, events, and queries for display" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "StructureFormatters", definition: "Formats attributes, value objects, and entities for display" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "LifecycleFormatter", definition: "Formats lifecycle states and transitions for display" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "RuleFormatters", definition: "Formats validations, invariants, and policies for display" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "SecondaryFormatters", definition: "Formats scopes, specifications, subscribers, references, computed attributes" do
+
+    command "Format" do
+      attribute :aggregate, String
+    end
+  end
+
+  aggregate "DomainInspector", definition: "Formats domain IR for terminal display" do
+
+    command "InspectDomain" do
+      attribute :domain_name, String
+    end
+  end
+
+  aggregate "DomainAssembler", definition: "Combines schema and model data into Hecks DSL source" do
+
+    command "Assemble" do
+      attribute :schema_data, String
+      attribute :model_data, String
+    end
+  end
+
+  aggregate "ModelParser", definition: "Parses Rails model files via Prism AST for associations and validations" do
+
+    command "Parse" do
+      attribute :models_dir, String
+    end
+  end
+
+  aggregate "ModelOnlyAssembler", definition: "Builds Hecks DSL from model files without schema.rb" do
+
+    command "Assemble" do
+      attribute :model_data, String
+    end
+  end
+
+  aggregate "SchemaParser", definition: "Evaluates Rails schema.rb in sandbox to capture table structure" do
+
+    command "Parse" do
+      attribute :schema_path, String
+    end
+  end
+
+  aggregate "SchemaSandbox", definition: "Sandboxed receiver for create_table calls during schema eval" do
+
+    command "CreateTable" do
+      attribute :name, String
+    end
+  end
+
+  aggregate "ColumnCollector", definition: "Captures column definitions from schema table blocks" do
+
+    command "Collect" do
+      attribute :type, String
+      attribute :name, String
+    end
+  end
+
+  aggregate "PrismHelpers", definition: "Prism AST node accessors shared by model parser extractors" do
+
+    command "Extract" do
+      attribute :call_node, String
+    end
+  end
+end

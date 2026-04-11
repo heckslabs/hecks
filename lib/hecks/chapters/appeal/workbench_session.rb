@@ -92,7 +92,7 @@ module Hecks
 
           b.aggregate "Layout" do
             description "IDE panel and tab state. Tracks which panels are open, active tabs, sizes, and arrangement."
-            attribute :panels, list_of("PanelState")
+            attribute :panels, list_of(PanelState)
             attribute :active_tab, String
             attribute :sidebar_collapsed, String, default: "false"
             attribute :events_panel_collapsed, String, default: "false"
@@ -181,7 +181,7 @@ module Hecks
           b.aggregate "Menu" do
             description "IDE menu bar with File, View, and Domain menus."
             attribute :open_menu, String
-            attribute :items, list_of("MenuItem")
+            attribute :items, list_of(MenuItem)
 
             value_object "MenuItem" do
               description "A single menu entry -- label, action, keyboard shortcut, enabled state"

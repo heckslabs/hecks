@@ -13,7 +13,7 @@ module Hecks
         def self.define(b)
           b.aggregate "Timeline" do
             description "Edit history with undo/redo. Tracks document changes as a linear sequence."
-            attribute :entries, list_of("TimelineEntry")
+            attribute :entries, list_of(TimelineEntry)
             attribute :cursor, Integer, default: 0
 
             value_object "TimelineEntry" do
@@ -23,11 +23,11 @@ module Hecks
               attribute :timestamp, String
             end
 
-            reference_to "Document"
+            reference_to Document
 
             command "RecordChange" do
               description "Append a change to the timeline"
-              reference_to "Document"
+              reference_to Document
               attribute :action, String
               attribute :detail, String
             end
@@ -46,7 +46,7 @@ module Hecks
             attribute :target, String
             attribute :status, String, default: "idle"
             attribute :output_path, String
-            attribute :artifacts, list_of("Artifact")
+            attribute :artifacts, list_of(Artifact)
 
             value_object "Artifact" do
               description "A generated file with its content and diff status"
@@ -55,11 +55,11 @@ module Hecks
               attribute :changed, String, default: "true"
             end
 
-            reference_to "Project"
+            reference_to Project
 
             command "SelectTarget" do
               description "Choose a build target -- ruby, go, rails, sinatra"
-              reference_to "Project"
+              reference_to Project
               attribute :target, String
             end
 
@@ -85,7 +85,7 @@ module Hecks
             attribute :name, String
             attribute :category, String
             attribute :template, String
-            attribute :parameters, list_of("PatternParameter")
+            attribute :parameters, list_of(PatternParameter)
 
             value_object "PatternParameter" do
               description "A configurable parameter when applying a pattern"
@@ -104,7 +104,7 @@ module Hecks
 
             command "ApplyPattern" do
               description "Scaffold an aggregate by applying a pattern with parameters"
-              reference_to "Project"
+              reference_to Project
               attribute :pattern_name, String
               attribute :aggregate_name, String
               attribute :parameters, String

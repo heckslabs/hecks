@@ -15,7 +15,7 @@ module Hecks
             description "Executable given/when/then specification. Tests domain commands without implementation."
             attribute :name, String
             attribute :status, String, default: "draft"
-            attribute :steps, list_of("Step")
+            attribute :steps, list_of(Step)
             attribute :result, String
 
             value_object "Step" do
@@ -55,7 +55,7 @@ module Hecks
           b.aggregate "Fixture" do
             description "Reusable data set for populating scenarios with known state."
             attribute :name, String
-            attribute :entries, list_of("FixtureEntry")
+            attribute :entries, list_of(FixtureEntry)
 
             value_object "FixtureEntry" do
               description "A single data record -- aggregate name, attribute values"
@@ -76,7 +76,7 @@ module Hecks
 
             command "ApplyToScenario" do
               description "Load this fixture as the given state for a scenario"
-              reference_to "Scenario"
+              reference_to Scenario
             end
 
             validation :name, presence: true
@@ -84,7 +84,7 @@ module Hecks
 
           b.aggregate "Playground" do
             description "Interactive sandbox for running domain commands and inspecting state."
-            attribute :events, list_of("PlaygroundEvent")
+            attribute :events, list_of(PlaygroundEvent)
             attribute :state_snapshot, String
 
             value_object "PlaygroundEvent" do

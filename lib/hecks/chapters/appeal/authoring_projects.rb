@@ -54,7 +54,7 @@ module Hecks
           b.aggregate "Explorer" do
             description "Browse and inspect parsed domain structure -- aggregates, commands, references."
             attribute :domain_name, String
-            attribute :aggregate_names, list_of("ExplorerEntry")
+            attribute :aggregate_names, list_of(ExplorerEntry)
             attribute :last_opened_path, String
             attribute :last_opened_domain, String
 
@@ -64,11 +64,11 @@ module Hecks
               attribute :kind, String
             end
 
-            reference_to "Project"
+            reference_to Project
 
             command "LoadDomain" do
               description "Parse the project domain and populate the explorer tree"
-              reference_to "Project"
+              reference_to Project
               emits "DomainLoaded"
             end
 
@@ -87,7 +87,7 @@ module Hecks
 
             command "OpenFile" do
               description "Open a file from the project tree and record it as the last opened"
-              reference_to "Project"
+              reference_to Project
               attribute :path, String
               attribute :domain, String
               emits "FileOpened"
@@ -114,7 +114,7 @@ module Hecks
             attribute :filename, String
             attribute :content, String
             attribute :dirty, String, default: "false"
-            attribute :diagnostics, list_of("Diagnostic")
+            attribute :diagnostics, list_of(Diagnostic)
 
             value_object "Diagnostic" do
               description "A validation finding at a source location"
@@ -124,11 +124,11 @@ module Hecks
               attribute :message, String
             end
 
-            reference_to "Project"
+            reference_to Project
 
             command "OpenDocument" do
               description "Load a .hec file into the editor"
-              reference_to "Project"
+              reference_to Project
               attribute :filename, String
               emits "DocumentOpened"
             end
