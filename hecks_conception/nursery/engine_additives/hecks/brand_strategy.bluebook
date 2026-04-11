@@ -1,0 +1,155 @@
+Hecks.bluebook "BrandStrategy", version: "2026.04.11.1" do
+  vision "Position brands against competitors, run campaigns, and capture customer reviews"
+  category "business"
+
+  aggregate "BrandPosition", "How a brand occupies space in the customer's mind — the word it owns" do
+    attribute :brand, String
+    attribute :owned_word, String
+    attribute :target_customer, String
+    attribute :differentiator, String
+    attribute :competitor, String
+    attribute :competitor_position, String
+    attribute :messaging, list_of(Message)
+
+    value_object "Message" do
+      attribute :channel, String
+      attribute :headline, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
+    end
+
+    command "DefineBrandPosition" do
+      role "Owner"
+      description "Declare what word this brand owns in the customer's mind"
+      attribute :brand, String
+      attribute :owned_word, String
+      attribute :target_customer, String
+      attribute :differentiator, String
+      emits "BrandPositionDefined"
+      then_set :brand, to: :brand
+      then_set :owned_word, to: :owned_word
+      then_set :target_customer, to: :target_customer
+      then_set :differentiator, to: :differentiator
+    end
+
+    command "AnalyzeCompetitor" do
+      role "Owner"
+      description "Understand what position a competitor owns — find the gap"
+      reference_to BrandPosition
+      attribute :competitor, String
+      attribute :competitor_position, String
+      emits "CompetitorAnalyzed"
+      then_set :competitor, to: :competitor
+      then_set :competitor_position, to: :competitor_position
+    end
+
+    command "CraftMessage" do
+      role "Owner"
+      description "Create channel-specific messaging from the brand position"
+      reference_to BrandPosition
+      attribute :channel, String
+      attribute :headline, String
+      attribute :proof_point, String
+      attribute :call_to_action, String
+      emits "MessageCrafted"
+    end
+  end
+
+  aggregate "Campaign", "A marketing push for a brand — targeted, measurable, time-bound" do
+    attribute :name, String
+    attribute :brand, String
+    attribute :channel, String
+    attribute :budget, Float
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :target_audience, String
+    attribute :kpi, String
+    attribute :actual_result, String
+    attribute :status, String
+
+    command "LaunchCampaign" do
+      role "Owner"
+      description "Start a marketing campaign on a specific channel"
+      attribute :name, String
+      attribute :brand, String
+      attribute :channel, String
+      attribute :budget, Float
+      attribute :target_audience, String
+      attribute :kpi, String
+      emits "CampaignLaunched"
+      then_set :name, to: :name
+      then_set :brand, to: :brand
+      then_set :channel, to: :channel
+      then_set :budget, to: :budget
+      then_set :target_audience, to: :target_audience
+      then_set :kpi, to: :kpi
+      then_set :status, to: "active"
+    end
+
+    command "MeasureCampaign" do
+      role "Owner"
+      description "Record the actual result against the KPI"
+      reference_to Campaign
+      attribute :actual_result, String
+      emits "CampaignMeasured"
+      then_set :actual_result, to: :actual_result
+    end
+
+    command "EndCampaign" do
+      role "Owner"
+      description "Close the campaign and capture learnings"
+      reference_to Campaign
+      emits "CampaignEnded"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "LaunchCampaign" => "active", from: "planned"
+      transition "EndCampaign" => "completed", from: "active"
+    end
+  end
+
+  aggregate "CustomerReview", "Reviews and ratings across channels — social proof against Lucas" do
+    attribute :product_sku, String
+    attribute :channel, String
+    attribute :rating, Integer
+    attribute :review_text, String
+    attribute :verified_purchase, String
+    attribute :responded, String
+
+    command "CaptureReview" do
+      role "System"
+      description "Import a customer review from a sales channel"
+      attribute :product_sku, String
+      attribute :channel, String
+      attribute :rating, Integer
+      attribute :review_text, String
+      attribute :verified_purchase, String
+      emits "ReviewCaptured"
+      then_set :product_sku, to: :product_sku
+      then_set :channel, to: :channel
+      then_set :rating, to: :rating
+      then_set :review_text, to: :review_text
+      then_set :verified_purchase, to: :verified_purchase
+      then_set :responded, to: "false"
+    end
+
+    command "RespondToReview" do
+      role "Owner"
+      description "Reply to a customer review — build trust, address concerns"
+      reference_to CustomerReview
+      emits "ReviewResponded"
+      then_set :responded, to: "true"
+    end
+  end
+
+  policy "PositionOnBrandRegister" do
+    on "BrandRegistered"
+    across "Catalog"
+    trigger "DefineBrandPosition"
+  end
+
+  fixture "BrandPosition", brand: "DuraLube", owned_word: "durability", target_customer: "DIY car owners who want long-term protection", differentiator: "advanced anti-wear chemistry", competitor: "Lucas", competitor_position: "trusted household name"
+  fixture "BrandPosition", brand: "MotorKote", owned_word: "anti-friction", target_customer: "performance enthusiasts and fleet operators", differentiator: "hyper-lubricant metal treatment", competitor: "Lucas", competitor_position: "trusted household name"
+  fixture "BrandPosition", brand: "Slick 50", owned_word: "PTFE protection", target_customer: "mainstream consumers who want easy engine care", differentiator: "original PTFE engine treatment pioneer", competitor: "Lucas", competitor_position: "trusted household name"
+end

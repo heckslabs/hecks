@@ -168,6 +168,7 @@ end"#);
     fn duplicate_aggregate_names() {
         let domain = Domain {
             name: "T".into(),
+            category: None,
             aggregates: vec![
                 crate::ir::Aggregate {
                     name: "Pizza".into(),
@@ -217,6 +218,7 @@ end"#);
     fn aggregate_without_commands() {
         let domain = Domain {
             name: "T".into(),
+            category: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Orphan".into(),
                 description: None,
@@ -237,6 +239,7 @@ end"#);
     fn bad_command_naming() {
         let domain = Domain {
             name: "T".into(),
+            category: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Pizza".into(),
                 description: None,
@@ -281,6 +284,7 @@ end"#);
     fn unknown_policy_trigger() {
         let domain = Domain {
             name: "T".into(),
+            category: None,
             aggregates: vec![crate::ir::Aggregate {
                 name: "Order".into(),
                 description: None,
