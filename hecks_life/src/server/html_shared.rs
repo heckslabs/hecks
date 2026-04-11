@@ -115,16 +115,22 @@ pub fn sidebar_links(domains: &[(String, usize)], active: Option<&str>) -> Strin
 
 /// Convert snake_case domain name to Title Case display name
 pub fn display_name(name: &str) -> String {
-    name.split('_')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().to_string() + c.as_str(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+    // Split PascalCase and snake_case into words
+    let mut words = Vec::new();
+    let mut current = String::new();
+    for ch in name.chars() {
+        if ch == '_' {
+            if !current.is_empty() { words.push(current.clone()); current.clear(); }
+        } else if ch.is_uppercase() && !current.is_empty() {
+            words.push(current.clone()); current.clear();
+            current.push(ch);
+        } else {
+            if current.is_empty() { current.push(ch.to_uppercase().next().unwrap()); }
+            else { current.push(ch); }
+        }
+    }
+    if !current.is_empty() { words.push(current); }
+    words.join(" ")
 }
 
 /// Escape HTML special characters
