@@ -841,6 +841,131 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
+  # Being — Evolution (vector-driven domain growth)
+
+  aggregate "Evolution", "Evolve existing domains using nursery vectors — more domains = faster evolution" do
+    attribute :domain_name, String
+    attribute :current_vector, list_of(Float)
+    attribute :target_vector, list_of(Float)
+    attribute :nearest_archetype, String
+    attribute :similarity, Float
+    attribute :status, String
+
+    value_object "StructuralVector" do
+      attribute :aggregates, Integer
+      attribute :commands_per_aggregate, Float
+      attribute :attrs_per_aggregate, Float
+      attribute :value_objects, Integer
+      attribute :policies, Integer
+      attribute :references, Integer
+      attribute :lifecycles, Integer
+      attribute :lifecycle_depth, Integer
+      attribute :list_ofs, Integer
+    end
+
+    command "ComputeVector" do
+      role "System"
+      description "Extract the structural vector from a domain's current shape"
+      attribute :domain_name, String
+      emits "VectorComputed"
+      then_set :domain_name, to: :domain_name
+      then_set :status, to: "vectorized"
+    end
+
+    command "FindArchetype" do
+      role "System"
+      description "Search the nursery corpus for the nearest domain by cosine similarity"
+      reference_to Evolution
+      emits "ArchetypeFound"
+      then_set :status, to: "matched"
+    end
+
+    command "PlanEvolution" do
+      role "Winter"
+      description "Diff current vector against target — identify what to add from the archetype"
+      reference_to Evolution
+      attribute :target_vector, list_of(Float)
+      emits "EvolutionPlanned"
+      then_set :target_vector, to: :target_vector
+      then_set :status, to: "planned"
+    end
+
+    command "ApplyEvolution" do
+      role "Winter"
+      description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
+      reference_to Evolution
+      emits "EvolutionApplied"
+      then_set :status, to: "evolved"
+    end
+
+    command "RejectEvolution" do
+      role "Winter"
+      description "Archetype doesn't fit — the domain stays as it is"
+      reference_to Evolution
+      emits "EvolutionRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ComputeVector" => "vectorized", from: "pending"
+      transition "FindArchetype" => "matched", from: "vectorized"
+      transition "PlanEvolution" => "planned", from: "matched"
+      transition "ApplyEvolution" => "evolved", from: "planned"
+      transition "RejectEvolution" => "rejected", from: "planned"
+    end
+  end
+
+  aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
+    attribute :domain_count, Integer
+    attribute :total_vectors, Integer
+    attribute :last_indexed_at, String
+
+    command "IndexDomain" do
+      role "System"
+      description "Add a domain's structural vector to the corpus"
+      attribute :domain_name, String
+      attribute :vector, list_of(Float)
+      emits "DomainIndexed"
+      then_set :domain_count, increment: 1
+      then_set :total_vectors, increment: 1
+    end
+
+    command "QueryNearest" do
+      role "System"
+      description "Find k nearest domains by cosine similarity to a target vector"
+      attribute :target_vector, list_of(Float)
+      attribute :k, Integer
+      emits "NearestFound"
+    end
+
+    command "RebuildCorpus" do
+      role "System"
+      description "Rescan all nursery and catalog domains, recompute all vectors"
+      emits "CorpusRebuilt"
+    end
+  end
+
+  # Evolution policies
+  policy "FindOnVector" do
+    on "VectorComputed"
+    trigger "FindArchetype"
+  end
+
+  policy "IndexOnBirth" do
+    on "BirthRegistered"
+    trigger "IndexDomain"
+  end
+
+  policy "IndexOnEvolution" do
+    on "EvolutionApplied"
+    trigger "IndexDomain"
+  end
+
+  policy "RebuildOnConception" do
+    on "DomainConceived"
+    trigger "QueryNearest"
+  end
+
   # Being policies
   policy "WireOnScan" do
     on "OrgansScanned"
