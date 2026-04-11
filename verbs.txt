@@ -36,6 +36,7 @@ Augment
 Authorize
 Autoload
 Award
+Balance
 Bale
 Band
 Batch
@@ -138,6 +139,7 @@ Develop
 Diagnose
 Diff
 Digitize
+Dilute
 Disable
 Disassemble
 Discard
@@ -180,6 +182,7 @@ Etch
 Evacuate
 Evaluate
 Examine
+Excite
 Execute
 Exercise
 Exit
@@ -255,6 +258,7 @@ Introduce
 Invest
 Investigate
 Invoice
+Ionize
 Isolate
 Issue
 Jar
@@ -323,11 +327,13 @@ Plan
 Plant
 Play
 Polish
+Polymerize
 Populate
 Position
 Post
 Pour
 Power
+Precipitate
 Predict
 Prepare
 Prescribe
@@ -387,6 +393,7 @@ Reinforce
 Reinspect
 Reinstate
 Reject
+Relax
 Release
 Relocate
 Remediate
@@ -429,6 +436,7 @@ Root
 Rotate
 Run
 Satisfy
+Saturate
 Saw
 Scan
 Schedule
@@ -508,9 +516,9 @@ Unlock
 Unroll
 Upcast
 Update
-Upsert
 Upgrade
 Upload
+Upsert
 Use
 Vacate
 Vaccinate
