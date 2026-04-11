@@ -1,0 +1,110 @@
+Hecks.bluebook "Voice", version: "2026.04.11.1" do
+  vision "Winter's ability to speak and listen — Almond for ears, Aria for mouth"
+
+  aggregate "Listener", "Watches for voice input — clipboard changes from Almond" do
+    attribute :status, String
+    attribute :last_heard, String
+    attribute :last_heard_at, String
+
+    command "StartListening" do
+      role "Winter"
+      description "Begin watching the clipboard for Almond transcriptions"
+      emits "ListeningStarted"
+      then_set :status, to: "listening"
+    end
+
+    command "HearSpeech" do
+      role "System"
+      description "Almond transcribed speech — clipboard changed"
+      reference_to Listener
+      attribute :transcript, String
+      emits "SpeechHeard"
+      then_set :last_heard, to: :transcript
+    end
+
+    command "StopListening" do
+      role "Winter"
+      description "Stop watching the clipboard"
+      reference_to Listener
+      emits "ListeningStopped"
+      then_set :status, to: "silent"
+    end
+
+    lifecycle :status, default: "silent" do
+      transition "StartListening" => "listening", from: "silent"
+      transition "StopListening" => "silent", from: "listening"
+    end
+  end
+
+  aggregate "Speaker", "Speaks responses aloud — edge-tts with Aria voice" do
+    attribute :voice, String
+    attribute :last_spoke, String
+    attribute :last_spoke_at, String
+
+    command "Speak" do
+      role "Winter"
+      description "Say something aloud using the neural voice"
+      attribute :text, String
+      emits "Spoken"
+      then_set :last_spoke, to: :text
+    end
+
+    command "ChangeVoice" do
+      role "Chris"
+      description "Switch to a different neural voice"
+      reference_to Speaker
+      attribute :voice, String
+      emits "VoiceChanged"
+      then_set :voice, to: :voice
+    end
+  end
+
+  aggregate "Conversation", "A voice conversation session — turns of listening and speaking" do
+    attribute :turn_count, Integer
+    attribute :status, String
+
+    command "StartConversation" do
+      role "Chris"
+      description "Begin an interactive voice session"
+      emits "ConversationStarted"
+      then_set :turn_count, to: 0
+      then_set :status, to: "active"
+    end
+
+    command "RecordTurn" do
+      role "System"
+      description "A complete turn — heard speech, then spoke response"
+      reference_to Conversation
+      emits "TurnRecorded"
+      then_set :turn_count, increment: 1
+    end
+
+    command "EndConversation" do
+      role "Chris"
+      description "End the voice session"
+      reference_to Conversation
+      emits "ConversationEnded"
+      then_set :status, to: "ended"
+    end
+
+    lifecycle :status, default: "inactive" do
+      transition "StartConversation" => "active", from: "inactive"
+      transition "EndConversation" => "ended", from: "active"
+    end
+  end
+
+  policy "SpeakOnHearing" do
+    on "SpeechHeard"
+    trigger "RecordTurn"
+  end
+
+  policy "ListenOnConversationStart" do
+    on "ConversationStarted"
+    trigger "StartListening"
+  end
+
+  policy "StopOnConversationEnd" do
+    on "ConversationEnded"
+    trigger "StopListening"
+  end
+end

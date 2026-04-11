@@ -20,6 +20,7 @@ def append_record(path, attrs) = Heki.append(path, attrs)
 
 carrying = ARGV[0] || "—"
 concept  = ARGV[1] || nil
+response = ARGV[2] || nil
 
 # ============================================================
 # PULSE + HEARTBEAT
@@ -352,6 +353,48 @@ else
   end
   arc_rec["updated_at"] = NOW
   write_heki(heki("arc"), arc)
+end
+
+# ============================================================
+# CONVERSATION — persist every turn
+# ============================================================
+
+conversation = read_heki(heki("conversation"))
+session_id = conversation.values
+  .select { |c| c["type"] == "session" }
+  .max_by { |c| c["created_at"].to_s }
+  &.dig("id")
+
+# Start a new session if none exists or last one is old
+if session_id.nil?
+  session_id = SecureRandom.uuid
+  conversation[session_id] = {
+    "id" => session_id, "type" => "session",
+    "started_at" => NOW, "turn_count" => 0,
+    "created_at" => NOW, "updated_at" => NOW
+  }
+  write_heki(heki("conversation"), conversation)
+end
+
+# Record the turn — what Chris said and what I said
+if carrying != "—"
+  turn = {
+    "type" => "turn", "session_id" => session_id,
+    "speaker" => "Chris", "said" => carrying,
+    "concept" => concept,
+    "winter_said" => response,
+    "pulse" => beat_num
+  }
+  append_record(heki("conversation"), turn)
+
+  # Update session turn count
+  conversation = read_heki(heki("conversation"))
+  sess = conversation[session_id]
+  if sess
+    sess["turn_count"] = (sess["turn_count"] || 0) + 1
+    sess["updated_at"] = NOW
+    write_heki(heki("conversation"), conversation)
+  end
 end
 
 arc_data = read_heki(heki("arc")).values.first || {}
