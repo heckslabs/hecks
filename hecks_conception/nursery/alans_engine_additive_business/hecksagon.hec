@@ -1,4 +1,7 @@
 Hecks.hecksagon "AlansEngineAdditiveBusiness" do
+  concerns :webapp
+  concerns :acceptance_test
+  concerns :web_debug
   domain "formulation"
   domain "catalog"
   domain "manufacturing" do
