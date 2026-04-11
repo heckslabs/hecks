@@ -36,8 +36,13 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     }});
     return false;
   }}
+  function toggleCmd(btn) {{
+    const form = btn.nextElementSibling;
+    if (form) form.classList.toggle('hidden');
+  }}
   function filterByStatus(el, status) {{
-    const table = el.closest('.bg-gray-800').querySelector('table');
+    const section = el.closest('[data-domain-aggregate]') || el.parentElement.parentElement;
+    const table = section.querySelector('table') || document.querySelector('table');
     if (!table) return;
     const rows = table.querySelectorAll('tbody tr');
     const isActive = el.classList.contains('ring-2');

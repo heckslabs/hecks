@@ -26,17 +26,13 @@ pub fn generate_domain_page(
     };
     let sidebar = sidebar_links(&domains, Some(name));
     let rt = rt.borrow();
-    let cat = rt.domain.category.as_deref().unwrap_or("general");
-
     let mut main = String::new();
     main.push_str(&format!(
-        r#"<div class="flex items-center gap-3 mb-1">
+        r#"<div class="mb-1">
   <h1 class="text-3xl font-bold">{label}</h1>
-  <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">{cat}</span>
 </div>
 <p class="text-gray-400 mb-8">{modules} modules, {policies} policies</p>"#,
         label = esc(&display_name(name)),
-        cat = esc(cat),
         modules = rt.domain.aggregates.len(),
         policies = rt.domain.policies.len(),
     ));
@@ -137,17 +133,23 @@ fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
     let mut s = String::from(
         r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-700 text-left text-gray-400">"#,
     );
-    // Collect all keys
+    // Only show Module column if there are mixed aggregate types
+    let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
     let keys: Vec<String> = if let Some(f) = fixtures.first() {
         f.attributes.iter().map(|(k, _)| k.clone()).collect()
     } else { vec![] };
-    s.push_str("<th class=\"px-3 py-2\">Module</th>");
+    if mixed {
+        s.push_str("<th class=\"px-3 py-2\">Module</th>");
+    }
     for k in &keys {
         s.push_str(&format!("<th class=\"px-3 py-2\">{}</th>", esc(&display_name(k))));
     }
     s.push_str("</tr></thead><tbody>");
     for fix in fixtures {
-        s.push_str(&format!("<tr class=\"border-b border-gray-800\"><td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name)));
+        s.push_str("<tr class=\"border-b border-gray-800\">");
+        if mixed {
+            s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name)));
+        }
         for (_, v) in &fix.attributes {
             s.push_str(&format!("<td class=\"px-3 py-2\">{}</td>", esc(v)));
         }
