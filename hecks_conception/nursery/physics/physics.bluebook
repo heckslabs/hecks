@@ -1,0 +1,848 @@
+Hecks.bluebook "Physics", version: "2026.04.11.1" do
+  vision "The language of nature — particles, forces, motion, energy, waves, fields, and the fabric of spacetime"
+
+  # === Particles ===
+
+  aggregate "Particle", "A fundamental or composite particle — the building block of matter" do
+    attribute :name, String
+    attribute :mass, Float
+    attribute :charge, Float
+    attribute :spin, Float
+    attribute :particle_type, String
+    attribute :status, String
+
+    value_object "Position" do
+      attribute :x, Float
+      attribute :y, Float
+      attribute :z, Float
+      attribute :reference_frame, String
+    end
+
+    value_object "Momentum" do
+      attribute :px, Float
+      attribute :py, Float
+      attribute :pz, Float
+      attribute :magnitude, Float
+    end
+
+    command "CreateParticle" do
+      role "Physicist"
+      description "Instantiate a particle with mass, charge, and spin"
+      attribute :name, String
+      attribute :mass, Float
+      attribute :charge, Float
+      attribute :spin, Float
+      attribute :particle_type, String
+      emits "ParticleCreated"
+      then_set :name, to: :name
+      then_set :mass, to: :mass
+      then_set :charge, to: :charge
+      then_set :spin, to: :spin
+      then_set :particle_type, to: :particle_type
+      then_set :status, to: "active"
+    end
+
+    command "MeasurePosition" do
+      role "Physicist"
+      description "Observe a particle's position — collapses position uncertainty"
+      reference_to Particle
+      attribute :x, Float
+      attribute :y, Float
+      attribute :z, Float
+      emits "PositionMeasured"
+    end
+
+    command "MeasureMomentum" do
+      role "Physicist"
+      description "Observe a particle's momentum — collapses momentum uncertainty"
+      reference_to Particle
+      attribute :px, Float
+      attribute :py, Float
+      attribute :pz, Float
+      emits "MomentumMeasured"
+    end
+
+    command "Annihilate" do
+      role "Physicist"
+      description "Particle meets antiparticle — both destroyed, energy released"
+      reference_to Particle
+      given { status == "active" }
+      emits "ParticleAnnihilated"
+      then_set :status, to: "annihilated"
+    end
+
+    command "Decay" do
+      role "System"
+      description "Unstable particle transforms into lighter particles"
+      reference_to Particle
+      attribute :decay_mode, String
+      attribute :half_life, Float
+      given { status == "active" }
+      emits "ParticleDecayed"
+      then_set :status, to: "decayed"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "CreateParticle" => "active", from: "pending"
+      transition "Annihilate" => "annihilated", from: "active"
+      transition "Decay" => "decayed", from: "active"
+    end
+  end
+
+  # === Forces ===
+
+  aggregate "Force", "A fundamental interaction — the cause of acceleration" do
+    attribute :name, String
+    attribute :force_type, String
+    attribute :magnitude, Float
+    attribute :direction_x, Float
+    attribute :direction_y, Float
+    attribute :direction_z, Float
+    attribute :source, String
+    attribute :target, String
+
+    value_object "ForceComponent" do
+      attribute :axis, String
+      attribute :value, Float
+    end
+
+    command "ApplyForce" do
+      role "Physicist"
+      description "Exert a force on a body — gravitational, electromagnetic, strong, or weak"
+      attribute :name, String
+      attribute :force_type, String
+      attribute :magnitude, Float
+      attribute :direction_x, Float
+      attribute :direction_y, Float
+      attribute :direction_z, Float
+      attribute :source, String
+      attribute :target, String
+      emits "ForceApplied"
+      then_set :name, to: :name
+      then_set :force_type, to: :force_type
+      then_set :magnitude, to: :magnitude
+      then_set :direction_x, to: :direction_x
+      then_set :direction_y, to: :direction_y
+      then_set :direction_z, to: :direction_z
+      then_set :source, to: :source
+      then_set :target, to: :target
+    end
+
+    command "CalculateMagnitude" do
+      role "System"
+      description "Compute the magnitude of the force vector from its components"
+      reference_to Force
+      emits "MagnitudeCalculated"
+    end
+
+    command "ResolveComponents" do
+      role "System"
+      description "Decompose a force into orthogonal components along axes"
+      reference_to Force
+      emits "ComponentsResolved"
+    end
+
+    command "FindEquilibrium" do
+      role "Physicist"
+      description "Determine the condition where net force equals zero"
+      reference_to Force
+      emits "EquilibriumFound"
+    end
+
+    command "SuperposeForces" do
+      role "System"
+      description "Add force vectors — the principle of superposition"
+      reference_to Force
+      attribute :other_magnitude, Float
+      attribute :other_direction_x, Float
+      attribute :other_direction_y, Float
+      attribute :other_direction_z, Float
+      emits "ForcesSuperposed"
+    end
+  end
+
+  # === Motion ===
+
+  aggregate "Motion", "The kinematics of a body — displacement, velocity, acceleration, trajectory" do
+    attribute :body_name, String
+    attribute :displacement_x, Float
+    attribute :displacement_y, Float
+    attribute :displacement_z, Float
+    attribute :velocity_x, Float
+    attribute :velocity_y, Float
+    attribute :velocity_z, Float
+    attribute :acceleration_x, Float
+    attribute :acceleration_y, Float
+    attribute :acceleration_z, Float
+    attribute :status, String
+
+    value_object "TrajectoryPoint" do
+      attribute :time, Float
+      attribute :x, Float
+      attribute :y, Float
+      attribute :z, Float
+    end
+
+    command "InitiateMotion" do
+      role "Physicist"
+      description "Set a body in motion with initial velocity"
+      attribute :body_name, String
+      attribute :velocity_x, Float
+      attribute :velocity_y, Float
+      attribute :velocity_z, Float
+      emits "MotionInitiated"
+      then_set :body_name, to: :body_name
+      then_set :velocity_x, to: :velocity_x
+      then_set :velocity_y, to: :velocity_y
+      then_set :velocity_z, to: :velocity_z
+      then_set :status, to: "moving"
+    end
+
+    command "Accelerate" do
+      role "Physicist"
+      description "Increase velocity — apply positive acceleration"
+      reference_to Motion
+      attribute :acceleration_x, Float
+      attribute :acceleration_y, Float
+      attribute :acceleration_z, Float
+      given { status == "moving" }
+      emits "BodyAccelerated"
+      then_set :acceleration_x, to: :acceleration_x
+      then_set :acceleration_y, to: :acceleration_y
+      then_set :acceleration_z, to: :acceleration_z
+    end
+
+    command "Decelerate" do
+      role "Physicist"
+      description "Decrease velocity — apply negative acceleration until rest or slower"
+      reference_to Motion
+      attribute :deceleration_x, Float
+      attribute :deceleration_y, Float
+      attribute :deceleration_z, Float
+      given { status == "moving" }
+      emits "BodyDecelerated"
+    end
+
+    command "CalculateTrajectory" do
+      role "System"
+      description "Compute the path of a body through space over time"
+      reference_to Motion
+      attribute :time_duration, Float
+      attribute :time_step, Float
+      emits "TrajectoryCalculated"
+    end
+
+    command "ApplyNewtonLaw" do
+      role "System"
+      description "F = ma — compute acceleration from net force and mass"
+      reference_to Motion
+      attribute :net_force, Float
+      attribute :mass, Float
+      emits "NewtonLawApplied"
+    end
+
+    lifecycle :status, default: "at_rest" do
+      transition "InitiateMotion" => "moving", from: "at_rest"
+      transition "Decelerate" => "at_rest", from: "moving"
+    end
+  end
+
+  # === Energy ===
+
+  aggregate "Energy", "The capacity to do work — kinetic, potential, thermal, nuclear" do
+    attribute :name, String
+    attribute :energy_type, String
+    attribute :magnitude, Float
+    attribute :unit, String
+    attribute :source, String
+    attribute :status, String
+
+    value_object "EnergyTransfer" do
+      attribute :from_system, String
+      attribute :to_system, String
+      attribute :amount, Float
+      attribute :mechanism, String
+    end
+
+    command "TransferEnergy" do
+      role "Physicist"
+      description "Move energy from one system to another — work or heat"
+      attribute :name, String
+      attribute :energy_type, String
+      attribute :magnitude, Float
+      attribute :source, String
+      emits "EnergyTransferred"
+      then_set :name, to: :name
+      then_set :energy_type, to: :energy_type
+      then_set :magnitude, to: :magnitude
+      then_set :source, to: :source
+      then_set :status, to: "transferred"
+    end
+
+    command "ConvertEnergy" do
+      role "System"
+      description "Transform energy from one form to another — kinetic to potential, etc."
+      reference_to Energy
+      attribute :target_type, String
+      attribute :efficiency, Float
+      emits "EnergyConverted"
+      then_set :energy_type, to: :target_type
+    end
+
+    command "MeasureWork" do
+      role "Physicist"
+      description "W = F * d * cos(theta) — force through a displacement"
+      reference_to Energy
+      attribute :force, Float
+      attribute :displacement, Float
+      attribute :angle, Float
+      emits "WorkMeasured"
+    end
+
+    command "CalculateEfficiency" do
+      role "System"
+      description "Ratio of useful output to total input — always less than one"
+      reference_to Energy
+      attribute :input_energy, Float
+      attribute :output_energy, Float
+      emits "EfficiencyCalculated"
+    end
+
+    command "ConserveEnergy" do
+      role "System"
+      description "Verify total energy is constant in an isolated system — first law"
+      reference_to Energy
+      attribute :total_before, Float
+      attribute :total_after, Float
+      emits "EnergyConserved"
+    end
+  end
+
+  # === Waves ===
+
+  aggregate "Wave", "A disturbance that transfers energy through space or a medium" do
+    attribute :name, String
+    attribute :wave_type, String
+    attribute :amplitude, Float
+    attribute :frequency, Float
+    attribute :wavelength, Float
+    attribute :speed, Float
+    attribute :medium, String
+    attribute :status, String
+
+    value_object "InterferencePattern" do
+      attribute :pattern_type, String
+      attribute :fringe_spacing, Float
+      attribute :max_intensity, Float
+      attribute :min_intensity, Float
+    end
+
+    command "PropagateWave" do
+      role "Physicist"
+      description "Launch a wave through a medium or vacuum"
+      attribute :name, String
+      attribute :wave_type, String
+      attribute :amplitude, Float
+      attribute :frequency, Float
+      attribute :wavelength, Float
+      attribute :medium, String
+      emits "WavePropagated"
+      then_set :name, to: :name
+      then_set :wave_type, to: :wave_type
+      then_set :amplitude, to: :amplitude
+      then_set :frequency, to: :frequency
+      then_set :wavelength, to: :wavelength
+      then_set :medium, to: :medium
+      then_set :status, to: "propagating"
+    end
+
+    command "InterfereWaves" do
+      role "System"
+      description "Two waves meet — constructive or destructive interference"
+      reference_to Wave
+      attribute :other_amplitude, Float
+      attribute :other_frequency, Float
+      attribute :phase_difference, Float
+      emits "WavesInterfered"
+    end
+
+    command "DiffractWave" do
+      role "System"
+      description "Wave bends around an obstacle or through a slit"
+      reference_to Wave
+      attribute :aperture_width, Float
+      emits "WaveDiffracted"
+    end
+
+    command "ReflectWave" do
+      role "System"
+      description "Wave bounces off a boundary — angle of incidence equals angle of reflection"
+      reference_to Wave
+      attribute :angle_of_incidence, Float
+      emits "WaveReflected"
+    end
+
+    command "RefractWave" do
+      role "System"
+      description "Wave changes direction crossing a boundary — Snell's law"
+      reference_to Wave
+      attribute :refractive_index_1, Float
+      attribute :refractive_index_2, Float
+      attribute :angle_of_incidence, Float
+      emits "WaveRefracted"
+    end
+
+    command "CalculateFrequency" do
+      role "System"
+      description "f = v / lambda — frequency from speed and wavelength"
+      reference_to Wave
+      emits "FrequencyCalculated"
+    end
+  end
+
+  # === Fields ===
+
+  aggregate "Field", "A region of influence — electric, magnetic, or gravitational" do
+    attribute :name, String
+    attribute :field_type, String
+    attribute :strength, Float
+    attribute :direction_x, Float
+    attribute :direction_y, Float
+    attribute :direction_z, Float
+    attribute :source_charge, Float
+    attribute :source_mass, Float
+
+    value_object "FieldLine" do
+      attribute :start_x, Float
+      attribute :start_y, Float
+      attribute :start_z, Float
+      attribute :end_x, Float
+      attribute :end_y, Float
+      attribute :end_z, Float
+      attribute :density, Float
+    end
+
+    command "DefineField" do
+      role "Physicist"
+      description "Establish a field from a source — charge, current, or mass"
+      attribute :name, String
+      attribute :field_type, String
+      attribute :strength, Float
+      emits "FieldDefined"
+      then_set :name, to: :name
+      then_set :field_type, to: :field_type
+      then_set :strength, to: :strength
+    end
+
+    command "MapFieldLines" do
+      role "System"
+      description "Trace the direction and density of field lines from source to sink"
+      reference_to Field
+      emits "FieldLinesMapped"
+    end
+
+    command "CalculateFlux" do
+      role "System"
+      description "Compute total field passing through a surface — integral of field dot area"
+      reference_to Field
+      attribute :surface_area, Float
+      attribute :angle, Float
+      emits "FluxCalculated"
+    end
+
+    command "ApplyGaussLaw" do
+      role "System"
+      description "Relate enclosed charge to total electric flux through a closed surface"
+      reference_to Field
+      attribute :enclosed_charge, Float
+      emits "GaussLawApplied"
+    end
+
+    command "InduceField" do
+      role "System"
+      description "Changing magnetic field induces electric field — Faraday's law"
+      reference_to Field
+      attribute :rate_of_change, Float
+      emits "FieldInduced"
+    end
+  end
+
+  # === Thermodynamics ===
+
+  aggregate "ThermoSystem", "A thermodynamic system — temperature, heat, entropy, and the laws" do
+    attribute :name, String
+    attribute :temperature, Float
+    attribute :heat, Float
+    attribute :entropy, Float
+    attribute :internal_energy, Float
+    attribute :pressure, Float
+    attribute :volume, Float
+    attribute :status, String
+
+    value_object "CarnotCycle" do
+      attribute :hot_reservoir, Float
+      attribute :cold_reservoir, Float
+      attribute :efficiency, Float
+      attribute :work_output, Float
+    end
+
+    command "TransferHeat" do
+      role "Physicist"
+      description "Move thermal energy from hot to cold — conduction, convection, or radiation"
+      attribute :name, String
+      attribute :heat, Float
+      attribute :temperature, Float
+      emits "HeatTransferred"
+      then_set :name, to: :name
+      then_set :heat, to: :heat
+      then_set :temperature, to: :temperature
+      then_set :status, to: "active"
+    end
+
+    command "MeasureTemperature" do
+      role "Physicist"
+      description "Determine the average kinetic energy of particles in the system"
+      reference_to ThermoSystem
+      attribute :temperature, Float
+      emits "TemperatureMeasured"
+      then_set :temperature, to: :temperature
+    end
+
+    command "CalculateEntropy" do
+      role "System"
+      description "dS = dQ/T — measure disorder change in the system"
+      reference_to ThermoSystem
+      attribute :entropy, Float
+      emits "EntropyCalculated"
+      then_set :entropy, to: :entropy
+    end
+
+    command "ApplyCarnot" do
+      role "System"
+      description "Calculate maximum efficiency of a heat engine between two reservoirs"
+      reference_to ThermoSystem
+      attribute :hot_reservoir, Float
+      attribute :cold_reservoir, Float
+      emits "CarnotApplied"
+    end
+
+    command "ReachThermalEquilibrium" do
+      role "System"
+      description "Two systems reach the same temperature — zeroth law"
+      reference_to ThermoSystem
+      attribute :equilibrium_temperature, Float
+      emits "ThermalEquilibriumReached"
+      then_set :temperature, to: :equilibrium_temperature
+      then_set :status, to: "equilibrium"
+    end
+
+    lifecycle :status, default: "isolated" do
+      transition "TransferHeat" => "active", from: "isolated"
+      transition "ReachThermalEquilibrium" => "equilibrium", from: "active"
+    end
+  end
+
+  # === Quantum Mechanics ===
+
+  aggregate "QuantumState", "A quantum mechanical state — wavefunction, superposition, entanglement" do
+    attribute :name, String
+    attribute :system_type, String
+    attribute :num_qubits, Integer
+    attribute :coherent, String
+    attribute :status, String
+
+    value_object "Observable" do
+      attribute :name, String
+      attribute :operator, String
+      attribute :eigenvalue, Float
+      attribute :uncertainty, Float
+    end
+
+    value_object "EntanglementPair" do
+      attribute :particle_a, String
+      attribute :particle_b, String
+      attribute :bell_state, String
+      attribute :correlation, Float
+    end
+
+    command "PrepareState" do
+      role "Physicist"
+      description "Initialize a quantum system in a known state"
+      attribute :name, String
+      attribute :system_type, String
+      attribute :num_qubits, Integer
+      emits "StatePrepared"
+      then_set :name, to: :name
+      then_set :system_type, to: :system_type
+      then_set :num_qubits, to: :num_qubits
+      then_set :coherent, to: "true"
+      then_set :status, to: "prepared"
+    end
+
+    command "SuperposeStates" do
+      role "Physicist"
+      description "Put a quantum system into a superposition of basis states"
+      reference_to QuantumState
+      given { coherent == "true" }
+      emits "StatesSuperposed"
+      then_set :status, to: "superposed"
+    end
+
+    command "EntangleParticles" do
+      role "Physicist"
+      description "Create quantum entanglement between two particles — nonlocal correlation"
+      reference_to QuantumState
+      attribute :particle_a, String
+      attribute :particle_b, String
+      attribute :bell_state, String
+      given { coherent == "true" }
+      emits "ParticlesEntangled"
+      then_set :status, to: "entangled"
+    end
+
+    command "MeasureObservable" do
+      role "Physicist"
+      description "Measure a quantum observable — eigenvalue obtained probabilistically"
+      reference_to QuantumState
+      attribute :observable_name, String
+      attribute :operator, String
+      emits "ObservableMeasured"
+    end
+
+    command "CollapseWavefunction" do
+      role "System"
+      description "Measurement collapses superposition to a definite eigenstate"
+      reference_to QuantumState
+      attribute :measured_value, Float
+      emits "WavefunctionCollapsed"
+      then_set :coherent, to: "false"
+      then_set :status, to: "collapsed"
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "PrepareState" => "prepared", from: "undefined"
+      transition "SuperposeStates" => "superposed", from: "prepared"
+      transition "EntangleParticles" => "entangled", from: "prepared"
+      transition "EntangleParticles" => "entangled", from: "superposed"
+      transition "CollapseWavefunction" => "collapsed", from: "superposed"
+      transition "CollapseWavefunction" => "collapsed", from: "entangled"
+    end
+  end
+
+  # === Relativity ===
+
+  aggregate "SpacetimeEvent", "An event in spacetime — relativity, frames, mass-energy equivalence" do
+    attribute :name, String
+    attribute :frame, String
+    attribute :time, Float
+    attribute :x, Float
+    attribute :y, Float
+    attribute :z, Float
+    attribute :proper_time, Float
+    attribute :gamma_factor, Float
+
+    value_object "LorentzTransform" do
+      attribute :relative_velocity, Float
+      attribute :gamma, Float
+      attribute :time_dilation, Float
+      attribute :length_contraction, Float
+    end
+
+    value_object "Geodesic" do
+      attribute :start_time, Float
+      attribute :end_time, Float
+      attribute :curvature, Float
+      attribute :proper_length, Float
+    end
+
+    command "TransformFrame" do
+      role "Physicist"
+      description "Lorentz transform — convert coordinates between inertial frames"
+      attribute :name, String
+      attribute :frame, String
+      attribute :relative_velocity, Float
+      emits "FrameTransformed"
+      then_set :name, to: :name
+      then_set :frame, to: :frame
+    end
+
+    command "CalculateTimeDilation" do
+      role "System"
+      description "Moving clocks run slow — dt' = gamma * dt"
+      reference_to SpacetimeEvent
+      attribute :velocity, Float
+      emits "TimeDilationCalculated"
+    end
+
+    command "CurveSpacetime" do
+      role "System"
+      description "Mass-energy curves the geometry of spacetime — general relativity"
+      reference_to SpacetimeEvent
+      attribute :mass, Float
+      attribute :radius, Float
+      emits "SpacetimeCurved"
+    end
+
+    command "CalculateGeodesic" do
+      role "System"
+      description "Find the straightest possible path through curved spacetime"
+      reference_to SpacetimeEvent
+      attribute :start_time, Float
+      attribute :end_time, Float
+      emits "GeodesicCalculated"
+    end
+
+    command "ConvertMassEnergy" do
+      role "System"
+      description "E = mc^2 — mass and energy are interchangeable"
+      reference_to SpacetimeEvent
+      attribute :mass, Float
+      emits "MassEnergyConverted"
+    end
+  end
+
+  # === Electromagnetism ===
+
+  aggregate "Circuit", "An electrical circuit — current, voltage, resistance, and induction" do
+    attribute :name, String
+    attribute :voltage, Float
+    attribute :current, Float
+    attribute :resistance, Float
+    attribute :power, Float
+    attribute :circuit_type, String
+    attribute :status, String
+
+    value_object "CircuitElement" do
+      attribute :element_type, String
+      attribute :value, Float
+      attribute :unit, String
+      attribute :position, Integer
+    end
+
+    command "BuildCircuit" do
+      role "Physicist"
+      description "Assemble a circuit from components — resistors, capacitors, inductors"
+      attribute :name, String
+      attribute :circuit_type, String
+      attribute :voltage, Float
+      emits "CircuitBuilt"
+      then_set :name, to: :name
+      then_set :circuit_type, to: :circuit_type
+      then_set :voltage, to: :voltage
+      then_set :status, to: "open"
+    end
+
+    command "ApplyOhmsLaw" do
+      role "System"
+      description "V = IR — relate voltage, current, and resistance"
+      reference_to Circuit
+      attribute :voltage, Float
+      attribute :resistance, Float
+      emits "OhmsLawApplied"
+      then_set :voltage, to: :voltage
+      then_set :resistance, to: :resistance
+    end
+
+    command "CalculateResistance" do
+      role "System"
+      description "Compute total resistance — series or parallel combination"
+      reference_to Circuit
+      attribute :resistance, Float
+      emits "ResistanceCalculated"
+      then_set :resistance, to: :resistance
+    end
+
+    command "InduceCurrent" do
+      role "System"
+      description "Changing magnetic flux induces EMF and current — Faraday's law in circuits"
+      reference_to Circuit
+      attribute :flux_change, Float
+      attribute :time_interval, Float
+      emits "CurrentInduced"
+    end
+
+    command "RadiateWave" do
+      role "System"
+      description "Accelerating charge radiates electromagnetic waves — Maxwell's prediction"
+      reference_to Circuit
+      attribute :frequency, Float
+      attribute :power, Float
+      emits "WaveRadiated"
+      then_set :power, to: :power
+    end
+
+    lifecycle :status, default: "unbuilt" do
+      transition "BuildCircuit" => "open", from: "unbuilt"
+    end
+  end
+
+  # === Policies ===
+
+  policy "CalculateMagnitudeOnForce" do
+    on "ForceApplied"
+    trigger "CalculateMagnitude"
+  end
+
+  policy "ResolveComponentsOnForce" do
+    on "ForceApplied"
+    trigger "ResolveComponents"
+  end
+
+  policy "TrajectoryOnAcceleration" do
+    on "BodyAccelerated"
+    trigger "CalculateTrajectory"
+  end
+
+  policy "NewtonOnForce" do
+    on "ForceApplied"
+    trigger "ApplyNewtonLaw"
+  end
+
+  policy "ConserveOnTransfer" do
+    on "EnergyTransferred"
+    trigger "ConserveEnergy"
+  end
+
+  policy "FrequencyOnPropagation" do
+    on "WavePropagated"
+    trigger "CalculateFrequency"
+  end
+
+  policy "MapFieldOnDefinition" do
+    on "FieldDefined"
+    trigger "MapFieldLines"
+  end
+
+  policy "FluxOnFieldMap" do
+    on "FieldLinesMapped"
+    trigger "CalculateFlux"
+  end
+
+  policy "EntropyOnHeatTransfer" do
+    on "HeatTransferred"
+    trigger "CalculateEntropy"
+  end
+
+  policy "CollapseOnMeasurement" do
+    on "ObservableMeasured"
+    trigger "CollapseWavefunction"
+  end
+
+  policy "TimeDilationOnTransform" do
+    on "FrameTransformed"
+    trigger "CalculateTimeDilation"
+  end
+
+  policy "OhmsLawOnBuild" do
+    on "CircuitBuilt"
+    trigger "ApplyOhmsLaw"
+  end
+
+  # === Fixtures — Fundamental Constants ===
+
+  fixture "Energy", name: "SpeedOfLight", energy_type: "constant", magnitude: 299792458.0, unit: "m/s", source: "vacuum", status: "fundamental"
+  fixture "Energy", name: "PlanckConstant", energy_type: "constant", magnitude: 6.62607015e-34, unit: "J*s", source: "quantum", status: "fundamental"
+  fixture "Force", name: "GravitationalConstant", force_type: "gravitational", magnitude: 6.6743e-11, direction_x: 0.0, direction_y: 0.0, direction_z: 0.0, source: "universal", target: "universal"
+  fixture "ThermoSystem", name: "BoltzmannConstant", temperature: 1.380649e-23, heat: 0.0, entropy: 0.0, internal_energy: 0.0, pressure: 0.0, volume: 0.0, status: "fundamental"
+  fixture "Particle", name: "ElementaryCharge", mass: 0.0, charge: 1.602176634e-19, spin: 0.0, particle_type: "constant", status: "fundamental"
+end
