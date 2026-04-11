@@ -41,11 +41,8 @@ pub fn generate_domain_page(
   <button onclick="showTab('build')" id="tab-build" class="pb-2 px-1 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Build</button>
 </div>"#);
 
-    // Records panel
+    // Records panel — just the table, no module nav
     main.push_str(r#"<div id="panel-records">"#);
-    if rt.domain.aggregates.len() > 1 {
-        main.push_str(&module_navbar(&rt.domain.aggregates));
-    }
     if !rt.domain.fixtures.is_empty() {
         main.push_str(&fixtures_section(&rt.domain.fixtures));
     }
