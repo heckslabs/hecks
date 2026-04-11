@@ -42,14 +42,23 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     details > summary::-webkit-details-marker {{ display: none; }}
     details[open] > div {{ animation: slideDown 0.2s ease-out; }}
     @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-    body::before {{
-      content: '';
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: radial-gradient(ellipse at 20% 30%, rgba(255,228,0,0.03) 0%, transparent 50%),
-                  radial-gradient(ellipse at 80% 70%, rgba(255,228,0,0.02) 0%, transparent 50%);
-      pointer-events: none;
-      z-index: 0;
+    @keyframes blob-drift-1 {{
+      0%   {{ transform: translate(0, 0) scale(1); }}
+      25%  {{ transform: translate(8vw, -12vh) scale(1.15); }}
+      50%  {{ transform: translate(-5vw, 8vh) scale(0.9); }}
+      75%  {{ transform: translate(12vw, 5vh) scale(1.08); }}
+      100% {{ transform: translate(0, 0) scale(1); }}
+    }}
+    @keyframes blob-drift-2 {{
+      0%   {{ transform: translate(0, 0) scale(1); }}
+      25%  {{ transform: translate(-10vw, 6vh) scale(1.1); }}
+      50%  {{ transform: translate(7vw, -10vh) scale(0.88); }}
+      75%  {{ transform: translate(-6vw, -8vh) scale(1.14); }}
+      100% {{ transform: translate(0, 0) scale(1); }}
+    }}
+    .page-blob {{
+      position: fixed; border-radius: 50%; filter: blur(100px);
+      opacity: 0.06; pointer-events: none; will-change: transform;
     }}
   </style>
   <script>
@@ -134,7 +143,9 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   </script>
 </head>
 <body class="h-full bg-surface-0 text-gray-100">
-  <div class="flex h-full">
+  <div class="page-blob" style="width:600px;height:600px;top:-10%;left:-5%;background:#ffe400;animation:blob-drift-1 25s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:500px;height:500px;bottom:-10%;right:-5%;background:#ffe400;animation:blob-drift-2 30s ease-in-out infinite"></div>
+  <div class="flex h-full relative z-10">
     <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
       <div class="p-6">
         <a href="/" class="text-xl font-bold text-brand hover:text-brand-dim transition">{app_name}</a>
