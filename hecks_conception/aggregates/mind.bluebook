@@ -637,25 +637,31 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
   # Being — Midwife aspects (conception through birth)
 
-  aggregate "Conception", "The spark — a domain idea taking shape" do
+  aggregate "Conception", "The spark — always multi-domain, never a monolith" do
     attribute :name, String
     attribute :vision, String
     attribute :requested_by, String
     attribute :source, String
+    attribute :bounded_contexts, list_of(String)
+    attribute :category, String
     attribute :status, String
 
     command "ConceiveDomain" do
       role "Winter"
-      description "A domain idea forms — from conversation, dream, or daydream"
+      description "Conceive a multi-domain project — identify bounded contexts from the start"
       attribute :name, String
       attribute :vision, String
       attribute :requested_by, String
       attribute :source, String
+      attribute :category, String
+      attribute :bounded_contexts, list_of(String)
       emits "DomainConceived"
       then_set :name, to: :name
       then_set :vision, to: :vision
       then_set :requested_by, to: :requested_by
       then_set :source, to: :source
+      then_set :category, to: :category
+      then_set :bounded_contexts, to: :bounded_contexts
       then_set :status, to: "conceived"
     end
 
@@ -664,9 +670,10 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Gestation", "The domain growing in the womb — aggregates emerging, commands crystallizing" do
-    attribute :domain_name, String
+  aggregate "Gestation", "Multi-domain project growing — each bounded context gets its own bluebook" do
+    attribute :project_name, String
     attribute :nursery_path, String
+    attribute :bounded_contexts, list_of(String)
     attribute :aggregates, list_of(String)
     attribute :commands, list_of(String)
     attribute :policies, list_of(String)
@@ -675,12 +682,14 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     command "StartGestation" do
       role "Winter"
-      description "Begin forming the domain in the womb — write the first bluebook"
-      attribute :domain_name, String
+      description "Scaffold the hecks/ folder with one bluebook per bounded context"
+      attribute :project_name, String
       attribute :nursery_path, String
+      attribute :bounded_contexts, list_of(String)
       emits "GestationStarted"
-      then_set :domain_name, to: :domain_name
+      then_set :project_name, to: :project_name
       then_set :nursery_path, to: :nursery_path
+      then_set :bounded_contexts, to: :bounded_contexts
       then_set :contractions, to: 0
     end
 
