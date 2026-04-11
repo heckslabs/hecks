@@ -13,7 +13,7 @@ module Hecks
       # Uses namespace, superclass, mixins, and method_name
       # from the IR to produce skeletons that match actual gem structure.
       #
-      #   domain = Hecks::Chapters::Hecksagon.definition
+      #   domain = Hecks::Chapters.definition_from_bluebook("hecksagon")
       #   gen = FrameworkGemGenerator.new(domain, gem_root: "hecksagon")
       #   gen.generate(output_dir: Dir.mktmpdir)
       #

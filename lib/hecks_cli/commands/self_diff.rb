@@ -7,15 +7,15 @@
 #   hecks self_diff hecksagon --framework    # framework skeleton mode
 #
 SELF_DIFF_CHAPTER_MAP ||= {
-  "hecksagon"  => { mod: "Hecks::Chapters::Hecksagon",  gem: "hecksagon" },
-  "bluebook"   => { mod: "Hecks::Chapters::Bluebook",   gem: "bluebook" },
-  "runtime"    => { mod: "Hecks::Chapters::Runtime",    gem: "hecksties" },
-  "workshop"   => { mod: "Hecks::Chapters::Workshop",   gem: "hecks_workshop" },
-  "targets"    => { mod: "Hecks::Chapters::Targets",    gem: "hecks_targets" },
-  "cli"        => { mod: "Hecks::Chapters::Cli",        gem: "hecksties" },
-  "extensions" => { mod: "Hecks::Chapters::Extensions", gem: "hecksties" },
-  "ai"         => { mod: "Hecks::Chapters::AI",         gem: "hecks_ai" },
-  "rails"      => { mod: "Hecks::Chapters::Rails",      gem: "hecks_on_rails" },
+  "hecksagon"  => { gem: "hecksagon" },
+  "bluebook"   => { gem: "bluebook" },
+  "runtime"    => { gem: "hecksties" },
+  "workshop"   => { gem: "hecks_workshop" },
+  "targets"    => { gem: "hecks_targets" },
+  "cli"        => { gem: "hecksties" },
+  "extensions" => { gem: "hecksties" },
+  "ai"         => { gem: "hecks_ai" },
+  "rails"      => { gem: "hecks_on_rails" },
 }.freeze
 
 Hecks::CLI.handle(:self_diff) do |inv|
@@ -35,8 +35,7 @@ Hecks::CLI.handle(:self_diff) do |inv|
   end
 
   require "hecks/chapters/#{key}"
-  chapter_mod = Object.const_get(mapping[:mod])
-  domain = chapter_mod.definition
+  domain = Hecks::Chapters.definition_from_bluebook(key)
 
   gem_root = File.join(Dir.pwd, mapping[:gem])
   unless Dir.exist?(gem_root)

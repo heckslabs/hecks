@@ -113,14 +113,13 @@ module HecksUL
   end
 
   def self.self_hosting
-    load_all_chapters
-    chapters = Hecks::Chapters.constants.select { |c|
-      mod = Hecks::Chapters.const_get(c)
-      mod.respond_to?(:definition)
-    }
+    bluebook_dir = File.join(HECKSTIES_ROOT, "..", "hecks")
+    bluebook_files = Dir.glob(File.join(bluebook_dir, "*.bluebook"))
 
-    totals = chapters.each_with_object({ aggregates: 0, commands: 0 }) do |ch, acc|
-      domain = Hecks::Chapters.const_get(ch).definition
+    totals = bluebook_files.each_with_object({ aggregates: 0, commands: 0 }) do |path, acc|
+      slug = File.basename(path, ".bluebook")
+      domain = Hecks::Chapters.definition_from_bluebook(slug)
+      next unless domain
       domain.aggregates.each do |agg|
         acc[:aggregates] += 1
         acc[:commands] += agg.commands.size
@@ -128,7 +127,7 @@ module HecksUL
     end
 
     {
-      chapters:   chapters.size,
+      chapters:   bluebook_files.size,
       aggregates: totals[:aggregates],
       commands:   totals[:commands],
       proof:      "Every chapter boots as a running Hecks app via InMemoryLoader + Runtime"
