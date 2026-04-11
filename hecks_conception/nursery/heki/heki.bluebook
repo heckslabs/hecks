@@ -1,10 +1,13 @@
-Hecks.bluebook "Heki", version: "2026.04.11.1" do
-  vision "Binary record storage for Winter's brain — compressed, fast, self-describing"
+Hecks.bluebook "Heki", version: "2026.04.11.2" do
+  vision "Self-validating binary record storage — compressed, checksummed, schema-enforced"
 
-  aggregate "Store", "A named .heki file holding records — one aggregate per file" do
+  # === Store ===
+
+  aggregate "Store", "A named .heki file — one aggregate per file, self-describing" do
     attribute :name, String
     attribute :path, String
     attribute :record_count, Integer
+    attribute :version, Integer
     attribute :status, String
 
     command "CreateStore" do
@@ -16,12 +19,13 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
       then_set :name, to: :name
       then_set :path, to: :path
       then_set :record_count, to: 0
+      then_set :version, to: 2
       then_set :status, to: "empty"
     end
 
     command "AppendRecord" do
       role "Winter"
-      description "Add a new record to the store — generates UUID, timestamps, compresses"
+      description "Add a new record — validates schema, checksums, writes atomically"
       reference_to Store
       attribute :attrs, String
       emits "RecordAppended"
@@ -45,7 +49,9 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Record", "A single entry in a store — UUID keyed, timestamped" do
+  # === Record ===
+
+  aggregate "Record", "A single entry — UUID keyed, timestamped, schema-validated" do
     attribute :record_id, String
     attribute :store_name, String
     attribute :created_at, String
@@ -54,9 +60,12 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
 
     command "WriteRecord" do
       role "Winter"
-      description "Write a record into a store"
+      description "Write a record — validates required fields and types before persisting"
       attribute :store_name, String
       attribute :payload, String
+      given { payload.key?("id") }
+      given { payload.key?("created_at") }
+      given { payload.key?("updated_at") }
       emits "RecordWritten"
       then_set :store_name, to: :store_name
       then_set :payload, to: :payload
@@ -64,7 +73,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
 
     command "ReadRecord" do
       role "Winter"
-      description "Read a record by ID from a store"
+      description "Read a record by ID — verifies checksum before returning"
       reference_to Record
       attribute :store_name, String
       emits "RecordRead"
@@ -78,29 +87,152 @@ Hecks.bluebook "Heki", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Codec", "Compression and serialization — JSON + Zlib with HEKI magic header" do
+  # === Schema ===
+
+  aggregate "Schema", "Embedded field definitions — the store describes itself" do
+    attribute :store_name, String
+    attribute :fields, list_of(FieldDef)
+    attribute :required_fields, list_of(String)
+
+    value_object "FieldDef" do
+      attribute :name, String
+      attribute :field_type, String
+    end
+
+    command "DefineSchema" do
+      role "System"
+      description "Declare the expected fields and types for a store — derived from the bluebook aggregate"
+      attribute :store_name, String
+      attribute :fields, list_of(FieldDef)
+      attribute :required_fields, list_of(String)
+      emits "SchemaDefined"
+      then_set :store_name, to: :store_name
+      then_set :fields, to: :fields
+      then_set :required_fields, to: :required_fields
+    end
+
+    command "ValidateRecord" do
+      role "System"
+      description "Check a record against the schema — required fields present, types match"
+      reference_to Schema
+      attribute :record, String
+      emits "RecordValidated"
+    end
+
+    command "RejectRecord" do
+      role "System"
+      description "Record failed schema validation — missing fields or wrong types"
+      reference_to Schema
+      attribute :reason, String
+      emits "RecordRejected"
+    end
+  end
+
+  # === Integrity ===
+
+  aggregate "Integrity", "Checksums and atomic writes — files cannot be silently corrupted" do
+    attribute :store_name, String
+    attribute :checksum, String
+    attribute :algorithm, String
+    attribute :verified, String
+
+    command "ComputeChecksum" do
+      role "System"
+      description "CRC32 the compressed payload — store in header"
+      attribute :store_name, String
+      attribute :payload, String
+      emits "ChecksumComputed"
+      then_set :store_name, to: :store_name
+      then_set :algorithm, to: "crc32"
+    end
+
+    command "VerifyChecksum" do
+      role "System"
+      description "Recompute CRC32 on read and compare to stored value"
+      reference_to Integrity
+      emits "ChecksumVerified"
+      then_set :verified, to: "true"
+    end
+
+    command "ReportCorruption" do
+      role "System"
+      description "Checksum mismatch — file is corrupt, do not trust"
+      reference_to Integrity
+      emits "CorruptionDetected"
+      then_set :verified, to: "false"
+    end
+  end
+
+  # === Codec ===
+
+  aggregate "Codec", "Compression and serialization — JSON + Zlib with self-validating header" do
     attribute :magic, String
+    attribute :version, Integer
     attribute :compression_level, Integer
     attribute :format, String
 
     command "Compress" do
       role "System"
-      description "Serialize and compress records to binary with HEKI magic header"
+      description "Serialize, compress, checksum, embed schema, write atomically"
       attribute :records, String
       emits "Compressed"
-      then_set :format, to: "json+zlib"
+      then_set :format, to: "json+zlib+crc32"
     end
 
     command "Decompress" do
       role "System"
-      description "Read magic header, inflate, and deserialize records"
+      description "Read header, verify checksum, validate schema, inflate, deserialize"
       attribute :data, String
       emits "Decompressed"
     end
+
+    command "WriteAtomically" do
+      role "System"
+      description "Write to temp file then rename — never a partial write on disk"
+      attribute :path, String
+      attribute :data, String
+      emits "AtomicWriteCompleted"
+    end
   end
+
+  # Header format:
+  #   HEKI (4 bytes) — magic
+  #   version (1 byte) — format version (2 = JSON+CRC32)
+  #   record_count (4 bytes) — number of records
+  #   crc32 (4 bytes) — checksum of compressed payload
+  #   schema_len (2 bytes) — length of compressed schema
+  #   schema (variable) — zlib(json field definitions)
+  #   payload (variable) — zlib(json records)
+
+  # === Policies ===
 
   policy "CompressOnWrite" do
     on "RecordWritten"
     trigger "Compress"
+  end
+
+  policy "ChecksumOnCompress" do
+    on "Compressed"
+    trigger "ComputeChecksum"
+  end
+
+  policy "VerifyOnRead" do
+    on "Decompressed"
+    trigger "VerifyChecksum"
+  end
+
+  policy "ValidateOnRead" do
+    on "ChecksumVerified"
+    trigger "ValidateRecord"
+  end
+
+  policy "RejectOnCorruption" do
+    on "CorruptionDetected"
+    trigger "ReportCorruption"
+  end
+
+  policy "AtomicOnChecksum" do
+    on "ChecksumComputed"
+    trigger "WriteAtomically"
   end
 end
