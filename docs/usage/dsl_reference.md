@@ -218,6 +218,9 @@ app.events.each { |e| puts e.class.name.split("::").last }
 | `postcondition` | Post-execution check | Block with message |
 | `handler` | Custom handler block | Overrides default behavior |
 | `call` | Inline call body | Lightweight logic |
+| `given` | Precondition in UL | [Given/Then](#given--then--declarative-behavior) |
+| `then_set` | Declarative state mutation | [Given/Then](#given--then--declarative-behavior) |
+| `then_toggle` | Toggle boolean field | [Given/Then](#given--then--declarative-behavior) |
 | `emits` | Explicit event name | [Emits](emits.md) |
 
 ### Value Object / Entity
@@ -292,6 +295,58 @@ end
 ```
 
 See [Emits](emits.md) for explicit event names.
+
+### Given / Then — Declarative Behavior
+
+Commands can declare preconditions (`given`) and state mutations (`then_set`) in pure ubiquitous language. No Ruby handlers — the runtime interprets them, and generators transpile them to any target.
+
+```ruby
+command "PlaceOrder" do
+  description "Place a new order for a pizza"
+  attribute :customer_name, String
+  reference_to "Pizza", validate: :exists
+  attribute :quantity, Integer
+
+  given { quantity > 0 }
+  given("customer must have name") { customer_name.length > 0 }
+
+  then_set :status, to: "placed"
+  then_set :items, append: { pizza: :pizza, quantity: :quantity }
+  then_set :order_count, increment: 1
+end
+```
+
+**`given`** — Precondition checked before execution. The block is captured as source text, not a Proc. Fails the command if false.
+
+```ruby
+given { toppings.size < 10 }
+given("must be pending") { status == "pending" }
+```
+
+**`then_set`** — Declarative state mutation applied after preconditions pass.
+
+| Operation | Syntax | Effect |
+|-----------|--------|--------|
+| Set | `then_set :field, to: value` | Assign value (literal or `:attribute_ref`) |
+| Append | `then_set :field, append: value` | Add to list |
+| Increment | `then_set :field, increment: n` | Add n to numeric field |
+| Decrement | `then_set :field, decrement: n` | Subtract n from numeric field |
+
+**`then_toggle`** — Toggle a boolean string field between `"true"` and `"false"`.
+
+```ruby
+then_toggle :sidebar_collapsed
+```
+
+Values can reference command attributes by symbol:
+
+```ruby
+then_set :name, to: :name          # copies from command input
+then_set :status, to: "active"     # literal value
+then_set :items, append: { name: :name, amount: :amount }  # compound
+```
+
+When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` instead of a handler block. This keeps domain logic pure and projectable.
 
 ---
 
