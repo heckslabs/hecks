@@ -1,0 +1,372 @@
+Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
+  vision "Replaces Linear for Chris — features are domain-aware, stored in heki, queryable by Winter"
+  category "infrastructure"
+
+  aggregate "Feature", "A thing to build — replaces Linear issues, linked to bluebook domains" do
+    attribute :title, String
+    attribute :description, String
+    attribute :domain_name, String
+    attribute :category, String
+    attribute :priority, String
+    attribute :status, String
+    attribute :assignee, String
+    attribute :labels, list_of(String)
+    attribute :created_at, String
+    attribute :completed_at, String
+
+    command "CreateFeature" do
+      role "Chris"
+      description "Define a new feature to build — must have a title and category"
+      attribute :title, String
+      attribute :description, String
+      attribute :domain_name, String
+      attribute :category, String
+      attribute :priority, String
+      attribute :assignee, String
+      attribute :labels, list_of(String)
+      emits "FeatureCreated"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :domain_name, to: :domain_name
+      then_set :category, to: :category
+      then_set :priority, to: :priority
+      then_set :assignee, to: :assignee
+      then_set :labels, to: :labels
+      then_set :status, to: "backlog"
+    end
+
+    command "AssignFeature" do
+      role "Chris"
+      description "Assign or reassign a feature to someone"
+      reference_to Feature
+      attribute :assignee, String
+      emits "FeatureAssigned"
+      then_set :assignee, to: :assignee
+    end
+
+    command "LabelFeature" do
+      role "Chris"
+      description "Add a label to a feature for filtering and grouping"
+      reference_to Feature
+      attribute :label, String
+      emits "FeatureLabeled"
+      then_set :labels, append: :label
+    end
+
+    command "StartFeature" do
+      role "Chris"
+      description "Begin work on a feature — moves from prioritized to in progress"
+      reference_to Feature
+      emits "FeatureStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    command "CompleteFeature" do
+      role "Chris"
+      description "Mark a feature as done — records completion time"
+      reference_to Feature
+      emits "FeatureCompleted"
+      then_set :status, to: "completed"
+    end
+
+    command "DeferFeature" do
+      role "Chris"
+      description "Push a feature to later — not cancelled, just not now"
+      reference_to Feature
+      emits "FeatureDeferred"
+      then_set :status, to: "deferred"
+    end
+
+    command "CancelFeature" do
+      role "Chris"
+      description "Cancel a feature — it will not be built"
+      reference_to Feature
+      emits "FeatureCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    lifecycle :status, default: "backlog" do
+      transition "CreateFeature" => "backlog"
+      transition "PrioritizeFeature" => "prioritized", from: "backlog"
+      transition "StartFeature" => "in_progress", from: "prioritized"
+      transition "CompleteFeature" => "completed", from: "in_progress"
+      transition "DeferFeature" => "deferred", from: "backlog"
+      transition "DeferFeature" => "deferred", from: "prioritized"
+      transition "DeferFeature" => "deferred", from: "in_progress"
+      transition "CancelFeature" => "cancelled", from: "backlog"
+      transition "CancelFeature" => "cancelled", from: "prioritized"
+      transition "CancelFeature" => "cancelled", from: "in_progress"
+    end
+  end
+
+  aggregate "Sprint", "A focused work period — optional batching of features" do
+    attribute :name, String
+    attribute :goal, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :features, list_of(String)
+    attribute :status, String
+
+    command "PlanSprint" do
+      role "Chris"
+      description "Create a new sprint with a name and goal"
+      attribute :name, String
+      attribute :goal, String
+      attribute :start_date, String
+      attribute :end_date, String
+      emits "SprintPlanned"
+      then_set :name, to: :name
+      then_set :goal, to: :goal
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :status, to: "planning"
+    end
+
+    command "AddToSprint" do
+      role "Chris"
+      description "Add a feature to this sprint"
+      reference_to Sprint
+      attribute :feature_id, String
+      emits "FeatureAddedToSprint"
+      then_set :features, append: :feature_id
+    end
+
+    command "StartSprint" do
+      role "Chris"
+      description "Begin the sprint — lock the feature list and start working"
+      reference_to Sprint
+      emits "SprintStarted"
+      then_set :status, to: "active"
+    end
+
+    command "CompleteSprint" do
+      role "Chris"
+      description "End the sprint — all committed features should be done"
+      reference_to Sprint
+      emits "SprintCompleted"
+      then_set :status, to: "completed"
+    end
+
+    command "ReviewSprint" do
+      role "Chris"
+      description "Reflect on the sprint — what shipped, what slipped, what learned"
+      reference_to Sprint
+      emits "SprintReviewed"
+      then_set :status, to: "reviewed"
+    end
+
+    lifecycle :status, default: "planning" do
+      transition "PlanSprint" => "planning"
+      transition "StartSprint" => "active", from: "planning"
+      transition "CompleteSprint" => "completed", from: "active"
+      transition "ReviewSprint" => "reviewed", from: "completed"
+    end
+  end
+
+  aggregate "Priority", "A feature's rank in the backlog — ordered by importance" do
+    attribute :feature_id, String
+    attribute :rank, Integer
+    attribute :reason, String
+
+    command "PrioritizeFeature" do
+      role "Chris"
+      description "Add a feature to the priority backlog with a rank and reason"
+      attribute :feature_id, String
+      attribute :rank, Integer
+      attribute :reason, String
+      emits "FeaturePrioritized"
+      then_set :feature_id, to: :feature_id
+      then_set :rank, to: :rank
+      then_set :reason, to: :reason
+    end
+
+    command "ReorderFeature" do
+      role "Chris"
+      description "Change a feature's rank — reorder the backlog"
+      reference_to Priority
+      attribute :rank, Integer
+      attribute :reason, String
+      emits "FeatureReordered"
+      then_set :rank, to: :rank
+      then_set :reason, to: :reason
+    end
+
+    command "RemoveFromBacklog" do
+      role "Chris"
+      description "Remove a feature from the priority backlog entirely"
+      reference_to Priority
+      emits "RemovedFromBacklog"
+    end
+  end
+
+  aggregate "Dependency", "One feature blocks another — tracks blockers" do
+    attribute :feature_id, String
+    attribute :blocked_by, String
+    attribute :status, String
+
+    command "RecordDependency" do
+      role "Chris"
+      description "Record that one feature is blocked by another"
+      attribute :feature_id, String
+      attribute :blocked_by, String
+      emits "DependencyRecorded"
+      then_set :feature_id, to: :feature_id
+      then_set :blocked_by, to: :blocked_by
+      then_set :status, to: "blocking"
+    end
+
+    command "ResolveDependency" do
+      role "Chris"
+      description "The blocking feature is done — dependency resolved"
+      reference_to Dependency
+      emits "DependencyResolved"
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "blocking" do
+      transition "RecordDependency" => "blocking"
+      transition "ResolveDependency" => "resolved", from: "blocking"
+    end
+  end
+
+  aggregate "Milestone", "A significant checkpoint — groups features toward a goal" do
+    attribute :name, String
+    attribute :target_date, String
+    attribute :features, list_of(String)
+    attribute :status, String
+    attribute :progress_pct, Float
+
+    command "CreateMilestone" do
+      role "Chris"
+      description "Define a milestone with a name and target date"
+      attribute :name, String
+      attribute :target_date, String
+      emits "MilestoneCreated"
+      then_set :name, to: :name
+      then_set :target_date, to: :target_date
+      then_set :status, to: "planned"
+      then_set :progress_pct, to: 0.0
+    end
+
+    command "AddFeatureToMilestone" do
+      role "Chris"
+      description "Link a feature to this milestone"
+      reference_to Milestone
+      attribute :feature_id, String
+      emits "FeatureAddedToMilestone"
+      then_set :features, append: :feature_id
+    end
+
+    command "CalculateProgress" do
+      role "System"
+      description "Recompute milestone progress based on completed features"
+      reference_to Milestone
+      attribute :progress_pct, Float
+      emits "ProgressCalculated"
+      then_set :progress_pct, to: :progress_pct
+    end
+
+    command "CompleteMilestone" do
+      role "Chris"
+      description "Mark the milestone as achieved"
+      reference_to Milestone
+      emits "MilestoneCompleted"
+      then_set :status, to: "completed"
+      then_set :progress_pct, to: 100.0
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "CreateMilestone" => "planned"
+      transition "AddFeatureToMilestone" => "in_progress", from: "planned"
+      transition "AddFeatureToMilestone" => "in_progress", from: "in_progress"
+      transition "CompleteMilestone" => "completed", from: "in_progress"
+    end
+  end
+
+  aggregate "DomainLink", "Every feature links to a bluebook domain — the key differentiator vs Linear" do
+    attribute :feature_id, String
+    attribute :domain_name, String
+    attribute :aggregate_name, String
+    attribute :reason, String
+
+    command "LinkToDomain" do
+      role "System"
+      description "Link a feature to a bluebook domain — features are domain-aware"
+      attribute :feature_id, String
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :reason, String
+      emits "LinkedToDomain"
+      then_set :feature_id, to: :feature_id
+      then_set :domain_name, to: :domain_name
+      then_set :aggregate_name, to: :aggregate_name
+      then_set :reason, to: :reason
+    end
+
+    command "UnlinkFromDomain" do
+      role "Chris"
+      description "Remove a domain link from a feature"
+      reference_to DomainLink
+      emits "UnlinkedFromDomain"
+    end
+  end
+
+  aggregate "WorkLog", "What was actually done — time, description, and commit linkage" do
+    attribute :feature_id, String
+    attribute :description, String
+    attribute :duration_minutes, Integer
+    attribute :logged_at, String
+    attribute :commit_sha, String
+
+    command "LogWork" do
+      role "Chris"
+      description "Record work done on a feature — what and how long"
+      attribute :feature_id, String
+      attribute :description, String
+      attribute :duration_minutes, Integer
+      attribute :logged_at, String
+      emits "WorkLogged"
+      then_set :feature_id, to: :feature_id
+      then_set :description, to: :description
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :logged_at, to: :logged_at
+    end
+
+    command "LinkCommit" do
+      role "System"
+      description "Attach a git commit SHA to a work log entry"
+      reference_to WorkLog
+      attribute :commit_sha, String
+      emits "CommitLinked"
+      then_set :commit_sha, to: :commit_sha
+    end
+  end
+
+  # ============================================================
+  # POLICIES — cross-aggregate automation
+  # ============================================================
+
+  policy "LinkOnCreate" do
+    on "FeatureCreated"
+    trigger "LinkToDomain"
+  end
+
+  policy "ProgressOnComplete" do
+    on "FeatureCompleted"
+    trigger "CalculateProgress"
+  end
+
+  policy "PrioritizeOnCreate" do
+    on "FeatureCreated"
+    trigger "PrioritizeFeature"
+  end
+
+  # ============================================================
+  # FIXTURES — seed with current Linear issues
+  # ============================================================
+
+  fixture "Feature", title: "CLI as projection from bluebooks via hecks-life", category: "story", priority: "normal", status: "backlog", domain_name: "Cli", labels: ["HEC-616"]
+  fixture "Feature", title: "Convert hecks-life Rust source to bluebook", category: "story", priority: "normal", status: "backlog", domain_name: "Hecksagon", labels: ["HEC-617"]
+  fixture "Feature", title: "Wire Verbs domain into hecks-life validator", category: "story", priority: "high", status: "backlog", domain_name: "Verbs", labels: ["HEC-618"]
+  fixture "Feature", title: "Remove chapter metaphor — bluebooks are source of truth", category: "refactor", priority: "high", status: "in_progress", domain_name: "Bluebook", labels: ["HEC-615"]
+end
