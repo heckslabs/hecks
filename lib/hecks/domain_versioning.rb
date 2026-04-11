@@ -9,7 +9,7 @@
 #   domain   = Hecks::DomainVersioning.load_version("2.1.0", base_dir: Dir.pwd)
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::Mixins,
+  Hecks::Runtime::Mixins,
   base_dir: File.expand_path("domain_versioning", __dir__)
 )
 

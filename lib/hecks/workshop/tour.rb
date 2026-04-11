@@ -12,7 +12,7 @@
 #   Tour.new(runner).start
 #
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::TourStepsParagraph,
+  Hecks::Workshop::TourStepsParagraph,
   base_dir: File.expand_path("tour", __dir__)
 )
 

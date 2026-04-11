@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::HandlesParagraph,
+  Hecks::Workshop::HandlesParagraph,
   base_dir: File.expand_path("aggregate_handle", __dir__)
 )
 

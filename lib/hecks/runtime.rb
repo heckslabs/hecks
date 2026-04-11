@@ -3,7 +3,7 @@
 # hand-written require tree needed.
 require "hecks/chapters/runtime"
 Hecks::Chapters.load_chapter(
-  Hecks::Chapters::Runtime,
+  Hecks::Runtime,
   base_dir: __dir__
 )
 

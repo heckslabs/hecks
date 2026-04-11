@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::SerializersParagraph,
+  Hecks::Workshop::SerializersParagraph,
   base_dir: File.expand_path("state_serializer", __dir__)
 )
 

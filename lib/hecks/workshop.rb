@@ -3,7 +3,7 @@ require "fileutils"
 # Load workshop implementation files from the Workshop chapter definition.
 require "hecks/chapters/workshop"
 Hecks::Chapters.load_chapter(
-  Hecks::Chapters::Workshop,
+  Hecks::Workshop,
   base_dir: __dir__
 )
 

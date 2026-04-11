@@ -37,7 +37,7 @@ module Hecks
   autoload :VERSION,        "hecks/version"
   autoload :Configuration,  "hecks/runtime/configuration"
   autoload :CLI,            "hecks_cli/cli"
-  autoload :Workshop,      "hecks/workshop"
+  # autoload :Workshop -- loaded by chapter system
   autoload :Versioner,      "hecks/bluebook/versioner"
   autoload :Migrations,     "hecks/bluebook/migrations"
 
@@ -140,8 +140,8 @@ module Hecks
 
   # Runtime and port components
   autoload :DryRunResult,      "hecks/dry_run_result"
-  autoload :Runtime,           "hecks/runtime"
-  autoload :Application,       "hecks/runtime"
+  # autoload :Runtime -- loaded by chapter system
+  # autoload :Application -- loaded by chapter system
   # PortWiring is included directly in Runtime, no autoload needed
   autoload :AttachmentMethods, "hecks/runtime/attachment_methods"
   autoload :EventBus,          "hecks/ports/event_bus/event_bus"

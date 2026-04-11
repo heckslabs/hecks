@@ -43,8 +43,9 @@ module Hecks
       names = aggregate_names_from_bluebook(chapter_module)
       if names
         agg_structs = names.map { |n| OpenStruct.new(name: n) }
-        dirs.each { |d| require_aggregates(agg_structs, base_dir: d) }
+        dirs.each { |d| require_aggregates(agg_structs, base_dir: d, chapter_module: chapter_module) }
       end
+      install_chapter_alias(chapter_module)
       chapter_module.constants.each do |const|
         mod = chapter_module.const_get(const)
         next unless mod.respond_to?(:define)
@@ -105,7 +106,7 @@ module Hecks
     # Require files matching aggregate names from base_dir.
     # Indexes files by basename, filters child files loaded by parents,
     # and maps aggregate names via underscore convention.
-    def self.require_aggregates(aggregates, base_dir:)
+    def self.require_aggregates(aggregates, base_dir:, chapter_module: nil)
       base = File.expand_path(base_dir)
       all_files = Dir.glob(File.join(base, "**", "*.rb"))
 
@@ -126,10 +127,37 @@ module Hecks
       aggregates.each do |agg|
         snake = underscore(agg.name)
         file = by_name[snake] || by_name[snake.sub(/\A[a-z]+_/, "")]
-        require file if file
+        if file
+          require file
+          install_chapter_alias(chapter_module) if chapter_module
+        end
       end
     end
     private_class_method :require_aggregates
+
+    # If a top-level Hecks constant shadows a chapter module (e.g.
+    # Hecks::Runtime class vs Chapters::Runtime module), install
+    # a const_missing forwarder so paragraph constants still resolve.
+    # Checks ALL chapter modules, not just the one being loaded, because
+    # loading one chapter's aggregates can create classes for another.
+    def self.install_chapter_alias(chapter_module = nil)
+      return unless defined?(Hecks::ChapterAliases)
+      modules = chapter_module ? [chapter_module] : []
+      Chapters.constants(false).each do |cname|
+        mod = Chapters.const_get(cname)
+        next unless mod.is_a?(Module) && !mod.is_a?(Class)
+        modules << mod unless modules.include?(mod)
+      end
+      modules.each do |cm|
+        slug = cm.name.to_s.split("::").last&.to_sym
+        next unless slug
+        next unless Hecks.const_defined?(slug, false)
+        target = Hecks.const_get(slug)
+        next if target.equal?(cm)
+        ChapterAliases.install(target, cm)
+      end
+    end
+    private_class_method :install_chapter_alias
 
     def self.underscore(str)
       str.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')

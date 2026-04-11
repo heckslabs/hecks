@@ -1,9 +1,9 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::PortInternals,
+  Hecks::Runtime::PortInternals,
   base_dir: __dir__
 )
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::PortInternals,
+  Hecks::Runtime::PortInternals,
   base_dir: File.expand_path("query_builder", __dir__)
 )
 

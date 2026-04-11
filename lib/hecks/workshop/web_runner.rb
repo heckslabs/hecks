@@ -2,7 +2,7 @@ require "webrick"
 require "json"
 
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::WebComponentsParagraph,
+  Hecks::Workshop::WebComponentsParagraph,
   base_dir: File.expand_path("web_runner", __dir__)
 )
 

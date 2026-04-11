@@ -1,6 +1,6 @@
 require "securerandom"
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::Mixins,
+  Hecks::Runtime::Mixins,
   base_dir: __dir__
 )
   # Hecks::Model

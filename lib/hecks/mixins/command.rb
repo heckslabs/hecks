@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::Mixins,
+  Hecks::Runtime::Mixins,
   base_dir: File.expand_path("command", __dir__)
 )
   # Hecks::Command

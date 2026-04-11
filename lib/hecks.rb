@@ -45,7 +45,7 @@ end
 # Chapter infrastructure — Chapters module defines require_paragraphs,
 # load_chapter, etc. needed by all chapter registrations.
 require "hecks/chapters"
-
+require "hecks/chapter_aliases"
 # Chapter selection — register all available chapters, then load
 require "hecks/chapter_loader"
 require "hecks/chapters/registry"

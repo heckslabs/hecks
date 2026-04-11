@@ -126,7 +126,7 @@ module Hecks
 
       # Load is delegated to CommandLoader (extracted for file size).
       Hecks::Chapters.load_aggregates(
-        Hecks::Chapters::Runtime::Setup,
+        Hecks::Runtime::Setup,
         base_dir: File.expand_path("crud", __dir__)
       )
 

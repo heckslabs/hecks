@@ -27,8 +27,8 @@ module Hecks
   ChapterLoader.register(:runtime,
     requires: %w[
       hecks/stats hecks/event_sourcing hecks/runtime/boot
-      hecks/chapters/runtime hecks/deprecations
-      hecks/runtime/boot_bluebook
+      hecks/chapters/runtime hecks/chapters/workshop hecks/deprecations
+      hecks/runtime hecks/runtime/boot_bluebook
     ]
   )
 
@@ -37,7 +37,7 @@ module Hecks
   )
 
   ChapterLoader.register(:workshop,
-    requires: %w[hecks/workshop]
+    requires: %w[hecks/chapters/workshop hecks/workshop]
   )
 
   ChapterLoader.register(:ai,

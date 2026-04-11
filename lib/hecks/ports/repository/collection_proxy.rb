@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Runtime::PortInternals,
+  Hecks::Runtime::PortInternals,
   base_dir: __dir__
 )
 

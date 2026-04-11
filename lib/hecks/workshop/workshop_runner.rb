@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::RunnerSupportParagraph,
+  Hecks::Workshop::RunnerSupportParagraph,
   base_dir: File.expand_path("workshop_runner", __dir__)
 )
 

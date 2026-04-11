@@ -1,5 +1,5 @@
 Hecks::Chapters.load_aggregates(
-  Hecks::Chapters::Workshop::SandboxParagraph,
+  Hecks::Workshop::SandboxParagraph,
   base_dir: File.expand_path("playground", __dir__)
 )
 
