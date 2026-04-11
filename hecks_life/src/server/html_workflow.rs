@@ -53,30 +53,31 @@ fn commands_by_target_state<'a>(
 
 /// Render one pipeline step node
 fn step_node(state: &str, is_default: bool, cmds: Option<&Vec<&Command>>) -> String {
-    let (bg, border, text) = if is_default {
-        ("bg-brand/20", "border-brand", "text-brand")
+    let (bg, border, text, glow) = if is_default {
+        ("bg-brand/20", "border-brand", "text-brand", " shadow-md shadow-brand/20")
+    } else if cmds.is_some() {
+        ("bg-surface-2", "border-surface-4", "text-gray-200", "")
     } else {
-        ("bg-surface-3", "border-surface-4", "text-gray-300")
+        ("bg-surface-3/50", "border-surface-4/50", "text-gray-500", "")
     };
-    let round = if is_default { " rounded-l-lg" } else { "" };
     let mut s = format!(
-        r#"<div class="flex-shrink-0 px-4 py-3 {} border {} text-sm font-medium{}">"#,
-        bg, border, round,
+        r#"<div class="flex-shrink-0 px-4 py-3 {} border {} rounded-lg text-sm font-medium{}">"#,
+        bg, border, glow,
     );
     s.push_str(&format!(r#"<span class="{}">{}</span>"#, text, esc(state)));
     if is_default {
-        s.push_str(r#"<div class="text-xs text-gray-500 mt-1">Default</div>"#);
+        s.push_str(r#"<div class="text-xs text-gray-500 mt-1">Start</div>"#);
     }
     if let Some(commands) = cmds {
         for cmd in commands {
             let dimmed = if !cmd.givens.is_empty() { " opacity-60" } else { "" };
             s.push_str(&format!(
-                r#"<div class="text-xs text-gray-400 mt-1{}">{}</div>"#,
+                r#"<div class="mt-1.5"><span class="inline-block text-xs px-2 py-0.5 rounded-full bg-surface-4 text-gray-300 cursor-default{}">{}</span></div>"#,
                 dimmed, esc(&display_name(&cmd.name)),
             ));
             for g in &cmd.givens {
                 s.push_str(&format!(
-                    r#"<div class="text-xs text-amber-400 mt-0.5">⚠ {}</div>"#,
+                    r#"<div class="text-xs text-amber-400 mt-0.5">{}</div>"#,
                     esc(&g.expression),
                 ));
             }

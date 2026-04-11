@@ -56,7 +56,11 @@ pub fn generate_domain_page(
 
     // Records panel — hidden by default
     main.push_str(r#"<div id="panel-records" class="hidden">"#);
-    if !rt.domain.fixtures.is_empty() {
+    if rt.domain.fixtures.is_empty() {
+        main.push_str(r#"<div class="mt-8 p-8 rounded-lg border border-dashed border-surface-4 text-center">
+  <p class="text-gray-500">No records yet — use the Build tab to create one</p>
+</div>"#);
+    } else {
         main.push_str(&fixtures_section(&rt.domain.fixtures));
     }
     main.push_str("</div>");
@@ -122,7 +126,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     for attr in &cmd.attributes {
         fields.push_str(&format!(
             r#"<div>
-  <label class="block text-xs text-gray-400 mb-1">{label}</label>
+  <label class="block text-xs text-gray-400 mb-1">{label} <span class="text-brand">*</span></label>
   <input name="{name}" type="text" placeholder="{atype}" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none">
 </div>"#,
             label = esc(&display_name(&attr.name)),
@@ -131,6 +135,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
         ));
     }
     let desc = cmd.description.as_deref().unwrap_or("");
+    let btn_label = esc(&display_name(&cmd.name));
     format!(
         r#"<details data-domain-command="{cmd_name}">
   <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition list-none [&::-webkit-details-marker]:hidden">{label}{role}</summary>
@@ -139,9 +144,9 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 gap-3"
           onsubmit="return submitCmd(this, '{cmd_name}')">
       {fields}
-      <div class="col-span-2 flex items-center gap-3">
-        <button type="submit" class="px-4 py-1.5 bg-surface-3 hover:bg-surface-4 border border-surface-4 rounded text-sm font-medium transition text-brand">Execute</button>
-        <span class="cmd-result text-xs text-gray-400"></span>
+      <div class="col-span-2">
+        <button type="submit" class="px-5 py-2 bg-brand/20 hover:bg-brand/30 border border-brand rounded text-sm font-medium transition text-brand cursor-pointer">{btn_label}</button>
+        <div class="cmd-result mt-2 text-sm py-2 px-4 rounded hidden"></div>
       </div>
     </form>
   </div>
@@ -154,36 +159,39 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
         desc = esc(desc),
         domain = domain,
         fields = fields,
+        btn_label = btn_label,
     )
 }
 
 fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
-    let mut s = String::from(
-        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>"#,
-    );
-    s.push_str(r#"<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>"#);
-    s.push_str(r#"<div class="max-h-96 overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#);
-    // Only show Module column if there are mixed aggregate types
+    let count = fixtures.len();
     let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
-    let keys: Vec<String> = if let Some(f) = fixtures.first() {
+    let keys: Vec<String> = fixtures.first().map(|f| {
         f.attributes.iter().map(|(k, _)| k.clone()).collect()
-    } else { vec![] };
-    let th_class = "px-3 py-2 cursor-pointer hover:text-brand";
+    }).unwrap_or_default();
+    let th = "px-3 py-2 cursor-pointer hover:text-brand";
+    let mut s = format!(
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>
+<p class="text-xs text-gray-500 mb-2">{count} record{pl}</p>
+<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>
+<div class="max-h-96 overflow-x-auto overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#,
+        pl = if count == 1 { "" } else { "s" },
+    );
+    let mut first = true;
     if mixed {
-        s.push_str(&format!("<th class=\"{}\" onclick=\"sortTable(this)\">Module</th>", th_class));
+        s.push_str(&format!("<th class=\"{th}\" onclick=\"sortTable(this)\" data-sort=\"asc\">Module \u{25B2}</th>"));
+        first = false;
     }
     for k in &keys {
-        s.push_str(&format!("<th class=\"{}\" onclick=\"sortTable(this)\">{}</th>", th_class, esc(&display_name(k))));
+        let (ds, arrow) = if first { (" data-sort=\"asc\"", " \u{25B2}") } else { ("", "") };
+        s.push_str(&format!("<th class=\"{th}\" onclick=\"sortTable(this)\"{ds}>{}{arrow}</th>", esc(&display_name(k))));
+        first = false;
     }
     s.push_str("</tr></thead><tbody>");
     for fix in fixtures {
         s.push_str("<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"showDetail(this)\">");
-        if mixed {
-            s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name)));
-        }
-        for (_, v) in &fix.attributes {
-            s.push_str(&format!("<td class=\"px-3 py-2\">{}</td>", esc(v)));
-        }
+        if mixed { s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name))); }
+        for (_, v) in &fix.attributes { s.push_str(&format!("<td class=\"px-3 py-2\">{}</td>", esc(v))); }
         s.push_str("</tr>");
     }
     s.push_str("</tbody></table></div></div>");

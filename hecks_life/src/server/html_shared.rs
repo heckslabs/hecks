@@ -42,20 +42,8 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     details > summary::-webkit-details-marker {{ display: none; }}
     details[open] > div {{ animation: slideDown 0.2s ease-out; }}
     @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-    @keyframes blob-drift-1 {{
-      0%   {{ transform: translate(0, 0) scale(1); }}
-      25%  {{ transform: translate(8vw, -12vh) scale(1.15); }}
-      50%  {{ transform: translate(-5vw, 8vh) scale(0.9); }}
-      75%  {{ transform: translate(12vw, 5vh) scale(1.08); }}
-      100% {{ transform: translate(0, 0) scale(1); }}
-    }}
-    @keyframes blob-drift-2 {{
-      0%   {{ transform: translate(0, 0) scale(1); }}
-      25%  {{ transform: translate(-10vw, 6vh) scale(1.1); }}
-      50%  {{ transform: translate(7vw, -10vh) scale(0.88); }}
-      75%  {{ transform: translate(-6vw, -8vh) scale(1.14); }}
-      100% {{ transform: translate(0, 0) scale(1); }}
-    }}
+    @keyframes blob-drift-1 {{ 0% {{ transform: translate(0,0) scale(1); }} 50% {{ transform: translate(-5vw,8vh) scale(0.9); }} 100% {{ transform: translate(0,0) scale(1); }} }}
+    @keyframes blob-drift-2 {{ 0% {{ transform: translate(0,0) scale(1); }} 50% {{ transform: translate(7vw,-10vh) scale(0.88); }} 100% {{ transform: translate(0,0) scale(1); }} }}
     .page-blob {{
       position: fixed; border-radius: 50%; filter: blur(100px);
       opacity: 0.06; pointer-events: none; will-change: transform;
@@ -70,9 +58,16 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
       headers: {{'Content-Type': 'application/json'}},
       body: JSON.stringify({{command: cmd, attrs: data}})
     }}).then(r => r.json()).then(r => {{
-      const span = form.querySelector('.cmd-result');
-      span.textContent = r.ok ? 'Done — ' + (r.event || 'ok') : 'Error: ' + r.error;
-      span.className = 'cmd-result text-xs ml-3 ' + (r.ok ? 'text-emerald-400' : 'text-red-400');
+      const el = form.querySelector('.cmd-result');
+      el.classList.remove('hidden', 'bg-emerald-900/40', 'text-emerald-300', 'bg-red-900/40', 'text-red-300');
+      if (r.ok) {{
+        el.textContent = '\u2714 Done — ' + (r.event || 'success');
+        el.classList.add('bg-emerald-900/40', 'text-emerald-300');
+        form.querySelectorAll('input').forEach(i => i.value = '');
+      }} else {{
+        el.textContent = '\u2718 Error: ' + r.error;
+        el.classList.add('bg-red-900/40', 'text-red-300');
+      }}
     }});
     return false;
   }}
@@ -144,7 +139,10 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
 </head>
 <body class="h-full bg-surface-0 text-gray-100">
   <div class="page-blob" style="width:600px;height:600px;top:-10%;left:-5%;background:#ffe400;animation:blob-drift-1 25s ease-in-out infinite"></div>
-  <div class="page-blob" style="width:500px;height:500px;bottom:-10%;right:-5%;background:#ffe400;animation:blob-drift-2 30s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:400px;height:400px;top:40%;right:-8%;background:#ef4444;animation:blob-drift-2 30s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:500px;height:500px;bottom:-15%;left:30%;background:#22c55e;animation:blob-drift-1 35s ease-in-out infinite reverse"></div>
+  <div class="page-blob" style="width:350px;height:350px;top:10%;right:20%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:450px;height:450px;bottom:-5%;right:-10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
   <div class="flex h-full relative z-10">
     <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
       <div class="p-6">
@@ -189,23 +187,17 @@ pub fn module_icon(name: &str) -> &'static str {
     super::html_icons::module_icon(name)
 }
 
-/// Convert snake_case domain name to Title Case display name
+/// Convert snake_case or PascalCase to Title Case display name
 pub fn display_name(name: &str) -> String {
-    // Split PascalCase and snake_case into words
-    let mut words = Vec::new();
-    let mut current = String::new();
+    let (mut words, mut cur) = (Vec::new(), String::new());
     for ch in name.chars() {
-        if ch == '_' {
-            if !current.is_empty() { words.push(current.clone()); current.clear(); }
-        } else if ch.is_uppercase() && !current.is_empty() {
-            words.push(current.clone()); current.clear();
-            current.push(ch);
-        } else {
-            if current.is_empty() { current.push(ch.to_uppercase().next().unwrap()); }
-            else { current.push(ch); }
-        }
+        if ch == '_' { if !cur.is_empty() { words.push(cur.clone()); cur.clear(); } }
+        else if ch.is_uppercase() && !cur.is_empty() {
+            words.push(cur.clone()); cur.clear(); cur.push(ch);
+        } else if cur.is_empty() { cur.push(ch.to_uppercase().next().unwrap()); }
+        else { cur.push(ch); }
     }
-    if !current.is_empty() { words.push(current); }
+    if !cur.is_empty() { words.push(cur); }
     words.join(" ")
 }
 

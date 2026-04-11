@@ -43,18 +43,15 @@ pub fn sidebar_links(domains: &[(String, usize)], active: Option<&str>) -> Strin
 
 fn sidebar_link(name: &str, active: Option<&str>) -> String {
     let active_class = if active == Some(name) {
-        "bg-surface-3 text-brand"
+        "bg-brand/15 text-brand border-l-2 border-brand font-semibold"
     } else {
         "text-gray-400 hover:bg-surface-2 hover:text-white"
     };
     let icon = super::html_shared::domain_icon(name);
+    let label = super::html_shared::display_name(name);
     format!(
-        r#"<a href="/domains/{name}" data-domain-aggregate="{name}" class="block px-3 py-1 rounded-lg text-sm {active_class} transition">
+        r#"<a href="/domains/{name}" data-domain-aggregate="{name}" title="Open {label}" class="block px-3 py-1.5 rounded-lg text-sm {active_class} transition cursor-pointer">
   {icon} {label}
 </a>"#,
-        name = name,
-        icon = icon,
-        label = super::html_shared::display_name(name),
-        active_class = active_class,
     )
 }
