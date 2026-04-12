@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, esc};
 use super::html_workflow::workflow_pipeline;
 use super::html_fixtures::module_fixtures;
+use super::html_kpi::kpi_cards;
 
 /// Generate the detail page for one domain
 pub fn generate_domain_page(
@@ -37,6 +38,9 @@ pub fn generate_domain_page(
 "#,
         label = esc(&display_name(name)),
     ));
+
+    // KPI cards
+    main.push_str(&kpi_cards(&rt));
 
     // Tabs: Build first, Records second
     main.push_str(r#"<div class="flex gap-4 mb-6 border-b border-surface-3">
