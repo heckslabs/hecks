@@ -405,4 +405,11 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   fixture "DesignPrinciple", name: "Console Event Colors", principle: "Server console: system events in one color, domain events in another. User can distinguish infrastructure from business activity.", enforced: "true"
   fixture "DesignPrinciple", name: "Dropdowns For Enums", principle: "Any field with known values (brand names, status, product_type, channel) renders as a dropdown select, not a text input. Infer from fixtures and lifecycle states.", enforced: "true"
   fixture "DesignPrinciple", name: "Data Persists On Refresh", principle: "Dispatched data persists to heki storage. Refresh loads saved state, not just fixtures. The app is stateful.", enforced: "true"
+  fixture "DesignPrinciple", name: "Dropdowns For References", principle: "reference_to fields render as dropdown selects populated from existing records. Never free-text for foreign keys.", enforced: "true"
+  fixture "DesignPrinciple", name: "Lift Brand From Website", principle: "Extract primary colors, fonts, and feel from the client's existing website using WebFetch. Apply automatically to the generated app.", enforced: "true"
+  fixture "DesignPrinciple", name: "Space Bar Safety", principle: "Space bar must not submit forms. Prevent default on space when not in an input or textarea.", enforced: "true"
+  fixture "DesignPrinciple", name: "Zero Hecks Terminology", principle: "NEVER show aggregate, command, domain, bluebook, fixture, policy, lifecycle to end users. Use business terms: modules, actions, areas, records, rules, workflow.", enforced: "true"
+  fixture "DesignPrinciple", name: "Auto-Close Wizard On Success", principle: "Creation wizard auto-closes 1.5s after success. Shows green confirmation with the created record. Event fires to sidebar.", enforced: "true"
+  fixture "DesignPrinciple", name: "Dictation Compatible", principle: "App works with macOS Dictation (double Fn) and Almond. Forms accept dictated text. No keyboard shortcuts that conflict.", enforced: "true"
+  fixture "DesignPrinciple", name: "Full Screen Pop Out", principle: "Tables and panels have a full-screen icon. Click to expand to full viewport. Back button or Escape returns.", enforced: "true"
 end
