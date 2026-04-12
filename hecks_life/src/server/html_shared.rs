@@ -73,6 +73,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     }});
     return false;
   }}
+  function humanize(s) {{ return s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' '); }}
   function addEvent(event, cmd, aggType, aggId, ok) {{
     const stream = document.getElementById('event-stream');
     if (!stream) return;
@@ -83,9 +84,9 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     const icon = ok ? '\u26A1' : '\u274C';
     const card = document.createElement('div');
     card.className = 'p-3 rounded-lg bg-surface-2 border ' + color + ' cursor-pointer hover:bg-surface-3 transition text-xs animate-pulse';
-    card.innerHTML = '<div class="flex items-center justify-between mb-1"><span class="font-bold text-brand">' + icon + ' ' + (event||cmd) + '</span><span class="text-gray-600">' + time + '</span></div>' +
-      (aggType ? '<p class="text-gray-400">' + aggType + (aggId ? ' #' + aggId : '') + '</p>' : '') +
-      '<p class="text-gray-500 mt-1">Command: ' + cmd + '</p>';
+    card.innerHTML = '<div class="flex items-center justify-between mb-1"><span class="font-bold text-brand">' + icon + ' ' + humanize(event||cmd) + '</span><span class="text-gray-600">' + time + '</span></div>' +
+      (aggType ? '<p class="text-gray-400">' + humanize(aggType) + (aggId ? ' #' + aggId : '') + '</p>' : '') +
+      '<p class="text-gray-500 mt-1">' + humanize(cmd) + '</p>';
     card.onclick = function() {{
       card.classList.toggle('ring-1');
       card.classList.toggle('ring-brand/50');
