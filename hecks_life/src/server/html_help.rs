@@ -37,8 +37,8 @@ pub fn help_script() -> &'static str {
     modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
     modal.onclick = function(e) {{ if (e.target === modal) modal.remove(); }};
     modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-md w-full mx-4 border border-surface-3">' +
-      '<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-brand">\u{{2139}}\u{{FE0F}} ' + title + '</h3>' +
-      '<button onclick="this.closest(\'div.fixed\').remove()" class="text-gray-500 hover:text-white">\u{{2715}}</button></div>' +
+      '<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-brand">ℹ️ ' + title + '</h3>' +
+      '<button onclick="this.closest(\'div.fixed\').remove()" class="text-gray-500 hover:text-white">✕</button></div>' +
       body +
       '<div class="mt-4 p-3 rounded bg-surface-3 border border-surface-4">' +
       '<p class="text-xs text-gray-400 mb-2">Need more help?</p>' +
