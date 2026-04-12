@@ -19,9 +19,10 @@ pub fn kpi_cards(rt: &Runtime) -> String {
     let mut s = String::from(
         "<div class=\"grid grid-cols-2 md:grid-cols-4 gap-3 mb-6\">"
     );
-    s.push_str(&card("Modules", modules, "text-brand"));
-    s.push_str(&card("Records", records, "text-emerald-400"));
-    s.push_str(&card("Commands", commands, "text-amber-400"));
+    // Total records only — no Hecks terminology
+    if records > 0 {
+        s.push_str(&card("Total", records, "text-emerald-400"));
+    }
 
     // Lifecycle state counts from fixture data
     let mut state_counts: Vec<(String, usize)> = Vec::new();
