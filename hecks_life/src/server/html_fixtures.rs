@@ -66,3 +66,53 @@ pub fn module_fixtures(fixtures: &[Fixture], aggregate_name: &str) -> String {
     s.push_str("</tbody></table></div></div>");
     s
 }
+
+/// Render the full Records tab fixture table (all aggregates combined)
+pub fn fixtures_section(fixtures: &[Fixture]) -> String {
+    let count = fixtures.len();
+    let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
+    let keys: Vec<String> = fixtures.first().map(|f| {
+        f.attributes.iter().map(|(k, _)| k.clone()).collect()
+    }).unwrap_or_default();
+    let th = "px-3 py-2 cursor-pointer hover:text-brand";
+    let mut s = format!(
+        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>
+<p class="text-xs text-gray-500 mb-2">{count} record{pl}</p>
+<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>
+<div class="max-h-96 overflow-x-auto overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#,
+        pl = if count == 1 { "" } else { "s" },
+    );
+    let mut first = true;
+    if mixed {
+        s.push_str(&format!(
+            "<th class=\"{th}\" onclick=\"sortTable(this)\" data-sort=\"asc\">Module \u{25B2}</th>"
+        ));
+        first = false;
+    }
+    for k in &keys {
+        let (ds, arrow) = if first { (" data-sort=\"asc\"", " \u{25B2}") } else { ("", "") };
+        s.push_str(&format!(
+            "<th class=\"{th}\" onclick=\"sortTable(this)\"{ds}>{}{arrow}</th>",
+            esc(&display_name(k))
+        ));
+        first = false;
+    }
+    s.push_str("</tr></thead><tbody>");
+    for fix in fixtures {
+        s.push_str(
+            "<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"showDetail(this)\">"
+        );
+        if mixed {
+            s.push_str(&format!(
+                "<td class=\"px-3 py-2 text-gray-400\">{}</td>",
+                esc(&fix.aggregate_name)
+            ));
+        }
+        for (_, v) in &fix.attributes {
+            s.push_str(&format!("<td class=\"px-3 py-2\">{}</td>", esc(v)));
+        }
+        s.push_str("</tr>");
+    }
+    s.push_str("</tbody></table></div></div>");
+    s
+}

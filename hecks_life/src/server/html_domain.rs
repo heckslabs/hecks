@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, esc};
 use super::html_workflow::workflow_pipeline;
-use super::html_fixtures::module_fixtures;
+use super::html_fixtures::{module_fixtures, fixtures_section};
 use super::html_kpi::kpi_cards;
 
 /// Generate the detail page for one domain
@@ -126,6 +126,28 @@ fn module_card(
 }
 
 fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
+    let is_create = cmd.references.is_empty();
+    if is_create {
+        return wizard_button(domain, cmd);
+    }
+    inline_form(domain, cmd)
+}
+
+fn wizard_button(domain: &str, cmd: &crate::ir::Command) -> String {
+    let fields_json: Vec<String> = cmd.attributes.iter().map(|a| {
+        format!(r#"{{"name":"{}","type":"{}"}}"#, esc(&a.name), esc(&a.attr_type))
+    }).collect();
+    let label = display_name(&cmd.name);
+    format!(
+        r#"<button onclick='openWizard("{domain}", "{cmd_name}", [{fields}])' class="w-full px-4 py-3 bg-brand/10 border border-brand/30 rounded-lg text-brand font-medium hover:bg-brand/20 transition text-left">+ {label}</button>"#,
+        domain = esc(domain),
+        cmd_name = esc(&cmd.name),
+        fields = fields_json.join(","),
+        label = esc(&label),
+    )
+}
+
+fn inline_form(domain: &str, cmd: &crate::ir::Command) -> String {
     let mut fields = String::new();
     for attr in &cmd.attributes {
         fields.push_str(&format!(
@@ -167,37 +189,3 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     )
 }
 
-fn fixtures_section(fixtures: &[crate::ir::Fixture]) -> String {
-    let count = fixtures.len();
-    let mixed = fixtures.windows(2).any(|w| w[0].aggregate_name != w[1].aggregate_name);
-    let keys: Vec<String> = fixtures.first().map(|f| {
-        f.attributes.iter().map(|(k, _)| k.clone()).collect()
-    }).unwrap_or_default();
-    let th = "px-3 py-2 cursor-pointer hover:text-brand";
-    let mut s = format!(
-        r#"<div class="mt-8"><h2 class="text-xl font-semibold mb-4">Records</h2>
-<p class="text-xs text-gray-500 mb-2">{count} record{pl}</p>
-<div class="flex gap-3 mb-3"><input type="text" placeholder="Search records..." oninput="searchTable(this)" class="flex-1 bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>
-<div class="max-h-96 overflow-x-auto overflow-y-auto rounded-lg border border-surface-3"><table class="w-full text-sm"><thead class="sticky top-0 bg-surface-2"><tr class="border-b border-surface-3 text-left text-gray-400">"#,
-        pl = if count == 1 { "" } else { "s" },
-    );
-    let mut first = true;
-    if mixed {
-        s.push_str(&format!("<th class=\"{th}\" onclick=\"sortTable(this)\" data-sort=\"asc\">Module \u{25B2}</th>"));
-        first = false;
-    }
-    for k in &keys {
-        let (ds, arrow) = if first { (" data-sort=\"asc\"", " \u{25B2}") } else { ("", "") };
-        s.push_str(&format!("<th class=\"{th}\" onclick=\"sortTable(this)\"{ds}>{}{arrow}</th>", esc(&display_name(k))));
-        first = false;
-    }
-    s.push_str("</tr></thead><tbody>");
-    for fix in fixtures {
-        s.push_str("<tr class=\"border-b border-surface-3 hover:bg-surface-3 cursor-pointer transition\" onclick=\"showDetail(this)\">");
-        if mixed { s.push_str(&format!("<td class=\"px-3 py-2 text-gray-400\">{}</td>", esc(&fix.aggregate_name))); }
-        for (_, v) in &fix.attributes { s.push_str(&format!("<td class=\"px-3 py-2\">{}</td>", esc(v))); }
-        s.push_str("</tr>");
-    }
-    s.push_str("</tbody></table></div></div>");
-    s
-}
