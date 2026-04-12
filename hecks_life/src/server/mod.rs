@@ -12,6 +12,7 @@ pub mod multi;
 pub mod html;
 pub mod html_domain;
 pub mod html_fixtures;
+pub mod html_help;
 pub mod html_icons;
 pub mod html_kpi;
 pub mod html_shared;

@@ -10,6 +10,7 @@
 pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     let app_name = "IGB";
     let app_subtitle = "Engine Additive Platform";
+    let help_script = super::html_help::help_script();
     format!(
         r#"<!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -142,6 +143,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
       row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
     }});
   }}
+  {help_script}
   function sortTable(th) {{
     const table = th.closest('table');
     const idx = Array.from(th.parentElement.children).indexOf(th);
@@ -200,6 +202,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         app_subtitle = app_subtitle,
         sidebar_html = sidebar_html,
         main_html = main_html,
+        help_script = help_script,
     )
 }
 

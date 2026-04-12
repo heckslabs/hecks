@@ -929,6 +929,7 @@
 - **Invariant gating on workflow steps** — commands with `givens` (preconditions) appear dimmed on their workflow step with the precondition expression shown in amber
 - Command forms submit via fetch to the JSON dispatch endpoint — no page reload, inline success/error feedback
 - Domain tags (`data-domain-aggregate`, `data-domain-command`) on all generated HTML elements
+- **Contextual help icons** — every module card and command has a ? button that opens a help popup built from domain tags (aggregate name, description, field list, record/action counts)
 
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history

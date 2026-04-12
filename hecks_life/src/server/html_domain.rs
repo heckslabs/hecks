@@ -93,7 +93,7 @@ fn module_card(
         r#"<details id="{agg_name}" class="bg-surface-2 rounded-lg border border-surface-3 mb-6" data-domain-aggregate="{agg_name}"{open_attr}>
   <summary class="p-6 cursor-pointer flex items-center justify-between">
     <div>
-      <h2 class="text-xl font-bold">{icon} {label}</h2>
+      <h2 class="text-xl font-bold">{icon} {label} <button onclick="event.stopPropagation();showHelp(this)" class="ml-2 text-xs text-gray-500 hover:text-brand opacity-30 hover:opacity-100 transition">?</button></h2>
       <p class="text-gray-400 text-sm mt-1">{desc}</p>
     </div>
     <span class="text-gray-500">▾</span>
@@ -142,7 +142,7 @@ fn command_section(domain: &str, cmd: &crate::ir::Command) -> String {
     let btn_label = esc(&display_name(&cmd.name));
     format!(
         r#"<details data-domain-command="{cmd_name}">
-  <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition list-none [&::-webkit-details-marker]:hidden">{label}{role}</summary>
+  <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition list-none [&::-webkit-details-marker]:hidden">{label}{role} <button onclick="event.stopPropagation();showHelp(this)" class="ml-1 text-xs text-gray-500 hover:text-brand opacity-30 hover:opacity-100 transition">?</button></summary>
   <div class="mt-2 p-4 bg-surface-1 rounded-lg border border-surface-3">
     <p class="text-xs text-gray-500 mb-3">{desc}</p>
     <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 gap-3"
