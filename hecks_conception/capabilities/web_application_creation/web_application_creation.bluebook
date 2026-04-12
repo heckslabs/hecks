@@ -403,4 +403,6 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   fixture "DesignPrinciple", name: "Docs From Domain", principle: "Documentation auto-generates from the bluebook — aggregate descriptions become module docs, command descriptions become action docs, lifecycle becomes workflow docs. Never hand-written.", enforced: "true"
   fixture "DesignPrinciple", name: "Events In English", principle: "Event names display as human English — FormulaCreated shows as 'Formula Created', not class names. Apply display_name to all events.", enforced: "true"
   fixture "DesignPrinciple", name: "Console Event Colors", principle: "Server console: system events in one color, domain events in another. User can distinguish infrastructure from business activity.", enforced: "true"
+  fixture "DesignPrinciple", name: "Dropdowns For Enums", principle: "Any field with known values (brand names, status, product_type, channel) renders as a dropdown select, not a text input. Infer from fixtures and lifecycle states.", enforced: "true"
+  fixture "DesignPrinciple", name: "Data Persists On Refresh", principle: "Dispatched data persists to heki storage. Refresh loads saved state, not just fixtures. The app is stateful.", enforced: "true"
 end
