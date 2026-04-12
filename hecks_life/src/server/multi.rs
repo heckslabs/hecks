@@ -54,13 +54,15 @@ fn load_all_domains(dir: &str) -> HashMap<String, RefCell<Runtime>> {
         std::process::exit(1);
     });
 
+    let data_dir = format!("{}/data", dir.trim_end_matches('/'));
+
     for entry in entries.flatten() {
         let path = entry.path();
         if path.extension().map(|e| e == "bluebook").unwrap_or(false) {
             if let Ok(source) = std::fs::read_to_string(&path) {
                 let domain = parser::parse(&source);
                 let name = domain.name.clone();
-                let rt = Runtime::boot(domain);
+                let rt = Runtime::boot_with_data_dir(domain, Some(data_dir.clone()));
                 map.insert(name, RefCell::new(rt));
             }
         }

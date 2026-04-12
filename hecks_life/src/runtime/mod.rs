@@ -15,6 +15,7 @@ mod event_bus;
 mod interpreter;
 mod lifecycle;
 mod middleware;
+pub mod persistence;
 mod policy_engine;
 mod projection;
 mod repository;
@@ -38,13 +39,21 @@ pub struct Runtime {
     pub policy_engine: PolicyEngine,
     pub projections: Vec<Projection>,
     pub middleware: MiddlewareStack,
+    pub data_dir: Option<String>,
 }
 
 impl Runtime {
     pub fn boot(domain: Domain) -> Self {
+        Self::boot_with_data_dir(domain, None)
+    }
+
+    pub fn boot_with_data_dir(domain: Domain, data_dir: Option<String>) -> Self {
         let mut repositories = HashMap::new();
         for agg in &domain.aggregates {
-            repositories.insert(agg.name.clone(), Repository::new());
+            repositories.insert(
+                agg.name.clone(),
+                Repository::new(&agg.name, data_dir.clone()),
+            );
         }
 
         let mut policy_engine = PolicyEngine::new();
@@ -65,6 +74,7 @@ impl Runtime {
             policy_engine,
             projections,
             middleware: MiddlewareStack::new(),
+            data_dir,
         }
     }
 
