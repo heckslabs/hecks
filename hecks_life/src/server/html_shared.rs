@@ -64,12 +64,34 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         el.textContent = '\u2714 Done — ' + (r.event || 'success');
         el.classList.add('bg-emerald-900/40', 'text-emerald-300');
         form.querySelectorAll('input').forEach(i => i.value = '');
+        addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
       }} else {{
         el.textContent = '\u2718 Error: ' + r.error;
         el.classList.add('bg-red-900/40', 'text-red-300');
+        addEvent(r.error, cmd, '', '', false);
       }}
     }});
     return false;
+  }}
+  function addEvent(event, cmd, aggType, aggId, ok) {{
+    const stream = document.getElementById('event-stream');
+    if (!stream) return;
+    const hint = stream.querySelector('p.italic');
+    if (hint) hint.remove();
+    const time = new Date().toLocaleTimeString();
+    const color = ok ? 'border-emerald-600/40' : 'border-red-600/40';
+    const icon = ok ? '\u26A1' : '\u274C';
+    const card = document.createElement('div');
+    card.className = 'p-3 rounded-lg bg-surface-2 border ' + color + ' cursor-pointer hover:bg-surface-3 transition text-xs animate-pulse';
+    card.innerHTML = '<div class="flex items-center justify-between mb-1"><span class="font-bold text-brand">' + icon + ' ' + (event||cmd) + '</span><span class="text-gray-600">' + time + '</span></div>' +
+      (aggType ? '<p class="text-gray-400">' + aggType + (aggId ? ' #' + aggId : '') + '</p>' : '') +
+      '<p class="text-gray-500 mt-1">Command: ' + cmd + '</p>';
+    card.onclick = function() {{
+      card.classList.toggle('ring-1');
+      card.classList.toggle('ring-brand/50');
+    }};
+    stream.insertBefore(card, stream.firstChild);
+    setTimeout(() => card.classList.remove('animate-pulse'), 1000);
   }}
   function toggleCmd(btn) {{
     const form = btn.nextElementSibling;
@@ -156,11 +178,19 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         <p class="text-xs text-gray-600 text-center">Empowered by Hecks</p>
       </div>
     </aside>
-    <main class="flex-1 ml-64 overflow-y-auto flex flex-col min-h-full">
+    <main class="flex-1 ml-64 mr-72 overflow-y-auto flex flex-col min-h-full">
       <div class="p-8 max-w-6xl flex-1">
         {main_html}
       </div>
     </main>
+    <aside class="w-72 bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto flex flex-col">
+      <div class="p-4 border-b border-surface-3">
+        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">⚡ Event Stream</h3>
+      </div>
+      <div id="event-stream" class="flex-1 p-4 space-y-2 overflow-y-auto">
+        <p class="text-xs text-gray-600 italic">Dispatch a command to see events flow...</p>
+      </div>
+    </aside>
   </div>
 </body>
 </html>"#,
