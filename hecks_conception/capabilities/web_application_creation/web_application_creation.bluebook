@@ -399,4 +399,8 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   fixture "DesignPrinciple", name: "Event Stream Sidebar", principle: "Right sidebar shows live event stream — events flow through as commands are dispatched. Real-time domain activity feed.", enforced: "true"
   fixture "DesignPrinciple", name: "Multicolor Background Blobs", principle: "Floating blobs in yellow, red, green, blue, white — spread across whole page, very subtle opacity, drifting animation. Adds life.", enforced: "true"
   fixture "DesignPrinciple", name: "KPI Headers Per Domain", principle: "Every domain page shows 3-4 key metrics at top — record counts, status distribution, domain-specific indicators.", enforced: "true"
+  fixture "DesignPrinciple", name: "Contextual Help Everywhere", principle: "Every element gets a ? icon. Click it → jumps to auto-generated docs for that exact concept. Docs page has a chat pre-loaded with context from where they clicked.", enforced: "true"
+  fixture "DesignPrinciple", name: "Docs From Domain", principle: "Documentation auto-generates from the bluebook — aggregate descriptions become module docs, command descriptions become action docs, lifecycle becomes workflow docs. Never hand-written.", enforced: "true"
+  fixture "DesignPrinciple", name: "Events In English", principle: "Event names display as human English — FormulaCreated shows as 'Formula Created', not class names. Apply display_name to all events.", enforced: "true"
+  fixture "DesignPrinciple", name: "Console Event Colors", principle: "Server console: system events in one color, domain events in another. User can distinguish infrastructure from business activity.", enforced: "true"
 end
