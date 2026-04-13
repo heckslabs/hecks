@@ -78,17 +78,20 @@ pub fn usage_section(domain: &Domain) -> String {
     }
     s.push_str("</ol>");
 
-    // Policy chain summary if any
-    let policies: Vec<String> = domain.policies.iter().map(|p| format!(
-        r#"<span class="text-xs">{} → <span class="text-emerald-400">{}</span></span>"#,
-        esc(&display_name(&p.on_event)),
-        esc(&display_name(&p.trigger_command)),
-    )).collect();
-    if !policies.is_empty() {
+    // Policies as English sentences
+    if !domain.policies.is_empty() {
         s.push_str(r#"<div class="mt-4 pt-3 border-t border-surface-3">"#);
-        s.push_str(r#"<p class="text-xs text-gray-500 mb-2">Policies (automatic reactions)</p>"#);
-        s.push_str(&format!(r#"<div class="flex flex-wrap gap-3">{}</div>"#, policies.join("")));
-        s.push_str("</div>");
+        s.push_str(r#"<p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Automatic behaviors</p>"#);
+        s.push_str(r#"<ul class="space-y-1">"#);
+        for p in &domain.policies {
+            let event = event_to_english(&p.on_event);
+            let action = command_to_english(&p.trigger_command);
+            s.push_str(&format!(
+                r#"<li class="text-sm text-gray-300"><span class="text-gray-500">When</span> {} <span class="text-gray-500">then automatically</span> <span class="text-emerald-400">{}</span></li>"#,
+                esc(&event), esc(&action),
+            ));
+        }
+        s.push_str("</ul></div>");
     }
 
     s.push_str("</div>");
@@ -162,4 +165,94 @@ fn step_from(cmd: &Command, agg: &Aggregate, domain: &Domain) -> WorkflowStep {
         triggers,
         example,
     }
+}
+
+/// Turn an event name into English: "EntryAdded" → "an entry is added"
+fn event_to_english(event: &str) -> String {
+    let words = split_pascal(event);
+    if words.len() < 2 { return words.join(" ").to_lowercase(); }
+
+    // Last word is usually the past tense verb: Added, Created, Configured
+    let verb = &words[words.len() - 1];
+    let subject: String = words[..words.len() - 1].join(" ").to_lowercase();
+
+    // Pick article
+    let article = if starts_with_vowel(&subject) { "an" } else { "a" };
+
+    // Convert past-tense event verbs to present passive
+    let action = match verb.to_lowercase().as_str() {
+        "added" => "is added",
+        "created" => "is created",
+        "configured" => "is configured",
+        "connected" => "is connected",
+        "disconnected" => "is disconnected",
+        "calculated" => "is calculated",
+        "checked" => "is checked",
+        "generated" => "is generated",
+        "defined" => "is defined",
+        "flagged" => "is flagged",
+        "estimated" => "is estimated",
+        "registered" => "is registered",
+        "deployed" => "is deployed",
+        "retired" => "is retired",
+        "tracked" => "is tracked",
+        "printed" => "is printed",
+        "launched" => "is launched",
+        "completed" => "is completed",
+        "measured" => "is measured",
+        "reported" => "is reported",
+        "selected" => "is selected",
+        "sized" => "is sized",
+        "tripped" => "trips",
+        "reset" => "is reset",
+        _ => {
+            // Fallback: "Xed" → "is xed"
+            return format!("{} {} {}", article, subject, verb.to_lowercase());
+        }
+    };
+
+    format!("{} {} {}", article, subject, action)
+}
+
+/// Turn a command name into English: "CalculateTotals" → "calculate totals"
+fn command_to_english(cmd: &str) -> String {
+    split_pascal(cmd).join(" ").to_lowercase()
+}
+
+/// Split PascalCase into words, keeping acronyms together
+fn split_pascal(name: &str) -> Vec<String> {
+    let chars: Vec<char> = name.chars().collect();
+    let mut words: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i].is_uppercase() {
+            let start = i;
+            while i < chars.len() && chars[i].is_uppercase() { i += 1; }
+            let run = i - start;
+            if run == 1 {
+                if !cur.is_empty() { words.push(cur.clone()); cur.clear(); }
+                cur.push(chars[start]);
+                while i < chars.len() && chars[i].is_lowercase() { cur.push(chars[i]); i += 1; }
+            } else {
+                if !cur.is_empty() { words.push(cur.clone()); cur.clear(); }
+                if i < chars.len() && chars[i].is_lowercase() {
+                    words.push(chars[start..i-1].iter().collect());
+                    cur.push(chars[i-1]);
+                    while i < chars.len() && chars[i].is_lowercase() { cur.push(chars[i]); i += 1; }
+                } else {
+                    words.push(chars[start..i].iter().collect());
+                }
+            }
+        } else {
+            cur.push(chars[i]);
+            i += 1;
+        }
+    }
+    if !cur.is_empty() { words.push(cur); }
+    words
+}
+
+fn starts_with_vowel(s: &str) -> bool {
+    s.chars().next().map_or(false, |c| "aeiou".contains(c.to_lowercase().next().unwrap_or(' ')))
 }
