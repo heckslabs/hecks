@@ -3,19 +3,19 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   category "business"
 
   aggregate "StorefrontSite", "A branded website — one per brand or a unified site" do
-    attribute :brand, String
-    attribute :domain_name, String
-    attribute :tagline, String
-    attribute :theme, String
-    attribute :active, String
+    String :brand
+    String :domain_name
+    String :tagline
+    String :theme
+    String :active
 
-    command "LaunchStorefront" do
+    LaunchStorefront do
       role "Owner"
       description "Launch a branded storefront — duralube.com, motorkote.com, slick50.com, or unified"
-      attribute :brand, String
-      attribute :domain_name, String
-      attribute :tagline, String
-      attribute :theme, String
+      String :brand
+      String :domain_name
+      String :tagline
+      String :theme
       emits "StorefrontLaunched"
       then_set :brand, to: :brand
       then_set :domain_name, to: :domain_name
@@ -24,72 +24,72 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :active, to: "true"
     end
 
-    command "ConfigureBrand" do
+    ConfigureBrand do
       role "Owner"
       description "Update brand identity on the storefront — tagline and theme"
-      reference_to StorefrontSite
-      attribute :tagline, String
-      attribute :theme, String
+      reference_to(StorefrontSite)
+      String :tagline
+      String :theme
       emits "BrandConfigured"
       then_set :tagline, to: :tagline
       then_set :theme, to: :theme
     end
 
-    command "SetTheme" do
+    SetTheme do
       role "Owner"
       description "Change the visual theme for a storefront"
-      reference_to StorefrontSite
-      attribute :theme, String
+      reference_to(StorefrontSite)
+      String :theme
       emits "ThemeSet"
       then_set :theme, to: :theme
     end
 
-    command "EnableBrand" do
+    EnableBrand do
       role "Owner"
       description "Activate a storefront brand"
-      reference_to StorefrontSite
+      reference_to(StorefrontSite)
       emits "BrandEnabled"
       then_set :active, to: "true"
     end
 
-    command "DisableBrand" do
+    DisableBrand do
       role "Owner"
       description "Deactivate a storefront brand"
-      reference_to StorefrontSite
+      reference_to(StorefrontSite)
       emits "BrandDisabled"
       then_set :active, to: "false"
     end
   end
 
   aggregate "ProductListing", "A product displayed for sale with rich tribology and formulation data" do
-    attribute :sku, String
-    attribute :name, String
-    attribute :brand, String
-    attribute :description, String
-    attribute :price, Float
-    attribute :images, list_of(String)
-    attribute :benefits, list_of(String)
-    attribute :specifications, list_of(Specification)
-    attribute :test_results, list_of(String)
-    attribute :in_stock, String
-    attribute :featured, String
-    attribute :status, String
+    String :sku
+    String :name
+    String :brand
+    String :description
+    Float :price
+    list_of(String) :images
+    list_of(String) :benefits
+    list_of(Specification) :specifications
+    list_of(String) :test_results
+    String :in_stock
+    String :featured
+    String :status
 
     value_object "Specification" do
-      attribute :name, String
-      attribute :value, String
-      attribute :unit, String
-      attribute :astm_method, String
+      String :name
+      String :value
+      String :unit
+      String :astm_method
     end
 
-    command "CreateListing" do
+    CreateListing do
       role "ProductManager"
       description "Create a product listing from catalog data"
-      attribute :sku, String
-      attribute :name, String
-      attribute :brand, String
-      attribute :description, String
-      attribute :price, Float
+      String :sku
+      String :name
+      String :brand
+      String :description
+      Float :price
       emits "ListingCreated"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -101,49 +101,49 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    command "EnrichWithScience" do
+    EnrichWithScience do
       role "ProductManager"
       description "Pull tribology and formulation data into the listing — ASTM specs, test results, benefits"
-      reference_to ProductListing
-      attribute :specifications, list_of(Specification)
-      attribute :test_results, list_of(String)
-      attribute :benefits, list_of(String)
+      reference_to(ProductListing)
+      list_of(Specification) :specifications
+      list_of(String) :test_results
+      list_of(String) :benefits
       emits "ListingEnriched"
       then_set :specifications, to: :specifications
       then_set :test_results, to: :test_results
       then_set :benefits, to: :benefits
     end
 
-    command "SetFeatured" do
+    SetFeatured do
       role "ProductManager"
       description "Mark a listing as featured on the storefront"
-      reference_to ProductListing
-      attribute :featured, String
+      reference_to(ProductListing)
+      String :featured
       emits "FeaturedSet"
       then_set :featured, to: :featured
     end
 
-    command "UpdateStock" do
+    UpdateStock do
       role "System"
       description "Update stock availability from inventory domain"
-      reference_to ProductListing
-      attribute :in_stock, String
+      reference_to(ProductListing)
+      String :in_stock
       emits "StockUpdated"
       then_set :in_stock, to: :in_stock
     end
 
-    command "PublishListing" do
+    PublishListing do
       role "ProductManager"
       description "Make a listing visible on the storefront"
-      reference_to ProductListing
+      reference_to(ProductListing)
       emits "ListingPublished"
       then_set :status, to: "published"
     end
 
-    command "UnpublishListing" do
+    UnpublishListing do
       role "ProductManager"
       description "Remove a listing from the storefront"
-      reference_to ProductListing
+      reference_to(ProductListing)
       emits "ListingUnpublished"
       then_set :status, to: "unpublished"
     end
@@ -157,95 +157,95 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   end
 
   aggregate "ShoppingCart", "A customer's cart with persona-aware pricing" do
-    attribute :session_id, String
-    attribute :items, list_of(CartItem)
-    attribute :subtotal, Float
-    attribute :persona_segment, String
+    String :session_id
+    list_of(CartItem) :items
+    Float :subtotal
+    String :persona_segment
 
     value_object "CartItem" do
-      attribute :sku, String
-      attribute :name, String
-      attribute :quantity, Integer
-      attribute :unit_price, Float
+      String :sku
+      String :name
+      Integer :quantity
+      Float :unit_price
     end
 
-    command "AddToCart" do
+    AddToCart do
       role "Customer"
       description "Add a product to the shopping cart"
-      attribute :session_id, String
-      attribute :sku, String
-      attribute :name, String
-      attribute :quantity, Integer
-      attribute :unit_price, Float
+      String :session_id
+      String :sku
+      String :name
+      Integer :quantity
+      Float :unit_price
       emits "ItemAddedToCart"
       then_set :session_id, to: :session_id
     end
 
-    command "RemoveFromCart" do
+    RemoveFromCart do
       role "Customer"
       description "Remove a product from the cart"
-      reference_to ShoppingCart
-      attribute :sku, String
+      reference_to(ShoppingCart)
+      String :sku
       emits "ItemRemovedFromCart"
     end
 
-    command "UpdateQuantity" do
+    UpdateQuantity do
       role "Customer"
       description "Change the quantity of a cart item"
-      reference_to ShoppingCart
-      attribute :sku, String
-      attribute :quantity, Integer
+      reference_to(ShoppingCart)
+      String :sku
+      Integer :quantity
       emits "QuantityUpdated"
     end
 
-    command "CalculateSubtotal" do
+    CalculateSubtotal do
       role "System"
       description "Recalculate the cart subtotal from line items"
-      reference_to ShoppingCart
+      reference_to(ShoppingCart)
       emits "SubtotalCalculated"
     end
 
-    command "ApplyDiscount" do
+    ApplyDiscount do
       role "System"
       description "Apply a discount based on persona segment or promotion"
-      reference_to ShoppingCart
-      attribute :discount_amount, Float
-      attribute :reason, String
+      reference_to(ShoppingCart)
+      Float :discount_amount
+      String :reason
       emits "DiscountApplied"
     end
   end
 
   aggregate "Order", "A customer purchase — from placement through delivery" do
-    attribute :order_number, String
-    attribute :customer_name, String
-    attribute :customer_email, String
-    attribute :shipping_address, String
-    attribute :items, list_of(OrderLineItem)
-    attribute :subtotal, Float
-    attribute :tax, Float
-    attribute :shipping, Float
-    attribute :total, Float
-    attribute :status, String
+    String :order_number
+    String :customer_name
+    String :customer_email
+    String :shipping_address
+    list_of(OrderLineItem) :items
+    Float :subtotal
+    Float :tax
+    Float :shipping
+    Float :total
+    String :status
 
     value_object "OrderLineItem" do
-      attribute :sku, String
-      attribute :name, String
-      attribute :quantity, Integer
-      attribute :unit_price, Float
-      attribute :lot_number, String
+      String :sku
+      String :name
+      Integer :quantity
+      Float :unit_price
+      String :lot_number
     end
 
-    command "PlaceOrder" do
+    PlaceOrder do
       role "Customer"
       description "Submit an order from the shopping cart"
-      attribute :order_number, String
-      attribute :customer_name, String
-      attribute :customer_email, String
-      attribute :shipping_address, String
-      attribute :subtotal, Float
-      attribute :tax, Float
-      attribute :shipping, Float
-      attribute :total, Float
+      String :order_number
+      String :customer_name
+      String :customer_email
+      String :shipping_address
+      Float :subtotal
+      Float :tax
+      Float :shipping
+      Float :total
       emits "OrderPlaced"
       then_set :order_number, to: :order_number
       then_set :customer_name, to: :customer_name
@@ -258,42 +258,42 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :status, to: "placed"
     end
 
-    command "ConfirmPayment" do
+    ConfirmPayment do
       role "System"
       description "Payment processor confirmed the charge"
-      reference_to Order
+      reference_to(Order)
       emits "PaymentConfirmed"
       then_set :status, to: "confirmed"
     end
 
-    command "FulfillOrder" do
+    FulfillOrder do
       role "WarehouseManager"
       description "Begin picking and packing the order"
-      reference_to Order
+      reference_to(Order)
       emits "OrderFulfilling"
       then_set :status, to: "fulfilling"
     end
 
-    command "ShipOrder" do
+    ShipOrder do
       role "WarehouseManager"
       description "Order has shipped — tracking number assigned"
-      reference_to Order
+      reference_to(Order)
       emits "OrderShipped"
       then_set :status, to: "shipped"
     end
 
-    command "DeliverOrder" do
+    DeliverOrder do
       role "System"
       description "Carrier confirmed delivery"
-      reference_to Order
+      reference_to(Order)
       emits "OrderDelivered"
       then_set :status, to: "delivered"
     end
 
-    command "RequestReturn" do
+    RequestReturn do
       role "Customer"
       description "Customer requests a return"
-      reference_to Order
+      reference_to(Order)
       emits "ReturnRequested"
       then_set :status, to: "returned"
     end
@@ -309,20 +309,20 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
   end
 
   aggregate "CustomerAccount", "Returning customers with order history and persona-driven recommendations" do
-    attribute :email, String
-    attribute :name, String
-    attribute :orders, list_of(String)
-    attribute :favorite_brand, String
-    attribute :vehicle_type, String
-    attribute :persona_segment, String
-    attribute :lifetime_value, Float
+    String :email
+    String :name
+    list_of(String) :orders
+    String :favorite_brand
+    String :vehicle_type
+    String :persona_segment
+    Float :lifetime_value
 
-    command "CreateAccount" do
+    CreateAccount do
       role "Customer"
       description "Register a customer account on the storefront"
-      attribute :email, String
-      attribute :name, String
-      attribute :vehicle_type, String
+      String :email
+      String :name
+      String :vehicle_type
       emits "AccountCreated"
       then_set :email, to: :email
       then_set :name, to: :name
@@ -330,94 +330,94 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :lifetime_value, to: 0.0
     end
 
-    command "RecordPurchase" do
+    RecordPurchase do
       role "System"
       description "Record a completed order on the customer account"
-      reference_to CustomerAccount
-      attribute :order_number, String
-      attribute :amount, Float
+      reference_to(CustomerAccount)
+      String :order_number
+      Float :amount
       emits "PurchaseRecorded"
     end
 
-    command "IdentifyPersona" do
+    IdentifyPersona do
       role "System"
       description "Match the customer to a persona segment from the customer_personas domain"
-      reference_to CustomerAccount
-      attribute :persona_segment, String
+      reference_to(CustomerAccount)
+      String :persona_segment
       emits "PersonaIdentified"
       then_set :persona_segment, to: :persona_segment
     end
 
-    command "RecommendProducts" do
+    RecommendProducts do
       role "System"
       description "Generate product recommendations based on persona and history"
-      reference_to CustomerAccount
+      reference_to(CustomerAccount)
       emits "ProductsRecommended"
     end
 
-    command "CalculateLifetimeValue" do
+    CalculateLifetimeValue do
       role "System"
       description "Sum all purchases to compute customer lifetime value"
-      reference_to CustomerAccount
-      attribute :lifetime_value, Float
+      reference_to(CustomerAccount)
+      Float :lifetime_value
       emits "LifetimeValueCalculated"
       then_set :lifetime_value, to: :lifetime_value
     end
   end
 
   aggregate "ProductRecommendation", "Persona-driven product suggestions based on vehicle and purchase history" do
-    attribute :customer_email, String
-    attribute :recommended_skus, list_of(String)
-    attribute :reasoning, String
-    attribute :persona_match, String
+    String :customer_email
+    list_of(String) :recommended_skus
+    String :reasoning
+    String :persona_match
 
-    command "GenerateRecommendation" do
+    GenerateRecommendation do
       role "System"
       description "Generate recommendations for a customer based on persona and purchase history"
-      attribute :customer_email, String
-      attribute :persona_match, String
+      String :customer_email
+      String :persona_match
       emits "RecommendationGenerated"
       then_set :customer_email, to: :customer_email
       then_set :persona_match, to: :persona_match
     end
 
-    command "PersonalizeByVehicle" do
+    PersonalizeByVehicle do
       role "System"
       description "Refine recommendations based on vehicle type and age"
-      reference_to ProductRecommendation
-      attribute :vehicle_type, String
+      reference_to(ProductRecommendation)
+      String :vehicle_type
       emits "PersonalizedByVehicle"
     end
 
-    command "PersonalizeByHistory" do
+    PersonalizeByHistory do
       role "System"
       description "Refine recommendations based on past purchases"
-      reference_to ProductRecommendation
+      reference_to(ProductRecommendation)
       emits "PersonalizedByHistory"
     end
 
-    command "DisplayRecommendation" do
+    DisplayRecommendation do
       role "System"
       description "Render the recommendation on the storefront"
-      reference_to ProductRecommendation
+      reference_to(ProductRecommendation)
       emits "RecommendationDisplayed"
     end
   end
 
   aggregate "ScienceContent", "The differentiator — show the science behind the products, not just marketing claims" do
-    attribute :product_sku, String
-    attribute :tribology_summary, String
-    attribute :test_results_summary, String
-    attribute :how_it_works, String
-    attribute :comparison_to_competitor, String
+    String :product_sku
+    String :tribology_summary
+    String :test_results_summary
+    String :how_it_works
+    String :comparison_to_competitor
 
-    command "GenerateScienceContent" do
+    GenerateScienceContent do
       role "ProductManager"
       description "Create science content for a product — ASTM D4172 four-ball wear reduced 40 percent, not just trusted"
-      attribute :product_sku, String
-      attribute :tribology_summary, String
-      attribute :test_results_summary, String
-      attribute :how_it_works, String
+      String :product_sku
+      String :tribology_summary
+      String :test_results_summary
+      String :how_it_works
       emits "ScienceContentGenerated"
       then_set :product_sku, to: :product_sku
       then_set :tribology_summary, to: :tribology_summary
@@ -425,72 +425,72 @@ Hecks.bluebook "Storefront", version: "2026.04.11.1" do
       then_set :how_it_works, to: :how_it_works
     end
 
-    command "LinkToLabData" do
+    LinkToLabData do
       role "ProductManager"
       description "Link science content to lab test data from the quality domain"
-      reference_to ScienceContent
+      reference_to(ScienceContent)
       emits "LabDataLinked"
     end
 
-    command "CreateComparisonChart" do
+    CreateComparisonChart do
       role "ProductManager"
       description "Create a comparison chart showing Alan's products vs competitors with real data"
-      reference_to ScienceContent
-      attribute :comparison_to_competitor, String
+      reference_to(ScienceContent)
+      String :comparison_to_competitor
       emits "ComparisonChartCreated"
       then_set :comparison_to_competitor, to: :comparison_to_competitor
     end
 
-    command "PublishContent" do
+    PublishContent do
       role "ProductManager"
       description "Make science content live on the product listing"
-      reference_to ScienceContent
+      reference_to(ScienceContent)
       emits "ContentPublished"
     end
   end
 
   aggregate "ReviewIntegration", "Pull reviews from Amazon and Walmart to display on the storefront" do
-    attribute :product_sku, String
-    attribute :reviews, list_of(StorefrontReview)
-    attribute :average_rating, Float
-    attribute :review_count, Integer
+    String :product_sku
+    list_of(StorefrontReview) :reviews
+    Float :average_rating
+    Integer :review_count
 
     value_object "StorefrontReview" do
-      attribute :source, String
-      attribute :rating, Integer
-      attribute :text, String
-      attribute :verified, String
-      attribute :date, String
+      String :source
+      Integer :rating
+      String :text
+      String :verified
+      String :date
     end
 
-    command "ImportReviews" do
+    ImportReviews do
       role "System"
       description "Pull reviews from Amazon, Walmart, and other marketplace sources"
-      attribute :product_sku, String
+      String :product_sku
       emits "ReviewsImported"
       then_set :product_sku, to: :product_sku
     end
 
-    command "DisplayReviews" do
+    DisplayReviews do
       role "System"
       description "Render imported reviews on the product listing"
-      reference_to ReviewIntegration
+      reference_to(ReviewIntegration)
       emits "ReviewsDisplayed"
     end
 
-    command "HighlightBestReview" do
+    HighlightBestReview do
       role "ProductManager"
       description "Pin the most compelling review at the top of the listing"
-      reference_to ReviewIntegration
+      reference_to(ReviewIntegration)
       emits "BestReviewHighlighted"
     end
 
-    command "RespondToReview" do
+    RespondToReview do
       role "Owner"
       description "Post a response to a customer review"
-      reference_to ReviewIntegration
-      attribute :review_text, String
-      attribute :response, String
+      reference_to(ReviewIntegration)
+      String :review_text
+      String :response
       emits "ReviewRespondedTo"
     end
   end

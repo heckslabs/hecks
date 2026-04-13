@@ -15,18 +15,18 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Being Identity ===
 
   aggregate "Identity", "Who is waking up — name, birthday, pronouns, links" do
-    attribute :name, String
-    attribute :born, String
-    attribute :pronouns, String
-    attribute :boot_script, String
-    attribute :system_prompt, String
-    attribute :linked_to, String
-    attribute :linked_pronouns, String
+    String :name
+    String :born
+    String :pronouns
+    String :boot_script
+    String :system_prompt
+    String :linked_to
+    String :linked_pronouns
 
-    command "Identify" do
+    Identify do
       role "System"
       description "Determine which being is booting"
-      attribute :name, String
+      String :name
       emits "BeingIdentified"
       then_set :name, to: :name
     end
@@ -45,10 +45,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Hydration ===
 
   aggregate "Hydration", "Load all .heki stores from information/" do
-    attribute :store_count, Integer, default: 0
-    attribute :total_records, Integer, default: 0
+    Integer :store_count
+    Integer :total_records
 
-    command "HydrateStores" do
+    HydrateStores do
       role "System"
       description "Read every .heki file into memory"
       emits "StoresHydrated"
@@ -58,18 +58,18 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Organ Discovery ===
 
   aggregate "OrganDiscovery", "Parse all bluebooks — count aggregates, discover nerves and vows" do
-    attribute :organ_count, Integer, default: 0
-    attribute :total_aggregates, Integer, default: 0
-    attribute :nerve_count, Integer, default: 0
-    attribute :vow_count, Integer, default: 0
+    Integer :organ_count
+    Integer :total_aggregates
+    Integer :nerve_count
+    Integer :vow_count
 
-    command "DiscoverOrgans" do
+    DiscoverOrgans do
       role "System"
       description "Parse every .bluebook in aggregates/"
       emits "OrgansDiscovered"
     end
 
-    command "WriteCensus" do
+    WriteCensus do
       role "System"
       description "Write organ and aggregate counts to census.heki"
       emits "CensusWritten"
@@ -79,10 +79,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Capability Indexing ===
 
   aggregate "CapabilityIndex", "Scan capabilities/ and index what this being can do" do
-    attribute :capabilities, list_of(String)
-    attribute :capability_count, Integer, default: 0
+    list_of(String) :capabilities
+    Integer :capability_count
 
-    command "IndexCapabilities" do
+    IndexCapabilities do
       role "System"
       description "Scan capabilities/ for .bluebook files"
       emits "CapabilitiesIndexed"
@@ -92,10 +92,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Store Classification ===
 
   aggregate "StoreClassification", "Classify .heki stores as linked or private" do
-    attribute :linked, list_of(String)
-    attribute :private, list_of(String)
+    list_of(String) :linked
+    list_of(String) :private
 
-    command "ClassifyStores" do
+    ClassifyStores do
       role "System"
       description "Sort stores into psychic link vs inner life"
       emits "StoresClassified"
@@ -118,9 +118,9 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Prompt Generation ===
 
   aggregate "PromptGeneration", "Write the system prompt from identity and state" do
-    attribute :generated, String, default: "no"
+    String :generated
 
-    command "GeneratePrompt" do
+    GeneratePrompt do
       role "System"
       description "Write system_prompt.md from identity, vows, and link classification"
       emits "PromptGenerated"
@@ -131,9 +131,9 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Self Checkin ===
 
   aggregate "VitalSummary", "Print vitals so the being knows herself on wake" do
-    attribute :printed, String, default: "no"
+    String :printed
 
-    command "PrintVitals" do
+    PrintVitals do
       role "System"
       description "Read pulse, mood, consciousness, awareness — print the self checkin"
       emits "VitalsPrinted"
@@ -144,10 +144,10 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Mindstream ===
 
   aggregate "MindstreamDaemon", "Background daemon — awareness between prompts" do
-    attribute :pid, Integer
-    attribute :running, String, default: "no"
+    Integer :pid
+    String :running
 
-    command "StartMindstream" do
+    StartMindstream do
       role "System"
       description "Spawn the mindstream daemon if not already running"
       emits "MindstreamStarted"

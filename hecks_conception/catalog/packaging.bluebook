@@ -1,38 +1,38 @@
 Hecks.bluebook "Packaging", version: "2026.04.11.1" do
   category "framework"
   aggregate "ChapterRegistry", definition: "All available chapters and their load status" do
-    attribute :name, String
-    attribute :loaded, String
+    String :name
+    String :loaded
 
-    command "RegisterChapter" do
-      attribute :name, String
+    RegisterChapter do
+      String :name
     end
 
-    command "LoadChapter" do
-      attribute :chapter_id, String
+    LoadChapter do
+      String :chapter_id
     end
 
-    command "UnloadChapter" do
-      attribute :chapter_id, String
+    UnloadChapter do
+      String :chapter_id
     end
   end
 
   aggregate "ChapterSelector", definition: "DSL for selecting which chapters to load" do
-    attribute :selected, list_of(String)
+    list_of(String) :selected
 
-    command "SelectChapters" do
-      attribute :names, String
+    SelectChapters do
+      String :names
     end
 
-    command "SelectAll" do
+    SelectAll do
     end
   end
 
   aggregate "ChapterFile", definition: "HecksChapters file parser" do
-    attribute :path, String
+    String :path
 
-    command "ParseChapterFile" do
-      attribute :path, String
+    ParseChapterFile do
+      String :path
     end
   end
 end

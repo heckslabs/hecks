@@ -3,47 +3,47 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Persona", "An archetype buyer with motivations, objections, and buying triggers" do
-    attribute :name, String
-    attribute :segment, String
-    attribute :description, String
-    attribute :age_range, String
-    attribute :income_range, String
-    attribute :vehicle_type, String
-    attribute :vehicle_age, String
-    attribute :annual_mileage, String
-    attribute :brand_affinity, String
-    attribute :price_sensitivity, String
-    attribute :trust_source, String
-    attribute :motivations, list_of(Motivation)
-    attribute :objections, list_of(Objection)
-    attribute :buying_triggers, list_of(String)
+    String :name
+    String :segment
+    String :description
+    String :age_range
+    String :income_range
+    String :vehicle_type
+    String :vehicle_age
+    String :annual_mileage
+    String :brand_affinity
+    String :price_sensitivity
+    String :trust_source
+    list_of(Motivation) :motivations
+    list_of(Objection) :objections
+    list_of(String) :buying_triggers
 
     value_object "Motivation" do
-      attribute :need, String
-      attribute :emotion, String
-      attribute :urgency, String
+      String :need
+      String :emotion
+      String :urgency
     end
 
     value_object "Objection" do
-      attribute :concern, String
-      attribute :severity, String
-      attribute :counter_argument, String
+      String :concern
+      String :severity
+      String :counter_argument
     end
 
-    command "DefinePersona" do
+    DefinePersona do
       role "Owner"
       description "Create a new buyer archetype from market research"
-      attribute :name, String
-      attribute :segment, String
-      attribute :description, String
-      attribute :age_range, String
-      attribute :income_range, String
-      attribute :vehicle_type, String
-      attribute :vehicle_age, String
-      attribute :annual_mileage, String
-      attribute :brand_affinity, String
-      attribute :price_sensitivity, String
-      attribute :trust_source, String
+      String :name
+      String :segment
+      String :description
+      String :age_range
+      String :income_range
+      String :vehicle_type
+      String :vehicle_age
+      String :annual_mileage
+      String :brand_affinity
+      String :price_sensitivity
+      String :trust_source
       emits "PersonaDefined"
       then_set :name, to: :name
       then_set :segment, to: :segment
@@ -58,98 +58,98 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       then_set :trust_source, to: :trust_source
     end
 
-    command "AddMotivation" do
+    AddMotivation do
       role "Owner"
       description "Add a motivation to a persona — why they buy"
-      reference_to Persona
-      attribute :need, String
-      attribute :emotion, String
-      attribute :urgency, String
+      reference_to(Persona)
+      String :need
+      String :emotion
+      String :urgency
       emits "MotivationAdded"
     end
 
-    command "AddObjection" do
+    AddObjection do
       role "Owner"
       description "Add an objection a persona raises — what stops them from buying"
-      reference_to Persona
-      attribute :concern, String
-      attribute :severity, String
-      attribute :counter_argument, String
+      reference_to(Persona)
+      String :concern
+      String :severity
+      String :counter_argument
       emits "ObjectionAdded"
     end
 
-    command "AddTrigger" do
+    AddTrigger do
       role "Owner"
       description "Add a buying trigger — what pushes this persona to purchase"
-      reference_to Persona
-      attribute :trigger, String
+      reference_to(Persona)
+      String :trigger
       emits "TriggerAdded"
     end
 
-    command "RefinePersona" do
+    RefinePersona do
       role "Owner"
       description "Update persona attributes as market understanding deepens"
-      reference_to Persona
-      attribute :field, String
-      attribute :value, String
+      reference_to(Persona)
+      String :field
+      String :value
       emits "PersonaRefined"
     end
   end
 
   aggregate "BuyerJourney", "The path from awareness to purchase and advocacy" do
-    attribute :persona_name, String
-    attribute :stage, String
-    attribute :touchpoints, list_of(Touchpoint)
-    attribute :conversion_rate, Float
+    String :persona_name
+    String :stage
+    list_of(Touchpoint) :touchpoints
+    Float :conversion_rate
 
     value_object "Touchpoint" do
-      attribute :channel, String
-      attribute :action, String
-      attribute :content_type, String
-      attribute :effectiveness, String
+      String :channel
+      String :action
+      String :content_type
+      String :effectiveness
     end
 
-    command "MapJourney" do
+    MapJourney do
       role "Owner"
       description "Map the buying journey for a persona"
-      attribute :persona_name, String
-      attribute :stage, String
+      String :persona_name
+      String :stage
       emits "JourneyMapped"
       then_set :persona_name, to: :persona_name
       then_set :stage, to: :stage
     end
 
-    command "AddTouchpoint" do
+    AddTouchpoint do
       role "Owner"
       description "Add a touchpoint to a buyer journey stage"
-      reference_to BuyerJourney
-      attribute :channel, String
-      attribute :action, String
-      attribute :content_type, String
-      attribute :effectiveness, String
+      reference_to(BuyerJourney)
+      String :channel
+      String :action
+      String :content_type
+      String :effectiveness
       emits "TouchpointAdded"
     end
 
-    command "MeasureConversion" do
+    MeasureConversion do
       role "Analyst"
       description "Record the conversion rate at this journey stage"
-      reference_to BuyerJourney
-      attribute :conversion_rate, Float
+      reference_to(BuyerJourney)
+      Float :conversion_rate
       emits "ConversionMeasured"
       then_set :conversion_rate, to: :conversion_rate
     end
 
-    command "IdentifyDropoff" do
+    IdentifyDropoff do
       role "Analyst"
       description "Flag where personas abandon the journey"
-      reference_to BuyerJourney
+      reference_to(BuyerJourney)
       emits "DropoffIdentified"
     end
 
-    command "OptimizeJourney" do
+    OptimizeJourney do
       role "Owner"
       description "Improve a journey stage based on conversion data"
-      reference_to BuyerJourney
+      reference_to(BuyerJourney)
       emits "JourneyOptimized"
     end
 
@@ -163,21 +163,21 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
   end
 
   aggregate "PersonaInsight", "Data-driven observations about buying behavior" do
-    attribute :persona_name, String
-    attribute :channel, String
-    attribute :insight, String
-    attribute :data_source, String
-    attribute :observed_at, String
-    attribute :actionable, String
+    String :persona_name
+    String :channel
+    String :insight
+    String :data_source
+    String :observed_at
+    String :actionable
 
-    command "RecordInsight" do
+    RecordInsight do
       role "Analyst"
       description "Capture an observation about persona buying behavior"
-      attribute :persona_name, String
-      attribute :channel, String
-      attribute :insight, String
-      attribute :data_source, String
-      attribute :observed_at, String
+      String :persona_name
+      String :channel
+      String :insight
+      String :data_source
+      String :observed_at
       emits "InsightRecorded"
       then_set :persona_name, to: :persona_name
       then_set :channel, to: :channel
@@ -187,43 +187,43 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       then_set :actionable, to: "true"
     end
 
-    command "ValidateInsight" do
+    ValidateInsight do
       role "Owner"
       description "Confirm an insight with additional data"
-      reference_to PersonaInsight
+      reference_to(PersonaInsight)
       emits "InsightValidated"
     end
 
-    command "ActOnInsight" do
+    ActOnInsight do
       role "Owner"
       description "Mark an insight as acted upon — it drove a decision"
-      reference_to PersonaInsight
+      reference_to(PersonaInsight)
       emits "InsightActedOn"
     end
 
-    command "ArchiveInsight" do
+    ArchiveInsight do
       role "System"
       description "Archive an insight that is no longer relevant"
-      reference_to PersonaInsight
+      reference_to(PersonaInsight)
       emits "InsightArchived"
       then_set :actionable, to: "false"
     end
   end
 
   aggregate "ChannelFit", "Which personas match which distribution channels" do
-    attribute :persona_name, String
-    attribute :channel, String
-    attribute :fit_score, Float
-    attribute :reasoning, String
-    attribute :recommended_products, list_of(String)
+    String :persona_name
+    String :channel
+    Float :fit_score
+    String :reasoning
+    list_of(String) :recommended_products
 
-    command "ScoreChannelFit" do
+    ScoreChannelFit do
       role "Analyst"
       description "Score how well a persona matches a distribution channel"
-      attribute :persona_name, String
-      attribute :channel, String
-      attribute :fit_score, Float
-      attribute :reasoning, String
+      String :persona_name
+      String :channel
+      Float :fit_score
+      String :reasoning
       emits "ChannelFitScored"
       then_set :persona_name, to: :persona_name
       then_set :channel, to: :channel
@@ -231,37 +231,37 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       then_set :reasoning, to: :reasoning
     end
 
-    command "RecommendProducts" do
+    RecommendProducts do
       role "Owner"
       description "Recommend which products to push through this channel for this persona"
-      reference_to ChannelFit
-      attribute :products, list_of(String)
+      reference_to(ChannelFit)
+      list_of(String) :products
       emits "ProductsRecommended"
     end
 
-    command "IdentifyMismatch" do
+    IdentifyMismatch do
       role "Analyst"
       description "Flag when a persona is being targeted on the wrong channel"
-      reference_to ChannelFit
+      reference_to(ChannelFit)
       emits "MismatchIdentified"
     end
   end
 
   aggregate "CompetitorLoyalty", "Understanding why some personas prefer Lucas or other competitors" do
-    attribute :persona_name, String
-    attribute :competitor, String
-    attribute :loyalty_reason, String
-    attribute :switching_barrier, String
-    attribute :switching_trigger, String
-    attribute :win_strategy, String
+    String :persona_name
+    String :competitor
+    String :loyalty_reason
+    String :switching_barrier
+    String :switching_trigger
+    String :win_strategy
 
-    command "AnalyzeLoyalty" do
+    AnalyzeLoyalty do
       role "Analyst"
       description "Understand why a persona is loyal to a competitor"
-      attribute :persona_name, String
-      attribute :competitor, String
-      attribute :loyalty_reason, String
-      attribute :switching_barrier, String
+      String :persona_name
+      String :competitor
+      String :loyalty_reason
+      String :switching_barrier
       emits "LoyaltyAnalyzed"
       then_set :persona_name, to: :persona_name
       then_set :competitor, to: :competitor
@@ -269,21 +269,21 @@ Hecks.bluebook "CustomerPersonas", version: "2026.04.11.1" do
       then_set :switching_barrier, to: :switching_barrier
     end
 
-    command "IdentifyBarrier" do
+    IdentifyBarrier do
       role "Analyst"
       description "Pinpoint what keeps a persona from switching"
-      reference_to CompetitorLoyalty
-      attribute :switching_barrier, String
+      reference_to(CompetitorLoyalty)
+      String :switching_barrier
       emits "BarrierIdentified"
       then_set :switching_barrier, to: :switching_barrier
     end
 
-    command "ProposeWinStrategy" do
+    ProposeWinStrategy do
       role "Owner"
       description "Propose a strategy to win this persona away from a competitor"
-      reference_to CompetitorLoyalty
-      attribute :switching_trigger, String
-      attribute :win_strategy, String
+      reference_to(CompetitorLoyalty)
+      String :switching_trigger
+      String :win_strategy
       emits "WinStrategyProposed"
       then_set :switching_trigger, to: :switching_trigger
       then_set :win_strategy, to: :win_strategy

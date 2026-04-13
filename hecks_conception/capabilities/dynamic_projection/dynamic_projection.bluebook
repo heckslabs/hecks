@@ -3,21 +3,21 @@ Hecks.bluebook "DynamicProjection", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "Binding", "A live connection between a bluebook concept and a UI element" do
-    attribute :bluebook_path, String
-    attribute :concept_type, String
-    attribute :concept_name, String
-    attribute :element_id, String
-    attribute :element_type, String
-    attribute :last_synced_at, String
+    String :bluebook_path
+    String :concept_type
+    String :concept_name
+    String :element_id
+    String :element_type
+    String :last_synced_at
 
-    command "BindElement" do
+    BindElement do
       role "System"
       description "Connect a UI element to a bluebook aggregate, command, or attribute"
-      attribute :bluebook_path, String
-      attribute :concept_type, String
-      attribute :concept_name, String
-      attribute :element_id, String
-      attribute :element_type, String
+      String :bluebook_path
+      String :concept_type
+      String :concept_name
+      String :element_id
+      String :element_type
       emits "ElementBound"
       then_set :bluebook_path, to: :bluebook_path
       then_set :concept_type, to: :concept_type
@@ -26,69 +26,69 @@ Hecks.bluebook "DynamicProjection", version: "2026.04.11.1" do
       then_set :element_type, to: :element_type
     end
 
-    command "UnbindElement" do
+    UnbindElement do
       role "System"
       description "Remove a binding — the concept was removed from the bluebook"
-      reference_to Binding
+      reference_to(Binding)
       emits "ElementUnbound"
     end
   end
 
   aggregate "BluebookWatch", "Monitor bluebook files for changes — trigger regeneration" do
-    attribute :watched_paths, list_of(String)
-    attribute :last_change_detected, String
-    attribute :changes_detected, Integer
+    list_of(String) :watched_paths
+    String :last_change_detected
+    Integer :changes_detected
 
-    command "WatchBluebook" do
+    WatchBluebook do
       role "System"
       description "Start monitoring a bluebook file for changes"
-      attribute :path, String
+      String :path
       emits "BluebookWatched"
       then_set :watched_paths, append: :path
     end
 
-    command "DetectChange" do
+    DetectChange do
       role "System"
       description "A bluebook file changed — something was added, removed, or modified"
-      reference_to BluebookWatch
-      attribute :path, String
-      attribute :change_type, String
+      reference_to(BluebookWatch)
+      String :path
+      String :change_type
       emits "BluebookChanged"
       then_set :changes_detected, increment: 1
     end
   end
 
   aggregate "PageProjection", "A page generated from an aggregate — regenerates on change" do
-    attribute :aggregate_name, String
-    attribute :bluebook_path, String
-    attribute :page_path, String
-    attribute :fields_rendered, Integer
-    attribute :commands_rendered, Integer
-    attribute :status, String
+    String :aggregate_name
+    String :bluebook_path
+    String :page_path
+    Integer :fields_rendered
+    Integer :commands_rendered
+    String :status
 
-    command "ProjectPage" do
+    ProjectPage do
       role "System"
       description "Generate a page from an aggregate — fields become inputs, commands become forms"
-      attribute :aggregate_name, String
-      attribute :bluebook_path, String
+      String :aggregate_name
+      String :bluebook_path
       emits "PageProjected"
       then_set :aggregate_name, to: :aggregate_name
       then_set :bluebook_path, to: :bluebook_path
       then_set :status, to: "current"
     end
 
-    command "RegeneratePage" do
+    RegeneratePage do
       role "System"
       description "Bluebook changed — regenerate the page to match"
-      reference_to PageProjection
+      reference_to(PageProjection)
       emits "PageRegenerated"
       then_set :status, to: "current"
     end
 
-    command "FlagStale" do
+    FlagStale do
       role "System"
       description "Page no longer matches its bluebook — needs regeneration"
-      reference_to PageProjection
+      reference_to(PageProjection)
       emits "PageStale"
       then_set :status, to: "stale"
     end
@@ -101,69 +101,69 @@ Hecks.bluebook "DynamicProjection", version: "2026.04.11.1" do
   end
 
   aggregate "FormProjection", "A form generated from a command — inputs from attributes, submit emits event" do
-    attribute :command_name, String
-    attribute :aggregate_name, String
-    attribute :input_count, Integer
-    attribute :has_lifecycle, String
-    attribute :has_givens, String
+    String :command_name
+    String :aggregate_name
+    Integer :input_count
+    String :has_lifecycle
+    String :has_givens
 
-    command "ProjectForm" do
+    ProjectForm do
       role "System"
       description "Generate a form from a command — each attribute becomes an input, givens become validations"
-      attribute :command_name, String
-      attribute :aggregate_name, String
+      String :command_name
+      String :aggregate_name
       emits "FormProjected"
       then_set :command_name, to: :command_name
       then_set :aggregate_name, to: :aggregate_name
     end
 
-    command "RegenerateForm" do
+    RegenerateForm do
       role "System"
       description "Command changed — regenerate the form"
-      reference_to FormProjection
+      reference_to(FormProjection)
       emits "FormRegenerated"
     end
   end
 
   aggregate "NavigationProjection", "Navigation generated from the hecksagon — bounded contexts become nav items" do
-    attribute :project_name, String
-    attribute :nav_items, list_of(NavItem)
+    String :project_name
+    list_of(NavItem) :nav_items
 
     value_object "NavItem" do
-      attribute :domain_name, String
-      attribute :label, String
-      attribute :route, String
-      attribute :icon, String
-      attribute :aggregate_count, Integer
+      String :domain_name
+      String :label
+      String :route
+      String :icon
+      Integer :aggregate_count
     end
 
-    command "ProjectNavigation" do
+    ProjectNavigation do
       role "System"
       description "Generate navigation from the hecksagon — each domain becomes a nav section"
-      attribute :project_name, String
+      String :project_name
       emits "NavigationProjected"
       then_set :project_name, to: :project_name
     end
 
-    command "RegenerateNavigation" do
+    RegenerateNavigation do
       role "System"
       description "Hecksagon changed — rebuild navigation"
-      reference_to NavigationProjection
+      reference_to(NavigationProjection)
       emits "NavigationRegenerated"
     end
   end
 
   aggregate "LifecycleBadge", "Status badges generated from lifecycle state machines" do
-    attribute :aggregate_name, String
-    attribute :lifecycle_field, String
-    attribute :states, list_of(String)
-    attribute :transitions, list_of(String)
+    String :aggregate_name
+    String :lifecycle_field
+    list_of(String) :states
+    list_of(String) :transitions
 
-    command "ProjectBadge" do
+    ProjectBadge do
       role "System"
       description "Generate status badges from a lifecycle — each state gets a color and label"
-      attribute :aggregate_name, String
-      attribute :lifecycle_field, String
+      String :aggregate_name
+      String :lifecycle_field
       emits "BadgeProjected"
       then_set :aggregate_name, to: :aggregate_name
       then_set :lifecycle_field, to: :lifecycle_field
@@ -171,26 +171,26 @@ Hecks.bluebook "DynamicProjection", version: "2026.04.11.1" do
   end
 
   aggregate "DriftDetector", "Catches when the app diverges from its bluebook" do
-    attribute :total_bindings, Integer
-    attribute :stale_bindings, Integer
-    attribute :orphan_elements, Integer
-    attribute :missing_projections, Integer
-    attribute :drift_score, Float
+    Integer :total_bindings
+    Integer :stale_bindings
+    Integer :orphan_elements
+    Integer :missing_projections
+    Float :drift_score
 
-    command "ScanForDrift" do
+    ScanForDrift do
       role "System"
       description "Compare every binding against the current bluebook — find what drifted"
       emits "DriftScanned"
     end
 
-    command "ReportDrift" do
+    ReportDrift do
       role "System"
       description "Output the drift score and list every stale or orphan element"
-      reference_to DriftDetector
-      attribute :total_bindings, Integer
-      attribute :stale_bindings, Integer
-      attribute :orphan_elements, Integer
-      attribute :missing_projections, Integer
+      reference_to(DriftDetector)
+      Integer :total_bindings
+      Integer :stale_bindings
+      Integer :orphan_elements
+      Integer :missing_projections
       emits "DriftReported"
       then_set :total_bindings, to: :total_bindings
       then_set :stale_bindings, to: :stale_bindings

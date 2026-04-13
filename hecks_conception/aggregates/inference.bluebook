@@ -3,18 +3,18 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do
-    attribute :system_prompt, String
-    attribute :grammar_tokens, Integer
-    attribute :example_tokens, Integer
-    attribute :organ_tokens, Integer
-    attribute :total_tokens, Integer
+    String :system_prompt
+    Integer :grammar_tokens
+    Integer :example_tokens
+    Integer :organ_tokens
+    Integer :total_tokens
 
-    command "BuildContext" do
+    BuildContext do
       role "System"
       description "Assemble the context — system prompt + Bluebook grammar + few-shot examples + organ behaviors"
-      attribute :grammar_tokens, Integer
-      attribute :example_tokens, Integer
-      attribute :organ_tokens, Integer
+      Integer :grammar_tokens
+      Integer :example_tokens
+      Integer :organ_tokens
       emits "ContextBuilt"
       then_set :grammar_tokens, to: :grammar_tokens
       then_set :example_tokens, to: :example_tokens
@@ -23,16 +23,16 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "FewShot", "Real bluebooks included as examples in the context" do
-    attribute :domain_name, String
-    attribute :source, String
-    attribute :purpose, String
+    String :domain_name
+    String :source
+    String :purpose
 
-    command "AddExample" do
+    AddExample do
       role "System"
       description "Include a real bluebook as a few-shot example"
-      attribute :domain_name, String
-      attribute :source, String
-      attribute :purpose, String
+      String :domain_name
+      String :source
+      String :purpose
       emits "ExampleAdded"
       then_set :domain_name, to: :domain_name
       then_set :source, to: :source
@@ -41,17 +41,17 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "LocalModel", "The locally-running model that receives the context" do
-    attribute :name, String
-    attribute :context_length, Integer
-    attribute :serving, String
-    attribute :backend, String
+    String :name
+    Integer :context_length
+    String :serving
+    String :backend
 
-    command "StartModel" do
+    StartModel do
       role "System"
       description "Launch the local model — ollama, llama.cpp, or vllm"
-      attribute :name, String
-      attribute :context_length, Integer
-      attribute :backend, String
+      String :name
+      Integer :context_length
+      String :backend
       emits "ModelStarted"
       then_set :name, to: :name
       then_set :context_length, to: :context_length
@@ -61,24 +61,24 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
-    attribute :input, String
-    attribute :output, String
-    attribute :valid, String
-    attribute :latency_ms, Integer
+    String :input
+    String :output
+    String :valid
+    Integer :latency_ms
 
-    command "RunInference" do
+    RunInference do
       role "System"
       description "Send input to the local model with full context, get bluebook output"
-      attribute :input, String
+      String :input
       emits "InferenceRan"
       then_set :input, to: :input
     end
 
-    command "ValidateOutput" do
+    ValidateOutput do
       role "System"
       description "Check if the model's output is a valid bluebook — Rust validation"
-      reference_to Prompt
-      attribute :valid, String
+      reference_to(Prompt)
+      String :valid
       emits "OutputValidated"
       then_set :valid, to: :valid
     end

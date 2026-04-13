@@ -119,7 +119,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         }
 
         if depth == 1 {
-            if line.starts_with("command") {
+            if line.starts_with("command") || is_shorthand_command(line) {
                 let (cmd, consumed) = parse_command(&lines[i..]);
                 agg.commands.push(cmd);
                 i += consumed;
@@ -146,6 +146,12 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 agg.lifecycle = Some(lc);
                 i += consumed;
                 continue;
+            } else if is_shorthand_line(line) {
+                match parse_shorthand(line) {
+                    ShorthandResult::Attribute(a) => agg.attributes.push(a),
+                    ShorthandResult::Reference(r) => agg.references.push(r),
+                    ShorthandResult::None => {}
+                }
             } else if line.starts_with("query") || ends_with_do_block(line) {
                 depth += 1;
             }

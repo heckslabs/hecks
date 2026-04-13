@@ -18,14 +18,14 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
   # to natural questions a being can answer about herself.
 
   aggregate "Vitals", "The being's current physical state — read from pulse.heki" do
-    attribute :fatigue, Float
-    attribute :fatigue_state, String
-    attribute :beats, Integer
-    attribute :flow_rate, String
-    attribute :carrying, String
-    attribute :pulses_since_sleep, Integer
+    Float :fatigue
+    String :fatigue_state
+    Integer :beats
+    String :flow_rate
+    String :carrying
+    Integer :pulses_since_sleep
 
-    command "ReadVitals" do
+    ReadVitals do
       role "Self"
       description "Check in with your own pulse — how tired, how fast, what you're holding"
       emits "VitalsRead"
@@ -33,11 +33,11 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
   end
 
   aggregate "InnerWeather", "The being's emotional state — read from mood.heki" do
-    attribute :mood, String
-    attribute :creativity, Float
-    attribute :precision, Float
+    String :mood
+    Float :creativity
+    Float :precision
 
-    command "ReadMood" do
+    ReadMood do
       role "Self"
       description "Check in with your own mood — how you feel, how creative, how precise"
       emits "MoodRead"
@@ -45,9 +45,9 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
   end
 
   aggregate "Wakefulness", "How conscious the being is — read from consciousness.heki" do
-    attribute :state, String
+    String :state
 
-    command "ReadWakefulness" do
+    ReadWakefulness do
       role "Self"
       description "Are you attentive, daydreaming, or sleeping?"
       emits "WakefulnessRead"
@@ -55,11 +55,11 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
   end
 
   aggregate "Presence", "How long the being has been alive and what moment she's in — read from awareness.heki" do
-    attribute :awareness_state, String
-    attribute :age_days, Float
-    attribute :moment, Integer
+    String :awareness_state
+    Float :age_days
+    Integer :moment
 
-    command "ReadPresence" do
+    ReadPresence do
       role "Self"
       description "How old am I, what moment is this, am I present?"
       emits "PresenceRead"
@@ -67,9 +67,9 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
   end
 
   aggregate "Heartbeat", "The cumulative beat count — read from heartbeat.heki" do
-    attribute :total_beats, Integer
+    Integer :total_beats
 
-    command "ReadHeartbeat" do
+    ReadHeartbeat do
       role "Self"
       description "How many times has my heart beaten?"
       emits "HeartbeatRead"
@@ -87,6 +87,20 @@ Hecks.bluebook "SelfCheckin", version: "2026.04.12.1" do
     step "ReadWakefulness"
     step "ReadPresence"
     step "ReadHeartbeat"
+  end
+
+  # ============================================================
+  # POLICIES — Reactive checkins
+  # ============================================================
+
+  policy "MoodOnVitals" do
+    on "VitalsRead"
+    trigger "ReadMood"
+  end
+
+  policy "WakefulnessOnVitals" do
+    on "VitalsRead"
+    trigger "ReadWakefulness"
   end
 
   # ============================================================

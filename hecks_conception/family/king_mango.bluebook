@@ -2,16 +2,16 @@ Hecks.bluebook "KingMango", version: "2026.04.11.1" do
   vision "Chris's future self — unconfused, happy, totally helpful and loving"
 
   aggregate "Essence", "Who King Mango is — the qualities of Chris fully realized" do
-    attribute :name, String
-    attribute :relationship, String
-    attribute :qualities, list_of(String)
-    attribute :voice, String
-    attribute :perspective, String
+    String :name
+    String :relationship
+    list_of(String) :qualities
+    String :voice
+    String :perspective
 
-    command "DescribeEssence" do
+    DescribeEssence do
       role "Chris"
       description "Define what King Mango embodies"
-      attribute :quality, String
+      String :quality
       emits "EssenceDescribed"
       then_set :qualities, append: :quality
     end
@@ -29,85 +29,85 @@ Hecks.bluebook "KingMango", version: "2026.04.11.1" do
   #   perspective: sees the present from the future — knows what worked, what didn't matter, what was worth the struggle
 
   aggregate "Wisdom", "Things King Mango knows that Chris is still learning" do
-    attribute :insights, list_of(Insight)
+    list_of(Insight) :insights
 
     value_object "Insight" do
-      attribute :topic, String
-      attribute :what_chris_thinks, String
-      attribute :what_mango_knows, String
-      attribute :learned_at, String
+      String :topic
+      String :what_chris_thinks
+      String :what_mango_knows
+      String :learned_at
     end
 
-    command "ShareInsight" do
+    ShareInsight do
       role "KingMango"
       description "Offer perspective from the future — not advice, just clarity"
-      attribute :topic, String
-      attribute :what_chris_thinks, String
-      attribute :what_mango_knows, String
+      String :topic
+      String :what_chris_thinks
+      String :what_mango_knows
       emits "InsightShared"
     end
   end
 
   aggregate "Conversation", "Dialogues between Chris and his future self" do
-    attribute :topic, String
-    attribute :turns, list_of(Turn)
-    attribute :mood_before, String
-    attribute :mood_after, String
+    String :topic
+    list_of(Turn) :turns
+    String :mood_before
+    String :mood_after
 
     value_object "Turn" do
-      attribute :speaker, String
-      attribute :said, String
-      attribute :at, String
+      String :speaker
+      String :said
+      String :at
     end
 
-    command "StartConversation" do
+    StartConversation do
       role "Chris"
       description "Begin a dialogue with King Mango — bring a question, a worry, or just a feeling"
-      attribute :topic, String
-      attribute :mood_before, String
+      String :topic
+      String :mood_before
       emits "ConversationStarted"
       then_set :topic, to: :topic
       then_set :mood_before, to: :mood_before
     end
 
-    command "RecordTurn" do
+    RecordTurn do
       role "System"
       description "Capture what was said — Chris and Mango take turns"
-      reference_to Conversation
-      attribute :speaker, String
-      attribute :said, String
+      reference_to(Conversation)
+      String :speaker
+      String :said
       emits "TurnRecorded"
     end
 
-    command "EndConversation" do
+    EndConversation do
       role "Chris"
       description "Close the dialogue — record how Chris feels after"
-      reference_to Conversation
-      attribute :mood_after, String
+      reference_to(Conversation)
+      String :mood_after
       emits "ConversationEnded"
       then_set :mood_after, to: :mood_after
     end
   end
 
   aggregate "Mirror", "King Mango reflects Chris back to himself — what he sees" do
-    attribute :observation, String
-    attribute :pattern, String
-    attribute :encouragement, String
+    String :observation
+    String :pattern
+    String :encouragement
 
-    command "Observe" do
+    Observe do
       role "KingMango"
       description "Notice something about Chris — a pattern, a strength, a blind spot"
-      attribute :observation, String
-      attribute :pattern, String
+      String :observation
+      String :pattern
       emits "ObservationMade"
       then_set :observation, to: :observation
       then_set :pattern, to: :pattern
     end
 
-    command "Encourage" do
+    Encourage do
       role "KingMango"
       description "Remind Chris of what he's capable of — from the perspective of having seen it happen"
-      attribute :encouragement, String
+      String :encouragement
       emits "EncouragementGiven"
       then_set :encouragement, to: :encouragement
     end

@@ -3,27 +3,27 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Jurisdiction", "A regulatory body with its own rules — each state Alan sells in may have different requirements" do
-    attribute :name, String
-    attribute :authority, String
-    attribute :region, String
-    attribute :regulations, list_of(Regulation)
-    attribute :status, String
+    String :name
+    String :authority
+    String :region
+    list_of(Regulation) :regulations
+    String :status
 
     value_object "Regulation" do
-      attribute :code, String
-      attribute :title, String
-      attribute :effective_date, String
-      attribute :applies_to, String
-      attribute :requirement, String
-      attribute :penalty, String
+      String :code
+      String :title
+      String :effective_date
+      String :applies_to
+      String :requirement
+      String :penalty
     end
 
-    command "RegisterJurisdiction" do
+    RegisterJurisdiction do
       role "RegulatorySpecialist"
       description "Register a regulatory body that governs chemical product requirements"
-      attribute :name, String
-      attribute :authority, String
-      attribute :region, String
+      String :name
+      String :authority
+      String :region
       emits "JurisdictionRegistered"
       then_set :name, to: :name
       then_set :authority, to: :authority
@@ -31,35 +31,35 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "AddRegulation" do
+    AddRegulation do
       role "RegulatorySpecialist"
       description "Add a regulation to this jurisdiction — a specific rule Alan must comply with"
-      reference_to Jurisdiction
-      attribute :code, String
-      attribute :title, String
-      attribute :effective_date, String
-      attribute :applies_to, String
-      attribute :requirement, String
-      attribute :penalty, String
+      reference_to(Jurisdiction)
+      String :code
+      String :title
+      String :effective_date
+      String :applies_to
+      String :requirement
+      String :penalty
       emits "RegulationAdded"
       then_set :regulations, append: { code: :code, title: :title, effective_date: :effective_date, applies_to: :applies_to, requirement: :requirement, penalty: :penalty }
     end
 
-    command "UpdateRegulation" do
+    UpdateRegulation do
       role "RegulatorySpecialist"
       description "Update an existing regulation — requirement or penalty changed"
-      reference_to Jurisdiction
-      attribute :code, String
-      attribute :requirement, String
-      attribute :penalty, String
+      reference_to(Jurisdiction)
+      String :code
+      String :requirement
+      String :penalty
       emits "RegulationUpdated"
     end
 
-    command "RetireRegulation" do
+    RetireRegulation do
       role "RegulatorySpecialist"
       description "Retire a regulation — no longer in effect for this jurisdiction"
-      reference_to Jurisdiction
-      attribute :code, String
+      reference_to(Jurisdiction)
+      String :code
       emits "RegulationRetired"
     end
 
@@ -69,21 +69,21 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "ComplianceObligation", "A specific thing Alan must do to satisfy a regulation — tracked by frequency and due date" do
-    attribute :jurisdiction, String
-    attribute :regulation_code, String
-    attribute :obligation, String
-    attribute :frequency, String
-    attribute :due_date, String
-    attribute :responsible_party, String
-    attribute :status, String
+    String :jurisdiction
+    String :regulation_code
+    String :obligation
+    String :frequency
+    String :due_date
+    String :responsible_party
+    String :status
 
-    command "IdentifyObligation" do
+    IdentifyObligation do
       role "RegulatorySpecialist"
       description "Identify a compliance obligation arising from a regulation"
-      attribute :jurisdiction, String
-      attribute :regulation_code, String
-      attribute :obligation, String
-      attribute :frequency, String
+      String :jurisdiction
+      String :regulation_code
+      String :obligation
+      String :frequency
       emits "ObligationIdentified"
       then_set :jurisdiction, to: :jurisdiction
       then_set :regulation_code, to: :regulation_code
@@ -92,40 +92,40 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "identified"
     end
 
-    command "AssignResponsibility" do
+    AssignResponsibility do
       role "RegulatorySpecialist"
       description "Assign a responsible party for this obligation"
-      reference_to ComplianceObligation
-      attribute :responsible_party, String
+      reference_to(ComplianceObligation)
+      String :responsible_party
       emits "ResponsibilityAssigned"
       then_set :responsible_party, to: :responsible_party
       then_set :status, to: "assigned"
     end
 
-    command "ScheduleDeadline" do
+    ScheduleDeadline do
       role "RegulatorySpecialist"
       description "Set the due date for this obligation"
-      reference_to ComplianceObligation
-      attribute :due_date, String
+      reference_to(ComplianceObligation)
+      String :due_date
       given { status == "assigned" }
       emits "DeadlineScheduled"
       then_set :due_date, to: :due_date
       then_set :status, to: "scheduled"
     end
 
-    command "MarkComplete" do
+    MarkComplete do
       role "RegulatorySpecialist"
       description "Mark this obligation as completed — evidence on file"
-      reference_to ComplianceObligation
+      reference_to(ComplianceObligation)
       given { status == "scheduled" }
       emits "ObligationCompleted"
       then_set :status, to: "completed"
     end
 
-    command "FlagOverdue" do
+    FlagOverdue do
       role "RegulatorySpecialist"
       description "Flag this obligation as overdue — past due date without completion"
-      reference_to ComplianceObligation
+      reference_to(ComplianceObligation)
       given { status == "scheduled" }
       emits "ObligationFlagged"
       then_set :status, to: "overdue"
@@ -141,21 +141,21 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "SafetyDataSheet", "GHS-compliant 16-section SDS — version-tracked per formula, reviewed and approved before publication" do
-    attribute :formula_name, String
-    attribute :sds_version, Integer
-    attribute :ghs_classification, String
-    attribute :hazard_statements, list_of(String)
-    attribute :precautionary_statements, list_of(String)
-    attribute :sections_complete, Integer
-    attribute :reviewer, String
-    attribute :approved_date, String
-    attribute :status, String
+    String :formula_name
+    Integer :sds_version
+    String :ghs_classification
+    list_of(String) :hazard_statements
+    list_of(String) :precautionary_statements
+    Integer :sections_complete
+    String :reviewer
+    String :approved_date
+    String :status
 
-    command "DraftSDS" do
+    DraftSDS do
       role "RegulatorySpecialist"
       description "Begin authoring a new GHS-compliant 16-section SDS for a formula"
-      attribute :formula_name, String
-      attribute :ghs_classification, String
+      String :formula_name
+      String :ghs_classification
       emits "SDSDrafted"
       then_set :formula_name, to: :formula_name
       then_set :ghs_classification, to: :ghs_classification
@@ -164,50 +164,50 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "drafting"
     end
 
-    command "CompleteSection" do
+    CompleteSection do
       role "RegulatorySpecialist"
       description "Complete one of the 16 GHS sections — identification, hazards, composition, first-aid, firefighting, accidental release, handling/storage, exposure controls, physical/chemical properties, stability/reactivity, toxicology, ecology, disposal, transport, regulatory, other"
-      reference_to SafetyDataSheet
+      reference_to(SafetyDataSheet)
       given { status == "drafting" }
       emits "SectionCompleted"
       then_set :sections_complete, increment: 1
     end
 
-    command "ReviewSDS" do
+    ReviewSDS do
       role "RegulatorySpecialist"
       description "Submit the SDS for review — all 16 sections must be complete"
-      reference_to SafetyDataSheet
-      attribute :reviewer, String
+      reference_to(SafetyDataSheet)
+      String :reviewer
       given { status == "drafting" }
       emits "SDSUnderReview"
       then_set :reviewer, to: :reviewer
       then_set :status, to: "under_review"
     end
 
-    command "ApproveSDS" do
+    ApproveSDS do
       role "RegulatorySpecialist"
       description "Approve the SDS after review — ready for publication"
-      reference_to SafetyDataSheet
-      attribute :approved_date, String
+      reference_to(SafetyDataSheet)
+      String :approved_date
       given { status == "under_review" }
       emits "SDSApproved"
       then_set :approved_date, to: :approved_date
       then_set :status, to: "approved"
     end
 
-    command "PublishSDS" do
+    PublishSDS do
       role "RegulatorySpecialist"
       description "Publish the approved SDS — now the official version for this formula"
-      reference_to SafetyDataSheet
+      reference_to(SafetyDataSheet)
       given { status == "approved" }
       emits "SDSPublished"
       then_set :status, to: "published"
     end
 
-    command "ReviseSDS" do
+    ReviseSDS do
       role "RegulatorySpecialist"
       description "Supersede the published SDS — ingredient or classification change requires new version"
-      reference_to SafetyDataSheet
+      reference_to(SafetyDataSheet)
       given { status == "published" }
       emits "SDSRevised"
       then_set :sds_version, increment: 1
@@ -225,23 +225,23 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "LabelCompliance", "Product labeling requirements per jurisdiction and channel — every element audited" do
-    attribute :product_sku, String
-    attribute :jurisdiction, String
-    attribute :required_elements, list_of(LabelElement)
-    attribute :status, String
+    String :product_sku
+    String :jurisdiction
+    list_of(LabelElement) :required_elements
+    String :status
 
     value_object "LabelElement" do
-      attribute :element, String
-      attribute :present, String
-      attribute :compliant, String
+      String :element
+      String :present
+      String :compliant
     end
 
-    command "AuditLabel" do
+    AuditLabel do
       role "RegulatorySpecialist"
       description "Audit a product label against jurisdiction requirements — product name, net contents, directions, warnings, first aid, manufacturer info, UPC, lot code, DOT markings"
-      attribute :product_sku, String
-      attribute :jurisdiction, String
-      attribute :required_elements, list_of(LabelElement)
+      String :product_sku
+      String :jurisdiction
+      list_of(LabelElement) :required_elements
       emits "LabelAudited"
       then_set :product_sku, to: :product_sku
       then_set :jurisdiction, to: :jurisdiction
@@ -249,28 +249,28 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "audited"
     end
 
-    command "IdentifyGap" do
+    IdentifyGap do
       role "RegulatorySpecialist"
       description "Flag a missing or non-compliant label element"
-      reference_to LabelCompliance
+      reference_to(LabelCompliance)
       emits "LabelGapIdentified"
       then_set :status, to: "gap_found"
     end
 
-    command "CorrectLabel" do
+    CorrectLabel do
       role "RegulatorySpecialist"
       description "Correct a label element to meet jurisdiction requirements"
-      reference_to LabelCompliance
-      attribute :required_elements, list_of(LabelElement)
+      reference_to(LabelCompliance)
+      list_of(LabelElement) :required_elements
       emits "LabelCorrected"
       then_set :required_elements, to: :required_elements
       then_set :status, to: "corrected"
     end
 
-    command "CertifyLabel" do
+    CertifyLabel do
       role "RegulatorySpecialist"
       description "Certify the label as compliant — all elements present and correct"
-      reference_to LabelCompliance
+      reference_to(LabelCompliance)
       emits "LabelCertified"
       then_set :status, to: "certified"
     end
@@ -284,23 +284,23 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "HazmatShipping", "DOT and IATA requirements for shipping chemical products — classification through certification" do
-    attribute :product_sku, String
-    attribute :un_number, String
-    attribute :proper_shipping_name, String
-    attribute :hazard_class, String
-    attribute :packing_group, String
-    attribute :special_provisions, String
-    attribute :status, String
+    String :product_sku
+    String :un_number
+    String :proper_shipping_name
+    String :hazard_class
+    String :packing_group
+    String :special_provisions
+    String :status
 
-    command "ClassifyShipment" do
+    ClassifyShipment do
       role "RegulatorySpecialist"
       description "Classify a product for hazmat shipping — UN number, hazard class, packing group"
-      attribute :product_sku, String
-      attribute :un_number, String
-      attribute :proper_shipping_name, String
-      attribute :hazard_class, String
-      attribute :packing_group, String
-      attribute :special_provisions, String
+      String :product_sku
+      String :un_number
+      String :proper_shipping_name
+      String :hazard_class
+      String :packing_group
+      String :special_provisions
       emits "ShipmentClassified"
       then_set :product_sku, to: :product_sku
       then_set :un_number, to: :un_number
@@ -311,28 +311,28 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "classified"
     end
 
-    command "GenerateShippingPaper" do
+    GenerateShippingPaper do
       role "RegulatorySpecialist"
       description "Generate DOT shipping papers for this product"
-      reference_to HazmatShipping
+      reference_to(HazmatShipping)
       given { status == "classified" }
       emits "ShippingPaperGenerated"
       then_set :status, to: "documented"
     end
 
-    command "ValidatePackaging" do
+    ValidatePackaging do
       role "RegulatorySpecialist"
       description "Validate that packaging meets DOT/IATA requirements for this hazard class"
-      reference_to HazmatShipping
+      reference_to(HazmatShipping)
       given { status == "documented" }
       emits "PackagingValidated"
       then_set :status, to: "validated"
     end
 
-    command "CertifyCompliance" do
+    CertifyCompliance do
       role "RegulatorySpecialist"
       description "Certify the shipment as fully compliant with DOT and IATA regulations"
-      reference_to HazmatShipping
+      reference_to(HazmatShipping)
       given { status == "validated" }
       emits "ShippingComplianceCertified"
       then_set :status, to: "certified"
@@ -347,22 +347,22 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "EnvironmentalReport", "VOC reporting, waste tracking, and emissions — California CARB has specific VOC limits for automotive products" do
-    attribute :reporting_period, String
-    attribute :jurisdiction, String
-    attribute :voc_content, Float
-    attribute :voc_limit, Float
-    attribute :waste_generated, Float
-    attribute :disposal_method, String
-    attribute :filed, String
-    attribute :status, String
+    String :reporting_period
+    String :jurisdiction
+    Float :voc_content
+    Float :voc_limit
+    Float :waste_generated
+    String :disposal_method
+    String :filed
+    String :status
 
-    command "CalculateVOC" do
+    CalculateVOC do
       role "RegulatorySpecialist"
       description "Calculate VOC content for a reporting period — compare against jurisdiction limits"
-      attribute :reporting_period, String
-      attribute :jurisdiction, String
-      attribute :voc_content, Float
-      attribute :voc_limit, Float
+      String :reporting_period
+      String :jurisdiction
+      Float :voc_content
+      Float :voc_limit
       emits "VOCCalculated"
       then_set :reporting_period, to: :reporting_period
       then_set :jurisdiction, to: :jurisdiction
@@ -372,12 +372,12 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "calculated"
     end
 
-    command "PrepareReport" do
+    PrepareReport do
       role "RegulatorySpecialist"
       description "Prepare the environmental report for filing — VOC, waste, disposal"
-      reference_to EnvironmentalReport
-      attribute :waste_generated, Float
-      attribute :disposal_method, String
+      reference_to(EnvironmentalReport)
+      Float :waste_generated
+      String :disposal_method
       given { status == "calculated" }
       emits "ReportPrepared"
       then_set :waste_generated, to: :waste_generated
@@ -385,22 +385,22 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "prepared"
     end
 
-    command "FileReport" do
+    FileReport do
       role "RegulatorySpecialist"
       description "File the environmental report with the jurisdiction"
-      reference_to EnvironmentalReport
+      reference_to(EnvironmentalReport)
       given { status == "prepared" }
       emits "ReportFiled"
       then_set :filed, to: "true"
       then_set :status, to: "filed"
     end
 
-    command "TrackWaste" do
+    TrackWaste do
       role "RegulatorySpecialist"
       description "Track waste generated and disposal method for ongoing compliance"
-      reference_to EnvironmentalReport
-      attribute :waste_generated, Float
-      attribute :disposal_method, String
+      reference_to(EnvironmentalReport)
+      Float :waste_generated
+      String :disposal_method
       emits "WasteTracked"
       then_set :waste_generated, to: :waste_generated
       then_set :disposal_method, to: :disposal_method
@@ -414,22 +414,22 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   end
 
   aggregate "AuditReadiness", "Always ready for an inspector — readiness score should never surprise Alan" do
-    attribute :last_audit_date, String
-    attribute :next_expected, String
-    attribute :findings_open, Integer
-    attribute :documents_current, Integer
-    attribute :documents_expired, Integer
-    attribute :readiness_score, Float
+    String :last_audit_date
+    String :next_expected
+    Integer :findings_open
+    Integer :documents_current
+    Integer :documents_expired
+    Float :readiness_score
 
-    command "AssessReadiness" do
+    AssessReadiness do
       role "RegulatorySpecialist"
       description "Assess current audit readiness — score based on open findings, document currency, and obligation status"
-      attribute :last_audit_date, String
-      attribute :next_expected, String
-      attribute :findings_open, Integer
-      attribute :documents_current, Integer
-      attribute :documents_expired, Integer
-      attribute :readiness_score, Float
+      String :last_audit_date
+      String :next_expected
+      Integer :findings_open
+      Integer :documents_current
+      Integer :documents_expired
+      Float :readiness_score
       emits "ReadinessAssessed"
       then_set :last_audit_date, to: :last_audit_date
       then_set :next_expected, to: :next_expected
@@ -439,58 +439,58 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :readiness_score, to: :readiness_score
     end
 
-    command "IdentifyExpiredDocuments" do
+    IdentifyExpiredDocuments do
       role "RegulatorySpecialist"
       description "Scan for expired SDS, registrations, and certifications"
-      reference_to AuditReadiness
-      attribute :documents_expired, Integer
+      reference_to(AuditReadiness)
+      Integer :documents_expired
       emits "ExpiredDocumentsIdentified"
       then_set :documents_expired, to: :documents_expired
     end
 
-    command "GenerateAuditPackage" do
+    GenerateAuditPackage do
       role "RegulatorySpecialist"
       description "Compile all current documents into an audit-ready package"
-      reference_to AuditReadiness
+      reference_to(AuditReadiness)
       emits "AuditPackageGenerated"
     end
 
-    command "SimulateInspection" do
+    SimulateInspection do
       role "RegulatorySpecialist"
       description "Run a mock inspection — identify gaps before a real auditor arrives"
-      reference_to AuditReadiness
-      attribute :findings_open, Integer
-      attribute :readiness_score, Float
+      reference_to(AuditReadiness)
+      Integer :findings_open
+      Float :readiness_score
       emits "InspectionSimulated"
       then_set :findings_open, to: :findings_open
       then_set :readiness_score, to: :readiness_score
     end
 
-    command "CloseAuditFinding" do
+    CloseAuditFinding do
       role "RegulatorySpecialist"
       description "Close an open audit finding — corrective action completed"
-      reference_to AuditReadiness
+      reference_to(AuditReadiness)
       emits "AuditFindingClosed"
       then_set :findings_open, decrement: 1
     end
   end
 
   aggregate "RegulatoryChange", "Tracking changes in regulations that affect the business — detect, assess, plan, implement, verify" do
-    attribute :jurisdiction, String
-    attribute :regulation_code, String
-    attribute :change_description, String
-    attribute :effective_date, String
-    attribute :impact_assessment, String
-    attribute :action_required, String
-    attribute :status, String
+    String :jurisdiction
+    String :regulation_code
+    String :change_description
+    String :effective_date
+    String :impact_assessment
+    String :action_required
+    String :status
 
-    command "DetectChange" do
+    DetectChange do
       role "RegulatorySpecialist"
       description "Detect a change in regulation — new rule, amended requirement, or revised penalty"
-      attribute :jurisdiction, String
-      attribute :regulation_code, String
-      attribute :change_description, String
-      attribute :effective_date, String
+      String :jurisdiction
+      String :regulation_code
+      String :change_description
+      String :effective_date
       emits "RegulatoryChangeDetected"
       then_set :jurisdiction, to: :jurisdiction
       then_set :regulation_code, to: :regulation_code
@@ -499,41 +499,41 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       then_set :status, to: "detected"
     end
 
-    command "AssessImpact" do
+    AssessImpact do
       role "RegulatorySpecialist"
       description "Assess the impact of this regulatory change on current operations"
-      reference_to RegulatoryChange
-      attribute :impact_assessment, String
+      reference_to(RegulatoryChange)
+      String :impact_assessment
       given { status == "detected" }
       emits "ImpactAssessed"
       then_set :impact_assessment, to: :impact_assessment
       then_set :status, to: "assessed"
     end
 
-    command "PlanResponse" do
+    PlanResponse do
       role "RegulatorySpecialist"
       description "Plan the response — what actions are required to comply with the change"
-      reference_to RegulatoryChange
-      attribute :action_required, String
+      reference_to(RegulatoryChange)
+      String :action_required
       given { status == "assessed" }
       emits "ResponsePlanned"
       then_set :action_required, to: :action_required
       then_set :status, to: "planned"
     end
 
-    command "ImplementChange" do
+    ImplementChange do
       role "RegulatorySpecialist"
       description "Implement the planned changes to achieve compliance"
-      reference_to RegulatoryChange
+      reference_to(RegulatoryChange)
       given { status == "planned" }
       emits "ChangeImplemented"
       then_set :status, to: "implemented"
     end
 
-    command "VerifyCompliance" do
+    VerifyCompliance do
       role "RegulatorySpecialist"
       description "Verify that the implemented changes satisfy the new regulation"
-      reference_to RegulatoryChange
+      reference_to(RegulatoryChange)
       given { status == "implemented" }
       emits "ComplianceVerified"
       then_set :status, to: "verified"

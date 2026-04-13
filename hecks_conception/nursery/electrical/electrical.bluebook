@@ -4,48 +4,48 @@ Hecks.bluebook "Electrical" do
 
   aggregate "DCSource" do
     description "A direct current power source — battery, solar panel, or DC power supply"
-    attribute :name
-    attribute :voltage, Float
-    attribute :amp_hours, Float
-    attribute :chemistry
-    attribute :state_of_charge, Float, default: 1.0
+    String :name
+    Float :voltage
+    Float :amp_hours
+    String :chemistry
+    Float :state_of_charge
 
-    command "CreateBattery" do
+    CreateBattery do
       role "Electrician"
       goal "Register a DC battery with voltage and capacity"
       description "Register a DC battery with voltage and capacity"
-      attribute :name
-      attribute :voltage, Float
-      attribute :amp_hours, Float
-      attribute :chemistry
+      String :name
+      Float :voltage
+      Float :amp_hours
+      String :chemistry
       emits "BatteryCreated"
     end
 
-    command "Discharge" do
+    Discharge do
       role "System"
       goal "Draw current from the battery over time"
       description "Draw current from the battery over time"
-      reference_to DCSource
-      attribute :amps, Float
-      attribute :hours, Float
+      reference_to(DCSource)
+      Float :amps
+      Float :hours
       emits "BatteryDischarged"
     end
 
-    command "Charge" do
+    Charge do
       role "System"
       goal "Replenish the battery from a charging source"
       description "Replenish the battery from a charging source"
-      reference_to DCSource
-      attribute :amps, Float
-      attribute :hours, Float
+      reference_to(DCSource)
+      Float :amps
+      Float :hours
       emits "BatteryCharged"
     end
 
-    command "MeasureStateOfCharge" do
+    MeasureStateOfCharge do
       role "Electrician"
       goal "Read the current state of charge as a percentage"
       description "Read the current state of charge as a percentage"
-      reference_to DCSource
+      reference_to(DCSource)
       emits "StateOfChargeMeasured"
     end
 
@@ -66,29 +66,29 @@ Hecks.bluebook "Electrical" do
 
   aggregate "ACSource" do
     description "An alternating current power source — shore power, generator, or inverter output"
-    attribute :name
-    attribute :voltage, Float
-    attribute :frequency, Float
-    attribute :max_amps, Float
-    attribute :phase
+    String :name
+    Float :voltage
+    Float :frequency
+    Float :max_amps
+    String :phase
 
-    command "CreateACSource" do
+    CreateACSource do
       role "Electrician"
       goal "Register an AC power source with voltage and amperage"
       description "Register an AC power source with voltage and amperage"
-      attribute :name
-      attribute :voltage, Float
-      attribute :frequency, Float
-      attribute :max_amps, Float
-      attribute :phase
+      String :name
+      Float :voltage
+      Float :frequency
+      Float :max_amps
+      String :phase
       emits "ACSourceCreated"
     end
 
-    command "CalculateAvailablePower" do
+    CalculateAvailablePower do
       role "Electrician"
       goal "Calculate total watts available from this AC source"
       description "Watts = Volts × Amps for single phase"
-      reference_to ACSource
+      reference_to(ACSource)
       emits "AvailablePowerCalculated"
     end
 
@@ -119,43 +119,43 @@ Hecks.bluebook "Electrical" do
 
   aggregate "Converter" do
     description "A device that transforms between AC and DC — rectifiers, inverters, transformers"
-    attribute :name
-    attribute :conversion_type
-    attribute :input_voltage, Float
-    attribute :output_voltage, Float
-    attribute :max_watts, Float
-    attribute :efficiency, Float
+    String :name
+    String :conversion_type
+    Float :input_voltage
+    Float :output_voltage
+    Float :max_watts
+    Float :efficiency
 
-    command "CreateConverter" do
+    CreateConverter do
       role "Electrician"
       goal "Register a power conversion device"
       description "Register a power conversion device — inverter, converter, or transformer"
-      attribute :name
-      attribute :conversion_type
-      attribute :input_voltage, Float
-      attribute :output_voltage, Float
-      attribute :max_watts, Float
-      attribute :efficiency, Float
+      String :name
+      String :conversion_type
+      Float :input_voltage
+      Float :output_voltage
+      Float :max_watts
+      Float :efficiency
       emits "ConverterCreated"
     end
 
-    command "CalculateDCDraw" do
+    CalculateDCDraw do
       role "Electrician"
       goal "Calculate the DC amps drawn when running an AC load through the inverter"
       description "DC amps = AC watts / (DC voltage × efficiency)"
-      reference_to Converter
-      attribute :ac_watts, Float
+      reference_to(Converter)
+      Float :ac_watts
       emits "DCDrawCalculated"
     end
 
-    command "CalculateRuntime" do
+    CalculateRuntime do
       role "Electrician"
       goal "Calculate how long a battery bank can sustain an AC load through this inverter"
       description "Runtime hours = battery Ah / DC amps drawn"
-      reference_to Converter
-      attribute :ac_watts, Float
-      attribute :battery_ah, Float
-      attribute :battery_voltage, Float
+      reference_to(Converter)
+      Float :ac_watts
+      Float :battery_ah
+      Float :battery_voltage
       emits "RuntimeCalculated"
     end
 
@@ -180,39 +180,39 @@ Hecks.bluebook "Electrical" do
 
   aggregate "Wire" do
     description "An electrical conductor — sized by amperage, length, and acceptable voltage drop"
-    attribute :gauge
-    attribute :length_feet, Float
-    attribute :ampacity, Float
-    attribute :voltage_drop_pct, Float
-    attribute :conductor
+    String :gauge
+    Float :length_feet
+    Float :ampacity
+    Float :voltage_drop_pct
+    String :conductor
 
-    command "SelectGauge" do
+    SelectGauge do
       role "Electrician"
       goal "Determine the correct wire gauge for a given amperage and run length"
       description "Uses the 3% voltage drop rule: gauge must carry the amps with less than 3% drop over the run length"
-      attribute :amps, Float
-      attribute :length_feet, Float
-      attribute :voltage, Float
-      attribute :max_drop_pct, Float, default: 3.0
+      Float :amps
+      Float :length_feet
+      Float :voltage
+      Float :max_drop_pct
       emits "GaugeSelected"
     end
 
-    command "CalculateVoltageDrop" do
+    CalculateVoltageDrop do
       role "Electrician"
       goal "Calculate the actual voltage drop for a specific wire gauge and run"
       description "V_drop = (2 × length × amps × resistance_per_foot) / 1000"
-      attribute :gauge
-      attribute :amps, Float
-      attribute :length_feet, Float
-      attribute :voltage, Float
+      String :gauge
+      Float :amps
+      Float :length_feet
+      Float :voltage
       emits "VoltageDropCalculated"
     end
 
-    command "CalculateAmpacity" do
+    CalculateAmpacity do
       role "Electrician"
       goal "Look up the maximum safe amperage for a given wire gauge"
       description "Ampacity from NEC table 310.16 for copper conductors"
-      attribute :gauge
+      String :gauge
       emits "AmpacityCalculated"
     end
 
@@ -243,30 +243,30 @@ Hecks.bluebook "Electrical" do
 
   aggregate "Load" do
     description "An electrical device that consumes power — rated in watts or amps"
-    attribute :name
-    attribute :watts, Float
-    attribute :voltage, Float
-    attribute :amps, Float
-    attribute :power_type
-    attribute :duty_cycle, Float
+    String :name
+    Float :watts
+    Float :voltage
+    Float :amps
+    String :power_type
+    Float :duty_cycle
 
-    command "DefineLoad" do
+    DefineLoad do
       role "Electrician"
       goal "Register a device with its power consumption"
       description "Amps = Watts / Voltage"
-      attribute :name
-      attribute :watts, Float
-      attribute :voltage, Float
-      attribute :power_type
-      attribute :duty_cycle, Float, default: 1.0
+      String :name
+      Float :watts
+      Float :voltage
+      String :power_type
+      Float :duty_cycle
       emits "LoadDefined"
     end
 
-    command "CalculateAmpDraw" do
+    CalculateAmpDraw do
       role "Electrician"
       goal "Calculate the amp draw from watts and voltage"
       description "Amps = Watts / Voltage, adjusted for duty cycle"
-      reference_to Load
+      reference_to(Load)
       emits "AmpDrawCalculated"
     end
 
@@ -300,34 +300,34 @@ Hecks.bluebook "Electrical" do
 
   aggregate "Fuse" do
     description "An overcurrent protection device — fuse or circuit breaker"
-    attribute :rating_amps, Float
-    attribute :voltage, Float
-    attribute :type
-    attribute :status
+    Float :rating_amps
+    Float :voltage
+    String :type
+    String :status
 
-    command "SizeFuse" do
+    SizeFuse do
       role "Electrician"
       goal "Select the correct fuse rating — 125% of continuous load per NEC"
       description "Fuse amps = load amps × 1.25, rounded up to next standard size"
-      attribute :load_amps, Float
-      attribute :voltage, Float
+      Float :load_amps
+      Float :voltage
       emits "FuseSized"
     end
 
-    command "Trip" do
+    Trip do
       role "System"
       goal "Open the circuit due to overcurrent"
       description "Breaker trips or fuse blows when current exceeds rating"
-      reference_to Fuse
-      attribute :actual_amps, Float
+      reference_to(Fuse)
+      Float :actual_amps
       emits "FuseTripped"
     end
 
-    command "Reset" do
+    Reset do
       role "Electrician"
       goal "Reset a tripped breaker or replace a blown fuse"
       description "Restore the circuit to operational status"
-      reference_to Fuse
+      reference_to(Fuse)
       emits "FuseReset"
     end
 

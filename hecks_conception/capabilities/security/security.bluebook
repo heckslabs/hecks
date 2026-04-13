@@ -3,66 +3,66 @@ Hecks.bluebook "Security", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "HashedSecret", "A secret stored as salted hash — no plaintext ever" do
-    attribute :name, String
-    attribute :salt, String
-    attribute :hash, String
-    attribute :algorithm, String
-    attribute :owner, String
+    String :name
+    String :salt
+    String :hash
+    String :algorithm
+    String :owner
 
-    command "StoreSecret" do
+    StoreSecret do
       role "System"
       description "Hash a secret with a random salt and store — plaintext is never persisted"
-      attribute :name, String
-      attribute :plaintext, String
-      attribute :owner, String
+      String :name
+      String :plaintext
+      String :owner
       emits "SecretStored"
       then_set :name, to: :name
       then_set :owner, to: :owner
       then_set :algorithm, to: "sha256"
     end
 
-    command "VerifySecret" do
+    VerifySecret do
       role "System"
       description "Hash the candidate with the stored salt and compare to stored hash"
-      reference_to HashedSecret
-      attribute :candidate, String
+      reference_to(HashedSecret)
+      String :candidate
       emits "SecretVerified"
     end
 
-    command "RejectSecret" do
+    RejectSecret do
       role "System"
       description "Candidate did not match the stored hash"
-      reference_to HashedSecret
+      reference_to(HashedSecret)
       emits "SecretRejected"
     end
   end
 
   aggregate "AccessGate", "Controls access to protected contexts — passcode, role, or token" do
-    attribute :protected_context, String
-    attribute :gate_type, String
-    attribute :status, String
+    String :protected_context
+    String :gate_type
+    String :status
 
-    command "RequestAccess" do
+    RequestAccess do
       role "Speaker"
       description "Someone requests access to a protected context"
-      attribute :protected_context, String
+      String :protected_context
       emits "AccessRequested"
       then_set :protected_context, to: :protected_context
       then_set :status, to: "challenging"
     end
 
-    command "GrantAccess" do
+    GrantAccess do
       role "System"
       description "Secret verified — grant access to the protected context"
-      reference_to AccessGate
+      reference_to(AccessGate)
       emits "AccessGranted"
       then_set :status, to: "granted"
     end
 
-    command "DenyAccess" do
+    DenyAccess do
       role "System"
       description "Secret rejected — deny access, stay in current context"
-      reference_to AccessGate
+      reference_to(AccessGate)
       emits "AccessDenied"
       then_set :status, to: "denied"
     end

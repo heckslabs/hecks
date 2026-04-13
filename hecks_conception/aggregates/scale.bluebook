@@ -3,66 +3,66 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "ChangeTracker", "Track what changed since last beat — only process the delta" do
-    attribute :tracked_files, Integer
-    attribute :changed_since_last, Integer
-    attribute :last_scan_at, String
+    Integer :tracked_files
+    Integer :changed_since_last
+    String :last_scan_at
 
-    command "ScanForChanges" do
+    ScanForChanges do
       role "System"
       description "Compare file mtimes against last known state — find the delta"
-      attribute :tracked_files, Integer
-      attribute :changed_since_last, Integer
+      Integer :tracked_files
+      Integer :changed_since_last
       emits "ChangesScanned"
       then_set :tracked_files, to: :tracked_files
       then_set :changed_since_last, to: :changed_since_last
     end
 
-    command "MarkProcessed" do
+    MarkProcessed do
       role "System"
       description "Record that changes have been processed — reset the delta"
-      reference_to ChangeTracker
+      reference_to(ChangeTracker)
       emits "ChangesProcessed"
       then_set :changed_since_last, to: 0
     end
   end
 
   aggregate "Shard", "A sector-based partition of the nursery — domains grouped by industry" do
-    attribute :sector, String
-    attribute :domain_count, Integer
-    attribute :path, String
+    String :sector
+    Integer :domain_count
+    String :path
 
-    command "CreateShard" do
+    CreateShard do
       role "System"
       description "Create a sector directory in the nursery"
-      attribute :sector, String
-      attribute :path, String
+      String :sector
+      String :path
       emits "ShardCreated"
       then_set :sector, to: :sector
       then_set :path, to: :path
       then_set :domain_count, to: 0
     end
 
-    command "UpdateShardCount" do
+    UpdateShardCount do
       role "System"
       description "Recount domains in this shard"
-      reference_to Shard
-      attribute :domain_count, Integer
+      reference_to(Shard)
+      Integer :domain_count
       emits "ShardCountUpdated"
       then_set :domain_count, to: :domain_count
     end
   end
 
   aggregate "BatchOperation", "Process many domains in one Rust invocation — no per-file process launch" do
-    attribute :operation, String
-    attribute :file_count, Integer
-    attribute :duration_ms, Integer
-    attribute :results, Integer
+    String :operation
+    Integer :file_count
+    Integer :duration_ms
+    Integer :results
 
-    command "RunBatch" do
+    RunBatch do
       role "System"
       description "Send a list of bluebook paths to hecks-life for batch processing"
-      attribute :operation, String
-      attribute :file_count, Integer
+      String :operation
+      Integer :file_count
       emits "BatchCompleted"
       then_set :operation, to: :operation
       then_set :file_count, to: :file_count
@@ -70,36 +70,36 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   end
 
   aggregate "LazyIndex", "Load domain entries on demand — not all at boot" do
-    attribute :total_indexed, Integer
-    attribute :loaded_in_memory, Integer
-    attribute :cache_hit_rate, Float
+    Integer :total_indexed
+    Integer :loaded_in_memory
+    Float :cache_hit_rate
 
-    command "QueryIndex" do
+    QueryIndex do
       role "System"
       description "Look up domains by name, sector, or pattern — load from .heki on demand"
-      attribute :loaded_in_memory, Integer
+      Integer :loaded_in_memory
       emits "IndexQueried"
       then_set :loaded_in_memory, to: :loaded_in_memory
     end
 
-    command "EvictCache" do
+    EvictCache do
       role "System"
       description "Release domains from memory that haven't been accessed recently"
-      reference_to LazyIndex
+      reference_to(LazyIndex)
       emits "CacheEvicted"
     end
   end
 
   aggregate "WorkerPool", "Scale parallel operations based on available cores" do
-    attribute :core_count, Integer
-    attribute :worker_count, Integer
-    attribute :active_workers, Integer
+    Integer :core_count
+    Integer :worker_count
+    Integer :active_workers
 
-    command "ScaleWorkers" do
+    ScaleWorkers do
       role "System"
       description "Set worker count based on cores and task size"
-      attribute :core_count, Integer
-      attribute :worker_count, Integer
+      Integer :core_count
+      Integer :worker_count
       emits "WorkersScaled"
       then_set :core_count, to: :core_count
       then_set :worker_count, to: :worker_count

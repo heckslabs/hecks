@@ -3,25 +3,25 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Product", "A branded product — a formula packaged for a specific brand and market" do
-    attribute :sku, String
-    attribute :name, String
-    attribute :brand, String
-    attribute :formula_name, String
-    attribute :size, String
-    attribute :upc, String
-    attribute :msrp, Float
-    attribute :wholesale_price, Float
-    attribute :status, String
+    String :sku
+    String :name
+    String :brand
+    String :formula_name
+    String :size
+    String :upc
+    Float :msrp
+    Float :wholesale_price
+    String :status
 
-    command "CreateProduct" do
+    CreateProduct do
       role "ProductManager"
       description "Define a product SKU — a formula packaged under a brand at a specific size"
-      attribute :sku, String
-      attribute :name, String
-      attribute :brand, String
-      attribute :formula_name, String
-      attribute :size, String
-      attribute :upc, String
+      String :sku
+      String :name
+      String :brand
+      String :formula_name
+      String :size
+      String :upc
       emits "ProductCreated"
       then_set :sku, to: :sku
       then_set :name, to: :name
@@ -32,21 +32,21 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "SetPricing" do
+    SetPricing do
       role "ProductManager"
       description "Set MSRP and wholesale pricing for this SKU"
-      reference_to Product
-      attribute :msrp, Float
-      attribute :wholesale_price, Float
+      reference_to(Product)
+      Float :msrp
+      Float :wholesale_price
       emits "PricingSet"
       then_set :msrp, to: :msrp
       then_set :wholesale_price, to: :wholesale_price
     end
 
-    command "DiscontinueProduct" do
+    DiscontinueProduct do
       role "ProductManager"
       description "Remove this SKU from the active catalog"
-      reference_to Product
+      reference_to(Product)
       emits "ProductDiscontinued"
       then_set :status, to: "discontinued"
     end
@@ -58,27 +58,27 @@ Hecks.bluebook "Catalog", version: "2026.04.11.1" do
   end
 
   aggregate "Brand", "A product brand — DuraLube, MotorKote, or Slick 50" do
-    attribute :name, String
-    attribute :description, String
-    attribute :product_count, Integer
-    attribute :channels, list_of(String)
+    String :name
+    String :description
+    Integer :product_count
+    list_of(String) :channels
 
-    command "RegisterBrand" do
+    RegisterBrand do
       role "Owner"
       description "Register a brand in the portfolio"
-      attribute :name, String
-      attribute :description, String
+      String :name
+      String :description
       emits "BrandRegistered"
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :product_count, to: 0
     end
 
-    command "AssignChannel" do
+    AssignChannel do
       role "Owner"
       description "Add a distribution channel to this brand — Amazon, Walmart, retail"
-      reference_to Brand
-      attribute :channel, String
+      reference_to(Brand)
+      String :channel
       emits "ChannelAssigned"
       then_set :channels, append: :channel
     end

@@ -3,25 +3,25 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   category "meta"
 
   aggregate "Entry", "A domain in the catalog — current version plus full history" do
-    attribute :name, String
-    attribute :version, String
-    attribute :path, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :policy_count, Integer
-    attribute :lines, Integer
-    attribute :status, String
+    String :name
+    String :version
+    String :path
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :policy_count
+    Integer :lines
+    String :status
 
-    command "RegisterDomain" do
+    RegisterDomain do
       role "Winter"
       description "Add a born domain to the catalog"
-      attribute :name, String
-      attribute :version, String
-      attribute :path, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :policy_count, Integer
-      attribute :lines, Integer
+      String :name
+      String :version
+      String :path
+      Integer :aggregate_count
+      Integer :command_count
+      Integer :policy_count
+      Integer :lines
       emits "DomainRegistered"
       then_set :name, to: :name
       then_set :version, to: :version
@@ -33,15 +33,15 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
       then_set :status, to: "active"
     end
 
-    command "DevelopDomain" do
+    DevelopDomain do
       role "Winter"
       description "Domain developed — bump version, snapshot the old one, update entry"
-      reference_to Entry
-      attribute :version, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :policy_count, Integer
-      attribute :lines, Integer
+      reference_to(Entry)
+      String :version
+      Integer :aggregate_count
+      Integer :command_count
+      Integer :policy_count
+      Integer :lines
       emits "DomainDeveloped"
       then_set :version, to: :version
       then_set :aggregate_count, to: :aggregate_count
@@ -50,10 +50,10 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
       then_set :lines, to: :lines
     end
 
-    command "RetireDomain" do
+    RetireDomain do
       role "Winter"
       description "A domain is no longer in active use"
-      reference_to Entry
+      reference_to(Entry)
       emits "DomainRetired"
       then_set :status, to: "retired"
     end
@@ -65,25 +65,25 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   end
 
   aggregate "Version", "A snapshot of a domain at a point in time — development history" do
-    attribute :domain_name, String
-    attribute :version, String
-    attribute :snapshot, String
-    attribute :developed_from, String
-    attribute :developed_at, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :vector, list_of(Float)
+    String :domain_name
+    String :version
+    String :snapshot
+    String :developed_from
+    String :developed_at
+    Integer :aggregate_count
+    Integer :command_count
+    list_of(Float) :vector
 
-    command "SnapshotVersion" do
+    SnapshotVersion do
       role "System"
       description "Capture the full bluebook content at this version — preserves the exact shape"
-      attribute :domain_name, String
-      attribute :version, String
-      attribute :snapshot, String
-      attribute :developed_from, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :vector, list_of(Float)
+      String :domain_name
+      String :version
+      String :snapshot
+      String :developed_from
+      Integer :aggregate_count
+      Integer :command_count
+      list_of(Float) :vector
       emits "VersionSnapshotted"
       then_set :domain_name, to: :domain_name
       then_set :version, to: :version
@@ -94,30 +94,30 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
       then_set :vector, to: :vector
     end
 
-    command "CompareVersions" do
+    CompareVersions do
       role "Winter"
       description "Diff two versions of a domain — see what changed in development"
-      attribute :domain_name, String
-      attribute :from_version, String
-      attribute :to_version, String
+      String :domain_name
+      String :from_version
+      String :to_version
       emits "VersionsCompared"
     end
   end
 
   aggregate "Mirror", "Auto-sync catalog from cannon — always current, never stale" do
-    attribute :cannon_path, String
-    attribute :last_synced_at, String
-    attribute :domains_synced, Integer
+    String :cannon_path
+    String :last_synced_at
+    Integer :domains_synced
 
-    command "SyncFromCannon" do
+    SyncFromCannon do
       role "System"
       description "Copy bluebooks from cannon to catalog, bump versions on changes, snapshot old versions"
-      attribute :cannon_path, String
+      String :cannon_path
       emits "CatalogSynced"
       then_set :cannon_path, to: :cannon_path
     end
 
-    command "DetectDrift" do
+    DetectDrift do
       role "System"
       description "Compare catalog versions against cannon — find what changed"
       emits "DriftDetected"
@@ -125,18 +125,18 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   end
 
   aggregate "Index", "The full index — catalog and nursery combined" do
-    attribute :catalog_count, Integer
-    attribute :nursery_count, Integer
-    attribute :total_aggregates, Integer
-    attribute :total_commands, Integer
+    Integer :catalog_count
+    Integer :nursery_count
+    Integer :total_aggregates
+    Integer :total_commands
 
-    command "RebuildIndex" do
+    RebuildIndex do
       role "System"
       description "Scan catalog and nursery, recount everything"
-      attribute :catalog_count, Integer
-      attribute :nursery_count, Integer
-      attribute :total_aggregates, Integer
-      attribute :total_commands, Integer
+      Integer :catalog_count
+      Integer :nursery_count
+      Integer :total_aggregates
+      Integer :total_commands
       emits "IndexRebuilt"
       then_set :catalog_count, to: :catalog_count
       then_set :nursery_count, to: :nursery_count

@@ -1,0 +1,192 @@
+Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
+  vision "Winter keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
+  category "capability"
+
+  aggregate "HealthCheck", "A scan of the full corpus — what boots, what fails, what's missing" do
+    Integer :total_domains
+    Integer :valid_count
+    Integer :invalid_count
+    list_of(ValidationFailure) :failures
+    String :scanned_at
+
+    value_object "ValidationFailure" do
+      String :domain_name
+      String :file_path
+      String :error_message
+    end
+
+    ScanCorpus do
+      description "Parse and validate every bluebook — report what boots and what breaks"
+      String :root_path
+      emits "CorpusScanned"
+    end
+  end
+
+  aggregate "QualityReport", "Training data quality metrics — bias, gaps, coverage" do
+    Integer :total_pairs
+    Integer :unique_domains
+    Integer :with_policies
+    Integer :with_references
+    Integer :duplicates
+    list_of(CategoryCount) :distribution
+    list_of(String) :gaps
+
+    value_object "CategoryCount" do
+      String :category
+      Integer :count
+      Float :percentage
+    end
+
+    AssessQuality do
+      description "Analyze the training JSONL for bias, missing features, and category balance"
+      String :jsonl_path
+      emits "QualityAssessed"
+    end
+
+    IdentifyGaps do
+      description "Find underrepresented categories and missing structural features"
+      reference_to(QualityReport)
+      emits "GapsIdentified"
+    end
+  end
+
+  aggregate "Enrichment", "A targeted fix to a weak domain — add policies, events, descriptions, or givens" do
+    String :domain_name
+    String :enrichment_type
+    String :before_state
+    String :after_state
+    Boolean :revalidated
+
+    EnrichDomain do
+      description "Add missing policies, events, or descriptions to a domain that lacks them"
+      String :domain_name
+      String :enrichment_type
+      given "domain must already boot before enrichment"
+      emits "DomainEnriched"
+    end
+
+    Revalidate do
+      description "Re-parse and validate after enrichment to confirm the domain still boots"
+      reference_to(Enrichment)
+      emits "EnrichmentValidated"
+    end
+  end
+
+  aggregate "TrainingHarvest", "Extract training pairs from the corpus and track dataset evolution" do
+    String :output_path
+    Integer :pair_count
+    Integer :strong_pairs
+    String :harvested_at
+
+    HarvestTrainingData do
+      description "Walk all valid bluebooks, extract prompt/completion pairs as JSONL"
+      String :root_path
+      String :output_path
+      emits "DataHarvested"
+    end
+
+    CompareVersions do
+      description "Diff two training JSONL files to see what improved"
+      reference_to(TrainingHarvest)
+      String :previous_path
+      emits "VersionsCompared"
+    end
+  end
+
+  aggregate "CorpusGrowth", "The loop — conceive domains, validate, repair failures, enrich shallow ones, harvest" do
+    Integer :target_count
+    Integer :conceived
+    Integer :valid
+    Integer :repaired
+    Integer :enriched
+    Integer :harvested
+    list_of(GrowthWave) :waves
+
+    value_object "GrowthWave" do
+      Integer :wave_number
+      Integer :attempted
+      Integer :survived
+      Integer :repaired
+      String :phase
+    end
+
+    GrowCorpus do
+      description "Launch a growth cycle — conceive N domains across diverse topics"
+      Integer :target_count
+      given "target must be at least 10"
+      emits "GrowthStarted"
+    end
+
+    ConceiveBatch do
+      description "Conceive a batch of domains from visions — fan out to parallel agents"
+      reference_to(CorpusGrowth)
+      Integer :batch_size
+      list_of(String) :topics
+      emits "BatchConceived"
+    end
+
+    RepairFailures do
+      description "Read validation errors, fix the bluebooks, revalidate"
+      reference_to(CorpusGrowth)
+      emits "FailuresRepaired"
+    end
+
+    EnrichShallow do
+      description "Add policies, references, and givens to valid but thin domains"
+      reference_to(CorpusGrowth)
+      given "domain must be valid before enrichment"
+      emits "ShallowEnriched"
+    end
+
+    ReportGrowth do
+      description "Summarize what survived — count, depth, category distribution"
+      reference_to(CorpusGrowth)
+      emits "GrowthReported"
+    end
+  end
+
+  policy "ConceiveOnGrowth" do
+    on "GrowthStarted"
+    trigger "ConceiveBatch"
+  end
+
+  policy "RepairOnConceive" do
+    on "BatchConceived"
+    trigger "RepairFailures"
+  end
+
+  policy "EnrichOnRepair" do
+    on "FailuresRepaired"
+    trigger "EnrichShallow"
+  end
+
+  policy "HarvestOnEnrich" do
+    on "ShallowEnriched"
+    trigger "HarvestTrainingData"
+  end
+
+  policy "ReportOnHarvest" do
+    on "DataHarvested"
+    trigger "ReportGrowth"
+  end
+
+  policy "AssessAfterHarvest" do
+    on "DataHarvested"
+    trigger "AssessQuality"
+  end
+
+  policy "FindGapsAfterAssessment" do
+    on "QualityAssessed"
+    trigger "IdentifyGaps"
+  end
+
+  policy "RevalidateAfterEnrichment" do
+    on "DomainEnriched"
+    trigger "Revalidate"
+  end
+
+  policy "ReharvesAfterEnrichment" do
+    on "EnrichmentValidated"
+    trigger "HarvestTrainingData"
+  end
+end

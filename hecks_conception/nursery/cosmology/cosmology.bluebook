@@ -5,59 +5,59 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === Universe ===
 
   aggregate "Universe", "The whole observable cosmos — age, size, curvature, expansion rate" do
-    attribute :name, String
-    attribute :age, Float
-    attribute :radius, Float
-    attribute :curvature, Float
-    attribute :expansion_rate, Float
-    attribute :total_mass, Float
-    attribute :geometry, String
+    String :name
+    Float :age
+    Float :radius
+    Float :curvature
+    Float :expansion_rate
+    Float :total_mass
+    String :geometry
 
     value_object "CosmologicalParameters" do
-      attribute :hubble_constant, Float
-      attribute :omega_matter, Float
-      attribute :omega_radiation, Float
-      attribute :omega_lambda, Float
-      attribute :omega_curvature, Float
+      Float :hubble_constant
+      Float :omega_matter
+      Float :omega_radiation
+      Float :omega_lambda
+      Float :omega_curvature
     end
 
-    command "MeasureAge" do
+    MeasureAge do
       role "Cosmologist"
       description "Determine the age of the universe from CMB and expansion data"
-      attribute :name, String
-      attribute :age, Float
-      attribute :radius, Float
+      String :name
+      Float :age
+      Float :radius
       emits "AgeMeasured"
       then_set :name, to: :name
       then_set :age, to: :age
       then_set :radius, to: :radius
     end
 
-    command "DetermineGeometry" do
+    DetermineGeometry do
       role "Cosmologist"
       description "Measure the spatial curvature of the universe — flat, open, or closed"
-      reference_to Universe
-      attribute :curvature, Float
-      attribute :geometry, String
+      reference_to(Universe)
+      Float :curvature
+      String :geometry
       emits "GeometryDetermined"
       then_set :curvature, to: :curvature
       then_set :geometry, to: :geometry
     end
 
-    command "CalculateExpansionRate" do
+    CalculateExpansionRate do
       role "Cosmologist"
       description "Compute the Hubble parameter from redshift-distance observations"
-      reference_to Universe
-      attribute :expansion_rate, Float
+      reference_to(Universe)
+      Float :expansion_rate
       emits "ExpansionRateCalculated"
       then_set :expansion_rate, to: :expansion_rate
     end
 
-    command "EstimateMass" do
+    EstimateMass do
       role "Cosmologist"
       description "Estimate the total mass-energy content of the observable universe"
-      reference_to Universe
-      attribute :total_mass, Float
+      reference_to(Universe)
+      Float :total_mass
       emits "MassEstimated"
       then_set :total_mass, to: :total_mass
     end
@@ -66,27 +66,27 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === Galaxy ===
 
   aggregate "Galaxy", "A gravitationally bound system of stars, gas, dust, and dark matter" do
-    attribute :name, String
-    attribute :morphology, String
-    attribute :redshift, Float
-    attribute :mass, Float
-    attribute :rotation_velocity, Float
-    attribute :distance, Float
-    attribute :status, String
+    String :name
+    String :morphology
+    Float :redshift
+    Float :mass
+    Float :rotation_velocity
+    Float :distance
+    String :status
 
     value_object "MorphologyType" do
-      attribute :classification, String
-      attribute :hubble_type, String
-      attribute :bar_present, String
-      attribute :arm_count, Integer
+      String :classification
+      String :hubble_type
+      String :bar_present
+      Integer :arm_count
     end
 
-    command "ClassifyGalaxy" do
+    ClassifyGalaxy do
       role "Cosmologist"
       description "Assign a morphological type — spiral, elliptical, irregular, or lenticular"
-      attribute :name, String
-      attribute :morphology, String
-      attribute :distance, Float
+      String :name
+      String :morphology
+      Float :distance
       emits "GalaxyClassified"
       then_set :name, to: :name
       then_set :morphology, to: :morphology
@@ -94,37 +94,37 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       then_set :status, to: "observed"
     end
 
-    command "MeasureRedshift" do
+    MeasureRedshift do
       role "Cosmologist"
       description "Measure the cosmological redshift — how fast the galaxy recedes"
-      reference_to Galaxy
-      attribute :redshift, Float
+      reference_to(Galaxy)
+      Float :redshift
       emits "RedshiftMeasured"
       then_set :redshift, to: :redshift
     end
 
-    command "MapRotationCurve" do
+    MapRotationCurve do
       role "Cosmologist"
       description "Plot orbital velocity vs radius — reveals dark matter presence"
-      reference_to Galaxy
-      attribute :rotation_velocity, Float
+      reference_to(Galaxy)
+      Float :rotation_velocity
       emits "RotationCurveMapped"
     end
 
-    command "EstimateGalaxyMass" do
+    EstimateGalaxyMass do
       role "Cosmologist"
       description "Estimate total mass from rotation curves and gravitational lensing"
-      reference_to Galaxy
-      attribute :mass, Float
+      reference_to(Galaxy)
+      Float :mass
       emits "GalaxyMassEstimated"
       then_set :mass, to: :mass
     end
 
-    command "DetectMerger" do
+    DetectMerger do
       role "Cosmologist"
       description "Identify two galaxies undergoing gravitational merger"
-      reference_to Galaxy
-      attribute :companion_name, String
+      reference_to(Galaxy)
+      String :companion_name
       emits "MergerDetected"
       then_set :status, to: "merging"
     end
@@ -138,26 +138,26 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === Star ===
 
   aggregate "Star", "A fusion engine — protostar to end state through main sequence and giant phases" do
-    attribute :name, String
-    attribute :mass, Float
-    attribute :luminosity, Float
-    attribute :temperature, Float
-    attribute :spectral_class, String
-    attribute :fuel_remaining, Float
-    attribute :status, String
+    String :name
+    Float :mass
+    Float :luminosity
+    Float :temperature
+    String :spectral_class
+    Float :fuel_remaining
+    String :status
 
     value_object "StellarClassification" do
-      attribute :spectral_type, String
-      attribute :luminosity_class, String
-      attribute :absolute_magnitude, Float
+      String :spectral_type
+      String :luminosity_class
+      Float :absolute_magnitude
     end
 
-    command "FormStar" do
+    FormStar do
       role "System"
       description "Gravitational collapse of a molecular cloud into a protostar"
-      attribute :name, String
-      attribute :mass, Float
-      attribute :temperature, Float
+      String :name
+      Float :mass
+      Float :temperature
       emits "StarFormed"
       then_set :name, to: :name
       then_set :mass, to: :mass
@@ -166,12 +166,12 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       then_set :status, to: "protostar"
     end
 
-    command "IgniteFusion" do
+    IgniteFusion do
       role "System"
       description "Core temperature reaches threshold — hydrogen fusion begins"
-      reference_to Star
-      attribute :luminosity, Float
-      attribute :spectral_class, String
+      reference_to(Star)
+      Float :luminosity
+      String :spectral_class
       given { status == "protostar" }
       emits "FusionIgnited"
       then_set :luminosity, to: :luminosity
@@ -179,38 +179,38 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       then_set :status, to: "main_sequence"
     end
 
-    command "EvolveStar" do
+    EvolveStar do
       role "System"
       description "Star leaves the main sequence — core contracts, envelope expands"
-      reference_to Star
+      reference_to(Star)
       given { status == "main_sequence" }
       emits "StarEvolved"
       then_set :status, to: "giant"
     end
 
-    command "ExhaustFuel" do
+    ExhaustFuel do
       role "System"
       description "Fusion fuel depleted — the star can no longer sustain equilibrium"
-      reference_to Star
+      reference_to(Star)
       given { status == "giant" }
       emits "FuelExhausted"
       then_set :fuel_remaining, to: 0.0
       then_set :status, to: "exhausted"
     end
 
-    command "CollapseStar" do
+    CollapseStar do
       role "System"
       description "Core collapses under gravity — fate depends on mass"
-      reference_to Star
+      reference_to(Star)
       given { status == "exhausted" }
       emits "StarCollapsed"
       then_set :status, to: "collapsed"
     end
 
-    command "GoSupernova" do
+    GoSupernova do
       role "System"
       description "Massive star explodes — outer layers ejected, core remnant left behind"
-      reference_to Star
+      reference_to(Star)
       given { status == "collapsed" }
       emits "SupernovaOccurred"
       then_set :status, to: "remnant"
@@ -229,27 +229,27 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === BlackHole ===
 
   aggregate "BlackHole", "A spacetime singularity — mass, spin, charge, event horizon" do
-    attribute :name, String
-    attribute :mass, Float
-    attribute :spin, Float
-    attribute :charge, Float
-    attribute :schwarzschild_radius, Float
-    attribute :temperature, Float
-    attribute :status, String
+    String :name
+    Float :mass
+    Float :spin
+    Float :charge
+    Float :schwarzschild_radius
+    Float :temperature
+    String :status
 
     value_object "EventHorizon" do
-      attribute :radius, Float
-      attribute :surface_gravity, Float
-      attribute :area, Float
+      Float :radius
+      Float :surface_gravity
+      Float :area
     end
 
-    command "FormBlackHole" do
+    FormBlackHole do
       role "System"
       description "Stellar remnant or direct collapse produces a black hole"
-      attribute :name, String
-      attribute :mass, Float
-      attribute :spin, Float
-      attribute :charge, Float
+      String :name
+      Float :mass
+      Float :spin
+      Float :charge
       emits "BlackHoleFormed"
       then_set :name, to: :name
       then_set :mass, to: :mass
@@ -258,39 +258,39 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "CalculateSchwarzschildRadius" do
+    CalculateSchwarzschildRadius do
       role "System"
       description "r_s = 2GM/c^2 — compute the event horizon radius from mass"
-      reference_to BlackHole
-      attribute :schwarzschild_radius, Float
+      reference_to(BlackHole)
+      Float :schwarzschild_radius
       emits "SchwarzschildRadiusCalculated"
       then_set :schwarzschild_radius, to: :schwarzschild_radius
     end
 
-    command "AccreteMatter" do
+    AccreteMatter do
       role "System"
       description "Matter falls past the event horizon — mass increases"
-      reference_to BlackHole
-      attribute :accreted_mass, Float
+      reference_to(BlackHole)
+      Float :accreted_mass
       given { status == "active" }
       emits "MatterAccreted"
     end
 
-    command "EmitHawkingRadiation" do
+    EmitHawkingRadiation do
       role "System"
       description "Quantum effects near the horizon — black hole slowly evaporates"
-      reference_to BlackHole
-      attribute :temperature, Float
+      reference_to(BlackHole)
+      Float :temperature
       given { status == "active" }
       emits "HawkingRadiationEmitted"
       then_set :temperature, to: :temperature
     end
 
-    command "MergeBlackHoles" do
+    MergeBlackHoles do
       role "System"
       description "Two black holes spiral inward and merge — gravitational waves emitted"
-      reference_to BlackHole
-      attribute :companion_mass, Float
+      reference_to(BlackHole)
+      Float :companion_mass
       given { status == "active" }
       emits "BlackHolesMerged"
     end
@@ -299,58 +299,58 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === DarkMatter ===
 
   aggregate "DarkMatter", "Invisible mass — halos, gravitational lensing, WIMP candidates" do
-    attribute :name, String
-    attribute :halo_mass, Float
-    attribute :density, Float
-    attribute :distribution, String
-    attribute :lensing_strength, Float
-    attribute :candidate_type, String
+    String :name
+    Float :halo_mass
+    Float :density
+    String :distribution
+    Float :lensing_strength
+    String :candidate_type
 
     value_object "HaloProfile" do
-      attribute :profile_type, String
-      attribute :scale_radius, Float
-      attribute :concentration, Float
-      attribute :virial_mass, Float
+      String :profile_type
+      Float :scale_radius
+      Float :concentration
+      Float :virial_mass
     end
 
-    command "DetectDarkMatter" do
+    DetectDarkMatter do
       role "Cosmologist"
       description "Infer dark matter presence from rotation curves or lensing anomalies"
-      attribute :name, String
-      attribute :halo_mass, Float
-      attribute :candidate_type, String
+      String :name
+      Float :halo_mass
+      String :candidate_type
       emits "DarkMatterDetected"
       then_set :name, to: :name
       then_set :halo_mass, to: :halo_mass
       then_set :candidate_type, to: :candidate_type
     end
 
-    command "MapDistribution" do
+    MapDistribution do
       role "Cosmologist"
       description "Map the spatial distribution of dark matter in a galaxy or cluster"
-      reference_to DarkMatter
-      attribute :distribution, String
-      attribute :density, Float
+      reference_to(DarkMatter)
+      String :distribution
+      Float :density
       emits "DistributionMapped"
       then_set :distribution, to: :distribution
       then_set :density, to: :density
     end
 
-    command "MeasureGravitationalLensing" do
+    MeasureGravitationalLensing do
       role "Cosmologist"
       description "Quantify the bending of light by dark matter — strong or weak lensing"
-      reference_to DarkMatter
-      attribute :lensing_strength, Float
+      reference_to(DarkMatter)
+      Float :lensing_strength
       emits "GravitationalLensingMeasured"
       then_set :lensing_strength, to: :lensing_strength
     end
 
-    command "ModelHalo" do
+    ModelHalo do
       role "Cosmologist"
       description "Fit an NFW or Einasto profile to the dark matter halo"
-      reference_to DarkMatter
-      attribute :profile_type, String
-      attribute :scale_radius, Float
+      reference_to(DarkMatter)
+      String :profile_type
+      Float :scale_radius
       emits "HaloModeled"
     end
   end
@@ -358,45 +358,45 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === DarkEnergy ===
 
   aggregate "DarkEnergy", "The force accelerating cosmic expansion — cosmological constant, equation of state" do
-    attribute :name, String
-    attribute :energy_density, Float
-    attribute :equation_of_state, Float
-    attribute :acceleration_rate, Float
-    attribute :cosmological_constant, Float
+    String :name
+    Float :energy_density
+    Float :equation_of_state
+    Float :acceleration_rate
+    Float :cosmological_constant
 
     value_object "ExpansionModel" do
-      attribute :model_type, String
-      attribute :w_parameter, Float
-      attribute :scale_factor, Float
-      attribute :deceleration_parameter, Float
+      String :model_type
+      Float :w_parameter
+      Float :scale_factor
+      Float :deceleration_parameter
     end
 
-    command "MeasureAcceleration" do
+    MeasureAcceleration do
       role "Cosmologist"
       description "Use Type Ia supernovae to measure the acceleration of cosmic expansion"
-      attribute :name, String
-      attribute :acceleration_rate, Float
-      attribute :energy_density, Float
+      String :name
+      Float :acceleration_rate
+      Float :energy_density
       emits "AccelerationMeasured"
       then_set :name, to: :name
       then_set :acceleration_rate, to: :acceleration_rate
       then_set :energy_density, to: :energy_density
     end
 
-    command "ConstrainEquationOfState" do
+    ConstrainEquationOfState do
       role "Cosmologist"
       description "Narrow the value of w — the dark energy equation of state parameter"
-      reference_to DarkEnergy
-      attribute :equation_of_state, Float
+      reference_to(DarkEnergy)
+      Float :equation_of_state
       emits "EquationOfStateConstrained"
       then_set :equation_of_state, to: :equation_of_state
     end
 
-    command "ModelExpansionHistory" do
+    ModelExpansionHistory do
       role "Cosmologist"
       description "Reconstruct how the expansion rate evolved over cosmic time"
-      reference_to DarkEnergy
-      attribute :cosmological_constant, Float
+      reference_to(DarkEnergy)
+      Float :cosmological_constant
       emits "ExpansionHistoryModeled"
       then_set :cosmological_constant, to: :cosmological_constant
     end
@@ -405,54 +405,54 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === CosmicMicrowaveBackground ===
 
   aggregate "CosmicMicrowaveBackground", "The afterglow of the big bang — temperature, anisotropy, polarization" do
-    attribute :name, String
-    attribute :temperature, Float
-    attribute :anisotropy_amplitude, Float
-    attribute :polarization_mode, String
-    attribute :angular_power_spectrum, String
-    attribute :redshift, Float
+    String :name
+    Float :temperature
+    Float :anisotropy_amplitude
+    String :polarization_mode
+    String :angular_power_spectrum
+    Float :redshift
 
     value_object "AnisotropyMap" do
-      attribute :resolution, Float
-      attribute :multipole_max, Integer
-      attribute :temperature_variance, Float
+      Float :resolution
+      Integer :multipole_max
+      Float :temperature_variance
     end
 
-    command "MapCMB" do
+    MapCMB do
       role "Cosmologist"
       description "Produce a full-sky map of the cosmic microwave background"
-      attribute :name, String
-      attribute :redshift, Float
+      String :name
+      Float :redshift
       emits "CMBMapped"
       then_set :name, to: :name
       then_set :redshift, to: :redshift
     end
 
-    command "MeasureCMBTemperature" do
+    MeasureCMBTemperature do
       role "Cosmologist"
       description "Measure the mean temperature of the CMB — 2.725 K blackbody"
-      reference_to CosmicMicrowaveBackground
-      attribute :temperature, Float
+      reference_to(CosmicMicrowaveBackground)
+      Float :temperature
       emits "CMBTemperatureMeasured"
       then_set :temperature, to: :temperature
     end
 
-    command "AnalyzeAnisotropy" do
+    AnalyzeAnisotropy do
       role "Cosmologist"
       description "Decompose temperature fluctuations into angular power spectrum"
-      reference_to CosmicMicrowaveBackground
-      attribute :anisotropy_amplitude, Float
-      attribute :angular_power_spectrum, String
+      reference_to(CosmicMicrowaveBackground)
+      Float :anisotropy_amplitude
+      String :angular_power_spectrum
       emits "AnisotropyAnalyzed"
       then_set :anisotropy_amplitude, to: :anisotropy_amplitude
       then_set :angular_power_spectrum, to: :angular_power_spectrum
     end
 
-    command "DetectPolarization" do
+    DetectPolarization do
       role "Cosmologist"
       description "Detect E-mode and B-mode polarization patterns in the CMB"
-      reference_to CosmicMicrowaveBackground
-      attribute :polarization_mode, String
+      reference_to(CosmicMicrowaveBackground)
+      String :polarization_mode
       emits "PolarizationDetected"
       then_set :polarization_mode, to: :polarization_mode
     end
@@ -461,37 +461,37 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === BigBang ===
 
   aggregate "BigBang", "The origin of the universe — inflation, nucleosynthesis, recombination, structure formation" do
-    attribute :name, String
-    attribute :inflation_duration, Float
-    attribute :nucleosynthesis_temperature, Float
-    attribute :recombination_redshift, Float
-    attribute :helium_fraction, Float
-    attribute :status, String
+    String :name
+    Float :inflation_duration
+    Float :nucleosynthesis_temperature
+    Float :recombination_redshift
+    Float :helium_fraction
+    String :status
 
     value_object "PrimordialAbundance" do
-      attribute :element, String
-      attribute :mass_fraction, Float
-      attribute :predicted, Float
-      attribute :observed, Float
+      String :element
+      Float :mass_fraction
+      Float :predicted
+      Float :observed
     end
 
-    command "ModelInflation" do
+    ModelInflation do
       role "Cosmologist"
       description "Simulate the exponential expansion in the first fraction of a second"
-      attribute :name, String
-      attribute :inflation_duration, Float
+      String :name
+      Float :inflation_duration
       emits "InflationModeled"
       then_set :name, to: :name
       then_set :inflation_duration, to: :inflation_duration
       then_set :status, to: "inflation"
     end
 
-    command "SimulateNucleosynthesis" do
+    SimulateNucleosynthesis do
       role "Cosmologist"
       description "Model the formation of light elements in the first three minutes"
-      reference_to BigBang
-      attribute :nucleosynthesis_temperature, Float
-      attribute :helium_fraction, Float
+      reference_to(BigBang)
+      Float :nucleosynthesis_temperature
+      Float :helium_fraction
       given { status == "inflation" }
       emits "NucleosynthesisSimulated"
       then_set :nucleosynthesis_temperature, to: :nucleosynthesis_temperature
@@ -499,21 +499,21 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
       then_set :status, to: "nucleosynthesis"
     end
 
-    command "CalculateRecombination" do
+    CalculateRecombination do
       role "Cosmologist"
       description "Compute when electrons combined with nuclei — the universe became transparent"
-      reference_to BigBang
-      attribute :recombination_redshift, Float
+      reference_to(BigBang)
+      Float :recombination_redshift
       given { status == "nucleosynthesis" }
       emits "RecombinationCalculated"
       then_set :recombination_redshift, to: :recombination_redshift
       then_set :status, to: "recombination"
     end
 
-    command "TraceStructureFormation" do
+    TraceStructureFormation do
       role "Cosmologist"
       description "Follow density perturbations from recombination to galaxies and clusters"
-      reference_to BigBang
+      reference_to(BigBang)
       given { status == "recombination" }
       emits "StructureFormationTraced"
       then_set :status, to: "structure_formation"
@@ -530,60 +530,60 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === Spacetime ===
 
   aggregate "Spacetime", "The fabric of the universe — curvature, metric, geodesics, gravitational waves" do
-    attribute :name, String
-    attribute :curvature, Float
-    attribute :metric_type, String
-    attribute :dimension, Integer
-    attribute :gravitational_wave_strain, Float
+    String :name
+    Float :curvature
+    String :metric_type
+    Integer :dimension
+    Float :gravitational_wave_strain
 
     value_object "MetricTensor" do
-      attribute :metric_name, String
-      attribute :signature, String
-      attribute :components, String
+      String :metric_name
+      String :signature
+      String :components
     end
 
-    command "CurveSpacetime" do
+    CurveSpacetime do
       role "Cosmologist"
       description "Mass-energy curves the geometry of spacetime — Einstein field equations"
-      attribute :name, String
-      attribute :curvature, Float
-      attribute :metric_type, String
+      String :name
+      Float :curvature
+      String :metric_type
       emits "SpacetimeCurved"
       then_set :name, to: :name
       then_set :curvature, to: :curvature
       then_set :metric_type, to: :metric_type
     end
 
-    command "CalculateMetric" do
+    CalculateMetric do
       role "System"
       description "Solve for the metric tensor given a mass-energy distribution"
-      reference_to Spacetime
-      attribute :dimension, Integer
+      reference_to(Spacetime)
+      Integer :dimension
       emits "MetricCalculated"
       then_set :dimension, to: :dimension
     end
 
-    command "TraceGeodesic" do
+    TraceGeodesic do
       role "System"
       description "Find the path of a free particle through curved spacetime"
-      reference_to Spacetime
+      reference_to(Spacetime)
       emits "GeodesicTraced"
     end
 
-    command "DetectGravitationalWave" do
+    DetectGravitationalWave do
       role "Cosmologist"
       description "Observe ripples in spacetime from merging compact objects"
-      reference_to Spacetime
-      attribute :gravitational_wave_strain, Float
+      reference_to(Spacetime)
+      Float :gravitational_wave_strain
       emits "GravitationalWaveDetected"
       then_set :gravitational_wave_strain, to: :gravitational_wave_strain
     end
 
-    command "MeasureCurvature" do
+    MeasureCurvature do
       role "Cosmologist"
       description "Determine the local curvature of spacetime from observations"
-      reference_to Spacetime
-      attribute :curvature, Float
+      reference_to(Spacetime)
+      Float :curvature
       emits "CurvatureMeasured"
       then_set :curvature, to: :curvature
     end
@@ -592,62 +592,62 @@ Hecks.bluebook "Cosmology", version: "2026.04.11.1" do
   # === CosmicStructure ===
 
   aggregate "CosmicStructure", "The cosmic web — filaments, voids, clusters, and superclusters" do
-    attribute :name, String
-    attribute :structure_type, String
-    attribute :scale, Float
-    attribute :mass, Float
-    attribute :density_contrast, Float
-    attribute :correlation_length, Float
+    String :name
+    String :structure_type
+    Float :scale
+    Float :mass
+    Float :density_contrast
+    Float :correlation_length
 
     value_object "WebElement" do
-      attribute :element_type, String
-      attribute :extent, Float
-      attribute :galaxy_count, Integer
-      attribute :mean_density, Float
+      String :element_type
+      Float :extent
+      Integer :galaxy_count
+      Float :mean_density
     end
 
-    command "MapFilament" do
+    MapFilament do
       role "Cosmologist"
       description "Trace a filament of galaxies connecting clusters across megaparsecs"
-      attribute :name, String
-      attribute :structure_type, String
-      attribute :scale, Float
+      String :name
+      String :structure_type
+      Float :scale
       emits "FilamentMapped"
       then_set :name, to: :name
       then_set :structure_type, to: "filament"
       then_set :scale, to: :scale
     end
 
-    command "IdentifyVoid" do
+    IdentifyVoid do
       role "Cosmologist"
       description "Locate a cosmic void — a vast underdense region between filaments"
-      reference_to CosmicStructure
-      attribute :density_contrast, Float
+      reference_to(CosmicStructure)
+      Float :density_contrast
       emits "VoidIdentified"
       then_set :density_contrast, to: :density_contrast
     end
 
-    command "DetectCluster" do
+    DetectCluster do
       role "Cosmologist"
       description "Detect a galaxy cluster from X-ray emission or gravitational lensing"
-      reference_to CosmicStructure
-      attribute :mass, Float
+      reference_to(CosmicStructure)
+      Float :mass
       emits "ClusterDetected"
       then_set :mass, to: :mass
     end
 
-    command "SimulateStructureFormation" do
+    SimulateStructureFormation do
       role "System"
       description "N-body simulation of how cosmic structure grows from primordial fluctuations"
-      reference_to CosmicStructure
+      reference_to(CosmicStructure)
       emits "StructureFormationSimulated"
     end
 
-    command "MeasureCorrelation" do
+    MeasureCorrelation do
       role "Cosmologist"
       description "Compute the two-point correlation function — how galaxies cluster"
-      reference_to CosmicStructure
-      attribute :correlation_length, Float
+      reference_to(CosmicStructure)
+      Float :correlation_length
       emits "CorrelationMeasured"
       then_set :correlation_length, to: :correlation_length
     end

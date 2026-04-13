@@ -3,28 +3,28 @@ Hecks.bluebook "Quality", version: "2026.04.11.1" do
   category "business"
 
   aggregate "QualityTest", "Testing a batch against ASTM test methods and specification limits" do
-    attribute :test_name, String
-    attribute :astm_test_method, String
-    attribute :formula_name, String
-    attribute :batch_number, String
-    attribute :lot_number, String
-    attribute :specification_min, Float
-    attribute :specification_max, Float
-    attribute :actual_value, Float
-    attribute :result, String
-    attribute :out_of_spec, String
-    attribute :certificate_of_analysis, String
+    String :test_name
+    String :astm_test_method
+    String :formula_name
+    String :batch_number
+    String :lot_number
+    Float :specification_min
+    Float :specification_max
+    Float :actual_value
+    String :result
+    String :out_of_spec
+    String :certificate_of_analysis
 
-    command "RunTest" do
+    RunTest do
       role "QualityManager"
       description "Execute an ASTM test method against specification limits for a lot"
-      attribute :test_name, String
-      attribute :astm_test_method, String
-      attribute :formula_name, String
-      attribute :batch_number, String
-      attribute :lot_number, String
-      attribute :specification_min, Float
-      attribute :specification_max, Float
+      String :test_name
+      String :astm_test_method
+      String :formula_name
+      String :batch_number
+      String :lot_number
+      Float :specification_min
+      Float :specification_max
       emits "TestRun"
       then_set :test_name, to: :test_name
       then_set :astm_test_method, to: :astm_test_method
@@ -35,24 +35,24 @@ Hecks.bluebook "Quality", version: "2026.04.11.1" do
       then_set :specification_max, to: :specification_max
     end
 
-    command "RecordResult" do
+    RecordResult do
       role "QualityManager"
       description "Record actual value — flag out-of-spec if outside specification limits"
-      reference_to QualityTest
-      attribute :actual_value, Float
-      attribute :result, String
-      attribute :out_of_spec, String
+      reference_to(QualityTest)
+      Float :actual_value
+      String :result
+      String :out_of_spec
       emits "ResultRecorded"
       then_set :actual_value, to: :actual_value
       then_set :result, to: :result
       then_set :out_of_spec, to: :out_of_spec
     end
 
-    command "IssueCertificateOfAnalysis" do
+    IssueCertificateOfAnalysis do
       role "QualityManager"
       description "Issue a COA for the lot — confirms all tests passed specification limits"
-      reference_to QualityTest
-      attribute :certificate_of_analysis, String
+      reference_to(QualityTest)
+      String :certificate_of_analysis
       emits "CertificateOfAnalysisIssued"
       then_set :certificate_of_analysis, to: :certificate_of_analysis
     end
@@ -77,4 +77,18 @@ Hecks.bluebook "Quality", version: "2026.04.11.1" do
 
   # Slick 50 Complete Engine Flush
   fixture "QualityTest", test_name: "Viscosity at 100C", formula_name: "Slick 50 Complete Engine Flush", batch_number: "BR-011", lot_number: "LOT-S50-20260418", astm_test_method: "ASTM D445", specification_min: 5.0, specification_max: 9.0, actual_value: 7.1, result: "pass", out_of_spec: "false"
+
+  event "TestRun"
+  event "ResultRecorded"
+  event "CertificateOfAnalysisIssued"
+
+  policy "RecordOnTest" do
+    on "TestRun"
+    trigger "RecordResult"
+  end
+
+  policy "CertifyOnResult" do
+    on "ResultRecorded"
+    trigger "IssueCertificateOfAnalysis"
+  end
 end

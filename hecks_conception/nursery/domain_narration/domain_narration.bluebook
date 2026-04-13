@@ -1,0 +1,98 @@
+Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
+  vision "Translates domain structure into human-readable workflow narratives — the story a domain tells about itself"
+  category "meta"
+
+  # === Workflow ===
+
+  aggregate "Workflow", "An inferred step-by-step usage guide built from commands and policies" do
+    String :domain_name
+    list_of(WorkflowStep) :steps
+
+    value_object "WorkflowStep" do
+      Integer :position
+      String :command_name
+      String :aggregate_name
+      String :goal
+      String :role
+      String :emitted_event
+      String :triggered_command
+      list_of(ExamplePair) :example_pairs
+    end
+
+    value_object "ExamplePair" do
+      String :key
+      String :value
+    end
+
+    InferWorkflow do
+      description "Read a domain's commands and policies, produce ordered workflow steps"
+      String :domain_name
+      emits "WorkflowInferred"
+    end
+  end
+
+  # === Narration ===
+
+  aggregate "Narration", "An English-language rendering of domain events, commands, and policies" do
+    String :source_name
+    String :english_text
+    String :narration_type
+
+    TranslateEvent do
+      description "Convert a PascalCase event name into English prose"
+      String :event_name
+      emits "EventTranslated"
+    end
+
+    TranslateCommand do
+      description "Convert a PascalCase command name into English prose"
+      String :command_name
+      emits "CommandTranslated"
+    end
+  end
+
+  # === PolicyChain ===
+
+  aggregate "PolicyChain", "A traced cascade of policy reactions — command emits event, policy listens, triggers next command" do
+    String :origin_command
+    list_of(ChainLink) :links
+    Integer :depth
+
+    value_object "ChainLink" do
+      String :event_name
+      String :triggered_command
+    end
+
+    TraceChain do
+      description "Follow a command's emitted event through policies to find downstream cascades"
+      String :command_name
+      String :domain_name
+      emits "ChainTraced"
+    end
+  end
+
+  # === Rule ===
+
+  aggregate "Rule", "A precondition or invariant extracted from a command's givens" do
+    String :command_name
+    String :rule_text
+
+    CollectRules do
+      description "Gather all preconditions from a domain's command givens"
+      String :domain_name
+      emits "RulesCollected"
+    end
+  end
+
+  # === Policies ===
+
+  policy "RenderAfterInference" do
+    on "WorkflowInferred"
+    trigger "TranslateEvent"
+  end
+
+  policy "ChainAfterTranslation" do
+    on "EventTranslated"
+    trigger "TraceChain"
+  end
+end

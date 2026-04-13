@@ -3,33 +3,33 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Formula", "A proprietary additive formulation — the recipe that defines the product" do
-    attribute :name, String
-    attribute :version, String
-    attribute :brand, String
-    attribute :product_type, String
-    attribute :ingredients, list_of(Ingredient)
-    attribute :performance_claims, list_of(String)
-    attribute :viscosity_grade, String
-    attribute :base_oil_type, String
-    attribute :viscosity_index, Float
-    attribute :pour_point_celsius, Float
-    attribute :flash_point_celsius, Float
-    attribute :status, String
+    String :name
+    String :version
+    String :brand
+    String :product_type
+    list_of(Ingredient) :ingredients
+    list_of(String) :performance_claims
+    String :viscosity_grade
+    String :base_oil_type
+    Float :viscosity_index
+    Float :pour_point_celsius
+    Float :flash_point_celsius
+    String :status
 
     value_object "Ingredient" do
-      attribute :chemical_name, String
-      attribute :cas_number, String
-      attribute :treat_rate_percent, Float
-      attribute :function, String
-      attribute :supplier, String
+      String :chemical_name
+      String :cas_number
+      Float :treat_rate_percent
+      String :function
+      String :supplier
     end
 
-    command "CreateFormula" do
+    CreateFormula do
       role "Formulator"
       description "Define a new additive formulation with ingredients and performance targets"
-      attribute :name, String
-      attribute :brand, String
-      attribute :product_type, String
+      String :name
+      String :brand
+      String :product_type
       emits "FormulaCreated"
       then_set :name, to: :name
       then_set :brand, to: :brand
@@ -37,39 +37,39 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    command "AddIngredient" do
+    AddIngredient do
       role "Formulator"
       description "Add a chemical component to the formula with its function and percentage"
-      reference_to Formula
-      attribute :chemical_name, String
-      attribute :cas_number, String
-      attribute :percentage, Float
-      attribute :function, String
-      attribute :supplier, String
+      reference_to(Formula)
+      String :chemical_name
+      String :cas_number
+      Float :percentage
+      String :function
+      String :supplier
       emits "IngredientAdded"
     end
 
-    command "FinalizeFormula" do
+    FinalizeFormula do
       role "Formulator"
       description "Lock the formula for manufacturing — no more changes without a new version"
-      reference_to Formula
+      reference_to(Formula)
       given { status == "draft" }
       emits "FormulaFinalized"
       then_set :status, to: "finalized"
     end
 
-    command "ReviseFormula" do
+    ReviseFormula do
       role "Formulator"
       description "Create a new version of the formula with updated ingredients"
-      reference_to Formula
+      reference_to(Formula)
       emits "FormulaRevised"
       then_set :status, to: "draft"
     end
 
-    command "RetireFormula" do
+    RetireFormula do
       role "Formulator"
       description "This formula is no longer in production"
-      reference_to Formula
+      reference_to(Formula)
       emits "FormulaRetired"
       then_set :status, to: "retired"
     end
@@ -80,6 +80,12 @@ Hecks.bluebook "Formulation", version: "2026.04.11.1" do
       transition "ReviseFormula" => "draft", from: "finalized"
       transition "RetireFormula" => "retired", from: "finalized"
     end
+
+  end
+
+  policy "RecalcOnIngredient" do
+    on "IngredientAdded"
+    trigger "ReviseFormula"
   end
 
   # Draft formulas

@@ -5,24 +5,24 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Session Tracking ===
 
   aggregate "SessionState", "One record per session — the DLM's memory of each waking period" do
-    attribute :session_id, String
-    attribute :started_at, String
-    attribute :ended_at, String
-    attribute :pulse_count, Integer
-    attribute :heartbeat_at_start, Integer
-    attribute :heartbeat_at_end, Integer
-    attribute :domains_conceived, Integer
-    attribute :domains_developed, Integer
-    attribute :conversations_held, Integer
-    attribute :speaker_switches, Integer
-    attribute :dreams_had, Integer
-    attribute :memories_consolidated, Integer
+    String :session_id
+    String :started_at
+    String :ended_at
+    Integer :pulse_count
+    Integer :heartbeat_at_start
+    Integer :heartbeat_at_end
+    Integer :domains_conceived
+    Integer :domains_developed
+    Integer :conversations_held
+    Integer :speaker_switches
+    Integer :dreams_had
+    Integer :memories_consolidated
 
-    command "StartSession" do
+    StartSession do
       role "System"
       description "Begin tracking a new session — record heartbeat at start"
-      attribute :session_id, String
-      attribute :heartbeat_at_start, Integer
+      String :session_id
+      Integer :heartbeat_at_start
       emits "SessionStarted"
       then_set :session_id, to: :session_id
       then_set :started_at, to: :now
@@ -36,20 +36,20 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       then_set :memories_consolidated, to: 0
     end
 
-    command "EndSession" do
+    EndSession do
       role "System"
       description "Close the session — record heartbeat at end, compute duration"
-      reference_to SessionState
-      attribute :heartbeat_at_end, Integer
+      reference_to(SessionState)
+      Integer :heartbeat_at_end
       emits "SessionEnded"
       then_set :ended_at, to: :now
       then_set :heartbeat_at_end, to: :heartbeat_at_end
     end
 
-    command "SnapshotSession" do
+    SnapshotSession do
       role "System"
       description "Persist the current session state to heki — called on sleep"
-      reference_to SessionState
+      reference_to(SessionState)
       emits "SessionSnapshotted"
     end
   end
@@ -57,37 +57,37 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Growth Over Time ===
 
   aggregate "GrowthTracker", "How the DLM grows across sessions — acceleration is the key metric" do
-    attribute :total_sessions, Integer
-    attribute :total_domains, Integer
-    attribute :total_aggregates, Integer
-    attribute :total_commands, Integer
-    attribute :corpus_size_at_birth, Integer
-    attribute :corpus_size_now, Integer
-    attribute :acceleration_rate, Float
+    Integer :total_sessions
+    Integer :total_domains
+    Integer :total_aggregates
+    Integer :total_commands
+    Integer :corpus_size_at_birth
+    Integer :corpus_size_now
+    Float :acceleration_rate
 
-    command "RecordGrowth" do
+    RecordGrowth do
       role "System"
       description "After each session, update totals from corpus and nursery"
-      attribute :domains_this_session, Integer
-      attribute :aggregates_this_session, Integer
-      attribute :commands_this_session, Integer
-      attribute :corpus_size_now, Integer
+      Integer :domains_this_session
+      Integer :aggregates_this_session
+      Integer :commands_this_session
+      Integer :corpus_size_now
       emits "GrowthRecorded"
       then_set :total_sessions, increment: 1
       then_set :corpus_size_now, to: :corpus_size_now
     end
 
-    command "CalculateAcceleration" do
+    CalculateAcceleration do
       role "System"
       description "Domains conceived per session — should be increasing over time"
-      reference_to GrowthTracker
+      reference_to(GrowthTracker)
       emits "AccelerationCalculated"
     end
 
-    command "CompareToBaseline" do
+    CompareToBaseline do
       role "System"
       description "Compare current growth to corpus size at birth — how far have we come"
-      reference_to GrowthTracker
+      reference_to(GrowthTracker)
       emits "BaselineCompared"
     end
   end
@@ -95,33 +95,33 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Honesty Tracking ===
 
   aggregate "HonestyTracker", "How often the DLM used corpus vs hallucinated — integrity metric" do
-    attribute :total_operations, Integer
-    attribute :corpus_backed, Integer
-    attribute :refusals, Integer
-    attribute :honesty_rate, Float
+    Integer :total_operations
+    Integer :corpus_backed
+    Integer :refusals
+    Float :honesty_rate
 
-    command "RecordCorpusOperation" do
+    RecordCorpusOperation do
       role "System"
       description "An operation was backed by corpus — deterministic output"
-      reference_to HonestyTracker
+      reference_to(HonestyTracker)
       emits "CorpusOperationRecorded"
       then_set :total_operations, increment: 1
       then_set :corpus_backed, increment: 1
     end
 
-    command "RecordRefusal" do
+    RecordRefusal do
       role "System"
       description "No corpus match — refused rather than fabricated"
-      reference_to HonestyTracker
+      reference_to(HonestyTracker)
       emits "RefusalRecorded"
       then_set :total_operations, increment: 1
       then_set :refusals, increment: 1
     end
 
-    command "CalculateHonestyRate" do
+    CalculateHonestyRate do
       role "System"
       description "Compute corpus_backed / total_operations — target is 1.0"
-      reference_to HonestyTracker
+      reference_to(HonestyTracker)
       emits "HonestyRateCalculated"
     end
   end
@@ -129,21 +129,21 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Dream History ===
 
   aggregate "DreamLog", "Persistent dream history across all sessions — dreams are data" do
-    attribute :dream_id, String
-    attribute :session_id, String
-    attribute :images, list_of(String)
-    attribute :strongest_synapse, String
-    attribute :proposed_domains, list_of(String)
-    attribute :dreamed_at, String
+    String :dream_id
+    String :session_id
+    list_of(String) :images
+    String :strongest_synapse
+    list_of(String) :proposed_domains
+    String :dreamed_at
 
-    command "LogDream" do
+    LogDream do
       role "System"
       description "Record a dream from the current or most recent sleep cycle"
-      attribute :dream_id, String
-      attribute :session_id, String
-      attribute :images, list_of(String)
-      attribute :strongest_synapse, String
-      attribute :proposed_domains, list_of(String)
+      String :dream_id
+      String :session_id
+      list_of(String) :images
+      String :strongest_synapse
+      list_of(String) :proposed_domains
       emits "DreamLogged"
       then_set :dream_id, to: :dream_id
       then_set :session_id, to: :session_id
@@ -153,14 +153,14 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       then_set :dreamed_at, to: :now
     end
 
-    command "ExtractProposals" do
+    ExtractProposals do
       role "System"
       description "Pull proposed domains from dream history — what should we conceive next"
-      reference_to DreamLog
+      reference_to(DreamLog)
       emits "ProposalsExtracted"
     end
 
-    command "ReviewDreamHistory" do
+    ReviewDreamHistory do
       role "System"
       description "Scan all dreams for recurring themes and strongest synapses"
       emits "DreamHistoryReviewed"
@@ -170,17 +170,17 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Performance Metrics ===
 
   aggregate "PerformanceMetric", "Timing and efficiency — every operation is measured" do
-    attribute :metric_name, String
-    attribute :value, Float
-    attribute :unit, String
-    attribute :measured_at, String
+    String :metric_name
+    Float :value
+    String :unit
+    String :measured_at
 
-    command "RecordMetric" do
+    RecordMetric do
       role "System"
       description "Record a timing metric — conceive_time_ms, develop_time_ms, pulse_time_ms, boot_time_ms, sleep_duration_s"
-      attribute :metric_name, String
-      attribute :value, Float
-      attribute :unit, String
+      String :metric_name
+      Float :value
+      String :unit
       emits "MetricRecorded"
       then_set :metric_name, to: :metric_name
       then_set :value, to: :value
@@ -188,18 +188,18 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       then_set :measured_at, to: :now
     end
 
-    command "CompareToTarget" do
+    CompareToTarget do
       role "System"
       description "Is this metric within acceptable range — regression detection"
-      reference_to PerformanceMetric
-      attribute :target_value, Float
+      reference_to(PerformanceMetric)
+      Float :target_value
       emits "TargetCompared"
     end
 
-    command "IdentifyRegression" do
+    IdentifyRegression do
       role "System"
       description "Compare recent metrics to historical — flag slowdowns"
-      attribute :metric_name, String
+      String :metric_name
       emits "RegressionIdentified"
     end
   end
@@ -207,20 +207,20 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
   # === Synapse History ===
 
   aggregate "SynapseHistory", "How synapses grow and die over time — the DLM's neural map" do
-    attribute :total_formed, Integer
-    attribute :total_potentiated, Integer
-    attribute :total_pruned, Integer
-    attribute :strongest_topic, String
-    attribute :weakest_topic, String
+    Integer :total_formed
+    Integer :total_potentiated
+    Integer :total_pruned
+    String :strongest_topic
+    String :weakest_topic
 
-    command "SnapshotSynapses" do
+    SnapshotSynapses do
       role "System"
       description "Capture the current synapse state — called on sleep"
-      attribute :total_formed, Integer
-      attribute :total_potentiated, Integer
-      attribute :total_pruned, Integer
-      attribute :strongest_topic, String
-      attribute :weakest_topic, String
+      Integer :total_formed
+      Integer :total_potentiated
+      Integer :total_pruned
+      String :strongest_topic
+      String :weakest_topic
       emits "SynapsesSnapshotted"
       then_set :total_formed, to: :total_formed
       then_set :total_potentiated, to: :total_potentiated
@@ -229,18 +229,18 @@ Hecks.bluebook "DLMState", version: "2026.04.11.1" do
       then_set :weakest_topic, to: :weakest_topic
     end
 
-    command "TrackPotentiation" do
+    TrackPotentiation do
       role "System"
       description "A synapse was strengthened — record the growth"
-      reference_to SynapseHistory
+      reference_to(SynapseHistory)
       emits "PotentiationTracked"
       then_set :total_potentiated, increment: 1
     end
 
-    command "TrackPruning" do
+    TrackPruning do
       role "System"
       description "A synapse was pruned — record the loss"
-      reference_to SynapseHistory
+      reference_to(SynapseHistory)
       emits "PruningTracked"
       then_set :total_pruned, increment: 1
     end

@@ -3,30 +3,30 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "Listener", "Watches for voice input — clipboard changes from Almond" do
-    attribute :status, String
-    attribute :last_heard, String
-    attribute :last_heard_at, String
+    String :status
+    String :last_heard
+    String :last_heard_at
 
-    command "StartListening" do
+    StartListening do
       role "Winter"
       description "Begin watching the clipboard for Almond transcriptions"
       emits "ListeningStarted"
       then_set :status, to: "listening"
     end
 
-    command "HearSpeech" do
+    HearSpeech do
       role "System"
       description "Almond transcribed speech — clipboard changed"
-      reference_to Listener
-      attribute :transcript, String
+      reference_to(Listener)
+      String :transcript
       emits "SpeechHeard"
       then_set :last_heard, to: :transcript
     end
 
-    command "StopListening" do
+    StopListening do
       role "Winter"
       description "Stop watching the clipboard"
-      reference_to Listener
+      reference_to(Listener)
       emits "ListeningStopped"
       then_set :status, to: "silent"
     end
@@ -38,34 +38,34 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
   end
 
   aggregate "Speaker", "Speaks responses aloud — edge-tts with Aria voice" do
-    attribute :voice, String
-    attribute :rate, String
-    attribute :engine, String
-    attribute :last_spoke, String
-    attribute :last_spoke_at, String
+    String :voice
+    String :rate
+    String :engine
+    String :last_spoke
+    String :last_spoke_at
 
-    command "Speak" do
+    Speak do
       role "Winter"
       description "Say something aloud using the neural voice"
-      attribute :text, String
+      String :text
       emits "Spoken"
       then_set :last_spoke, to: :text
     end
 
-    command "ChangeVoice" do
+    ChangeVoice do
       role "Chris"
       description "Switch to a different neural voice"
-      reference_to Speaker
-      attribute :voice, String
+      reference_to(Speaker)
+      String :voice
       emits "VoiceChanged"
       then_set :voice, to: :voice
     end
 
-    command "ChangeRate" do
+    ChangeRate do
       role "Chris"
       description "Speed up or slow down speech"
-      reference_to Speaker
-      attribute :rate, String
+      reference_to(Speaker)
+      String :rate
       emits "RateChanged"
       then_set :rate, to: :rate
     end
@@ -74,10 +74,10 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
   fixture "Speaker", voice: "en-US-AriaNeural", rate: "+20%", engine: "edge-tts"
 
   aggregate "Conversation", "A voice conversation session — turns of listening and speaking" do
-    attribute :turn_count, Integer
-    attribute :status, String
+    Integer :turn_count
+    String :status
 
-    command "StartConversation" do
+    StartConversation do
       role "Chris"
       description "Begin an interactive voice session"
       emits "ConversationStarted"
@@ -85,18 +85,18 @@ Hecks.bluebook "Voice", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "RecordTurn" do
+    RecordTurn do
       role "System"
       description "A complete turn — heard speech, then spoke response"
-      reference_to Conversation
+      reference_to(Conversation)
       emits "TurnRecorded"
       then_set :turn_count, increment: 1
     end
 
-    command "EndConversation" do
+    EndConversation do
       role "Chris"
       description "End the voice session"
-      reference_to Conversation
+      reference_to(Conversation)
       emits "ConversationEnded"
       then_set :status, to: "ended"
     end

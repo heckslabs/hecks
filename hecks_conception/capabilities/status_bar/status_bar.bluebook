@@ -3,30 +3,30 @@ Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   category "infrastructure"
 
   aggregate "Display", "The rendered status line — assembled from Winter's state" do
-    attribute :sleep_line, String
-    attribute :main_line, String
-    attribute :separator, String
-    attribute :visible, String
+    String :sleep_line
+    String :main_line
+    String :separator
+    String :visible
 
-    command "RenderStatus" do
+    RenderStatus do
       role "System"
       description "Assemble the status display from current state"
       emits "StatusRendered"
     end
 
-    command "ShowSleepLine" do
+    ShowSleepLine do
       role "Daemon"
       description "Winter is sleeping — show cycle, stage, synapses, dreams"
-      attribute :sleep_line, String
+      String :sleep_line
       emits "SleepLineShown"
       then_set :sleep_line, to: :sleep_line
       then_set :visible, to: "sleeping"
     end
 
-    command "HideSleepLine" do
+    HideSleepLine do
       role "Daemon"
       description "Winter woke up — remove the sleep line"
-      reference_to Display
+      reference_to(Display)
       emits "SleepLineHidden"
       then_set :sleep_line, to: ""
       then_set :visible, to: "awake"
@@ -34,22 +34,22 @@ Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   end
 
   aggregate "SleepSegment", "The sleep portion of the status bar" do
-    attribute :cycle, Integer
-    attribute :total_cycles, Integer
-    attribute :stage, String
-    attribute :synapses_dreaming, Integer
-    attribute :total_dreams, Integer
-    attribute :lucid, String
+    Integer :cycle
+    Integer :total_cycles
+    String :stage
+    Integer :synapses_dreaming
+    Integer :total_dreams
+    String :lucid
 
-    command "UpdateSleepSegment" do
+    UpdateSleepSegment do
       role "Daemon"
       description "Update the sleep segment with current cycle state"
-      attribute :cycle, Integer
-      attribute :total_cycles, Integer
-      attribute :stage, String
-      attribute :synapses_dreaming, Integer
-      attribute :total_dreams, Integer
-      attribute :lucid, String
+      Integer :cycle
+      Integer :total_cycles
+      String :stage
+      Integer :synapses_dreaming
+      Integer :total_dreams
+      String :lucid
       emits "SleepSegmentUpdated"
       then_set :cycle, to: :cycle
       then_set :total_cycles, to: :total_cycles
@@ -61,16 +61,16 @@ Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   end
 
   aggregate "FatigueSegment", "The fatigue portion — shown when awake" do
-    attribute :state, String
-    attribute :pulses_awake, Integer
-    attribute :creativity, Float
+    String :state
+    Integer :pulses_awake
+    Float :creativity
 
-    command "UpdateFatigueSegment" do
+    UpdateFatigueSegment do
       role "System"
       description "Update fatigue display from pulse data"
-      attribute :state, String
-      attribute :pulses_awake, Integer
-      attribute :creativity, Float
+      String :state
+      Integer :pulses_awake
+      Float :creativity
       emits "FatigueSegmentUpdated"
       then_set :state, to: :state
       then_set :pulses_awake, to: :pulses_awake
@@ -79,22 +79,22 @@ Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   end
 
   aggregate "LucidSegment", "The lucid dream portion — realtime observations" do
-    attribute :observation, String
-    attribute :active, String
+    String :observation
+    String :active
 
-    command "ShowObservation" do
+    ShowObservation do
       role "Daemon"
       description "Display a lucid dream observation in the status bar"
-      attribute :observation, String
+      String :observation
       emits "ObservationShown"
       then_set :observation, to: :observation
       then_set :active, to: "yes"
     end
 
-    command "ClearObservation" do
+    ClearObservation do
       role "Daemon"
       description "Lucidity ended — clear the observation"
-      reference_to LucidSegment
+      reference_to(LucidSegment)
       emits "ObservationCleared"
       then_set :observation, to: ""
       then_set :active, to: "no"
@@ -102,25 +102,25 @@ Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
   end
 
   aggregate "Refresh", "How often the status bar polls for updates" do
-    attribute :interval_seconds, Integer
-    attribute :status_file, String
-    attribute :active, String
+    Integer :interval_seconds
+    String :status_file
+    String :active
 
-    command "StartRefresh" do
+    StartRefresh do
       role "System"
       description "Begin polling the status file on an interval"
-      attribute :interval_seconds, Integer
-      attribute :status_file, String
+      Integer :interval_seconds
+      String :status_file
       emits "RefreshStarted"
       then_set :interval_seconds, to: :interval_seconds
       then_set :status_file, to: :status_file
       then_set :active, to: "yes"
     end
 
-    command "StopRefresh" do
+    StopRefresh do
       role "System"
       description "Stop polling — Winter is awake"
-      reference_to Refresh
+      reference_to(Refresh)
       emits "RefreshStopped"
       then_set :active, to: "no"
     end

@@ -5,35 +5,35 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Particles ===
 
   aggregate "Particle", "A fundamental or composite particle — the building block of matter" do
-    attribute :name, String
-    attribute :mass, Float
-    attribute :charge, Float
-    attribute :spin, Float
-    attribute :particle_type, String
-    attribute :status, String
+    String :name
+    Float :mass
+    Float :charge
+    Float :spin
+    String :particle_type
+    String :status
 
     value_object "Position" do
-      attribute :x, Float
-      attribute :y, Float
-      attribute :z, Float
-      attribute :reference_frame, String
+      Float :x
+      Float :y
+      Float :z
+      String :reference_frame
     end
 
     value_object "Momentum" do
-      attribute :px, Float
-      attribute :py, Float
-      attribute :pz, Float
-      attribute :magnitude, Float
+      Float :px
+      Float :py
+      Float :pz
+      Float :magnitude
     end
 
-    command "CreateParticle" do
+    CreateParticle do
       role "Physicist"
       description "Instantiate a particle with mass, charge, and spin"
-      attribute :name, String
-      attribute :mass, Float
-      attribute :charge, Float
-      attribute :spin, Float
-      attribute :particle_type, String
+      String :name
+      Float :mass
+      Float :charge
+      Float :spin
+      String :particle_type
       emits "ParticleCreated"
       then_set :name, to: :name
       then_set :mass, to: :mass
@@ -43,41 +43,41 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "MeasurePosition" do
+    MeasurePosition do
       role "Physicist"
       description "Observe a particle's position — collapses position uncertainty"
-      reference_to Particle
-      attribute :x, Float
-      attribute :y, Float
-      attribute :z, Float
+      reference_to(Particle)
+      Float :x
+      Float :y
+      Float :z
       emits "PositionMeasured"
     end
 
-    command "MeasureMomentum" do
+    MeasureMomentum do
       role "Physicist"
       description "Observe a particle's momentum — collapses momentum uncertainty"
-      reference_to Particle
-      attribute :px, Float
-      attribute :py, Float
-      attribute :pz, Float
+      reference_to(Particle)
+      Float :px
+      Float :py
+      Float :pz
       emits "MomentumMeasured"
     end
 
-    command "Annihilate" do
+    Annihilate do
       role "Physicist"
       description "Particle meets antiparticle — both destroyed, energy released"
-      reference_to Particle
+      reference_to(Particle)
       given { status == "active" }
       emits "ParticleAnnihilated"
       then_set :status, to: "annihilated"
     end
 
-    command "Decay" do
+    Decay do
       role "System"
       description "Unstable particle transforms into lighter particles"
-      reference_to Particle
-      attribute :decay_mode, String
-      attribute :half_life, Float
+      reference_to(Particle)
+      String :decay_mode
+      Float :half_life
       given { status == "active" }
       emits "ParticleDecayed"
       then_set :status, to: "decayed"
@@ -93,31 +93,31 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Forces ===
 
   aggregate "Force", "A fundamental interaction — the cause of acceleration" do
-    attribute :name, String
-    attribute :force_type, String
-    attribute :magnitude, Float
-    attribute :direction_x, Float
-    attribute :direction_y, Float
-    attribute :direction_z, Float
-    attribute :source, String
-    attribute :target, String
+    String :name
+    String :force_type
+    Float :magnitude
+    Float :direction_x
+    Float :direction_y
+    Float :direction_z
+    String :source
+    String :target
 
     value_object "ForceComponent" do
-      attribute :axis, String
-      attribute :value, Float
+      String :axis
+      Float :value
     end
 
-    command "ApplyForce" do
+    ApplyForce do
       role "Physicist"
       description "Exert a force on a body — gravitational, electromagnetic, strong, or weak"
-      attribute :name, String
-      attribute :force_type, String
-      attribute :magnitude, Float
-      attribute :direction_x, Float
-      attribute :direction_y, Float
-      attribute :direction_z, Float
-      attribute :source, String
-      attribute :target, String
+      String :name
+      String :force_type
+      Float :magnitude
+      Float :direction_x
+      Float :direction_y
+      Float :direction_z
+      String :source
+      String :target
       emits "ForceApplied"
       then_set :name, to: :name
       then_set :force_type, to: :force_type
@@ -129,35 +129,35 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :target, to: :target
     end
 
-    command "CalculateMagnitude" do
+    CalculateMagnitude do
       role "System"
       description "Compute the magnitude of the force vector from its components"
-      reference_to Force
+      reference_to(Force)
       emits "MagnitudeCalculated"
     end
 
-    command "ResolveComponents" do
+    ResolveComponents do
       role "System"
       description "Decompose a force into orthogonal components along axes"
-      reference_to Force
+      reference_to(Force)
       emits "ComponentsResolved"
     end
 
-    command "FindEquilibrium" do
+    FindEquilibrium do
       role "Physicist"
       description "Determine the condition where net force equals zero"
-      reference_to Force
+      reference_to(Force)
       emits "EquilibriumFound"
     end
 
-    command "SuperposeForces" do
+    SuperposeForces do
       role "System"
       description "Add force vectors — the principle of superposition"
-      reference_to Force
-      attribute :other_magnitude, Float
-      attribute :other_direction_x, Float
-      attribute :other_direction_y, Float
-      attribute :other_direction_z, Float
+      reference_to(Force)
+      Float :other_magnitude
+      Float :other_direction_x
+      Float :other_direction_y
+      Float :other_direction_z
       emits "ForcesSuperposed"
     end
   end
@@ -165,32 +165,32 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Motion ===
 
   aggregate "Motion", "The kinematics of a body — displacement, velocity, acceleration, trajectory" do
-    attribute :body_name, String
-    attribute :displacement_x, Float
-    attribute :displacement_y, Float
-    attribute :displacement_z, Float
-    attribute :velocity_x, Float
-    attribute :velocity_y, Float
-    attribute :velocity_z, Float
-    attribute :acceleration_x, Float
-    attribute :acceleration_y, Float
-    attribute :acceleration_z, Float
-    attribute :status, String
+    String :body_name
+    Float :displacement_x
+    Float :displacement_y
+    Float :displacement_z
+    Float :velocity_x
+    Float :velocity_y
+    Float :velocity_z
+    Float :acceleration_x
+    Float :acceleration_y
+    Float :acceleration_z
+    String :status
 
     value_object "TrajectoryPoint" do
-      attribute :time, Float
-      attribute :x, Float
-      attribute :y, Float
-      attribute :z, Float
+      Float :time
+      Float :x
+      Float :y
+      Float :z
     end
 
-    command "InitiateMotion" do
+    InitiateMotion do
       role "Physicist"
       description "Set a body in motion with initial velocity"
-      attribute :body_name, String
-      attribute :velocity_x, Float
-      attribute :velocity_y, Float
-      attribute :velocity_z, Float
+      String :body_name
+      Float :velocity_x
+      Float :velocity_y
+      Float :velocity_z
       emits "MotionInitiated"
       then_set :body_name, to: :body_name
       then_set :velocity_x, to: :velocity_x
@@ -199,13 +199,13 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "moving"
     end
 
-    command "Accelerate" do
+    Accelerate do
       role "Physicist"
       description "Increase velocity — apply positive acceleration"
-      reference_to Motion
-      attribute :acceleration_x, Float
-      attribute :acceleration_y, Float
-      attribute :acceleration_z, Float
+      reference_to(Motion)
+      Float :acceleration_x
+      Float :acceleration_y
+      Float :acceleration_z
       given { status == "moving" }
       emits "BodyAccelerated"
       then_set :acceleration_x, to: :acceleration_x
@@ -213,32 +213,32 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :acceleration_z, to: :acceleration_z
     end
 
-    command "Decelerate" do
+    Decelerate do
       role "Physicist"
       description "Decrease velocity — apply negative acceleration until rest or slower"
-      reference_to Motion
-      attribute :deceleration_x, Float
-      attribute :deceleration_y, Float
-      attribute :deceleration_z, Float
+      reference_to(Motion)
+      Float :deceleration_x
+      Float :deceleration_y
+      Float :deceleration_z
       given { status == "moving" }
       emits "BodyDecelerated"
     end
 
-    command "CalculateTrajectory" do
+    CalculateTrajectory do
       role "System"
       description "Compute the path of a body through space over time"
-      reference_to Motion
-      attribute :time_duration, Float
-      attribute :time_step, Float
+      reference_to(Motion)
+      Float :time_duration
+      Float :time_step
       emits "TrajectoryCalculated"
     end
 
-    command "ApplyNewtonLaw" do
+    ApplyNewtonLaw do
       role "System"
       description "F = ma — compute acceleration from net force and mass"
-      reference_to Motion
-      attribute :net_force, Float
-      attribute :mass, Float
+      reference_to(Motion)
+      Float :net_force
+      Float :mass
       emits "NewtonLawApplied"
     end
 
@@ -251,27 +251,27 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Energy ===
 
   aggregate "Energy", "The capacity to do work — kinetic, potential, thermal, nuclear" do
-    attribute :name, String
-    attribute :energy_type, String
-    attribute :magnitude, Float
-    attribute :unit, String
-    attribute :source, String
-    attribute :status, String
+    String :name
+    String :energy_type
+    Float :magnitude
+    String :unit
+    String :source
+    String :status
 
     value_object "EnergyTransfer" do
-      attribute :from_system, String
-      attribute :to_system, String
-      attribute :amount, Float
-      attribute :mechanism, String
+      String :from_system
+      String :to_system
+      Float :amount
+      String :mechanism
     end
 
-    command "TransferEnergy" do
+    TransferEnergy do
       role "Physicist"
       description "Move energy from one system to another — work or heat"
-      attribute :name, String
-      attribute :energy_type, String
-      attribute :magnitude, Float
-      attribute :source, String
+      String :name
+      String :energy_type
+      Float :magnitude
+      String :source
       emits "EnergyTransferred"
       then_set :name, to: :name
       then_set :energy_type, to: :energy_type
@@ -280,41 +280,41 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "transferred"
     end
 
-    command "ConvertEnergy" do
+    ConvertEnergy do
       role "System"
       description "Transform energy from one form to another — kinetic to potential, etc."
-      reference_to Energy
-      attribute :target_type, String
-      attribute :efficiency, Float
+      reference_to(Energy)
+      String :target_type
+      Float :efficiency
       emits "EnergyConverted"
       then_set :energy_type, to: :target_type
     end
 
-    command "MeasureWork" do
+    MeasureWork do
       role "Physicist"
       description "W = F * d * cos(theta) — force through a displacement"
-      reference_to Energy
-      attribute :force, Float
-      attribute :displacement, Float
-      attribute :angle, Float
+      reference_to(Energy)
+      Float :force
+      Float :displacement
+      Float :angle
       emits "WorkMeasured"
     end
 
-    command "CalculateEfficiency" do
+    CalculateEfficiency do
       role "System"
       description "Ratio of useful output to total input — always less than one"
-      reference_to Energy
-      attribute :input_energy, Float
-      attribute :output_energy, Float
+      reference_to(Energy)
+      Float :input_energy
+      Float :output_energy
       emits "EfficiencyCalculated"
     end
 
-    command "ConserveEnergy" do
+    ConserveEnergy do
       role "System"
       description "Verify total energy is constant in an isolated system — first law"
-      reference_to Energy
-      attribute :total_before, Float
-      attribute :total_after, Float
+      reference_to(Energy)
+      Float :total_before
+      Float :total_after
       emits "EnergyConserved"
     end
   end
@@ -322,31 +322,31 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Waves ===
 
   aggregate "Wave", "A disturbance that transfers energy through space or a medium" do
-    attribute :name, String
-    attribute :wave_type, String
-    attribute :amplitude, Float
-    attribute :frequency, Float
-    attribute :wavelength, Float
-    attribute :speed, Float
-    attribute :medium, String
-    attribute :status, String
+    String :name
+    String :wave_type
+    Float :amplitude
+    Float :frequency
+    Float :wavelength
+    Float :speed
+    String :medium
+    String :status
 
     value_object "InterferencePattern" do
-      attribute :pattern_type, String
-      attribute :fringe_spacing, Float
-      attribute :max_intensity, Float
-      attribute :min_intensity, Float
+      String :pattern_type
+      Float :fringe_spacing
+      Float :max_intensity
+      Float :min_intensity
     end
 
-    command "PropagateWave" do
+    PropagateWave do
       role "Physicist"
       description "Launch a wave through a medium or vacuum"
-      attribute :name, String
-      attribute :wave_type, String
-      attribute :amplitude, Float
-      attribute :frequency, Float
-      attribute :wavelength, Float
-      attribute :medium, String
+      String :name
+      String :wave_type
+      Float :amplitude
+      Float :frequency
+      Float :wavelength
+      String :medium
       emits "WavePropagated"
       then_set :name, to: :name
       then_set :wave_type, to: :wave_type
@@ -357,46 +357,46 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "propagating"
     end
 
-    command "InterfereWaves" do
+    InterfereWaves do
       role "System"
       description "Two waves meet — constructive or destructive interference"
-      reference_to Wave
-      attribute :other_amplitude, Float
-      attribute :other_frequency, Float
-      attribute :phase_difference, Float
+      reference_to(Wave)
+      Float :other_amplitude
+      Float :other_frequency
+      Float :phase_difference
       emits "WavesInterfered"
     end
 
-    command "DiffractWave" do
+    DiffractWave do
       role "System"
       description "Wave bends around an obstacle or through a slit"
-      reference_to Wave
-      attribute :aperture_width, Float
+      reference_to(Wave)
+      Float :aperture_width
       emits "WaveDiffracted"
     end
 
-    command "ReflectWave" do
+    ReflectWave do
       role "System"
       description "Wave bounces off a boundary — angle of incidence equals angle of reflection"
-      reference_to Wave
-      attribute :angle_of_incidence, Float
+      reference_to(Wave)
+      Float :angle_of_incidence
       emits "WaveReflected"
     end
 
-    command "RefractWave" do
+    RefractWave do
       role "System"
       description "Wave changes direction crossing a boundary — Snell's law"
-      reference_to Wave
-      attribute :refractive_index_1, Float
-      attribute :refractive_index_2, Float
-      attribute :angle_of_incidence, Float
+      reference_to(Wave)
+      Float :refractive_index_1
+      Float :refractive_index_2
+      Float :angle_of_incidence
       emits "WaveRefracted"
     end
 
-    command "CalculateFrequency" do
+    CalculateFrequency do
       role "System"
       description "f = v / lambda — frequency from speed and wavelength"
-      reference_to Wave
+      reference_to(Wave)
       emits "FrequencyCalculated"
     end
   end
@@ -404,66 +404,66 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Fields ===
 
   aggregate "Field", "A region of influence — electric, magnetic, or gravitational" do
-    attribute :name, String
-    attribute :field_type, String
-    attribute :strength, Float
-    attribute :direction_x, Float
-    attribute :direction_y, Float
-    attribute :direction_z, Float
-    attribute :source_charge, Float
-    attribute :source_mass, Float
+    String :name
+    String :field_type
+    Float :strength
+    Float :direction_x
+    Float :direction_y
+    Float :direction_z
+    Float :source_charge
+    Float :source_mass
 
     value_object "FieldLine" do
-      attribute :start_x, Float
-      attribute :start_y, Float
-      attribute :start_z, Float
-      attribute :end_x, Float
-      attribute :end_y, Float
-      attribute :end_z, Float
-      attribute :density, Float
+      Float :start_x
+      Float :start_y
+      Float :start_z
+      Float :end_x
+      Float :end_y
+      Float :end_z
+      Float :density
     end
 
-    command "DefineField" do
+    DefineField do
       role "Physicist"
       description "Establish a field from a source — charge, current, or mass"
-      attribute :name, String
-      attribute :field_type, String
-      attribute :strength, Float
+      String :name
+      String :field_type
+      Float :strength
       emits "FieldDefined"
       then_set :name, to: :name
       then_set :field_type, to: :field_type
       then_set :strength, to: :strength
     end
 
-    command "MapFieldLines" do
+    MapFieldLines do
       role "System"
       description "Trace the direction and density of field lines from source to sink"
-      reference_to Field
+      reference_to(Field)
       emits "FieldLinesMapped"
     end
 
-    command "CalculateFlux" do
+    CalculateFlux do
       role "System"
       description "Compute total field passing through a surface — integral of field dot area"
-      reference_to Field
-      attribute :surface_area, Float
-      attribute :angle, Float
+      reference_to(Field)
+      Float :surface_area
+      Float :angle
       emits "FluxCalculated"
     end
 
-    command "ApplyGaussLaw" do
+    ApplyGaussLaw do
       role "System"
       description "Relate enclosed charge to total electric flux through a closed surface"
-      reference_to Field
-      attribute :enclosed_charge, Float
+      reference_to(Field)
+      Float :enclosed_charge
       emits "GaussLawApplied"
     end
 
-    command "InduceField" do
+    InduceField do
       role "System"
       description "Changing magnetic field induces electric field — Faraday's law"
-      reference_to Field
-      attribute :rate_of_change, Float
+      reference_to(Field)
+      Float :rate_of_change
       emits "FieldInduced"
     end
   end
@@ -471,28 +471,28 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Thermodynamics ===
 
   aggregate "ThermoSystem", "A thermodynamic system — temperature, heat, entropy, and the laws" do
-    attribute :name, String
-    attribute :temperature, Float
-    attribute :heat, Float
-    attribute :entropy, Float
-    attribute :internal_energy, Float
-    attribute :pressure, Float
-    attribute :volume, Float
-    attribute :status, String
+    String :name
+    Float :temperature
+    Float :heat
+    Float :entropy
+    Float :internal_energy
+    Float :pressure
+    Float :volume
+    String :status
 
     value_object "CarnotCycle" do
-      attribute :hot_reservoir, Float
-      attribute :cold_reservoir, Float
-      attribute :efficiency, Float
-      attribute :work_output, Float
+      Float :hot_reservoir
+      Float :cold_reservoir
+      Float :efficiency
+      Float :work_output
     end
 
-    command "TransferHeat" do
+    TransferHeat do
       role "Physicist"
       description "Move thermal energy from hot to cold — conduction, convection, or radiation"
-      attribute :name, String
-      attribute :heat, Float
-      attribute :temperature, Float
+      String :name
+      Float :heat
+      Float :temperature
       emits "HeatTransferred"
       then_set :name, to: :name
       then_set :heat, to: :heat
@@ -500,38 +500,38 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "MeasureTemperature" do
+    MeasureTemperature do
       role "Physicist"
       description "Determine the average kinetic energy of particles in the system"
-      reference_to ThermoSystem
-      attribute :temperature, Float
+      reference_to(ThermoSystem)
+      Float :temperature
       emits "TemperatureMeasured"
       then_set :temperature, to: :temperature
     end
 
-    command "CalculateEntropy" do
+    CalculateEntropy do
       role "System"
       description "dS = dQ/T — measure disorder change in the system"
-      reference_to ThermoSystem
-      attribute :entropy, Float
+      reference_to(ThermoSystem)
+      Float :entropy
       emits "EntropyCalculated"
       then_set :entropy, to: :entropy
     end
 
-    command "ApplyCarnot" do
+    ApplyCarnot do
       role "System"
       description "Calculate maximum efficiency of a heat engine between two reservoirs"
-      reference_to ThermoSystem
-      attribute :hot_reservoir, Float
-      attribute :cold_reservoir, Float
+      reference_to(ThermoSystem)
+      Float :hot_reservoir
+      Float :cold_reservoir
       emits "CarnotApplied"
     end
 
-    command "ReachThermalEquilibrium" do
+    ReachThermalEquilibrium do
       role "System"
       description "Two systems reach the same temperature — zeroth law"
-      reference_to ThermoSystem
-      attribute :equilibrium_temperature, Float
+      reference_to(ThermoSystem)
+      Float :equilibrium_temperature
       emits "ThermalEquilibriumReached"
       then_set :temperature, to: :equilibrium_temperature
       then_set :status, to: "equilibrium"
@@ -546,32 +546,32 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Quantum Mechanics ===
 
   aggregate "QuantumState", "A quantum mechanical state — wavefunction, superposition, entanglement" do
-    attribute :name, String
-    attribute :system_type, String
-    attribute :num_qubits, Integer
-    attribute :coherent, String
-    attribute :status, String
+    String :name
+    String :system_type
+    Integer :num_qubits
+    String :coherent
+    String :status
 
     value_object "Observable" do
-      attribute :name, String
-      attribute :operator, String
-      attribute :eigenvalue, Float
-      attribute :uncertainty, Float
+      String :name
+      String :operator
+      Float :eigenvalue
+      Float :uncertainty
     end
 
     value_object "EntanglementPair" do
-      attribute :particle_a, String
-      attribute :particle_b, String
-      attribute :bell_state, String
-      attribute :correlation, Float
+      String :particle_a
+      String :particle_b
+      String :bell_state
+      Float :correlation
     end
 
-    command "PrepareState" do
+    PrepareState do
       role "Physicist"
       description "Initialize a quantum system in a known state"
-      attribute :name, String
-      attribute :system_type, String
-      attribute :num_qubits, Integer
+      String :name
+      String :system_type
+      Integer :num_qubits
       emits "StatePrepared"
       then_set :name, to: :name
       then_set :system_type, to: :system_type
@@ -580,41 +580,41 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "prepared"
     end
 
-    command "SuperposeStates" do
+    SuperposeStates do
       role "Physicist"
       description "Put a quantum system into a superposition of basis states"
-      reference_to QuantumState
+      reference_to(QuantumState)
       given { coherent == "true" }
       emits "StatesSuperposed"
       then_set :status, to: "superposed"
     end
 
-    command "EntangleParticles" do
+    EntangleParticles do
       role "Physicist"
       description "Create quantum entanglement between two particles — nonlocal correlation"
-      reference_to QuantumState
-      attribute :particle_a, String
-      attribute :particle_b, String
-      attribute :bell_state, String
+      reference_to(QuantumState)
+      String :particle_a
+      String :particle_b
+      String :bell_state
       given { coherent == "true" }
       emits "ParticlesEntangled"
       then_set :status, to: "entangled"
     end
 
-    command "MeasureObservable" do
+    MeasureObservable do
       role "Physicist"
       description "Measure a quantum observable — eigenvalue obtained probabilistically"
-      reference_to QuantumState
-      attribute :observable_name, String
-      attribute :operator, String
+      reference_to(QuantumState)
+      String :observable_name
+      String :operator
       emits "ObservableMeasured"
     end
 
-    command "CollapseWavefunction" do
+    CollapseWavefunction do
       role "System"
       description "Measurement collapses superposition to a definite eigenstate"
-      reference_to QuantumState
-      attribute :measured_value, Float
+      reference_to(QuantumState)
+      Float :measured_value
       emits "WavefunctionCollapsed"
       then_set :coherent, to: "false"
       then_set :status, to: "collapsed"
@@ -633,71 +633,71 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Relativity ===
 
   aggregate "SpacetimeEvent", "An event in spacetime — relativity, frames, mass-energy equivalence" do
-    attribute :name, String
-    attribute :frame, String
-    attribute :time, Float
-    attribute :x, Float
-    attribute :y, Float
-    attribute :z, Float
-    attribute :proper_time, Float
-    attribute :gamma_factor, Float
+    String :name
+    String :frame
+    Float :time
+    Float :x
+    Float :y
+    Float :z
+    Float :proper_time
+    Float :gamma_factor
 
     value_object "LorentzTransform" do
-      attribute :relative_velocity, Float
-      attribute :gamma, Float
-      attribute :time_dilation, Float
-      attribute :length_contraction, Float
+      Float :relative_velocity
+      Float :gamma
+      Float :time_dilation
+      Float :length_contraction
     end
 
     value_object "Geodesic" do
-      attribute :start_time, Float
-      attribute :end_time, Float
-      attribute :curvature, Float
-      attribute :proper_length, Float
+      Float :start_time
+      Float :end_time
+      Float :curvature
+      Float :proper_length
     end
 
-    command "TransformFrame" do
+    TransformFrame do
       role "Physicist"
       description "Lorentz transform — convert coordinates between inertial frames"
-      attribute :name, String
-      attribute :frame, String
-      attribute :relative_velocity, Float
+      String :name
+      String :frame
+      Float :relative_velocity
       emits "FrameTransformed"
       then_set :name, to: :name
       then_set :frame, to: :frame
     end
 
-    command "CalculateTimeDilation" do
+    CalculateTimeDilation do
       role "System"
       description "Moving clocks run slow — dt' = gamma * dt"
-      reference_to SpacetimeEvent
-      attribute :velocity, Float
+      reference_to(SpacetimeEvent)
+      Float :velocity
       emits "TimeDilationCalculated"
     end
 
-    command "CurveSpacetime" do
+    CurveSpacetime do
       role "System"
       description "Mass-energy curves the geometry of spacetime — general relativity"
-      reference_to SpacetimeEvent
-      attribute :mass, Float
-      attribute :radius, Float
+      reference_to(SpacetimeEvent)
+      Float :mass
+      Float :radius
       emits "SpacetimeCurved"
     end
 
-    command "CalculateGeodesic" do
+    CalculateGeodesic do
       role "System"
       description "Find the straightest possible path through curved spacetime"
-      reference_to SpacetimeEvent
-      attribute :start_time, Float
-      attribute :end_time, Float
+      reference_to(SpacetimeEvent)
+      Float :start_time
+      Float :end_time
       emits "GeodesicCalculated"
     end
 
-    command "ConvertMassEnergy" do
+    ConvertMassEnergy do
       role "System"
       description "E = mc^2 — mass and energy are interchangeable"
-      reference_to SpacetimeEvent
-      attribute :mass, Float
+      reference_to(SpacetimeEvent)
+      Float :mass
       emits "MassEnergyConverted"
     end
   end
@@ -705,27 +705,27 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
   # === Electromagnetism ===
 
   aggregate "Circuit", "An electrical circuit — current, voltage, resistance, and induction" do
-    attribute :name, String
-    attribute :voltage, Float
-    attribute :current, Float
-    attribute :resistance, Float
-    attribute :power, Float
-    attribute :circuit_type, String
-    attribute :status, String
+    String :name
+    Float :voltage
+    Float :current
+    Float :resistance
+    Float :power
+    String :circuit_type
+    String :status
 
     value_object "CircuitElement" do
-      attribute :element_type, String
-      attribute :value, Float
-      attribute :unit, String
-      attribute :position, Integer
+      String :element_type
+      Float :value
+      String :unit
+      Integer :position
     end
 
-    command "BuildCircuit" do
+    BuildCircuit do
       role "Physicist"
       description "Assemble a circuit from components — resistors, capacitors, inductors"
-      attribute :name, String
-      attribute :circuit_type, String
-      attribute :voltage, Float
+      String :name
+      String :circuit_type
+      Float :voltage
       emits "CircuitBuilt"
       then_set :name, to: :name
       then_set :circuit_type, to: :circuit_type
@@ -733,41 +733,41 @@ Hecks.bluebook "Physics", version: "2026.04.11.1" do
       then_set :status, to: "open"
     end
 
-    command "ApplyOhmsLaw" do
+    ApplyOhmsLaw do
       role "System"
       description "V = IR — relate voltage, current, and resistance"
-      reference_to Circuit
-      attribute :voltage, Float
-      attribute :resistance, Float
+      reference_to(Circuit)
+      Float :voltage
+      Float :resistance
       emits "OhmsLawApplied"
       then_set :voltage, to: :voltage
       then_set :resistance, to: :resistance
     end
 
-    command "CalculateResistance" do
+    CalculateResistance do
       role "System"
       description "Compute total resistance — series or parallel combination"
-      reference_to Circuit
-      attribute :resistance, Float
+      reference_to(Circuit)
+      Float :resistance
       emits "ResistanceCalculated"
       then_set :resistance, to: :resistance
     end
 
-    command "InduceCurrent" do
+    InduceCurrent do
       role "System"
       description "Changing magnetic flux induces EMF and current — Faraday's law in circuits"
-      reference_to Circuit
-      attribute :flux_change, Float
-      attribute :time_interval, Float
+      reference_to(Circuit)
+      Float :flux_change
+      Float :time_interval
       emits "CurrentInduced"
     end
 
-    command "RadiateWave" do
+    RadiateWave do
       role "System"
       description "Accelerating charge radiates electromagnetic waves — Maxwell's prediction"
-      reference_to Circuit
-      attribute :frequency, Float
-      attribute :power, Float
+      reference_to(Circuit)
+      Float :frequency
+      Float :power
       emits "WaveRadiated"
       then_set :power, to: :power
     end

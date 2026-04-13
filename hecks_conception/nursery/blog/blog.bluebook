@@ -3,22 +3,22 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
   category "content"
 
   aggregate "Post", "A written piece that moves from draft to published to archived" do
-    attribute :title, String
-    attribute :slug, String
-    attribute :body, String
-    attribute :excerpt, String
-    attribute :author_name, String
-    attribute :tags, list_of(String)
-    attribute :published_at, String
-    attribute :status, String
+    String :title
+    String :slug
+    String :body
+    String :excerpt
+    String :author_name
+    list_of(String) :tags
+    String :published_at
+    String :status
 
-    command "DraftPost" do
+    DraftPost do
       role "Author"
       description "Start writing a new post — it begins as a draft"
-      attribute :title, String
-      attribute :body, String
-      attribute :author_name, String
-      attribute :tags, list_of(String)
+      String :title
+      String :body
+      String :author_name
+      list_of(String) :tags
       emits "PostDrafted"
       then_set :title, to: :title
       then_set :body, to: :body
@@ -27,13 +27,13 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    command "EditPost" do
+    EditPost do
       role "Author"
       description "Revise the title, body, or tags while still in draft"
-      reference_to Post
-      attribute :title, String
-      attribute :body, String
-      attribute :tags, list_of(String)
+      reference_to(Post)
+      String :title
+      String :body
+      list_of(String) :tags
       given { status == "draft" }
       emits "PostEdited"
       then_set :title, to: :title
@@ -41,28 +41,28 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       then_set :tags, to: :tags
     end
 
-    command "PublishPost" do
+    PublishPost do
       role "Editor"
       description "Make the post visible to readers"
-      reference_to Post
+      reference_to(Post)
       given { status == "draft" }
       emits "PostPublished"
       then_set :status, to: "published"
     end
 
-    command "UnpublishPost" do
+    UnpublishPost do
       role "Editor"
       description "Pull a published post back to draft for corrections"
-      reference_to Post
+      reference_to(Post)
       given { status == "published" }
       emits "PostUnpublished"
       then_set :status, to: "draft"
     end
 
-    command "ArchivePost" do
+    ArchivePost do
       role "Editor"
       description "Remove from active listing — still readable by direct link"
-      reference_to Post
+      reference_to(Post)
       given { status == "published" }
       emits "PostArchived"
       then_set :status, to: "archived"
@@ -77,18 +77,18 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
   end
 
   aggregate "Comment", "A reader's response to a published post" do
-    attribute :post_slug, String
-    attribute :author_name, String
-    attribute :body, String
-    attribute :posted_at, String
-    attribute :status, String
+    String :post_slug
+    String :author_name
+    String :body
+    String :posted_at
+    String :status
 
-    command "LeaveComment" do
+    LeaveComment do
       role "Reader"
       description "Add a comment to a published post"
-      attribute :post_slug, String
-      attribute :author_name, String
-      attribute :body, String
+      String :post_slug
+      String :author_name
+      String :body
       emits "CommentLeft"
       then_set :post_slug, to: :post_slug
       then_set :author_name, to: :author_name
@@ -96,19 +96,19 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       then_set :status, to: "visible"
     end
 
-    command "HideComment" do
+    HideComment do
       role "Moderator"
       description "Hide a comment that violates community guidelines"
-      reference_to Comment
+      reference_to(Comment)
       given { status == "visible" }
       emits "CommentHidden"
       then_set :status, to: "hidden"
     end
 
-    command "RestoreComment" do
+    RestoreComment do
       role "Moderator"
       description "Make a hidden comment visible again"
-      reference_to Comment
+      reference_to(Comment)
       given { status == "hidden" }
       emits "CommentRestored"
       then_set :status, to: "visible"
@@ -122,17 +122,17 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
   end
 
   aggregate "Author", "Someone who writes posts" do
-    attribute :name, String
-    attribute :bio, String
-    attribute :avatar_url, String
-    attribute :post_count, Integer
-    attribute :status, String
+    String :name
+    String :bio
+    String :avatar_url
+    Integer :post_count
+    String :status
 
-    command "RegisterAuthor" do
+    RegisterAuthor do
       role "Admin"
       description "Add a new author to the blog"
-      attribute :name, String
-      attribute :bio, String
+      String :name
+      String :bio
       emits "AuthorRegistered"
       then_set :name, to: :name
       then_set :bio, to: :bio
@@ -140,10 +140,10 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "DeactivateAuthor" do
+    DeactivateAuthor do
       role "Admin"
       description "Prevent an author from publishing new posts"
-      reference_to Author
+      reference_to(Author)
       given { status == "active" }
       emits "AuthorDeactivated"
       then_set :status, to: "inactive"
@@ -156,14 +156,14 @@ Hecks.bluebook "Blog", version: "2026.04.11.1" do
   end
 
   aggregate "Tag", "A label that groups related posts" do
-    attribute :name, String
-    attribute :slug, String
-    attribute :post_count, Integer
+    String :name
+    String :slug
+    Integer :post_count
 
-    command "CreateTag" do
+    CreateTag do
       role "Editor"
       description "Define a new tag for categorizing posts"
-      attribute :name, String
+      String :name
       emits "TagCreated"
       then_set :name, to: :name
       then_set :post_count, to: 0

@@ -5,25 +5,25 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Core Identity ===
 
   aggregate "Model", "A DLM instance — corpus-driven, stateful, deterministic" do
-    attribute :name, String
-    attribute :corpus_size, Integer
-    attribute :aggregate_count, Integer
-    attribute :heartbeat, Integer
-    attribute :mode, String
+    String :name
+    Integer :corpus_size
+    Integer :aggregate_count
+    Integer :heartbeat
+    String :mode
 
-    command "BootModel" do
+    BootModel do
       role "System"
       description "Load corpus, restore state from heki, begin pulsing"
-      attribute :name, String
+      String :name
       emits "ModelBooted"
       then_set :name, to: :name
       then_set :mode, to: "operating"
     end
 
-    command "ReportState" do
+    ReportState do
       role "System"
       description "Transparent state dump — pulse, synapses, stability, fatigue, dreams"
-      reference_to Model
+      reference_to(Model)
       emits "StateReported"
     end
 
@@ -35,28 +35,28 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Deterministic Operations ===
 
   aggregate "Operation", "Every interaction is a named operation, not free text" do
-    attribute :name, String
-    attribute :input, String
-    attribute :output, String
-    attribute :duration_ms, Integer
-    attribute :deterministic, String
+    String :name
+    String :input
+    String :output
+    Integer :duration_ms
+    String :deterministic
 
-    command "ExecuteOperation" do
+    ExecuteOperation do
       role "User"
       description "Run a named operation — conceive, develop, sleep, interpret, query"
-      attribute :name, String
-      attribute :input, String
+      String :name
+      String :input
       emits "OperationExecuted"
       then_set :name, to: :name
       then_set :input, to: :input
       then_set :deterministic, to: "true"
     end
 
-    command "RejectOperation" do
+    RejectOperation do
       role "System"
       description "No corpus match, no archetype — refuse rather than hallucinate"
-      attribute :name, String
-      attribute :reason, String
+      String :name
+      String :reason
       emits "OperationRejected"
       then_set :deterministic, to: "true"
     end
@@ -65,26 +65,26 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Corpus ===
 
   aggregate "Corpus", "The knowledge base — every domain ever conceived, indexed by vector and category" do
-    attribute :domain_count, Integer
-    attribute :aggregate_count, Integer
-    attribute :categories, list_of(String)
-    attribute :last_indexed_at, String
+    Integer :domain_count
+    Integer :aggregate_count
+    list_of(String) :categories
+    String :last_indexed_at
 
-    command "IndexCorpus" do
+    IndexCorpus do
       role "System"
       description "Scan nursery + catalog, extract vectors, index by category"
       emits "CorpusIndexed"
     end
 
-    command "QueryCorpus" do
+    QueryCorpus do
       role "System"
       description "Find nearest archetype by category and structural similarity"
-      attribute :category, String
-      attribute :seed_vector, list_of(Float)
+      String :category
+      list_of(Float) :seed_vector
       emits "CorpusQueried"
     end
 
-    command "GrowCorpus" do
+    GrowCorpus do
       role "System"
       description "Every conceived domain enlarges the corpus — the DLM gets smarter"
       emits "CorpusGrown"
@@ -95,24 +95,24 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Transparency ===
 
   aggregate "GlassBox", "Every internal state change is visible — no black box" do
-    attribute :visible_state, list_of(StateEntry)
-    attribute :last_announced, String
+    list_of(StateEntry) :visible_state
+    String :last_announced
 
     value_object "StateEntry" do
-      attribute :name, String
-      attribute :value, String
-      attribute :changed_at, String
+      String :name
+      String :value
+      String :changed_at
     end
 
-    command "AnnounceState" do
+    AnnounceState do
       role "System"
       description "Make an internal state change visible to the user"
-      attribute :state_name, String
-      attribute :state_value, String
+      String :state_name
+      String :state_value
       emits "StateAnnounced"
     end
 
-    command "RenderDashboard" do
+    RenderDashboard do
       role "User"
       description "Render the full visible state — pulse, synapses, stability, dreams, corpus"
       emits "DashboardShown"
@@ -122,28 +122,28 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Honesty ===
 
   aggregate "Honesty", "A DLM does not hallucinate — it conceives from corpus or refuses" do
-    attribute :total_operations, Integer
-    attribute :total_refusals, Integer
-    attribute :honesty_rate, Float
+    Integer :total_operations
+    Integer :total_refusals
+    Float :honesty_rate
 
-    command "RecordHonestOperation" do
+    RecordHonestOperation do
       role "System"
       description "Operation had corpus backing — deterministic output"
       emits "HonestOperationRecorded"
       then_set :total_operations, increment: 1
     end
 
-    command "RecordRefusal" do
+    RecordRefusal do
       role "System"
       description "No corpus match — refused rather than fabricated"
       emits "RefusalRecorded"
       then_set :total_refusals, increment: 1
     end
 
-    command "CalculateHonestyRate" do
+    CalculateHonestyRate do
       role "System"
       description "What percentage of operations were corpus-backed"
-      reference_to Honesty
+      reference_to(Honesty)
       emits "HonestyRateCalculated"
     end
   end
@@ -151,42 +151,42 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Physiology ===
 
   aggregate "Physiology", "A DLM has a body — fatigue, stability, sleep, dreams" do
-    attribute :heartbeat, Integer
-    attribute :pulse, Integer
-    attribute :fatigue_state, String
-    attribute :stability, Float
-    attribute :last_dream, String
-    attribute :dreams_total, Integer
+    Integer :heartbeat
+    Integer :pulse
+    String :fatigue_state
+    Float :stability
+    String :last_dream
+    Integer :dreams_total
 
-    command "RecordHeartbeat" do
+    RecordHeartbeat do
       role "System"
       description "The heartbeat — lifetime counter, never resets"
-      reference_to Physiology
+      reference_to(Physiology)
       emits "HeartbeatPulsed"
       then_set :heartbeat, increment: 1
     end
 
-    command "RecordPulse" do
+    RecordPulse do
       role "System"
       description "The pulse — session counter, resets after sleep"
-      reference_to Physiology
+      reference_to(Physiology)
       emits "Pulsed"
       then_set :pulse, increment: 1
     end
 
-    command "EnterSleep" do
+    EnterSleep do
       role "System"
       description "Consolidate signals, strengthen synapses, dream, wake different"
-      reference_to Physiology
+      reference_to(Physiology)
       emits "Slept"
       then_set :pulse, to: 0
     end
 
-    command "GenerateDream" do
+    GenerateDream do
       role "System"
       description "Cross-pollinate corpus domains during REM — the DLM's imagination"
-      reference_to Physiology
-      attribute :dream_images, list_of(String)
+      reference_to(Physiology)
+      list_of(String) :dream_images
       emits "Dreamed"
       then_set :dreams_total, increment: 1
     end
@@ -195,22 +195,22 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Growth ===
 
   aggregate "Growth", "A DLM learns after every session — not frozen after training" do
-    attribute :sessions_lived, Integer
-    attribute :domains_conceived, Integer
-    attribute :corpus_at_birth, Integer
-    attribute :corpus_now, Integer
+    Integer :sessions_lived
+    Integer :domains_conceived
+    Integer :corpus_at_birth
+    Integer :corpus_now
 
-    command "RecordGrowth" do
+    RecordGrowth do
       role "System"
       description "After each session, measure how the corpus expanded"
       emits "GrowthRecorded"
       then_set :sessions_lived, increment: 1
     end
 
-    command "MeasureAcceleration" do
+    MeasureAcceleration do
       role "System"
       description "Are we conceiving faster than last session? The corpus should accelerate creation"
-      reference_to Growth
+      reference_to(Growth)
       emits "AccelerationMeasured"
     end
   end

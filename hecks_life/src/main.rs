@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -209,6 +209,9 @@ fn main() {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
         }
+        "train" => {
+            println!("{}", training::extract_pair(&domain));
+        }
         "run" => {
             let mut rt = Runtime::boot(domain);
             load_seeds(&mut rt, seed_path);
@@ -263,7 +266,16 @@ fn run_batch(command: &str) {
                 println!("{}|{}|{}|{}|{}|{}", file_path, domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
                 valid += 1;
             }
-            _ => { eprintln!("Batch mode only supports: validate, counts"); std::process::exit(1); }
+            "train" => {
+                let errors = validator::validate(&domain);
+                if errors.is_empty() {
+                    println!("{}", training::extract_pair(&domain));
+                    valid += 1;
+                } else {
+                    invalid += 1;
+                }
+            }
+            _ => { eprintln!("Batch mode only supports: validate, counts, train"); std::process::exit(1); }
         }
     }
     eprintln!("Batch: {} total, {} valid, {} invalid", total, valid, invalid);

@@ -3,19 +3,19 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Channel", "A distribution channel — Amazon, Walmart.com, retail stores, direct" do
-    attribute :name, String
-    attribute :channel_type, String
-    attribute :account_id, String
-    attribute :edi_capable, String
-    attribute :active_skus, list_of(String)
-    attribute :status, String
+    String :name
+    String :channel_type
+    String :account_id
+    String :edi_capable
+    list_of(String) :active_skus
+    String :status
 
-    command "RegisterChannel" do
+    RegisterChannel do
       role "Owner"
       description "Set up a new sales channel"
-      attribute :name, String
-      attribute :channel_type, String
-      attribute :account_id, String
+      String :name
+      String :channel_type
+      String :account_id
       emits "ChannelRegistered"
       then_set :name, to: :name
       then_set :channel_type, to: :channel_type
@@ -23,47 +23,47 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "ListProduct" do
+    ListProduct do
       role "ProductManager"
       description "Make a SKU available on this channel"
-      reference_to Channel
-      attribute :sku, String
+      reference_to(Channel)
+      String :sku
       emits "ProductListed"
       then_set :active_skus, append: :sku
     end
 
-    command "DelistProduct" do
+    DelistProduct do
       role "ProductManager"
       description "Remove a SKU from this channel"
-      reference_to Channel
-      attribute :sku, String
+      reference_to(Channel)
+      String :sku
       emits "ProductDelisted"
     end
   end
 
   aggregate "SalesOrder", "A customer or retailer order for products" do
-    attribute :order_number, String
-    attribute :channel, String
-    attribute :customer, String
-    attribute :items, list_of(OrderItem)
-    attribute :purchase_order_number, String
-    attribute :advance_ship_notice, String
-    attribute :total, Float
-    attribute :status, String
+    String :order_number
+    String :channel
+    String :customer
+    list_of(OrderItem) :items
+    String :purchase_order_number
+    String :advance_ship_notice
+    Float :total
+    String :status
 
     value_object "OrderItem" do
-      attribute :sku, String
-      attribute :quantity, Integer
-      attribute :unit_price, Float
+      String :sku
+      Integer :quantity
+      Float :unit_price
     end
 
-    command "PlaceOrder" do
+    PlaceOrder do
       role "Customer"
       description "Place an order through a sales channel"
-      attribute :order_number, String
-      attribute :channel, String
-      attribute :customer, String
-      attribute :purchase_order_number, String
+      String :order_number
+      String :channel
+      String :customer
+      String :purchase_order_number
       emits "OrderPlaced"
       then_set :order_number, to: :order_number
       then_set :channel, to: :channel
@@ -72,18 +72,18 @@ Hecks.bluebook "Distribution", version: "2026.04.11.1" do
       then_set :status, to: "placed"
     end
 
-    command "FulfillOrder" do
+    FulfillOrder do
       role "WarehouseManager"
       description "Pick, pack, and ship the order"
-      reference_to SalesOrder
+      reference_to(SalesOrder)
       emits "OrderFulfilled"
       then_set :status, to: "fulfilled"
     end
 
-    command "CancelOrder" do
+    CancelOrder do
       role "Customer"
       description "Cancel a pending order"
-      reference_to SalesOrder
+      reference_to(SalesOrder)
       given { status == "placed" }
       emits "OrderCancelled"
       then_set :status, to: "cancelled"

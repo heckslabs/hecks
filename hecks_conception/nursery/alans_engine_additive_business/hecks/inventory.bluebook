@@ -3,61 +3,61 @@ Hecks.bluebook "Inventory", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Inventory", "Stock levels across warehouses and fulfillment centers" do
-    attribute :sku, String
-    attribute :warehouse, String
-    attribute :quantity_on_hand, Integer
-    attribute :quantity_reserved, Integer
-    attribute :quantity_available, Integer
-    attribute :reorder_point, Integer
-    attribute :safety_stock, Integer
-    attribute :weeks_of_supply, Float
-    attribute :bin_location, String
+    String :sku
+    String :warehouse
+    Integer :quantity_on_hand
+    Integer :quantity_reserved
+    Integer :quantity_available
+    Integer :reorder_point
+    Integer :safety_stock
+    Float :weeks_of_supply
+    String :bin_location
 
-    command "ReceiveStock" do
+    ReceiveStock do
       role "WarehouseManager"
       description "Add inventory from a manufacturing order or transfer"
-      attribute :sku, String
-      attribute :warehouse, String
-      attribute :quantity, Integer
+      String :sku
+      String :warehouse
+      Integer :quantity
       emits "StockReceived"
       then_set :sku, to: :sku
       then_set :warehouse, to: :warehouse
       then_set :quantity_on_hand, increment: :quantity
     end
 
-    command "ReserveStock" do
+    ReserveStock do
       role "System"
       description "Hold inventory for a pending order"
-      reference_to Inventory
-      attribute :quantity, Integer
+      reference_to(Inventory)
+      Integer :quantity
       given { quantity_available > 0 }
       emits "StockReserved"
       then_set :quantity_reserved, increment: :quantity
     end
 
-    command "ShipStock" do
+    ShipStock do
       role "WarehouseManager"
       description "Ship reserved inventory — decrement on-hand and reserved"
-      reference_to Inventory
-      attribute :quantity, Integer
+      reference_to(Inventory)
+      Integer :quantity
       emits "StockShipped"
       then_set :quantity_on_hand, decrement: :quantity
       then_set :quantity_reserved, decrement: :quantity
     end
 
-    command "AdjustInventory" do
+    AdjustInventory do
       role "WarehouseManager"
       description "Manual adjustment — count correction, damage, shrinkage"
-      reference_to Inventory
-      attribute :adjustment, Integer
-      attribute :reason, String
+      reference_to(Inventory)
+      Integer :adjustment
+      String :reason
       emits "InventoryAdjusted"
     end
 
-    command "TriggerReorder" do
+    TriggerReorder do
       role "System"
       description "Stock fell below reorder point — signal to place a manufacturing order"
-      reference_to Inventory
+      reference_to(Inventory)
       given { quantity_available <= reorder_point }
       emits "ReorderTriggered"
     end

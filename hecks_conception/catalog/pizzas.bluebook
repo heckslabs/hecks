@@ -4,42 +4,44 @@ Hecks.bluebook "Pizzas" do
 
   aggregate "Pizza" do
     description "A pizza with toppings, pricing, and menu visibility"
-    attribute :name
-    attribute :description
-    attribute :toppings, Topping
+    String :name
+    String :description
+    Topping :toppings
 
     value_object "Topping" do
-      attribute :name
-      attribute :amount, Integer
+      String :name
+      Integer :amount
       invariant "amount must be positive" do
         amount > 0
       end
     end
 
     value_object "Price" do
-      attribute :cents, Integer
+      Integer :cents
       attribute :currency, default: "USD"
       invariant "must be non-negative" do
         cents >= 0
       end
     end
 
-    command "CreatePizza" do
+    CreatePizza do
       role "Chef"
       goal "Add a new pizza to the menu"
-      attribute :name
-      attribute :description
+      String :name
+      String :description
+      emits "PizzaCreated"
     end
 
-    command "AddTopping" do
+    AddTopping do
       role "Chef"
       goal "Customize a pizza with ingredients"
-      reference_to Pizza
-      attribute :name
-      attribute :amount, Integer
+      reference_to(Pizza)
+      String :name
+      Integer :amount
 
       given("max 10 toppings") { toppings.size < 10 }
       then_set :toppings, append: { name: :name, amount: :amount }
+      emits "ToppingAdded"
     end
 
     query "ByDescription" do |desc|
@@ -49,12 +51,12 @@ Hecks.bluebook "Pizzas" do
 
   aggregate "Order" do
     description "A customer order referencing a pizza with status tracking"
-    attribute :customer_name
-    attribute :items, OrderItem
-    reference_to Pizza
+    String :customer_name
+    OrderItem :items
+    reference_to(Pizza)
 
     value_object "OrderItem" do
-      attribute :quantity, Integer
+      Integer :quantity
       invariant "quantity must be positive" do
         quantity > 0
       end
@@ -68,18 +70,20 @@ Hecks.bluebook "Pizzas" do
       transition "CancelOrder" => "cancelled"
     end
 
-    command "PlaceOrder" do
+    PlaceOrder do
       role "Customer"
       goal "Order a pizza for delivery or pickup"
-      reference_to Pizza
-      attribute :customer_name
-      attribute :quantity, Integer
+      reference_to(Pizza)
+      String :customer_name
+      Integer :quantity
+      emits "OrderPlaced"
     end
 
-    command "CancelOrder" do
+    CancelOrder do
       role "Customer"
       goal "Cancel a pending order before preparation starts"
-      reference_to Order
+      reference_to(Order)
+      emits "OrderCancelled"
     end
 
     query "Pending" do

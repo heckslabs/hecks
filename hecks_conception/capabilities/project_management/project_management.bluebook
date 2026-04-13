@@ -3,27 +3,27 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "Feature", "A thing to build — replaces Linear issues, linked to bluebook domains" do
-    attribute :title, String
-    attribute :description, String
-    attribute :domain_name, String
-    attribute :category, String
-    attribute :priority, String
-    attribute :status, String
-    attribute :assignee, String
-    attribute :labels, list_of(String)
-    attribute :created_at, String
-    attribute :completed_at, String
+    String :title
+    String :description
+    String :domain_name
+    String :category
+    String :priority
+    String :status
+    String :assignee
+    list_of(String) :labels
+    String :created_at
+    String :completed_at
 
-    command "CreateFeature" do
+    CreateFeature do
       role "Chris"
       description "Define a new feature to build — must have a title and category"
-      attribute :title, String
-      attribute :description, String
-      attribute :domain_name, String
-      attribute :category, String
-      attribute :priority, String
-      attribute :assignee, String
-      attribute :labels, list_of(String)
+      String :title
+      String :description
+      String :domain_name
+      String :category
+      String :priority
+      String :assignee
+      list_of(String) :labels
       emits "FeatureCreated"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -35,52 +35,52 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :status, to: "backlog"
     end
 
-    command "AssignFeature" do
+    AssignFeature do
       role "Chris"
       description "Assign or reassign a feature to someone"
-      reference_to Feature
-      attribute :assignee, String
+      reference_to(Feature)
+      String :assignee
       emits "FeatureAssigned"
       then_set :assignee, to: :assignee
     end
 
-    command "LabelFeature" do
+    LabelFeature do
       role "Chris"
       description "Add a label to a feature for filtering and grouping"
-      reference_to Feature
-      attribute :label, String
+      reference_to(Feature)
+      String :label
       emits "FeatureLabeled"
       then_set :labels, append: :label
     end
 
-    command "StartFeature" do
+    StartFeature do
       role "Chris"
       description "Begin work on a feature — moves from prioritized to in progress"
-      reference_to Feature
+      reference_to(Feature)
       emits "FeatureStarted"
       then_set :status, to: "in_progress"
     end
 
-    command "CompleteFeature" do
+    CompleteFeature do
       role "Chris"
       description "Mark a feature as done — records completion time"
-      reference_to Feature
+      reference_to(Feature)
       emits "FeatureCompleted"
       then_set :status, to: "completed"
     end
 
-    command "DeferFeature" do
+    DeferFeature do
       role "Chris"
       description "Push a feature to later — not cancelled, just not now"
-      reference_to Feature
+      reference_to(Feature)
       emits "FeatureDeferred"
       then_set :status, to: "deferred"
     end
 
-    command "CancelFeature" do
+    CancelFeature do
       role "Chris"
       description "Cancel a feature — it will not be built"
-      reference_to Feature
+      reference_to(Feature)
       emits "FeatureCancelled"
       then_set :status, to: "cancelled"
     end
@@ -100,20 +100,20 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   end
 
   aggregate "Sprint", "A focused work period — optional batching of features" do
-    attribute :name, String
-    attribute :goal, String
-    attribute :start_date, String
-    attribute :end_date, String
-    attribute :features, list_of(String)
-    attribute :status, String
+    String :name
+    String :goal
+    String :start_date
+    String :end_date
+    list_of(String) :features
+    String :status
 
-    command "PlanSprint" do
+    PlanSprint do
       role "Chris"
       description "Create a new sprint with a name and goal"
-      attribute :name, String
-      attribute :goal, String
-      attribute :start_date, String
-      attribute :end_date, String
+      String :name
+      String :goal
+      String :start_date
+      String :end_date
       emits "SprintPlanned"
       then_set :name, to: :name
       then_set :goal, to: :goal
@@ -122,35 +122,35 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :status, to: "planning"
     end
 
-    command "AddToSprint" do
+    AddToSprint do
       role "Chris"
       description "Add a feature to this sprint"
-      reference_to Sprint
-      attribute :feature_id, String
+      reference_to(Sprint)
+      String :feature_id
       emits "FeatureAddedToSprint"
       then_set :features, append: :feature_id
     end
 
-    command "StartSprint" do
+    StartSprint do
       role "Chris"
       description "Begin the sprint — lock the feature list and start working"
-      reference_to Sprint
+      reference_to(Sprint)
       emits "SprintStarted"
       then_set :status, to: "active"
     end
 
-    command "CompleteSprint" do
+    CompleteSprint do
       role "Chris"
       description "End the sprint — all committed features should be done"
-      reference_to Sprint
+      reference_to(Sprint)
       emits "SprintCompleted"
       then_set :status, to: "completed"
     end
 
-    command "ReviewSprint" do
+    ReviewSprint do
       role "Chris"
       description "Reflect on the sprint — what shipped, what slipped, what learned"
-      reference_to Sprint
+      reference_to(Sprint)
       emits "SprintReviewed"
       then_set :status, to: "reviewed"
     end
@@ -164,61 +164,61 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   end
 
   aggregate "Priority", "A feature's rank in the backlog — ordered by importance" do
-    attribute :feature_id, String
-    attribute :rank, Integer
-    attribute :reason, String
+    String :feature_id
+    Integer :rank
+    String :reason
 
-    command "PrioritizeFeature" do
+    PrioritizeFeature do
       role "Chris"
       description "Add a feature to the priority backlog with a rank and reason"
-      attribute :feature_id, String
-      attribute :rank, Integer
-      attribute :reason, String
+      String :feature_id
+      Integer :rank
+      String :reason
       emits "FeaturePrioritized"
       then_set :feature_id, to: :feature_id
       then_set :rank, to: :rank
       then_set :reason, to: :reason
     end
 
-    command "ReorderFeature" do
+    ReorderFeature do
       role "Chris"
       description "Change a feature's rank — reorder the backlog"
-      reference_to Priority
-      attribute :rank, Integer
-      attribute :reason, String
+      reference_to(Priority)
+      Integer :rank
+      String :reason
       emits "FeatureReordered"
       then_set :rank, to: :rank
       then_set :reason, to: :reason
     end
 
-    command "RemoveFromBacklog" do
+    RemoveFromBacklog do
       role "Chris"
       description "Remove a feature from the priority backlog entirely"
-      reference_to Priority
+      reference_to(Priority)
       emits "RemovedFromBacklog"
     end
   end
 
   aggregate "Dependency", "One feature blocks another — tracks blockers" do
-    attribute :feature_id, String
-    attribute :blocked_by, String
-    attribute :status, String
+    String :feature_id
+    String :blocked_by
+    String :status
 
-    command "RecordDependency" do
+    RecordDependency do
       role "Chris"
       description "Record that one feature is blocked by another"
-      attribute :feature_id, String
-      attribute :blocked_by, String
+      String :feature_id
+      String :blocked_by
       emits "DependencyRecorded"
       then_set :feature_id, to: :feature_id
       then_set :blocked_by, to: :blocked_by
       then_set :status, to: "blocking"
     end
 
-    command "ResolveDependency" do
+    ResolveDependency do
       role "Chris"
       description "The blocking feature is done — dependency resolved"
-      reference_to Dependency
+      reference_to(Dependency)
       emits "DependencyResolved"
       then_set :status, to: "resolved"
     end
@@ -230,17 +230,17 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   end
 
   aggregate "Milestone", "A significant checkpoint — groups features toward a goal" do
-    attribute :name, String
-    attribute :target_date, String
-    attribute :features, list_of(String)
-    attribute :status, String
-    attribute :progress_pct, Float
+    String :name
+    String :target_date
+    list_of(String) :features
+    String :status
+    Float :progress_pct
 
-    command "CreateMilestone" do
+    CreateMilestone do
       role "Chris"
       description "Define a milestone with a name and target date"
-      attribute :name, String
-      attribute :target_date, String
+      String :name
+      String :target_date
       emits "MilestoneCreated"
       then_set :name, to: :name
       then_set :target_date, to: :target_date
@@ -248,28 +248,28 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :progress_pct, to: 0.0
     end
 
-    command "AddFeatureToMilestone" do
+    AddFeatureToMilestone do
       role "Chris"
       description "Link a feature to this milestone"
-      reference_to Milestone
-      attribute :feature_id, String
+      reference_to(Milestone)
+      String :feature_id
       emits "FeatureAddedToMilestone"
       then_set :features, append: :feature_id
     end
 
-    command "CalculateProgress" do
+    CalculateProgress do
       role "System"
       description "Recompute milestone progress based on completed features"
-      reference_to Milestone
-      attribute :progress_pct, Float
+      reference_to(Milestone)
+      Float :progress_pct
       emits "ProgressCalculated"
       then_set :progress_pct, to: :progress_pct
     end
 
-    command "CompleteMilestone" do
+    CompleteMilestone do
       role "Chris"
       description "Mark the milestone as achieved"
-      reference_to Milestone
+      reference_to(Milestone)
       emits "MilestoneCompleted"
       then_set :status, to: "completed"
       then_set :progress_pct, to: 100.0
@@ -284,18 +284,18 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   end
 
   aggregate "DomainLink", "Every feature links to a bluebook domain — the key differentiator vs Linear" do
-    attribute :feature_id, String
-    attribute :domain_name, String
-    attribute :aggregate_name, String
-    attribute :reason, String
+    String :feature_id
+    String :domain_name
+    String :aggregate_name
+    String :reason
 
-    command "LinkToDomain" do
+    LinkToDomain do
       role "System"
       description "Link a feature to a bluebook domain — features are domain-aware"
-      attribute :feature_id, String
-      attribute :domain_name, String
-      attribute :aggregate_name, String
-      attribute :reason, String
+      String :feature_id
+      String :domain_name
+      String :aggregate_name
+      String :reason
       emits "LinkedToDomain"
       then_set :feature_id, to: :feature_id
       then_set :domain_name, to: :domain_name
@@ -303,28 +303,28 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :reason, to: :reason
     end
 
-    command "UnlinkFromDomain" do
+    UnlinkFromDomain do
       role "Chris"
       description "Remove a domain link from a feature"
-      reference_to DomainLink
+      reference_to(DomainLink)
       emits "UnlinkedFromDomain"
     end
   end
 
   aggregate "WorkLog", "What was actually done — time, description, and commit linkage" do
-    attribute :feature_id, String
-    attribute :description, String
-    attribute :duration_minutes, Integer
-    attribute :logged_at, String
-    attribute :commit_sha, String
+    String :feature_id
+    String :description
+    Integer :duration_minutes
+    String :logged_at
+    String :commit_sha
 
-    command "LogWork" do
+    LogWork do
       role "Chris"
       description "Record work done on a feature — what and how long"
-      attribute :feature_id, String
-      attribute :description, String
-      attribute :duration_minutes, Integer
-      attribute :logged_at, String
+      String :feature_id
+      String :description
+      Integer :duration_minutes
+      String :logged_at
       emits "WorkLogged"
       then_set :feature_id, to: :feature_id
       then_set :description, to: :description
@@ -332,11 +332,11 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       then_set :logged_at, to: :logged_at
     end
 
-    command "LinkCommit" do
+    LinkCommit do
       role "System"
       description "Attach a git commit SHA to a work log entry"
-      reference_to WorkLog
-      attribute :commit_sha, String
+      reference_to(WorkLog)
+      String :commit_sha
       emits "CommitLinked"
       then_set :commit_sha, to: :commit_sha
     end

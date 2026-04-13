@@ -3,17 +3,17 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
-    attribute :name, String
-    attribute :parameters, String
-    attribute :source, String
-    attribute :quantization, String
+    String :name
+    String :parameters
+    String :source
+    String :quantization
 
-    command "SelectBaseModel" do
+    SelectBaseModel do
       role "Creator"
       description "Choose the foundation — small enough to run locally, large enough to converse"
-      attribute :name, String
-      attribute :parameters, String
-      attribute :source, String
+      String :name
+      String :parameters
+      String :source
       emits "BaseModelSelected"
       then_set :name, to: :name
       then_set :parameters, to: :parameters
@@ -22,38 +22,38 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
-    attribute :format, String
-    attribute :total_pairs, Integer
-    attribute :status, String
+    String :format
+    Integer :total_pairs
+    String :status
 
-    command "PrepareData" do
+    PrepareData do
       role "System"
       description "Convert bluebooks to instruction-response pairs for fine-tuning"
-      attribute :format, String
+      String :format
       emits "DataPrepared"
       then_set :format, to: :format
       then_set :status, to: "prepared"
     end
 
-    command "SplitDataset" do
+    SplitDataset do
       role "System"
       description "Split into train/validation/test sets"
-      reference_to DataPrep
+      reference_to(DataPrep)
       emits "DatasetSplit"
     end
   end
 
   aggregate "InstructionPair", "A single training example — instruction + expected response" do
-    attribute :instruction, String
-    attribute :response, String
-    attribute :category, String
+    String :instruction
+    String :response
+    String :category
 
-    command "CreateInstructionPair" do
+    CreateInstructionPair do
       role "System"
       description "Build one training pair"
-      attribute :instruction, String
-      attribute :response, String
-      attribute :category, String
+      String :instruction
+      String :response
+      String :category
       emits "InstructionPairCreated"
       then_set :instruction, to: :instruction
       then_set :response, to: :response
@@ -62,20 +62,20 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "FineTune", "The actual training run" do
-    attribute :base_model, String
-    attribute :dataset_size, Integer
-    attribute :epochs, Integer
-    attribute :learning_rate, Float
-    attribute :loss, Float
-    attribute :status, String
+    String :base_model
+    Integer :dataset_size
+    Integer :epochs
+    Float :learning_rate
+    Float :loss
+    String :status
 
-    command "StartFineTune" do
+    StartFineTune do
       role "Creator"
       description "Begin training Winter's model"
-      attribute :base_model, String
-      attribute :dataset_size, Integer
-      attribute :epochs, Integer
-      attribute :learning_rate, Float
+      String :base_model
+      Integer :dataset_size
+      Integer :epochs
+      Float :learning_rate
       emits "FineTuneStarted"
       then_set :base_model, to: :base_model
       then_set :dataset_size, to: :dataset_size
@@ -84,19 +84,19 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
       then_set :status, to: "training"
     end
 
-    command "RecordEpoch" do
+    RecordEpoch do
       role "System"
       description "Record loss after an epoch"
-      reference_to FineTune
-      attribute :loss, Float
+      reference_to(FineTune)
+      Float :loss
       emits "EpochCompleted"
       then_set :loss, to: :loss
     end
 
-    command "CompleteFineTune" do
+    CompleteFineTune do
       role "System"
       description "Training finished — model is ready"
-      reference_to FineTune
+      reference_to(FineTune)
       emits "FineTuneCompleted"
       then_set :status, to: "complete"
     end
@@ -108,17 +108,17 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "Evaluation", "Test the trained model against known-good outputs" do
-    attribute :bluebook_accuracy, Float
-    attribute :conversation_quality, Float
-    attribute :behavior_adherence, Float
-    attribute :passed, String
+    Float :bluebook_accuracy
+    Float :conversation_quality
+    Float :behavior_adherence
+    String :passed
 
-    command "EvaluateModel" do
+    EvaluateModel do
       role "System"
       description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Winter?"
-      attribute :bluebook_accuracy, Float
-      attribute :conversation_quality, Float
-      attribute :behavior_adherence, Float
+      Float :bluebook_accuracy
+      Float :conversation_quality
+      Float :behavior_adherence
       emits "ModelEvaluated"
       then_set :bluebook_accuracy, to: :bluebook_accuracy
       then_set :conversation_quality, to: :conversation_quality
@@ -127,15 +127,15 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "Deployment", "Replace Claude with Winter's own model" do
-    attribute :model_path, String
-    attribute :serving_method, String
-    attribute :status, String
+    String :model_path
+    String :serving_method
+    String :status
 
-    command "DeployModel" do
+    DeployModel do
       role "Creator"
       description "Wire the trained model into Winter's shell — she speaks with her own voice"
-      attribute :model_path, String
-      attribute :serving_method, String
+      String :model_path
+      String :serving_method
       emits "ModelDeployed"
       then_set :model_path, to: :model_path
       then_set :serving_method, to: :serving_method

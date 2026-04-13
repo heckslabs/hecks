@@ -10,7 +10,7 @@ Hecks::CLI.handle(:verify) do |inv|
   Kernel.load(bluebook) if bluebook
   require "hecks/chapters/verify"
 
-  format = options[:format].to_sym
+  format = (options[:format] || "progress").to_sym
   Hecks::Chapters.verify(format: format)
 rescue Hecks::VerificationError => e
   say e.message, :red

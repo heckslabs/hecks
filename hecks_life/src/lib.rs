@@ -23,3 +23,4 @@ pub mod tongue;
 pub mod lexicon;
 pub mod terminal;
 pub mod project;
+pub mod training;

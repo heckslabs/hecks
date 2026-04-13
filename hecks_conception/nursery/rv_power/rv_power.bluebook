@@ -4,26 +4,26 @@ Hecks.bluebook "RVPower" do
 
   aggregate "ShorePower" do
     description "The connection between the RV and external AC power — pedestal, adapter, transfer switch"
-    attribute :amperage, Float
-    attribute :voltage, Float
-    attribute :adapter
+    Float :amperage
+    Float :voltage
+    String :adapter
     attribute :connected, default: false
 
-    command "ConnectShore" do
+    ConnectShore do
       role "Owner"
       goal "Plug into shore power at a campground pedestal"
       description "Establish AC power from external source — 30A or 50A"
-      attribute :amperage, Float
-      attribute :voltage, Float
-      attribute :adapter
+      Float :amperage
+      Float :voltage
+      String :adapter
       emits "ShoreConnected"
     end
 
-    command "DisconnectShore" do
+    DisconnectShore do
       role "Owner"
       goal "Unplug from shore power before departure"
       description "Remove external AC power — system falls back to battery/inverter"
-      reference_to ShorePower
+      reference_to(ShorePower)
       emits "ShoreDisconnected"
     end
 
@@ -51,33 +51,33 @@ Hecks.bluebook "RVPower" do
 
   aggregate "BatteryBank" do
     description "The house battery system — one or more batteries providing 12V DC power"
-    attribute :name
-    attribute :batteries, Integer
-    attribute :voltage, Float
-    attribute :total_ah, Float
-    attribute :chemistry
-    attribute :usable_pct, Float
-    attribute :state_of_charge, Float
+    String :name
+    Integer :batteries
+    Float :voltage
+    Float :total_ah
+    String :chemistry
+    Float :usable_pct
+    Float :state_of_charge
 
-    command "ConfigureBank" do
+    ConfigureBank do
       role "Owner"
       goal "Set up the house battery bank — count, chemistry, capacity"
       description "Total Ah = single battery Ah × count for parallel; voltage × count for series"
-      attribute :name
-      attribute :batteries, Integer
-      attribute :voltage, Float
-      attribute :ah_per_battery, Float
-      attribute :chemistry
-      attribute :usable_pct, Float
+      String :name
+      Integer :batteries
+      Float :voltage
+      Float :ah_per_battery
+      String :chemistry
+      Float :usable_pct
       emits "BankConfigured"
     end
 
-    command "EstimateRuntime" do
+    EstimateRuntime do
       role "Owner"
       goal "Estimate how long the battery bank can power the current DC loads"
       description "Hours = usable Ah / total DC amps"
-      reference_to BatteryBank
-      attribute :total_dc_amps, Float
+      reference_to(BatteryBank)
+      Float :total_dc_amps
       emits "RuntimeEstimated"
     end
 
@@ -104,28 +104,28 @@ Hecks.bluebook "RVPower" do
 
   aggregate "SolarArray" do
     description "Rooftop solar panels and charge controller — harvesting DC power from sunlight"
-    attribute :panel_watts, Float
-    attribute :panel_count, Integer
-    attribute :controller_type
-    attribute :controller_amps, Float
+    Float :panel_watts
+    Integer :panel_count
+    String :controller_type
+    Float :controller_amps
 
-    command "ConfigureSolar" do
+    ConfigureSolar do
       role "Owner"
       goal "Set up the solar array and charge controller"
       description "Total watts = panel watts × count. MPPT controllers are 20-30% more efficient than PWM."
-      attribute :panel_watts, Float
-      attribute :panel_count, Integer
-      attribute :controller_type
-      attribute :controller_amps, Float
+      Float :panel_watts
+      Integer :panel_count
+      String :controller_type
+      Float :controller_amps
       emits "SolarConfigured"
     end
 
-    command "CalculateDailyHarvest" do
+    CalculateDailyHarvest do
       role "Owner"
       goal "Estimate daily amp-hours from solar based on sun hours"
       description "Daily Ah = (total watts × sun hours × efficiency) / battery voltage"
-      reference_to SolarArray
-      attribute :sun_hours, Float
+      reference_to(SolarArray)
+      Float :sun_hours
       emits "DailyHarvestCalculated"
     end
 
@@ -142,5 +142,20 @@ Hecks.bluebook "RVPower" do
       controller_type "PWM"
       controller_amps 10.0
     end
+  end
+
+  policy "EstimateOnShore" do
+    on "ShoreConnected"
+    trigger "EstimateRuntime"
+  end
+
+  policy "EstimateOnConfig" do
+    on "BankConfigured"
+    trigger "EstimateRuntime"
+  end
+
+  policy "HarvestOnSolar" do
+    on "SolarConfigured"
+    trigger "CalculateDailyHarvest"
   end
 end

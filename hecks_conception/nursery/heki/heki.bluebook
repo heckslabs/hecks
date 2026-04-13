@@ -5,17 +5,17 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
   # === Store ===
 
   aggregate "Store", "A named .heki file — one aggregate per file, self-describing" do
-    attribute :name, String
-    attribute :path, String
-    attribute :record_count, Integer
-    attribute :version, Integer
-    attribute :status, String
+    String :name
+    String :path
+    Integer :record_count
+    Integer :version
+    String :status
 
-    command "CreateStore" do
+    CreateStore do
       role "Winter"
       description "Create a new .heki store on disk"
-      attribute :name, String
-      attribute :path, String
+      String :name
+      String :path
       emits "StoreCreated"
       then_set :name, to: :name
       then_set :path, to: :path
@@ -24,21 +24,21 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
       then_set :status, to: "empty"
     end
 
-    command "AppendRecord" do
+    AppendRecord do
       role "Winter"
       description "Add a new record — validates schema, checksums, writes atomically"
-      reference_to Store
-      attribute :attrs, String
+      reference_to(Store)
+      String :attrs
       emits "RecordAppended"
       then_set :record_count, increment: 1
       then_set :status, to: "active"
     end
 
-    command "UpsertSingleton" do
+    UpsertSingleton do
       role "Winter"
       description "Write or update the single record in a singleton store"
-      reference_to Store
-      attribute :attrs, String
+      reference_to(Store)
+      String :attrs
       emits "SingletonUpserted"
       then_set :status, to: "active"
     end
@@ -53,17 +53,17 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
   # === Record ===
 
   aggregate "Record", "A single entry — UUID keyed, timestamped, schema-validated" do
-    attribute :record_id, String
-    attribute :store_name, String
-    attribute :created_at, String
-    attribute :updated_at, String
-    attribute :payload, String
+    String :record_id
+    String :store_name
+    String :created_at
+    String :updated_at
+    String :payload
 
-    command "WriteRecord" do
+    WriteRecord do
       role "Winter"
       description "Write a record — validates required fields and types before persisting"
-      attribute :store_name, String
-      attribute :payload, String
+      String :store_name
+      String :payload
       given { payload.key?("id") }
       given { payload.key?("created_at") }
       given { payload.key?("updated_at") }
@@ -72,18 +72,18 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
       then_set :payload, to: :payload
     end
 
-    command "ReadRecord" do
+    ReadRecord do
       role "Winter"
       description "Read a record by ID — verifies checksum before returning"
-      reference_to Record
-      attribute :store_name, String
+      reference_to(Record)
+      String :store_name
       emits "RecordRead"
     end
 
-    command "DeleteRecord" do
+    DeleteRecord do
       role "Winter"
       description "Remove a record from a store"
-      reference_to Record
+      reference_to(Record)
       emits "RecordDeleted"
     end
   end
@@ -91,40 +91,40 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
   # === Schema ===
 
   aggregate "Schema", "Embedded field definitions — the store describes itself" do
-    attribute :store_name, String
-    attribute :fields, list_of(FieldDef)
-    attribute :required_fields, list_of(String)
+    String :store_name
+    list_of(FieldDef) :fields
+    list_of(String) :required_fields
 
     value_object "FieldDef" do
-      attribute :name, String
-      attribute :field_type, String
+      String :name
+      String :field_type
     end
 
-    command "DefineSchema" do
+    DefineSchema do
       role "System"
       description "Declare the expected fields and types for a store — derived from the bluebook aggregate"
-      attribute :store_name, String
-      attribute :fields, list_of(FieldDef)
-      attribute :required_fields, list_of(String)
+      String :store_name
+      list_of(FieldDef) :fields
+      list_of(String) :required_fields
       emits "SchemaDefined"
       then_set :store_name, to: :store_name
       then_set :fields, to: :fields
       then_set :required_fields, to: :required_fields
     end
 
-    command "ValidateRecord" do
+    ValidateRecord do
       role "System"
       description "Check a record against the schema — required fields present, types match"
-      reference_to Schema
-      attribute :record, String
+      reference_to(Schema)
+      String :record
       emits "RecordValidated"
     end
 
-    command "RejectRecord" do
+    RejectRecord do
       role "System"
       description "Record failed schema validation — missing fields or wrong types"
-      reference_to Schema
-      attribute :reason, String
+      reference_to(Schema)
+      String :reason
       emits "RecordRejected"
     end
   end
@@ -132,33 +132,33 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
   # === Integrity ===
 
   aggregate "Integrity", "Checksums and atomic writes — files cannot be silently corrupted" do
-    attribute :store_name, String
-    attribute :checksum, String
-    attribute :algorithm, String
-    attribute :verified, String
+    String :store_name
+    String :checksum
+    String :algorithm
+    String :verified
 
-    command "ComputeChecksum" do
+    ComputeChecksum do
       role "System"
       description "CRC32 the compressed payload — store in header"
-      attribute :store_name, String
-      attribute :payload, String
+      String :store_name
+      String :payload
       emits "ChecksumComputed"
       then_set :store_name, to: :store_name
       then_set :algorithm, to: "crc32"
     end
 
-    command "VerifyChecksum" do
+    VerifyChecksum do
       role "System"
       description "Recompute CRC32 on read and compare to stored value"
-      reference_to Integrity
+      reference_to(Integrity)
       emits "ChecksumVerified"
       then_set :verified, to: "true"
     end
 
-    command "ReportCorruption" do
+    ReportCorruption do
       role "System"
       description "Checksum mismatch — file is corrupt, do not trust"
-      reference_to Integrity
+      reference_to(Integrity)
       emits "CorruptionDetected"
       then_set :verified, to: "false"
     end
@@ -167,31 +167,31 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
   # === Codec ===
 
   aggregate "Codec", "Compression and serialization — JSON + Zlib with self-validating header" do
-    attribute :magic, String
-    attribute :version, Integer
-    attribute :compression_level, Integer
-    attribute :format, String
+    String :magic
+    Integer :version
+    Integer :compression_level
+    String :format
 
-    command "Compress" do
+    Compress do
       role "System"
       description "Serialize, compress, checksum, embed schema, write atomically"
-      attribute :records, String
+      String :records
       emits "Compressed"
       then_set :format, to: "json+zlib+crc32"
     end
 
-    command "Decompress" do
+    Decompress do
       role "System"
       description "Read header, verify checksum, validate schema, inflate, deserialize"
-      attribute :data, String
+      String :data
       emits "Decompressed"
     end
 
-    command "WriteAtomically" do
+    WriteAtomically do
       role "System"
       description "Write to temp file then rename — never a partial write on disk"
-      attribute :path, String
-      attribute :data, String
+      String :path
+      String :data
       emits "AtomicWriteCompleted"
     end
   end

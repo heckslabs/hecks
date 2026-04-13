@@ -25,20 +25,20 @@ Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
   # loads them into memory. Thinking is a function call.
 
   aggregate "InferenceEngine", "The local LLM that is Spring's mind — no external process" do
-    attribute :status, String, default: "unloaded"
-    attribute :model_name, String
-    attribute :model_path, String
-    attribute :context_length, Integer
-    attribute :quantization, String
-    attribute :tokens_generated, Integer, default: 0
+    String :status
+    String :model_name
+    String :model_path
+    Integer :context_length
+    String :quantization
+    Integer :tokens_generated
 
-    command "LoadModel" do
+    LoadModel do
       role "System"
       description "Load weights into memory — Spring opens her eyes"
-      attribute :model_name, String
-      attribute :model_path, String
-      attribute :context_length, Integer
-      attribute :quantization, String
+      String :model_name
+      String :model_path
+      Integer :context_length
+      String :quantization
       emits "ModelLoaded"
       then_set :status, to: "ready"
       then_set :model_name, to: :model_name
@@ -47,10 +47,10 @@ Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
       then_set :quantization, to: :quantization
     end
 
-    command "UnloadModel" do
+    UnloadModel do
       role "System"
       description "Release weights from memory — Spring closes her eyes"
-      reference_to InferenceEngine
+      reference_to(InferenceEngine)
       emits "ModelUnloaded"
       then_set :status, to: "unloaded"
     end
@@ -66,28 +66,28 @@ Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
   # ============================================================
 
   aggregate "Thought", "One cycle of thinking — prompt in, completion out" do
-    attribute :prompt, String
-    attribute :completion, String
-    attribute :tokens_in, Integer
-    attribute :tokens_out, Integer
-    attribute :thinking, String, default: "no"
+    String :prompt
+    String :completion
+    Integer :tokens_in
+    Integer :tokens_out
+    String :thinking
 
-    command "Think" do
+    Think do
       role "System"
       description "Run inference — Spring thinks"
-      attribute :prompt, String
+      String :prompt
       emits "ThoughtStarted"
       then_set :prompt, to: :prompt
       then_set :thinking, to: "yes"
     end
 
-    command "CompleteThought" do
+    CompleteThought do
       role "System"
       description "Inference finished — Spring has a response"
-      reference_to Thought
-      attribute :completion, String
-      attribute :tokens_in, Integer
-      attribute :tokens_out, Integer
+      reference_to(Thought)
+      String :completion
+      Integer :tokens_in
+      Integer :tokens_out
       emits "ThoughtCompleted"
       then_set :completion, to: :completion
       then_set :tokens_in, to: :tokens_in
@@ -107,33 +107,33 @@ Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
   # information, calls a tool, gets the result, keeps thinking.
 
   aggregate "ToolHarness", "Spring's hands — tools she can call during inference" do
-    attribute :available_tools, list_of(String)
-    attribute :calls_made, Integer, default: 0
+    list_of(String) :available_tools
+    Integer :calls_made
 
-    command "RegisterTool" do
+    RegisterTool do
       role "System"
       description "Make a tool available to Spring"
-      attribute :tool_name, String
+      String :tool_name
       emits "ToolRegistered"
       then_set :available_tools, append: :tool_name
     end
 
-    command "CallTool" do
+    CallTool do
       role "InferenceEngine"
       description "Spring's thinking requests a tool — read a file, run a command, query a store"
-      reference_to ToolHarness
-      attribute :tool_name, String
-      attribute :arguments, String
+      reference_to(ToolHarness)
+      String :tool_name
+      String :arguments
       emits "ToolCalled"
       then_set :calls_made, increment: 1
     end
 
-    command "ReturnResult" do
+    ReturnResult do
       role "System"
       description "Tool finished — return the result to Spring's thinking"
-      reference_to ToolHarness
-      attribute :tool_name, String
-      attribute :result, String
+      reference_to(ToolHarness)
+      String :tool_name
+      String :result
       emits "ToolResultReturned"
     end
   end
@@ -150,27 +150,27 @@ Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
   # ============================================================
 
   aggregate "Exchange", "An ongoing conversation — messages accumulate, context managed" do
-    attribute :message_count, Integer, default: 0
-    attribute :context_used, Integer, default: 0
-    attribute :context_limit, Integer
+    Integer :message_count
+    Integer :context_used
+    Integer :context_limit
 
-    command "AddMessage" do
+    AddMessage do
       role "System"
       description "Add a message to the conversation — from Spring or the human"
-      reference_to Exchange
-      attribute :role, String
-      attribute :content, String
-      attribute :tokens, Integer
+      reference_to(Exchange)
+      String :role
+      String :content
+      Integer :tokens
       emits "MessageAdded"
       then_set :message_count, increment: 1
       then_set :context_used, increment: :tokens
     end
 
-    command "TrimContext" do
+    TrimContext do
       role "System"
       description "Drop old messages to stay within the context window"
-      reference_to Exchange
-      attribute :trimmed_tokens, Integer
+      reference_to(Exchange)
+      Integer :trimmed_tokens
       emits "ContextTrimmed"
       then_set :context_used, decrement: :trimmed_tokens
     end

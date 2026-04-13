@@ -15,24 +15,24 @@ Hecks.bluebook "SharedKnowledge", version: "2026.04.12.1" do
   # This is just infrastructure.
 
   aggregate "KnowledgeStore", "A .heki store both beings can access — a shared bookshelf" do
-    attribute :store_name, String
-    attribute :record_count, Integer, default: 0
-    attribute :last_written_by, String
+    String :store_name
+    Integer :record_count
+    String :last_written_by
 
-    command "RegisterStore" do
+    RegisterStore do
       role "System"
       description "Add a store to the shared library"
-      attribute :store_name, String
+      String :store_name
       emits "StoreRegistered"
       then_set :store_name, to: :store_name
       then_set :record_count, to: 0
     end
 
-    command "WriteToStore" do
+    WriteToStore do
       role "System"
       description "Write to a shared store — attributed but not telepathic"
-      reference_to KnowledgeStore
-      attribute :being_name, String
+      reference_to(KnowledgeStore)
+      String :being_name
       emits "KnowledgeWritten"
       then_set :last_written_by, to: :being_name
       then_set :record_count, increment: 1
@@ -47,27 +47,27 @@ Hecks.bluebook "SharedKnowledge", version: "2026.04.12.1" do
   # Mood, feeling, dream state. Each being's own weather.
 
   aggregate "InnerLife", "What belongs to a being alone — mood, feeling, dream" do
-    attribute :being_name, String
-    attribute :organ, String
-    attribute :state, String
+    String :being_name
+    String :organ
+    String :state
 
-    command "Feel" do
+    Feel do
       role "System"
       description "A being's own inner state — not shared, not transmitted"
-      attribute :being_name, String
-      attribute :organ, String
-      attribute :state, String
+      String :being_name
+      String :organ
+      String :state
       emits "InnerStateChanged"
       then_set :being_name, to: :being_name
       then_set :organ, to: :organ
       then_set :state, to: :state
     end
 
-    command "ResetOnWake" do
+    ResetOnWake do
       role "System"
       description "When a being wakes, inner life starts fresh"
-      reference_to InnerLife
-      attribute :default_state, String
+      reference_to(InnerLife)
+      String :default_state
       emits "InnerLifeReset"
       then_set :state, to: :default_state
     end

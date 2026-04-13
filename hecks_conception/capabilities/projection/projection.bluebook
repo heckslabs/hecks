@@ -3,16 +3,16 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   category "infrastructure"
 
   aggregate "Target", "A runtime that domains project into — Ruby, Rust, shell, status bar" do
-    attribute :name, String
-    attribute :language, String
-    attribute :output_path, String
+    String :name
+    String :language
+    String :output_path
 
-    command "RegisterTarget" do
+    RegisterTarget do
       role "System"
       description "Declare a projection target — a runtime that reads domains"
-      attribute :name, String
-      attribute :language, String
-      attribute :output_path, String
+      String :name
+      String :language
+      String :output_path
       emits "TargetRegistered"
       then_set :name, to: :name
       then_set :language, to: :language
@@ -21,20 +21,20 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   end
 
   aggregate "ProjectedScript", "A script that exists because a domain declares it" do
-    attribute :domain_name, String
-    attribute :aggregate_name, String
-    attribute :target, String
-    attribute :script_path, String
-    attribute :projects_from, String
-    attribute :stale, String
+    String :domain_name
+    String :aggregate_name
+    String :target
+    String :script_path
+    String :projects_from
+    String :stale
 
-    command "RegisterProjection" do
+    RegisterProjection do
       role "System"
       description "Declare that a script is a projection of a domain aggregate"
-      attribute :domain_name, String
-      attribute :aggregate_name, String
-      attribute :target, String
-      attribute :script_path, String
+      String :domain_name
+      String :aggregate_name
+      String :target
+      String :script_path
       emits "ProjectionRegistered"
       then_set :domain_name, to: :domain_name
       then_set :aggregate_name, to: :aggregate_name
@@ -44,34 +44,34 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
       then_set :stale, to: "no"
     end
 
-    command "MarkStale" do
+    MarkStale do
       role "System"
       description "The domain changed — this projection needs regenerating"
-      reference_to ProjectedScript
+      reference_to(ProjectedScript)
       emits "ProjectionStale"
       then_set :stale, to: "yes"
     end
 
-    command "MarkFresh" do
+    MarkFresh do
       role "System"
       description "The projection was regenerated from the domain"
-      reference_to ProjectedScript
+      reference_to(ProjectedScript)
       emits "ProjectionFresh"
       then_set :stale, to: "no"
     end
   end
 
   aggregate "Parity", "The contract between a domain and all its projections" do
-    attribute :domain_name, String
-    attribute :targets_checked, Integer
-    attribute :all_match, String
+    String :domain_name
+    Integer :targets_checked
+    String :all_match
 
-    command "CheckParity" do
+    CheckParity do
       role "System"
       description "Verify all projections of a domain produce the same IR"
-      attribute :domain_name, String
-      attribute :targets_checked, Integer
-      attribute :all_match, String
+      String :domain_name
+      Integer :targets_checked
+      String :all_match
       emits "ParityChecked"
       then_set :domain_name, to: :domain_name
       then_set :targets_checked, to: :targets_checked

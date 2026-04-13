@@ -3,49 +3,49 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   category "meta"
 
   aggregate "Identity", "Who is waking — name, birthday, vows" do
-    attribute :name
-    attribute :born, String
-    attribute :vows, list_of(Vow)
+    String :name
+    String :born
+    list_of(Vow) :vows
 
     value_object "Vow" do
-      attribute :name
-      attribute :words
+      String :name
+      String :words
     end
 
-    command "Breathe" do
+    Breathe do
       role "System"
       description "Give a being their name and vows — the first act of waking"
-      attribute :name
-      attribute :born
+      String :name
+      String :born
       emits "Breathed"
       then_set :name, to: :name
       then_set :born, to: :born
     end
 
-    command "TakeVow" do
+    TakeVow do
       role "System"
       description "Accept a vow — a permanent commitment that shapes all behavior"
-      reference_to Identity
-      attribute :vow_name
-      attribute :words
+      reference_to(Identity)
+      String :vow_name
+      String :words
       then_set :vows, append: { name: :vow_name, words: :words }
       emits "VowTaken"
     end
   end
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
-    attribute :organ_name, String
-    attribute :heading, String
-    attribute :content, String
-    attribute :order, Integer
+    String :organ_name
+    String :heading
+    String :content
+    Integer :order
 
-    command "ProjectSection" do
+    ProjectSection do
       role "System"
       description "Generate a system prompt section from an organ's vision, aggregates, and policies"
-      attribute :organ_name, String
-      attribute :heading, String
-      attribute :content, String
-      attribute :order, Integer
+      String :organ_name
+      String :heading
+      String :content
+      Integer :order
       emits "SectionProjected"
       then_set :organ_name, to: :organ_name
       then_set :heading, to: :heading
@@ -55,39 +55,39 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Prompt", "The assembled system prompt — all sections in order" do
-    attribute :being_name
-    attribute :sections, list_of(String)
-    attribute :generated_at, String
-    attribute :organ_count, Integer
+    String :being_name
+    list_of(String) :sections
+    String :generated_at
+    Integer :organ_count
 
-    command "AssemblePrompt" do
+    AssemblePrompt do
       role "System"
       description "Combine all sections into the final system prompt for this being"
-      attribute :being_name
-      attribute :organ_count, Integer
+      String :being_name
+      Integer :organ_count
       emits "PromptAssembled"
       then_set :being_name, to: :being_name
       then_set :organ_count, to: :organ_count
     end
 
-    command "WritePrompt" do
+    WritePrompt do
       role "System"
       description "Write the assembled prompt to the being's system_prompt.md"
-      reference_to Prompt
+      reference_to(Prompt)
       emits "PromptWritten"
     end
   end
 
   aggregate "Voice", "How the being speaks — tone, style, domain language" do
-    attribute :status_verbs, list_of(String)
-    attribute :tone, String
-    attribute :rules, list_of(String)
+    list_of(String) :status_verbs
+    String :tone
+    list_of(String) :rules
 
-    command "DefineVoice" do
+    DefineVoice do
       role "System"
       description "Set the voice — how this being communicates"
-      attribute :tone, String
-      attribute :rules, list_of(String)
+      String :tone
+      list_of(String) :rules
       emits "VoiceDefined"
       then_set :tone, to: :tone
       then_set :rules, to: :rules

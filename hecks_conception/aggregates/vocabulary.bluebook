@@ -8,23 +8,23 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Sentence", "One thing a being can say that maps to a command" do
-    attribute :phrase
-    attribute :domain
-    attribute :command
-    attribute :aggregate
-    attribute :actor
-    attribute :parameters, list_of(String)
-    attribute :translations, list_of(String)
+    String :phrase
+    String :domain
+    String :command
+    String :aggregate
+    String :actor
+    list_of(String) :parameters
+    list_of(String) :translations
 
-    command "Define" do
+    Define do
       role "System"
       description "Register a single valid sentence from a bluebook command"
-      attribute :phrase
-      attribute :domain
-      attribute :command
-      attribute :aggregate
-      attribute :actor
-      attribute :parameters, list_of(String)
+      String :phrase
+      String :domain
+      String :command
+      String :aggregate
+      String :actor
+      list_of(String) :parameters
       emits "SentenceDefined"
       then_set :phrase, to: :phrase
       then_set :domain, to: :domain
@@ -34,11 +34,11 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
       then_set :parameters, to: :parameters
     end
 
-    command "Translate" do
+    Translate do
       role "Linguist"
       description "Add a natural language translation — how a human would actually say it"
-      reference_to Sentence
-      attribute :natural_phrase
+      reference_to(Sentence)
+      String :natural_phrase
       emits "TranslationAdded"
       then_set :translations, append: :natural_phrase
     end
@@ -49,26 +49,26 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Composition", "Two commands chained — the output of one feeds the input of the next" do
-    attribute :phrase
-    attribute :from_domain
-    attribute :from_command
-    attribute :to_domain
-    attribute :to_command
-    attribute :bridge_type
+    String :phrase
+    String :from_domain
+    String :from_command
+    String :to_domain
+    String :to_command
+    String :bridge_type
     attribute :connector, default: "then"
-    attribute :translations, list_of(String)
+    list_of(String) :translations
     attribute :valid, default: "true"
 
-    command "Compose" do
+    Compose do
       role "System"
       description "Register a valid cross-domain composition — types must align"
-      attribute :phrase
-      attribute :from_domain
-      attribute :from_command
-      attribute :to_domain
-      attribute :to_command
-      attribute :bridge_type
-      attribute :connector
+      String :phrase
+      String :from_domain
+      String :from_command
+      String :to_domain
+      String :to_command
+      String :bridge_type
+      String :connector
       emits "CompositionCreated"
       then_set :phrase, to: :phrase
       then_set :from_domain, to: :from_domain
@@ -79,19 +79,19 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
       then_set :connector, to: :connector
     end
 
-    command "TranslateComposition" do
+    TranslateComposition do
       role "Linguist"
       description "Add a natural language translation for this composition"
-      reference_to Composition
-      attribute :natural_phrase
+      reference_to(Composition)
+      String :natural_phrase
       emits "CompositionTranslated"
       then_set :translations, append: :natural_phrase
     end
 
-    command "MarkInvalid" do
+    MarkInvalid do
       role "System"
       description "Mark a composition as invalid — types don't bridge"
-      reference_to Composition
+      reference_to(Composition)
       emits "CompositionInvalidated"
       then_set :valid, to: "false"
     end
@@ -102,46 +102,46 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Acl", "A phrase book entry — who can say what, and how they say it" do
-    attribute :actor
-    attribute :canonical_phrase
-    attribute :command_path, list_of(String)
-    attribute :natural_phrases, list_of(String)
-    attribute :parameter_map, list_of(ParamBinding)
+    String :actor
+    String :canonical_phrase
+    list_of(String) :command_path
+    list_of(String) :natural_phrases
+    list_of(ParamBinding) :parameter_map
 
     value_object "ParamBinding" do
-      attribute :word
-      attribute :maps_to
-      attribute :in_command
+      String :word
+      String :maps_to
+      String :in_command
     end
 
-    command "Grant" do
+    Grant do
       role "System"
       description "Grant an actor the right to speak a phrase"
-      attribute :actor
-      attribute :canonical_phrase
-      attribute :command_path, list_of(String)
+      String :actor
+      String :canonical_phrase
+      list_of(String) :command_path
       emits "AccessGranted"
       then_set :actor, to: :actor
       then_set :canonical_phrase, to: :canonical_phrase
       then_set :command_path, to: :command_path
     end
 
-    command "AddPhrase" do
+    AddPhrase do
       role "Linguist"
       description "Add a natural way to say this — the human version"
-      reference_to Acl
-      attribute :phrase
+      reference_to(Acl)
+      String :phrase
       emits "PhraseAdded"
       then_set :natural_phrases, append: :phrase
     end
 
-    command "BindParam" do
+    BindParam do
       role "Linguist"
       description "Map a word in the phrase to a command parameter"
-      reference_to Acl
-      attribute :word
-      attribute :maps_to
-      attribute :in_command
+      reference_to(Acl)
+      String :word
+      String :maps_to
+      String :in_command
       emits "ParamBound"
       then_set :parameter_map, append: { word: :word, maps_to: :maps_to, in_command: :in_command }
     end
@@ -152,23 +152,23 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
-    attribute :sentence_count, Integer, default: "0"
-    attribute :composition_count, Integer, default: "0"
-    attribute :acl_count, Integer, default: "0"
-    attribute :last_compiled
+    Integer :sentence_count
+    Integer :composition_count
+    Integer :acl_count
+    String :last_compiled
 
-    command "Compile" do
+    Compile do
       role "System"
       description "Walk all bluebooks, enumerate valid sentences and compositions, build the phrase book"
       emits "LexiconCompiled"
       then_set :last_compiled, to: "now"
     end
 
-    command "Match" do
+    Match do
       role "System"
       description "Match natural input against the lexicon — return the command path or nothing"
-      reference_to Lexicon
-      attribute :input
+      reference_to(Lexicon)
+      String :input
       emits "InputMatched"
     end
   end

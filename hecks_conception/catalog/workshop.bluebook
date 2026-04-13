@@ -2,356 +2,356 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
   category "framework"
   aggregate "ConstantHoister", definition: "Manages hoisting and cleanup of constants on WorkshopRunner" do
 
-    command "HoistAggregate" do
-      attribute :const_name, String
+    HoistAggregate do
+      String :const_name
     end
   end
 
   aggregate "WorkshopRunner", definition: "Interactive IRB workshop that hoists constants for direct REPL use" do
 
-    command "Run" do
+    Run do
     end
   end
 
   aggregate "WebRunner", definition: "Browser-based REPL with WEBrick server for the Workshop" do
 
-    command "Run" do
+    Run do
     end
   end
 
   aggregate "WorkshopSession", definition: "Wraps Workshop WebRunner for IDE integration with safe command eval" do
 
-    command "Execute" do
-      attribute :input, String
+    Execute do
+      String :input
     end
 
-    command "GetCompletions" do
+    GetCompletions do
     end
   end
 
   aggregate "Playground", definition: "Live execution sandbox with memory adapters for rapid prototyping" do
 
-    command "Execute" do
-      attribute :command_name, String
+    Execute do
+      String :command_name
     end
 
-    command "Reset" do
+    Reset do
     end
   end
 
   aggregate "Tour", definition: "Guided walkthrough of the sketch -> play -> build loop" do
 
-    command "Start" do
+    Start do
     end
   end
 
   aggregate "GemBootstrap", definition: "Loads domain into a Runtime via InMemoryLoader eval" do
 
-    command "Compile" do
+    Compile do
     end
   end
 
   aggregate "RuntimeResolver", definition: "Resolves generated command and event classes at runtime" do
 
-    command "ResolveCommand" do
-      attribute :name, String
+    ResolveCommand do
+      String :name
     end
   end
 
   aggregate "SketchSteps", definition: "Tour step definitions for the sketch phase: aggregates, attributes, lifecycle, transitions" do
 
-    command "CreateAggregateStep" do
+    CreateAggregateStep do
     end
 
-    command "AddAttributeStep" do
+    AddAttributeStep do
     end
 
-    command "AddLifecycleStep" do
+    AddLifecycleStep do
     end
 
-    command "BrowseStep" do
+    BrowseStep do
     end
 
-    command "ValidateStep" do
+    ValidateStep do
     end
   end
 
   aggregate "PlaySteps", definition: "Tour step definitions for the play phase: entering play, executing commands, building" do
 
-    command "EnterPlayStep" do
+    EnterPlayStep do
     end
 
-    command "CreateInstanceStep" do
+    CreateInstanceStep do
     end
 
-    command "QueryAllStep" do
+    QueryAllStep do
     end
 
-    command "CheckEventsStep" do
+    CheckEventsStep do
     end
 
-    command "BuildStep" do
+    BuildStep do
     end
   end
 
   aggregate "AggregateSerializer", definition: "Serializes workshop aggregates into JSON-ready hashes with attributes, commands, and relationships" do
 
-    command "Serialize" do
+    Serialize do
     end
   end
 
   aggregate "EventSerializer", definition: "Serializes playground event log into JSON-ready hashes with type, command, and payload" do
 
-    command "Serialize" do
+    Serialize do
     end
   end
 
   aggregate "MermaidBuilder", definition: "Builds Mermaid LR graph string from serialized aggregates with relationship edges" do
 
-    command "Build" do
-      attribute :aggregates, String
+    Build do
+      String :aggregates
     end
   end
 
   aggregate "PolicyFlowBuilder", definition: "Builds cross-aggregate policy flow edges from serialized aggregates" do
 
-    command "Build" do
-      attribute :aggregates, String
+    Build do
+      String :aggregates
     end
   end
 
   aggregate "ServiceSerializer", definition: "Serializes domain services across loaded domains into JSON-ready hashes" do
 
-    command "Serialize" do
+    Serialize do
     end
   end
 
   aggregate "Evaluator", definition: "Safe eval-free command execution delegating to CommandParser" do
 
-    command "Evaluate" do
-      attribute :input, String
+    Evaluate do
+      String :input
     end
   end
 
   aggregate "CommandParser", definition: "Safe command dispatcher using BlueBook Grammar for the web workshop" do
 
-    command "Execute" do
-      attribute :input, String
+    Execute do
+      String :input
     end
   end
 
   aggregate "StateSerializer", definition: "Serializes workshop state into JSON for the browser console" do
 
-    command "Serialize" do
+    Serialize do
     end
   end
 
   aggregate "Workshop", definition: "Interactive domain-building session for REPL-driven development" do
 
-    command "CreateSession" do
-      attribute :name, String
+    CreateSession do
+      String :name
     end
 
-    command "AddAggregate" do
-      attribute :name, String
+    AddAggregate do
+      String :name
     end
 
-    command "RemoveAggregate" do
-      attribute :aggregate_name, String
+    RemoveAggregate do
+      String :aggregate_name
     end
 
-    command "AddVerb" do
-      attribute :word, String
+    AddVerb do
+      String :word
     end
 
-    command "Promote" do
-      attribute :aggregate_name, String
+    Promote do
+      String :aggregate_name
     end
 
-    command "ActivateActiveHecks" do
+    ActivateActiveHecks do
     end
   end
 
   aggregate "AggregateHandle", definition: "Interactive handle for incrementally building a single aggregate in the REPL" do
 
-    command "AddAttribute" do
-      attribute :name, String
-      attribute :type, String
+    AddAttribute do
+      String :name
+      String :type
     end
 
-    command "AddCommand" do
-      attribute :name, String
+    AddCommand do
+      String :name
     end
 
-    command "AddPolicy" do
-      attribute :name, String
+    AddPolicy do
+      String :name
     end
 
-    command "AddLifecycle" do
-      attribute :field, String
+    AddLifecycle do
+      String :field
     end
 
-    command "AddTransition" do
-      attribute :from, String
-      attribute :to, String
+    AddTransition do
+      String :from
+      String :to
     end
   end
 
   aggregate "CommandHandle", definition: "Interactive handle for adding attributes to a command after creation" do
 
-    command "AddAttribute" do
-      attribute :name, String
-      attribute :type, String
+    AddAttribute do
+      String :name
+      String :type
     end
   end
 
   aggregate "BuildActions", definition: "Session methods for validating, previewing, building, and saving the domain" do
 
-    command "Validate" do
+    Validate do
     end
 
-    command "Preview" do
+    Preview do
     end
 
-    command "Build" do
+    Build do
     end
 
-    command "Save" do
+    Save do
     end
 
-    command "ToDsl" do
+    ToDsl do
     end
   end
 
   aggregate "SessionImage", definition: "Point-in-time snapshot of a Workshop state for save/restore" do
 
-    command "Capture" do
+    Capture do
     end
 
-    command "Restore" do
+    Restore do
     end
   end
 
   aggregate "PersistentImage", definition: "File-based save/restore for SessionImage objects" do
 
-    command "SaveImage" do
-      attribute :name, String
+    SaveImage do
+      String :name
     end
 
-    command "RestoreImage" do
-      attribute :name, String
+    RestoreImage do
+      String :name
     end
 
-    command "ListImages" do
+    ListImages do
     end
   end
 
   aggregate "Presenter", definition: "Session mixin for human-readable output: describe, status, and inspect" do
 
-    command "Describe" do
+    Describe do
     end
 
-    command "ShowStatus" do
+    ShowStatus do
     end
   end
 
   aggregate "BehaviorMethods", definition: "AggregateHandle mixin for adding commands, events, policies, and lifecycle transitions" do
 
-    command "AddCommand" do
-      attribute :name, String
+    AddCommand do
+      String :name
     end
   end
 
   aggregate "ConstraintMethods", definition: "AggregateHandle mixin for adding validations, specifications, and scopes" do
 
-    command "AddValidation" do
-      attribute :name, String
+    AddValidation do
+      String :name
     end
   end
 
   aggregate "QueryMethods", definition: "AggregateHandle mixin for adding queries and subscribers" do
 
-    command "AddQuery" do
-      attribute :name, String
+    AddQuery do
+      String :name
     end
   end
 
   aggregate "ImplicitSyntax", definition: "AggregateHandle mixin for dot-syntax method_missing attribute and command inference" do
 
-    command "HandleMissing" do
-      attribute :method_name, String
+    HandleMissing do
+      String :method_name
     end
   end
 
   aggregate "MessageNotUnderstood", definition: "Smalltalk-inspired error for unknown aggregate handle methods with command suggestions" do
 
-    command "HandleMissing" do
-      attribute :method_name, String
+    HandleMissing do
+      String :method_name
     end
   end
 
   aggregate "BluebookMode", definition: "Workshop mixin for composing multiple domains as chapters with shared event bus" do
 
-    command "AddChapter" do
-      attribute :name, String
+    AddChapter do
+      String :name
     end
 
-    command "ListChapters" do
+    ListChapters do
     end
 
-    command "ToBluebook" do
+    ToBluebook do
     end
   end
 
   aggregate "PlayMode", definition: "Session mixin for play mode: executing commands against a live compiled domain" do
 
-    command "EnterPlay" do
+    EnterPlay do
     end
 
-    command "ExitPlay" do
+    ExitPlay do
     end
 
-    command "ResetPlayground" do
+    ResetPlayground do
     end
   end
 
   aggregate "VisualizeMode", definition: "Mermaid diagram visualization for the Workshop" do
 
-    command "Visualize" do
-      attribute :format, String
+    Visualize do
+      String :format
     end
   end
 
   aggregate "SystemBrowser", definition: "Smalltalk-inspired tree view of all domain elements" do
 
-    command "Browse" do
-      attribute :aggregate_name, String
+    Browse do
+      String :aggregate_name
     end
   end
 
   aggregate "DeepInspect", definition: "Detailed aggregate structure display using Navigator and Renderer" do
 
-    command "Inspect" do
-      attribute :aggregate_name, String
+    Inspect do
+      String :aggregate_name
     end
   end
 
   aggregate "Navigator", definition: "Traverses domain IR and yields each element with depth and path context" do
 
-    command "Walk" do
-      attribute :aggregate_name, String
+    Walk do
+      String :aggregate_name
     end
 
-    command "WalkAll" do
+    WalkAll do
     end
   end
 
   aggregate "Renderer", definition: "Formats domain IR elements into human-readable lines for deep_inspect" do
 
-    command "RenderAttribute" do
+    RenderAttribute do
     end
 
-    command "RenderCommand" do
+    RenderCommand do
     end
   end
 end

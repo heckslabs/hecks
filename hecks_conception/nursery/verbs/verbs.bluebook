@@ -3,33 +3,33 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "Lexicon", "The known verb corpus — grows automatically as morphology accepts new verbs" do
-    attribute :known_verbs, list_of(String)
-    attribute :total, Integer
+    list_of(String) :known_verbs
+    Integer :total
 
-    command "RegisterVerb" do
+    RegisterVerb do
       role "Linguist"
       description "Add a verb explicitly to the known corpus"
-      attribute :verb, String
+      String :verb
       emits "VerbRegistered"
       given :verb, not_in: :known_verbs
       then_set :known_verbs, append: :verb
       then_set :total, increment: 1
     end
 
-    command "ImportFromFile" do
+    ImportFromFile do
       role "System"
       description "Bulk import verbs from a verbs.txt file"
-      attribute :verbs, list_of(String)
+      list_of(String) :verbs
       emits "FileImported"
       then_set :known_verbs, to: :verbs
       then_set :total, to: :count
     end
 
-    command "LearnVerb" do
+    LearnVerb do
       role "System"
       description "Encounter a new verb in a bluebook and decide if it belongs in the lexicon"
-      attribute :verb, String
-      attribute :source_domain, String
+      String :verb
+      String :source_domain
       emits "VerbLearned"
       given :verb, not_in: :known_verbs
       then_set :known_verbs, append: :verb
@@ -40,60 +40,60 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   fixture "Lexicon", known_verbs: [], total: 0
 
   aggregate "Morphology", "Understands how English makes verbs — prefixes, suffixes, derivation rules" do
-    attribute :productive_prefixes, list_of(Prefix)
-    attribute :productive_suffixes, list_of(Suffix)
-    attribute :derivation_rules, list_of(Rule)
+    list_of(Prefix) :productive_prefixes
+    list_of(Suffix) :productive_suffixes
+    list_of(Rule) :derivation_rules
 
     value_object "Prefix" do
-      attribute :name, String
-      attribute :meaning, String
-      attribute :examples, list_of(String)
+      String :name
+      String :meaning
+      list_of(String) :examples
     end
 
     value_object "Suffix" do
-      attribute :name, String
-      attribute :derives_from, String
-      attribute :examples, list_of(String)
+      String :name
+      String :derives_from
+      list_of(String) :examples
     end
 
     value_object "Rule" do
-      attribute :pattern, String
-      attribute :example, String
-      attribute :productive, Boolean
+      String :pattern
+      String :example
+      Boolean :productive
     end
 
-    command "RegisterPrefix" do
+    RegisterPrefix do
       role "Linguist"
       description "Add a productive prefix that derives new verbs"
-      attribute :name, String
-      attribute :meaning, String
-      attribute :examples, list_of(String)
+      String :name
+      String :meaning
+      list_of(String) :examples
       emits "PrefixRegistered"
       then_set :productive_prefixes, append: Prefix
     end
 
-    command "RegisterSuffix" do
+    RegisterSuffix do
       role "Linguist"
       description "Add a productive suffix that derives verbs from nouns or adjectives"
-      attribute :name, String
-      attribute :derives_from, String
-      attribute :examples, list_of(String)
+      String :name
+      String :derives_from
+      list_of(String) :examples
       emits "SuffixRegistered"
       then_set :productive_suffixes, append: Suffix
     end
 
-    command "DeriveVerb" do
+    DeriveVerb do
       role "System"
       description "Given a root word and affix, determine if the derived form is a valid verb"
-      attribute :root, String
-      attribute :affix, String
+      String :root
+      String :affix
       emits "VerbDerived"
     end
 
-    command "ValidateByMorphology" do
+    ValidateByMorphology do
       role "System"
       description "Check if a word is a verb by its morphological structure alone"
-      attribute :word, String
+      String :word
       emits "MorphologyAccepted"
       emits "MorphologyRejected"
     end
@@ -126,14 +126,14 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
     ]
 
   aggregate "NonVerbSuffix", "Word endings that signal noun or adjective — not a verb" do
-    attribute :suffix, String
-    attribute :part_of_speech, String
+    String :suffix
+    String :part_of_speech
 
-    command "RegisterSuffix" do
+    RegisterSuffix do
       role "Linguist"
       description "Add a suffix pattern that identifies non-verbs"
-      attribute :suffix, String
-      attribute :part_of_speech, String
+      String :suffix
+      String :part_of_speech
       emits "NonVerbSuffixRegistered"
       then_set :suffix, to: :suffix
       then_set :part_of_speech, to: :part_of_speech
@@ -167,12 +167,12 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   fixture "NonVerbSuffix", suffix: "ical",  part_of_speech: "adjective"
 
   aggregate "DualWord", "Words that are both noun and verb — exempt from suffix rejection" do
-    attribute :word, String
+    String :word
 
-    command "RegisterDualWord" do
+    RegisterDualWord do
       role "Linguist"
       description "Mark a word as valid despite matching a non-verb suffix"
-      attribute :word, String
+      String :word
       emits "DualWordRegistered"
       then_set :word, to: :word
     end
@@ -224,42 +224,42 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   fixture "DualWord", word: "Run"
 
   aggregate "Validation", "The decision engine — validates command verbs through a layered pipeline" do
-    attribute :last_checked, String
-    attribute :verdict, String
+    String :last_checked
+    String :verdict
 
-    command "ValidateCommandVerb" do
+    ValidateCommandVerb do
       role "System"
       description "Is this command name's first word a verb? Checks: lexicon, morphology, dual words, non-verb suffixes"
-      attribute :word, String
+      String :word
       emits "VerbValidated"
       emits "VerbRejected"
       emits "VerbAmbiguous"
       then_set :last_checked, to: :word
     end
 
-    command "AcceptVerb" do
+    AcceptVerb do
       role "System"
       description "Morphology says yes — accept and add to lexicon automatically"
-      attribute :word, String
-      attribute :reason, String
+      String :word
+      String :reason
       emits "VerbAccepted"
       then_set :verdict, to: "accepted"
     end
 
-    command "RejectVerb" do
+    RejectVerb do
       role "System"
       description "Not a verb by any rule — reject with reason"
-      attribute :word, String
-      attribute :reason, String
+      String :word
+      String :reason
       emits "VerbRejected"
       then_set :verdict, to: "rejected"
     end
 
-    command "RequestHumanReview" do
+    RequestHumanReview do
       role "System"
       description "Ambiguous case — ask the user to decide"
-      attribute :word, String
-      attribute :reason, String
+      String :word
+      String :reason
       emits "HumanReviewRequested"
       then_set :verdict, to: "pending_review"
     end

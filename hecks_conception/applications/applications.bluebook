@@ -3,20 +3,20 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
   category "meta"
 
   aggregate "Application", "A domain that became viable — it has an app, it runs, it serves" do
-    attribute :name, String
-    attribute :domain_path, String
-    attribute :app_types, list_of(String)
-    attribute :version, String
-    attribute :viable_at, String
-    attribute :status, String
+    String :name
+    String :domain_path
+    list_of(String) :app_types
+    String :version
+    String :viable_at
+    String :status
 
-    command "RegisterApplication" do
+    RegisterApplication do
       role "Winter"
       description "A born domain becomes viable — it has at least one running app"
-      attribute :name, String
-      attribute :domain_path, String
-      attribute :app_types, list_of(String)
-      attribute :version, String
+      String :name
+      String :domain_path
+      list_of(String) :app_types
+      String :version
       emits "ApplicationRegistered"
       then_set :name, to: :name
       then_set :domain_path, to: :domain_path
@@ -25,27 +25,27 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
       then_set :status, to: "viable"
     end
 
-    command "AddApp" do
+    AddApp do
       role "Winter"
       description "Add another app type — web, cli, mobile, api"
-      reference_to Application
-      attribute :app_type, String
+      reference_to(Application)
+      String :app_type
       emits "AppAdded"
       then_set :app_types, append: :app_type
     end
 
-    command "DeployApp" do
+    DeployApp do
       role "Owner"
       description "Deploy the app to production — it's alive in the world"
-      reference_to Application
+      reference_to(Application)
       emits "AppDeployed"
       then_set :status, to: "deployed"
     end
 
-    command "RetireApplication" do
+    RetireApplication do
       role "Owner"
       description "Application is no longer running — domain returns to catalog"
-      reference_to Application
+      reference_to(Application)
       emits "ApplicationRetired"
       then_set :status, to: "retired"
     end
@@ -59,38 +59,38 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
   end
 
   aggregate "DomainLifecycle", "The three stages of domain life — gestating, born, viable" do
-    attribute :domain_name, String
-    attribute :stage, String
-    attribute :nursery_path, String
-    attribute :catalog_path, String
-    attribute :application_path, String
+    String :domain_name
+    String :stage
+    String :nursery_path
+    String :catalog_path
+    String :application_path
 
-    command "TrackGestation" do
+    TrackGestation do
       role "System"
       description "Domain enters nursery — gestating"
-      attribute :domain_name, String
-      attribute :nursery_path, String
+      String :domain_name
+      String :nursery_path
       emits "GestationTracked"
       then_set :domain_name, to: :domain_name
       then_set :nursery_path, to: :nursery_path
       then_set :stage, to: "gestating"
     end
 
-    command "TrackBirth" do
+    TrackBirth do
       role "System"
       description "Domain moves to catalog — born, validated, versioned"
-      reference_to DomainLifecycle
-      attribute :catalog_path, String
+      reference_to(DomainLifecycle)
+      String :catalog_path
       emits "BirthTracked"
       then_set :catalog_path, to: :catalog_path
       then_set :stage, to: "born"
     end
 
-    command "TrackViability" do
+    TrackViability do
       role "System"
       description "Domain moves to applications — viable, has a running app"
-      reference_to DomainLifecycle
-      attribute :application_path, String
+      reference_to(DomainLifecycle)
+      String :application_path
       emits "ViabilityTracked"
       then_set :application_path, to: :application_path
       then_set :stage, to: "viable"
@@ -104,18 +104,18 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
   end
 
   aggregate "AppRegistry", "Index of all viable applications" do
-    attribute :total_applications, Integer
-    attribute :total_web, Integer
-    attribute :total_cli, Integer
-    attribute :total_api, Integer
+    Integer :total_applications
+    Integer :total_web
+    Integer :total_cli
+    Integer :total_api
 
-    command "IndexRegistry" do
+    IndexRegistry do
       role "System"
       description "Scan applications folder, recount everything"
-      attribute :total_applications, Integer
-      attribute :total_web, Integer
-      attribute :total_cli, Integer
-      attribute :total_api, Integer
+      Integer :total_applications
+      Integer :total_web
+      Integer :total_cli
+      Integer :total_api
       emits "RegistryRebuilt"
       then_set :total_applications, to: :total_applications
       then_set :total_web, to: :total_web

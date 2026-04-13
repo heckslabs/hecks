@@ -8,7 +8,10 @@ use crate::parser_helpers::*;
 
 pub fn parse_command(lines: &[&str]) -> (Command, usize) {
     let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
+    let name = extract_string(first).unwrap_or_else(|| {
+        // Shorthand: bare PascalCase like `CreatePizza do`
+        first.split_whitespace().next().unwrap_or("").to_string()
+    });
 
     let mut cmd = Command {
         name, description: None, role: None, attributes: vec![],
@@ -48,6 +51,12 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         if depth == 1 {
             if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) { cmd.attributes.push(attr); }
+            } else if is_shorthand_line(line) {
+                match parse_shorthand(line) {
+                    ShorthandResult::Attribute(a) => cmd.attributes.push(a),
+                    ShorthandResult::Reference(r) => cmd.references.push(r),
+                    ShorthandResult::None => {}
+                }
             } else if line.starts_with("role") {
                 cmd.role = extract_string(line);
             } else if line.starts_with("goal") || line.starts_with("description") {
@@ -91,6 +100,12 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
                     let snake = to_snake_case(&target);
                     cmd.references.push(Reference { name: snake, target, domain: None });
                 }
+            } else if is_shorthand_line(part) {
+                match parse_shorthand(part) {
+                    ShorthandResult::Attribute(a) => cmd.attributes.push(a),
+                    ShorthandResult::Reference(r) => cmd.references.push(r),
+                    ShorthandResult::None => {}
+                }
             }
         }
     }
@@ -115,6 +130,8 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
             if line.starts_with("description") { vo.description = extract_string(line); }
             if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) { vo.attributes.push(attr); }
+            } else if is_shorthand_line(line) && !line.starts_with("reference_to(") {
+                if let Some(attr) = parse_shorthand_attribute(line) { vo.attributes.push(attr); }
             }
         }
         i += 1;

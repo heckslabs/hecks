@@ -4,23 +4,23 @@ Hecks.bluebook "RVDC" do
 
   aggregate "App" do
     description "The RVDC application — maps four domains into one runnable web app"
-    attribute :name
-    attribute :status
-    attribute :domains, list_of(String)
+    String :name
+    String :status
+    list_of(String) :domains
 
-    command "Boot" do
+    Boot do
       role "Owner"
       goal "Start the RVDC application with all four domains"
       description "Boots Electrical, RVPower, RVCircuits, and RVWiringSheet as a single runtime"
-      attribute :port, Integer, default: 3200
+      Integer :port
       emits "AppBooted"
     end
 
-    command "RegisterDomains" do
+    RegisterDomains do
       role "System"
       goal "Map the nursery domains this app depends on"
       description "RVDC uses: Electrical (fundamentals), RVPower (sources), RVCircuits (wiring), RVWiringSheet (reference)"
-      attribute :domains, list_of(String)
+      list_of(String) :domains
       emits "DomainsRegistered"
     end
 

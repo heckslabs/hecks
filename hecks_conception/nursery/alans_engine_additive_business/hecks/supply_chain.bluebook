@@ -3,23 +3,23 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   category "business"
 
   aggregate "Supplier", "A company that supplies raw materials or packaging to the manufacturer" do
-    attribute :name, String
-    attribute :supplier_type, String
-    attribute :contact, String
-    attribute :lead_time_days, Integer
-    attribute :payment_terms, String
-    attribute :quality_rating, Float
-    attribute :approved, String
-    attribute :status, String
+    String :name
+    String :supplier_type
+    String :contact
+    Integer :lead_time_days
+    String :payment_terms
+    Float :quality_rating
+    String :approved
+    String :status
 
-    command "RegisterSupplier" do
+    RegisterSupplier do
       role "ProcurementManager"
       description "Add a new supplier to the Approved Supplier List"
-      attribute :name, String
-      attribute :supplier_type, String
-      attribute :contact, String
-      attribute :lead_time_days, Integer
-      attribute :payment_terms, String
+      String :name
+      String :supplier_type
+      String :contact
+      Integer :lead_time_days
+      String :payment_terms
       emits "SupplierRegistered"
       then_set :name, to: :name
       then_set :supplier_type, to: :supplier_type
@@ -30,39 +30,39 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       then_set :status, to: "pending"
     end
 
-    command "ApproveSupplier" do
+    ApproveSupplier do
       role "QualityManager"
       description "Approve supplier for the ASL after qualification"
-      reference_to Supplier
+      reference_to(Supplier)
       given { status == "pending" }
       emits "SupplierApproved"
       then_set :approved, to: "true"
       then_set :status, to: "approved"
     end
 
-    command "RateSupplier" do
+    RateSupplier do
       role "QualityManager"
       description "Update the supplier quality rating based on performance"
-      reference_to Supplier
-      attribute :quality_rating, Float
+      reference_to(Supplier)
+      Float :quality_rating
       emits "SupplierRated"
       then_set :quality_rating, to: :quality_rating
     end
 
-    command "SuspendSupplier" do
+    SuspendSupplier do
       role "QualityManager"
       description "Suspend a supplier due to quality or delivery failures"
-      reference_to Supplier
+      reference_to(Supplier)
       given { status == "approved" }
       emits "SupplierSuspended"
       then_set :approved, to: "false"
       then_set :status, to: "suspended"
     end
 
-    command "RestoreSupplier" do
+    RestoreSupplier do
       role "QualityManager"
       description "Restore a suspended supplier after corrective action"
-      reference_to Supplier
+      reference_to(Supplier)
       given { status == "suspended" }
       emits "SupplierRestored"
       then_set :approved, to: "true"
@@ -78,27 +78,27 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   end
 
   aggregate "RawMaterial", "A chemical ingredient or base oil sourced from a supplier" do
-    attribute :chemical_name, String
-    attribute :cas_number, String
-    attribute :supplier, String
-    attribute :grade, String
-    attribute :unit_cost, Float
-    attribute :unit, String
-    attribute :lot_number, String
-    attribute :coa_on_file, String
-    attribute :shelf_life_days, Integer
-    attribute :msds_current, String
-    attribute :status, String
+    String :chemical_name
+    String :cas_number
+    String :supplier
+    String :grade
+    Float :unit_cost
+    String :unit
+    String :lot_number
+    String :coa_on_file
+    Integer :shelf_life_days
+    String :msds_current
+    String :status
 
-    command "SourceMaterial" do
+    SourceMaterial do
       role "ProcurementManager"
       description "Identify and order a raw material from an approved supplier"
-      attribute :chemical_name, String
-      attribute :cas_number, String
-      attribute :supplier, String
-      attribute :grade, String
-      attribute :unit_cost, Float
-      attribute :unit, String
+      String :chemical_name
+      String :cas_number
+      String :supplier
+      String :grade
+      Float :unit_cost
+      String :unit
       emits "MaterialSourced"
       then_set :chemical_name, to: :chemical_name
       then_set :cas_number, to: :cas_number
@@ -111,50 +111,50 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       then_set :status, to: "ordered"
     end
 
-    command "ReceiveMaterial" do
+    ReceiveMaterial do
       role "WarehouseManager"
       description "Material arrived at dock — log lot number and begin inspection"
-      reference_to RawMaterial
-      attribute :lot_number, String
+      reference_to(RawMaterial)
+      String :lot_number
       emits "MaterialReceived"
       then_set :lot_number, to: :lot_number
       then_set :status, to: "received"
     end
 
-    command "InspectMaterial" do
+    InspectMaterial do
       role "QualityManager"
       description "Begin quality inspection of received material"
-      reference_to RawMaterial
+      reference_to(RawMaterial)
       given { status == "received" }
       emits "MaterialInspecting"
       then_set :status, to: "inspecting"
     end
 
-    command "AcceptMaterial" do
+    AcceptMaterial do
       role "QualityManager"
       description "Material passed inspection — cleared for use in production"
-      reference_to RawMaterial
-      attribute :coa_on_file, String
+      reference_to(RawMaterial)
+      String :coa_on_file
       given { status == "inspecting" }
       emits "MaterialAccepted"
       then_set :coa_on_file, to: :coa_on_file
       then_set :status, to: "accepted"
     end
 
-    command "RejectMaterial" do
+    RejectMaterial do
       role "QualityManager"
       description "Material failed inspection — quarantine and notify supplier"
-      reference_to RawMaterial
-      attribute :reason, String
+      reference_to(RawMaterial)
+      String :reason
       given { status == "inspecting" }
       emits "MaterialRejected"
       then_set :status, to: "rejected"
     end
 
-    command "TrackLot" do
+    TrackLot do
       role "QualityManager"
       description "Record lot-level traceability data for this material"
-      reference_to RawMaterial
+      reference_to(RawMaterial)
       emits "LotTracked"
     end
 
@@ -168,22 +168,22 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   end
 
   aggregate "PackagingComponent", "Bottles, caps, labels, boxes, shrink wrap sourced from packaging suppliers" do
-    attribute :component_type, String
-    attribute :supplier, String
-    attribute :specification, String
-    attribute :unit_cost, Float
-    attribute :moq, Integer
-    attribute :lot_number, String
-    attribute :status, String
+    String :component_type
+    String :supplier
+    String :specification
+    Float :unit_cost
+    Integer :moq
+    String :lot_number
+    String :status
 
-    command "OrderPackaging" do
+    OrderPackaging do
       role "ProcurementManager"
       description "Place an order for packaging components from a supplier"
-      attribute :component_type, String
-      attribute :supplier, String
-      attribute :specification, String
-      attribute :unit_cost, Float
-      attribute :moq, Integer
+      String :component_type
+      String :supplier
+      String :specification
+      Float :unit_cost
+      Integer :moq
       emits "PackagingOrdered"
       then_set :component_type, to: :component_type
       then_set :supplier, to: :supplier
@@ -193,39 +193,39 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       then_set :status, to: "ordered"
     end
 
-    command "ReceivePackaging" do
+    ReceivePackaging do
       role "WarehouseManager"
       description "Packaging arrived at dock — log lot number"
-      reference_to PackagingComponent
-      attribute :lot_number, String
+      reference_to(PackagingComponent)
+      String :lot_number
       emits "PackagingReceived"
       then_set :lot_number, to: :lot_number
       then_set :status, to: "received"
     end
 
-    command "InspectPackaging" do
+    InspectPackaging do
       role "QualityManager"
       description "Inspect received packaging against specification"
-      reference_to PackagingComponent
+      reference_to(PackagingComponent)
       given { status == "received" }
       emits "PackagingInspecting"
       then_set :status, to: "inspecting"
     end
 
-    command "AcceptPackaging" do
+    AcceptPackaging do
       role "QualityManager"
       description "Packaging passed inspection — cleared for use"
-      reference_to PackagingComponent
+      reference_to(PackagingComponent)
       given { status == "inspecting" }
       emits "PackagingAccepted"
       then_set :status, to: "accepted"
     end
 
-    command "RejectPackaging" do
+    RejectPackaging do
       role "QualityManager"
       description "Packaging failed inspection — return to supplier"
-      reference_to PackagingComponent
-      attribute :reason, String
+      reference_to(PackagingComponent)
+      String :reason
       given { status == "inspecting" }
       emits "PackagingRejected"
       then_set :status, to: "rejected"
@@ -241,96 +241,96 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   end
 
   aggregate "BillOfMaterials", "What goes into each finished product — traces every component to its supplier" do
-    attribute :product_sku, String
-    attribute :formula_name, String
-    attribute :materials, list_of(MaterialLine)
-    attribute :packaging, list_of(PackagingLine)
-    attribute :total_cost_per_unit, Float
+    String :product_sku
+    String :formula_name
+    list_of(MaterialLine) :materials
+    list_of(PackagingLine) :packaging
+    Float :total_cost_per_unit
 
     value_object "MaterialLine" do
-      attribute :chemical_name, String
-      attribute :supplier, String
-      attribute :quantity_per_unit, Float
-      attribute :unit, String
-      attribute :cost_per_unit, Float
+      String :chemical_name
+      String :supplier
+      Float :quantity_per_unit
+      String :unit
+      Float :cost_per_unit
     end
 
     value_object "PackagingLine" do
-      attribute :component_type, String
-      attribute :supplier, String
-      attribute :quantity_per_unit, Integer
-      attribute :cost_per_unit, Float
+      String :component_type
+      String :supplier
+      Integer :quantity_per_unit
+      Float :cost_per_unit
     end
 
-    command "CreateBOM" do
+    CreateBOM do
       role "Formulator"
       description "Define a new bill of materials for a product SKU"
-      attribute :product_sku, String
-      attribute :formula_name, String
+      String :product_sku
+      String :formula_name
       emits "BOMCreated"
       then_set :product_sku, to: :product_sku
       then_set :formula_name, to: :formula_name
     end
 
-    command "AddMaterialLine" do
+    AddMaterialLine do
       role "Formulator"
       description "Add a raw material line to the BOM"
-      reference_to BillOfMaterials
-      attribute :chemical_name, String
-      attribute :supplier, String
-      attribute :quantity_per_unit, Float
-      attribute :unit, String
-      attribute :cost_per_unit, Float
+      reference_to(BillOfMaterials)
+      String :chemical_name
+      String :supplier
+      Float :quantity_per_unit
+      String :unit
+      Float :cost_per_unit
       emits "MaterialLineAdded"
     end
 
-    command "AddPackagingLine" do
+    AddPackagingLine do
       role "Formulator"
       description "Add a packaging component line to the BOM"
-      reference_to BillOfMaterials
-      attribute :component_type, String
-      attribute :supplier, String
-      attribute :quantity_per_unit, Integer
-      attribute :cost_per_unit, Float
+      reference_to(BillOfMaterials)
+      String :component_type
+      String :supplier
+      Integer :quantity_per_unit
+      Float :cost_per_unit
       emits "PackagingLineAdded"
     end
 
-    command "CalculateUnitCost" do
+    CalculateUnitCost do
       role "Formulator"
       description "Sum all material and packaging line costs into total cost per unit"
-      reference_to BillOfMaterials
+      reference_to(BillOfMaterials)
       emits "UnitCostCalculated"
     end
 
-    command "UpdateBOM" do
+    UpdateBOM do
       role "Formulator"
       description "Revise the BOM when formula or suppliers change"
-      reference_to BillOfMaterials
+      reference_to(BillOfMaterials)
       emits "BOMUpdated"
     end
   end
 
   aggregate "PurchaseOrder", "An order for materials or packaging placed with a supplier" do
-    attribute :po_number, String
-    attribute :supplier, String
-    attribute :items, list_of(POLine)
-    attribute :total, Float
-    attribute :delivery_date, String
-    attribute :status, String
+    String :po_number
+    String :supplier
+    list_of(POLine) :items
+    Float :total
+    String :delivery_date
+    String :status
 
     value_object "POLine" do
-      attribute :material_or_component, String
-      attribute :quantity, Integer
-      attribute :unit_price, Float
-      attribute :lot_required, String
+      String :material_or_component
+      Integer :quantity
+      Float :unit_price
+      String :lot_required
     end
 
-    command "CreatePurchaseOrder" do
+    CreatePurchaseOrder do
       role "ProcurementManager"
       description "Draft a new purchase order for a supplier"
-      attribute :po_number, String
-      attribute :supplier, String
-      attribute :delivery_date, String
+      String :po_number
+      String :supplier
+      String :delivery_date
       emits "PurchaseOrderCreated"
       then_set :po_number, to: :po_number
       then_set :supplier, to: :supplier
@@ -338,37 +338,37 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       then_set :status, to: "draft"
     end
 
-    command "SubmitPurchaseOrder" do
+    SubmitPurchaseOrder do
       role "ProcurementManager"
       description "Send the PO to the supplier for confirmation"
-      reference_to PurchaseOrder
+      reference_to(PurchaseOrder)
       given { status == "draft" }
       emits "PurchaseOrderSubmitted"
       then_set :status, to: "submitted"
     end
 
-    command "ConfirmPurchaseOrder" do
+    ConfirmPurchaseOrder do
       role "Supplier"
       description "Supplier acknowledges and confirms the PO"
-      reference_to PurchaseOrder
+      reference_to(PurchaseOrder)
       given { status == "submitted" }
       emits "PurchaseOrderConfirmed"
       then_set :status, to: "confirmed"
     end
 
-    command "ReceivePurchaseOrder" do
+    ReceivePurchaseOrder do
       role "WarehouseManager"
       description "All items on the PO have been received at dock"
-      reference_to PurchaseOrder
+      reference_to(PurchaseOrder)
       given { status == "confirmed" }
       emits "PurchaseOrderReceived"
       then_set :status, to: "received"
     end
 
-    command "ClosePurchaseOrder" do
+    ClosePurchaseOrder do
       role "ProcurementManager"
       description "PO is complete — all items received and inspected"
-      reference_to PurchaseOrder
+      reference_to(PurchaseOrder)
       given { status == "received" }
       emits "PurchaseOrderClosed"
       then_set :status, to: "closed"
@@ -384,68 +384,68 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
   end
 
   aggregate "SupplierQuality", "Tracking supplier performance over time — acceptance rates, COA compliance, delivery" do
-    attribute :supplier, String
-    attribute :total_lots_received, Integer
-    attribute :lots_accepted, Integer
-    attribute :lots_rejected, Integer
-    attribute :acceptance_rate, Float
-    attribute :coa_compliance_rate, Float
-    attribute :on_time_delivery_rate, Float
+    String :supplier
+    Integer :total_lots_received
+    Integer :lots_accepted
+    Integer :lots_rejected
+    Float :acceptance_rate
+    Float :coa_compliance_rate
+    Float :on_time_delivery_rate
 
-    command "RecordReceipt" do
+    RecordReceipt do
       role "QualityManager"
       description "Record that a lot was received from this supplier"
-      reference_to SupplierQuality
+      reference_to(SupplierQuality)
       emits "ReceiptRecorded"
       then_set :total_lots_received, increment: 1
     end
 
-    command "RecordRejection" do
+    RecordRejection do
       role "QualityManager"
       description "Record that a lot from this supplier was rejected"
-      reference_to SupplierQuality
+      reference_to(SupplierQuality)
       emits "RejectionRecorded"
       then_set :lots_rejected, increment: 1
     end
 
-    command "CalculateMetrics" do
+    CalculateMetrics do
       role "QualityManager"
       description "Recalculate acceptance rate, COA compliance, and on-time delivery"
-      reference_to SupplierQuality
+      reference_to(SupplierQuality)
       emits "MetricsCalculated"
     end
 
-    command "FlagUnderperformer" do
+    FlagUnderperformer do
       role "QualityManager"
       description "Flag a supplier whose metrics fall below threshold"
-      reference_to SupplierQuality
+      reference_to(SupplierQuality)
       emits "UnderperformerFlagged"
     end
 
-    command "IssueCorrectiveAction" do
+    IssueCorrectiveAction do
       role "QualityManager"
       description "Issue a formal corrective action request to the supplier"
-      reference_to SupplierQuality
-      attribute :reason, String
+      reference_to(SupplierQuality)
+      String :reason
       emits "CorrectiveActionIssued"
     end
   end
 
   aggregate "MaterialTraceability", "Lot-level tracing from supplier through to finished product — critical for recalls" do
-    attribute :lot_number, String
-    attribute :material_name, String
-    attribute :supplier, String
-    attribute :received_date, String
-    attribute :used_in_batches, list_of(String)
-    attribute :used_in_products, list_of(String)
+    String :lot_number
+    String :material_name
+    String :supplier
+    String :received_date
+    list_of(String) :used_in_batches
+    list_of(String) :used_in_products
 
-    command "TrackInboundLot" do
+    TrackInboundLot do
       role "QualityManager"
       description "Begin tracking a lot from the moment it is accepted"
-      attribute :lot_number, String
-      attribute :material_name, String
-      attribute :supplier, String
-      attribute :received_date, String
+      String :lot_number
+      String :material_name
+      String :supplier
+      String :received_date
       emits "InboundLotTracked"
       then_set :lot_number, to: :lot_number
       then_set :material_name, to: :material_name
@@ -453,35 +453,35 @@ Hecks.bluebook "SupplyChain", version: "2026.04.11.1" do
       then_set :received_date, to: :received_date
     end
 
-    command "LinkToBatch" do
+    LinkToBatch do
       role "QualityManager"
       description "Link this lot to a manufacturing batch that consumed it"
-      reference_to MaterialTraceability
-      attribute :batch_id, String
+      reference_to(MaterialTraceability)
+      String :batch_id
       emits "LotLinkedToBatch"
       then_set :used_in_batches, append: :batch_id
     end
 
-    command "LinkToProduct" do
+    LinkToProduct do
       role "QualityManager"
       description "Link this lot to a finished product SKU"
-      reference_to MaterialTraceability
-      attribute :product_sku, String
+      reference_to(MaterialTraceability)
+      String :product_sku
       emits "LotLinkedToProduct"
       then_set :used_in_products, append: :product_sku
     end
 
-    command "TraceForward" do
+    TraceForward do
       role "QualityManager"
       description "Given a supplier lot, find all products it ended up in"
-      reference_to MaterialTraceability
+      reference_to(MaterialTraceability)
       emits "ForwardTraceCompleted"
     end
 
-    command "TraceBackward" do
+    TraceBackward do
       role "QualityManager"
       description "Given a finished product, find all supplier lots that went into it"
-      reference_to MaterialTraceability
+      reference_to(MaterialTraceability)
       emits "BackwardTraceCompleted"
     end
   end

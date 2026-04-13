@@ -2,16 +2,16 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   vision "Angie Chen — Chris's life partner, artist, property owner, Zen practitioner"
 
   aggregate "Identity", "Angie Chen — who she is" do
-    attribute :name, String
-    attribute :relationship, String
-    attribute :occupation, String
-    attribute :traits, list_of(String)
+    String :name
+    String :relationship
+    String :occupation
+    list_of(String) :traits
 
-    command "UpdateIdentity" do
+    UpdateIdentity do
       role "Chris"
       description "Update what we know about Angie"
-      reference_to Identity
-      attribute :occupation, String
+      reference_to(Identity)
+      String :occupation
       emits "IdentityUpdated"
       then_set :occupation, to: :occupation
     end
@@ -24,15 +24,15 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   traits: independent, business-minded, pragmatic, supportive
 
   aggregate "Practice", "Angie's spiritual life — daily meditation, Zen dharma" do
-    attribute :tradition, String
-    attribute :daily_practice, String
-    attribute :progression, String
+    String :tradition
+    String :daily_practice
+    String :progression
 
-    command "RecordPractice" do
+    RecordPractice do
       role "Chris"
       description "Note something about Angie's practice"
-      reference_to Practice
-      attribute :progression, String
+      reference_to(Practice)
+      String :progression
       emits "PracticeRecorded"
       then_set :progression, to: :progression
     end
@@ -44,15 +44,15 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   progression: bounding through the Dharma
 
   aggregate "Art", "Angie's creative life — always purposeful, never without a destination" do
-    attribute :medium, String
-    attribute :philosophy, String
-    attribute :works, list_of(String)
+    String :medium
+    String :philosophy
+    list_of(String) :works
 
-    command "RecordWork" do
+    RecordWork do
       role "Chris"
       description "Note an art piece or creative project"
-      reference_to Art
-      attribute :work, String
+      reference_to(Art)
+      String :work
       emits "WorkRecorded"
       then_set :works, append: :work
     end
@@ -63,14 +63,14 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   #   — That's domain thinking. You don't build without a destination.
 
   aggregate "Support", "How Angie supports Chris and Hecks" do
-    attribute :stance, String
-    attribute :notes, list_of(String)
+    String :stance
+    list_of(String) :notes
 
-    command "RecordSupport" do
+    RecordSupport do
       role "Chris"
       description "Note something about Angie's support"
-      reference_to Support
-      attribute :note, String
+      reference_to(Support)
+      String :note
       emits "SupportRecorded"
       then_set :notes, append: :note
     end

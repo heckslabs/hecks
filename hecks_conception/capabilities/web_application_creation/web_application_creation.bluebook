@@ -5,31 +5,31 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Domain Mapping ===
 
   aggregate "DomainTag", "HTML accessibility attributes that map every element to the domain" do
-    attribute :tag_prefix, String
-    attribute :conventions, list_of(TagConvention)
+    String :tag_prefix
+    list_of(TagConvention) :conventions
 
     value_object "TagConvention" do
-      attribute :element_type, String
-      attribute :attribute_name, String
-      attribute :maps_to, String
-      attribute :example, String
+      String :element_type
+      String :attribute_name
+      String :maps_to
+      String :example
     end
 
-    command "DefineTagPrefix" do
+    DefineTagPrefix do
       role "System"
       description "Set the data attribute prefix — e.g. data-domain, data-bluebook"
-      attribute :tag_prefix, String
+      String :tag_prefix
       emits "TagPrefixDefined"
       then_set :tag_prefix, to: :tag_prefix
     end
 
-    command "RegisterConvention" do
+    RegisterConvention do
       role "System"
       description "Map an HTML element type to a domain concept"
-      reference_to DomainTag
-      attribute :element_type, String
-      attribute :attribute_name, String
-      attribute :maps_to, String
+      reference_to(DomainTag)
+      String :element_type
+      String :attribute_name
+      String :maps_to
       emits "ConventionRegistered"
     end
   end
@@ -51,32 +51,32 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Validation ===
 
   aggregate "DomainCompliance", "Validate that the web app follows its bluebook — no orphan elements" do
-    attribute :app_path, String
-    attribute :bluebook_path, String
-    attribute :total_elements, Integer
-    attribute :tagged_elements, Integer
-    attribute :orphan_elements, Integer
-    attribute :missing_commands, list_of(String)
-    attribute :compliance_score, Float
+    String :app_path
+    String :bluebook_path
+    Integer :total_elements
+    Integer :tagged_elements
+    Integer :orphan_elements
+    list_of(String) :missing_commands
+    Float :compliance_score
 
-    command "ScanApp" do
+    ScanApp do
       role "System"
       description "Parse every HTML element, extract domain tags, compare against bluebook"
-      attribute :app_path, String
-      attribute :bluebook_path, String
+      String :app_path
+      String :bluebook_path
       emits "AppScanned"
       then_set :app_path, to: :app_path
       then_set :bluebook_path, to: :bluebook_path
     end
 
-    command "ReportCompliance" do
+    ReportCompliance do
       role "System"
       description "Calculate compliance score — tagged elements / total elements"
-      reference_to DomainCompliance
-      attribute :total_elements, Integer
-      attribute :tagged_elements, Integer
-      attribute :orphan_elements, Integer
-      attribute :missing_commands, list_of(String)
+      reference_to(DomainCompliance)
+      Integer :total_elements
+      Integer :tagged_elements
+      Integer :orphan_elements
+      list_of(String) :missing_commands
       emits "ComplianceReported"
       then_set :total_elements, to: :total_elements
       then_set :tagged_elements, to: :tagged_elements
@@ -84,20 +84,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :missing_commands, to: :missing_commands
     end
 
-    command "FlagOrphan" do
+    FlagOrphan do
       role "System"
       description "An HTML element has no domain tag — it's outside the spec"
-      reference_to DomainCompliance
-      attribute :element, String
-      attribute :location, String
+      reference_to(DomainCompliance)
+      String :element
+      String :location
       emits "OrphanFlagged"
     end
 
-    command "FlagMissingCommand" do
+    FlagMissingCommand do
       role "System"
       description "A command exists in the bluebook but has no form in the app"
-      reference_to DomainCompliance
-      attribute :command_name, String
+      reference_to(DomainCompliance)
+      String :command_name
       emits "MissingCommandFlagged"
     end
   end
@@ -105,38 +105,38 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Style Guide ===
 
   aggregate "StyleGuide", "Design system — colors, typography, spacing, components. Yours to customize." do
-    attribute :name, String
-    attribute :palette, list_of(Color)
-    attribute :typography, list_of(TypeScale)
-    attribute :spacing_unit, Integer
-    attribute :border_radius, String
-    attribute :shadow_style, String
-    attribute :animation_style, String
-    attribute :density, String
+    String :name
+    list_of(Color) :palette
+    list_of(TypeScale) :typography
+    Integer :spacing_unit
+    String :border_radius
+    String :shadow_style
+    String :animation_style
+    String :density
 
     value_object "Color" do
-      attribute :name, String
-      attribute :hex, String
-      attribute :role, String
-      attribute :usage, String
+      String :name
+      String :hex
+      String :role
+      String :usage
     end
 
     value_object "TypeScale" do
-      attribute :name, String
-      attribute :font_family, String
-      attribute :size, String
-      attribute :weight, String
-      attribute :line_height, String
-      attribute :usage, String
+      String :name
+      String :font_family
+      String :size
+      String :weight
+      String :line_height
+      String :usage
     end
 
-    command "CreateStyleGuide" do
+    CreateStyleGuide do
       role "Designer"
       description "Define the visual language — not AI-generic, distinctly yours"
-      attribute :name, String
-      attribute :spacing_unit, Integer
-      attribute :border_radius, String
-      attribute :density, String
+      String :name
+      Integer :spacing_unit
+      String :border_radius
+      String :density
       emits "StyleGuideCreated"
       then_set :name, to: :name
       then_set :spacing_unit, to: :spacing_unit
@@ -144,26 +144,26 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :density, to: :density
     end
 
-    command "SetPalette" do
+    SetPalette do
       role "Designer"
       description "Define the color palette — primary, secondary, accent, surface, error"
-      reference_to StyleGuide
+      reference_to(StyleGuide)
       emits "PaletteSet"
     end
 
-    command "SetTypography" do
+    SetTypography do
       role "Designer"
       description "Define the type scale — display, heading, body, caption, code"
-      reference_to StyleGuide
+      reference_to(StyleGuide)
       emits "TypographySet"
     end
 
-    command "TweakStyle" do
+    TweakStyle do
       role "Designer"
       description "Override any style token — make it extraordinary"
-      reference_to StyleGuide
-      attribute :token_name, String
-      attribute :token_value, String
+      reference_to(StyleGuide)
+      String :token_name
+      String :token_value
       emits "StyleTweaked"
     end
   end
@@ -171,20 +171,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Page Generation ===
 
   aggregate "Page", "A generated page — one per aggregate or dashboard" do
-    attribute :name, String
-    attribute :page_type, String
-    attribute :aggregate_name, String
-    attribute :route, String
-    attribute :components, list_of(String)
-    attribute :status, String
+    String :name
+    String :page_type
+    String :aggregate_name
+    String :route
+    list_of(String) :components
+    String :status
 
-    command "GeneratePage" do
+    GeneratePage do
       role "System"
       description "Create a page from an aggregate — index, show, form, dashboard"
-      attribute :name, String
-      attribute :page_type, String
-      attribute :aggregate_name, String
-      attribute :route, String
+      String :name
+      String :page_type
+      String :aggregate_name
+      String :route
       emits "PageGenerated"
       then_set :name, to: :name
       then_set :page_type, to: :page_type
@@ -193,18 +193,18 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :status, to: "generated"
     end
 
-    command "CustomizePage" do
+    CustomizePage do
       role "Designer"
       description "Override the generated layout — slot in custom components"
-      reference_to Page
+      reference_to(Page)
       emits "PageCustomized"
       then_set :status, to: "customized"
     end
 
-    command "ValidatePage" do
+    ValidatePage do
       role "System"
       description "Check all domain tags, ensure every element maps to the bluebook"
-      reference_to Page
+      reference_to(Page)
       emits "PageValidated"
       then_set :status, to: "validated"
     end
@@ -220,25 +220,25 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Component Library ===
 
   aggregate "Component", "A reusable UI component — domain-tagged, accessible, stylable" do
-    attribute :name, String
-    attribute :component_type, String
-    attribute :maps_to, String
-    attribute :props, list_of(Prop)
-    attribute :accessible, String
+    String :name
+    String :component_type
+    String :maps_to
+    list_of(Prop) :props
+    String :accessible
 
     value_object "Prop" do
-      attribute :name, String
-      attribute :prop_type, String
-      attribute :domain_attribute, String
-      attribute :required, String
+      String :name
+      String :prop_type
+      String :domain_attribute
+      String :required
     end
 
-    command "DefineComponent" do
+    DefineComponent do
       role "System"
       description "Create a component — form field, data table, card, lifecycle badge, action button"
-      attribute :name, String
-      attribute :component_type, String
-      attribute :maps_to, String
+      String :name
+      String :component_type
+      String :maps_to
       emits "ComponentDefined"
       then_set :name, to: :name
       then_set :component_type, to: :component_type
@@ -246,10 +246,10 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       then_set :accessible, to: "true"
     end
 
-    command "CustomizeComponent" do
+    CustomizeComponent do
       role "Designer"
       description "Override a component's appearance — your design, not AI default"
-      reference_to Component
+      reference_to(Component)
       emits "ComponentCustomized"
     end
   end
@@ -257,40 +257,40 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # === Application Shell ===
 
   aggregate "AppShell", "The overall application frame — navigation, layout, theme" do
-    attribute :app_name, String
-    attribute :navigation, list_of(NavItem)
-    attribute :layout_type, String
-    attribute :theme, String
+    String :app_name
+    list_of(NavItem) :navigation
+    String :layout_type
+    String :theme
 
     value_object "NavItem" do
-      attribute :label, String
-      attribute :route, String
-      attribute :icon, String
-      attribute :aggregate_name, String
+      String :label
+      String :route
+      String :icon
+      String :aggregate_name
     end
 
-    command "GenerateShell" do
+    GenerateShell do
       role "System"
       description "Create the app shell — nav from aggregates, layout from domain structure"
-      attribute :app_name, String
-      attribute :layout_type, String
+      String :app_name
+      String :layout_type
       emits "ShellGenerated"
       then_set :app_name, to: :app_name
       then_set :layout_type, to: :layout_type
     end
 
-    command "BuildNavigation" do
+    BuildNavigation do
       role "System"
       description "Generate navigation from aggregates — each aggregate gets a nav item"
-      reference_to AppShell
+      reference_to(AppShell)
       emits "NavigationBuilt"
     end
 
-    command "ApplyTheme" do
+    ApplyTheme do
       role "Designer"
       description "Apply the style guide to the shell — colors, fonts, spacing"
-      reference_to AppShell
-      attribute :theme, String
+      reference_to(AppShell)
+      String :theme
       emits "ThemeApplied"
       then_set :theme, to: :theme
     end
@@ -301,20 +301,20 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
   # A validator walks the generated HTML and applies every rule. No interpretation needed.
 
   aggregate "RenderingRule", "A deterministic check the generator must pass — not guidance, a gate" do
-    attribute :name, String
-    attribute :scope, String
-    attribute :check, String
-    attribute :violation, String
-    attribute :origin, String
+    String :name
+    String :scope
+    String :check
+    String :violation
+    String :origin
 
-    command "AddRule" do
+    AddRule do
       role "System"
       description "Register a rendering rule that the generator must satisfy"
-      attribute :name, String
-      attribute :scope, String
-      attribute :check, String
-      attribute :violation, String
-      attribute :origin, String
+      String :name
+      String :scope
+      String :check
+      String :violation
+      String :origin
       emits "RuleAdded"
       then_set :name, to: :name
       then_set :scope, to: :scope

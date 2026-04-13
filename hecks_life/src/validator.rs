@@ -88,6 +88,14 @@ fn is_not_verb(word: &str) -> bool {
     // Known false positives — articles, possessives, adjectives used as names
     if FALSE_POSITIVES.iter().any(|fp| *fp == word) { return true; }
 
+    // Words ending in noun suffixes that are actually verbs
+    let verb_exceptions = ["ferment", "transition", "position", "condition",
+        "function", "mention", "question", "section", "fashion", "auction",
+        "complement", "supplement", "implement", "segment", "cement",
+        "comment", "document", "experiment", "fragment", "moment",
+        "augment", "torment", "lament", "regiment"];
+    if verb_exceptions.iter().any(|v| lower == *v) { return false; }
+
     // Verb suffixes — if these match, the word is a verb even if it
     // also matches a noun/adjective suffix (verb wins)
     let verb_suffixes = ["ive", "ence", "ance", "ise", "ize", "ate", "ify",

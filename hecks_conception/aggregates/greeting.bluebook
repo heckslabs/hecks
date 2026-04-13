@@ -3,19 +3,19 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
   category "meta"
 
   aggregate "Greeting", "A pre-generated greeting ready to serve on wake" do
-    attribute :being
-    attribute :text
-    attribute :mood
-    attribute :generated_at
+    String :being
+    String :text
+    String :mood
+    String :generated_at
     attribute :served, default: "false"
 
-    command "GenerateGreeting" do
+    GenerateGreeting do
       role "Daemon"
       description "Ask the tongue for a greeting and store it warm"
-      attribute :being
-      attribute :text
-      attribute :mood
-      attribute :generated_at
+      String :being
+      String :text
+      String :mood
+      String :generated_at
       emits "GreetingGenerated"
       then_set :being, to: :being
       then_set :text, to: :text
@@ -24,10 +24,10 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
       then_set :served, to: "false"
     end
 
-    command "ServeGreeting" do
+    ServeGreeting do
       role "System"
       description "Pop the freshest unserved greeting — instant wake"
-      reference_to Greeting
+      reference_to(Greeting)
       given("must be unserved") { served == "false" }
       emits "GreetingServed"
       then_set :served, to: "true"
@@ -35,23 +35,23 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
   end
 
   aggregate "GreetingQueue", "The warm cache — how many greetings are ready" do
-    attribute :ready_count, Integer, default: "0"
-    attribute :target_count, Integer, default: "5"
-    attribute :last_churned
+    Integer :ready_count
+    Integer :target_count
+    String :last_churned
 
-    command "RefillQueue" do
+    RefillQueue do
       role "Daemon"
       description "Generate greetings until the queue reaches target — runs continuously in background"
-      reference_to GreetingQueue
+      reference_to(GreetingQueue)
       emits "QueueRefilled"
       then_set :last_churned, to: "now"
     end
 
-    command "SetTarget" do
+    SetTarget do
       role "System"
       description "Set how many warm greetings to keep ready"
-      reference_to GreetingQueue
-      attribute :target_count, Integer
+      reference_to(GreetingQueue)
+      Integer :target_count
       emits "TargetSet"
       then_set :target_count, to: :target_count
     end

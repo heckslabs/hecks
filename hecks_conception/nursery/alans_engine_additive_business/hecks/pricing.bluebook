@@ -3,32 +3,32 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
   category "business"
 
   aggregate "PriceList", "Pricing tiers for a SKU — MAP, MSRP, distributor, jobber, and retail margin targets" do
-    attribute :sku, String
-    attribute :msrp, Float
-    attribute :map_price, Float
-    attribute :distributor_price, Float
-    attribute :jobber_price, Float
-    attribute :retail_margin_target, Float
-    attribute :channel_prices, list_of(ChannelPrice)
-    attribute :effective_date, String
-    attribute :status, String
+    String :sku
+    Float :msrp
+    Float :map_price
+    Float :distributor_price
+    Float :jobber_price
+    Float :retail_margin_target
+    list_of(ChannelPrice) :channel_prices
+    String :effective_date
+    String :status
 
     value_object "ChannelPrice" do
-      attribute :channel, String
-      attribute :unit_price, Float
-      attribute :margin_percent, Float
+      String :channel
+      Float :unit_price
+      Float :margin_percent
     end
 
-    command "SetPriceList" do
+    SetPriceList do
       role "PricingManager"
       description "Establish MAP, MSRP, distributor, and jobber pricing for a SKU"
-      attribute :sku, String
-      attribute :msrp, Float
-      attribute :map_price, Float
-      attribute :distributor_price, Float
-      attribute :jobber_price, Float
-      attribute :retail_margin_target, Float
-      attribute :effective_date, String
+      String :sku
+      Float :msrp
+      Float :map_price
+      Float :distributor_price
+      Float :jobber_price
+      Float :retail_margin_target
+      String :effective_date
       emits "PriceListSet"
       then_set :sku, to: :sku
       then_set :msrp, to: :msrp
@@ -40,24 +40,24 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       then_set :status, to: "active"
     end
 
-    command "SetChannelPrice" do
+    SetChannelPrice do
       role "PricingManager"
       description "Set channel-specific pricing — resolve channel conflict with tier discipline"
-      reference_to PriceList
-      attribute :channel, String
-      attribute :unit_price, Float
-      attribute :margin_percent, Float
+      reference_to(PriceList)
+      String :channel
+      Float :unit_price
+      Float :margin_percent
       emits "ChannelPriceSet"
     end
 
-    command "RevisePriceList" do
+    RevisePriceList do
       role "PricingManager"
       description "Update pricing tiers — triggered by cost changes or competitive pressure"
-      reference_to PriceList
-      attribute :msrp, Float
-      attribute :map_price, Float
-      attribute :distributor_price, Float
-      attribute :jobber_price, Float
+      reference_to(PriceList)
+      Float :msrp
+      Float :map_price
+      Float :distributor_price
+      Float :jobber_price
       emits "PriceListRevised"
       then_set :msrp, to: :msrp
       then_set :map_price, to: :map_price
@@ -78,54 +78,54 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
   fixture "PriceList", sku: "S50-RE-16OZ", msrp: 8.99, map_price: 7.49, distributor_price: 4.50, jobber_price: 5.50, retail_margin_target: 0.35, effective_date: "2026-04-01", status: "active"
 
   aggregate "PricingPolicy", "MAP enforcement rules, promotional windows, and volume discount tiers" do
-    attribute :name, String
-    attribute :map_enforcement_level, String
-    attribute :promotional_windows, list_of(PromotionalWindow)
-    attribute :volume_discount_tiers, list_of(VolumeTier)
-    attribute :status, String
+    String :name
+    String :map_enforcement_level
+    list_of(PromotionalWindow) :promotional_windows
+    list_of(VolumeTier) :volume_discount_tiers
+    String :status
 
     value_object "PromotionalWindow" do
-      attribute :name, String
-      attribute :start_date, String
-      attribute :end_date, String
-      attribute :discount_percent, Float
+      String :name
+      String :start_date
+      String :end_date
+      Float :discount_percent
     end
 
     value_object "VolumeTier" do
-      attribute :min_quantity, Integer
-      attribute :discount_percent, Float
-      attribute :tier_name, String
+      Integer :min_quantity
+      Float :discount_percent
+      String :tier_name
     end
 
-    command "CreatePricingPolicy" do
+    CreatePricingPolicy do
       role "PricingManager"
       description "Define MAP enforcement rules and volume discount structure"
-      attribute :name, String
-      attribute :map_enforcement_level, String
+      String :name
+      String :map_enforcement_level
       emits "PricingPolicyCreated"
       then_set :name, to: :name
       then_set :map_enforcement_level, to: :map_enforcement_level
       then_set :status, to: "active"
     end
 
-    command "AddPromotionalWindow" do
+    AddPromotionalWindow do
       role "PricingManager"
       description "Open a time-bound promotional pricing window"
-      reference_to PricingPolicy
-      attribute :name, String
-      attribute :start_date, String
-      attribute :end_date, String
-      attribute :discount_percent, Float
+      reference_to(PricingPolicy)
+      String :name
+      String :start_date
+      String :end_date
+      Float :discount_percent
       emits "PromotionalWindowAdded"
     end
 
-    command "AddVolumeTier" do
+    AddVolumeTier do
       role "PricingManager"
       description "Add a volume discount tier — reward larger orders"
-      reference_to PricingPolicy
-      attribute :min_quantity, Integer
-      attribute :discount_percent, Float
-      attribute :tier_name, String
+      reference_to(PricingPolicy)
+      Integer :min_quantity
+      Float :discount_percent
+      String :tier_name
       emits "VolumeTierAdded"
     end
 
@@ -135,22 +135,22 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
   end
 
   aggregate "PricingViolation", "A detected MAP breach on a channel — Amazon, Walmart, or other" do
-    attribute :sku, String
-    attribute :channel, String
-    attribute :advertised_price, Float
-    attribute :map_price, Float
-    attribute :violation_date, String
-    attribute :corrective_action, String
-    attribute :status, String
+    String :sku
+    String :channel
+    Float :advertised_price
+    Float :map_price
+    String :violation_date
+    String :corrective_action
+    String :status
 
-    command "DetectViolation" do
+    DetectViolation do
       role "System"
       description "Flag a MAP breach — advertised price below minimum on a channel"
-      attribute :sku, String
-      attribute :channel, String
-      attribute :advertised_price, Float
-      attribute :map_price, Float
-      attribute :violation_date, String
+      String :sku
+      String :channel
+      Float :advertised_price
+      Float :map_price
+      String :violation_date
       emits "ViolationDetected"
       then_set :sku, to: :sku
       then_set :channel, to: :channel
@@ -160,21 +160,21 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       then_set :status, to: "open"
     end
 
-    command "CorrectViolation" do
+    CorrectViolation do
       role "PricingManager"
       description "Record corrective action taken to resolve the MAP breach"
-      reference_to PricingViolation
-      attribute :corrective_action, String
+      reference_to(PricingViolation)
+      String :corrective_action
       given { status == "open" }
       emits "ViolationCorrected"
       then_set :corrective_action, to: :corrective_action
       then_set :status, to: "corrected"
     end
 
-    command "EscalateViolation" do
+    EscalateViolation do
       role "PricingManager"
       description "Escalate unresolved MAP violation — channel conflict requires intervention"
-      reference_to PricingViolation
+      reference_to(PricingViolation)
       given { status == "open" }
       emits "ViolationEscalated"
       then_set :status, to: "escalated"
@@ -185,5 +185,20 @@ Hecks.bluebook "Pricing", version: "2026.04.11.1" do
       transition "CorrectViolation" => "corrected", from: "open"
       transition "EscalateViolation" => "escalated", from: "open"
     end
+  end
+
+  policy "CheckOnPriceList" do
+    on "PriceListSet"
+    trigger "DetectViolation"
+  end
+
+  policy "CheckOnChannelPrice" do
+    on "ChannelPriceSet"
+    trigger "DetectViolation"
+  end
+
+  policy "AutoCorrectViolation" do
+    on "ViolationDetected"
+    trigger "CorrectViolation"
   end
 end

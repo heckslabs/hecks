@@ -2,932 +2,932 @@ Hecks.bluebook "Runtime", version: "2026.04.11.1" do
   category "framework"
   aggregate "ViewBinding", definition: "Wires read model projections to event bus" do
 
-    command "BindView" do
-      attribute :view_name, String
+    BindView do
+      String :view_name
     end
   end
 
   aggregate "Projection", definition: "CQRS read model projection with in-memory store" do
 
-    command "Apply" do
-      attribute :event_name, String
+    Apply do
+      String :event_name
     end
 
-    command "Query" do
-      attribute :query_name, String
+    Query do
+      String :query_name
     end
   end
 
   aggregate "ProjectionSetup", definition: "Wires CQRS projections to event bus at boot" do
 
-    command "SetupProjections" do
-      attribute :domain_id, String
+    SetupProjections do
+      String :domain_id
     end
   end
 
   aggregate "ModelMixinInternal", definition: "Aggregate model mixin: attributes, equality, serialization" do
 
-    command "Initialize" do
-      attribute :attributes, String
+    Initialize do
+      String :attributes
     end
 
-    command "Serialize" do
-      attribute :format, String
+    Serialize do
+      String :format
     end
   end
 
   aggregate "DispatchMixin", definition: "Command dispatch mixin" do
 
-    command "Dispatch" do
-      attribute :command_name, String
-      attribute :payload, String
+    Dispatch do
+      String :command_name
+      String :payload
     end
   end
 
   aggregate "ReferenceValidation", definition: "Validates references exist before dispatch" do
 
-    command "Validate" do
-      attribute :reference_name, String
-      attribute :id, String
+    Validate do
+      String :reference_name
+      String :id
     end
   end
 
   aggregate "LifecycleSteps", definition: "Lifecycle state transition steps" do
 
-    command "Transition" do
-      attribute :from_state, String
-      attribute :to_state, String
+    Transition do
+      String :from_state
+      String :to_state
     end
   end
 
   aggregate "AndSpecification", definition: "Composite AND specification" do
 
-    command "Satisfied" do
-      attribute :candidate, String
+    Satisfied do
+      String :candidate
     end
   end
 
   aggregate "OrSpecification", definition: "Composite OR specification" do
 
-    command "Satisfied" do
-      attribute :candidate, String
+    Satisfied do
+      String :candidate
     end
   end
 
   aggregate "NotSpecification", definition: "Composite NOT specification" do
 
-    command "Satisfied" do
-      attribute :candidate, String
+    Satisfied do
+      String :candidate
     end
   end
 
   aggregate "BreakingBumper", definition: "Auto-bumps version on breaking changes" do
 
-    command "Bump" do
-      attribute :domain_name, String
+    Bump do
+      String :domain_name
     end
   end
 
   aggregate "BreakingClassifier", definition: "Classifies domain changes as breaking/non-breaking" do
 
-    command "Classify" do
-      attribute :diff, String
+    Classify do
+      String :diff
     end
   end
 
   aggregate "Command", definition: "Mixin orchestrating command lifecycle: guard, validate, call, persist, emit event" do
 
-    command "Emits" do
-      attribute :event_names, String
+    Emits do
+      String :event_names
     end
 
-    command "Call" do
-      attribute :attrs, String
+    Call do
+      String :attrs
     end
   end
 
   aggregate "Model", definition: "Mixin for aggregate classes providing attribute DSL, UUID identity, and auto-discovery" do
 
-    command "Attribute" do
-      attribute :name, String
-      attribute :default, String
+    Attribute do
+      String :name
+      String :default
     end
 
-    command "RebuildInitializer" do
+    RebuildInitializer do
     end
   end
 
   aggregate "Query", definition: "Mixin for query classes providing repository wiring and QueryBuilder delegation" do
 
-    command "Call" do
-      attribute :params, String
+    Call do
+      String :params
     end
   end
 
   aggregate "Specification", definition: "Mixin for composable business rule predicates with and/or/not operators" do
 
-    command "SatisfiedBy" do
-      attribute :candidate, String
+    SatisfiedBy do
+      String :candidate
     end
   end
 
   aggregate "Dispatch", definition: "Event construction and persistence helpers for command execution" do
 
-    command "EmitEvent" do
+    EmitEvent do
     end
 
-    command "PersistAggregate" do
+    PersistAggregate do
     end
   end
 
   aggregate "Validation", definition: "Pre/postcondition DSL and enforcement for command objects" do
 
-    command "Precondition" do
-      attribute :message, String
+    Precondition do
+      String :message
     end
 
-    command "Postcondition" do
-      attribute :message, String
+    Postcondition do
+      String :message
     end
   end
 
   aggregate "RuntimeAttributeDefinition", definition: "Struct wrapping a single model attribute's name, default, and freeze flag" do
 
-    command "Define" do
-      attribute :name, String
-      attribute :default, String
+    Define do
+      String :name
+      String :default
     end
   end
 
   aggregate "WorkflowStepCompat", definition: "Deprecation shim for legacy workflow_step API" do
 
-    command "Register" do
-      attribute :target_class, String
+    Register do
+      String :target_class
     end
   end
 
   aggregate "ConnectionConfigCompat", definition: "Deprecation shim for legacy connection_config API" do
 
-    command "Register" do
-      attribute :target_class, String
+    Register do
+      String :target_class
     end
   end
 
   aggregate "Runtime", definition: "Wires domain IR to adapters, dispatches commands, publishes events" do
 
-    command "Boot" do
-      attribute :domain_path, String
+    Boot do
+      String :domain_path
     end
 
-    command "Load" do
-      attribute :domain_ir, String
+    Load do
+      String :domain_ir
     end
 
-    command "Configure" do
-      attribute :config_block, String
+    Configure do
+      String :config_block
     end
   end
 
   aggregate "Configuration", definition: "Application wiring: adapters, extensions, domain loading" do
 
-    command "SetAdapter" do
-      attribute :adapter_name, String
+    SetAdapter do
+      String :adapter_name
     end
 
-    command "AddExtension" do
-      attribute :extension_name, String
+    AddExtension do
+      String :extension_name
     end
 
-    command "LoadDomain" do
-      attribute :domain_name, String
+    LoadDomain do
+      String :domain_name
     end
   end
 
   aggregate "GateEnforcer", definition: "Restricts aggregate access by gate role" do
 
-    command "EnforceGate" do
-      attribute :gate_name, String
-      attribute :aggregate_name, String
+    EnforceGate do
+      String :gate_name
+      String :aggregate_name
     end
   end
 
   aggregate "DryRunResult", definition: "Previews command execution without side effects" do
 
-    command "DryRun" do
-      attribute :command_name, String
+    DryRun do
+      String :command_name
     end
   end
 
   aggregate "Introspection", definition: "Runtime inspection of aggregates, commands, events" do
 
-    command "Inspect" do
-      attribute :aggregate_name, String
+    Inspect do
+      String :aggregate_name
     end
   end
 
   aggregate "DomainVersioning", definition: "Snapshot-based domain version management" do
 
-    command "TagVersion" do
-      attribute :version, String
+    TagVersion do
+      String :version
     end
 
-    command "LoadVersion" do
-      attribute :version, String
+    LoadVersion do
+      String :version
     end
 
-    command "DiffVersions" do
-      attribute :from_version, String
-      attribute :to_version, String
+    DiffVersions do
+      String :from_version
+      String :to_version
     end
   end
 
   aggregate "Validations", definition: "Domain validation rule enforcement" do
 
-    command "Validate" do
-      attribute :aggregate, String
+    Validate do
+      String :aggregate
     end
   end
 
   aggregate "BootBluebook", definition: "Boots domains from Bluebook IR" do
 
-    command "Boot" do
-      attribute :bluebook_path, String
+    Boot do
+      String :bluebook_path
     end
   end
 
   aggregate "BootPhase", definition: "Ordered boot phase execution" do
 
-    command "Execute" do
-      attribute :phase_name, String
+    Execute do
+      String :phase_name
     end
   end
 
   aggregate "ConfigurationDSL", definition: "DSL methods for Hecks.configure block" do
 
-    command "Evaluate" do
-      attribute :config_block, String
+    Evaluate do
+      String :config_block
     end
   end
 
   aggregate "ConnectionSetup", definition: "Wires database connections at boot" do
 
-    command "Connect" do
-      attribute :adapter_name, String
-      attribute :url, String
+    Connect do
+      String :adapter_name
+      String :url
     end
   end
 
   aggregate "ConstantHoisting", definition: "Hoists generated classes into constant namespace" do
 
-    command "Hoist" do
-      attribute :module_name, String
+    Hoist do
+      String :module_name
     end
   end
 
   aggregate "DomainConfigBuilder", definition: "Builds domain config from DSL block" do
 
-    command "Build" do
-      attribute :config_block, String
+    Build do
+      String :config_block
     end
   end
 
   aggregate "DomainLoader", definition: "Loads domain IR from file or gem" do
 
-    command "LoadFromFile" do
-      attribute :file_path, String
+    LoadFromFile do
+      String :file_path
     end
 
-    command "LoadFromGem" do
-      attribute :gem_name, String
+    LoadFromGem do
+      String :gem_name
     end
   end
 
   aggregate "ExtensionDispatch", definition: "Dispatches extension lifecycle hooks" do
 
-    command "Dispatch" do
-      attribute :hook_name, String
+    Dispatch do
+      String :hook_name
     end
   end
 
   aggregate "LoadExtensions", definition: "Loads and registers extensions at boot" do
 
-    command "Load" do
-      attribute :extension_name, String
+    Load do
+      String :extension_name
     end
   end
 
   aggregate "PolicySetup", definition: "Wires policy event listeners" do
 
-    command "Wire" do
-      attribute :policy_name, String
+    Wire do
+      String :policy_name
     end
   end
 
   aggregate "PortSetup", definition: "Creates port modules from domain IR" do
 
-    command "Create" do
-      attribute :aggregate_name, String
+    Create do
+      String :aggregate_name
     end
   end
 
   aggregate "ReadModelSetup", definition: "Wires read model projections" do
 
-    command "Wire" do
-      attribute :projection_name, String
+    Wire do
+      String :projection_name
     end
   end
 
   aggregate "RepositorySetup", definition: "Creates repository adapters" do
 
-    command "Create" do
-      attribute :adapter_name, String
-      attribute :aggregate_name, String
+    Create do
+      String :adapter_name
+      String :aggregate_name
     end
   end
 
   aggregate "SagaSetup", definition: "Registers saga runners" do
 
-    command "Register" do
-      attribute :saga_name, String
+    Register do
+      String :saga_name
     end
   end
 
   aggregate "ServiceSetup", definition: "Wires service objects with dependency injection" do
 
-    command "Wire" do
-      attribute :service_name, String
+    Wire do
+      String :service_name
     end
   end
 
   aggregate "ServiceContext", definition: "Execution context for services" do
 
-    command "Build" do
-      attribute :service_name, String
+    Build do
+      String :service_name
     end
   end
 
   aggregate "SubscriberSetup", definition: "Registers event subscribers" do
 
-    command "Register" do
-      attribute :event_name, String
-      attribute :handler, String
+    Register do
+      String :event_name
+      String :handler
     end
   end
 
   aggregate "ViewSetup", definition: "Wires view projections" do
 
-    command "Wire" do
-      attribute :view_name, String
+    Wire do
+      String :view_name
     end
   end
 
   aggregate "WorkflowSetup", definition: "Registers workflow executors" do
 
-    command "Register" do
-      attribute :workflow_name, String
+    Register do
+      String :workflow_name
     end
   end
 
   aggregate "CommandDispatch", definition: "Command dispatch pipeline" do
 
-    command "Dispatch" do
-      attribute :command_name, String
-      attribute :payload, String
+    Dispatch do
+      String :command_name
+      String :payload
     end
   end
 
   aggregate "AuthCoverageCheck", definition: "Verifies all ports have auth gates" do
 
-    command "Check" do
-      attribute :domain_name, String
+    Check do
+      String :domain_name
     end
   end
 
   aggregate "ReferenceCoverageCheck", definition: "Verifies reference authorizers exist" do
 
-    command "Check" do
-      attribute :domain_name, String
+    Check do
+      String :domain_name
     end
   end
 
   aggregate "Versioning", definition: "Runtime version tracking" do
 
-    command "CurrentVersion" do
-      attribute :domain_name, String
+    CurrentVersion do
+      String :domain_name
     end
   end
 
   aggregate "CommandLoader", definition: "Generates and evaluates CRUD command and event classes" do
 
-    command "Load" do
-      attribute :aggregate_name, String
+    Load do
+      String :aggregate_name
     end
   end
 
   aggregate "QueryContext", definition: "Read-only cross-domain query execution context" do
 
-    command "Execute" do
-      attribute :query_name, String
+    Execute do
+      String :query_name
     end
   end
 
   aggregate "AdapterWiring", definition: "Wires command adapters into the runtime" do
 
-    command "Adapt" do
-      attribute :aggregate_name, String
-      attribute :adapter_module, String
+    Adapt do
+      String :aggregate_name
+      String :adapter_module
     end
   end
 
   aggregate "ReferenceAuthorizerCheck", definition: "Validates reference_to authorizers exist at boot" do
 
-    command "Check" do
-      attribute :domain_name, String
+    Check do
+      String :domain_name
     end
   end
 
   aggregate "CommandMethods", definition: "Shared command port interface methods" do
 
-    command "Execute" do
-      attribute :command, String
+    Execute do
+      String :command
     end
   end
 
   aggregate "CommandResolver", definition: "Resolves command/event classes from names" do
 
-    command "Resolve" do
-      attribute :name, String
+    Resolve do
+      String :name
     end
   end
 
   aggregate "CollectionItem", definition: "Single-item repository wrapper" do
 
-    command "Wrap" do
-      attribute :id, String
+    Wrap do
+      String :id
     end
   end
 
   aggregate "CollectionMethods", definition: "Enumerable collection interface for repos" do
 
-    command "Each" do
-      attribute :block, String
+    Each do
+      String :block
     end
   end
 
   aggregate "CollectionProxy", definition: "Lazy-loading collection with query chaining" do
 
-    command "Chain" do
-      attribute :scope, String
+    Chain do
+      String :scope
     end
 
-    command "Load" do
-      attribute :scope, String
+    Load do
+      String :scope
     end
   end
 
   aggregate "EventRecorder", definition: "Records events during command execution" do
 
-    command "Record" do
-      attribute :event_name, String
-      attribute :payload, String
+    Record do
+      String :event_name
+      String :payload
     end
   end
 
   aggregate "ReferenceMethods", definition: "Reference resolution methods for repos" do
 
-    command "Resolve" do
-      attribute :reference_name, String
-      attribute :id, String
+    Resolve do
+      String :reference_name
+      String :id
     end
   end
 
   aggregate "RepositoryMethods", definition: "Core CRUD methods for repository ports" do
 
-    command "Create" do
-      attribute :attributes, String
+    Create do
+      String :attributes
     end
 
-    command "Read" do
-      attribute :id, String
+    Read do
+      String :id
     end
 
-    command "Update" do
-      attribute :id, String
-      attribute :attributes, String
+    Update do
+      String :id
+      String :attributes
     end
 
-    command "Delete" do
-      attribute :id, String
+    Delete do
+      String :id
     end
   end
 
   aggregate "MemoryOutbox", definition: "In-memory transactional outbox" do
 
-    command "Enqueue" do
-      attribute :message, String
+    Enqueue do
+      String :message
     end
 
-    command "Flush" do
-      attribute :batch_size, Integer
+    Flush do
+      Integer :batch_size
     end
   end
 
   aggregate "MemoryQueue", definition: "In-memory message queue" do
 
-    command "Push" do
-      attribute :message, String
+    Push do
+      String :message
     end
 
-    command "Pop" do
-      attribute :count, Integer
+    Pop do
+      Integer :count
     end
   end
 
   aggregate "AdHocQueries", definition: "Ad-hoc query builder DSL" do
 
-    command "Build" do
-      attribute :expression, String
+    Build do
+      String :expression
     end
   end
 
   aggregate "ConditionNode", definition: "Query condition tree node" do
 
-    command "Evaluate" do
-      attribute :record, String
+    Evaluate do
+      String :record
     end
   end
 
   aggregate "InMemoryExecutor", definition: "Executes queries against in-memory collections" do
 
-    command "Execute" do
-      attribute :query, String
-      attribute :collection, String
+    Execute do
+      String :query
+      String :collection
     end
   end
 
   aggregate "ScopeMethods", definition: "Scope composition methods for queries" do
 
-    command "Compose" do
-      attribute :scope_a, String
-      attribute :scope_b, String
+    Compose do
+      String :scope_a
+      String :scope_b
     end
   end
 
   aggregate "Operators", definition: "Operator registry module" do
 
-    command "Register" do
-      attribute :name, String
-      attribute :operator, String
+    Register do
+      String :name
+      String :operator
     end
   end
 
   aggregate "Operator", definition: "Base operator class for query comparisons" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "Gt", definition: "Greater-than query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "Gte", definition: "Greater-than-or-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "Lt", definition: "Less-than query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "Lte", definition: "Less-than-or-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "InOp", definition: "Inclusion query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :values, String
+    Compare do
+      String :field
+      String :values
     end
   end
 
   aggregate "NotEq", definition: "Not-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
-      attribute :value, String
+    Compare do
+      String :field
+      String :value
     end
   end
 
   aggregate "CommandHandle", definition: "Deferred command execution handle with wait/completed?/result" do
 
-    command "Wait" do
-      attribute :timeout, Integer
+    Wait do
+      Integer :timeout
     end
   end
 
   aggregate "SagaRunner", definition: "Executes multi-step sagas with compensation" do
 
-    command "StartSaga" do
-      attribute :saga_name, String
+    StartSaga do
+      String :saga_name
     end
   end
 
   aggregate "SagaStore", definition: "Persists saga state across steps" do
 
-    command "SaveState" do
-      attribute :saga_id, String
-      attribute :state, String
+    SaveState do
+      String :saga_id
+      String :state
     end
   end
 
   aggregate "WorkflowExecutor", definition: "Runs multi-step workflows with branching" do
 
-    command "ExecuteWorkflow" do
-      attribute :workflow_name, String
+    ExecuteWorkflow do
+      String :workflow_name
     end
   end
 
   aggregate "EventStore", definition: "Append-only event log per aggregate stream" do
 
-    command "Append" do
-      attribute :stream_id, String
-      attribute :event, String
+    Append do
+      String :stream_id
+      String :event
     end
 
-    command "ReadStream" do
-      attribute :stream_id, String
+    ReadStream do
+      String :stream_id
     end
   end
 
   aggregate "SnapshotStore", definition: "Periodic aggregate state snapshots" do
 
-    command "Save" do
-      attribute :stream_id, String
-      attribute :snapshot, String
+    Save do
+      String :stream_id
+      String :snapshot
     end
 
-    command "Load" do
-      attribute :stream_id, String
+    Load do
+      String :stream_id
     end
   end
 
   aggregate "UpcasterRegistry", definition: "Registers event version upcasters" do
 
-    command "Register" do
-      attribute :event_type, String
-      attribute :version, Integer
+    Register do
+      String :event_type
+      Integer :version
     end
   end
 
   aggregate "UpcasterEngine", definition: "Applies upcasters to old event versions" do
 
-    command "Upcast" do
-      attribute :event, String
+    Upcast do
+      String :event
     end
   end
 
   aggregate "ProjectionRebuilder", definition: "Rebuilds read models from event history" do
 
-    command "Rebuild" do
-      attribute :projection_name, String
+    Rebuild do
+      String :projection_name
     end
   end
 
   aggregate "Reconstitution", definition: "Rebuilds aggregate from events + snapshot" do
 
-    command "Reconstitute" do
-      attribute :stream_id, String
+    Reconstitute do
+      String :stream_id
     end
   end
 
   aggregate "TimeTravel", definition: "Query aggregate state at a point in time" do
 
-    command "At" do
-      attribute :stream_id, String
-      attribute :timestamp, String
+    At do
+      String :stream_id
+      String :timestamp
     end
   end
 
   aggregate "ProcessManager", definition: "Long-running event-driven coordinator" do
 
-    command "Handle" do
-      attribute :event, String
+    Handle do
+      String :event
     end
   end
 
   aggregate "OutboxES", definition: "Transactional outbox for reliable event publishing" do
 
-    command "Enqueue" do
-      attribute :event, String
+    Enqueue do
+      String :event
     end
   end
 
   aggregate "OutboxPoller", definition: "Polls outbox and publishes pending events" do
 
-    command "Poll" do
-      attribute :batch_size, Integer
+    Poll do
+      Integer :batch_size
     end
   end
 
   aggregate "Concurrency", definition: "Optimistic concurrency version stamps" do
 
-    command "Stamp" do
-      attribute :aggregate, String
-      attribute :version, Integer
+    Stamp do
+      String :aggregate
+      Integer :version
     end
   end
 
   aggregate "EventSourcing", definition: "Top-level module for event sourcing concerns with autoload registry" do
 
-    command "Autoload" do
-      attribute :const_name, String
-      attribute :path, String
+    Autoload do
+      String :const_name
+      String :path
     end
   end
 
   aggregate "EventBus", definition: "Publish-subscribe event dispatch" do
 
-    command "Publish" do
-      attribute :event_name, String
+    Publish do
+      String :event_name
     end
 
-    command "Subscribe" do
-      attribute :event_name, String
+    Subscribe do
+      String :event_name
     end
   end
 
   aggregate "CommandBus", definition: "Routes commands to handlers with middleware" do
 
-    command "Dispatch" do
-      attribute :command_name, String
+    Dispatch do
+      String :command_name
     end
 
-    command "AddMiddleware" do
-      attribute :middleware_name, String
+    AddMiddleware do
+      String :middleware_name
     end
   end
 
   aggregate "CommandRunner", definition: "Executes a single command through the pipeline" do
 
-    command "Run" do
-      attribute :command_name, String
+    Run do
+      String :command_name
     end
   end
 
   aggregate "Repository", definition: "Aggregate persistence port with collection proxy" do
 
-    command "Create" do
-      attribute :aggregate_name, String
+    Create do
+      String :aggregate_name
     end
 
-    command "Find" do
-      attribute :id, String
+    Find do
+      String :id
     end
 
-    command "Delete" do
-      attribute :id, String
+    Delete do
+      String :id
     end
   end
 
   aggregate "QueryBuilder", definition: "Composable query DSL with in-memory executor" do
 
-    command "Where" do
-      attribute :field, String
-      attribute :value, String
+    Where do
+      String :field
+      String :value
     end
 
-    command "OrderBy" do
-      attribute :field, String
+    OrderBy do
+      String :field
     end
   end
 
   aggregate "QueuePort", definition: "Async command dispatch via in-memory queue" do
 
-    command "Enqueue" do
-      attribute :command_name, String
+    Enqueue do
+      String :command_name
     end
 
-    command "Process" do
-      attribute :batch_size, Integer
+    Process do
+      Integer :batch_size
     end
   end
 
   aggregate "CommandMixin", definition: "Included into generated command classes" do
 
-    command "Execute" do
-      attribute :attributes, String
+    Execute do
+      String :attributes
     end
   end
 
   aggregate "ModelMixin", definition: "Included into generated aggregate/entity classes" do
 
-    command "Initialize" do
-      attribute :attributes, String
+    Initialize do
+      String :attributes
     end
   end
 
   aggregate "QueryMixin", definition: "Included into generated query classes" do
 
-    command "Call" do
-      attribute :params, String
+    Call do
+      String :params
     end
   end
 
   aggregate "SpecificationMixin", definition: "Predicate objects for domain rules" do
 
-    command "Satisfied" do
-      attribute :candidate, String
+    Satisfied do
+      String :candidate
     end
   end
 
   aggregate "AttachmentMethods", definition: "File attachment support for aggregates" do
 
-    command "Attach" do
-      attribute :field, String
-      attribute :file, String
+    Attach do
+      String :field
+      String :file
     end
   end
 
   aggregate "Commands", definition: "Wires command dispatch infrastructure onto aggregate classes at boot" do
 
-    command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
+    Bind do
+      String :klass
+      String :aggregate
     end
 
-    command "BindShortcuts" do
-      attribute :klass, String
-      attribute :aggregate, String
+    BindShortcuts do
+      String :klass
+      String :aggregate
     end
   end
 
   aggregate "Querying", definition: "Wires query services (scopes, ad-hoc queries, operators) onto aggregate classes" do
 
-    command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
+    Bind do
+      String :klass
+      String :aggregate
     end
   end
 
   aggregate "Persistence", definition: "Wires CRUD, collection proxy, reference, and event recording onto aggregates" do
 
-    command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
-      attribute :repo, String
+    Bind do
+      String :klass
+      String :aggregate
+      String :repo
     end
 
-    command "BindEventRecorder" do
-      attribute :klass, String
-      attribute :recorder, String
+    BindEventRecorder do
+      String :klass
+      String :recorder
     end
   end
 
   aggregate "Outbox", definition: "Reliable event publishing via transactional outbox pattern" do
 
-    command "Enable" do
-      attribute :enabled, String
+    Enable do
+      String :enabled
     end
   end
 
   aggregate "Queue", definition: "Event queue publishing (RabbitMQ, file, custom adapter)" do
 
-    command "Enable" do
-      attribute :adapter, String
+    Enable do
+      String :adapter
     end
   end
 
   aggregate "SmokeTest", definition: "Browser-style HTTP smoke tests for domains" do
 
-    command "RunSmoke" do
-      attribute :base_url, String
+    RunSmoke do
+      String :base_url
     end
 
-    command "CheckEvents" do
-      attribute :event_log, String
+    CheckEvents do
+      String :event_log
     end
 
-    command "TestBehaviors" do
-      attribute :domain_name, String
+    TestBehaviors do
+      String :domain_name
     end
   end
 end

@@ -4,45 +4,45 @@ Hecks.bluebook "RVCircuits" do
 
   aggregate "Circuit" do
     description "A single electrical circuit — wire run from panel to device with protection"
-    attribute :name
-    attribute :load_name
-    attribute :watts, Float
-    attribute :voltage, Float
-    attribute :amps, Float
-    attribute :power_type
-    attribute :wire_gauge
-    attribute :run_length_feet, Float
-    attribute :fuse_amps, Float
-    attribute :voltage_drop_pct, Float
+    String :name
+    String :load_name
+    Float :watts
+    Float :voltage
+    Float :amps
+    String :power_type
+    String :wire_gauge
+    Float :run_length_feet
+    Float :fuse_amps
+    Float :voltage_drop_pct
 
-    command "AddCircuit" do
+    AddCircuit do
       role "Electrician"
       goal "Add a new circuit to the RV electrical system"
       description "Define the load, calculate amps, select wire gauge, size fuse"
-      attribute :name
-      attribute :load_name
-      attribute :watts, Float
-      attribute :voltage, Float
-      attribute :power_type
-      attribute :run_length_feet, Float
+      String :name
+      String :load_name
+      Float :watts
+      Float :voltage
+      String :power_type
+      Float :run_length_feet
       emits "CircuitAdded"
     end
 
-    command "CalculateCircuit" do
+    CalculateCircuit do
       role "Electrician"
       goal "Calculate amps, wire gauge, fuse size, and voltage drop for a circuit"
       description "Amps = W/V. Gauge from NEC tables. Fuse = amps × 1.25. Drop under 3%."
-      reference_to Circuit
+      reference_to(Circuit)
       emits "CircuitCalculated"
     end
 
-    command "FlagOverload" do
+    FlagOverload do
       role "System"
       goal "Flag a circuit where load exceeds wire or fuse rating"
       description "Danger — load amps exceed wire ampacity or fuse rating"
-      reference_to Circuit
-      attribute :actual_amps, Float
-      attribute :rated_amps, Float
+      reference_to(Circuit)
+      Float :actual_amps
+      Float :rated_amps
       emits "OverloadFlagged"
     end
 

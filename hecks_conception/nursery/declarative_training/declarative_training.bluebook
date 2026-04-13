@@ -1,0 +1,56 @@
+Hecks.bluebook "DeclarativeTraining", version: "2026.04.13.1" do
+  vision "Turn bootable bluebooks into training data for a model that thinks in domains, not code"
+  category "meta"
+
+  aggregate "Corpus", "The collection of all bootable bluebooks — each one a validated training example" do
+    String :source_path
+    Integer :domain_count
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :policy_count
+
+    HarvestCorpus do
+      description "Walk the bluebook directory, parse each file, keep only those that boot clean"
+      String :root_path
+      emits "CorpusHarvested"
+    end
+  end
+
+  aggregate "TrainingPair", "One input/output example — a vision produces a domain structure" do
+    String :domain_name
+    String :vision
+    String :category
+    String :structure
+    Integer :complexity
+
+    ExtractPair do
+      description "From a parsed domain, extract the vision as input and the structure as output"
+      reference_to(Corpus)
+      String :domain_name
+      emits "PairExtracted"
+    end
+  end
+
+  aggregate "TrainingSet", "JSONL output ready for fine-tuning — validated pairs with prompt/completion format" do
+    String :output_path
+    Integer :pair_count
+    String :format
+
+    EmitTrainingSet do
+      description "Write all extracted pairs as JSONL in prompt/completion format"
+      reference_to(TrainingSet)
+      String :output_path
+      emits "TrainingSetEmitted"
+    end
+  end
+
+  policy "ExtractOnHarvest" do
+    on "CorpusHarvested"
+    trigger "ExtractPair"
+  end
+
+  policy "EmitOnExtraction" do
+    on "PairExtracted"
+    trigger "EmitTrainingSet"
+  end
+end

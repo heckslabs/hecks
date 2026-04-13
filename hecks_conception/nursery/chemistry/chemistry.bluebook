@@ -5,35 +5,35 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Atomic Structure ===
 
   aggregate "Element", "A chemical element — the irreducible identity of matter" do
-    attribute :symbol, String
-    attribute :name, String
-    attribute :atomic_number, Integer
-    attribute :atomic_mass, Float
-    attribute :group, Integer
-    attribute :period, Integer
-    attribute :category, String
-    attribute :electronegativity, Float
-    attribute :electron_configuration, String
+    String :symbol
+    String :name
+    Integer :atomic_number
+    Float :atomic_mass
+    Integer :group
+    Integer :period
+    String :category
+    Float :electronegativity
+    String :electron_configuration
 
     value_object "IsotopeProfile" do
-      attribute :mass_number, Integer
-      attribute :neutron_count, Integer
-      attribute :abundance, Float
-      attribute :stable, String
-      attribute :half_life, String
+      Integer :mass_number
+      Integer :neutron_count
+      Float :abundance
+      String :stable
+      String :half_life
     end
 
-    command "DefineElement" do
+    DefineElement do
       role "Chemist"
       description "Register an element with its fundamental properties"
-      attribute :symbol, String
-      attribute :name, String
-      attribute :atomic_number, Integer
-      attribute :atomic_mass, Float
-      attribute :group, Integer
-      attribute :period, Integer
-      attribute :category, String
-      attribute :electronegativity, Float
+      String :symbol
+      String :name
+      Integer :atomic_number
+      Float :atomic_mass
+      Integer :group
+      Integer :period
+      String :category
+      Float :electronegativity
       emits "ElementDefined"
       then_set :symbol, to: :symbol
       then_set :name, to: :name
@@ -45,62 +45,62 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
       then_set :electronegativity, to: :electronegativity
     end
 
-    command "ClassifyElement" do
+    ClassifyElement do
       role "Chemist"
       description "Assign element to a category — metal, nonmetal, metalloid, noble gas"
-      reference_to Element
-      attribute :category, String
+      reference_to(Element)
+      String :category
       emits "ElementClassified"
       then_set :category, to: :category
     end
   end
 
   aggregate "Atom", "A single atom — an element with specific electron state" do
-    attribute :element_symbol, String
-    attribute :charge, Integer
-    attribute :oxidation_state, Integer
-    attribute :electron_count, Integer
-    attribute :orbitals, list_of(Orbital)
+    String :element_symbol
+    Integer :charge
+    Integer :oxidation_state
+    Integer :electron_count
+    list_of(Orbital) :orbitals
 
     value_object "Orbital" do
-      attribute :shell, Integer
-      attribute :subshell, String
-      attribute :electron_count, Integer
-      attribute :energy_level, Float
+      Integer :shell
+      String :subshell
+      Integer :electron_count
+      Float :energy_level
     end
 
-    command "CreateAtom" do
+    CreateAtom do
       role "Chemist"
       description "Instantiate an atom of a given element in ground state"
-      attribute :element_symbol, String
+      String :element_symbol
       emits "AtomCreated"
       then_set :element_symbol, to: :element_symbol
       then_set :charge, to: 0
       then_set :oxidation_state, to: 0
     end
 
-    command "Ionize" do
+    Ionize do
       role "Chemist"
       description "Remove or add electrons — create a cation or anion"
-      reference_to Atom
-      attribute :electrons_transferred, Integer
+      reference_to(Atom)
+      Integer :electrons_transferred
       emits "AtomIonized"
       then_set :charge, to: :electrons_transferred
     end
 
-    command "Excite" do
+    Excite do
       role "System"
       description "Promote an electron to a higher energy orbital"
-      reference_to Atom
-      attribute :from_orbital, String
-      attribute :to_orbital, String
+      reference_to(Atom)
+      String :from_orbital
+      String :to_orbital
       emits "AtomExcited"
     end
 
-    command "Relax" do
+    Relax do
       role "System"
       description "Electron drops to lower energy orbital — emits photon"
-      reference_to Atom
+      reference_to(Atom)
       emits "PhotonEmitted"
     end
   end
@@ -108,21 +108,21 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Bonding ===
 
   aggregate "Bond", "A chemical bond between atoms — the force that holds matter together" do
-    attribute :bond_type, String
-    attribute :atom_a, String
-    attribute :atom_b, String
-    attribute :bond_order, Integer
-    attribute :bond_energy, Float
-    attribute :bond_length, Float
-    attribute :polarity, String
+    String :bond_type
+    String :atom_a
+    String :atom_b
+    Integer :bond_order
+    Float :bond_energy
+    Float :bond_length
+    String :polarity
 
-    command "FormBond" do
+    FormBond do
       role "Chemist"
       description "Create a bond between two atoms — covalent, ionic, metallic, or hydrogen"
-      attribute :atom_a, String
-      attribute :atom_b, String
-      attribute :bond_type, String
-      attribute :bond_order, Integer
+      String :atom_a
+      String :atom_b
+      String :bond_type
+      Integer :bond_order
       given { bond_order > 0 }
       emits "BondFormed"
       then_set :atom_a, to: :atom_a
@@ -131,18 +131,18 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
       then_set :bond_order, to: :bond_order
     end
 
-    command "BreakBond" do
+    BreakBond do
       role "Chemist"
       description "Cleave a bond — homolytic or heterolytic"
-      reference_to Bond
-      attribute :cleavage_type, String
+      reference_to(Bond)
+      String :cleavage_type
       emits "BondBroken"
     end
 
-    command "AssessPolarity" do
+    AssessPolarity do
       role "System"
       description "Determine bond polarity from electronegativity difference"
-      reference_to Bond
+      reference_to(Bond)
       emits "PolarityAssessed"
     end
   end
@@ -150,59 +150,59 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Molecules ===
 
   aggregate "Molecule", "A stable arrangement of bonded atoms — the unit of chemical identity" do
-    attribute :formula, String
-    attribute :name, String
-    attribute :molecular_weight, Float
-    attribute :atoms, list_of(AtomRef)
-    attribute :bonds, list_of(BondRef)
-    attribute :geometry, String
-    attribute :dipole_moment, Float
-    attribute :state_of_matter, String
+    String :formula
+    String :name
+    Float :molecular_weight
+    list_of(AtomRef) :atoms
+    list_of(BondRef) :bonds
+    String :geometry
+    Float :dipole_moment
+    String :state_of_matter
 
     value_object "AtomRef" do
-      attribute :element_symbol, String
-      attribute :count, Integer
-      attribute :position, String
+      String :element_symbol
+      Integer :count
+      String :position
     end
 
     value_object "BondRef" do
-      attribute :from_atom, String
-      attribute :to_atom, String
-      attribute :bond_type, String
-      attribute :bond_order, Integer
+      String :from_atom
+      String :to_atom
+      String :bond_type
+      Integer :bond_order
     end
 
-    command "AssembleMolecule" do
+    AssembleMolecule do
       role "Chemist"
       description "Build a molecule from atoms and bonds"
-      attribute :formula, String
-      attribute :name, String
+      String :formula
+      String :name
       emits "MoleculeAssembled"
       then_set :formula, to: :formula
       then_set :name, to: :name
     end
 
-    command "DetermineGeometry" do
+    DetermineGeometry do
       role "System"
       description "VSEPR — predict molecular geometry from electron pairs"
-      reference_to Molecule
-      attribute :geometry, String
+      reference_to(Molecule)
+      String :geometry
       emits "GeometryDetermined"
       then_set :geometry, to: :geometry
     end
 
-    command "CalculateMass" do
+    CalculateMass do
       role "System"
       description "Sum atomic masses of all constituent atoms"
-      reference_to Molecule
+      reference_to(Molecule)
       emits "MassCalculated"
     end
 
-    command "ChangeState" do
+    ChangeState do
       role "System"
       description "Phase transition — solid, liquid, gas, plasma"
-      reference_to Molecule
-      attribute :state_of_matter, String
+      reference_to(Molecule)
+      String :state_of_matter
       emits "StateChanged"
       then_set :state_of_matter, to: :state_of_matter
     end
@@ -211,77 +211,77 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Reactions ===
 
   aggregate "Reaction", "A chemical transformation — reactants become products" do
-    attribute :equation, String
-    attribute :reaction_type, String
-    attribute :reactants, list_of(Species)
-    attribute :products, list_of(Species)
-    attribute :balanced, String
-    attribute :enthalpy_change, Float
-    attribute :activation_energy, Float
-    attribute :rate_constant, Float
-    attribute :equilibrium_constant, Float
-    attribute :status, String
+    String :equation
+    String :reaction_type
+    list_of(Species) :reactants
+    list_of(Species) :products
+    String :balanced
+    Float :enthalpy_change
+    Float :activation_energy
+    Float :rate_constant
+    Float :equilibrium_constant
+    String :status
 
     value_object "Species" do
-      attribute :formula, String
-      attribute :coefficient, Integer
-      attribute :state, String
-      attribute :role, String
+      String :formula
+      Integer :coefficient
+      String :state
+      String :role
     end
 
-    command "DefineReaction" do
+    DefineReaction do
       role "Chemist"
       description "Write a reaction equation with reactants and products"
-      attribute :equation, String
-      attribute :reaction_type, String
+      String :equation
+      String :reaction_type
       emits "ReactionDefined"
       then_set :equation, to: :equation
       then_set :reaction_type, to: :reaction_type
       then_set :status, to: "unbalanced"
     end
 
-    command "BalanceEquation" do
+    BalanceEquation do
       role "Chemist"
       description "Balance stoichiometric coefficients — conservation of mass"
-      reference_to Reaction
+      reference_to(Reaction)
       given { status == "unbalanced" }
       emits "EquationBalanced"
       then_set :balanced, to: "true"
       then_set :status, to: "balanced"
     end
 
-    command "ClassifyReaction" do
+    ClassifyReaction do
       role "Chemist"
       description "Identify reaction type — synthesis, decomposition, single/double displacement, combustion, redox"
-      reference_to Reaction
-      attribute :reaction_type, String
+      reference_to(Reaction)
+      String :reaction_type
       emits "ReactionClassified"
       then_set :reaction_type, to: :reaction_type
     end
 
-    command "StartReaction" do
+    StartReaction do
       role "Chemist"
       description "Initiate the reaction — provide activation energy"
-      reference_to Reaction
+      reference_to(Reaction)
       given { balanced == "true" }
       emits "ReactionStarted"
       then_set :status, to: "proceeding"
     end
 
-    command "ReachEquilibrium" do
+    ReachEquilibrium do
       role "System"
       description "Forward and reverse rates equalize — dynamic equilibrium"
-      reference_to Reaction
-      attribute :equilibrium_constant, Float
+      reference_to(Reaction)
+      Float :equilibrium_constant
       emits "EquilibriumReached"
       then_set :equilibrium_constant, to: :equilibrium_constant
       then_set :status, to: "equilibrium"
     end
 
-    command "CompleteReaction" do
+    CompleteReaction do
       role "System"
       description "Reaction goes to completion — all reactants consumed"
-      reference_to Reaction
+      reference_to(Reaction)
       emits "ReactionCompleted"
       then_set :status, to: "complete"
     end
@@ -298,45 +298,45 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Thermodynamics ===
 
   aggregate "Thermodynamics", "Energy changes in chemical processes — the why of reactions" do
-    attribute :system_name, String
-    attribute :enthalpy, Float
-    attribute :entropy, Float
-    attribute :gibbs_free_energy, Float
-    attribute :temperature, Float
-    attribute :spontaneous, String
+    String :system_name
+    Float :enthalpy
+    Float :entropy
+    Float :gibbs_free_energy
+    Float :temperature
+    String :spontaneous
 
-    command "MeasureEnthalpy" do
+    MeasureEnthalpy do
       role "Chemist"
       description "Determine heat content change — exothermic or endothermic"
-      attribute :system_name, String
-      attribute :enthalpy, Float
+      String :system_name
+      Float :enthalpy
       emits "EnthalpyMeasured"
       then_set :system_name, to: :system_name
       then_set :enthalpy, to: :enthalpy
     end
 
-    command "MeasureEntropy" do
+    MeasureEntropy do
       role "Chemist"
       description "Determine disorder change — does the system become more or less ordered"
-      reference_to Thermodynamics
-      attribute :entropy, Float
+      reference_to(Thermodynamics)
+      Float :entropy
       emits "EntropyMeasured"
       then_set :entropy, to: :entropy
     end
 
-    command "CalculateGibbs" do
+    CalculateGibbs do
       role "System"
       description "G = H - TS — determines spontaneity"
-      reference_to Thermodynamics
-      attribute :temperature, Float
+      reference_to(Thermodynamics)
+      Float :temperature
       emits "GibbsCalculated"
       then_set :temperature, to: :temperature
     end
 
-    command "DetermineSpontaneity" do
+    DetermineSpontaneity do
       role "System"
       description "Negative Gibbs = spontaneous, positive = nonspontaneous"
-      reference_to Thermodynamics
+      reference_to(Thermodynamics)
       emits "SpontaneityDetermined"
     end
   end
@@ -344,54 +344,54 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Kinetics ===
 
   aggregate "Kinetics", "How fast reactions proceed — rates, catalysts, mechanisms" do
-    attribute :reaction_name, String
-    attribute :rate, Float
-    attribute :order, Integer
-    attribute :rate_law, String
-    attribute :activation_energy, Float
-    attribute :mechanism, list_of(MechanismStep)
+    String :reaction_name
+    Float :rate
+    Integer :order
+    String :rate_law
+    Float :activation_energy
+    list_of(MechanismStep) :mechanism
 
     value_object "MechanismStep" do
-      attribute :step_number, Integer
-      attribute :description, String
-      attribute :rate_determining, String
-      attribute :intermediates, String
+      Integer :step_number
+      String :description
+      String :rate_determining
+      String :intermediates
     end
 
-    command "MeasureRate" do
+    MeasureRate do
       role "Chemist"
       description "Determine how fast a reaction proceeds"
-      attribute :reaction_name, String
-      attribute :rate, Float
+      String :reaction_name
+      Float :rate
       emits "RateMeasured"
       then_set :reaction_name, to: :reaction_name
       then_set :rate, to: :rate
     end
 
-    command "DetermineOrder" do
+    DetermineOrder do
       role "Chemist"
       description "Find reaction order from concentration vs rate data"
-      reference_to Kinetics
-      attribute :order, Integer
-      attribute :rate_law, String
+      reference_to(Kinetics)
+      Integer :order
+      String :rate_law
       emits "OrderDetermined"
       then_set :order, to: :order
       then_set :rate_law, to: :rate_law
     end
 
-    command "ProposeMechanism" do
+    ProposeMechanism do
       role "Chemist"
       description "Hypothesize step-by-step pathway — identify rate-determining step"
-      reference_to Kinetics
+      reference_to(Kinetics)
       emits "MechanismProposed"
     end
 
-    command "AddCatalyst" do
+    AddCatalyst do
       role "Chemist"
       description "Lower activation energy without being consumed — speeds up reaction"
-      reference_to Kinetics
-      attribute :catalyst_name, String
-      attribute :new_activation_energy, Float
+      reference_to(Kinetics)
+      String :catalyst_name
+      Float :new_activation_energy
       emits "CatalystAdded"
       then_set :activation_energy, to: :new_activation_energy
     end
@@ -400,70 +400,70 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Solutions ===
 
   aggregate "Solution", "A homogeneous mixture — solute dissolved in solvent" do
-    attribute :name, String
-    attribute :solvent, String
-    attribute :solutes, list_of(Solute)
-    attribute :concentration, Float
-    attribute :ph, Float
-    attribute :temperature, Float
-    attribute :saturated, String
+    String :name
+    String :solvent
+    list_of(Solute) :solutes
+    Float :concentration
+    Float :ph
+    Float :temperature
+    String :saturated
 
     value_object "Solute" do
-      attribute :formula, String
-      attribute :amount, Float
-      attribute :unit, String
+      String :formula
+      Float :amount
+      String :unit
     end
 
-    command "PrepareSolution" do
+    PrepareSolution do
       role "Chemist"
       description "Dissolve a solute in a solvent at a given concentration"
-      attribute :name, String
-      attribute :solvent, String
+      String :name
+      String :solvent
       emits "SolutionPrepared"
       then_set :name, to: :name
       then_set :solvent, to: :solvent
       then_set :saturated, to: "false"
     end
 
-    command "AddSolute" do
+    AddSolute do
       role "Chemist"
       description "Dissolve additional solute into the solution"
-      reference_to Solution
-      attribute :formula, String
-      attribute :amount, Float
-      attribute :unit, String
+      reference_to(Solution)
+      String :formula
+      Float :amount
+      String :unit
       emits "SoluteAdded"
     end
 
-    command "MeasurePH" do
+    MeasurePH do
       role "Chemist"
       description "Determine hydrogen ion concentration — acid, base, or neutral"
-      reference_to Solution
-      attribute :ph, Float
+      reference_to(Solution)
+      Float :ph
       emits "PHMeasured"
       then_set :ph, to: :ph
     end
 
-    command "Dilute" do
+    Dilute do
       role "Chemist"
       description "Add solvent to decrease concentration — C1V1 = C2V2"
-      reference_to Solution
-      attribute :added_volume, Float
+      reference_to(Solution)
+      Float :added_volume
       emits "SolutionDiluted"
     end
 
-    command "Saturate" do
+    Saturate do
       role "System"
       description "No more solute can dissolve — maximum concentration reached"
-      reference_to Solution
+      reference_to(Solution)
       emits "SolutionSaturated"
       then_set :saturated, to: "true"
     end
 
-    command "Precipitate" do
+    Precipitate do
       role "System"
       description "Excess solute comes out of solution as solid"
-      reference_to Solution
+      reference_to(Solution)
       emits "PrecipitateFormed"
     end
   end
@@ -471,55 +471,55 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Organic Chemistry ===
 
   aggregate "OrganicCompound", "Carbon-based molecules — the chemistry of life" do
-    attribute :name, String
-    attribute :formula, String
-    attribute :iupac_name, String
-    attribute :functional_groups, list_of(FunctionalGroup)
-    attribute :carbon_skeleton, String
-    attribute :hybridization, String
-    attribute :chirality, String
+    String :name
+    String :formula
+    String :iupac_name
+    list_of(FunctionalGroup) :functional_groups
+    String :carbon_skeleton
+    String :hybridization
+    String :chirality
 
     value_object "FunctionalGroup" do
-      attribute :name, String
-      attribute :formula, String
-      attribute :position, Integer
-      attribute :reactive, String
+      String :name
+      String :formula
+      Integer :position
+      String :reactive
     end
 
-    command "IdentifyCompound" do
+    IdentifyCompound do
       role "Chemist"
       description "Name and classify an organic compound by its structure"
-      attribute :name, String
-      attribute :formula, String
-      attribute :iupac_name, String
+      String :name
+      String :formula
+      String :iupac_name
       emits "CompoundIdentified"
       then_set :name, to: :name
       then_set :formula, to: :formula
       then_set :iupac_name, to: :iupac_name
     end
 
-    command "IdentifyFunctionalGroups" do
+    IdentifyFunctionalGroups do
       role "Chemist"
       description "Find hydroxyl, carboxyl, amino, carbonyl, etc."
-      reference_to OrganicCompound
+      reference_to(OrganicCompound)
       emits "FunctionalGroupsIdentified"
     end
 
-    command "DetermineChirality" do
+    DetermineChirality do
       role "Chemist"
       description "R/S configuration — does the molecule have a non-superimposable mirror image"
-      reference_to OrganicCompound
-      attribute :chirality, String
+      reference_to(OrganicCompound)
+      String :chirality
       emits "ChiralityDetermined"
       then_set :chirality, to: :chirality
     end
 
-    command "Polymerize" do
+    Polymerize do
       role "Chemist"
       description "Join monomers into a polymer chain — addition or condensation"
-      reference_to OrganicCompound
-      attribute :polymer_type, String
-      attribute :degree, Integer
+      reference_to(OrganicCompound)
+      String :polymer_type
+      Integer :degree
       emits "Polymerized"
     end
   end
@@ -527,19 +527,19 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
   # === Electrochemistry ===
 
   aggregate "ElectrochemicalCell", "Electron transfer between species — batteries, corrosion, electrolysis" do
-    attribute :cell_type, String
-    attribute :anode, String
-    attribute :cathode, String
-    attribute :cell_potential, Float
-    attribute :current, Float
-    attribute :status, String
+    String :cell_type
+    String :anode
+    String :cathode
+    Float :cell_potential
+    Float :current
+    String :status
 
-    command "ConstructCell" do
+    ConstructCell do
       role "Chemist"
       description "Build a galvanic or electrolytic cell from half-reactions"
-      attribute :cell_type, String
-      attribute :anode, String
-      attribute :cathode, String
+      String :cell_type
+      String :anode
+      String :cathode
       emits "CellConstructed"
       then_set :cell_type, to: :cell_type
       then_set :anode, to: :anode
@@ -547,21 +547,21 @@ Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
       then_set :status, to: "constructed"
     end
 
-    command "MeasurePotential" do
+    MeasurePotential do
       role "Chemist"
       description "Calculate cell potential from standard reduction potentials"
-      reference_to ElectrochemicalCell
-      attribute :cell_potential, Float
+      reference_to(ElectrochemicalCell)
+      Float :cell_potential
       emits "PotentialMeasured"
       then_set :cell_potential, to: :cell_potential
     end
 
-    command "RunElectrolysis" do
+    RunElectrolysis do
       role "Chemist"
       description "Force a non-spontaneous reaction with external current"
-      reference_to ElectrochemicalCell
+      reference_to(ElectrochemicalCell)
       given { cell_type == "electrolytic" }
-      attribute :current, Float
+      Float :current
       emits "ElectrolysisStarted"
       then_set :current, to: :current
       then_set :status, to: "running"
