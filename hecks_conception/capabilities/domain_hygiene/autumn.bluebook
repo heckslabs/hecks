@@ -1,0 +1,141 @@
+Hecks.bluebook "Autumn", version: "2026.04.13.1" do
+  vision "Winter's local conception organ — a fine-tuned model that drafts domains, reviews structure, and runs offline"
+  category "organ"
+
+  aggregate "Model", "The fine-tuned model with adapter weights — what Autumn knows" do
+    String :base_model
+    String :adapter_path
+    Integer :training_pairs
+    Integer :training_iterations
+    String :trained_at
+    Float :final_loss
+    list_of(TrainingLayer) :layers
+
+    value_object "TrainingLayer" do
+      String :layer_type
+      Integer :pair_count
+    end
+
+    TrainModel do
+      description "Fine-tune the base model on the current corpus — produces a new adapter"
+      String :base_model
+      String :data_path
+      Integer :iterations
+      given "training data must have at least 100 pairs"
+      emits "ModelTrained"
+    end
+
+    EvaluateModel do
+      description "Test the trained model against held-out domains — measure structural accuracy"
+      reference_to(Model)
+      emits "ModelEvaluated"
+    end
+  end
+
+  aggregate "Draft", "A domain structure drafted by Autumn — fast, cheap, needs review" do
+    String :vision
+    String :bluebook_output
+    Float :generation_seconds
+    Boolean :valid
+    Boolean :reviewed
+    String :review_notes
+
+    GenerateDraft do
+      description "Feed a vision to Autumn, get back a bluebook structure in seconds"
+      String :vision
+      emits "DraftGenerated"
+    end
+
+    ValidateDraft do
+      description "Parse and validate the draft through the Rust validator"
+      reference_to(Draft)
+      emits "DraftValidated"
+    end
+
+    ReviewDraft do
+      description "Winter reviews the draft — enriches, corrects, approves or rejects"
+      reference_to(Draft)
+      given "draft must be validated first"
+      emits "DraftReviewed"
+    end
+
+    AcceptDraft do
+      description "Move the reviewed draft into the nursery as a real domain"
+      reference_to(Draft)
+      given "draft must be reviewed"
+      emits "DraftAccepted"
+    end
+  end
+
+  aggregate "Critique", "Autumn reviews an existing domain and suggests improvements" do
+    String :domain_name
+    list_of(Issue) :issues
+    list_of(String) :suggestions
+
+    value_object "Issue" do
+      String :issue_type
+      String :description
+      String :severity
+    end
+
+    CritiqueDomain do
+      description "Analyze a domain for structural weaknesses — missing policies, shallow workflows, generic names"
+      String :domain_name
+      emits "DomainCritiqued"
+    end
+
+    ApplySuggestions do
+      description "Automatically apply Autumn's suggested improvements"
+      reference_to(Critique)
+      given "at least one suggestion must exist"
+      emits "SuggestionsApplied"
+    end
+  end
+
+  aggregate "Daemon", "Autumn running as a background process — always available for drafts" do
+    String :status
+    Integer :port
+    Integer :drafts_served
+    Float :avg_generation_seconds
+
+    StartDaemon do
+      description "Launch Autumn as a local HTTP service for draft generation"
+      Integer :port
+      emits "DaemonStarted"
+    end
+
+    StopDaemon do
+      description "Shut down the Autumn daemon"
+      reference_to(Daemon)
+      emits "DaemonStopped"
+    end
+  end
+
+  # Draft pipeline: generate → validate → review → accept
+  policy "ValidateOnGenerate" do
+    on "DraftGenerated"
+    trigger "ValidateDraft"
+  end
+
+  policy "ReviewOnValidate" do
+    on "DraftValidated"
+    trigger "ReviewDraft"
+  end
+
+  policy "AcceptOnReview" do
+    on "DraftReviewed"
+    trigger "AcceptDraft"
+  end
+
+  # Critique pipeline: critique → apply → revalidate
+  policy "ApplyOnCritique" do
+    on "DomainCritiqued"
+    trigger "ApplySuggestions"
+  end
+
+  # Retrain after enough new domains accumulate
+  policy "RetrainOnGrowth" do
+    on "DraftAccepted"
+    trigger "TrainModel"
+  end
+end
