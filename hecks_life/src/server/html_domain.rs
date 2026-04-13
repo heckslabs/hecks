@@ -43,9 +43,12 @@ pub fn generate_domain_page(
     // Vision
     if let Some(ref vision) = rt.domain.vision {
         main.push_str(&format!(
-            r#"<p class="text-gray-400 mb-8">{}</p>"#, esc(vision),
+            r#"<p class="text-gray-400 mb-6">{}</p>"#, esc(vision),
         ));
     }
+
+    // Usage — how to use this domain, inferred from the bluebook
+    main.push_str(&usage_section(&rt.domain));
 
     // Creation cards — one per aggregate, compact, always visible
     main.push_str(&creation_cards(name, &rt));
