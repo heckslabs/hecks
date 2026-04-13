@@ -1,0 +1,173 @@
+Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
+  vision "Train Summer on cloud GPUs when the laptop isn't enough — upload data, rent compute, download adapter, run locally"
+  category "capability"
+
+  aggregate "TrainingJob", "A remote fine-tuning run on a cloud GPU" do
+    String :provider
+    String :gpu_type
+    String :base_model
+    String :adapter_name
+    Integer :iterations
+    Float :learning_rate
+    Float :cost_estimate
+    Float :final_loss
+    String :status
+    list_of(Checkpoint) :checkpoints
+
+    value_object "Checkpoint" do
+      Integer :iteration
+      Float :train_loss
+      Float :val_loss
+      String :saved_at
+    end
+
+    SubmitJob do
+      description "Upload training data and launch a fine-tuning job on cloud GPU"
+      String :provider
+      String :gpu_type
+      String :base_model
+      Integer :iterations
+      Float :learning_rate
+      given "training data must exist locally"
+      emits "JobSubmitted"
+    end
+
+    MonitorJob do
+      description "Poll the remote job for progress — loss, checkpoints, completion"
+      reference_to(TrainingJob)
+      emits "JobMonitored"
+    end
+
+    CompleteJob do
+      description "Job finished — download the adapter weights"
+      reference_to(TrainingJob)
+      given "remote job must report complete"
+      emits "JobCompleted"
+    end
+
+    CancelJob do
+      description "Stop a running job to save cost"
+      reference_to(TrainingJob)
+      given "job must be running"
+      emits "JobCancelled"
+    end
+  end
+
+  aggregate "DataUpload", "Training data staged for cloud transfer" do
+    String :local_path
+    String :remote_path
+    Integer :pair_count
+    Float :size_mb
+    String :checksum
+
+    StageData do
+      description "Prepare and validate training data for upload"
+      String :local_path
+      given "JSONL must have train.jsonl and valid.jsonl"
+      emits "DataStaged"
+    end
+
+    UploadData do
+      description "Transfer training data to cloud storage"
+      reference_to(DataUpload)
+      String :remote_path
+      emits "DataUploaded"
+    end
+  end
+
+  aggregate "AdapterDownload", "Trained adapter weights pulled back to the laptop" do
+    String :remote_path
+    String :local_path
+    Float :size_mb
+    String :format
+    Boolean :converted
+
+    DownloadAdapter do
+      description "Pull the trained LoRA adapter from cloud to local"
+      String :remote_path
+      String :local_path
+      emits "AdapterDownloaded"
+    end
+
+    ConvertToOllama do
+      description "Convert the adapter to GGUF and create an Ollama model"
+      reference_to(AdapterDownload)
+      String :ollama_model_name
+      emits "AdapterConverted"
+    end
+
+    DeploySummer do
+      description "Replace Summer's current adapter with the new one and restart"
+      reference_to(AdapterDownload)
+      given "adapter must be converted"
+      emits "SummerDeployed"
+    end
+  end
+
+  aggregate "CostTracker", "Track GPU spend across training jobs" do
+    Float :total_spent
+    Float :budget_limit
+    list_of(JobCost) :history
+
+    value_object "JobCost" do
+      String :job_id
+      String :provider
+      String :gpu_type
+      Float :duration_minutes
+      Float :cost
+    end
+
+    RecordCost do
+      description "Log the cost of a completed training job"
+      reference_to(TrainingJob)
+      emits "CostRecorded"
+    end
+
+    CheckBudget do
+      description "Verify spending is within budget before submitting a new job"
+      given "total spent must be under budget limit"
+      emits "BudgetChecked"
+    end
+  end
+
+  # Pipeline: stage → upload → submit → monitor → complete → download → convert → deploy
+  policy "UploadOnStage" do
+    on "DataStaged"
+    trigger "UploadData"
+  end
+
+  policy "SubmitOnUpload" do
+    on "DataUploaded"
+    trigger "SubmitJob"
+  end
+
+  policy "MonitorOnSubmit" do
+    on "JobSubmitted"
+    trigger "MonitorJob"
+  end
+
+  policy "DownloadOnComplete" do
+    on "JobCompleted"
+    trigger "DownloadAdapter"
+  end
+
+  policy "ConvertOnDownload" do
+    on "AdapterDownloaded"
+    trigger "ConvertToOllama"
+  end
+
+  policy "DeployOnConvert" do
+    on "AdapterConverted"
+    trigger "DeploySummer"
+  end
+
+  policy "TrackCostOnComplete" do
+    on "JobCompleted"
+    trigger "RecordCost"
+  end
+
+  policy "CheckBudgetOnStage" do
+    on "DataStaged"
+    trigger "CheckBudget"
+  end
+end
