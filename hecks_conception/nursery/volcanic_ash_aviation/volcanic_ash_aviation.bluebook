@@ -1,0 +1,288 @@
+Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
+  vision "Volcanology meets air cargo — eruptions, airspace monitoring, ash concentration, and flight rerouting"
+  category "crossover"
+
+  aggregate "Eruption", "A volcanic eruption event — volcano, intensity, ash column height, duration" do
+    String :volcano_name
+    Float :latitude
+    Float :longitude
+    Float :ash_column_height_km
+    String :eruption_type
+    String :vei_level
+    String :status
+
+    value_object "EruptionMetrics" do
+      Float :lava_volume_m3
+      Float :so2_emission_kt
+      Float :seismicity_level
+    end
+
+    ReportEruption do
+      role "Volcanologist"
+      description "Report a volcanic eruption with location and intensity"
+      String :volcano_name
+      Float :latitude
+      Float :longitude
+      Float :ash_column_height_km
+      String :eruption_type
+      String :vei_level
+      emits "EruptionReported"
+      then_set :volcano_name, to: :volcano_name
+      then_set :latitude, to: :latitude
+      then_set :longitude, to: :longitude
+      then_set :ash_column_height_km, to: :ash_column_height_km
+      then_set :eruption_type, to: :eruption_type
+      then_set :vei_level, to: :vei_level
+      then_set :status, to: "active"
+    end
+
+    UpdateAshColumn do
+      role "Volcanologist"
+      description "Update ash column height as eruption evolves"
+      reference_to(Eruption)
+      Float :ash_column_height_km
+      given { status == "active" }
+      emits "AshColumnUpdated"
+      then_set :ash_column_height_km, to: :ash_column_height_km
+    end
+
+    DeclareEruptionOver do
+      role "Volcanologist"
+      description "Declare eruption has ceased"
+      reference_to(Eruption)
+      given { status == "active" }
+      emits "EruptionEnded"
+      then_set :status, to: "ended"
+    end
+
+    lifecycle :status, default: "dormant" do
+      transition "ReportEruption" => "active", from: "dormant"
+      transition "DeclareEruptionOver" => "ended", from: "active"
+    end
+  end
+
+  aggregate "AshCloud", "A tracked volcanic ash cloud — extent, concentration, altitude, trajectory" do
+    String :cloud_id
+    String :volcano_source
+    Float :concentration_mg_m3
+    Float :altitude_min_ft
+    Float :altitude_max_ft
+    Float :area_sq_km
+    String :status
+
+    value_object "CloudTrajectory" do
+      Float :heading_degrees
+      Float :speed_kmh
+      Float :forecast_hours
+      Float :spread_rate_km2_hr
+    end
+
+    list_of "AffectedAirspace" do
+      String :fir_name
+      Float :overlap_pct
+      String :severity
+    end
+
+    TrackAshCloud do
+      role "System"
+      description "Track ash cloud position and concentration from satellite data"
+      String :cloud_id
+      String :volcano_source
+      Float :concentration_mg_m3
+      Float :altitude_min_ft
+      Float :altitude_max_ft
+      Float :area_sq_km
+      emits "AshCloudTracked"
+      then_set :cloud_id, to: :cloud_id
+      then_set :volcano_source, to: :volcano_source
+      then_set :concentration_mg_m3, to: :concentration_mg_m3
+      then_set :altitude_min_ft, to: :altitude_min_ft
+      then_set :altitude_max_ft, to: :altitude_max_ft
+      then_set :area_sq_km, to: :area_sq_km
+      then_set :status, to: "tracked"
+    end
+
+    ForecastDispersion do
+      role "System"
+      description "Forecast ash cloud movement and dispersion over time"
+      reference_to(AshCloud)
+      given { status == "tracked" }
+      emits "DispersionForecasted"
+      then_set :status, to: "forecasted"
+    end
+
+    DeclareCloudDissipated do
+      role "System"
+      description "Declare ash cloud has dissipated below hazardous levels"
+      reference_to(AshCloud)
+      given { status == "forecasted" }
+      emits "CloudDissipated"
+      then_set :status, to: "dissipated"
+    end
+
+    lifecycle :status, default: "undetected" do
+      transition "TrackAshCloud" => "tracked", from: "undetected"
+      transition "ForecastDispersion" => "forecasted", from: "tracked"
+      transition "DeclareCloudDissipated" => "dissipated", from: "forecasted"
+    end
+  end
+
+  aggregate "AirspaceRestriction", "A NOTAM airspace restriction due to volcanic ash" do
+    String :notam_id
+    String :fir_name
+    Float :altitude_floor_ft
+    Float :altitude_ceiling_ft
+    String :effective_from
+    String :effective_until
+    String :status
+
+    value_object "RestrictionZone" do
+      Float :center_lat
+      Float :center_lon
+      Float :radius_nm
+    end
+
+    IssueRestriction do
+      role "ATC"
+      description "Issue airspace restriction NOTAM for volcanic ash"
+      String :notam_id
+      String :fir_name
+      Float :altitude_floor_ft
+      Float :altitude_ceiling_ft
+      String :effective_from
+      String :effective_until
+      emits "RestrictionIssued"
+      then_set :notam_id, to: :notam_id
+      then_set :fir_name, to: :fir_name
+      then_set :altitude_floor_ft, to: :altitude_floor_ft
+      then_set :altitude_ceiling_ft, to: :altitude_ceiling_ft
+      then_set :effective_from, to: :effective_from
+      then_set :effective_until, to: :effective_until
+      then_set :status, to: "active"
+    end
+
+    ExtendRestriction do
+      role "ATC"
+      description "Extend restriction duration as ash persists"
+      reference_to(AirspaceRestriction)
+      String :effective_until
+      given { status == "active" }
+      emits "RestrictionExtended"
+      then_set :effective_until, to: :effective_until
+    end
+
+    LiftRestriction do
+      role "ATC"
+      description "Lift airspace restriction when ash clears"
+      reference_to(AirspaceRestriction)
+      given { status == "active" }
+      emits "RestrictionLifted"
+      then_set :status, to: "lifted"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "IssueRestriction" => "active", from: "clear"
+      transition "LiftRestriction" => "lifted", from: "active"
+    end
+  end
+
+  aggregate "CargoFlight", "A cargo flight affected by volcanic ash — rerouting, delays, fuel impact" do
+    String :flight_number
+    String :origin
+    String :destination
+    String :original_route
+    String :rerouted_via
+    Float :additional_fuel_kg
+    String :status
+
+    value_object "RouteDeviation" do
+      Float :extra_distance_nm
+      Float :extra_time_hours
+      Float :extra_fuel_kg
+    end
+
+    FileCargoFlight do
+      role "Dispatcher"
+      description "File a cargo flight plan"
+      String :flight_number
+      String :origin
+      String :destination
+      String :original_route
+      emits "CargoFlightFiled"
+      then_set :flight_number, to: :flight_number
+      then_set :origin, to: :origin
+      then_set :destination, to: :destination
+      then_set :original_route, to: :original_route
+      then_set :additional_fuel_kg, to: 0.0
+      then_set :status, to: "filed"
+    end
+
+    RerouteAroundAsh do
+      role "Dispatcher"
+      description "Reroute cargo flight to avoid volcanic ash cloud"
+      reference_to(CargoFlight)
+      String :rerouted_via
+      Float :additional_fuel_kg
+      given { status == "filed" }
+      emits "FlightRerouted"
+      then_set :rerouted_via, to: :rerouted_via
+      then_set :additional_fuel_kg, to: :additional_fuel_kg
+      then_set :status, to: "rerouted"
+    end
+
+    CancelFlight do
+      role "Dispatcher"
+      description "Cancel flight when no safe route exists"
+      reference_to(CargoFlight)
+      given { status == "filed" }
+      emits "FlightCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    ClearFlight do
+      role "Dispatcher"
+      description "Clear flight for departure when ash restriction lifts"
+      reference_to(CargoFlight)
+      given { status == "rerouted" }
+      emits "FlightCleared"
+      then_set :status, to: "cleared"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FileCargoFlight" => "filed", from: "pending"
+      transition "RerouteAroundAsh" => "rerouted", from: "filed"
+      transition "CancelFlight" => "cancelled", from: "filed"
+      transition "ClearFlight" => "cleared", from: "rerouted"
+    end
+  end
+
+  policy "TrackAshOnEruption" do
+    on "EruptionReported"
+    trigger "TrackAshCloud"
+  end
+
+  policy "ForecastOnTrack" do
+    on "AshCloudTracked"
+    trigger "ForecastDispersion"
+  end
+
+  policy "RestrictOnForecast" do
+    on "DispersionForecasted"
+    trigger "IssueRestriction"
+  end
+
+  policy "RerouteOnRestriction" do
+    on "RestrictionIssued"
+    trigger "RerouteAroundAsh"
+  end
+
+  policy "LiftOnDissipation" do
+    on "CloudDissipated"
+    trigger "LiftRestriction"
+  end
+
+  policy "ClearOnLift" do
+    on "RestrictionLifted"
+    trigger "ClearFlight"
+  end
+end

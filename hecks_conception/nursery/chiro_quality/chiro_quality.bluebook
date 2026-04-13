@@ -1,0 +1,147 @@
+Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
+  vision "Chiropractic quality — adjustments and treatments meet outcome measurement and evidence tracking"
+  category "healthcare_technology"
+
+  aggregate "ChiroVisit", "A chiropractic office visit with adjustments" do
+    String :visit_id
+    String :patient_name
+    String :chiropractor
+    String :chief_complaint
+    String :visit_date
+    String :status
+    list_of(Adjustment) :adjustments
+    value_object "Adjustment" do
+      String :technique
+      String :region
+      String :direction
+    end
+    RecordVisit do
+      role "Chiropractor"
+      description "Record a chiropractic visit with complaints and adjustments"
+      String :visit_id
+      String :patient_name
+      String :chiropractor
+      String :chief_complaint
+      String :visit_date
+      emits "VisitRecorded"
+      then_set :visit_id, to: :visit_id
+      then_set :patient_name, to: :patient_name
+      then_set :chiropractor, to: :chiropractor
+      then_set :chief_complaint, to: :chief_complaint
+      then_set :visit_date, to: :visit_date
+      then_set :status, to: "recorded"
+    end
+    CloseVisit do
+      role "Chiropractor"
+      description "Close the visit and finalize treatment notes"
+      reference_to(ChiroVisit)
+      given { status == "recorded" }
+      emits "VisitClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "OutcomeMeasure", "A standardized outcome measurement for tracking treatment effectiveness" do
+    String :measure_id
+    String :patient_name
+    String :instrument
+    Float :score
+    String :assessment_date
+    MeasureOutcome do
+      role "Chiropractor"
+      description "Administer an outcome measurement instrument to a patient"
+      String :measure_id
+      String :patient_name
+      String :instrument
+      Float :score
+      String :assessment_date
+      emits "OutcomeMeasured"
+      then_set :measure_id, to: :measure_id
+      then_set :patient_name, to: :patient_name
+      then_set :instrument, to: :instrument
+      then_set :score, to: :score
+      then_set :assessment_date, to: :assessment_date
+    end
+    CompareBaseline do
+      role "System"
+      description "Compare current score against baseline to measure progress"
+      reference_to(OutcomeMeasure)
+      emits "BaselineCompared"
+    end
+  end
+
+  aggregate "EvidenceRecord", "A clinical evidence record linking treatments to outcomes" do
+    String :record_id
+    String :treatment_type
+    String :condition
+    Integer :sample_size
+    Float :effect_size
+    String :evidence_level
+    RecordEvidence do
+      role "Researcher"
+      description "Record clinical evidence for a treatment and condition pair"
+      String :record_id
+      String :treatment_type
+      String :condition
+      Integer :sample_size
+      Float :effect_size
+      String :evidence_level
+      emits "EvidenceRecorded"
+      then_set :record_id, to: :record_id
+      then_set :treatment_type, to: :treatment_type
+      then_set :condition, to: :condition
+      then_set :sample_size, to: :sample_size
+      then_set :effect_size, to: :effect_size
+      then_set :evidence_level, to: :evidence_level
+    end
+    UpdateEvidence do
+      role "Researcher"
+      description "Update evidence with new study data"
+      reference_to(EvidenceRecord)
+      Float :effect_size
+      Integer :sample_size
+      emits "EvidenceUpdated"
+      then_set :effect_size, to: :effect_size
+      then_set :sample_size, to: :sample_size
+    end
+  end
+
+  aggregate "QualityReport", "A quality assurance report aggregating outcomes and evidence" do
+    String :report_id
+    String :period
+    Float :avg_outcome_score
+    Integer :total_visits
+    String :status
+    GenerateQualityReport do
+      role "System"
+      description "Generate a quality report aggregating outcomes for a period"
+      String :report_id
+      String :period
+      Float :avg_outcome_score
+      Integer :total_visits
+      emits "QualityReportGenerated"
+      then_set :report_id, to: :report_id
+      then_set :period, to: :period
+      then_set :avg_outcome_score, to: :avg_outcome_score
+      then_set :total_visits, to: :total_visits
+      then_set :status, to: "generated"
+    end
+    ApproveReport do
+      role "Director"
+      description "Approve the quality report for publication"
+      reference_to(QualityReport)
+      given { status == "generated" }
+      emits "ReportApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  policy "MeasureOnVisit" do
+    on "VisitClosed"
+    trigger "MeasureOutcome"
+  end
+  policy "CompareOnMeasure" do
+    on "OutcomeMeasured"
+    trigger "CompareBaseline"
+  end
+end

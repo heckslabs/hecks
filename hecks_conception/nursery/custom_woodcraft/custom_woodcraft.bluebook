@@ -1,0 +1,181 @@
+Hecks.bluebook "CustomWoodcraft" do
+  vision "Cross-wire sawmill lumber processing with furniture showroom retail to deliver custom woodcraft from tree to customer"
+  core
+
+  aggregate "Lumber" do
+    description "Raw lumber stock processed from the sawmill"
+    attribute :species
+    attribute :grade
+    attribute :board_feet, Float
+    attribute :moisture_pct, Float
+    attribute :cuts, list_of(CutSpec)
+    attribute :status, default: "green"
+
+    value_object "CutSpec" do
+      attribute :length_inches, Float
+      attribute :width_inches, Float
+      attribute :thickness_inches, Float
+      invariant "dimensions must be positive" do
+        length_inches > 0 && width_inches > 0 && thickness_inches > 0
+      end
+    end
+
+    command "MillLog" do
+      role "SawOperator"
+      goal "Process a raw log into lumber"
+      attribute :species
+      attribute :board_feet, Float
+    end
+
+    command "DryLumber" do
+      role "KilnOperator"
+      goal "Kiln-dry lumber to target moisture"
+      reference_to Lumber
+      given("must be green") { status == "green" }
+    end
+
+    command "GradeLumber" do
+      role "Inspector"
+      goal "Assign quality grade to dried lumber"
+      reference_to Lumber
+      attribute :grade
+    end
+  end
+
+  aggregate "FurnitureDesign" do
+    description "A custom furniture piece design with material requirements"
+    attribute :name
+    attribute :style
+    attribute :materials, list_of(MaterialReq)
+    attribute :status, default: "concept"
+
+    value_object "MaterialReq" do
+      attribute :species
+      attribute :board_feet_needed, Float
+      attribute :min_grade
+      invariant "board feet must be positive" do
+        board_feet_needed > 0
+      end
+    end
+
+    command "DesignPiece" do
+      role "Designer"
+      goal "Create a new furniture design"
+      attribute :name
+      attribute :style
+    end
+
+    command "SpecifyMaterial" do
+      role "Designer"
+      goal "Add material requirement to design"
+      reference_to FurnitureDesign
+      attribute :species
+      attribute :board_feet_needed, Float
+      attribute :min_grade
+      given("max 10 materials") { materials.size < 10 }
+      then_set :materials, append: { species: :species, board_feet_needed: :board_feet_needed, min_grade: :min_grade }
+    end
+
+    command "FinalizeDesign" do
+      role "LeadDesigner"
+      goal "Approve design for production"
+      reference_to FurnitureDesign
+      given("must have materials specified") { materials.size > 0 }
+    end
+  end
+
+  aggregate "WorkOrder" do
+    description "A production order matching lumber to furniture design"
+    reference_to Lumber
+    reference_to FurnitureDesign
+    attribute :craftsman
+    attribute :status, default: "queued"
+    attribute :steps, list_of(BuildStep)
+
+    value_object "BuildStep" do
+      attribute :step_name
+      attribute :estimated_hours, Float
+      attribute :completed, default: false
+    end
+
+    command "CreateWorkOrder" do
+      role "ShopForeman"
+      goal "Create a work order for a furniture piece"
+      reference_to Lumber
+      reference_to FurnitureDesign
+      attribute :craftsman
+    end
+
+    command "CompleteStep" do
+      role "Craftsman"
+      goal "Mark a build step as complete"
+      reference_to WorkOrder
+      attribute :step_name
+    end
+
+    command "FinishPiece" do
+      role "Craftsman"
+      goal "Mark the piece as finished"
+      reference_to WorkOrder
+      given("all steps must be complete") { steps.all? { |s| s.completed } }
+    end
+  end
+
+  aggregate "ShowroomDisplay" do
+    description "A furniture piece displayed in the showroom for sale"
+    reference_to FurnitureDesign
+    attribute :price_cents, Integer
+    attribute :location
+    attribute :status, default: "displayed"
+
+    value_object "CustomerInquiry" do
+      attribute :customer_name
+      attribute :question
+      attribute :asked_at
+    end
+
+    command "DisplayPiece" do
+      role "ShowroomManager"
+      goal "Place a finished piece in the showroom"
+      reference_to FurnitureDesign
+      attribute :price_cents, Integer
+      attribute :location
+    end
+
+    command "SellPiece" do
+      role "SalesAssociate"
+      goal "Sell a displayed piece to a customer"
+      reference_to ShowroomDisplay
+    end
+  end
+
+  policy "LumberGradedTriggersWorkOrder" do
+    on "LumberGraded"
+    trigger "CreateWorkOrder"
+    map lumber_id: :lumber_id
+  end
+
+  policy "DesignFinalizedTriggersMilling" do
+    on "DesignFinalized"
+    trigger "MillLog"
+    map species: :primary_species, board_feet: :total_board_feet
+  end
+
+  policy "PieceFinishedTriggersDisplay" do
+    on "PieceFinished"
+    trigger "DisplayPiece"
+    map furniture_design_id: :design_id
+  end
+
+  policy "PieceSoldTriggersRestock" do
+    on "PieceSold"
+    trigger "DesignPiece"
+    map name: :design_name, style: :design_style
+  end
+
+  policy "WorkOrderCreatedTriggersStep" do
+    on "WorkOrderCreated"
+    trigger "CompleteStep"
+    map work_order_id: :work_order_id, step_name: :first_step
+  end
+end

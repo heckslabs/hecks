@@ -1,0 +1,290 @@
+Hecks.bluebook "PrisonManagement" do
+  vision "Manage inmates, cell assignments, rehabilitation programs, incidents, and visitation"
+
+  aggregate "Inmate", "A person incarcerated in the facility with classification and records" do
+    String :inmate_id
+    String :name
+    String :classification
+    String :status
+    String :admission_date
+    String :release_date
+    reference_to(Cell)
+
+    specification "MaximumSecurity" do
+      satisfied_by { classification == "maximum" }
+    end
+
+    value_object "SentenceInfo" do
+      String :offense
+      Integer :sentence_months
+      String :parole_eligible
+    end
+
+    AdmitInmate do
+      description "Process a new inmate into the facility"
+      String :name
+      String :classification
+      String :admission_date
+      emits "InmateAdmitted"
+      then_set :status, to: "intake"
+    end
+
+    ClassifyInmate do
+      description "Assign security classification based on risk assessment"
+      reference_to(Inmate)
+      String :classification
+      given { status == "intake" }
+      emits "InmateClassified"
+      then_set :status, to: "classified"
+    end
+
+    HouseInmate do
+      description "Place a classified inmate into general population housing"
+      reference_to(Inmate)
+      reference_to(Cell)
+      given { status == "classified" }
+      emits "InmateHoused"
+      then_set :status, to: "housed"
+    end
+
+    ReclassifyInmate do
+      description "Change an inmate's security classification based on behavior"
+      reference_to(Inmate)
+      String :new_classification
+      given { status == "housed" }
+      emits "InmateReclassified"
+    end
+
+    PrepareForRelease do
+      description "Begin release processing and paperwork"
+      reference_to(Inmate)
+      given { status == "housed" }
+      emits "ReleasePreparationStarted"
+      then_set :status, to: "preparing_release"
+    end
+
+    ReleaseInmate do
+      description "Process an inmate for release at end of sentence"
+      reference_to(Inmate)
+      given { status == "preparing_release" }
+      emits "InmateReleased"
+      then_set :status, to: "released"
+    end
+  end
+
+  aggregate "Cell", "A housing unit or cell within the facility" do
+    String :cell_id
+    String :block
+    Integer :max_occupancy
+    Integer :current_occupancy
+    String :status
+    String :security_level
+
+    specification "AtCapacity" do
+      satisfied_by { current_occupancy >= max_occupancy }
+    end
+
+    value_object "CellCondition" do
+      String :last_inspected
+      String :condition_rating
+    end
+
+    OpenCell do
+      description "Make a cell available for inmate housing"
+      String :cell_id
+      String :block
+      Integer :max_occupancy
+      String :security_level
+      emits "CellOpened"
+      then_set :status, to: "available"
+      then_set :current_occupancy, to: 0
+    end
+
+    AssignInmateToCell do
+      description "Place an inmate in a specific cell"
+      reference_to(Cell)
+      reference_to(Inmate)
+      given { current_occupancy < max_occupancy }
+      emits "InmateAssignedToCell"
+    end
+
+    InspectCell do
+      description "Perform a routine cell search and condition check"
+      reference_to(Cell)
+      given { status == "available" }
+      emits "CellInspected"
+    end
+
+    LockdownCell do
+      description "Lock a cell during a security incident"
+      reference_to(Cell)
+      given { status == "available" }
+      emits "CellLockedDown"
+      then_set :status, to: "lockdown"
+    end
+
+    LiftLockdown do
+      description "Return a locked-down cell to normal status"
+      reference_to(Cell)
+      given { status == "lockdown" }
+      emits "LockdownLifted"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Program", "A rehabilitation or educational program offered to inmates" do
+    String :program_id
+    String :program_name
+    String :program_type
+    Integer :capacity
+    Integer :enrolled_count
+    String :status
+
+    value_object "Schedule" do
+      String :day_of_week
+      String :start_time
+      String :end_time
+    end
+
+    CreateProgram do
+      description "Establish a new rehabilitation program"
+      String :program_name
+      String :program_type
+      Integer :capacity
+      emits "ProgramCreated"
+      then_set :status, to: "active"
+      then_set :enrolled_count, to: 0
+    end
+
+    EnrollInmate do
+      description "Register an inmate for a program"
+      reference_to(Program)
+      reference_to(Inmate)
+      given { enrolled_count < capacity }
+      emits "InmateEnrolled"
+    end
+
+    GraduateInmate do
+      description "Mark an inmate as having completed a program"
+      reference_to(Program)
+      reference_to(Inmate)
+      emits "InmateGraduated"
+    end
+  end
+
+  aggregate "Incident", "A security event or rule violation within the facility" do
+    String :incident_id
+    String :incident_type
+    String :severity
+    String :description
+    String :status
+    reference_to(Inmate)
+
+    value_object "InvestigationNote" do
+      String :investigator
+      String :findings
+    end
+
+    FileIncident do
+      description "Report a security incident or rule violation"
+      String :incident_type
+      String :severity
+      String :description
+      reference_to(Inmate)
+      emits "IncidentFiled"
+      then_set :status, to: "open"
+    end
+
+    InvestigateIncident do
+      description "Begin formal investigation of the incident"
+      reference_to(Incident)
+      given { status == "open" }
+      emits "InvestigationStarted"
+      then_set :status, to: "investigating"
+    end
+
+    ResolveIncident do
+      description "Close an incident after investigation"
+      reference_to(Incident)
+      String :resolution
+      given { status == "investigating" }
+      emits "IncidentResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "Visit", "A scheduled visitation between an inmate and an approved visitor" do
+    String :visit_id
+    String :visitor_name
+    String :visit_type
+    String :scheduled_date
+    String :status
+    reference_to(Inmate)
+
+    value_object "VisitorID" do
+      String :id_type
+      String :id_number
+    end
+
+    ScheduleVisit do
+      description "Book a visitation slot for an approved visitor"
+      String :visitor_name
+      String :visit_type
+      String :scheduled_date
+      reference_to(Inmate)
+      emits "VisitScheduled"
+      then_set :status, to: "scheduled"
+    end
+
+    ConductVisit do
+      description "Begin the visitation session"
+      reference_to(Visit)
+      given { status == "scheduled" }
+      emits "VisitConducted"
+      then_set :status, to: "completed"
+    end
+
+    CancelVisit do
+      description "Cancel a visitation due to lockdown or visitor no-show"
+      reference_to(Visit)
+      given { status == "scheduled" }
+      emits "VisitCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  policy "ClassifyOnAdmit" do
+    on "InmateAdmitted"
+    trigger "ClassifyInmate"
+  end
+
+  policy "HouseOnClassify" do
+    on "InmateClassified"
+    trigger "HouseInmate"
+  end
+
+  policy "EnrollOnHousing" do
+    on "InmateHoused"
+    trigger "EnrollInmate"
+  end
+
+  policy "LockdownOnIncident" do
+    on "IncidentFiled"
+    trigger "LockdownCell"
+  end
+
+  policy "InvestigateOnIncident" do
+    on "IncidentFiled"
+    trigger "InvestigateIncident"
+  end
+
+  policy "ReclassifyOnResolve" do
+    on "IncidentResolved"
+    trigger "ReclassifyInmate"
+  end
+
+  policy "LiftLockdownOnResolve" do
+    on "IncidentResolved"
+    trigger "LiftLockdown"
+  end
+end

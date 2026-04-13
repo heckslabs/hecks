@@ -1,0 +1,211 @@
+Hecks.bluebook "WeldingShop" do
+  vision "Manage welding fabrication jobs including material procurement, welder certifications, weld inspections, and heat treatment records"
+  core
+
+  aggregate "FabricationJob" do
+    description "A welding fabrication job with drawings, material specs, and weld procedures"
+    String :client_name
+    String :job_description
+    String :weld_process
+    String :base_metal
+    String :status
+
+    value_object "WeldSpec" do
+      String :process_code
+      String :filler_metal
+      Float :amperage_range_low
+      Float :amperage_range_high
+    end
+
+    AcceptJob do
+      role "Shop Manager"
+      goal "Take on a new fabrication job from a client"
+      description "Review drawings and create the job with weld procedure specifications"
+      String :client_name
+      String :job_description
+      String :weld_process
+      String :base_metal
+      emits "JobAccepted"
+    end
+
+    AssignWelder do
+      role "Shop Manager"
+      goal "Assign a certified welder to the job"
+      description "Match welder certifications to the job's weld process requirements"
+      reference_to(FabricationJob)
+      reference_to(WelderCert)
+      emits "WelderAssigned"
+    end
+
+    ShipJob do
+      role "Shop Manager"
+      goal "Ship the completed fabrication to the client"
+      description "Package and ship after all inspections pass"
+      reference_to(FabricationJob)
+      given("all welds must pass inspection") { status == "inspected" }
+      emits "JobShipped"
+    end
+  end
+
+  aggregate "MaterialStock" do
+    description "Raw materials in stock — steel plate, pipe, tube, angle, and filler metals"
+    String :material_type
+    String :grade
+    Float :thickness
+    Float :quantity_lbs
+    String :heat_number
+
+    value_object "MillCert" do
+      String :heat_number
+      String :mill_name
+      Float :tensile_strength
+    end
+
+    ReceiveMaterial do
+      role "Warehouse"
+      goal "Check in new material with mill certification"
+      description "Log the material with heat number for traceability"
+      String :material_type
+      String :grade
+      Float :thickness
+      Float :quantity_lbs
+      String :heat_number
+      emits "MaterialReceived"
+    end
+
+    IssueMaterial do
+      role "Shop Manager"
+      goal "Issue material from stock to a specific job"
+      description "Deduct quantity and track heat number to the job"
+      reference_to(MaterialStock)
+      reference_to(FabricationJob)
+      Float :quantity_lbs
+      emits "MaterialIssued"
+    end
+  end
+
+  aggregate "WelderCert" do
+    description "A welder's certification for specific processes, positions, and material groups"
+    String :welder_name
+    String :cert_number
+    String :process
+    String :position
+    String :expiration_date
+
+    CertifyWelder do
+      role "Quality Manager"
+      goal "Record a welder's certification after passing qualification test"
+      description "Log the welder's qualified processes and positions per AWS D1.1"
+      String :welder_name
+      String :cert_number
+      String :process
+      String :position
+      String :expiration_date
+      emits "WelderCertified"
+    end
+
+    RenewCertification do
+      role "Quality Manager"
+      goal "Extend a welder's certification before expiration"
+      description "Update expiration date after continuity or requalification"
+      reference_to(WelderCert)
+      String :new_expiration_date
+      emits "CertificationRenewed"
+    end
+  end
+
+  aggregate "WeldInspection" do
+    description "A quality inspection of a weld — visual, radiographic, ultrasonic, or dye penetrant"
+    String :inspection_type
+    String :result
+    String :inspector_name
+    String :notes
+    reference_to(FabricationJob)
+
+    PerformInspection do
+      role "Quality Inspector"
+      goal "Inspect welds using the specified NDT method"
+      description "Examine welds and record pass/fail with documentation"
+      String :inspection_type
+      String :inspector_name
+      reference_to(FabricationJob)
+      emits "InspectionPerformed"
+    end
+
+    RecordDefect do
+      role "Quality Inspector"
+      goal "Document a weld defect found during inspection"
+      description "Log defect type, location, and required repair"
+      reference_to(WeldInspection)
+      String :defect_type
+      String :defect_location
+      emits "DefectRecorded"
+    end
+  end
+
+  aggregate "HeatTreatment" do
+    description "A post-weld heat treatment cycle for stress relief or hardening"
+    String :treatment_type
+    Float :target_temp_f
+    Float :hold_hours
+    Float :ramp_rate
+    reference_to(FabricationJob)
+
+    PerformHeatTreat do
+      role "Heat Treat Operator"
+      goal "Execute the prescribed heat treatment cycle"
+      description "Ramp, hold, and cool per the WPS requirements"
+      String :treatment_type
+      Float :target_temp_f
+      Float :hold_hours
+      Float :ramp_rate
+      reference_to(FabricationJob)
+      emits "HeatTreatPerformed"
+    end
+
+    RecordThermocouple do
+      role "Heat Treat Operator"
+      goal "Log thermocouple readings during the heat treatment"
+      description "Record temperature at intervals for the quality record"
+      reference_to(HeatTreatment)
+      Float :reading_temp_f
+      String :reading_time
+      emits "ThermocoupleRecorded"
+    end
+  end
+
+  policy "IssueMaterialOnAccept" do
+    on "JobAccepted"
+    trigger "IssueMaterial"
+  end
+
+  policy "AssignWelderOnMaterial" do
+    on "MaterialIssued"
+    trigger "AssignWelder"
+  end
+
+  policy "InspectAfterWeld" do
+    on "WelderAssigned"
+    trigger "PerformInspection"
+  end
+
+  policy "HeatTreatAfterInspection" do
+    on "InspectionPerformed"
+    trigger "PerformHeatTreat"
+  end
+
+  policy "RecordTempsOnHeatTreat" do
+    on "HeatTreatPerformed"
+    trigger "RecordThermocouple"
+  end
+
+  policy "ShipOnHeatTreat" do
+    on "ThermocoupleRecorded"
+    trigger "ShipJob"
+  end
+
+  policy "IssueMaterialOnJobAccepted" do
+    on "JobAccepted"
+    trigger "IssueMaterial"
+  end
+end

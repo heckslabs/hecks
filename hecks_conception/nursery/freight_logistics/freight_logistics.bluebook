@@ -1,0 +1,268 @@
+Hecks.bluebook "FreightLogistics" do
+  vision "Coordinate freight shipments, carrier assignments, route planning, customs clearance, and tracking"
+  category "logistics"
+
+  aggregate "Shipment", "A freight shipment with origin, destination, weight, and tracking status" do
+    String :tracking_number
+    String :origin
+    String :destination
+    Float :weight_kg
+    Integer :pallet_count
+    String :commodity_type
+    String :status
+    reference_to(Carrier)
+
+    value_object "Dimensions" do
+      Float :length_cm
+      Float :width_cm
+      Float :height_cm
+      Float :volume_cbm
+    end
+
+    BookShipment do
+      role "ShippingCoordinator"
+      description "Create a new freight shipment with origin, destination, and cargo details"
+      String :tracking_number
+      String :origin
+      String :destination
+      Float :weight_kg
+      Integer :pallet_count
+      String :commodity_type
+      emits "ShipmentBooked"
+      then_set :tracking_number, to: :tracking_number
+      then_set :origin, to: :origin
+      then_set :destination, to: :destination
+      then_set :weight_kg, to: :weight_kg
+      then_set :pallet_count, to: :pallet_count
+      then_set :commodity_type, to: :commodity_type
+      then_set :status, to: "booked"
+    end
+
+    DispatchShipment do
+      role "Dispatcher"
+      description "Release the shipment for pickup by the assigned carrier"
+      reference_to(Shipment)
+      given { status == "booked" }
+      emits "ShipmentDispatched"
+      then_set :status, to: "in_transit"
+    end
+
+    DeliverShipment do
+      role "Driver"
+      description "Confirm delivery at the destination with proof of delivery"
+      reference_to(Shipment)
+      given { status == "in_transit" }
+      emits "ShipmentDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Carrier", "A freight carrier company with fleet size, rates, and certifications" do
+    String :company_name
+    String :mc_number
+    String :dot_number
+    Integer :fleet_size
+    Float :rate_per_mile
+    String :status
+
+    value_object "CarrierCertification" do
+      String :certification_type
+      String :expiration_date
+      String :issuing_authority
+    end
+
+    OnboardCarrier do
+      role "CarrierManager"
+      description "Register a new carrier with DOT and MC credentials"
+      String :company_name
+      String :mc_number
+      String :dot_number
+      Integer :fleet_size
+      Float :rate_per_mile
+      emits "CarrierOnboarded"
+      then_set :company_name, to: :company_name
+      then_set :mc_number, to: :mc_number
+      then_set :dot_number, to: :dot_number
+      then_set :fleet_size, to: :fleet_size
+      then_set :rate_per_mile, to: :rate_per_mile
+      then_set :status, to: "active"
+    end
+
+    SuspendCarrier do
+      role "CarrierManager"
+      description "Temporarily deactivate a carrier due to safety violations"
+      reference_to(Carrier)
+      given { status == "active" }
+      emits "CarrierSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    ReinstatCarrier do
+      role "CarrierManager"
+      description "Reactivate a suspended carrier after corrective action"
+      reference_to(Carrier)
+      given { status == "suspended" }
+      emits "CarrierReinstated"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "Route", "A planned transportation route with waypoints, distance, and transit time" do
+    String :origin
+    String :destination
+    Float :distance_miles
+    Integer :estimated_hours
+    list_of(Waypoint) :waypoints
+    String :status
+    reference_to(Shipment)
+
+    value_object "Waypoint" do
+      String :location
+      String :stop_type
+      Integer :dwell_minutes
+    end
+
+    PlanRoute do
+      role "Dispatcher"
+      description "Create an optimized route from origin to destination with waypoints"
+      reference_to(Shipment)
+      String :origin
+      String :destination
+      Float :distance_miles
+      Integer :estimated_hours
+      emits "RoutePlanned"
+      then_set :origin, to: :origin
+      then_set :destination, to: :destination
+      then_set :distance_miles, to: :distance_miles
+      then_set :estimated_hours, to: :estimated_hours
+      then_set :status, to: "planned"
+    end
+
+    RerouteShipment do
+      role "Dispatcher"
+      description "Change the route due to weather, road closure, or delay"
+      reference_to(Route)
+      String :new_destination
+      Float :new_distance_miles
+      emits "ShipmentRerouted"
+      then_set :destination, to: :new_destination
+      then_set :distance_miles, to: :new_distance_miles
+    end
+  end
+
+  aggregate "CustomsClearance", "An import/export customs declaration with duties and inspection status" do
+    String :declaration_number
+    String :country_of_origin
+    String :tariff_code
+    Float :declared_value
+    Float :duty_amount
+    String :status
+    reference_to(Shipment)
+
+    FileClearance do
+      role "CustomsBroker"
+      description "Submit customs declaration for an international shipment"
+      reference_to(Shipment)
+      String :declaration_number
+      String :country_of_origin
+      String :tariff_code
+      Float :declared_value
+      emits "ClearanceFiled"
+      then_set :declaration_number, to: :declaration_number
+      then_set :country_of_origin, to: :country_of_origin
+      then_set :tariff_code, to: :tariff_code
+      then_set :declared_value, to: :declared_value
+      then_set :status, to: "filed"
+    end
+
+    ApproveClearance do
+      role "CustomsOfficer"
+      description "Release the shipment after inspection and duty calculation"
+      reference_to(CustomsClearance)
+      Float :duty_amount
+      given { status == "filed" }
+      emits "ClearanceApproved"
+      then_set :duty_amount, to: :duty_amount
+      then_set :status, to: "cleared"
+    end
+
+    HoldForInspection do
+      role "CustomsOfficer"
+      description "Flag the shipment for physical inspection before clearing"
+      reference_to(CustomsClearance)
+      given { status == "filed" }
+      emits "ShipmentHeld"
+      then_set :status, to: "held"
+    end
+  end
+
+  aggregate "TrackingEvent", "A timestamped location update for a shipment in transit" do
+    String :location
+    String :event_type
+    String :timestamp
+    String :notes
+    reference_to(Shipment)
+
+    RecordTrackingEvent do
+      role "System"
+      description "Log a GPS or scan event as the shipment moves through the supply chain"
+      reference_to(Shipment)
+      String :location
+      String :event_type
+      String :timestamp
+      emits "TrackingEventRecorded"
+      then_set :location, to: :location
+      then_set :event_type, to: :event_type
+      then_set :timestamp, to: :timestamp
+    end
+
+    FlagDelay do
+      role "Dispatcher"
+      description "Mark a shipment as delayed with reason and updated ETA"
+      reference_to(TrackingEvent)
+      String :notes
+      emits "DelayFlagged"
+      then_set :notes, to: :notes
+    end
+  end
+
+  policy "PlanRouteOnBooking" do
+    on "ShipmentBooked"
+    trigger "PlanRoute"
+  end
+
+  policy "DispatchOnRoutePlan" do
+    on "RoutePlanned"
+    trigger "DispatchShipment"
+  end
+
+  policy "FileCustomsOnDispatch" do
+    on "ShipmentDispatched"
+    trigger "FileClearance"
+  end
+
+  policy "TrackOnDispatch" do
+    on "ShipmentDispatched"
+    trigger "RecordTrackingEvent"
+  end
+
+  policy "DispatchOnClearance" do
+    on "ClearanceApproved"
+    trigger "RecordTrackingEvent"
+  end
+
+  policy "FlagDelayOnHold" do
+    on "ShipmentHeld"
+    trigger "FlagDelay"
+  end
+
+  policy "PlanRouteOnShipmentBooked" do
+    on "ShipmentBooked"
+    trigger "PlanRoute"
+  end
+
+  policy "DeliverOnClearanceApproved" do
+    on "ClearanceApproved"
+    trigger "DeliverShipment"
+  end
+end

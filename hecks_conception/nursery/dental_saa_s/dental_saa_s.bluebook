@@ -1,0 +1,136 @@
+Hecks.bluebook "DentalSaaS", version: "2026.04.13.1" do
+  vision "Dental SaaS platform — appointments and clinical records meet multi-tenant subscription billing"
+  category "healthcare_technology"
+
+  aggregate "Tenant", "A dental practice subscribing to the platform" do
+    String :tenant_id
+    String :practice_name
+    String :plan_tier
+    String :status
+    value_object "ContactInfo" do
+      String :email
+      String :phone
+      String :address
+    end
+    RegisterTenant do
+      role "Admin"
+      description "Register a new dental practice as a platform tenant"
+      String :tenant_id
+      String :practice_name
+      String :plan_tier
+      emits "TenantRegistered"
+      then_set :tenant_id, to: :tenant_id
+      then_set :practice_name, to: :practice_name
+      then_set :plan_tier, to: :plan_tier
+      then_set :status, to: "active"
+    end
+    SuspendTenant do
+      role "Admin"
+      description "Suspend a tenant for non-payment"
+      reference_to(Tenant)
+      given { status == "active" }
+      emits "TenantSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "Appointment", "A scheduled dental visit for a patient" do
+    String :appointment_id
+    String :patient_name
+    String :dentist_name
+    String :procedure_type
+    String :date_time
+    String :status
+    BookAppointment do
+      role "Receptionist"
+      description "Book a dental appointment for a patient"
+      String :appointment_id
+      String :patient_name
+      String :dentist_name
+      String :procedure_type
+      String :date_time
+      emits "AppointmentBooked"
+      then_set :appointment_id, to: :appointment_id
+      then_set :patient_name, to: :patient_name
+      then_set :dentist_name, to: :dentist_name
+      then_set :procedure_type, to: :procedure_type
+      then_set :date_time, to: :date_time
+      then_set :status, to: "scheduled"
+    end
+    CancelAppointment do
+      role "Receptionist"
+      description "Cancel a scheduled dental appointment"
+      reference_to(Appointment)
+      given { status == "scheduled" }
+      emits "AppointmentCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "Subscription", "A billing subscription for a dental practice" do
+    String :tenant_id
+    String :plan_name
+    Float :monthly_rate
+    String :billing_cycle
+    String :status
+    list_of(Invoice) :invoices
+    value_object "Invoice" do
+      String :invoice_id
+      Float :amount
+      String :due_date
+      String :paid
+    end
+    StartSubscription do
+      role "BillingSystem"
+      description "Start a subscription for a registered tenant"
+      String :tenant_id
+      String :plan_name
+      Float :monthly_rate
+      emits "SubscriptionStarted"
+      then_set :tenant_id, to: :tenant_id
+      then_set :plan_name, to: :plan_name
+      then_set :monthly_rate, to: :monthly_rate
+      then_set :status, to: "active"
+    end
+    CancelSubscription do
+      role "Admin"
+      description "Cancel a subscription and schedule tenant wind-down"
+      reference_to(Subscription)
+      given { status == "active" }
+      emits "SubscriptionCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "ClinicalNote", "A dental clinical note attached to a patient visit" do
+    String :note_id
+    String :appointment_id
+    String :findings
+    String :treatment_plan
+    String :author
+    WriteNote do
+      role "Dentist"
+      description "Write clinical findings and treatment plan after a visit"
+      String :note_id
+      String :appointment_id
+      String :findings
+      String :treatment_plan
+      String :author
+      emits "NoteWritten"
+      then_set :note_id, to: :note_id
+      then_set :appointment_id, to: :appointment_id
+      then_set :findings, to: :findings
+      then_set :treatment_plan, to: :treatment_plan
+      then_set :author, to: :author
+    end
+  end
+
+  policy "SubscribeOnRegister" do
+    on "TenantRegistered"
+    trigger "StartSubscription"
+  end
+  policy "SuspendOnCancel" do
+    on "SubscriptionCancelled"
+    trigger "SuspendTenant"
+  end
+end

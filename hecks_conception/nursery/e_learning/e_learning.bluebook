@@ -1,0 +1,257 @@
+Hecks.bluebook "ELearning", version: "2026.04.13.1" do
+  vision "Running an online learning platform — authoring courses, enrolling students, delivering lessons, administering quizzes, and issuing certificates"
+  category "technology"
+
+  aggregate "Course", "A structured learning program with lessons and assessments" do
+    String :course_title
+    String :instructor
+    String :subject_area
+    String :difficulty_level
+    Integer :estimated_hours
+    String :status
+    list_of(Module) :modules
+
+    value_object "Module" do
+      String :module_title
+      Integer :sequence_order
+      Integer :lesson_count
+    end
+
+    CreateCourse do
+      role "Instructor"
+      description "Author a new course with subject matter and difficulty"
+      String :course_title
+      String :instructor
+      String :subject_area
+      String :difficulty_level
+      Integer :estimated_hours
+      emits "CourseCreated"
+    end
+
+    PublishCourse do
+      description "Make a course available for enrollment"
+      reference_to(Course)
+      given("course has modules") { status == "draft" }
+      emits "CoursePublished"
+    end
+
+    RetireCourse do
+      description "Remove a course from the active catalog"
+      reference_to(Course)
+      emits "CourseRetired"
+    end
+  end
+
+  aggregate "Enrollment", "A student's registration in a specific course" do
+    String :enrollment_id
+    String :student_email
+    String :enrolled_at
+    Float :progress_pct
+    String :status
+    reference_to Course
+
+    value_object "ProgressCheckpoint" do
+      String :module_title
+      Float :completion_pct
+      String :completed_at
+    end
+
+    EnrollStudent do
+      role "Student"
+      description "Register a student for a published course"
+      String :enrollment_id
+      String :student_email
+      reference_to(Course)
+      emits "StudentEnrolled"
+    end
+
+    UpdateProgress do
+      description "Record advancement through course material"
+      reference_to(Enrollment)
+      Float :progress_pct
+      emits "ProgressUpdated"
+    end
+
+    WithdrawEnrollment do
+      description "Drop a student from a course"
+      reference_to(Enrollment)
+      given("enrollment is active") { status == "active" }
+      emits "EnrollmentWithdrawn"
+    end
+  end
+
+  aggregate "Lesson", "A single unit of instruction within a course module" do
+    String :lesson_title
+    String :content_type
+    String :body
+    Integer :duration_minutes
+    Integer :sequence_order
+    String :status
+    reference_to Course
+
+    value_object "Resource" do
+      String :resource_type
+      String :url
+      String :description
+    end
+
+    AuthorLesson do
+      role "Instructor"
+      description "Write a new lesson with content and resources"
+      String :lesson_title
+      String :content_type
+      String :body
+      Integer :duration_minutes
+      Integer :sequence_order
+      reference_to(Course)
+      emits "LessonAuthored"
+    end
+
+    UpdateLesson do
+      description "Revise the content of an existing lesson"
+      reference_to(Lesson)
+      String :body
+      emits "LessonUpdated"
+    end
+
+    ArchiveLesson do
+      description "Remove a lesson from the active curriculum"
+      reference_to(Lesson)
+      given("lesson is published") { status == "published" }
+      emits "LessonArchived"
+    end
+  end
+
+  aggregate "Quiz", "An assessment testing student understanding of lesson material" do
+    String :quiz_title
+    Integer :passing_score
+    Integer :time_limit_minutes
+    Integer :max_attempts
+    String :status
+    reference_to Lesson
+    list_of(Question) :questions
+
+    value_object "Question" do
+      String :prompt
+      String :correct_answer
+      Integer :points
+    end
+
+    CreateQuiz do
+      role "Instructor"
+      description "Design a quiz with questions and passing criteria"
+      String :quiz_title
+      Integer :passing_score
+      Integer :time_limit_minutes
+      Integer :max_attempts
+      reference_to(Lesson)
+      emits "QuizCreated"
+    end
+
+    SubmitAttempt do
+      description "Record a student's answers for grading"
+      reference_to(Quiz)
+      String :student_email
+      Integer :score
+      emits "AttemptSubmitted"
+    end
+
+    SuspendQuiz do
+      description "Take a quiz offline for revision"
+      reference_to(Quiz)
+      given("quiz is active") { status == "active" }
+      emits "QuizSuspended"
+    end
+  end
+
+  aggregate "Certificate", "A credential issued upon course completion" do
+    String :certificate_id
+    String :student_email
+    String :course_title
+    String :issued_at
+    String :verification_code
+    String :status
+    reference_to Enrollment
+
+    value_object "CertificateDetail" do
+      String :instructor_name
+      String :completion_date
+      Float :final_grade
+    end
+
+    IssueCertificate do
+      role "LearningSystem"
+      description "Generate a certificate for a student who completed a course"
+      String :certificate_id
+      String :student_email
+      String :course_title
+      String :verification_code
+      reference_to(Enrollment)
+      emits "CertificateIssued"
+    end
+
+    VerifyCertificate do
+      description "Validate the authenticity of a certificate"
+      reference_to(Certificate)
+      String :verification_code
+      emits "CertificateVerified"
+    end
+
+    RevokeCertificate do
+      description "Invalidate a certificate due to academic dishonesty"
+      reference_to(Certificate)
+      given("certificate is valid") { status == "valid" }
+      emits "CertificateRevoked"
+    end
+  end
+
+  lifecycle "StudentJourney" do
+    state "enrolled"
+    state "in_progress"
+    state "lesson_complete"
+    state "quiz_submitted"
+    state "graded"
+    state "certified"
+
+    transition from: "enrolled", to: "in_progress", on: "StudentEnrolled"
+    transition from: "in_progress", to: "lesson_complete", on: "ProgressUpdated"
+    transition from: "lesson_complete", to: "quiz_submitted", on: "AttemptSubmitted"
+    transition from: "quiz_submitted", to: "graded", on: "AttemptSubmitted"
+    transition from: "graded", to: "certified", on: "CertificateIssued"
+  end
+
+  policy "StudentEnrolledUpdateProgress" do
+    on "StudentEnrolled"
+    trigger "UpdateProgress"
+  end
+
+  policy "LessonAuthoredCreateQuiz" do
+    on "LessonAuthored"
+    trigger "CreateQuiz"
+  end
+
+  policy "ProgressUpdatedSubmitAttempt" do
+    on "ProgressUpdated"
+    trigger "SubmitAttempt"
+  end
+
+  policy "AttemptSubmittedGrade" do
+    on "AttemptSubmitted"
+    trigger "UpdateProgress"
+  end
+
+  policy "CourseCompletedIssueCertificate" do
+    on "ProgressUpdated"
+    trigger "IssueCertificate"
+  end
+
+  policy "CertificateIssuedVerify" do
+    on "CertificateIssued"
+    trigger "VerifyCertificate"
+  end
+
+  policy "PublishCourseOnLesson" do
+    on "LessonAuthored"
+    trigger "PublishCourse"
+  end
+end

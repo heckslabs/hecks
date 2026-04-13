@@ -1,0 +1,212 @@
+Hecks.bluebook "PetStore", version: "2026.04.13.1" do
+  vision "Operating a pet store — caring for animals, selling supplies, facilitating adoptions, offering grooming, and maintaining health records"
+  category "retail"
+
+  aggregate "Animal", "A living creature available for adoption or sale" do
+    String :animal_id
+    String :species
+    String :breed
+    String :name
+    Integer :age_months
+    Float :price
+    String :status
+    list_of(VaccinationRecord) :vaccinations
+
+    value_object "VaccinationRecord" do
+      String :vaccine_name
+      String :date_given
+      String :next_due
+    end
+
+    IntakeAnimal do
+      role "Manager"
+      description "Bring a new animal into the store's care"
+      String :animal_id
+      String :species
+      String :breed
+      String :name
+      Integer :age_months
+      Float :price
+      emits "AnimalIntaken"
+      then_set :animal_id, to: :animal_id
+      then_set :species, to: :species
+      then_set :breed, to: :breed
+      then_set :name, to: :name
+      then_set :age_months, to: :age_months
+      then_set :price, to: :price
+      then_set :status, to: "available"
+    end
+
+    VaccinateAnimal do
+      role "Veterinarian"
+      description "Administer a vaccination and record it"
+      reference_to(Animal)
+      String :vaccine_name
+      emits "AnimalVaccinated"
+    end
+
+    QuarantineAnimal do
+      role "Veterinarian"
+      description "Isolate an animal showing signs of illness"
+      reference_to(Animal)
+      emits "AnimalQuarantined"
+      then_set :status, to: "quarantined"
+    end
+  end
+
+  aggregate "Supply", "A pet product — food, toys, accessories" do
+    String :sku
+    String :name
+    String :category
+    Float :price
+    Integer :quantity
+    String :pet_type
+
+    StockSupply do
+      role "Stocker"
+      description "Add a pet supply product to inventory"
+      String :sku
+      String :name
+      String :category
+      Float :price
+      Integer :quantity
+      String :pet_type
+      emits "SupplyStocked"
+      then_set :sku, to: :sku
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+      then_set :pet_type, to: :pet_type
+    end
+
+    ReorderSupply do
+      role "Manager"
+      description "Place a restock order when inventory drops low"
+      reference_to(Supply)
+      Integer :reorder_quantity
+      given { reorder_quantity > 0 }
+      emits "SupplyReordered"
+    end
+  end
+
+  aggregate "Adoption", "The process of placing an animal with a new family" do
+    String :adoption_id
+    String :animal_id
+    String :adopter_name
+    String :adopter_phone
+    Float :adoption_fee
+    String :status
+
+    SubmitAdoptionApplication do
+      role "Customer"
+      description "Apply to adopt a specific animal"
+      String :adoption_id
+      String :animal_id
+      String :adopter_name
+      String :adopter_phone
+      Float :adoption_fee
+      emits "AdoptionApplicationSubmitted"
+      then_set :adoption_id, to: :adoption_id
+      then_set :animal_id, to: :animal_id
+      then_set :adopter_name, to: :adopter_name
+      then_set :adopter_phone, to: :adopter_phone
+      then_set :adoption_fee, to: :adoption_fee
+      then_set :status, to: "pending"
+    end
+
+    ApproveAdoption do
+      role "Manager"
+      description "Vet the applicant and approve the adoption"
+      reference_to(Adoption)
+      given { status == "pending" }
+      emits "AdoptionApproved"
+      then_set :status, to: "approved"
+    end
+
+    FinalizeAdoption do
+      role "Manager"
+      description "Complete the handoff — animal goes home with adopter"
+      reference_to(Adoption)
+      given { status == "approved" }
+      emits "AdoptionFinalized"
+      then_set :status, to: "finalized"
+    end
+  end
+
+  aggregate "GroomingAppointment", "A scheduled grooming session for a pet" do
+    String :appointment_id
+    String :pet_name
+    String :owner_name
+    String :service_type
+    String :scheduled_time
+    Float :price
+    String :status
+
+    BookGrooming do
+      role "Customer"
+      description "Schedule a grooming session for a pet"
+      String :appointment_id
+      String :pet_name
+      String :owner_name
+      String :service_type
+      String :scheduled_time
+      Float :price
+      emits "GroomingBooked"
+      then_set :appointment_id, to: :appointment_id
+      then_set :pet_name, to: :pet_name
+      then_set :owner_name, to: :owner_name
+      then_set :service_type, to: :service_type
+      then_set :scheduled_time, to: :scheduled_time
+      then_set :price, to: :price
+      then_set :status, to: "booked"
+    end
+
+    CompleteGrooming do
+      role "Groomer"
+      description "Finish the grooming session and note any health observations"
+      reference_to(GroomingAppointment)
+      given { status == "booked" }
+      emits "GroomingCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Lifecycle: intake → vaccinated → available → adoption applied → approved → groomed → finalized
+  # Workflow: Intake animal → Vaccinate → Submit adoption → Approve → Book grooming → Complete grooming → Finalize adoption → Reorder supplies
+
+  policy "VaccinateOnIntake" do
+    on "AnimalIntaken"
+    trigger "VaccinateAnimal"
+  end
+
+  policy "StockSupplyOnIntake" do
+    on "AnimalIntaken"
+    trigger "StockSupply"
+  end
+
+  policy "ApproveOnApplication" do
+    on "AdoptionApplicationSubmitted"
+    trigger "ApproveAdoption"
+  end
+
+  policy "GroomBeforeAdoption" do
+    on "AdoptionApproved"
+    trigger "BookGrooming"
+  end
+
+  policy "FinalizeOnGroom" do
+    on "GroomingCompleted"
+    trigger "FinalizeAdoption"
+  end
+
+  policy "ReorderOnFinalize" do
+    on "AdoptionFinalized"
+    trigger "ReorderSupply"
+  end
+
+  policy "QuarantineOnGrooming" do
+    on "GroomingCompleted"
+    trigger "VaccinateAnimal"
+  end
+end

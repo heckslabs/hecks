@@ -1,0 +1,202 @@
+Hecks.bluebook "Neuroscience" do
+  vision "Manage experimental subjects, brain imaging sessions, neural signals, and stimulus protocols"
+
+  aggregate "Subject" do
+    description "A research participant in a neuroscience experiment"
+    String :subject_id
+    Integer :age
+    String :handedness
+    String :consent_date
+    String :exclusion_criteria
+
+    command "EnrollSubject" do
+      description "Register a new participant in the study"
+      emits "SubjectEnrolled"
+      String :subject_id
+      Integer :age
+      String :handedness
+    end
+
+    command "WithdrawSubject" do
+      description "Remove a participant from the study"
+      emits "SubjectWithdrawn"
+      reference_to Subject
+      String :reason
+    end
+
+    command "ScreenSubject" do
+      description "Run eligibility screening for the participant"
+      emits "SubjectScreened"
+      reference_to Subject
+      given "consent must be signed"
+    end
+  end
+
+  aggregate "ImagingSession" do
+    description "A brain scanning session using fMRI, EEG, or MEG"
+    String :session_id
+    String :modality
+    String :timestamp
+    Integer :duration_minutes
+    reference_to Subject
+
+    value_object "ScanParameters" do
+      Float :repetition_time_ms
+      Float :echo_time_ms
+      Float :voxel_size_mm
+      Integer :slice_count
+    end
+
+    command "StartSession" do
+      description "Begin a brain imaging acquisition"
+      emits "SessionStarted"
+      reference_to Subject
+      String :modality
+      given "subject must have passed screening"
+    end
+
+    command "CompleteSession" do
+      description "Finish the imaging session and save raw data"
+      emits "SessionCompleted"
+      reference_to ImagingSession
+    end
+
+    command "RejectSession" do
+      description "Mark a session as unusable due to artifacts"
+      emits "SessionRejected"
+      reference_to ImagingSession
+      String :rejection_reason
+    end
+  end
+
+  aggregate "NeuralSignal" do
+    description "A processed electrophysiological or hemodynamic recording"
+    String :signal_type
+    String :brain_region
+    Float :sampling_rate_hz
+    Integer :channel_count
+    reference_to ImagingSession
+
+    command "ExtractSignal" do
+      description "Process raw scan data into neural signal traces"
+      emits "SignalExtracted"
+      reference_to ImagingSession
+      String :signal_type
+      String :brain_region
+    end
+
+    command "FilterNoise" do
+      description "Apply bandpass and artifact rejection filters"
+      emits "NoiseFiltered"
+      reference_to NeuralSignal
+      given "signal must have raw data loaded"
+    end
+
+    command "ComputeConnectivity" do
+      description "Calculate functional connectivity between regions"
+      emits "ConnectivityComputed"
+      reference_to NeuralSignal
+    end
+  end
+
+  aggregate "StimulusProtocol" do
+    description "A defined sequence of experimental stimuli presented to subjects"
+    String :protocol_name
+    String :stimulus_type
+    Integer :trial_count
+    Float :inter_stimulus_interval_ms
+
+    value_object "TrialBlock" do
+      String :condition
+      Integer :repetitions
+      Float :duration_ms
+    end
+
+    command "DesignProtocol" do
+      description "Create a new stimulus presentation protocol"
+      emits "ProtocolDesigned"
+      String :protocol_name
+      String :stimulus_type
+      Integer :trial_count
+    end
+
+    command "RandomizeTrials" do
+      description "Shuffle trial order for counterbalancing"
+      emits "TrialsRandomized"
+      reference_to StimulusProtocol
+    end
+
+    command "ValidateTimings" do
+      description "Check that stimulus timings meet TR alignment"
+      emits "TimingsValidated"
+      reference_to StimulusProtocol
+      given "protocol must have at least one trial block"
+    end
+  end
+
+  aggregate "ResearchPaper" do
+    description "A manuscript reporting experimental neuroscience findings"
+    String :paper_id
+    String :title
+    String :target_journal
+    String :status
+    reference_to NeuralSignal
+
+    command "DraftPaper" do
+      description "Write up experimental results for publication"
+      emits "PaperDrafted"
+      reference_to NeuralSignal
+      String :title
+      String :target_journal
+    end
+  end
+
+  lifecycle "ExperimentPipeline" do
+    state "screening"
+    state "imaging"
+    state "signal_processing"
+    state "analysis"
+    state "connectivity_mapped"
+    state "published"
+    transition from: "screening", to: "imaging", on: "SubjectScreened"
+    transition from: "imaging", to: "signal_processing", on: "SessionCompleted"
+    transition from: "signal_processing", to: "analysis", on: "NoiseFiltered"
+    transition from: "analysis", to: "connectivity_mapped", on: "ConnectivityComputed"
+    transition from: "connectivity_mapped", to: "published", on: "PaperDrafted"
+  end
+
+  policy "ImagingAfterScreening" do
+    on "SubjectScreened"
+    trigger "StartSession"
+  end
+
+  policy "ExtractAfterSession" do
+    on "SessionCompleted"
+    trigger "ExtractSignal"
+  end
+
+  policy "FilterAfterExtraction" do
+    on "SignalExtracted"
+    trigger "FilterNoise"
+  end
+
+  policy "ConnectivityAfterFiltering" do
+    on "NoiseFiltered"
+    trigger "ComputeConnectivity"
+  end
+
+  policy "PublishAfterConnectivity" do
+    on "ConnectivityComputed"
+    trigger "DraftPaper"
+  end
+
+  policy "EnrollAfterProtocolDesigned" do
+    on "ProtocolDesigned"
+    trigger "EnrollSubject"
+  end
+
+  policy "RandomizeOnProtocolDesigned" do
+    on "ProtocolDesigned"
+    trigger "RandomizeTrials"
+  end
+end

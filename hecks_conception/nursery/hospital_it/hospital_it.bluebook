@@ -1,0 +1,180 @@
+Hecks.bluebook "HospitalIT", version: "2026.04.13.1" do
+  vision "Hospital IT infrastructure — patient records meet server uptime and disaster recovery"
+  category "healthcare_technology"
+
+  aggregate "PatientRecord", "An electronic health record stored and served by hospital infrastructure" do
+    String :medical_record_number
+    String :patient_name
+    String :department
+    String :record_status
+    list_of(ClinicalEntry) :entries
+
+    value_object "ClinicalEntry" do
+      String :entry_type
+      String :content
+      String :author
+      String :timestamp
+    end
+
+    CreateRecord do
+      role "Registrar"
+      description "Register a new patient record in the electronic health system"
+      String :medical_record_number
+      String :patient_name
+      String :department
+      emits "RecordCreated"
+      then_set :medical_record_number, to: :medical_record_number
+      then_set :patient_name, to: :patient_name
+      then_set :department, to: :department
+      then_set :record_status, to: "active"
+    end
+
+    AddEntry do
+      role "Clinician"
+      description "Append a clinical entry to the patient record"
+      reference_to(PatientRecord)
+      String :entry_type
+      String :content
+      String :author
+      emits "EntryAdded"
+    end
+  end
+
+  aggregate "Server", "A physical or virtual server hosting hospital apps" do
+    String :hostname
+    String :role
+    Float :cpu_pct
+    Float :memory_pct
+    String :status
+
+    DeployServer do
+      role "SysAdmin"
+      description "Deploy a new server into the hospital data center"
+      String :hostname
+      String :role
+      emits "ServerDeployed"
+      then_set :hostname, to: :hostname
+      then_set :role, to: :role
+      then_set :status, to: "running"
+    end
+
+    CheckHealth do
+      role "System"
+      description "Check CPU, memory, and disk against thresholds"
+      reference_to(Server)
+      Float :cpu_pct
+      Float :memory_pct
+      emits "HealthChecked"
+      then_set :cpu_pct, to: :cpu_pct
+      then_set :memory_pct, to: :memory_pct
+    end
+
+    TakeOffline do
+      role "SysAdmin"
+      description "Gracefully remove server from load balancer for maintenance"
+      reference_to(Server)
+      given { status == "running" }
+      emits "ServerOfflined"
+      then_set :status, to: "offline"
+    end
+  end
+
+  aggregate "Backup", "A disaster recovery backup of hospital data" do
+    String :backup_id
+    String :source_server
+    String :backup_type
+    String :storage_path
+    String :status
+    Float :size_gb
+
+    StartBackup do
+      role "SysAdmin"
+      description "Start a full or incremental backup of a hospital server"
+      String :backup_id
+      String :source_server
+      String :backup_type
+      emits "BackupStarted"
+      then_set :backup_id, to: :backup_id
+      then_set :source_server, to: :source_server
+      then_set :backup_type, to: :backup_type
+      then_set :status, to: "in_progress"
+    end
+
+    FinishBackup do
+      role "System"
+      description "Mark backup as completed with size and storage path"
+      reference_to(Backup)
+      String :storage_path
+      Float :size_gb
+      given { status == "in_progress" }
+      emits "BackupFinished"
+      then_set :storage_path, to: :storage_path
+      then_set :size_gb, to: :size_gb
+      then_set :status, to: "completed"
+    end
+
+    RestoreBackup do
+      role "SysAdmin"
+      description "Restore hospital data from backup after failure"
+      reference_to(Backup)
+      given { status == "completed" }
+      emits "BackupRestored"
+      then_set :status, to: "restored"
+    end
+  end
+
+  aggregate "RecoveryPlan", "A documented plan for recovering hospital IT after catastrophic failure" do
+    String :plan_name
+    String :tier
+    Float :rto_hours
+    Float :rpo_hours
+    list_of(RecoveryStep) :steps
+    String :status
+
+    value_object "RecoveryStep" do
+      Integer :sequence
+      String :action_name
+      String :team
+      Float :estimated_minutes
+    end
+
+    DefinePlan do
+      role "ITDirector"
+      description "Create a disaster recovery plan with RTO and RPO targets"
+      String :plan_name
+      String :tier
+      Float :rto_hours
+      Float :rpo_hours
+      emits "PlanDefined"
+      then_set :plan_name, to: :plan_name
+      then_set :tier, to: :tier
+      then_set :rto_hours, to: :rto_hours
+      then_set :rpo_hours, to: :rpo_hours
+      then_set :status, to: "draft"
+    end
+
+    ActivatePlan do
+      role "ITDirector"
+      description "Activate the disaster recovery plan during an incident"
+      reference_to(RecoveryPlan)
+      given { status == "draft" }
+      emits "PlanActivated"
+      then_set :status, to: "active"
+    end
+  end
+
+  policy "BackupOnDeploy" do
+    on "ServerDeployed"
+    trigger "StartBackup"
+  end
+
+  policy "ActivateRecoveryOnDown" do
+    on "ServerOfflined"
+    trigger "ActivatePlan"
+  end
+
+  policy "CheckHealthAfterRestore" do
+    on "BackupRestored"
+    trigger "CheckHealth"
+  end
+end

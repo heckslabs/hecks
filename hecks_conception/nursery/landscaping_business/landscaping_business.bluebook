@@ -1,0 +1,213 @@
+Hecks.bluebook "LandscapingBusiness" do
+  vision "Manage landscaping projects from design through seasonal maintenance, tracking properties, plant selections, and crew schedules"
+  core
+
+  aggregate "Property" do
+    description "A customer property with lot dimensions, soil type, and sun exposure"
+    String :owner_name
+    String :address
+    Float :lot_sqft
+    String :soil_type
+    String :sun_exposure
+
+    value_object "LotDimensions" do
+      Float :front_feet
+      Float :depth_feet
+      Float :grade_pct
+    end
+
+    SurveyProperty do
+      role "Designer"
+      goal "Assess the property for landscaping potential"
+      description "Walk the property and document soil, drainage, sun, and existing plantings"
+      String :owner_name
+      String :address
+      Float :lot_sqft
+      String :soil_type
+      String :sun_exposure
+      emits "PropertySurveyed"
+    end
+
+    RecordIrrigation do
+      role "Technician"
+      goal "Document the existing irrigation system layout"
+      description "Map sprinkler zones, heads, and controller settings"
+      reference_to(Property)
+      String :irrigation_type
+      Integer :zone_count
+      emits "IrrigationRecorded"
+    end
+  end
+
+  aggregate "LandscapeDesign" do
+    description "A landscape design plan with planting beds, hardscape, and irrigation layout"
+    String :design_name
+    String :style
+    Float :budget
+    String :status
+    reference_to(Property)
+
+    CreateDesign do
+      role "Designer"
+      goal "Draft a landscape design plan for the property"
+      description "Create a design with planting areas, materials, and cost estimate"
+      String :design_name
+      String :style
+      Float :budget
+      reference_to(Property)
+      emits "DesignCreated"
+    end
+
+    ApproveDesign do
+      role "Customer"
+      goal "Sign off on the landscape design to begin installation"
+      description "Customer approves the design and authorizes the budget"
+      reference_to(LandscapeDesign)
+      given("design must be in review") { status == "in_review" }
+      emits "DesignApproved"
+    end
+
+    ReviseDesign do
+      role "Designer"
+      goal "Update the design based on customer feedback"
+      description "Modify plant selections, layout, or budget per customer request"
+      reference_to(LandscapeDesign)
+      String :revision_notes
+      emits "DesignRevised"
+    end
+  end
+
+  aggregate "Planting" do
+    description "A plant specimen selected for installation with species, size, and placement"
+    String :species
+    String :common_name
+    String :size
+    String :placement_zone
+    Integer :quantity
+    reference_to(LandscapeDesign)
+
+    value_object "PlantRequirements" do
+      String :water_needs
+      String :sun_needs
+      Integer :hardiness_zone
+    end
+
+    SelectPlant do
+      role "Designer"
+      goal "Choose a plant species for a specific location in the design"
+      description "Select plants based on soil, sun, and aesthetic requirements"
+      String :species
+      String :common_name
+      String :size
+      String :placement_zone
+      Integer :quantity
+      reference_to(LandscapeDesign)
+      emits "PlantSelected"
+    end
+
+    InstallPlanting do
+      role "Crew Lead"
+      goal "Dig, place, and mulch the selected plants"
+      description "Install plants per the design specifications"
+      reference_to(Planting)
+      emits "PlantingInstalled"
+    end
+  end
+
+  aggregate "CrewSchedule" do
+    description "A daily crew schedule assigning landscapers to properties"
+    String :crew_lead
+    String :scheduled_date
+    Integer :crew_size
+    reference_to(Property)
+
+    ScheduleCrew do
+      role "Operations Manager"
+      goal "Assign a crew to a property for a specific date"
+      description "Schedule the crew lead and laborers for installation or maintenance"
+      String :crew_lead
+      String :scheduled_date
+      Integer :crew_size
+      reference_to(Property)
+      emits "CrewScheduled"
+    end
+
+    CancelDueToWeather do
+      role "Operations Manager"
+      goal "Cancel a scheduled crew day due to weather"
+      description "Postpone work when conditions are unsuitable"
+      reference_to(CrewSchedule)
+      String :reason
+      emits "ScheduleCancelled"
+    end
+  end
+
+  aggregate "SeasonalService" do
+    description "A recurring seasonal service like spring cleanup, fall leaf removal, or snow prep"
+    String :service_type
+    String :season
+    String :frequency
+    Float :price
+    reference_to(Property)
+
+    EnrollService do
+      role "Account Manager"
+      goal "Sign a customer up for a seasonal maintenance plan"
+      description "Create a recurring service agreement for the property"
+      String :service_type
+      String :season
+      String :frequency
+      Float :price
+      reference_to(Property)
+      emits "ServiceEnrolled"
+    end
+
+    PerformService do
+      role "Crew Lead"
+      goal "Execute the scheduled seasonal service visit"
+      description "Complete the maintenance tasks and log the visit"
+      reference_to(SeasonalService)
+      emits "ServicePerformed"
+    end
+  end
+
+  policy "DesignOnSurvey" do
+    on "PropertySurveyed"
+    trigger "CreateDesign"
+  end
+
+  policy "SelectPlantsOnDesign" do
+    on "DesignCreated"
+    trigger "SelectPlant"
+  end
+
+  policy "ScheduleCrewOnApproval" do
+    on "DesignApproved"
+    trigger "ScheduleCrew"
+  end
+
+  policy "InstallAfterSchedule" do
+    on "CrewScheduled"
+    trigger "InstallPlanting"
+  end
+
+  policy "EnrollSeasonalOnInstall" do
+    on "PlantingInstalled"
+    trigger "EnrollService"
+  end
+
+  policy "RecordIrrigationOnInstall" do
+    on "PlantingInstalled"
+    trigger "RecordIrrigation"
+  end
+
+  policy "DesignOnSurvey" do
+    on "PropertySurveyed"
+    trigger "CreateDesign"
+  end
+
+  policy "PerformServiceOnServiceEnrolled" do
+    on "ServiceEnrolled"
+    trigger "PerformService"
+  end
+end

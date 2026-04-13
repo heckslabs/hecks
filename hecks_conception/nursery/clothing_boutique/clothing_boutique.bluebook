@@ -1,0 +1,231 @@
+Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
+  vision "Operating a clothing boutique — curating garments, managing sizes, styling displays, performing alterations, and rotating seasonal collections"
+  category "retail"
+
+  aggregate "Garment", "A clothing item — the core sellable product" do
+    String :style_number
+    String :name
+    String :designer
+    String :fabric
+    Float :retail_price
+    String :season
+    String :status
+    list_of(SizeRun) :size_runs
+
+    value_object "SizeRun" do
+      String :size
+      String :color
+      Integer :quantity
+    end
+
+    ReceiveGarment do
+      role "Buyer"
+      description "Accept a new garment into inventory from a designer shipment"
+      String :style_number
+      String :name
+      String :designer
+      String :fabric
+      Float :retail_price
+      String :season
+      emits "GarmentReceived"
+      then_set :style_number, to: :style_number
+      then_set :name, to: :name
+      then_set :designer, to: :designer
+      then_set :fabric, to: :fabric
+      then_set :retail_price, to: :retail_price
+      then_set :season, to: :season
+      then_set :status, to: "in_stock"
+    end
+
+    MarkdownGarment do
+      role "Manager"
+      description "Reduce price for end-of-season clearance"
+      reference_to(Garment)
+      Float :sale_price
+      given { sale_price < retail_price }
+      emits "GarmentMarkedDown"
+      then_set :retail_price, to: :sale_price
+    end
+
+    RetireGarment do
+      role "Manager"
+      description "Remove a style from active inventory permanently"
+      reference_to(Garment)
+      emits "GarmentRetired"
+      then_set :status, to: "retired"
+    end
+  end
+
+  aggregate "Display", "A curated visual arrangement in the store" do
+    String :display_name
+    String :theme
+    String :location
+    list_of(DisplayItem) :items
+    String :status
+
+    value_object "DisplayItem" do
+      String :style_number
+      String :size
+      String :position
+    end
+
+    CreateDisplay do
+      role "Stylist"
+      description "Design a new visual merchandising display with a theme"
+      String :display_name
+      String :theme
+      String :location
+      emits "DisplayCreated"
+      then_set :display_name, to: :display_name
+      then_set :theme, to: :theme
+      then_set :location, to: :location
+      then_set :status, to: "active"
+    end
+
+    RefreshDisplay do
+      role "Stylist"
+      description "Swap out garments for a new look while keeping the theme"
+      reference_to(Display)
+      emits "DisplayRefreshed"
+    end
+
+    DismantleDisplay do
+      role "Stylist"
+      description "Take down a display at end of season"
+      reference_to(Display)
+      emits "DisplayDismantled"
+      then_set :status, to: "dismantled"
+    end
+  end
+
+  aggregate "Alteration", "A tailoring modification requested by a customer" do
+    String :ticket_number
+    String :style_number
+    String :customer_name
+    String :alteration_type
+    String :due_date
+    Float :charge
+    String :status
+
+    RequestAlteration do
+      role "Customer"
+      description "Ask for a hem, taper, or other modification to a purchased garment"
+      String :ticket_number
+      String :style_number
+      String :customer_name
+      String :alteration_type
+      String :due_date
+      Float :charge
+      emits "AlterationRequested"
+      then_set :ticket_number, to: :ticket_number
+      then_set :style_number, to: :style_number
+      then_set :customer_name, to: :customer_name
+      then_set :alteration_type, to: :alteration_type
+      then_set :due_date, to: :due_date
+      then_set :charge, to: :charge
+      then_set :status, to: "pending"
+    end
+
+    CompleteAlteration do
+      role "Tailor"
+      description "Finish the alteration work and mark it ready for pickup"
+      reference_to(Alteration)
+      given { status == "pending" }
+      emits "AlterationCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "SeasonalCollection", "A curated set of garments for a selling season" do
+    String :season_name
+    String :year
+    String :theme
+    list_of(CollectionPiece) :pieces
+    String :status
+
+    value_object "CollectionPiece" do
+      String :style_number
+      String :category
+      Integer :buy_quantity
+    end
+
+    PlanCollection do
+      role "Buyer"
+      description "Assemble the buying plan for an upcoming season"
+      String :season_name
+      String :year
+      String :theme
+      emits "CollectionPlanned"
+      then_set :season_name, to: :season_name
+      then_set :year, to: :year
+      then_set :theme, to: :theme
+      then_set :status, to: "planned"
+    end
+
+    LaunchCollection do
+      role "Manager"
+      description "Debut the seasonal collection on the sales floor"
+      reference_to(SeasonalCollection)
+      given { status == "planned" }
+      emits "CollectionLaunched"
+      then_set :status, to: "active"
+    end
+
+    CloseOutCollection do
+      role "Manager"
+      description "End the season and move remaining stock to clearance"
+      reference_to(SeasonalCollection)
+      given { status == "active" }
+      emits "CollectionClosedOut"
+      then_set :status, to: "closed"
+    end
+  end
+
+  # Lifecycle: planned → launched → displayed → sold/altered → closed out → markdown → retired
+  # Workflow: Plan collection → Launch → Create display → Receive garments → Sell → Request alteration → Complete → Closeout → Markdown
+
+  policy "LaunchOnPlan" do
+    on "CollectionPlanned"
+    trigger "LaunchCollection"
+  end
+
+  policy "DisplayOnLaunch" do
+    on "CollectionLaunched"
+    trigger "CreateDisplay"
+  end
+
+  policy "RefreshDisplayOnLaunch" do
+    on "CollectionLaunched"
+    trigger "RefreshDisplay"
+  end
+
+  policy "AlterOnReceive" do
+    on "GarmentReceived"
+    trigger "RequestAlteration"
+  end
+
+  policy "MarkdownOnCloseout" do
+    on "CollectionClosedOut"
+    trigger "MarkdownGarment"
+  end
+
+  policy "RetireOnMarkdown" do
+    on "GarmentMarkedDown"
+    trigger "DismantleDisplay"
+  end
+
+  policy "CompleteAlterationOnRequest" do
+    on "AlterationRequested"
+    trigger "CompleteAlteration"
+  end
+
+  policy "ReceiveGarmentOnLaunch" do
+    on "CollectionLaunched"
+    trigger "ReceiveGarment"
+  end
+
+  policy "RetireGarmentOnCloseout" do
+    on "CollectionClosedOut"
+    trigger "RetireGarment"
+  end
+end

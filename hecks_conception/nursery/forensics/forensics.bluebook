@@ -1,0 +1,193 @@
+Hecks.bluebook "Forensics" do
+  vision "Manage criminal cases, physical evidence, chain of custody, laboratory analyses, and expert reports"
+
+  aggregate "CriminalCase" do
+    description "An investigation requiring forensic evidence processing"
+    String :case_number
+    String :case_type
+    String :lead_investigator
+    String :opened_date
+    String :jurisdiction
+
+    command "OpenCase" do
+      description "Initiate a new forensic investigation"
+      emits "CaseOpened"
+      String :case_number
+      String :case_type
+      String :lead_investigator
+    end
+
+    command "CloseCase" do
+      description "Conclude the investigation and archive"
+      emits "CaseClosed"
+      reference_to CriminalCase
+      given "all evidence must be analyzed"
+    end
+
+    command "ReassignInvestigator" do
+      description "Transfer case leadership to another investigator"
+      emits "InvestigatorReassigned"
+      reference_to CriminalCase
+      String :new_investigator
+    end
+  end
+
+  aggregate "EvidenceItem" do
+    description "A physical or digital item collected from a crime scene"
+    String :item_number
+    String :description
+    String :evidence_type
+    String :collection_location
+    String :collected_by
+    reference_to CriminalCase
+
+    value_object "StorageCondition" do
+      String :container_type
+      Float :temperature_c
+      String :humidity_level
+    end
+
+    command "CollectEvidence" do
+      description "Log a new piece of evidence from the scene"
+      emits "EvidenceCollected"
+      reference_to CriminalCase
+      String :item_number
+      String :description
+      String :evidence_type
+    end
+
+    command "TransferCustody" do
+      description "Hand evidence to another custodian"
+      emits "CustodyTransferred"
+      reference_to EvidenceItem
+      String :receiving_custodian
+      given "chain of custody must be unbroken"
+    end
+
+    command "SealEvidence" do
+      description "Package evidence in tamper-evident container"
+      emits "EvidenceSealed"
+      reference_to EvidenceItem
+    end
+  end
+
+  aggregate "LabAnalysis" do
+    description "A scientific examination of evidence in a forensic laboratory"
+    String :analysis_type
+    String :analyst_name
+    String :method
+    String :findings
+    reference_to EvidenceItem
+
+    command "SubmitForAnalysis" do
+      description "Send evidence to the lab for testing"
+      emits "AnalysisSubmitted"
+      reference_to EvidenceItem
+      String :analysis_type
+      String :method
+    end
+
+    command "RecordFindings" do
+      description "Document the laboratory results"
+      emits "FindingsRecorded"
+      reference_to LabAnalysis
+      String :findings
+    end
+
+    command "PeerReviewAnalysis" do
+      description "Have another analyst verify the results"
+      emits "AnalysisPeerReviewed"
+      reference_to LabAnalysis
+      given "findings must be documented"
+    end
+  end
+
+  aggregate "ExpertReport" do
+    description "A formal written opinion prepared for court testimony"
+    String :report_number
+    String :expert_name
+    String :conclusion
+    reference_to LabAnalysis
+    reference_to CriminalCase
+
+    command "DraftReport" do
+      description "Write the initial expert opinion report"
+      emits "ReportDrafted"
+      reference_to LabAnalysis
+      String :expert_name
+    end
+
+    command "FinalizeReport" do
+      description "Lock the report for submission to court"
+      emits "ReportFinalized"
+      reference_to ExpertReport
+      given "report must be peer-reviewed"
+    end
+  end
+
+  aggregate "CourtTestimony" do
+    description "An expert witness appearance presenting forensic findings in court"
+    String :testimony_id
+    String :court_name
+    String :hearing_date
+    String :expert_name
+    reference_to ExpertReport
+
+    command "ScheduleTestimony" do
+      description "Set a date for expert witness court appearance"
+      emits "TestimonyScheduled"
+      reference_to ExpertReport
+      String :court_name
+      String :hearing_date
+    end
+  end
+
+  lifecycle "ForensicInvestigation" do
+    state "scene_processing"
+    state "chain_of_custody"
+    state "lab_analysis"
+    state "peer_review"
+    state "reporting"
+    state "court_ready"
+    transition from: "scene_processing", to: "chain_of_custody", on: "EvidenceCollected"
+    transition from: "chain_of_custody", to: "lab_analysis", on: "CustodyTransferred"
+    transition from: "lab_analysis", to: "peer_review", on: "FindingsRecorded"
+    transition from: "peer_review", to: "reporting", on: "AnalysisPeerReviewed"
+    transition from: "reporting", to: "court_ready", on: "ReportFinalized"
+  end
+
+  policy "SealAfterCollection" do
+    on "EvidenceCollected"
+    trigger "SealEvidence"
+  end
+
+  policy "TransferAfterSealing" do
+    on "EvidenceSealed"
+    trigger "TransferCustody"
+  end
+
+  policy "AnalyzeAfterTransfer" do
+    on "CustodyTransferred"
+    trigger "SubmitForAnalysis"
+  end
+
+  policy "RecordFindingsAfterAnalysis" do
+    on "AnalysisSubmitted"
+    trigger "RecordFindings"
+  end
+
+  policy "ReviewAfterFindings" do
+    on "FindingsRecorded"
+    trigger "PeerReviewAnalysis"
+  end
+
+  policy "DraftReportAfterReview" do
+    on "AnalysisPeerReviewed"
+    trigger "DraftReport"
+  end
+
+  policy "TestifyAfterReport" do
+    on "ReportFinalized"
+    trigger "ScheduleTestimony"
+  end
+end

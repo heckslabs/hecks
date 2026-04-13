@@ -1,0 +1,201 @@
+Hecks.bluebook "Archaeology" do
+  vision "Manage excavation sites, stratigraphic units, artifacts, dating, and conservation"
+
+  aggregate "ExcavationSite" do
+    description "A location where archaeological fieldwork is conducted"
+    String :site_code
+    String :name
+    Float :latitude
+    Float :longitude
+    String :period_estimate
+
+    command "OpenSite" do
+      description "Begin excavation at a new archaeological site"
+      emits "SiteOpened"
+      String :site_code
+      String :name
+      Float :latitude
+      Float :longitude
+    end
+
+    command "CloseSite" do
+      description "Conclude fieldwork and seal the site"
+      emits "SiteClosed"
+      reference_to ExcavationSite
+      given "all trenches must be backfilled"
+    end
+
+    command "AssignDirector" do
+      description "Appoint a lead archaeologist for the site"
+      emits "DirectorAssigned"
+      reference_to ExcavationSite
+      String :director_name
+    end
+  end
+
+  aggregate "StratigraphicUnit" do
+    description "A distinct layer of soil or deposit within an excavation trench"
+    String :context_number
+    String :soil_description
+    Float :depth_top_m
+    Float :depth_bottom_m
+    reference_to ExcavationSite
+
+    value_object "SoilMatrix" do
+      String :color_munsell
+      String :texture
+      String :compaction
+      String :inclusions
+    end
+
+    command "RecordContext" do
+      description "Document a new stratigraphic context"
+      emits "ContextRecorded"
+      reference_to ExcavationSite
+      String :context_number
+      String :soil_description
+    end
+
+    command "LinkStratigraphy" do
+      description "Establish above-below relationships between contexts"
+      emits "StratigraphyLinked"
+      reference_to StratigraphicUnit
+      String :related_context
+    end
+
+    command "SampleContext" do
+      description "Take a soil sample for environmental analysis"
+      emits "ContextSampled"
+      reference_to StratigraphicUnit
+    end
+  end
+
+  aggregate "Artifact" do
+    description "A human-made object recovered from excavation"
+    String :find_number
+    String :material
+    String :object_type
+    Float :weight_g
+    reference_to StratigraphicUnit
+
+    command "RegisterFind" do
+      description "Log a newly discovered artifact"
+      emits "FindRegistered"
+      reference_to StratigraphicUnit
+      String :find_number
+      String :material
+      String :object_type
+    end
+
+    command "PhotographArtifact" do
+      description "Capture scaled photography of the artifact"
+      emits "ArtifactPhotographed"
+      reference_to Artifact
+    end
+
+    command "SendForDating" do
+      description "Submit the artifact for radiometric dating"
+      emits "DatingRequested"
+      reference_to Artifact
+      given "artifact must be from organic material"
+    end
+  end
+
+  aggregate "DatingResult" do
+    description "A chronometric date obtained from laboratory analysis"
+    String :method
+    Integer :date_bp
+    Integer :error_margin
+    reference_to Artifact
+
+    command "SubmitResult" do
+      description "Record a dating laboratory result"
+      emits "ResultSubmitted"
+      reference_to Artifact
+      String :method
+      Integer :date_bp
+      Integer :error_margin
+    end
+
+    command "CalibrateDate" do
+      description "Apply calibration curve to convert raw date"
+      emits "DateCalibrated"
+      reference_to DatingResult
+      given "result must be radiocarbon method"
+    end
+  end
+
+  aggregate "ConservationRecord" do
+    description "A treatment applied to stabilize or restore an artifact"
+    String :record_id
+    String :treatment_type
+    String :conservator
+    String :date_performed
+    reference_to Artifact
+
+    command "ConserveArtifact" do
+      description "Apply conservation treatment to stabilize the artifact"
+      emits "ArtifactConserved"
+      reference_to Artifact
+      String :treatment_type
+      String :conservator
+      given "artifact must be photographed and cataloged"
+    end
+
+    command "PublishSiteReport" do
+      description "Compile and release the final excavation report"
+      emits "SiteReportPublished"
+      reference_to ExcavationSite
+      String :report_title
+    end
+  end
+
+  lifecycle "ExcavationWorkflow" do
+    state "survey"
+    state "excavating"
+    state "cataloging"
+    state "dating"
+    state "conserving"
+    state "published"
+    transition from: "survey", to: "excavating", on: "SiteOpened"
+    transition from: "excavating", to: "cataloging", on: "FindRegistered"
+    transition from: "cataloging", to: "dating", on: "ArtifactPhotographed"
+    transition from: "dating", to: "conserving", on: "DateCalibrated"
+    transition from: "conserving", to: "published", on: "SiteReportPublished"
+  end
+
+  policy "RecordContextAfterSiteOpened" do
+    on "SiteOpened"
+    trigger "RecordContext"
+  end
+
+  policy "RegisterFindAfterContext" do
+    on "ContextRecorded"
+    trigger "RegisterFind"
+  end
+
+  policy "PhotographAfterRegistration" do
+    on "FindRegistered"
+    trigger "PhotographArtifact"
+  end
+
+  policy "DateAfterPhotograph" do
+    on "ArtifactPhotographed"
+    trigger "SendForDating"
+  end
+
+  policy "CalibrateOnResult" do
+    on "ResultSubmitted"
+    trigger "CalibrateDate"
+  end
+
+  policy "ConserveAfterDating" do
+    on "DateCalibrated"
+    trigger "ConserveArtifact"
+  end
+
+  policy "PublishAfterConservation" do
+    on "ArtifactConserved"
+    trigger "PublishSiteReport"
+  end
+end

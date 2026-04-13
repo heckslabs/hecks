@@ -1,0 +1,266 @@
+Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
+  vision "Running a digital advertising platform — launching campaigns, serving impressions, tracking clicks and conversions, and managing budgets"
+  category "technology"
+
+  aggregate "Campaign", "An advertising campaign with targeting rules and budget" do
+    String :campaign_id
+    String :advertiser_name
+    String :objective
+    String :target_audience
+    Float :daily_budget
+    Float :total_budget
+    String :status
+    list_of(TargetingRule) :targeting_rules
+
+    value_object "TargetingRule" do
+      String :dimension
+      String :operator
+      String :value
+    end
+
+    LaunchCampaign do
+      role "MediaBuyer"
+      description "Create and activate a new ad campaign"
+      String :campaign_id
+      String :advertiser_name
+      String :objective
+      String :target_audience
+      Float :daily_budget
+      Float :total_budget
+      emits "CampaignLaunched"
+    end
+
+    PauseCampaign do
+      description "Temporarily halt ad delivery for a campaign"
+      reference_to(Campaign)
+      given("campaign is running") { status == "running" }
+      emits "CampaignPaused"
+    end
+
+    EndCampaign do
+      description "Permanently stop a campaign and finalize metrics"
+      reference_to(Campaign)
+      emits "CampaignEnded"
+    end
+  end
+
+  aggregate "Impression", "A single ad view served to a user" do
+    String :impression_id
+    String :placement_id
+    String :creative_id
+    String :user_segment
+    Float :bid_price
+    String :status
+    reference_to Campaign
+
+    value_object "ViewContext" do
+      String :device_type
+      String :geo_region
+      String :page_url
+    end
+
+    ServeImpression do
+      role "AdServer"
+      description "Deliver an ad creative to a user and record the impression"
+      String :impression_id
+      String :placement_id
+      String :creative_id
+      String :user_segment
+      Float :bid_price
+      reference_to(Campaign)
+      emits "ImpressionServed"
+    end
+
+    MarkViewable do
+      description "Confirm the impression met viewability standards"
+      reference_to(Impression)
+      emits "ImpressionMarkedViewable"
+    end
+
+    FlagFraudulent do
+      description "Flag an impression as bot traffic or fraud"
+      reference_to(Impression)
+      emits "ImpressionFlaggedFraudulent"
+    end
+  end
+
+  aggregate "Click", "A user interaction with a served ad" do
+    String :click_id
+    String :landing_url
+    String :referrer
+    Float :cost
+    String :status
+    reference_to Impression
+
+    value_object "ClickDetail" do
+      String :browser
+      String :os
+      String :timestamp
+    end
+
+    RecordClick do
+      role "AdServer"
+      description "Log a click event when a user taps an ad"
+      String :click_id
+      String :landing_url
+      String :referrer
+      Float :cost
+      reference_to(Impression)
+      emits "ClickRecorded"
+    end
+
+    ValidateClick do
+      description "Verify a click is genuine and not bot-generated"
+      reference_to(Click)
+      emits "ClickValidated"
+    end
+
+    DisputeClick do
+      description "Challenge a click charge as invalid"
+      reference_to(Click)
+      String :dispute_reason
+      emits "ClickDisputed"
+    end
+  end
+
+  aggregate "Conversion", "A desired action completed after an ad interaction" do
+    String :conversion_id
+    String :conversion_type
+    Float :value
+    String :attribution_model
+    String :status
+    reference_to Click
+
+    value_object "AttributionPath" do
+      String :touchpoint
+      String :channel
+      Float :weight
+    end
+
+    TrackConversion do
+      role "AnalyticsSystem"
+      description "Record a conversion event attributed to an ad click"
+      String :conversion_id
+      String :conversion_type
+      Float :value
+      String :attribution_model
+      reference_to(Click)
+      emits "ConversionTracked"
+    end
+
+    AdjustAttribution do
+      description "Recalculate attribution for a conversion across touchpoints"
+      reference_to(Conversion)
+      String :attribution_model
+      emits "AttributionAdjusted"
+    end
+
+    VoidConversion do
+      description "Invalidate a conversion due to fraud or return"
+      reference_to(Conversion)
+      given("conversion is confirmed") { status == "confirmed" }
+      emits "ConversionVoided"
+    end
+  end
+
+  aggregate "Budget", "A financial allocation controlling campaign spend" do
+    String :budget_id
+    Float :allocated_amount
+    Float :spent_amount
+    Float :remaining_amount
+    String :period
+    String :status
+    reference_to Campaign
+
+    specification "NearlyExhausted" do
+      satisfied_by { remaining_amount < 100 }
+    end
+
+    value_object "SpendEntry" do
+      Float :amount
+      String :source
+      String :recorded_at
+    end
+
+    AllocateBudget do
+      role "MediaBuyer"
+      description "Set a spending budget for a campaign"
+      String :budget_id
+      Float :allocated_amount
+      String :period
+      reference_to(Campaign)
+      emits "BudgetAllocated"
+    end
+
+    DeductSpend do
+      description "Reduce the remaining budget as spend accrues"
+      reference_to(Budget)
+      Float :amount
+      given("sufficient funds") { remaining_amount >= amount }
+      emits "SpendDeducted"
+    end
+
+    ExhaustBudget do
+      description "Mark a budget as fully spent and pause delivery"
+      reference_to(Budget)
+      emits "BudgetExhausted"
+    end
+  end
+
+  lifecycle "CampaignDelivery" do
+    state "draft"
+    state "launched"
+    state "delivering"
+    state "paused"
+    state "exhausted"
+    state "ended"
+
+    transition from: "draft", to: "launched", on: "CampaignLaunched"
+    transition from: "launched", to: "delivering", on: "ImpressionServed"
+    transition from: "delivering", to: "paused", on: "CampaignPaused"
+    transition from: "delivering", to: "exhausted", on: "BudgetExhausted"
+    transition from: "paused", to: "delivering", on: "CampaignLaunched"
+    transition from: "exhausted", to: "ended", on: "CampaignEnded"
+    transition from: "delivering", to: "ended", on: "CampaignEnded"
+  end
+
+  policy "CampaignLaunchedAllocateBudget" do
+    on "CampaignLaunched"
+    trigger "AllocateBudget"
+  end
+
+  policy "ImpressionServedDeductSpend" do
+    on "ImpressionServed"
+    trigger "DeductSpend"
+  end
+
+  policy "ImpressionServedRecordClick" do
+    on "ImpressionMarkedViewable"
+    trigger "RecordClick"
+  end
+
+  policy "ClickRecordedTrackConversion" do
+    on "ClickValidated"
+    trigger "TrackConversion"
+  end
+
+  policy "ConversionTrackedAdjustBudget" do
+    on "ConversionTracked"
+    trigger "DeductSpend"
+  end
+
+  policy "BudgetExhaustedPauseCampaign" do
+    on "BudgetExhausted"
+    trigger "PauseCampaign"
+  end
+
+  policy "ValidateClickOnRecord" do
+    on "ClickRecorded"
+    trigger "ValidateClick"
+  end
+
+  policy "MarkViewableOnServe" do
+    on "ImpressionServed"
+    trigger "MarkViewable"
+  end
+end

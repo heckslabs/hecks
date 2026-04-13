@@ -1,0 +1,293 @@
+Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
+  vision "Dendrology meets landscaping — tree health assessment, planting plans, maintenance schedules, and permits"
+  category "crossover"
+
+  aggregate "Tree", "An urban tree — species, health metrics, location, and canopy data" do
+    String :species
+    String :common_name
+    Float :dbh_cm
+    Float :height_m
+    Float :canopy_spread_m
+    String :health_rating
+    String :status
+
+    value_object "Location" do
+      Float :latitude
+      Float :longitude
+      String :site_type
+      String :address
+    end
+
+    value_object "HealthAssessment" do
+      String :crown_condition
+      String :trunk_condition
+      String :root_condition
+      Float :vigor_score
+    end
+
+    InventoryTree do
+      role "Arborist"
+      description "Record a tree in the urban inventory with species and measurements"
+      String :species
+      String :common_name
+      Float :dbh_cm
+      Float :height_m
+      Float :canopy_spread_m
+      emits "TreeInventoried"
+      then_set :species, to: :species
+      then_set :common_name, to: :common_name
+      then_set :dbh_cm, to: :dbh_cm
+      then_set :height_m, to: :height_m
+      then_set :canopy_spread_m, to: :canopy_spread_m
+      then_set :status, to: "healthy"
+      then_set :health_rating, to: "good"
+    end
+
+    AssessHealth do
+      role "Arborist"
+      description "Evaluate tree health from crown, trunk, and root inspection"
+      reference_to(Tree)
+      String :health_rating
+      given { status == "healthy" }
+      emits "HealthAssessed"
+      then_set :health_rating, to: :health_rating
+    end
+
+    FlagForRemoval do
+      role "Arborist"
+      description "Mark a tree for removal due to disease, death, or hazard"
+      reference_to(Tree)
+      emits "TreeFlaggedForRemoval"
+      then_set :status, to: "removal_pending"
+    end
+
+    RemoveTree do
+      role "CrewLead"
+      description "Execute tree removal after permit approval"
+      reference_to(Tree)
+      given { status == "removal_pending" }
+      emits "TreeRemoved"
+      then_set :status, to: "removed"
+    end
+
+    lifecycle :status, default: "unrecorded" do
+      transition "InventoryTree" => "healthy", from: "unrecorded"
+      transition "FlagForRemoval" => "removal_pending", from: "healthy"
+      transition "RemoveTree" => "removed", from: "removal_pending"
+    end
+  end
+
+  aggregate "PlantingPlan", "A planting plan — species selection, spacing, site prep, timeline" do
+    String :name
+    String :site_address
+    Integer :tree_count
+    String :primary_species
+    Float :spacing_m
+    String :season
+    String :status
+
+    list_of "PlantingSlot" do
+      Float :latitude
+      Float :longitude
+      String :species
+      Float :pit_diameter_m
+    end
+
+    CreatePlantingPlan do
+      role "Planner"
+      description "Design a planting plan with species and spacing for a site"
+      String :name
+      String :site_address
+      Integer :tree_count
+      String :primary_species
+      Float :spacing_m
+      String :season
+      emits "PlantingPlanCreated"
+      then_set :name, to: :name
+      then_set :site_address, to: :site_address
+      then_set :tree_count, to: :tree_count
+      then_set :primary_species, to: :primary_species
+      then_set :spacing_m, to: :spacing_m
+      then_set :season, to: :season
+      then_set :status, to: "drafted"
+    end
+
+    ApprovePlan do
+      role "Manager"
+      description "Approve planting plan for execution"
+      reference_to(PlantingPlan)
+      given { status == "drafted" }
+      emits "PlantingPlanApproved"
+      then_set :status, to: "approved"
+    end
+
+    ExecutePlanting do
+      role "CrewLead"
+      description "Plant trees according to the approved plan"
+      reference_to(PlantingPlan)
+      given { status == "approved" }
+      emits "PlantingExecuted"
+      then_set :status, to: "planted"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CreatePlantingPlan" => "drafted", from: "pending"
+      transition "ApprovePlan" => "approved", from: "drafted"
+      transition "ExecutePlanting" => "planted", from: "approved"
+    end
+  end
+
+  aggregate "MaintenanceSchedule", "Scheduled tree maintenance — pruning, watering, pest treatment" do
+    String :tree_species
+    String :maintenance_type
+    String :frequency
+    String :next_due_date
+    String :assigned_crew
+    String :status
+
+    value_object "MaintenanceRecord" do
+      String :date_performed
+      String :work_done
+      String :crew_name
+      Float :hours_spent
+    end
+
+    ScheduleMaintenance do
+      role "Manager"
+      description "Create a maintenance schedule for a tree or group"
+      String :tree_species
+      String :maintenance_type
+      String :frequency
+      String :next_due_date
+      String :assigned_crew
+      emits "MaintenanceScheduled"
+      then_set :tree_species, to: :tree_species
+      then_set :maintenance_type, to: :maintenance_type
+      then_set :frequency, to: :frequency
+      then_set :next_due_date, to: :next_due_date
+      then_set :assigned_crew, to: :assigned_crew
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteMaintenance do
+      role "CrewLead"
+      description "Record completion of scheduled maintenance work"
+      reference_to(MaintenanceSchedule)
+      given { status == "scheduled" }
+      emits "MaintenanceCompleted"
+      then_set :status, to: "completed"
+    end
+
+    RescheduleMaintenance do
+      role "Manager"
+      description "Reschedule maintenance to a new date"
+      reference_to(MaintenanceSchedule)
+      String :next_due_date
+      given { status == "scheduled" }
+      emits "MaintenanceRescheduled"
+      then_set :next_due_date, to: :next_due_date
+    end
+
+    lifecycle :status, default: "unscheduled" do
+      transition "ScheduleMaintenance" => "scheduled", from: "unscheduled"
+      transition "CompleteMaintenance" => "completed", from: "scheduled"
+    end
+  end
+
+  aggregate "TreePermit", "A permit for tree work — removal, pruning of protected species, planting in ROW" do
+    String :permit_type
+    String :tree_species
+    String :site_address
+    String :applicant
+    String :justification
+    String :status
+
+    value_object "PermitCondition" do
+      String :condition_text
+      String :mitigation_required
+      Integer :replacement_ratio
+    end
+
+    ApplyForPermit do
+      role "Applicant"
+      description "Submit a tree work permit application"
+      String :permit_type
+      String :tree_species
+      String :site_address
+      String :applicant
+      String :justification
+      emits "PermitApplicationSubmitted"
+      then_set :permit_type, to: :permit_type
+      then_set :tree_species, to: :tree_species
+      then_set :site_address, to: :site_address
+      then_set :applicant, to: :applicant
+      then_set :justification, to: :justification
+      then_set :status, to: "submitted"
+    end
+
+    ReviewPermit do
+      role "Inspector"
+      description "Review permit application and assess tree condition"
+      reference_to(TreePermit)
+      given { status == "submitted" }
+      emits "PermitReviewed"
+      then_set :status, to: "reviewed"
+    end
+
+    ApprovePermit do
+      role "Manager"
+      description "Approve the tree work permit with conditions"
+      reference_to(TreePermit)
+      given { status == "reviewed" }
+      emits "PermitApproved"
+      then_set :status, to: "approved"
+    end
+
+    DenyPermit do
+      role "Manager"
+      description "Deny the tree work permit"
+      reference_to(TreePermit)
+      given { status == "reviewed" }
+      emits "PermitDenied"
+      then_set :status, to: "denied"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "ApplyForPermit" => "submitted", from: "draft"
+      transition "ReviewPermit" => "reviewed", from: "submitted"
+      transition "ApprovePermit" => "approved", from: "reviewed"
+      transition "DenyPermit" => "denied", from: "reviewed"
+    end
+  end
+
+  # Workflow: Inventory -> assess health -> flag removal -> permit -> approve -> remove -> replant
+  policy "AssessAfterInventory" do
+    on "TreeInventoried"
+    trigger "AssessHealth"
+  end
+
+  policy "PermitOnRemovalFlag" do
+    on "TreeFlaggedForRemoval"
+    trigger "ApplyForPermit"
+  end
+
+  policy "ReviewOnSubmission" do
+    on "PermitApplicationSubmitted"
+    trigger "ReviewPermit"
+  end
+
+  policy "ScheduleMaintenanceOnPlanting" do
+    on "PlantingExecuted"
+    trigger "ScheduleMaintenance"
+  end
+
+  policy "ApproveOnReview" do
+    on "PermitReviewed"
+    trigger "ApprovePermit"
+  end
+
+  policy "PlantOnApproval" do
+    on "PlantingPlanApproved"
+    trigger "ExecutePlanting"
+  end
+end

@@ -1,0 +1,210 @@
+Hecks.bluebook "FinancialFreedom" do
+  vision "Cross-wire domestic violence shelter case management with tax preparation for survivor financial independence"
+  core
+
+  aggregate "SurvivorCase" do
+    description "A shelter survivor case with safety and financial needs"
+    attribute :case_id
+    attribute :intake_date
+    attribute :dependents, list_of(Dependent)
+    attribute :safety_plan
+    attribute :status, default: "active"
+
+    value_object "Dependent" do
+      attribute :name
+      attribute :age, Integer
+      attribute :relationship
+    end
+
+    command "OpenCase" do
+      role "CaseManager"
+      goal "Open a new survivor case"
+      attribute :case_id
+      attribute :intake_date
+      attribute :safety_plan
+    end
+
+    command "AddDependent" do
+      role "CaseManager"
+      goal "Add a dependent to the case"
+      reference_to SurvivorCase
+      attribute :name
+      attribute :age, Integer
+      attribute :relationship
+      given("max 10 dependents") { dependents.size < 10 }
+      then_set :dependents, append: { name: :name, age: :age, relationship: :relationship }
+    end
+
+    command "TransitionCase" do
+      role "CaseManager"
+      goal "Transition survivor to independent housing"
+      reference_to SurvivorCase
+    end
+  end
+
+  aggregate "FinancialProfile" do
+    description "A survivor financial profile for tax and benefit planning"
+    reference_to SurvivorCase
+    attribute :annual_income, Float
+    attribute :income_sources, list_of(IncomeSource)
+    attribute :debts, list_of(Debt)
+    attribute :status, default: "gathering"
+
+    value_object "IncomeSource" do
+      attribute :source_type
+      attribute :amount, Float
+      attribute :frequency
+      invariant "amount must be non-negative" do
+        amount >= 0
+      end
+    end
+
+    value_object "Debt" do
+      attribute :creditor
+      attribute :amount_owed, Float
+      attribute :interest_rate, Float
+    end
+
+    command "CreateProfile" do
+      role "FinancialCounselor"
+      goal "Create a financial profile"
+      reference_to SurvivorCase
+    end
+
+    command "AddIncomeSource" do
+      role "FinancialCounselor"
+      goal "Add an income source"
+      reference_to FinancialProfile
+      attribute :source_type
+      attribute :amount, Float
+      attribute :frequency
+      given("max 10 sources") { income_sources.size < 10 }
+      then_set :income_sources, append: { source_type: :source_type, amount: :amount, frequency: :frequency }
+    end
+
+    command "RecordDebt" do
+      role "FinancialCounselor"
+      goal "Record a debt"
+      reference_to FinancialProfile
+      attribute :creditor
+      attribute :amount_owed, Float
+      attribute :interest_rate, Float
+      given("max 20 debts") { debts.size < 20 }
+      then_set :debts, append: { creditor: :creditor, amount_owed: :amount_owed, interest_rate: :interest_rate }
+    end
+  end
+
+  aggregate "TaxReturn" do
+    description "A tax return prepared for the survivor"
+    reference_to SurvivorCase
+    reference_to FinancialProfile
+    attribute :tax_year
+    attribute :filing_status
+    attribute :deductions, list_of(Deduction)
+    attribute :refund_cents, Integer
+    attribute :status, default: "preparing"
+
+    value_object "Deduction" do
+      attribute :deduction_type
+      attribute :amount, Float
+      attribute :documentation
+    end
+
+    command "PrepareTaxReturn" do
+      role "TaxPreparer"
+      goal "Start preparing a tax return"
+      reference_to SurvivorCase
+      reference_to FinancialProfile
+      attribute :tax_year
+      attribute :filing_status
+    end
+
+    command "AddDeduction" do
+      role "TaxPreparer"
+      goal "Add a deduction"
+      reference_to TaxReturn
+      attribute :deduction_type
+      attribute :amount, Float
+      attribute :documentation
+      given("max 30 deductions") { deductions.size < 30 }
+      then_set :deductions, append: { deduction_type: :deduction_type, amount: :amount, documentation: :documentation }
+    end
+
+    command "FileReturn" do
+      role "TaxPreparer"
+      goal "File the tax return"
+      reference_to TaxReturn
+      given("must have deductions reviewed") { deductions.size > 0 }
+    end
+  end
+
+  aggregate "BenefitApplication" do
+    description "Applications for financial benefits and assistance"
+    reference_to SurvivorCase
+    reference_to FinancialProfile
+    attribute :benefit_type
+    attribute :documents, list_of(SupportDocument)
+    attribute :status, default: "draft"
+
+    value_object "SupportDocument" do
+      attribute :doc_type
+      attribute :description
+      attribute :verified, default: false
+    end
+
+    command "StartApplication" do
+      role "BenefitsCounselor"
+      goal "Start a benefit application"
+      reference_to SurvivorCase
+      attribute :benefit_type
+    end
+
+    command "AttachDocument" do
+      role "CaseManager"
+      goal "Attach a supporting document"
+      reference_to BenefitApplication
+      attribute :doc_type
+      attribute :description
+      given("max 20 documents") { documents.size < 20 }
+      then_set :documents, append: { doc_type: :doc_type, description: :description }
+    end
+
+    command "SubmitApplication" do
+      role "BenefitsCounselor"
+      goal "Submit the benefit application"
+      reference_to BenefitApplication
+      given("must have documents") { documents.size > 0 }
+    end
+  end
+
+  policy "CaseOpenedTriggersProfile" do
+    on "CaseOpened"
+    trigger "CreateProfile"
+    map survivor_case_id: :case_id
+  end
+
+  policy "ProfileCreatedTriggersTaxReturn" do
+    on "ProfileCreated"
+    trigger "PrepareTaxReturn"
+    map survivor_case_id: :case_id, financial_profile_id: :profile_id
+  end
+
+  policy "ReturnFiledTriggersBenefit" do
+    on "ReturnFiled"
+    trigger "StartApplication"
+    map survivor_case_id: :case_id, benefit_type: :eligible_benefit
+  end
+
+  policy "DependentAddedTriggersDeduction" do
+    on "DependentAdded"
+    trigger "AddDeduction"
+    map tax_return_id: :return_id, deduction_type: :dependent_deduction
+  end
+
+  policy "ApplicationSubmittedTriggersTransition" do
+    on "ApplicationSubmitted"
+    trigger "TransitionCase"
+    map survivor_case_id: :case_id
+    condition { |event| event.benefit_type == "housing_voucher" }
+  end
+end

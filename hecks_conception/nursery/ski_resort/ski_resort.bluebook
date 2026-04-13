@@ -1,0 +1,258 @@
+Hecks.bluebook "SkiResort", version: "2026.04.13.1" do
+  vision "Operating a ski resort — running lifts, grooming runs, selling passes, renting equipment, and reporting snow conditions"
+  category "hospitality"
+
+  aggregate "Lift", "A chairlift or gondola transporting skiers up the mountain" do
+    String :lift_id
+    String :name
+    String :lift_type
+    Integer :capacity_per_chair
+    Integer :vertical_rise_ft
+    String :status
+
+    ActivateLift do
+      role "Operations"
+      description "Open a lift for the season after safety inspection"
+      String :lift_id
+      String :name
+      String :lift_type
+      Integer :capacity_per_chair
+      Integer :vertical_rise_ft
+      emits "LiftActivated"
+      then_set :lift_id, to: :lift_id
+      then_set :name, to: :name
+      then_set :lift_type, to: :lift_type
+      then_set :capacity_per_chair, to: :capacity_per_chair
+      then_set :vertical_rise_ft, to: :vertical_rise_ft
+      then_set :status, to: "running"
+    end
+
+    HaltLift do
+      role "Operations"
+      description "Stop a lift due to wind, mechanical issue, or closing time"
+      reference_to(Lift)
+      given { status == "running" }
+      emits "LiftHalted"
+      then_set :status, to: "halted"
+    end
+
+    ResumeLift do
+      role "Operations"
+      description "Restart a halted lift after conditions improve"
+      reference_to(Lift)
+      given { status == "halted" }
+      emits "LiftResumed"
+      then_set :status, to: "running"
+    end
+  end
+
+  aggregate "SkiRun", "A marked trail down the mountain" do
+    String :run_id
+    String :name
+    String :difficulty
+    Float :length_km
+    String :groomed
+    String :status
+    list_of(HazardMarker) :hazards
+
+    value_object "HazardMarker" do
+      String :hazard_type
+      String :location
+      String :severity
+    end
+
+    OpenRun do
+      role "SkiPatrol"
+      description "Declare a run safe and open for skiing"
+      String :run_id
+      String :name
+      String :difficulty
+      Float :length_km
+      emits "RunOpened"
+      then_set :run_id, to: :run_id
+      then_set :name, to: :name
+      then_set :difficulty, to: :difficulty
+      then_set :length_km, to: :length_km
+      then_set :groomed, to: "false"
+      then_set :status, to: "open"
+    end
+
+    GroomRun do
+      role "GroomingCrew"
+      description "Groom the run with a snow cat for optimal conditions"
+      reference_to(SkiRun)
+      given { status == "open" }
+      emits "RunGroomed"
+      then_set :groomed, to: "true"
+    end
+
+    CloseRun do
+      role "SkiPatrol"
+      description "Close a run due to avalanche risk, ice, or thin coverage"
+      reference_to(SkiRun)
+      emits "RunClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "LiftPass", "A ticket granting access to the lifts for a period" do
+    String :pass_id
+    String :holder_name
+    String :pass_type
+    String :valid_from
+    String :valid_to
+    Float :price
+    String :status
+
+    SellPass do
+      role "TicketAgent"
+      description "Issue a lift pass to a skier"
+      String :pass_id
+      String :holder_name
+      String :pass_type
+      String :valid_from
+      String :valid_to
+      Float :price
+      emits "PassSold"
+      then_set :pass_id, to: :pass_id
+      then_set :holder_name, to: :holder_name
+      then_set :pass_type, to: :pass_type
+      then_set :valid_from, to: :valid_from
+      then_set :valid_to, to: :valid_to
+      then_set :price, to: :price
+      then_set :status, to: "active"
+    end
+
+    SuspendPass do
+      role "Management"
+      description "Temporarily revoke a pass for rule violations"
+      reference_to(LiftPass)
+      given { status == "active" }
+      emits "PassSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "SkiRental", "Equipment rented to a guest for their visit" do
+    String :rental_id
+    String :guest_name
+    String :equipment_package
+    String :boot_size
+    String :start_date
+    String :end_date
+    Float :daily_rate
+    String :status
+
+    RentEquipment do
+      role "RentalTech"
+      description "Fit and check out ski equipment to a guest"
+      String :rental_id
+      String :guest_name
+      String :equipment_package
+      String :boot_size
+      String :start_date
+      String :end_date
+      Float :daily_rate
+      emits "EquipmentRented"
+      then_set :rental_id, to: :rental_id
+      then_set :guest_name, to: :guest_name
+      then_set :equipment_package, to: :equipment_package
+      then_set :boot_size, to: :boot_size
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :daily_rate, to: :daily_rate
+      then_set :status, to: "rented"
+    end
+
+    ReturnEquipment do
+      role "RentalTech"
+      description "Accept returned gear and inspect for damage"
+      reference_to(SkiRental)
+      given { status == "rented" }
+      emits "EquipmentReturned"
+      then_set :status, to: "returned"
+    end
+  end
+
+  aggregate "SnowCondition", "A daily report on snow depth, quality, and weather" do
+    String :report_id
+    String :date
+    Integer :base_depth_cm
+    Integer :new_snow_cm
+    String :snow_quality
+    String :wind_speed
+    String :temperature
+
+    specification "PowderDay" do
+      satisfied_by { new_snow_cm > 15 }
+    end
+
+    PublishConditions do
+      role "SkiPatrol"
+      description "Issue the daily snow and conditions report"
+      String :report_id
+      String :date
+      Integer :base_depth_cm
+      Integer :new_snow_cm
+      String :snow_quality
+      String :wind_speed
+      String :temperature
+      emits "ConditionsPublished"
+      then_set :report_id, to: :report_id
+      then_set :date, to: :date
+      then_set :base_depth_cm, to: :base_depth_cm
+      then_set :new_snow_cm, to: :new_snow_cm
+      then_set :snow_quality, to: :snow_quality
+      then_set :wind_speed, to: :wind_speed
+      then_set :temperature, to: :temperature
+    end
+  end
+
+  # Lifecycle: runs opened → groomed → lifts activated → passes sold → equipment rented → conditions reported → runs closed
+  # Workflow: Open runs → Groom → Activate lifts → Sell passes → Rent equipment → Publish conditions → Close runs → Return equipment
+
+  policy "GroomOnOpen" do
+    on "RunOpened"
+    trigger "GroomRun"
+  end
+
+  policy "ActivateLiftOnGroom" do
+    on "RunGroomed"
+    trigger "ActivateLift"
+  end
+
+  policy "SellPassOnActivate" do
+    on "LiftActivated"
+    trigger "SellPass"
+  end
+
+  policy "RentEquipmentOnPass" do
+    on "PassSold"
+    trigger "RentEquipment"
+  end
+
+  policy "PublishOnGroom" do
+    on "RunGroomed"
+    trigger "PublishConditions"
+  end
+
+  policy "HaltOnBadConditions" do
+    on "ConditionsPublished"
+    trigger "HaltLift"
+  end
+
+  policy "ReturnEquipmentOnClose" do
+    on "RunClosed"
+    trigger "ReturnEquipment"
+  end
+
+  policy "CloseRunOnHalt" do
+    on "LiftHalted"
+    trigger "CloseRun"
+  end
+
+  policy "SuspendPassOnClose" do
+    on "RunClosed"
+    trigger "SuspendPass"
+  end
+end

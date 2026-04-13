@@ -1,0 +1,142 @@
+Hecks.bluebook "GenomicsInfra", version: "2026.04.13.1" do
+  vision "Genomics infrastructure — genetic sequences meet compute clusters, storage, and analysis pipelines"
+  category "healthcare_technology"
+
+  aggregate "GenomeSample", "A biological sample submitted for genomic sequencing" do
+    String :sample_id
+    String :patient_id
+    String :sample_type
+    String :collection_date
+    String :status
+    SubmitSample do
+      role "Geneticist"
+      description "Submit a biological sample for genomic sequencing"
+      String :sample_id
+      String :patient_id
+      String :sample_type
+      String :collection_date
+      emits "SampleSubmitted"
+      then_set :sample_id, to: :sample_id
+      then_set :patient_id, to: :patient_id
+      then_set :sample_type, to: :sample_type
+      then_set :collection_date, to: :collection_date
+      then_set :status, to: "submitted"
+    end
+    SequenceSample do
+      role "LabTech"
+      description "Run the sample through the DNA sequencer"
+      reference_to(GenomeSample)
+      given { status == "submitted" }
+      emits "SampleSequenced"
+      then_set :status, to: "sequenced"
+    end
+  end
+
+  aggregate "ComputeCluster", "A cluster of compute nodes for genomic analysis" do
+    String :cluster_id
+    String :region
+    Integer :node_count
+    Float :cpu_cores_total
+    Float :memory_tb
+    String :status
+    DeployCluster do
+      role "InfraAdmin"
+      description "Deploy a compute cluster for genomic workloads"
+      String :cluster_id
+      String :region
+      Integer :node_count
+      Float :cpu_cores_total
+      Float :memory_tb
+      emits "ClusterDeployed"
+      then_set :cluster_id, to: :cluster_id
+      then_set :region, to: :region
+      then_set :node_count, to: :node_count
+      then_set :cpu_cores_total, to: :cpu_cores_total
+      then_set :memory_tb, to: :memory_tb
+      then_set :status, to: "running"
+    end
+    ScaleCluster do
+      role "InfraAdmin"
+      description "Scale cluster nodes up or down based on workload"
+      reference_to(ComputeCluster)
+      Integer :node_count
+      emits "ClusterScaled"
+      then_set :node_count, to: :node_count
+    end
+  end
+
+  aggregate "SequenceStore", "Cloud storage for genomic sequence data" do
+    String :store_id
+    String :cluster_id
+    Float :used_tb
+    Float :quota_tb
+    String :status
+    value_object "StorageTier" do
+      String :tier_name
+      Float :cost_per_tb
+      String :access_speed
+    end
+    CreateStore do
+      role "InfraAdmin"
+      description "Create a genomic data storage bucket"
+      String :store_id
+      String :cluster_id
+      Float :quota_tb
+      emits "StoreCreated"
+      then_set :store_id, to: :store_id
+      then_set :cluster_id, to: :cluster_id
+      then_set :quota_tb, to: :quota_tb
+      then_set :used_tb, to: 0.0
+      then_set :status, to: "active"
+    end
+    ArchiveData do
+      role "System"
+      description "Archive old sequence data to cold storage tier"
+      reference_to(SequenceStore)
+      emits "DataArchived"
+    end
+  end
+
+  aggregate "AnalysisPipeline", "An automated genomic analysis pipeline" do
+    String :pipeline_id
+    String :sample_id
+    String :pipeline_type
+    list_of(PipelineStep) :steps
+    String :status
+    value_object "PipelineStep" do
+      Integer :step_number
+      String :tool_name
+      String :status
+      Float :runtime_hours
+    end
+    LaunchPipeline do
+      role "Bioinformatician"
+      description "Launch a genomic analysis pipeline for a sequenced sample"
+      String :pipeline_id
+      String :sample_id
+      String :pipeline_type
+      emits "PipelineLaunched"
+      then_set :pipeline_id, to: :pipeline_id
+      then_set :sample_id, to: :sample_id
+      then_set :pipeline_type, to: :pipeline_type
+      then_set :status, to: "running"
+    end
+    CompletePipeline do
+      role "System"
+      description "Mark the analysis pipeline as completed"
+      reference_to(AnalysisPipeline)
+      given { status == "running" }
+      emits "PipelineCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "PipelineOnSequence" do
+    on "SampleSequenced"
+    trigger "LaunchPipeline"
+  end
+  policy "ArchiveOnComplete" do
+    on "PipelineCompleted"
+    trigger "ArchiveData"
+  end
+end

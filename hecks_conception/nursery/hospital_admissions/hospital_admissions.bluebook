@@ -1,0 +1,154 @@
+Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
+  vision "Hospital patient admissions — triage, bed assignment, diagnosis tracking, and discharge planning"
+
+  aggregate "Patient", "A person seeking medical care with their intake information" do
+    String :name
+    String :date_of_birth
+    String :insurance_id
+    String :emergency_contact
+    String :chief_complaint
+    String :triage_level
+
+    specification "CriticalTriage" do
+      satisfied_by { triage_level == "1" }
+    end
+
+    RegisterPatient do
+      description "Create a patient record at intake"
+      String :name
+      String :date_of_birth
+      String :insurance_id
+      String :emergency_contact
+      String :chief_complaint
+      emits "PatientRegistered"
+    end
+
+    TriagePatient do
+      description "Assess urgency and assign a triage level"
+      reference_to(Patient)
+      String :triage_level
+      given "triage level must be 1 through 5"
+      emits "PatientTriaged"
+    end
+  end
+
+  aggregate "Bed", "A hospital bed with location, type, and occupancy status" do
+    String :ward
+    String :room_number
+    String :bed_type
+    String :status
+    String :assigned_patient
+
+    AssignBed do
+      description "Place a triaged patient in an available bed"
+      reference_to(Bed)
+      String :patient_name
+      given "bed must be unoccupied"
+      emits "BedAssigned"
+    end
+
+    ReleaseBed do
+      description "Free a bed after patient discharge or transfer"
+      reference_to(Bed)
+      emits "BedReleased"
+    end
+  end
+
+  aggregate "Diagnosis", "A clinical diagnosis attached to a patient encounter" do
+    String :patient_name
+    String :icd_code
+    String :description
+    String :diagnosing_physician
+    String :diagnosed_at
+    list_of(LabResult) :supporting_labs
+
+    value_object "LabResult" do
+      String :test_name
+      String :result_value
+      String :reference_range
+      String :collected_at
+    end
+
+    RecordDiagnosis do
+      description "Document a diagnosis with ICD code and supporting evidence"
+      String :patient_name
+      String :icd_code
+      String :description
+      String :diagnosing_physician
+      emits "DiagnosisRecorded"
+    end
+
+    AttachLabResult do
+      description "Link a lab result to a diagnosis as supporting evidence"
+      reference_to(Diagnosis)
+      String :test_name
+      String :result_value
+      String :reference_range
+      emits "LabResultAttached"
+    end
+  end
+
+  aggregate "DischargeePlan", "Steps required before a patient can leave safely" do
+    String :patient_name
+    String :discharge_date
+    list_of(String) :medications
+    list_of(String) :follow_up_appointments
+    String :status
+
+    CreateDischargePlan do
+      description "Begin planning a patient's safe exit from the hospital"
+      String :patient_name
+      String :discharge_date
+      emits "DischargePlanCreated"
+    end
+
+    ApproveDischargePlan do
+      description "Physician signs off that the patient is safe to leave"
+      reference_to(DischargeePlan)
+      given "all follow-up appointments must be scheduled"
+      emits "DischargePlanApproved"
+    end
+
+    DischargePatient do
+      description "Complete the discharge and release the bed"
+      reference_to(DischargeePlan)
+      emits "PatientDischarged"
+    end
+  end
+
+  # Workflow: Register → Triage → AssignBed → RecordDiagnosis → CreateDischargePlan → ApproveDischargePlan → DischargePatient → ReleaseBed
+  policy "TriageOnRegistration" do
+    on "PatientRegistered"
+    trigger "TriagePatient"
+  end
+
+  policy "AssignBedOnTriage" do
+    on "PatientTriaged"
+    trigger "AssignBed"
+  end
+
+  policy "DiagnoseOnBedAssign" do
+    on "BedAssigned"
+    trigger "RecordDiagnosis"
+  end
+
+  policy "PlanOnDiagnosis" do
+    on "DiagnosisRecorded"
+    trigger "CreateDischargePlan"
+  end
+
+  policy "ApproveOnPlanCreation" do
+    on "DischargePlanCreated"
+    trigger "ApproveDischargePlan"
+  end
+
+  policy "DischargeOnApproval" do
+    on "DischargePlanApproved"
+    trigger "DischargePatient"
+  end
+
+  policy "ReleaseBedOnDischarge" do
+    on "PatientDischarged"
+    trigger "ReleaseBed"
+  end
+end

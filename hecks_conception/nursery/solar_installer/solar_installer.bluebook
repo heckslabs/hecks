@@ -1,0 +1,215 @@
+Hecks.bluebook "SolarInstaller" do
+  vision "Manage solar panel installation from site survey through design, permitting, installation, and inspection for residential and commercial projects"
+  core
+
+  aggregate "SiteSurvey" do
+    description "A site assessment measuring roof orientation, shading, structural capacity, and electrical service"
+    String :customer_name
+    String :address
+    Float :roof_sqft
+    String :roof_orientation
+    Float :annual_kwh_usage
+    String :shading_analysis
+
+    value_object "RoofCondition" do
+      String :material
+      Integer :age_years
+      String :structural_rating
+    end
+
+    SurveySite do
+      role "Solar Consultant"
+      goal "Assess the property for solar viability"
+      description "Measure roof area, orientation, shading, and review electric bills"
+      String :customer_name
+      String :address
+      Float :roof_sqft
+      String :roof_orientation
+      Float :annual_kwh_usage
+      emits "SiteSurveyed"
+    end
+
+    AnalyzeShading do
+      role "Solar Consultant"
+      goal "Run shade analysis to determine solar access hours"
+      description "Use solar pathfinder or satellite imagery to map shade patterns"
+      reference_to(SiteSurvey)
+      String :shading_analysis
+      emits "ShadingAnalyzed"
+    end
+  end
+
+  aggregate "PanelLayout" do
+    description "A solar panel array layout specifying module count, orientation, tilt, and string configuration"
+    Integer :panel_count
+    String :module_model
+    Float :system_kw
+    Float :tilt_degrees
+    String :string_config
+    reference_to(SiteSurvey)
+
+    value_object "ModuleSpec" do
+      Float :wattage
+      Float :voc
+      Float :isc
+      Float :efficiency_pct
+    end
+
+    DesignLayout do
+      role "Solar Designer"
+      goal "Create the panel array layout optimized for production"
+      description "Place panels on the roof maximizing solar harvest within structural limits"
+      Integer :panel_count
+      String :module_model
+      Float :system_kw
+      Float :tilt_degrees
+      reference_to(SiteSurvey)
+      emits "LayoutDesigned"
+    end
+
+    CalculateProduction do
+      role "Solar Designer"
+      goal "Estimate annual kWh production from the layout"
+      description "Model expected output using irradiance data and panel specs"
+      reference_to(PanelLayout)
+      emits "ProductionCalculated"
+    end
+
+    ReviseLayout do
+      role "Solar Designer"
+      goal "Modify the panel layout based on permit feedback or customer request"
+      description "Adjust panel placement, count, or string configuration"
+      reference_to(PanelLayout)
+      String :revision_reason
+      emits "LayoutRevised"
+    end
+  end
+
+  aggregate "SolarPermit" do
+    description "A building and electrical permit for the solar installation"
+    String :permit_number
+    String :jurisdiction
+    String :status
+    String :plan_set_version
+    reference_to(PanelLayout)
+
+    SubmitPermit do
+      role "Permit Coordinator"
+      goal "File the permit application with plan sets"
+      description "Submit structural, electrical, and site plans to the building department"
+      String :jurisdiction
+      String :plan_set_version
+      reference_to(PanelLayout)
+      emits "PermitSubmitted"
+    end
+
+    ReceiveApproval do
+      role "Permit Coordinator"
+      goal "Record the approved permit from the jurisdiction"
+      description "Log the permit number and any conditions of approval"
+      reference_to(SolarPermit)
+      String :permit_number
+      given("must be under review") { status == "submitted" }
+      emits "PermitApproved"
+    end
+  end
+
+  aggregate "SolarInstallation" do
+    description "The physical installation of the solar array including racking, panels, wiring, and inverter"
+    String :crew_lead
+    String :install_date
+    String :inverter_model
+    String :status
+    reference_to(PanelLayout)
+
+    ScheduleInstallation do
+      role "Project Manager"
+      goal "Book the installation crew and date"
+      description "Schedule the installation after permit approval"
+      String :crew_lead
+      String :install_date
+      reference_to(PanelLayout)
+      emits "InstallationScheduled"
+    end
+
+    CompleteInstallation do
+      role "Crew Lead"
+      goal "Finish mounting panels, wiring strings, and connecting the inverter"
+      description "Complete the physical installation and energize the system"
+      reference_to(SolarInstallation)
+      String :inverter_model
+      emits "InstallationCompleted"
+    end
+
+    VerifySystem do
+      role "Crew Lead"
+      goal "Verify system operation and configure monitoring"
+      description "Test all strings, verify inverter output, set up monitoring portal"
+      reference_to(SolarInstallation)
+      emits "SystemVerified"
+    end
+  end
+
+  aggregate "FinalInspection" do
+    description "The final building and utility inspection before the system is approved to operate"
+    String :inspector_name
+    String :result
+    String :notes
+    String :inspection_type
+    reference_to(SolarInstallation)
+
+    ScheduleInspection do
+      role "Permit Coordinator"
+      goal "Book the final inspection with the building department"
+      description "Request the electrical and structural final inspection"
+      String :inspection_type
+      reference_to(SolarInstallation)
+      emits "InspectionScheduled"
+    end
+
+    RecordResult do
+      role "Inspector"
+      goal "Document the inspection result — pass or corrections needed"
+      description "Record the outcome and any items requiring rework"
+      reference_to(FinalInspection)
+      String :result
+      String :notes
+      emits "ResultRecorded"
+    end
+  end
+
+  policy "AnalyzeOnSurvey" do
+    on "SiteSurveyed"
+    trigger "AnalyzeShading"
+  end
+
+  policy "DesignOnAnalysis" do
+    on "ShadingAnalyzed"
+    trigger "DesignLayout"
+  end
+
+  policy "CalculateOnDesign" do
+    on "LayoutDesigned"
+    trigger "CalculateProduction"
+  end
+
+  policy "PermitOnLayout" do
+    on "LayoutDesigned"
+    trigger "SubmitPermit"
+  end
+
+  policy "ScheduleOnApproval" do
+    on "PermitApproved"
+    trigger "ScheduleInstallation"
+  end
+
+  policy "CompleteOnSchedule" do
+    on "InstallationScheduled"
+    trigger "CompleteInstallation"
+  end
+
+  policy "InspectOnComplete" do
+    on "InstallationCompleted"
+    trigger "ScheduleInspection"
+  end
+end

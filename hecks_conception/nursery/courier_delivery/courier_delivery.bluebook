@@ -1,0 +1,218 @@
+Hecks.bluebook "CourierDelivery" do
+  vision "Manage parcels, routes, drivers, proof of delivery, and returns for a courier service"
+
+  aggregate "Parcel", "A package moving through the courier network from sender to recipient" do
+    String :tracking_code
+    String :sender_address
+    String :recipient_address
+    String :status
+    Float :weight_kg
+    reference_to(Route)
+
+    value_object "PackageDimensions" do
+      Float :length_cm
+      Float :width_cm
+      Float :height_cm
+    end
+
+    AcceptParcel do
+      description "Register a new parcel at the intake counter"
+      String :tracking_code
+      String :sender_address
+      String :recipient_address
+      Float :weight_kg
+      emits "ParcelAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    SortParcel do
+      description "Assign parcel to the correct distribution hub"
+      reference_to(Parcel)
+      String :hub_code
+      given { status == "accepted" }
+      emits "ParcelSorted"
+      then_set :status, to: "sorted"
+    end
+
+    LoadParcel do
+      description "Place sorted parcel onto the delivery vehicle"
+      reference_to(Parcel)
+      given { status == "sorted" }
+      emits "ParcelLoaded"
+      then_set :status, to: "loaded"
+    end
+
+    DispatchParcel do
+      description "Send parcel out for last-mile delivery"
+      reference_to(Parcel)
+      given { status == "loaded" }
+      emits "ParcelDispatched"
+      then_set :status, to: "in_transit"
+    end
+
+    AttemptDelivery do
+      description "Record a delivery attempt at the recipient address"
+      reference_to(Parcel)
+      given { status == "in_transit" }
+      emits "DeliveryAttempted"
+      then_set :status, to: "attempted"
+    end
+
+    MarkDelivered do
+      description "Confirm parcel has reached the recipient"
+      reference_to(Parcel)
+      given { status == "in_transit" }
+      emits "ParcelDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    ReturnToSender do
+      description "Send undeliverable parcel back to the sender"
+      reference_to(Parcel)
+      String :reason
+      given { status == "attempted" }
+      emits "ParcelReturned"
+      then_set :status, to: "returned"
+    end
+  end
+
+  aggregate "Route", "A planned delivery route covering a geographic zone" do
+    String :route_code
+    String :zone
+    Integer :stop_count
+    String :status
+    reference_to(Driver)
+
+    value_object "Stop" do
+      String :address
+      Integer :sequence
+      String :time_window
+    end
+
+    PlanRoute do
+      description "Generate an optimized delivery route for a zone"
+      String :zone
+      Integer :stop_count
+      emits "RoutePlanned"
+      then_set :status, to: "planned"
+    end
+
+    StartRoute do
+      description "Dispatch the driver to begin deliveries"
+      reference_to(Route)
+      given { status == "planned" }
+      emits "RouteStarted"
+      then_set :status, to: "active"
+    end
+
+    CompleteRoute do
+      description "Mark all stops on the route as finished"
+      reference_to(Route)
+      given { status == "active" }
+      emits "RouteCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Driver", "A courier driver licensed to operate delivery vehicles" do
+    String :employee_id
+    String :name
+    String :license_class
+    String :status
+    Float :hours_today
+
+    value_object "VehicleAssignment" do
+      String :vehicle_id
+      String :vehicle_type
+    end
+
+    RegisterDriver do
+      description "Onboard a new driver into the courier fleet"
+      String :employee_id
+      String :name
+      String :license_class
+      emits "DriverRegistered"
+      then_set :status, to: "available"
+      then_set :hours_today, to: 0.0
+    end
+
+    CheckInDriver do
+      description "Clock a driver in for their shift"
+      reference_to(Driver)
+      given { status == "available" }
+      emits "DriverCheckedIn"
+      then_set :status, to: "on_duty"
+    end
+
+    CheckOutDriver do
+      description "Clock a driver out at end of shift"
+      reference_to(Driver)
+      given { status == "on_duty" }
+      emits "DriverCheckedOut"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "ProofOfDelivery", "Photographic or signature evidence that a parcel was delivered" do
+    String :proof_id
+    String :signature_data
+    String :photo_url
+    String :timestamp
+    reference_to(Parcel)
+
+    value_object "GeoStamp" do
+      Float :latitude
+      Float :longitude
+    end
+
+    CaptureProof do
+      description "Record delivery proof with signature or photo"
+      reference_to(Parcel)
+      String :signature_data
+      String :photo_url
+      emits "ProofCaptured"
+    end
+
+    DisputeProof do
+      description "Flag a proof of delivery as contested by recipient"
+      reference_to(ProofOfDelivery)
+      String :reason
+      emits "ProofDisputed"
+    end
+  end
+
+  policy "SortOnAccept" do
+    on "ParcelAccepted"
+    trigger "SortParcel"
+  end
+
+  policy "LoadOnSort" do
+    on "ParcelSorted"
+    trigger "LoadParcel"
+  end
+
+  policy "StartRouteOnLoad" do
+    on "ParcelLoaded"
+    trigger "StartRoute"
+  end
+
+  policy "DispatchOnRouteStart" do
+    on "RouteStarted"
+    trigger "DispatchParcel"
+  end
+
+  policy "CaptureProofOnDelivery" do
+    on "ParcelDelivered"
+    trigger "CaptureProof"
+  end
+
+  policy "CompleteRouteOnDelivery" do
+    on "ParcelDelivered"
+    trigger "CompleteRoute"
+  end
+
+  policy "CheckOutDriverOnRouteComplete" do
+    on "RouteCompleted"
+    trigger "CheckOutDriver"
+  end
+end

@@ -1,0 +1,186 @@
+Hecks.bluebook "ClinicalTrialRecruiting" do
+  vision "Cross-wire pharmacology trial design with freelance marketplace matching for clinical trial participant recruiting"
+  core
+
+  aggregate "DrugCandidate" do
+    description "A pharmaceutical drug candidate entering trials"
+    attribute :compound_name
+    attribute :indication
+    attribute :phase
+    attribute :contraindications, list_of(Contraindication)
+    attribute :status, default: "preclinical"
+
+    value_object "Contraindication" do
+      attribute :condition
+      attribute :severity
+    end
+
+    command "RegisterCompound" do
+      role "Pharmacologist"
+      goal "Register a new drug candidate"
+      attribute :compound_name
+      attribute :indication
+      attribute :phase
+    end
+
+    command "AddContraindication" do
+      role "Pharmacologist"
+      goal "Add a contraindication"
+      reference_to DrugCandidate
+      attribute :condition
+      attribute :severity
+      given("max 30 contraindications") { contraindications.size < 30 }
+      then_set :contraindications, append: { condition: :condition, severity: :severity }
+    end
+
+    command "AdvancePhase" do
+      role "RegulatoryOfficer"
+      goal "Advance the drug to the next trial phase"
+      reference_to DrugCandidate
+    end
+  end
+
+  aggregate "TrialProtocol" do
+    description "A clinical trial protocol with eligibility criteria"
+    reference_to DrugCandidate
+    attribute :protocol_name
+    attribute :target_enrollment, Integer
+    attribute :criteria, list_of(EligibilityCriterion)
+    attribute :status, default: "draft"
+
+    value_object "EligibilityCriterion" do
+      attribute :criterion_type
+      attribute :description
+      attribute :required, default: true
+    end
+
+    command "DraftProtocol" do
+      role "ClinicalScientist"
+      goal "Draft a trial protocol"
+      reference_to DrugCandidate
+      attribute :protocol_name
+      attribute :target_enrollment, Integer
+    end
+
+    command "AddCriterion" do
+      role "ClinicalScientist"
+      goal "Add eligibility criterion"
+      reference_to TrialProtocol
+      attribute :criterion_type
+      attribute :description
+      given("max 40 criteria") { criteria.size < 40 }
+      then_set :criteria, append: { criterion_type: :criterion_type, description: :description }
+    end
+
+    command "ApproveProtocol" do
+      role "EthicsBoard"
+      goal "Approve the protocol for recruiting"
+      reference_to TrialProtocol
+      given("must have criteria") { criteria.size > 0 }
+    end
+  end
+
+  aggregate "FreelanceParticipant" do
+    description "A freelance participant available for clinical trials"
+    attribute :participant_name
+    attribute :age, Integer
+    attribute :medical_history, list_of(MedicalCondition)
+    attribute :availability
+    attribute :status, default: "available"
+
+    value_object "MedicalCondition" do
+      attribute :condition_name
+      attribute :diagnosed_year, Integer
+      attribute :current, default: true
+    end
+
+    command "RegisterParticipant" do
+      role "Recruiter"
+      goal "Register a new freelance participant"
+      attribute :participant_name
+      attribute :age, Integer
+      attribute :availability
+    end
+
+    command "AddMedicalHistory" do
+      role "Nurse"
+      goal "Record participant medical history"
+      reference_to FreelanceParticipant
+      attribute :condition_name
+      attribute :diagnosed_year, Integer
+      given("max 30 conditions") { medical_history.size < 30 }
+      then_set :medical_history, append: { condition_name: :condition_name, diagnosed_year: :diagnosed_year }
+    end
+  end
+
+  aggregate "MatchResult" do
+    description "A match between participant and trial protocol"
+    reference_to FreelanceParticipant
+    reference_to TrialProtocol
+    attribute :match_score, Float
+    attribute :screening_results, list_of(ScreeningResult)
+    attribute :status, default: "pending"
+
+    value_object "ScreeningResult" do
+      attribute :criterion_type
+      attribute :passed, default: false
+      attribute :notes
+    end
+
+    command "MatchParticipant" do
+      role "RecruitmentAlgorithm"
+      goal "Match a participant to a trial"
+      reference_to FreelanceParticipant
+      reference_to TrialProtocol
+      attribute :match_score, Float
+    end
+
+    command "ScreenParticipant" do
+      role "ClinicalNurse"
+      goal "Screen participant against criteria"
+      reference_to MatchResult
+      attribute :criterion_type
+      attribute :passed
+      attribute :notes
+      given("max 40 results") { screening_results.size < 40 }
+      then_set :screening_results, append: { criterion_type: :criterion_type, passed: :passed, notes: :notes }
+    end
+
+    command "EnrollParticipant" do
+      role "TrialCoordinator"
+      goal "Enroll matched participant into the trial"
+      reference_to MatchResult
+      given("must have screening results") { screening_results.size > 0 }
+    end
+  end
+
+  policy "ProtocolApprovedTriggersMatch" do
+    on "ProtocolApproved"
+    trigger "MatchParticipant"
+    map trial_protocol_id: :protocol_id
+  end
+
+  policy "ParticipantRegisteredTriggersMatch" do
+    on "ParticipantRegistered"
+    trigger "MatchParticipant"
+    map freelance_participant_id: :participant_id
+  end
+
+  policy "MatchedTriggersScreening" do
+    on "ParticipantMatched"
+    trigger "ScreenParticipant"
+    map match_result_id: :match_id
+  end
+
+  policy "PhaseAdvancedTriggersProtocol" do
+    on "PhaseAdvanced"
+    trigger "DraftProtocol"
+    map drug_candidate_id: :compound_id
+  end
+
+  policy "EnrollmentTriggersHistory" do
+    on "ParticipantEnrolled"
+    trigger "AddMedicalHistory"
+    map freelance_participant_id: :participant_id, condition_name: :indication
+  end
+end

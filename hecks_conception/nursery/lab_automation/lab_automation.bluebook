@@ -1,0 +1,155 @@
+Hecks.bluebook "LabAutomation", version: "2026.04.13.1" do
+  vision "Lab automation — pathology specimens meet DevOps pipelines and automated testing workflows"
+  category "healthcare_technology"
+
+  aggregate "Specimen", "A pathology specimen collected for laboratory analysis" do
+    String :specimen_id
+    String :patient_name
+    String :specimen_type
+    String :collection_date
+    String :status
+    value_object "CollectionDetail" do
+      String :site
+      String :method
+      String :collector
+    end
+    CollectSpecimen do
+      role "Phlebotomist"
+      description "Collect a specimen from a patient for lab analysis"
+      String :specimen_id
+      String :patient_name
+      String :specimen_type
+      String :collection_date
+      emits "SpecimenCollected"
+      then_set :specimen_id, to: :specimen_id
+      then_set :patient_name, to: :patient_name
+      then_set :specimen_type, to: :specimen_type
+      then_set :collection_date, to: :collection_date
+      then_set :status, to: "collected"
+    end
+    AcceptSpecimen do
+      role "LabTech"
+      description "Accept specimen into the laboratory for processing"
+      reference_to(Specimen)
+      given { status == "collected" }
+      emits "SpecimenAccepted"
+      then_set :status, to: "accepted"
+    end
+  end
+
+  aggregate "TestPipeline", "An automated testing pipeline that processes specimens through analysis stages" do
+    String :pipeline_id
+    String :specimen_id
+    String :test_type
+    list_of(Stage) :stages
+    String :status
+    value_object "Stage" do
+      String :name
+      Integer :sequence
+      String :status
+      String :result
+    end
+    TriggerPipeline do
+      role "System"
+      description "Trigger the automated test pipeline for a specimen"
+      String :pipeline_id
+      String :specimen_id
+      String :test_type
+      emits "PipelineTriggered"
+      then_set :pipeline_id, to: :pipeline_id
+      then_set :specimen_id, to: :specimen_id
+      then_set :test_type, to: :test_type
+      then_set :status, to: "running"
+    end
+    AdvanceStage do
+      role "System"
+      description "Move pipeline to next analysis stage"
+      reference_to(TestPipeline)
+      given { status == "running" }
+      emits "StageAdvanced"
+    end
+    FinishPipeline do
+      role "System"
+      description "Mark pipeline as complete with all stages passed"
+      reference_to(TestPipeline)
+      given { status == "running" }
+      emits "PipelineFinished"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "LabResult", "A finalized laboratory result from the pipeline" do
+    String :result_id
+    String :specimen_id
+    String :test_type
+    String :value
+    String :reference_range
+    String :interpretation
+    String :status
+    PublishResult do
+      role "Pathologist"
+      description "Publish a finalized lab result for clinical review"
+      String :result_id
+      String :specimen_id
+      String :test_type
+      String :value
+      String :reference_range
+      String :interpretation
+      emits "ResultPublished"
+      then_set :result_id, to: :result_id
+      then_set :specimen_id, to: :specimen_id
+      then_set :test_type, to: :test_type
+      then_set :value, to: :value
+      then_set :reference_range, to: :reference_range
+      then_set :interpretation, to: :interpretation
+      then_set :status, to: "published"
+    end
+    AmendResult do
+      role "Pathologist"
+      description "Amend a published result with corrected values"
+      reference_to(LabResult)
+      String :value
+      String :interpretation
+      emits "ResultAmended"
+      then_set :value, to: :value
+      then_set :interpretation, to: :interpretation
+    end
+  end
+
+  aggregate "QualityCheck", "A quality assurance check on lab equipment and reagents" do
+    String :check_id
+    String :equipment_name
+    String :check_type
+    String :result
+    String :status
+    RunQualityCheck do
+      role "LabTech"
+      description "Run a quality control check on lab equipment"
+      String :check_id
+      String :equipment_name
+      String :check_type
+      emits "QualityCheckRun"
+      then_set :check_id, to: :check_id
+      then_set :equipment_name, to: :equipment_name
+      then_set :check_type, to: :check_type
+      then_set :status, to: "pending"
+    end
+    PassCheck do
+      role "LabTech"
+      description "Record that quality check passed within acceptable range"
+      reference_to(QualityCheck)
+      given { status == "pending" }
+      emits "CheckPassed"
+      then_set :status, to: "passed"
+    end
+  end
+
+  policy "PipelineOnAccept" do
+    on "SpecimenAccepted"
+    trigger "TriggerPipeline"
+  end
+  policy "PublishOnFinish" do
+    on "PipelineFinished"
+    trigger "PublishResult"
+  end
+end

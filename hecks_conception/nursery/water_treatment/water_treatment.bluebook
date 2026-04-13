@@ -1,0 +1,272 @@
+Hecks.bluebook "WaterTreatment" do
+  vision "Monitor treatment plants, processes, water samples, chemical dosing, and regulatory compliance"
+
+  aggregate "Plant", "A water treatment facility processing raw water to potable standards" do
+    String :plant_id
+    String :name
+    Float :capacity_mgd
+    String :status
+    Float :current_flow_mgd
+
+    value_object "GeoLocation" do
+      Float :latitude
+      Float :longitude
+    end
+
+    ActivatePlant do
+      description "Bring a new treatment plant online"
+      String :plant_id
+      String :name
+      Float :capacity_mgd
+      emits "PlantActivated"
+      then_set :status, to: "operational"
+      then_set :current_flow_mgd, to: 0.0
+    end
+
+    AdjustFlow do
+      description "Change the inflow rate based on demand"
+      reference_to(Plant)
+      Float :target_flow_mgd
+      given { status == "operational" }
+      emits "FlowAdjusted"
+    end
+
+    ShutdownPlant do
+      description "Take the plant offline for emergency or maintenance"
+      reference_to(Plant)
+      String :reason
+      emits "PlantShutdown"
+      then_set :status, to: "offline"
+    end
+
+    RestartPlant do
+      description "Bring an offline plant back into operation"
+      reference_to(Plant)
+      given { status == "offline" }
+      emits "PlantRestarted"
+      then_set :status, to: "operational"
+    end
+  end
+
+  aggregate "TreatmentProcess", "A stage in the treatment train — coagulation, filtration, disinfection" do
+    String :process_id
+    String :stage_name
+    String :technology
+    String :status
+    Float :efficiency_percent
+    reference_to(Plant)
+
+    value_object "ProcessParameters" do
+      Float :retention_time_hours
+      Float :flow_rate_gpm
+    end
+
+    ConfigureProcess do
+      description "Set up a treatment stage with its technology and parameters"
+      String :stage_name
+      String :technology
+      reference_to(Plant)
+      emits "ProcessConfigured"
+      then_set :status, to: "configured"
+    end
+
+    ActivateProcess do
+      description "Bring a configured treatment stage online"
+      reference_to(TreatmentProcess)
+      given { status == "configured" }
+      emits "ProcessActivated"
+      then_set :status, to: "active"
+    end
+
+    MonitorProcess do
+      description "Record real-time performance metrics for a process"
+      reference_to(TreatmentProcess)
+      Float :efficiency_percent
+      emits "ProcessMonitored"
+    end
+
+    BypassProcess do
+      description "Temporarily route water around a failed treatment stage"
+      reference_to(TreatmentProcess)
+      String :reason
+      given { status == "active" }
+      emits "ProcessBypassed"
+      then_set :status, to: "bypassed"
+    end
+
+    RestoreProcess do
+      description "Return a bypassed treatment stage to active service"
+      reference_to(TreatmentProcess)
+      given { status == "bypassed" }
+      emits "ProcessRestored"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "WaterSample", "A lab sample taken from the treatment train or distribution system" do
+    String :sample_id
+    String :sample_point
+    String :collected_at
+    String :status
+    reference_to(Plant)
+
+    value_object "LabResults" do
+      Float :turbidity_ntu
+      Float :chlorine_residual_ppm
+      Float :ph
+      Float :coliform_count
+    end
+
+    CollectSample do
+      description "Take a water sample at a designated point"
+      String :sample_point
+      reference_to(Plant)
+      emits "SampleCollected"
+      then_set :status, to: "collected"
+    end
+
+    AnalyzeSample do
+      description "Run lab tests on a collected sample"
+      reference_to(WaterSample)
+      given { status == "collected" }
+      emits "SampleAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+
+    ApproveSample do
+      description "Certify sample results meet regulatory standards"
+      reference_to(WaterSample)
+      given { status == "analyzed" }
+      emits "SampleApproved"
+      then_set :status, to: "approved"
+    end
+
+    RejectSample do
+      description "Flag sample results as out of compliance"
+      reference_to(WaterSample)
+      given { status == "analyzed" }
+      emits "SampleRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  aggregate "ChemicalFeed", "A dosing system adding treatment chemicals to the water" do
+    String :chemical_name
+    Float :dose_rate_ppm
+    Float :inventory_gallons
+    String :status
+    reference_to(TreatmentProcess)
+
+    value_object "ChemicalSpec" do
+      String :cas_number
+      Float :concentration_percent
+    end
+
+    StartDosing do
+      description "Begin feeding a chemical into the treatment process"
+      String :chemical_name
+      Float :dose_rate_ppm
+      Float :inventory_gallons
+      reference_to(TreatmentProcess)
+      emits "DosingStarted"
+      then_set :status, to: "dosing"
+    end
+
+    AdjustDose do
+      description "Change the chemical feed rate based on sample results"
+      reference_to(ChemicalFeed)
+      Float :new_dose_rate_ppm
+      given { status == "dosing" }
+      emits "DoseAdjusted"
+    end
+
+    StopDosing do
+      description "Halt chemical feed due to depletion or process bypass"
+      reference_to(ChemicalFeed)
+      given { status == "dosing" }
+      emits "DosingStopped"
+      then_set :status, to: "stopped"
+    end
+  end
+
+  aggregate "ComplianceReport", "A regulatory filing documenting water quality against standards" do
+    String :report_id
+    String :reporting_period
+    String :regulatory_body
+    String :status
+    reference_to(Plant)
+
+    value_object "Violation" do
+      String :parameter
+      Float :measured_value
+      Float :limit_value
+    end
+
+    FileReport do
+      description "Submit a compliance report to the regulatory agency"
+      String :reporting_period
+      String :regulatory_body
+      reference_to(Plant)
+      emits "ReportFiled"
+      then_set :status, to: "submitted"
+    end
+
+    FlagViolation do
+      description "Record a parameter exceedance in the report"
+      reference_to(ComplianceReport)
+      String :parameter
+      Float :measured_value
+      emits "ViolationFlagged"
+    end
+  end
+
+  policy "ActivateProcessOnConfig" do
+    on "ProcessConfigured"
+    trigger "ActivateProcess"
+  end
+
+  policy "StartDosingOnActivate" do
+    on "ProcessActivated"
+    trigger "StartDosing"
+  end
+
+  policy "CollectSampleOnMonitor" do
+    on "ProcessMonitored"
+    trigger "CollectSample"
+  end
+
+  policy "AnalyzeOnCollection" do
+    on "SampleCollected"
+    trigger "AnalyzeSample"
+  end
+
+  policy "AdjustDoseOnAnalysis" do
+    on "SampleAnalyzed"
+    trigger "AdjustDose"
+  end
+
+  policy "FlagViolationOnRejection" do
+    on "SampleRejected"
+    trigger "FlagViolation"
+  end
+
+  policy "BypassOnShutdown" do
+    on "PlantShutdown"
+    trigger "BypassProcess"
+  end
+
+  policy "ApproveSampleOnAnalysis" do
+    on "SampleAnalyzed"
+    trigger "ApproveSample"
+  end
+
+  policy "FileReportOnSampleApproved" do
+    on "SampleApproved"
+    trigger "FileReport"
+  end
+
+  policy "RestoreProcessOnBypassed" do
+    on "ProcessBypassed"
+    trigger "RestoreProcess"
+  end
+end

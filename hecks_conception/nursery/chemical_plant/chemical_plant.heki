@@ -1,0 +1,246 @@
+Hecks.bluebook "ChemicalPlant" do
+  aggregate "ReactorBatch" do
+    String :batch_id
+    String :reactor_id
+    String :product_code
+    Float :charge_volume_liters
+    Float :reaction_temp_c
+    String :status
+    list_of "Reagent"
+
+    ChargeReactor do
+      description "Load reagents into reactor vessel for chemical reaction"
+      String :reactor_id
+      String :product_code
+      Float :charge_volume_liters
+      reference_to "ReactorBatch"
+      emits "ReactorCharged"
+    end
+
+    InitiateReaction do
+      description "Start reaction by applying heat and agitation to charged reactor"
+      Float :target_temp_c
+      Float :agitation_rpm
+      reference_to "ReactorBatch"
+      emits "ReactionInitiated"
+    end
+
+    QuenchReaction do
+      description "Cool reactor contents to stop reaction at target conversion"
+      Float :quench_temp_c
+      reference_to "ReactorBatch"
+      emits "ReactionQuenched"
+    end
+
+    DischargeProduct do
+      description "Transfer finished product from reactor to storage or packaging"
+      String :destination_tank
+      reference_to "ReactorBatch"
+      emits "ProductDischarged"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "ChargeReactor" => "charged", from: "empty"
+      transition "InitiateReaction" => "reacting", from: "charged"
+      transition "QuenchReaction" => "quenched", from: "reacting"
+      transition "DischargeProduct" => "discharged", from: "quenched"
+    end
+
+    policy "All reagents must be verified against recipe before charging"
+    policy "Reactor pressure must not exceed rated maximum"
+
+    given "An ethylene oxide batch is charged" do
+      String :product_code, "EO-100"
+      Float :charge_volume_liters, 5000.0
+      Float :reaction_temp_c, 270.0
+    end
+  end
+
+  aggregate "Reagent" do
+    String :reagent_id
+    String :chemical_name
+    String :cas_number
+    Float :purity_percent
+    Float :quantity_kg
+    String :status
+
+    value_object "SafetyData" do
+      String :hazard_class
+      String :signal_word
+      Float :flash_point_c
+      String :storage_requirements
+    end
+
+    ReceiveReagent do
+      description "Receive and inspect incoming chemical reagent shipment"
+      String :chemical_name
+      Float :quantity_kg
+      String :lot_number
+      reference_to "Reagent"
+      emits "ReagentReceived"
+    end
+
+    VerifyPurity do
+      description "Test reagent purity via chromatography before use"
+      Float :measured_purity
+      reference_to "Reagent"
+      emits "PurityVerified"
+    end
+
+    lifecycle :status, default: "ordered" do
+      transition "ReceiveReagent" => "received", from: "ordered"
+      transition "VerifyPurity" => "verified", from: "received"
+    end
+
+    policy "Reagents below minimum purity must be rejected"
+  end
+
+  aggregate "SafetyPermit" do
+    String :permit_id
+    String :permit_type
+    String :work_area
+    String :issuer
+    String :valid_until
+    String :status
+
+    IssuePermit do
+      description "Issue safety work permit for hot work, confined space, or lockout"
+      String :permit_type
+      String :work_area
+      String :issuer
+      reference_to "SafetyPermit"
+      emits "PermitIssued"
+    end
+
+    ClosePermit do
+      description "Close out safety permit after work completion and area inspection"
+      String :closer
+      String :close_notes
+      reference_to "SafetyPermit"
+      emits "PermitClosed"
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "IssuePermit" => "active", from: "requested"
+      transition "ClosePermit" => "closed", from: "active"
+    end
+
+    policy "Expired permits must be reissued before work continues"
+  end
+
+  aggregate "WasteDrum" do
+    String :drum_id
+    String :waste_type
+    String :hazard_class
+    Float :volume_liters
+    String :storage_location
+    String :status
+
+    value_object "WasteProfile" do
+      String :waste_code
+      String :physical_state
+      Float :ph_level
+      String :treatment_method
+    end
+
+    CatalogWaste do
+      description "Label and catalog waste drum with regulatory waste profile"
+      String :waste_type
+      String :hazard_class
+      reference_to "WasteDrum"
+      emits "WasteCataloged"
+    end
+
+    ManifestForDisposal do
+      description "Generate hazardous waste manifest for licensed transporter"
+      String :transporter_name
+      String :disposal_facility
+      reference_to "WasteDrum"
+      emits "WasteManifested"
+    end
+
+    lifecycle :status, default: "generated" do
+      transition "CatalogWaste" => "cataloged", from: "generated"
+      transition "ManifestForDisposal" => "manifested", from: "cataloged"
+    end
+
+    policy "Waste drums must not be stored beyond 90 days"
+  end
+
+  aggregate "ComplianceAudit" do
+    String :audit_id
+    String :audit_type
+    String :auditor
+    String :audit_date
+    Integer :finding_count
+    String :status
+
+    ConductAudit do
+      description "Perform scheduled regulatory compliance audit of plant operations"
+      String :audit_type
+      String :auditor
+      reference_to "ComplianceAudit"
+      emits "AuditConducted"
+    end
+
+    ResolveFinding do
+      description "Address and close audit finding with corrective action evidence"
+      String :finding_id
+      String :corrective_action
+      reference_to "ComplianceAudit"
+      emits "FindingResolved"
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "ConductAudit" => "completed", from: "scheduled"
+      transition "ResolveFinding" => "resolved", from: "completed"
+    end
+
+    policy "Critical findings must be resolved within 30 days"
+  end
+
+  policy "VerifyPurityOnReagentReceived" do
+    on "ReagentReceived"
+    trigger "VerifyPurity"
+  end
+
+  policy "ChargeReactorOnPurityVerified" do
+    on "PurityVerified"
+    trigger "ChargeReactor"
+  end
+
+  policy "InitiateReactionOnReactorCharged" do
+    on "ReactorCharged"
+    trigger "InitiateReaction"
+  end
+
+  policy "QuenchReactionOnReactionInitiated" do
+    on "ReactionInitiated"
+    trigger "QuenchReaction"
+  end
+
+  policy "DischargeProductOnReactionQuenched" do
+    on "ReactionQuenched"
+    trigger "DischargeProduct"
+  end
+
+  policy "CatalogWasteOnProductDischarged" do
+    on "ProductDischarged"
+    trigger "CatalogWaste"
+  end
+
+  policy "ManifestForDisposalOnWasteCataloged" do
+    on "WasteCataloged"
+    trigger "ManifestForDisposal"
+  end
+
+  policy "ConductAuditOnProductDischarged" do
+    on "ProductDischarged"
+    trigger "ConductAudit"
+  end
+
+  policy "ResolveFindingOnAuditConducted" do
+    on "AuditConducted"
+    trigger "ResolveFinding"
+  end
+end

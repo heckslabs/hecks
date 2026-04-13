@@ -1,0 +1,133 @@
+Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
+  vision "Donor recruitment — blood bank inventory meets SEO campaigns, donor targeting, and conversions"
+  category "healthcare_technology"
+
+  aggregate "BloodInventory", "Current blood inventory levels at a collection center" do
+    String :center_id
+    String :blood_type
+    Integer :units_available
+    Integer :min_threshold
+    String :status
+    UpdateStock do
+      role "LabTech"
+      description "Update blood inventory after collection or shipment"
+      String :center_id
+      String :blood_type
+      Integer :units_available
+      Integer :min_threshold
+      emits "StockUpdated"
+      then_set :center_id, to: :center_id
+      then_set :blood_type, to: :blood_type
+      then_set :units_available, to: :units_available
+      then_set :min_threshold, to: :min_threshold
+      then_set :status, to: "tracked"
+    end
+    FlagShortage do
+      role "System"
+      description "Flag a blood type as critically low"
+      reference_to(BloodInventory)
+      given { units_available < 10 }
+      emits "ShortageFlagged"
+    end
+  end
+
+  aggregate "RecruitmentCampaign", "An SEO and digital campaign to recruit blood donors" do
+    String :campaign_id
+    String :target_blood_type
+    String :platform
+    Float :budget
+    Integer :target_donors
+    String :status
+    list_of(Keyword) :keywords
+    value_object "Keyword" do
+      String :term
+      Integer :search_volume
+      Float :bid_amount
+    end
+    LaunchCampaign do
+      role "Marketer"
+      description "Launch a donor recruitment campaign targeting a blood type"
+      String :campaign_id
+      String :target_blood_type
+      String :platform
+      Float :budget
+      Integer :target_donors
+      emits "CampaignLaunched"
+      then_set :campaign_id, to: :campaign_id
+      then_set :target_blood_type, to: :target_blood_type
+      then_set :platform, to: :platform
+      then_set :budget, to: :budget
+      then_set :target_donors, to: :target_donors
+      then_set :status, to: "active"
+    end
+    PauseCampaign do
+      role "Marketer"
+      description "Pause a campaign when stock levels normalize"
+      reference_to(RecruitmentCampaign)
+      given { status == "active" }
+      emits "CampaignPaused"
+      then_set :status, to: "paused"
+    end
+  end
+
+  aggregate "DonorLead", "A prospective donor targeted by recruitment" do
+    String :lead_id
+    String :name
+    String :blood_type
+    String :source_campaign
+    String :status
+    CaptureLead do
+      role "System"
+      description "Capture a prospective donor lead from campaign"
+      String :lead_id
+      String :name
+      String :blood_type
+      String :source_campaign
+      emits "LeadCaptured"
+      then_set :lead_id, to: :lead_id
+      then_set :name, to: :name
+      then_set :blood_type, to: :blood_type
+      then_set :source_campaign, to: :source_campaign
+      then_set :status, to: "captured"
+    end
+    ConvertLead do
+      role "Coordinator"
+      description "Convert a lead into a scheduled donation appointment"
+      reference_to(DonorLead)
+      given { status == "captured" }
+      emits "LeadConverted"
+      then_set :status, to: "converted"
+    end
+  end
+
+  aggregate "DonorConversion", "A tracked conversion from campaign impression to donation" do
+    String :conversion_id
+    String :lead_id
+    String :campaign_id
+    String :donation_date
+    String :status
+    RecordConversion do
+      role "System"
+      description "Record a successful campaign-to-donation conversion"
+      String :conversion_id
+      String :lead_id
+      String :campaign_id
+      String :donation_date
+      emits "ConversionRecorded"
+      then_set :conversion_id, to: :conversion_id
+      then_set :lead_id, to: :lead_id
+      then_set :campaign_id, to: :campaign_id
+      then_set :donation_date, to: :donation_date
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "CampaignOnShortage" do
+    on "ShortageFlagged"
+    trigger "LaunchCampaign"
+  end
+  policy "ConvertOnCapture" do
+    on "LeadCaptured"
+    trigger "ConvertLead"
+  end
+end

@@ -1,0 +1,202 @@
+Hecks.bluebook "Hydrology" do
+  vision "Manage watersheds, stream gauges, flow measurements, flood models, and monitoring wells"
+
+  aggregate "Watershed" do
+    description "A drainage basin where all runoff converges to a single outlet"
+    String :watershed_id
+    String :name
+    Float :area_km2
+    String :outlet_location
+    String :land_use_dominant
+
+    command "DelineateWatershed" do
+      description "Define a watershed boundary from elevation data"
+      emits "WatershedDelineated"
+      String :watershed_id
+      String :name
+      Float :area_km2
+    end
+
+    command "ClassifyLandUse" do
+      description "Assign dominant land use category"
+      emits "LandUseClassified"
+      reference_to Watershed
+      String :land_use_dominant
+    end
+
+    command "UpdateBoundary" do
+      description "Revise the watershed boundary with new terrain data"
+      emits "BoundaryUpdated"
+      reference_to Watershed
+      given "new DEM data must be available"
+    end
+  end
+
+  aggregate "StreamGauge" do
+    description "An instrument station measuring water level and discharge"
+    String :gauge_id
+    String :stream_name
+    Float :latitude
+    Float :longitude
+    String :datum_elevation
+    reference_to Watershed
+
+    value_object "RatingCurve" do
+      Float :stage_m
+      Float :discharge_cms
+      String :validity_period
+    end
+
+    command "InstallGauge" do
+      description "Set up a new stream gauging station"
+      emits "GaugeInstalled"
+      reference_to Watershed
+      String :gauge_id
+      String :stream_name
+    end
+
+    command "CalibrateGauge" do
+      description "Develop or update the stage-discharge rating curve"
+      emits "GaugeCalibrated"
+      reference_to StreamGauge
+      given "at least five discharge measurements are needed"
+    end
+
+    command "RemoveGauge" do
+      description "Permanently remove a gauge from the network"
+      emits "GaugeRemoved"
+      reference_to StreamGauge
+    end
+  end
+
+  aggregate "FlowMeasurement" do
+    description "A single streamflow discharge measurement at a gauge"
+    String :measurement_date
+    Float :stage_m
+    Float :discharge_cms
+    String :method
+    reference_to StreamGauge
+
+    command "RecordDischarge" do
+      description "Log a manual or automated flow measurement"
+      emits "DischargeRecorded"
+      reference_to StreamGauge
+      String :measurement_date
+      Float :stage_m
+      Float :discharge_cms
+    end
+
+    command "ValidateMeasurement" do
+      description "Quality check the measurement against the rating curve"
+      emits "MeasurementValidated"
+      reference_to FlowMeasurement
+      given "rating curve must be current"
+    end
+  end
+
+  aggregate "FloodModel" do
+    description "A computational simulation of flood inundation for a watershed"
+    String :model_id
+    String :scenario_name
+    Integer :return_period_years
+    Float :peak_discharge_cms
+    reference_to Watershed
+
+    command "BuildModel" do
+      description "Construct a new flood simulation model"
+      emits "ModelBuilt"
+      reference_to Watershed
+      String :model_id
+      String :scenario_name
+    end
+
+    command "RunSimulation" do
+      description "Execute the flood model and generate inundation maps"
+      emits "SimulationRun"
+      reference_to FloodModel
+      Integer :return_period_years
+      given "model must be calibrated against historic floods"
+    end
+
+    command "PublishFloodMap" do
+      description "Release flood inundation mapping to the public"
+      emits "FloodMapPublished"
+      reference_to FloodModel
+    end
+  end
+
+  aggregate "MonitoringWell" do
+    description "A borehole for measuring groundwater levels and quality"
+    String :well_id
+    Float :depth_m
+    Float :screen_top_m
+    Float :screen_bottom_m
+    reference_to Watershed
+
+    command "DrillWell" do
+      description "Install a new groundwater monitoring well"
+      emits "WellDrilled"
+      reference_to Watershed
+      String :well_id
+      Float :depth_m
+    end
+
+    command "MeasureWaterLevel" do
+      description "Record the depth to water in the well"
+      emits "WaterLevelMeasured"
+      reference_to MonitoringWell
+      Float :depth_to_water_m
+    end
+
+    command "SampleGroundwater" do
+      description "Collect a water sample for chemical analysis"
+      emits "GroundwaterSampled"
+      reference_to MonitoringWell
+      given "well must be purged before sampling"
+    end
+  end
+
+  lifecycle "FloodResponseCycle" do
+    state "baseline_monitoring"
+    state "gauge_calibrated"
+    state "data_validated"
+    state "model_built"
+    state "flood_simulated"
+    state "map_published"
+    transition from: "baseline_monitoring", to: "gauge_calibrated", on: "GaugeCalibrated"
+    transition from: "gauge_calibrated", to: "data_validated", on: "MeasurementValidated"
+    transition from: "data_validated", to: "model_built", on: "ModelBuilt"
+    transition from: "model_built", to: "flood_simulated", on: "SimulationRun"
+    transition from: "flood_simulated", to: "map_published", on: "FloodMapPublished"
+  end
+
+  policy "CalibrateAfterInstall" do
+    on "GaugeInstalled"
+    trigger "CalibrateGauge"
+  end
+
+  policy "RecordAfterCalibration" do
+    on "GaugeCalibrated"
+    trigger "RecordDischarge"
+  end
+
+  policy "ValidateAfterRecording" do
+    on "DischargeRecorded"
+    trigger "ValidateMeasurement"
+  end
+
+  policy "BuildModelAfterValidation" do
+    on "MeasurementValidated"
+    trigger "BuildModel"
+  end
+
+  policy "SimulateAfterModelBuilt" do
+    on "ModelBuilt"
+    trigger "RunSimulation"
+  end
+
+  policy "PublishMapAfterSimulation" do
+    on "SimulationRun"
+    trigger "PublishFloodMap"
+  end
+end

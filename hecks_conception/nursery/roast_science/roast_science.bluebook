@@ -1,0 +1,199 @@
+Hecks.bluebook "RoastScience" do
+  vision "Cross-wire coffee shop operations with chemistry for scientifically optimized coffee roasting and brewing"
+  core
+
+  aggregate "GreenBean" do
+    description "Green coffee beans with chemical composition data"
+    attribute :origin
+    attribute :variety
+    attribute :altitude_m, Float
+    attribute :compounds, list_of(ChemicalCompound)
+    attribute :status, default: "sourced"
+
+    value_object "ChemicalCompound" do
+      attribute :compound_name
+      attribute :concentration_ppm, Float
+      attribute :flavor_impact
+      invariant "concentration must be positive" do
+        concentration_ppm > 0
+      end
+    end
+
+    command "SourceBeans" do
+      role "GreenBuyer"
+      goal "Source green coffee beans"
+      attribute :origin
+      attribute :variety
+      attribute :altitude_m, Float
+    end
+
+    command "AnalyzeCompound" do
+      role "FoodChemist"
+      goal "Analyze a chemical compound in the beans"
+      reference_to GreenBean
+      attribute :compound_name
+      attribute :concentration_ppm, Float
+      attribute :flavor_impact
+      given("max 50 compounds") { compounds.size < 50 }
+      then_set :compounds, append: { compound_name: :compound_name, concentration_ppm: :concentration_ppm, flavor_impact: :flavor_impact }
+    end
+  end
+
+  aggregate "RoastProfile" do
+    description "A roast profile with time-temperature curve"
+    reference_to GreenBean
+    attribute :profile_name
+    attribute :roast_level
+    attribute :curve_points, list_of(CurvePoint)
+    attribute :status, default: "designing"
+
+    value_object "CurvePoint" do
+      attribute :time_seconds, Integer
+      attribute :temp_c, Float
+      attribute :phase
+      invariant "time must be positive" do
+        time_seconds > 0
+      end
+    end
+
+    command "DesignProfile" do
+      role "RoastMaster"
+      goal "Design a roast profile"
+      reference_to GreenBean
+      attribute :profile_name
+      attribute :roast_level
+    end
+
+    command "AddCurvePoint" do
+      role "RoastMaster"
+      goal "Add a time-temperature point"
+      reference_to RoastProfile
+      attribute :time_seconds, Integer
+      attribute :temp_c, Float
+      attribute :phase
+      given("max 100 points") { curve_points.size < 100 }
+      then_set :curve_points, append: { time_seconds: :time_seconds, temp_c: :temp_c, phase: :phase }
+    end
+
+    command "ApproveProfile" do
+      role "HeadRoaster"
+      goal "Approve the roast profile"
+      reference_to RoastProfile
+      given("must have curve points") { curve_points.size > 0 }
+    end
+  end
+
+  aggregate "RoastBatch" do
+    description "A production roast batch"
+    reference_to RoastProfile
+    attribute :batch_number
+    attribute :weight_kg, Float
+    attribute :reactions, list_of(MaillardReaction)
+    attribute :status, default: "roasting"
+
+    value_object "MaillardReaction" do
+      attribute :reaction_type
+      attribute :onset_temp_c, Float
+      attribute :intensity, Float
+      invariant "intensity between 0 and 1" do
+        intensity >= 0 && intensity <= 1.0
+      end
+    end
+
+    command "StartBatch" do
+      role "Roaster"
+      goal "Start a roast batch"
+      reference_to RoastProfile
+      attribute :batch_number
+      attribute :weight_kg, Float
+    end
+
+    command "RecordReaction" do
+      role "FoodChemist"
+      goal "Record a Maillard reaction observation"
+      reference_to RoastBatch
+      attribute :reaction_type
+      attribute :onset_temp_c, Float
+      attribute :intensity, Float
+      given("max 30 reactions") { reactions.size < 30 }
+      then_set :reactions, append: { reaction_type: :reaction_type, onset_temp_c: :onset_temp_c, intensity: :intensity }
+    end
+
+    command "CompleteBatch" do
+      role "Roaster"
+      goal "Complete the roast batch"
+      reference_to RoastBatch
+    end
+  end
+
+  aggregate "BrewRecipe" do
+    description "A coffee shop brew recipe optimized by chemistry"
+    reference_to RoastBatch
+    attribute :recipe_name
+    attribute :brew_method
+    attribute :parameters, list_of(BrewParameter)
+    attribute :status, default: "testing"
+
+    value_object "BrewParameter" do
+      attribute :param_name
+      attribute :value, Float
+      attribute :unit
+    end
+
+    command "CreateRecipe" do
+      role "Barista"
+      goal "Create a new brew recipe"
+      reference_to RoastBatch
+      attribute :recipe_name
+      attribute :brew_method
+    end
+
+    command "SetParameter" do
+      role "Barista"
+      goal "Set a brew parameter"
+      reference_to BrewRecipe
+      attribute :param_name
+      attribute :value, Float
+      attribute :unit
+      given("max 15 parameters") { parameters.size < 15 }
+      then_set :parameters, append: { param_name: :param_name, value: :value, unit: :unit }
+    end
+
+    command "PublishRecipe" do
+      role "HeadBarista"
+      goal "Publish recipe for the shop menu"
+      reference_to BrewRecipe
+      given("must have parameters") { parameters.size > 0 }
+    end
+  end
+
+  policy "CompoundAnalyzedTriggersProfile" do
+    on "CompoundAnalyzed"
+    trigger "DesignProfile"
+    map green_bean_id: :bean_id
+  end
+
+  policy "ProfileApprovedTriggersBatch" do
+    on "ProfileApproved"
+    trigger "StartBatch"
+    map roast_profile_id: :profile_id
+  end
+
+  policy "BatchCompletedTriggersRecipe" do
+    on "BatchCompleted"
+    trigger "CreateRecipe"
+    map roast_batch_id: :batch_id
+  end
+
+  policy "ReactionRecordedTriggersParameter" do
+    on "ReactionRecorded"
+    trigger "SetParameter"
+    map brew_recipe_id: :recipe_id, param_name: :reaction_type
+  end
+
+  policy "RecipePublishedTriggersAnalysis" do
+    on "RecipePublished"
+    trigger "AnalyzeCompound"
+    map green_bean_id: :bean_id, compound_name: :key_flavor
+  end
+end

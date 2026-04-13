@@ -1,0 +1,196 @@
+Hecks.bluebook "StainedGlass" do
+  aggregate "Panel", "A stained glass panel from cartoon to installation" do
+    String :title
+    Float :width_inches
+    Float :height_inches
+    String :status, default: "cartooned"
+    Integer :piece_count
+    reference_to(GlassDesign)
+
+    value_object "PanelDimension" do
+      Float :width
+      Float :height
+      Float :border_width
+      String :shape
+    end
+
+    CartoonPanel do
+      description "Draw the full-size cartoon pattern for a panel"
+      String :title
+      Float :width_inches
+      Float :height_inches
+      Integer :piece_count
+      emits "PanelCartooned"
+    end
+
+    CutPanel do
+      description "Cut all glass pieces following the cartoon pattern"
+      reference_to(Panel)
+      given { status == "cartooned" }
+      emits "PanelCut"
+      then_set :status, to: "cut"
+    end
+
+    LeadPanel do
+      description "Assemble cut glass into lead came channels"
+      reference_to(Panel)
+      given { status == "cut" }
+      emits "PanelLeaded"
+      then_set :status, to: "leaded"
+    end
+  end
+
+  aggregate "GlassDesign", "The artistic design and color map for a glass work" do
+    String :title
+    String :style
+    String :client_name
+    String :status, default: "sketched"
+
+    value_object "ColorMap" do
+      String :section_name
+      String :glass_color
+      String :texture
+      Float :opacity
+    end
+
+    SketchDesign do
+      description "Create the initial design sketch with color mapping"
+      String :title
+      String :style
+      String :client_name
+      emits "DesignSketched"
+    end
+
+    ApproveDesign do
+      description "Client approves the design for production"
+      reference_to(GlassDesign)
+      given { status == "sketched" }
+      emits "DesignApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  aggregate "GlassInventory", "Sheet glass inventory with color, texture, and quantity" do
+    String :color
+    String :texture
+    String :manufacturer
+    Float :square_feet
+    String :category
+
+    ReceiveGlass do
+      description "Check in a sheet glass shipment from the supplier"
+      String :color
+      String :texture
+      String :manufacturer
+      Float :square_feet
+      String :category
+      emits "GlassReceived"
+    end
+
+    ConsumeGlass do
+      description "Deduct glass used for panel cutting"
+      reference_to(GlassInventory)
+      Float :square_feet_used
+      emits "GlassConsumed"
+    end
+  end
+
+  aggregate "Leadwork", "Lead came and solder work connecting glass pieces" do
+    String :came_profile
+    Float :came_width_mm
+    String :solder_type
+    String :status, default: "prepared"
+    reference_to(Panel)
+
+    PrepareCame do
+      description "Stretch and prepare lead came for assembly"
+      reference_to(Panel)
+      String :came_profile
+      Float :came_width_mm
+      emits "CamePrepared"
+    end
+
+    SolderJoints do
+      description "Solder all came intersections on the panel"
+      reference_to(Leadwork)
+      String :solder_type
+      given { status == "prepared" }
+      emits "JointsSoldered"
+      then_set :status, to: "soldered"
+    end
+
+    ApplyPatina do
+      description "Apply patina finish to the soldered joints"
+      reference_to(Leadwork)
+      String :patina_type
+      given { status == "soldered" }
+      emits "PatinaApplied"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "GlassInstallation", "On-site installation of finished stained glass panels" do
+    String :location
+    String :date
+    String :installer_name
+    String :status, default: "scheduled"
+    reference_to(Panel)
+
+    ScheduleInstallation do
+      description "Book an installation date for a finished panel"
+      reference_to(Panel)
+      String :location
+      String :date
+      String :installer_name
+      emits "InstallationScheduled"
+    end
+
+    CompleteInstallation do
+      description "Finish the on-site installation and seal the panel"
+      reference_to(GlassInstallation)
+      given { status == "scheduled" }
+      emits "InstallationCompleted"
+      then_set :status, to: "installed"
+    end
+  end
+
+  policy "CutOnApproval" do
+    on "DesignApproved"
+    trigger "CartoonPanel"
+  end
+
+  policy "CutPanelOnCartoon" do
+    on "PanelCartooned"
+    trigger "CutPanel"
+  end
+
+  policy "PrepareCameOnCut" do
+    on "PanelCut"
+    trigger "PrepareCame"
+  end
+
+  policy "LeadPanelOnCame" do
+    on "CamePrepared"
+    trigger "LeadPanel"
+  end
+
+  policy "SolderOnLead" do
+    on "PanelLeaded"
+    trigger "SolderJoints"
+  end
+
+  policy "PatinaOnSolder" do
+    on "JointsSoldered"
+    trigger "ApplyPatina"
+  end
+
+  policy "ScheduleInstallOnPatina" do
+    on "PatinaApplied"
+    trigger "ScheduleInstallation"
+  end
+
+  policy "CompleteInstallOnSchedule" do
+    on "InstallationScheduled"
+    trigger "CompleteInstallation"
+  end
+end

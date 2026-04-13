@@ -1,0 +1,272 @@
+Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
+  vision "Archaeology meets construction — site discovery, excavation protocols, preservation permits, and building coordination"
+  category "crossover"
+
+  aggregate "ArchaeologicalSite", "A discovered site — location, era, significance, artifact count" do
+    String :site_id
+    String :location
+    String :era_period
+    String :significance_level
+    Integer :artifact_count
+    String :status
+
+    value_object "Stratigraphy" do
+      Integer :layer_number
+      String :soil_type
+      Float :depth_m
+      String :period
+    end
+
+    DiscoverSite do
+      role "Archaeologist"
+      description "Record discovery of an archaeological site during construction survey"
+      String :site_id
+      String :location
+      String :era_period
+      String :significance_level
+      emits "SiteDiscovered"
+      then_set :site_id, to: :site_id
+      then_set :location, to: :location
+      then_set :era_period, to: :era_period
+      then_set :significance_level, to: :significance_level
+      then_set :artifact_count, to: 0
+      then_set :status, to: "discovered"
+    end
+
+    AssessSite do
+      role "Archaeologist"
+      description "Evaluate site significance and determine if excavation is needed"
+      reference_to(ArchaeologicalSite)
+      given { status == "discovered" }
+      emits "SiteAssessed"
+      then_set :status, to: "assessed"
+    end
+
+    ExcavateSite do
+      role "Archaeologist"
+      description "Begin controlled excavation of the site"
+      reference_to(ArchaeologicalSite)
+      given { status == "assessed" }
+      emits "ExcavationStarted"
+      then_set :status, to: "excavating"
+    end
+
+    ClearSite do
+      role "Archaeologist"
+      description "Clear site for construction after excavation complete"
+      reference_to(ArchaeologicalSite)
+      given { status == "excavating" }
+      emits "SiteCleared"
+      then_set :status, to: "cleared"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "DiscoverSite" => "discovered", from: "unknown"
+      transition "AssessSite" => "assessed", from: "discovered"
+      transition "ExcavateSite" => "excavating", from: "assessed"
+      transition "ClearSite" => "cleared", from: "excavating"
+    end
+  end
+
+  aggregate "Artifact", "A recovered artifact — type, provenance, condition, catalog number" do
+    String :catalog_number
+    String :artifact_type
+    String :site_id
+    Float :depth_found_m
+    String :condition
+    String :preservation_method
+    String :status
+
+    value_object "Provenance" do
+      String :grid_square
+      Float :depth_m
+      String :context
+      String :associated_features
+    end
+
+    CatalogArtifact do
+      role "Archaeologist"
+      description "Catalog a recovered artifact with provenance data"
+      String :catalog_number
+      String :artifact_type
+      String :site_id
+      Float :depth_found_m
+      String :condition
+      emits "ArtifactCataloged"
+      then_set :catalog_number, to: :catalog_number
+      then_set :artifact_type, to: :artifact_type
+      then_set :site_id, to: :site_id
+      then_set :depth_found_m, to: :depth_found_m
+      then_set :condition, to: :condition
+      then_set :status, to: "cataloged"
+    end
+
+    PreserveArtifact do
+      role "Conservator"
+      description "Apply preservation treatment to stabilize the artifact"
+      reference_to(Artifact)
+      String :preservation_method
+      given { status == "cataloged" }
+      emits "ArtifactPreserved"
+      then_set :preservation_method, to: :preservation_method
+      then_set :status, to: "preserved"
+    end
+
+    lifecycle :status, default: "uncataloged" do
+      transition "CatalogArtifact" => "cataloged", from: "uncataloged"
+      transition "PreserveArtifact" => "preserved", from: "cataloged"
+    end
+  end
+
+  aggregate "ConstructionPhase", "A construction phase — timeline, area, coordination with archaeology" do
+    String :phase_name
+    String :project_name
+    String :area
+    String :start_date
+    String :end_date
+    String :status
+
+    list_of "WorkZone" do
+      String :zone_id
+      String :activity
+      String :archaeological_clearance
+    end
+
+    PlanPhase do
+      role "ProjectManager"
+      description "Plan a construction phase with timeline and work areas"
+      String :phase_name
+      String :project_name
+      String :area
+      String :start_date
+      String :end_date
+      emits "PhasePlanned"
+      then_set :phase_name, to: :phase_name
+      then_set :project_name, to: :project_name
+      then_set :area, to: :area
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :status, to: "planned"
+    end
+
+    HaltForArchaeology do
+      role "Archaeologist"
+      description "Halt construction phase due to archaeological discovery"
+      reference_to(ConstructionPhase)
+      given { status == "planned" }
+      emits "PhaseHalted"
+      then_set :status, to: "halted"
+    end
+
+    ResumePhase do
+      role "ProjectManager"
+      description "Resume construction after archaeological clearance"
+      reference_to(ConstructionPhase)
+      given { status == "halted" }
+      emits "PhaseResumed"
+      then_set :status, to: "active"
+    end
+
+    CompletePhase do
+      role "ProjectManager"
+      description "Mark construction phase as complete"
+      reference_to(ConstructionPhase)
+      given { status == "active" }
+      emits "PhaseCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanPhase" => "planned", from: "draft"
+      transition "HaltForArchaeology" => "halted", from: "planned"
+      transition "ResumePhase" => "active", from: "halted"
+      transition "CompletePhase" => "completed", from: "active"
+    end
+  end
+
+  aggregate "PreservationPermit", "A permit for cultural resource preservation — conditions, monitoring" do
+    String :permit_number
+    String :site_id
+    String :applicant
+    String :permit_type
+    String :conditions
+    String :status
+
+    value_object "MonitoringRequirement" do
+      String :frequency
+      String :method
+      Integer :duration_months
+    end
+
+    ApplyForPreservationPermit do
+      role "ProjectManager"
+      description "Apply for permit to proceed with construction near cultural resources"
+      String :permit_number
+      String :site_id
+      String :applicant
+      String :permit_type
+      emits "PreservationPermitApplied"
+      then_set :permit_number, to: :permit_number
+      then_set :site_id, to: :site_id
+      then_set :applicant, to: :applicant
+      then_set :permit_type, to: :permit_type
+      then_set :status, to: "applied"
+    end
+
+    ReviewPreservationPermit do
+      role "Inspector"
+      description "Review permit against cultural resource regulations"
+      reference_to(PreservationPermit)
+      String :conditions
+      given { status == "applied" }
+      emits "PreservationPermitReviewed"
+      then_set :conditions, to: :conditions
+      then_set :status, to: "reviewed"
+    end
+
+    GrantPermit do
+      role "Authority"
+      description "Grant preservation permit with conditions"
+      reference_to(PreservationPermit)
+      given { status == "reviewed" }
+      emits "PermitGranted"
+      then_set :status, to: "granted"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "ApplyForPreservationPermit" => "applied", from: "draft"
+      transition "ReviewPreservationPermit" => "reviewed", from: "applied"
+      transition "GrantPermit" => "granted", from: "reviewed"
+    end
+  end
+
+  policy "AssessOnDiscovery" do
+    on "SiteDiscovered"
+    trigger "AssessSite"
+  end
+
+  policy "HaltOnDiscovery" do
+    on "SiteDiscovered"
+    trigger "HaltForArchaeology"
+  end
+
+  policy "ExcavateOnAssessment" do
+    on "SiteAssessed"
+    trigger "ExcavateSite"
+  end
+
+  policy "PreserveOnCatalog" do
+    on "ArtifactCataloged"
+    trigger "PreserveArtifact"
+  end
+
+  policy "ResumeOnClear" do
+    on "SiteCleared"
+    trigger "ResumePhase"
+  end
+
+  policy "ReviewPermitOnApply" do
+    on "PreservationPermitApplied"
+    trigger "ReviewPreservationPermit"
+  end
+end

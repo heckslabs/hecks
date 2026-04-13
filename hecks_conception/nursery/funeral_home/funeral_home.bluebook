@@ -1,0 +1,255 @@
+Hecks.bluebook "FuneralHome" do
+  vision "Manage funeral services, arrangements, obituaries, transport, and billing for bereaved families"
+  category "services"
+
+  aggregate "Decedent", "The deceased individual with vital statistics and next of kin" do
+    String :first_name
+    String :last_name
+    String :date_of_birth
+    String :date_of_death
+    String :place_of_death
+    String :cause_of_death
+    String :next_of_kin
+    String :status
+
+    value_object "VitalRecord" do
+      String :social_security
+      String :birth_certificate_number
+      String :veterans_status
+    end
+
+    RegisterDecedent do
+      role "FuneralDirector"
+      description "Record the deceased's information upon intake"
+      String :first_name
+      String :last_name
+      String :date_of_birth
+      String :date_of_death
+      String :place_of_death
+      String :next_of_kin
+      emits "DecedentRegistered"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :date_of_death, to: :date_of_death
+      then_set :next_of_kin, to: :next_of_kin
+      then_set :status, to: "received"
+    end
+
+    PrepareRemains do
+      role "Embalmer"
+      description "Embalm or prepare the remains for viewing or cremation"
+      reference_to(Decedent)
+      String :preparation_type
+      given { status == "received" }
+      emits "RemainsPrepared"
+      then_set :status, to: "prepared"
+    end
+
+    ReleaseRemains do
+      role "FuneralDirector"
+      description "Release the remains to the family or crematory"
+      reference_to(Decedent)
+      given { status == "prepared" }
+      emits "RemainsReleased"
+      then_set :status, to: "released"
+    end
+  end
+
+  aggregate "ServiceArrangement", "The planned funeral or memorial service with date, venue, and type" do
+    String :service_type
+    String :service_date
+    String :service_time
+    String :venue
+    String :officiant
+    Integer :expected_attendees
+    String :status
+    reference_to(Decedent)
+
+    value_object "MusicSelection" do
+      String :song_title
+      String :performer
+      String :timing
+    end
+
+    ArrangeService do
+      role "FuneralDirector"
+      description "Plan the funeral or memorial service details with the family"
+      reference_to(Decedent)
+      String :service_type
+      String :service_date
+      String :service_time
+      String :venue
+      String :officiant
+      Integer :expected_attendees
+      emits "ServiceArranged"
+      then_set :service_type, to: :service_type
+      then_set :service_date, to: :service_date
+      then_set :service_time, to: :service_time
+      then_set :venue, to: :venue
+      then_set :officiant, to: :officiant
+      then_set :status, to: "planned"
+    end
+
+    ConductService do
+      role "FuneralDirector"
+      description "Execute the funeral service as planned"
+      reference_to(ServiceArrangement)
+      given { status == "planned" }
+      emits "ServiceConducted"
+      then_set :status, to: "completed"
+    end
+
+    PostponeService do
+      role "FuneralDirector"
+      description "Delay the service to a new date due to family request or logistics"
+      reference_to(ServiceArrangement)
+      String :new_date
+      given { status == "planned" }
+      emits "ServicePostponed"
+      then_set :service_date, to: :new_date
+    end
+  end
+
+  aggregate "Obituary", "A published notice commemorating the deceased's life" do
+    String :headline
+    String :body_text
+    String :publication_name
+    String :publish_date
+    String :status
+    reference_to(Decedent)
+
+    DraftObituary do
+      role "FuneralDirector"
+      description "Write the obituary text with the family's input"
+      reference_to(Decedent)
+      String :headline
+      String :body_text
+      emits "ObituaryDrafted"
+      then_set :headline, to: :headline
+      then_set :body_text, to: :body_text
+      then_set :status, to: "draft"
+    end
+
+    PublishObituary do
+      role "FuneralDirector"
+      description "Submit the obituary to newspapers and online platforms"
+      reference_to(Obituary)
+      String :publication_name
+      String :publish_date
+      given { status == "draft" }
+      emits "ObituaryPublished"
+      then_set :publication_name, to: :publication_name
+      then_set :publish_date, to: :publish_date
+      then_set :status, to: "published"
+    end
+  end
+
+  aggregate "TransportRequest", "A request to move remains between locations" do
+    String :pickup_location
+    String :delivery_location
+    String :transport_date
+    String :vehicle_type
+    String :status
+    reference_to(Decedent)
+
+    ScheduleTransport do
+      role "FuneralDirector"
+      description "Arrange vehicle transport for the remains"
+      reference_to(Decedent)
+      String :pickup_location
+      String :delivery_location
+      String :transport_date
+      String :vehicle_type
+      emits "TransportScheduled"
+      then_set :pickup_location, to: :pickup_location
+      then_set :delivery_location, to: :delivery_location
+      then_set :transport_date, to: :transport_date
+      then_set :vehicle_type, to: :vehicle_type
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteTransport do
+      role "Driver"
+      description "Confirm the remains have been delivered to the destination"
+      reference_to(TransportRequest)
+      given { status == "scheduled" }
+      emits "TransportCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "FuneralInvoice", "A billing statement for all services rendered to the family" do
+    Float :services_total
+    Float :merchandise_total
+    Float :cash_advances
+    Float :grand_total
+    String :status
+    reference_to(Decedent)
+
+    value_object "LineItem" do
+      String :description
+      Float :amount
+      String :category
+    end
+
+    GenerateInvoice do
+      role "OfficeManager"
+      description "Create an itemized invoice for all funeral services and merchandise"
+      reference_to(Decedent)
+      Float :services_total
+      Float :merchandise_total
+      Float :cash_advances
+      emits "InvoiceGenerated"
+      then_set :services_total, to: :services_total
+      then_set :merchandise_total, to: :merchandise_total
+      then_set :cash_advances, to: :cash_advances
+      then_set :status, to: "pending"
+    end
+
+    CollectPayment do
+      role "OfficeManager"
+      description "Record payment received from the family or insurance"
+      reference_to(FuneralInvoice)
+      Float :amount_paid
+      given { status == "pending" }
+      emits "PaymentCollected"
+      then_set :status, to: "paid"
+    end
+  end
+
+  policy "ArrangeOnIntake" do
+    on "DecedentRegistered"
+    trigger "ArrangeService"
+  end
+
+  policy "DraftObituaryOnIntake" do
+    on "DecedentRegistered"
+    trigger "DraftObituary"
+  end
+
+  policy "PrepareRemainsOnIntake" do
+    on "DecedentRegistered"
+    trigger "PrepareRemains"
+  end
+
+  policy "ScheduleTransportOnArrangement" do
+    on "ServiceArranged"
+    trigger "ScheduleTransport"
+  end
+
+  policy "PublishObituaryOnArrangement" do
+    on "ServiceArranged"
+    trigger "PublishObituary"
+  end
+
+  policy "InvoiceOnServiceComplete" do
+    on "ServiceConducted"
+    trigger "GenerateInvoice"
+  end
+
+  policy "ReleaseOnServiceComplete" do
+    on "ServiceConducted"
+    trigger "ReleaseRemains"
+  end
+end

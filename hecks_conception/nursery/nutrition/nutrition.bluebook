@@ -1,0 +1,171 @@
+Hecks.bluebook "Nutrition" do
+  vision "Track foods, nutrients, meal plans, dietary goals, and nutritional deficiencies"
+
+  aggregate "FoodItem" do
+    description "A specific food with its nutritional composition per serving"
+    String :name
+    String :food_group
+    Float :serving_size_g
+    Float :calories_kcal
+
+    value_object "MacroProfile" do
+      Float :protein_g
+      Float :carbohydrate_g
+      Float :fat_g
+      Float :fiber_g
+    end
+
+    command "CatalogFood" do
+      description "Add a new food item to the nutrition database"
+      emits "FoodCataloged"
+      String :name
+      String :food_group
+      Float :serving_size_g
+      Float :calories_kcal
+    end
+
+    command "UpdateComposition" do
+      description "Revise the nutrient data for a food item"
+      emits "CompositionUpdated"
+      reference_to FoodItem
+      Float :calories_kcal
+    end
+
+    command "RetireFood" do
+      description "Mark a food item as no longer available"
+      emits "FoodRetired"
+      reference_to FoodItem
+    end
+  end
+
+  aggregate "MealPlan" do
+    description "A structured daily or weekly eating plan"
+    String :plan_name
+    String :start_date
+    Integer :duration_days
+    Float :target_calories
+
+    command "CreatePlan" do
+      description "Draft a new meal plan"
+      emits "PlanCreated"
+      String :plan_name
+      Integer :duration_days
+      Float :target_calories
+    end
+
+    command "AddMeal" do
+      description "Add a meal entry to the plan"
+      emits "MealAdded"
+      reference_to MealPlan
+      reference_to FoodItem
+      String :meal_type
+      Float :servings
+    end
+
+    command "FinalizePlan" do
+      description "Lock the meal plan for adherence tracking"
+      emits "PlanFinalized"
+      reference_to MealPlan
+      given "plan must have at least three meals per day"
+    end
+  end
+
+  aggregate "DietaryGoal" do
+    description "A target nutrient intake or restriction for a person"
+    String :goal_type
+    String :nutrient
+    Float :target_value
+    String :unit
+    reference_to MealPlan
+
+    command "SetGoal" do
+      description "Define a new dietary target"
+      emits "GoalSet"
+      String :goal_type
+      String :nutrient
+      Float :target_value
+    end
+
+    command "EvaluateProgress" do
+      description "Check current intake against the goal"
+      emits "ProgressEvaluated"
+      reference_to DietaryGoal
+      given "goal must have tracked intake data"
+    end
+
+    command "AdjustTarget" do
+      description "Modify the target value based on progress"
+      emits "TargetAdjusted"
+      reference_to DietaryGoal
+      Float :new_target
+    end
+  end
+
+  aggregate "Deficiency" do
+    description "A detected nutritional shortfall requiring intervention"
+    String :nutrient
+    String :severity
+    Float :current_intake
+    Float :recommended_intake
+    reference_to DietaryGoal
+
+    command "DetectDeficiency" do
+      description "Flag a nutrient intake below recommended levels"
+      emits "DeficiencyDetected"
+      reference_to DietaryGoal
+      String :nutrient
+      String :severity
+    end
+
+    command "ResolveDeficiency" do
+      description "Mark a deficiency as corrected through dietary changes"
+      emits "DeficiencyResolved"
+      reference_to Deficiency
+      given "intake must now meet recommended levels"
+    end
+  end
+
+  lifecycle "NutritionIntervention" do
+    state "assessment"
+    state "planning"
+    state "active"
+    state "monitoring"
+    state "deficiency_detected"
+    state "resolved"
+    transition from: "assessment", to: "planning", on: "GoalSet"
+    transition from: "planning", to: "active", on: "PlanFinalized"
+    transition from: "active", to: "monitoring", on: "ProgressEvaluated"
+    transition from: "monitoring", to: "deficiency_detected", on: "DeficiencyDetected"
+    transition from: "deficiency_detected", to: "resolved", on: "DeficiencyResolved"
+  end
+
+  policy "CreatePlanAfterGoal" do
+    on "GoalSet"
+    trigger "CreatePlan"
+  end
+
+  policy "FinalizeAfterMeals" do
+    on "MealAdded"
+    trigger "FinalizePlan"
+  end
+
+  policy "EvaluateAfterFinalization" do
+    on "PlanFinalized"
+    trigger "EvaluateProgress"
+  end
+
+  policy "CheckDeficiencyOnEvaluation" do
+    on "ProgressEvaluated"
+    trigger "DetectDeficiency"
+  end
+
+  policy "AdjustGoalOnDeficiency" do
+    on "DeficiencyDetected"
+    trigger "AdjustTarget"
+  end
+
+  policy "ResolveAfterAdjustment" do
+    on "TargetAdjusted"
+    trigger "ResolveDeficiency"
+  end
+end

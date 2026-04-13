@@ -1,0 +1,137 @@
+Hecks.bluebook "RadiologyClouds", version: "2026.04.13.1" do
+  vision "Cloud radiology — medical scans meet cloud storage, AI analysis, and secure sharing"
+  category "healthcare_technology"
+
+  aggregate "Scan", "A medical imaging scan — X-ray, CT, MRI, or ultrasound" do
+    String :scan_id
+    String :patient_name
+    String :modality
+    String :body_part
+    String :acquired_date
+    String :status
+    AcquireScan do
+      role "Radiologist"
+      description "Acquire a new medical imaging scan from the modality"
+      String :scan_id
+      String :patient_name
+      String :modality
+      String :body_part
+      String :acquired_date
+      emits "ScanAcquired"
+      then_set :scan_id, to: :scan_id
+      then_set :patient_name, to: :patient_name
+      then_set :modality, to: :modality
+      then_set :body_part, to: :body_part
+      then_set :acquired_date, to: :acquired_date
+      then_set :status, to: "acquired"
+    end
+    ReadScan do
+      role "Radiologist"
+      description "Read and interpret the scan findings"
+      reference_to(Scan)
+      given { status == "acquired" }
+      emits "ScanRead"
+      then_set :status, to: "read"
+    end
+  end
+
+  aggregate "CloudStore", "Cloud storage bucket for DICOM images and reports" do
+    String :bucket_id
+    String :region
+    Float :used_gb
+    Float :quota_gb
+    String :status
+    CreateBucket do
+      role "CloudAdmin"
+      description "Create a cloud storage bucket for radiology images"
+      String :bucket_id
+      String :region
+      Float :quota_gb
+      emits "BucketCreated"
+      then_set :bucket_id, to: :bucket_id
+      then_set :region, to: :region
+      then_set :quota_gb, to: :quota_gb
+      then_set :used_gb, to: 0.0
+      then_set :status, to: "active"
+    end
+    UploadImage do
+      role "System"
+      description "Upload a DICOM image to cloud storage"
+      reference_to(CloudStore)
+      Float :size_gb
+      emits "ImageUploaded"
+    end
+  end
+
+  aggregate "AIAnalysis", "An AI-powered analysis of a radiology scan" do
+    String :analysis_id
+    String :scan_id
+    String :model_name
+    Float :confidence
+    String :finding
+    String :status
+    RunAnalysis do
+      role "System"
+      description "Run AI model on a scan to detect anomalies"
+      String :analysis_id
+      String :scan_id
+      String :model_name
+      emits "AnalysisStarted"
+      then_set :analysis_id, to: :analysis_id
+      then_set :scan_id, to: :scan_id
+      then_set :model_name, to: :model_name
+      then_set :status, to: "running"
+    end
+    CompleteAnalysis do
+      role "System"
+      description "Record AI findings and confidence score"
+      reference_to(AIAnalysis)
+      Float :confidence
+      String :finding
+      given { status == "running" }
+      emits "AnalysisCompleted"
+      then_set :confidence, to: :confidence
+      then_set :finding, to: :finding
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "ShareLink", "A secure sharing link for radiology images and reports" do
+    String :link_id
+    String :scan_id
+    String :recipient_email
+    String :expires_at
+    String :status
+    CreateShareLink do
+      role "Radiologist"
+      description "Generate a secure sharing link for a scan"
+      String :link_id
+      String :scan_id
+      String :recipient_email
+      String :expires_at
+      emits "ShareLinkCreated"
+      then_set :link_id, to: :link_id
+      then_set :scan_id, to: :scan_id
+      then_set :recipient_email, to: :recipient_email
+      then_set :expires_at, to: :expires_at
+      then_set :status, to: "active"
+    end
+    RevokeLink do
+      role "Radiologist"
+      description "Revoke a sharing link before expiry"
+      reference_to(ShareLink)
+      given { status == "active" }
+      emits "LinkRevoked"
+      then_set :status, to: "revoked"
+    end
+  end
+
+  policy "UploadOnAcquire" do
+    on "ScanAcquired"
+    trigger "UploadImage"
+  end
+  policy "AnalyzeOnAcquire" do
+    on "ScanAcquired"
+    trigger "RunAnalysis"
+  end
+end

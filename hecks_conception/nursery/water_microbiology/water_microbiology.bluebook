@@ -1,0 +1,249 @@
+Hecks.bluebook "WaterMicrobiology", version: "2026.04.13.1" do
+  vision "Microbiology meets water treatment — cultures, sampling, contamination detection, treatment protocols, and compliance"
+  category "crossover"
+
+  aggregate "WaterSample", "A water sample — source, collection point, physical parameters" do
+    String :sample_id
+    String :source_type
+    String :collection_point
+    Float :temperature_c
+    Float :ph
+    Float :turbidity_ntu
+    String :status
+
+    value_object "PhysicalParams" do
+      Float :dissolved_oxygen_mg_l
+      Float :conductivity_us_cm
+      Float :total_dissolved_solids_mg_l
+    end
+
+    CollectSample do
+      role "Technician"
+      description "Collect a water sample from a treatment point"
+      String :sample_id
+      String :source_type
+      String :collection_point
+      Float :temperature_c
+      Float :ph
+      Float :turbidity_ntu
+      emits "SampleCollected"
+      then_set :sample_id, to: :sample_id
+      then_set :source_type, to: :source_type
+      then_set :collection_point, to: :collection_point
+      then_set :temperature_c, to: :temperature_c
+      then_set :ph, to: :ph
+      then_set :turbidity_ntu, to: :turbidity_ntu
+      then_set :status, to: "collected"
+    end
+
+    AnalyzeSample do
+      role "Microbiologist"
+      description "Perform microbiological analysis on the water sample"
+      reference_to(WaterSample)
+      given { status == "collected" }
+      emits "SampleAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CollectSample" => "collected", from: "pending"
+      transition "AnalyzeSample" => "analyzed", from: "collected"
+    end
+  end
+
+  aggregate "MicrobialCulture", "A microbial culture result — organism, colony count, pathogenicity" do
+    String :sample_id
+    String :organism_name
+    Integer :colony_count_cfu
+    String :gram_stain
+    String :pathogenicity
+    String :status
+
+    value_object "CultureConditions" do
+      String :medium
+      Float :incubation_temp_c
+      Integer :incubation_hours
+    end
+
+    list_of "Identification" do
+      String :method
+      String :result
+      Float :confidence_pct
+    end
+
+    CultureSample do
+      role "Microbiologist"
+      description "Inoculate culture medium and incubate water sample"
+      String :sample_id
+      String :organism_name
+      Integer :colony_count_cfu
+      String :gram_stain
+      emits "SampleCultured"
+      then_set :sample_id, to: :sample_id
+      then_set :organism_name, to: :organism_name
+      then_set :colony_count_cfu, to: :colony_count_cfu
+      then_set :gram_stain, to: :gram_stain
+      then_set :status, to: "cultured"
+    end
+
+    IdentifyOrganism do
+      role "Microbiologist"
+      description "Identify organism species from culture results"
+      reference_to(MicrobialCulture)
+      String :pathogenicity
+      given { status == "cultured" }
+      emits "OrganismIdentified"
+      then_set :pathogenicity, to: :pathogenicity
+      then_set :status, to: "identified"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CultureSample" => "cultured", from: "pending"
+      transition "IdentifyOrganism" => "identified", from: "cultured"
+    end
+  end
+
+  aggregate "ContaminationEvent", "A detected contamination — type, severity, source, response" do
+    String :event_id
+    String :contaminant
+    Float :concentration
+    String :severity
+    String :source_hypothesis
+    String :status
+
+    value_object "ContaminantProfile" do
+      String :contaminant_class
+      Float :mcl_limit
+      Float :measured_value
+      String :health_effect
+    end
+
+    DeclareContamination do
+      role "Microbiologist"
+      description "Declare a contamination event when pathogens exceed limits"
+      String :event_id
+      String :contaminant
+      Float :concentration
+      String :severity
+      String :source_hypothesis
+      emits "ContaminationDeclared"
+      then_set :event_id, to: :event_id
+      then_set :contaminant, to: :contaminant
+      then_set :concentration, to: :concentration
+      then_set :severity, to: :severity
+      then_set :source_hypothesis, to: :source_hypothesis
+      then_set :status, to: "declared"
+    end
+
+    InvestigateSource do
+      role "Microbiologist"
+      description "Trace contamination to its source"
+      reference_to(ContaminationEvent)
+      given { status == "declared" }
+      emits "SourceInvestigated"
+      then_set :status, to: "investigated"
+    end
+
+    ResolveContamination do
+      role "Operator"
+      description "Resolve contamination event after treatment success"
+      reference_to(ContaminationEvent)
+      given { status == "investigated" }
+      emits "ContaminationResolved"
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "DeclareContamination" => "declared", from: "clear"
+      transition "InvestigateSource" => "investigated", from: "declared"
+      transition "ResolveContamination" => "resolved", from: "investigated"
+    end
+  end
+
+  aggregate "TreatmentProtocol", "A water treatment protocol — disinfection method, dosing, contact time" do
+    String :protocol_name
+    String :treatment_method
+    Float :dose_mg_l
+    Float :contact_time_min
+    Float :target_log_reduction
+    String :status
+
+    value_object "DisinfectionCurve" do
+      Float :ct_value
+      Float :temperature_c
+      Float :ph
+      Float :log_reduction
+    end
+
+    DesignProtocol do
+      role "Engineer"
+      description "Design a treatment protocol for specific contaminant type"
+      String :protocol_name
+      String :treatment_method
+      Float :dose_mg_l
+      Float :contact_time_min
+      Float :target_log_reduction
+      emits "ProtocolDesigned"
+      then_set :protocol_name, to: :protocol_name
+      then_set :treatment_method, to: :treatment_method
+      then_set :dose_mg_l, to: :dose_mg_l
+      then_set :contact_time_min, to: :contact_time_min
+      then_set :target_log_reduction, to: :target_log_reduction
+      then_set :status, to: "designed"
+    end
+
+    ActivateProtocol do
+      role "Operator"
+      description "Activate treatment protocol in response to contamination"
+      reference_to(TreatmentProtocol)
+      given { status == "designed" }
+      emits "ProtocolActivated"
+      then_set :status, to: "active"
+    end
+
+    VerifyTreatment do
+      role "Microbiologist"
+      description "Verify treatment achieved target log reduction"
+      reference_to(TreatmentProtocol)
+      given { status == "active" }
+      emits "TreatmentVerified"
+      then_set :status, to: "verified"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "DesignProtocol" => "designed", from: "draft"
+      transition "ActivateProtocol" => "active", from: "designed"
+      transition "VerifyTreatment" => "verified", from: "active"
+    end
+  end
+
+  policy "AnalyzeOnCollect" do
+    on "SampleCollected"
+    trigger "AnalyzeSample"
+  end
+
+  policy "CultureOnAnalyze" do
+    on "SampleAnalyzed"
+    trigger "CultureSample"
+  end
+
+  policy "IdentifyOnCulture" do
+    on "SampleCultured"
+    trigger "IdentifyOrganism"
+  end
+
+  policy "DeclareOnIdentify" do
+    on "OrganismIdentified"
+    trigger "DeclareContamination"
+  end
+
+  policy "ActivateOnDeclare" do
+    on "ContaminationDeclared"
+    trigger "ActivateProtocol"
+  end
+
+  policy "VerifyOnActivate" do
+    on "ProtocolActivated"
+    trigger "VerifyTreatment"
+  end
+end

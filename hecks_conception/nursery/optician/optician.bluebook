@@ -1,0 +1,225 @@
+Hecks.bluebook "Optician", version: "2026.04.13.1" do
+  vision "Running an optical shop — fitting frames, grinding lenses, managing prescriptions, adjusting eyewear, and processing insurance claims"
+  category "retail"
+
+  aggregate "Frame", "An eyeglass frame available for purchase" do
+    String :frame_id
+    String :brand
+    String :model
+    String :material
+    String :color
+    Float :price
+    Integer :quantity
+    list_of(FrameMeasurement) :measurements
+
+    value_object "FrameMeasurement" do
+      String :dimension
+      Float :value_mm
+    end
+
+    StockFrame do
+      role "Buyer"
+      description "Add a new frame style to the display inventory"
+      String :frame_id
+      String :brand
+      String :model
+      String :material
+      String :color
+      Float :price
+      Integer :quantity
+      emits "FrameStocked"
+      then_set :frame_id, to: :frame_id
+      then_set :brand, to: :brand
+      then_set :model, to: :model
+      then_set :material, to: :material
+      then_set :color, to: :color
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+    end
+
+    DiscontinueFrame do
+      role "Buyer"
+      description "Remove a frame from the active catalog"
+      reference_to(Frame)
+      emits "FrameDiscontinued"
+    end
+  end
+
+  aggregate "Lens", "A corrective or protective lens ground to prescription" do
+    String :lens_id
+    String :lens_type
+    String :material
+    String :coating
+    Float :sphere
+    Float :cylinder
+    Integer :axis
+    Float :price
+
+    GrindLens do
+      role "LabTechnician"
+      description "Cut and polish a lens to the prescribed specifications"
+      String :lens_id
+      String :lens_type
+      String :material
+      String :coating
+      Float :sphere
+      Float :cylinder
+      Integer :axis
+      Float :price
+      emits "LensGround"
+      then_set :lens_id, to: :lens_id
+      then_set :lens_type, to: :lens_type
+      then_set :material, to: :material
+      then_set :coating, to: :coating
+      then_set :sphere, to: :sphere
+      then_set :cylinder, to: :cylinder
+      then_set :axis, to: :axis
+      then_set :price, to: :price
+    end
+
+    ApplyCoating do
+      role "LabTechnician"
+      description "Add anti-reflective, blue-light, or scratch-resistant coating"
+      reference_to(Lens)
+      String :coating
+      emits "CoatingApplied"
+      then_set :coating, to: :coating
+    end
+  end
+
+  aggregate "Prescription", "An eye doctor's corrective vision order" do
+    String :prescription_id
+    String :patient_name
+    String :doctor_name
+    String :issue_date
+    String :expiration_date
+    Float :right_sphere
+    Float :left_sphere
+    String :status
+
+    RecordPrescription do
+      role "Optician"
+      description "Enter a prescription from the patient's eye exam"
+      String :prescription_id
+      String :patient_name
+      String :doctor_name
+      String :issue_date
+      String :expiration_date
+      Float :right_sphere
+      Float :left_sphere
+      emits "PrescriptionRecorded"
+      then_set :prescription_id, to: :prescription_id
+      then_set :patient_name, to: :patient_name
+      then_set :doctor_name, to: :doctor_name
+      then_set :issue_date, to: :issue_date
+      then_set :expiration_date, to: :expiration_date
+      then_set :right_sphere, to: :right_sphere
+      then_set :left_sphere, to: :left_sphere
+      then_set :status, to: "active"
+    end
+
+    ExpirePrescription do
+      role "System"
+      description "Mark a prescription as expired past its valid date"
+      reference_to(Prescription)
+      given { status == "active" }
+      emits "PrescriptionExpired"
+      then_set :status, to: "expired"
+    end
+  end
+
+  aggregate "Fitting", "The process of adjusting frames to a patient's face" do
+    String :fitting_id
+    String :patient_name
+    String :frame_id
+    String :adjustments_made
+    String :satisfaction
+
+    PerformFitting do
+      role "Optician"
+      description "Adjust frame temples, nose pads, and alignment for comfort"
+      String :fitting_id
+      String :patient_name
+      String :frame_id
+      emits "FittingPerformed"
+      then_set :fitting_id, to: :fitting_id
+      then_set :patient_name, to: :patient_name
+      then_set :frame_id, to: :frame_id
+    end
+
+    RecordSatisfaction do
+      role "Optician"
+      description "Note whether the patient is happy with the fit"
+      reference_to(Fitting)
+      String :satisfaction
+      emits "SatisfactionRecorded"
+      then_set :satisfaction, to: :satisfaction
+    end
+  end
+
+  aggregate "InsuranceClaim", "A vision insurance claim for reimbursement" do
+    String :claim_id
+    String :patient_name
+    String :insurance_provider
+    Float :amount_claimed
+    String :status
+
+    SubmitClaim do
+      role "Staff"
+      description "File a claim with the patient's vision insurance"
+      String :claim_id
+      String :patient_name
+      String :insurance_provider
+      Float :amount_claimed
+      emits "ClaimSubmitted"
+      then_set :claim_id, to: :claim_id
+      then_set :patient_name, to: :patient_name
+      then_set :insurance_provider, to: :insurance_provider
+      then_set :amount_claimed, to: :amount_claimed
+      then_set :status, to: "submitted"
+    end
+
+    ResolveClaim do
+      role "Staff"
+      description "Record the insurance company's approval or denial"
+      reference_to(InsuranceClaim)
+      given { status == "submitted" }
+      String :resolution
+      emits "ClaimResolved"
+      then_set :status, to: :resolution
+    end
+  end
+
+  # Lifecycle: prescription → lens ground → coated → fitted → claimed → resolved
+  # Workflow: Record prescription → Grind lens → Apply coating → Perform fitting → Record satisfaction → Submit insurance → Resolve claim
+
+  policy "GrindOnPrescription" do
+    on "PrescriptionRecorded"
+    trigger "GrindLens"
+  end
+
+  policy "CoatOnGrind" do
+    on "LensGround"
+    trigger "ApplyCoating"
+  end
+
+  policy "FitOnCoat" do
+    on "CoatingApplied"
+    trigger "PerformFitting"
+  end
+
+  policy "SatisfactionOnFit" do
+    on "FittingPerformed"
+    trigger "RecordSatisfaction"
+  end
+
+  policy "ClaimOnSatisfaction" do
+    on "SatisfactionRecorded"
+    trigger "SubmitClaim"
+  end
+
+  policy "ResolveOnClaim" do
+    on "ClaimSubmitted"
+    trigger "ResolveClaim"
+  end
+end

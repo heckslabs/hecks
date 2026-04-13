@@ -1,0 +1,275 @@
+Hecks.bluebook "PrintShop" do
+  vision "Manage print jobs, substrate inventory, press scheduling, proofing workflows, and deliveries"
+  category "manufacturing"
+
+  aggregate "PrintJob", "A customer print order with specs, quantity, and production status" do
+    String :job_name
+    String :customer_name
+    Integer :quantity
+    String :print_method
+    String :color_profile
+    String :due_date
+    String :status
+
+    value_object "PrintSpecification" do
+      Float :width_inches
+      Float :height_inches
+      Integer :pages
+      String :binding_type
+    end
+
+    SubmitPrintJob do
+      role "SalesRep"
+      description "Create a new print job with customer specs and quantity"
+      String :job_name
+      String :customer_name
+      Integer :quantity
+      String :print_method
+      String :color_profile
+      String :due_date
+      emits "PrintJobSubmitted"
+      then_set :job_name, to: :job_name
+      then_set :customer_name, to: :customer_name
+      then_set :quantity, to: :quantity
+      then_set :print_method, to: :print_method
+      then_set :color_profile, to: :color_profile
+      then_set :due_date, to: :due_date
+      then_set :status, to: "submitted"
+    end
+
+    ApprovePrintJob do
+      role "ProductionManager"
+      description "Review specs and approve the job for production"
+      reference_to(PrintJob)
+      given { status == "proof_approved" }
+      emits "PrintJobApproved"
+      then_set :status, to: "approved"
+    end
+
+    CompletePrintJob do
+      role "PressOperator"
+      description "Mark the print run as finished and ready for finishing"
+      reference_to(PrintJob)
+      given { status == "in_production" }
+      emits "PrintJobCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Substrate", "Paper, vinyl, or other material stock with inventory tracking" do
+    String :material_name
+    String :material_type
+    Float :weight_gsm
+    Float :width_inches
+    Integer :sheets_on_hand
+    Integer :reorder_level
+    String :status
+
+    value_object "MaterialProperties" do
+      String :finish
+      String :opacity
+      String :recyclable
+    end
+
+    StockSubstrate do
+      role "WarehouseManager"
+      description "Add a new substrate to inventory with specs and stock levels"
+      String :material_name
+      String :material_type
+      Float :weight_gsm
+      Float :width_inches
+      Integer :sheets_on_hand
+      Integer :reorder_level
+      emits "SubstrateStocked"
+      then_set :material_name, to: :material_name
+      then_set :material_type, to: :material_type
+      then_set :weight_gsm, to: :weight_gsm
+      then_set :width_inches, to: :width_inches
+      then_set :sheets_on_hand, to: :sheets_on_hand
+      then_set :reorder_level, to: :reorder_level
+      then_set :status, to: "in_stock"
+    end
+
+    ConsumeSubstrate do
+      role "PressOperator"
+      description "Pull substrate from inventory for a print run"
+      reference_to(Substrate)
+      Integer :sheets_used
+      given { sheets_on_hand > 0 }
+      emits "SubstrateConsumed"
+    end
+
+    ReorderSubstrate do
+      role "WarehouseManager"
+      description "Place a purchase order when stock falls below reorder level"
+      reference_to(Substrate)
+      Integer :order_quantity
+      emits "SubstrateReordered"
+    end
+  end
+
+  aggregate "PressSchedule", "A time block reserved on a specific press for a print job" do
+    String :press_name
+    String :scheduled_date
+    String :start_time
+    String :end_time
+    String :status
+    reference_to(PrintJob)
+
+    SchedulePress do
+      role "ProductionManager"
+      description "Reserve a press for a specific job at a given date and time"
+      reference_to(PrintJob)
+      String :press_name
+      String :scheduled_date
+      String :start_time
+      String :end_time
+      emits "PressScheduled"
+      then_set :press_name, to: :press_name
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :start_time, to: :start_time
+      then_set :end_time, to: :end_time
+      then_set :status, to: "scheduled"
+    end
+
+    StartPressRun do
+      role "PressOperator"
+      description "Begin the print run on the scheduled press"
+      reference_to(PressSchedule)
+      given { status == "scheduled" }
+      emits "PressRunStarted"
+      then_set :status, to: "running"
+    end
+
+    HaltPress do
+      role "PressOperator"
+      description "Stop the press due to a quality issue or mechanical failure"
+      reference_to(PressSchedule)
+      given { status == "running" }
+      String :halt_reason
+      emits "PressHalted"
+      then_set :status, to: "halted"
+    end
+  end
+
+  aggregate "ProofCycle", "A proof review loop where the customer approves or requests changes" do
+    Integer :revision_number
+    String :proof_file
+    String :customer_feedback
+    String :status
+    reference_to(PrintJob)
+
+    SendProof do
+      role "PrePressOperator"
+      description "Generate and send a digital proof to the customer for approval"
+      reference_to(PrintJob)
+      String :proof_file
+      Integer :revision_number
+      emits "ProofSent"
+      then_set :proof_file, to: :proof_file
+      then_set :revision_number, to: :revision_number
+      then_set :status, to: "awaiting_approval"
+    end
+
+    ApproveProof do
+      role "Customer"
+      description "Customer signs off on the proof as ready for production"
+      reference_to(ProofCycle)
+      given { status == "awaiting_approval" }
+      emits "ProofApproved"
+      then_set :status, to: "approved"
+    end
+
+    RequestRevision do
+      role "Customer"
+      description "Customer requests changes to the proof with feedback"
+      reference_to(ProofCycle)
+      String :customer_feedback
+      given { status == "awaiting_approval" }
+      emits "RevisionRequested"
+      then_set :customer_feedback, to: :customer_feedback
+      then_set :status, to: "revision_needed"
+    end
+  end
+
+  aggregate "DeliveryOrder", "A shipment of completed print products to the customer" do
+    String :delivery_address
+    String :delivery_date
+    Integer :box_count
+    String :carrier
+    String :tracking_number
+    String :status
+    reference_to(PrintJob)
+
+    ScheduleDelivery do
+      role "ShippingClerk"
+      description "Arrange delivery of the finished print job to the customer"
+      reference_to(PrintJob)
+      String :delivery_address
+      String :delivery_date
+      Integer :box_count
+      String :carrier
+      emits "DeliveryScheduled"
+      then_set :delivery_address, to: :delivery_address
+      then_set :delivery_date, to: :delivery_date
+      then_set :box_count, to: :box_count
+      then_set :carrier, to: :carrier
+      then_set :status, to: "scheduled"
+    end
+
+    ShipOrder do
+      role "ShippingClerk"
+      description "Hand off the packages to the carrier and record tracking"
+      reference_to(DeliveryOrder)
+      String :tracking_number
+      given { status == "scheduled" }
+      emits "OrderShipped"
+      then_set :tracking_number, to: :tracking_number
+      then_set :status, to: "shipped"
+    end
+
+    ConfirmDelivery do
+      role "System"
+      description "Record successful delivery to the customer"
+      reference_to(DeliveryOrder)
+      given { status == "shipped" }
+      emits "DeliveryConfirmed"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "ProofOnSubmit" do
+    on "PrintJobSubmitted"
+    trigger "SendProof"
+  end
+
+  policy "ReviseProofOnFeedback" do
+    on "RevisionRequested"
+    trigger "SendProof"
+  end
+
+  policy "ApproveJobOnProof" do
+    on "ProofApproved"
+    trigger "ApprovePrintJob"
+  end
+
+  policy "SchedulePressOnApproval" do
+    on "PrintJobApproved"
+    trigger "SchedulePress"
+  end
+
+  policy "ConsumeStockOnRun" do
+    on "PressRunStarted"
+    trigger "ConsumeSubstrate"
+  end
+
+  policy "DeliverOnComplete" do
+    on "PrintJobCompleted"
+    trigger "ScheduleDelivery"
+  end
+
+  policy "ReorderOnLowStock" do
+    on "SubstrateConsumed"
+    trigger "ReorderSubstrate"
+  end
+end

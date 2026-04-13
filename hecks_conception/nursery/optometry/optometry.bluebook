@@ -1,0 +1,247 @@
+Hecks.bluebook "Optometry" do
+  vision "Eye care practice — patients, comprehensive exams, prescriptions, lens orders, and follow-up appointments"
+
+  aggregate "Patient", "A person receiving optometric eye care services" do
+    String :name
+    String :date_of_birth
+    String :insurance_id
+    String :medical_history
+    String :status
+
+    RegisterPatient do
+      role "Receptionist"
+      description "Add a new patient to the optometry practice"
+      String :name
+      String :date_of_birth
+      String :insurance_id
+      String :medical_history
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :insurance_id, to: :insurance_id
+      then_set :medical_history, to: :medical_history
+      then_set :status, to: "active"
+    end
+
+    UpdateMedicalHistory do
+      role "Optometrist"
+      description "Record changes to the patient's medical history"
+      reference_to(Patient)
+      String :medical_history
+      emits "MedicalHistoryUpdated"
+      then_set :medical_history, to: :medical_history
+    end
+  end
+
+  aggregate "EyeExam", "A comprehensive eye examination with visual acuity and ocular health findings" do
+    String :patient_name
+    String :exam_date
+    String :visual_acuity_right
+    String :visual_acuity_left
+    Float :intraocular_pressure_right
+    Float :intraocular_pressure_left
+    list_of(Finding) :findings
+    String :status
+    reference_to Patient
+
+    value_object "Finding" do
+      String :eye
+      String :condition
+      String :severity
+      String :notes
+    end
+
+    ConductExam do
+      role "Optometrist"
+      description "Perform a comprehensive eye exam with all measurements"
+      reference_to(Patient)
+      String :patient_name
+      String :exam_date
+      String :visual_acuity_right
+      String :visual_acuity_left
+      Float :intraocular_pressure_right
+      Float :intraocular_pressure_left
+      emits "ExamConducted"
+      then_set :patient_name, to: :patient_name
+      then_set :exam_date, to: :exam_date
+      then_set :visual_acuity_right, to: :visual_acuity_right
+      then_set :visual_acuity_left, to: :visual_acuity_left
+      then_set :intraocular_pressure_right, to: :intraocular_pressure_right
+      then_set :intraocular_pressure_left, to: :intraocular_pressure_left
+      then_set :status, to: "completed"
+    end
+
+    DocumentFinding do
+      role "Optometrist"
+      description "Record a clinical finding from the eye exam"
+      reference_to(EyeExam)
+      String :eye
+      String :condition
+      String :severity
+      String :notes
+      emits "FindingDocumented"
+    end
+  end
+
+  aggregate "LensPrescription", "An optical prescription for corrective lenses" do
+    String :patient_name
+    Float :sphere_right
+    Float :sphere_left
+    Float :cylinder_right
+    Float :cylinder_left
+    Integer :axis_right
+    Integer :axis_left
+    Float :add_power
+    String :prescription_date
+    String :expiration_date
+    reference_to Patient
+    reference_to EyeExam
+
+    WritePrescription do
+      role "Optometrist"
+      description "Issue a corrective lens prescription based on exam results"
+      reference_to(Patient)
+      reference_to(EyeExam)
+      String :patient_name
+      Float :sphere_right
+      Float :sphere_left
+      Float :cylinder_right
+      Float :cylinder_left
+      Integer :axis_right
+      Integer :axis_left
+      Float :add_power
+      String :prescription_date
+      String :expiration_date
+      emits "PrescriptionWritten"
+      then_set :patient_name, to: :patient_name
+      then_set :sphere_right, to: :sphere_right
+      then_set :sphere_left, to: :sphere_left
+      then_set :prescription_date, to: :prescription_date
+      then_set :expiration_date, to: :expiration_date
+    end
+
+    RenewPrescription do
+      role "Optometrist"
+      description "Extend an existing prescription after follow-up verification"
+      reference_to(LensPrescription)
+      String :expiration_date
+      emits "PrescriptionRenewed"
+      then_set :expiration_date, to: :expiration_date
+    end
+  end
+
+  aggregate "LensOrder", "An order for corrective lenses — glasses or contacts" do
+    String :patient_name
+    String :lens_type
+    String :frame_style
+    String :coating
+    String :order_date
+    String :status
+    reference_to Patient
+    reference_to LensPrescription
+
+    value_object "LensSpec" do
+      String :material
+      String :index
+      String :tint
+    end
+
+    PlaceLensOrder do
+      role "Optician"
+      description "Submit an order for corrective lenses based on the prescription"
+      reference_to(Patient)
+      reference_to(LensPrescription)
+      String :patient_name
+      String :lens_type
+      String :frame_style
+      String :coating
+      String :order_date
+      emits "LensOrderPlaced"
+      then_set :patient_name, to: :patient_name
+      then_set :lens_type, to: :lens_type
+      then_set :frame_style, to: :frame_style
+      then_set :coating, to: :coating
+      then_set :order_date, to: :order_date
+      then_set :status, to: "ordered"
+    end
+
+    DispenseLenses do
+      role "Optician"
+      description "Hand the completed lenses to the patient with fitting adjustments"
+      reference_to(LensOrder)
+      given("order must be ready") { status == "ordered" }
+      emits "LensesDispensed"
+      then_set :status, to: "dispensed"
+    end
+  end
+
+  aggregate "FollowUp", "A scheduled follow-up appointment after treatment or exam" do
+    String :patient_name
+    String :reason
+    String :scheduled_date
+    String :status
+    String :outcome_notes
+    reference_to Patient
+
+    ScheduleFollowUp do
+      role "Receptionist"
+      description "Book a follow-up appointment for a patient"
+      reference_to(Patient)
+      String :patient_name
+      String :reason
+      String :scheduled_date
+      emits "FollowUpScheduled"
+      then_set :patient_name, to: :patient_name
+      then_set :reason, to: :reason
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteFollowUp do
+      role "Optometrist"
+      description "Document the outcome of the follow-up visit"
+      reference_to(FollowUp)
+      String :outcome_notes
+      given("must be scheduled") { status == "scheduled" }
+      emits "FollowUpCompleted"
+      then_set :outcome_notes, to: :outcome_notes
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Workflow: Register → ConductExam → DocumentFinding → WritePrescription → PlaceLensOrder → DispenseLenses → ScheduleFollowUp → CompleteFollowUp → RenewPrescription
+  policy "ConductExamOnRegistration" do
+    on "PatientRegistered"
+    trigger "ConductExam"
+  end
+
+  policy "WritePrescriptionOnExam" do
+    on "ExamConducted"
+    trigger "WritePrescription"
+  end
+
+  policy "PlaceOrderOnPrescription" do
+    on "PrescriptionWritten"
+    trigger "PlaceLensOrder"
+  end
+
+  policy "DispenseOnOrder" do
+    on "LensOrderPlaced"
+    trigger "DispenseLenses"
+  end
+
+  policy "ScheduleFollowUpOnDispense" do
+    on "LensesDispensed"
+    trigger "ScheduleFollowUp"
+  end
+
+  policy "ScheduleFollowUpOnFinding" do
+    on "FindingDocumented"
+    trigger "ScheduleFollowUp"
+  end
+
+  policy "RenewOnFollowUp" do
+    on "FollowUpCompleted"
+    trigger "RenewPrescription"
+  end
+end

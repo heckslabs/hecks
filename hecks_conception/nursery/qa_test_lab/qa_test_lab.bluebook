@@ -1,0 +1,262 @@
+Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
+  vision "Running a QA lab — organizing projects, executing test suites, tracking bugs, managing environments, and gating releases"
+  category "technology"
+
+  aggregate "TestProject", "A software product under quality assurance" do
+    String :project_name
+    String :repository_url
+    String :team_lead
+    String :priority
+    String :status
+    list_of(Milestone) :milestones
+
+    value_object "Milestone" do
+      String :name
+      String :target_date
+      String :status
+    end
+
+    CreateTestProject do
+      role "QAManager"
+      description "Register a new software project for testing"
+      String :project_name
+      String :repository_url
+      String :team_lead
+      String :priority
+      emits "TestProjectCreated"
+    end
+
+    AssignTeamLead do
+      description "Change the team lead responsible for a project"
+      reference_to(TestProject)
+      String :team_lead
+      emits "TeamLeadAssigned"
+    end
+
+    CloseProject do
+      description "Archive a completed project"
+      reference_to(TestProject)
+      given("project milestones complete") { status == "active" }
+      emits "ProjectClosed"
+    end
+  end
+
+  aggregate "TestSuite", "A collection of test cases targeting a feature area" do
+    String :suite_name
+    String :test_type
+    Integer :case_count
+    String :last_run_result
+    String :status
+    reference_to TestProject
+    list_of(TestCase) :cases
+
+    value_object "TestCase" do
+      String :case_name
+      String :expected_result
+      String :priority
+    end
+
+    DefineTestSuite do
+      role "QAEngineer"
+      description "Create a test suite grouping related test cases"
+      String :suite_name
+      String :test_type
+      reference_to(TestProject)
+      emits "TestSuiteDefined"
+    end
+
+    ExecuteTestSuite do
+      description "Run all test cases in a suite against a build"
+      reference_to(TestSuite)
+      String :build_id
+      emits "TestSuiteExecuted"
+    end
+
+    RetireTestSuite do
+      description "Deactivate an obsolete test suite"
+      reference_to(TestSuite)
+      given("suite is inactive") { status == "active" }
+      emits "TestSuiteRetired"
+    end
+  end
+
+  aggregate "Bug", "A defect found during testing" do
+    String :bug_id
+    String :title
+    String :description
+    String :severity
+    String :assigned_to
+    String :status
+    reference_to TestSuite
+    list_of(Reproduction) :reproductions
+
+    value_object "Reproduction" do
+      String :step
+      String :expected
+      String :actual
+    end
+
+    FileBug do
+      role "QAEngineer"
+      description "Report a defect discovered during test execution"
+      String :bug_id
+      String :title
+      String :description
+      String :severity
+      reference_to(TestSuite)
+      emits "BugFiled"
+    end
+
+    AssignBug do
+      description "Route a bug to a developer for fixing"
+      reference_to(Bug)
+      String :assigned_to
+      emits "BugAssigned"
+    end
+
+    CloseBug do
+      description "Verify a fix and close the bug"
+      reference_to(Bug)
+      given("bug is in progress") { status == "in_progress" }
+      emits "BugClosed"
+    end
+  end
+
+  aggregate "TestEnvironment", "An isolated runtime for executing tests" do
+    String :env_name
+    String :platform
+    String :browser_version
+    String :os_version
+    String :status
+    list_of(ConfigParam) :config
+
+    value_object "ConfigParam" do
+      String :key
+      String :value
+      String :scope
+    end
+
+    SetupEnvironment do
+      role "DevOpsEngineer"
+      description "Spin up a test environment with specified configuration"
+      String :env_name
+      String :platform
+      String :browser_version
+      String :os_version
+      emits "EnvironmentSetUp"
+    end
+
+    TeardownEnvironment do
+      description "Destroy a test environment after use"
+      reference_to(TestEnvironment)
+      given("environment is idle") { status == "idle" }
+      emits "EnvironmentTornDown"
+    end
+
+    LockEnvironment do
+      description "Reserve an environment for exclusive use during a test run"
+      reference_to(TestEnvironment)
+      emits "EnvironmentLocked"
+    end
+  end
+
+  aggregate "Release", "A software version candidate gated by QA sign-off" do
+    String :release_version
+    String :branch_name
+    String :build_id
+    Integer :bugs_open
+    String :status
+    reference_to TestProject
+
+    specification "ReleaseClear" do
+      satisfied_by { bugs_open == 0 }
+    end
+
+    value_object "SignOff" do
+      String :approver
+      String :approved_at
+      String :scope
+    end
+
+    CandidateRelease do
+      role "ReleaseManager"
+      description "Propose a build as a release candidate"
+      String :release_version
+      String :branch_name
+      String :build_id
+      reference_to(TestProject)
+      emits "ReleaseCandidated"
+    end
+
+    ApproveRelease do
+      description "Sign off on a release after all tests pass"
+      reference_to(Release)
+      given("no open bugs") { bugs_open == 0 }
+      emits "ReleaseApproved"
+    end
+
+    BlockRelease do
+      description "Hold a release due to critical bugs"
+      reference_to(Release)
+      String :block_reason
+      emits "ReleaseBlocked"
+    end
+  end
+
+  lifecycle "QAGating" do
+    state "project_created"
+    state "suite_defined"
+    state "environment_ready"
+    state "executing"
+    state "bugs_triaged"
+    state "release_candidate"
+    state "approved"
+
+    transition from: "project_created", to: "suite_defined", on: "TestSuiteDefined"
+    transition from: "suite_defined", to: "environment_ready", on: "EnvironmentSetUp"
+    transition from: "environment_ready", to: "executing", on: "TestSuiteExecuted"
+    transition from: "executing", to: "bugs_triaged", on: "BugFiled"
+    transition from: "bugs_triaged", to: "release_candidate", on: "BugClosed"
+    transition from: "release_candidate", to: "approved", on: "ReleaseApproved"
+  end
+
+  policy "TestSuiteDefinedSetupEnv" do
+    on "TestSuiteDefined"
+    trigger "SetupEnvironment"
+  end
+
+  policy "EnvironmentSetUpLockEnv" do
+    on "EnvironmentSetUp"
+    trigger "LockEnvironment"
+  end
+
+  policy "EnvironmentLockedExecuteSuite" do
+    on "EnvironmentLocked"
+    trigger "ExecuteTestSuite"
+  end
+
+  policy "TestSuiteExecutedFileBug" do
+    on "TestSuiteExecuted"
+    trigger "FileBug"
+  end
+
+  policy "BugFiledBlockRelease" do
+    on "BugFiled"
+    trigger "BlockRelease"
+  end
+
+  policy "BugClosedCandidateRelease" do
+    on "BugClosed"
+    trigger "CandidateRelease"
+  end
+
+  policy "AssignBugOnFile" do
+    on "BugFiled"
+    trigger "AssignBug"
+  end
+
+  policy "TeardownOnSuiteExecuted" do
+    on "TestSuiteExecuted"
+    trigger "TeardownEnvironment"
+  end
+end

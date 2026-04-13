@@ -1,0 +1,307 @@
+Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
+  vision "Air ambulance with real-time patient monitoring — vitals stream from altitude to ground hospital, bed assigned before landing"
+  category "crossover_gen2"
+
+  # === Patient ===
+
+  aggregate "Patient", "A patient requiring aeromedical transport — clinical state tracked from pickup to handoff" do
+    String :name
+    String :blood_type
+    String :injury_classification
+    String :triage_level
+    String :status
+    list_of(Allergy) :allergies
+    reference_to(Flight) :assigned_flight
+
+    value_object "Allergy" do
+      String :substance
+      String :severity
+      String :reaction_type
+    end
+
+    RegisterPatient do
+      role "Paramedic"
+      description "Register a patient for aeromedical evacuation with injury details"
+      String :name
+      String :blood_type
+      String :injury_classification
+      String :triage_level
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :blood_type, to: :blood_type
+      then_set :injury_classification, to: :injury_classification
+      then_set :triage_level, to: :triage_level
+      then_set :status, to: "registered"
+    end
+
+    AssignToFlight do
+      role "Dispatcher"
+      description "Assign patient to a specific medevac flight"
+      reference_to(Patient)
+      reference_to(Flight) :flight
+      given { status == "registered" }
+      emits "PatientAssignedToFlight"
+      then_set :assigned_flight, to: :flight
+      then_set :status, to: "in_transit"
+    end
+
+    EscalateCondition do
+      role "FlightMedic"
+      description "Upgrade triage level when patient condition worsens in-flight"
+      reference_to(Patient)
+      String :triage_level
+      emits "ConditionEscalated"
+      then_set :triage_level, to: :triage_level
+    end
+
+    TransferToGround do
+      role "Paramedic"
+      description "Transfer patient care to ground hospital team"
+      reference_to(Patient)
+      given { status == "in_transit" }
+      emits "PatientHandedOff"
+      then_set :status, to: "handed_off"
+    end
+
+    lifecycle :status, default: "registered" do
+      transition "RegisterPatient" => "registered", from: "pending"
+      transition "AssignToFlight" => "in_transit", from: "registered"
+      transition "TransferToGround" => "handed_off", from: "in_transit"
+    end
+  end
+
+  # === Flight ===
+
+  aggregate "Flight", "A medevac flight — route, crew, altitude, and diversion capability" do
+    String :callsign
+    String :origin
+    String :destination
+    Integer :altitude
+    String :status
+    String :crew_manifest
+    list_of(Waypoint) :route
+
+    value_object "Waypoint" do
+      Float :latitude
+      Float :longitude
+      Integer :altitude
+      String :waypoint_type
+    end
+
+    DispatchFlight do
+      role "Dispatcher"
+      description "Launch a medevac flight to a pickup location"
+      String :callsign
+      String :origin
+      String :destination
+      emits "FlightDispatched"
+      then_set :callsign, to: :callsign
+      then_set :origin, to: :origin
+      then_set :destination, to: :destination
+      then_set :status, to: "airborne"
+    end
+
+    DivertFlight do
+      role "System"
+      description "Reroute flight to nearest trauma center when vitals alarm"
+      reference_to(Flight)
+      String :destination
+      given { status == "airborne" }
+      emits "FlightDiverted"
+      then_set :destination, to: :destination
+    end
+
+    LandFlight do
+      role "Pilot"
+      description "Touch down at destination — triggers ground handoff"
+      reference_to(Flight)
+      given { status == "airborne" }
+      emits "FlightLanded"
+      then_set :status, to: "landed"
+    end
+
+    lifecycle :status, default: "preparing" do
+      transition "DispatchFlight" => "airborne", from: "preparing"
+      transition "LandFlight" => "landed", from: "airborne"
+    end
+  end
+
+  # === VitalStream ===
+
+  aggregate "VitalStream", "Real-time telemetry from airborne patient monitors — streams vitals to ground" do
+    reference_to(Patient) :patient
+    Integer :heart_rate
+    Integer :blood_pressure_systolic
+    Integer :blood_pressure_diastolic
+    Integer :spo2
+    Float :temperature
+    String :alarm_status
+    list_of(VitalReading) :readings
+
+    value_object "VitalReading" do
+      String :metric
+      Float :value
+      String :timestamp
+      String :within_range
+    end
+
+    StartMonitoring do
+      role "FlightMedic"
+      description "Begin streaming vitals from airborne patient monitors"
+      reference_to(Patient) :patient
+      emits "MonitoringStarted"
+      then_set :patient, to: :patient
+      then_set :alarm_status, to: "normal"
+    end
+
+    RecordVitals do
+      role "System"
+      description "Capture a snapshot of all vital signs at this moment"
+      reference_to(VitalStream)
+      Integer :heart_rate
+      Integer :spo2
+      emits "VitalsRecorded"
+      then_set :heart_rate, to: :heart_rate
+      then_set :spo2, to: :spo2
+    end
+
+    TriggerAlarm do
+      role "System"
+      description "Vitals outside safe range — escalate to flight medic and ground"
+      reference_to(VitalStream)
+      String :alarm_status
+      emits "VitalsAlarming"
+      then_set :alarm_status, to: :alarm_status
+    end
+  end
+
+  # === GroundReceiver ===
+
+  aggregate "GroundReceiver", "The ground hospital receiving station — prepares resources before patient arrives" do
+    String :hospital_name
+    String :trauma_level
+    Integer :available_beds
+    String :status
+    reference_to(Patient) :expected_patient
+
+    AssignTraumaBed do
+      role "System"
+      description "Reserve a trauma bed for incoming medevac patient"
+      reference_to(GroundReceiver)
+      reference_to(Patient) :expected_patient
+      given { available_beds > 0 }
+      emits "TraumaBedAssigned"
+      then_set :expected_patient, to: :expected_patient
+      then_set :status, to: "prepared"
+    end
+
+    RegisterHospital do
+      role "Administrator"
+      description "Register a ground hospital as a medevac receiving station"
+      String :hospital_name
+      String :trauma_level
+      Integer :available_beds
+      emits "HospitalRegistered"
+      then_set :hospital_name, to: :hospital_name
+      then_set :trauma_level, to: :trauma_level
+      then_set :available_beds, to: :available_beds
+      then_set :status, to: "ready"
+    end
+
+    ActivateTraumaTeam do
+      role "System"
+      description "Alert surgical and trauma teams that patient is inbound"
+      reference_to(GroundReceiver)
+      emits "TraumaTeamActivated"
+      then_set :status, to: "team_activated"
+    end
+  end
+
+  # === Handoff ===
+
+  aggregate "Handoff", "The moment of care transfer — flight medic to ground team, with full vitals history" do
+    reference_to(Patient) :patient
+    reference_to(Flight) :flight
+    reference_to(GroundReceiver) :receiver
+    String :status
+    String :handoff_notes
+    list_of(TransferItem) :transfer_checklist
+
+    value_object "TransferItem" do
+      String :item
+      String :verified
+      String :verified_by
+    end
+
+    InitiateHandoff do
+      role "FlightMedic"
+      description "Begin formal transfer of patient care at landing"
+      reference_to(Patient) :patient
+      reference_to(Flight) :flight
+      reference_to(GroundReceiver) :receiver
+      emits "HandoffInitiated"
+      then_set :patient, to: :patient
+      then_set :flight, to: :flight
+      then_set :receiver, to: :receiver
+      then_set :status, to: "in_progress"
+    end
+
+    VerifyTransfer do
+      role "GroundMedic"
+      description "Ground team confirms receipt of patient and vitals history"
+      reference_to(Handoff)
+      String :handoff_notes
+      given { status == "in_progress" }
+      emits "TransferVerified"
+      then_set :handoff_notes, to: :handoff_notes
+      then_set :status, to: "verified"
+    end
+
+    CompleteHandoff do
+      role "GroundMedic"
+      description "Formal handoff complete — patient now under ground hospital care"
+      reference_to(Handoff)
+      given { status == "verified" }
+      emits "HandoffCompleted"
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "InitiateHandoff" => "in_progress", from: "pending"
+      transition "VerifyTransfer" => "verified", from: "in_progress"
+      transition "CompleteHandoff" => "complete", from: "verified"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "DivertOnVitalsAlarm" do
+    on "VitalsAlarming"
+    trigger "DivertFlight"
+  end
+
+  policy "AssignBedOnLanding" do
+    on "FlightLanded"
+    trigger "AssignTraumaBed"
+  end
+
+  policy "ActivateTeamOnBedAssigned" do
+    on "TraumaBedAssigned"
+    trigger "ActivateTraumaTeam"
+  end
+
+  policy "EscalateOnAlarm" do
+    on "VitalsAlarming"
+    trigger "EscalateCondition"
+  end
+
+  policy "InitiateHandoffOnLanding" do
+    on "FlightLanded"
+    trigger "InitiateHandoff"
+  end
+
+  policy "RecordVitalsOnMonitoring" do
+    on "MonitoringStarted"
+    trigger "RecordVitals"
+  end
+end

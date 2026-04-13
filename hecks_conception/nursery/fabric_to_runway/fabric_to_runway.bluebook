@@ -1,0 +1,196 @@
+Hecks.bluebook "FabricToRunway" do
+  vision "Cross-wire textile mill production with fashion design to deliver fabric-to-runway collections"
+  core
+
+  aggregate "Fabric" do
+    description "A textile fabric produced by the mill"
+    attribute :name
+    attribute :fiber_type
+    attribute :weight_gsm, Float
+    attribute :dye_lots, list_of(DyeLot)
+    attribute :status, default: "weaving"
+
+    value_object "DyeLot" do
+      attribute :color
+      attribute :batch_number
+      attribute :yards, Float
+      invariant "yards must be positive" do
+        yards > 0
+      end
+    end
+
+    command "WeaveFabric" do
+      role "MillOperator"
+      goal "Start weaving a new fabric bolt"
+      attribute :name
+      attribute :fiber_type
+      attribute :weight_gsm, Float
+    end
+
+    command "DyeFabric" do
+      role "DyeMaster"
+      goal "Apply color to fabric"
+      reference_to Fabric
+      attribute :color
+      attribute :batch_number
+      attribute :yards, Float
+      given("max 20 dye lots") { dye_lots.size < 20 }
+      then_set :dye_lots, append: { color: :color, batch_number: :batch_number, yards: :yards }
+    end
+
+    command "ApproveFabric" do
+      role "QualityManager"
+      goal "Release fabric for fashion use"
+      reference_to Fabric
+      given("must have at least one dye lot") { dye_lots.size > 0 }
+    end
+  end
+
+  aggregate "Collection" do
+    description "A fashion collection with garments for a season"
+    attribute :name
+    attribute :season
+    attribute :garments, list_of(Garment)
+    attribute :status, default: "concept"
+
+    value_object "Garment" do
+      attribute :garment_name
+      attribute :garment_type
+      attribute :fabric_requirement
+    end
+
+    command "CreateCollection" do
+      role "FashionDirector"
+      goal "Start a new seasonal collection"
+      attribute :name
+      attribute :season
+    end
+
+    command "AddGarment" do
+      role "Designer"
+      goal "Add a garment to the collection"
+      reference_to Collection
+      attribute :garment_name
+      attribute :garment_type
+      attribute :fabric_requirement
+      given("max 30 garments") { garments.size < 30 }
+      then_set :garments, append: { garment_name: :garment_name, garment_type: :garment_type, fabric_requirement: :fabric_requirement }
+    end
+  end
+
+  aggregate "Pattern" do
+    description "A sewing pattern linking fabric to garment"
+    reference_to Fabric
+    reference_to Collection
+    attribute :garment_name
+    attribute :size_range
+    attribute :pieces, list_of(PatternPiece)
+    attribute :status, default: "drafting"
+
+    value_object "PatternPiece" do
+      attribute :piece_name
+      attribute :fabric_yards, Float
+      invariant "fabric yards must be positive" do
+        fabric_yards > 0
+      end
+    end
+
+    command "DraftPattern" do
+      role "Patternmaker"
+      goal "Create a pattern for a garment"
+      reference_to Fabric
+      attribute :garment_name
+      attribute :size_range
+    end
+
+    command "AddPatternPiece" do
+      role "Patternmaker"
+      goal "Add a pattern piece"
+      reference_to Pattern
+      attribute :piece_name
+      attribute :fabric_yards, Float
+      given("max 20 pieces") { pieces.size < 20 }
+      then_set :pieces, append: { piece_name: :piece_name, fabric_yards: :fabric_yards }
+    end
+
+    command "FinalizePattern" do
+      role "HeadDesigner"
+      goal "Approve pattern for production"
+      reference_to Pattern
+    end
+  end
+
+  aggregate "RunwayShow" do
+    description "A runway event showcasing the collection"
+    reference_to Collection
+    attribute :venue
+    attribute :show_date
+    attribute :looks, list_of(Look)
+    attribute :status, default: "planning"
+
+    value_object "Look" do
+      attribute :look_number, Integer
+      attribute :garment_name
+      attribute :model_name
+      invariant "look number must be positive" do
+        look_number > 0
+      end
+    end
+
+    command "PlanShow" do
+      role "ShowDirector"
+      goal "Plan a runway show"
+      reference_to Collection
+      attribute :venue
+      attribute :show_date
+    end
+
+    command "AddLook" do
+      role "Stylist"
+      goal "Add a look to the runway lineup"
+      reference_to RunwayShow
+      attribute :look_number, Integer
+      attribute :garment_name
+      attribute :model_name
+      given("max 40 looks") { looks.size < 40 }
+      then_set :looks, append: { look_number: :look_number, garment_name: :garment_name, model_name: :model_name }
+    end
+
+    command "ExecuteShow" do
+      role "ShowDirector"
+      goal "Run the show"
+      reference_to RunwayShow
+      given("must have at least 5 looks") { looks.size >= 5 }
+    end
+  end
+
+  policy "FabricApprovedTriggersPattern" do
+    on "FabricApproved"
+    trigger "DraftPattern"
+    map fabric_id: :fabric_id
+  end
+
+  policy "GarmentAddedTriggersWeave" do
+    on "GarmentAdded"
+    trigger "WeaveFabric"
+    map fiber_type: :fabric_requirement, name: :garment_name
+  end
+
+  policy "PatternFinalizedTriggersLook" do
+    on "PatternFinalized"
+    trigger "AddLook"
+    map garment_name: :garment_name
+  end
+
+  policy "CollectionCreatedTriggersShow" do
+    on "CollectionCreated"
+    trigger "PlanShow"
+    map collection_id: :collection_id, venue: :default_venue
+  end
+
+  policy "ShowExecutedTriggersDye" do
+    on "ShowExecuted"
+    trigger "DyeFabric"
+    map fabric_id: :hero_fabric_id, color: :trending_color
+  end
+end

@@ -1,0 +1,273 @@
+Hecks.bluebook "CommunityGarden" do
+  vision "Shared urban agriculture — garden plots, gardeners, tool lending, harvest tracking, and community events"
+
+  aggregate "Plot", "A designated growing space within the community garden" do
+    String :plot_number
+    String :size
+    String :soil_type
+    String :sun_exposure
+    String :assigned_gardener
+    String :status
+
+    CreatePlot do
+      role "GardenManager"
+      description "Establish a new garden plot for assignment"
+      String :plot_number
+      String :size
+      String :soil_type
+      String :sun_exposure
+      emits "PlotCreated"
+      then_set :plot_number, to: :plot_number
+      then_set :size, to: :size
+      then_set :soil_type, to: :soil_type
+      then_set :sun_exposure, to: :sun_exposure
+      then_set :status, to: "available"
+    end
+
+    AssignPlot do
+      role "GardenManager"
+      description "Assign a gardener to a specific plot for the season"
+      reference_to(Plot)
+      String :assigned_gardener
+      given("must be available") { status == "available" }
+      emits "PlotAssigned"
+      then_set :assigned_gardener, to: :assigned_gardener
+      then_set :status, to: "assigned"
+    end
+
+    ReleasePlot do
+      role "GardenManager"
+      description "Return a plot to the available pool at season end"
+      reference_to(Plot)
+      emits "PlotReleased"
+      then_set :assigned_gardener, to: ""
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Gardener", "A community member participating in the garden" do
+    String :name
+    String :email
+    String :phone
+    String :experience_level
+    String :membership_date
+    String :status
+
+    RegisterGardener do
+      role "GardenManager"
+      description "Sign up a new community gardener"
+      String :name
+      String :email
+      String :phone
+      String :experience_level
+      String :membership_date
+      emits "GardenerRegistered"
+      then_set :name, to: :name
+      then_set :email, to: :email
+      then_set :phone, to: :phone
+      then_set :experience_level, to: :experience_level
+      then_set :membership_date, to: :membership_date
+      then_set :status, to: "active"
+    end
+
+    RenewMembership do
+      role "GardenManager"
+      description "Extend the gardener's membership for another season"
+      reference_to(Gardener)
+      String :membership_date
+      emits "MembershipRenewed"
+      then_set :membership_date, to: :membership_date
+    end
+
+    SuspendGardener do
+      role "GardenManager"
+      description "Temporarily suspend a gardener for rule violations"
+      reference_to(Gardener)
+      given("must be active") { status == "active" }
+      emits "GardenerSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "ToolInventory", "Shared tools and equipment available for garden use" do
+    String :tool_name
+    String :condition
+    Integer :quantity
+    String :storage_location
+    String :status
+    list_of(LendingRecord) :lending_history
+
+    value_object "LendingRecord" do
+      String :borrower_name
+      String :checkout_date
+      String :return_date
+      String :condition_on_return
+    end
+
+    AddTool do
+      role "GardenManager"
+      description "Add a tool or piece of equipment to the shared inventory"
+      String :tool_name
+      String :condition
+      Integer :quantity
+      String :storage_location
+      emits "ToolAdded"
+      then_set :tool_name, to: :tool_name
+      then_set :condition, to: :condition
+      then_set :quantity, to: :quantity
+      then_set :storage_location, to: :storage_location
+      then_set :status, to: "available"
+    end
+
+    CheckoutTool do
+      role "Gardener"
+      description "Borrow a tool from the shared inventory"
+      reference_to(ToolInventory)
+      String :borrower_name
+      given("must be available") { status == "available" }
+      emits "ToolCheckedOut"
+    end
+
+    ReturnTool do
+      role "Gardener"
+      description "Return a borrowed tool to the inventory"
+      reference_to(ToolInventory)
+      String :condition_on_return
+      emits "ToolReturned"
+      then_set :condition, to: :condition_on_return
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Harvest", "A record of produce harvested from a garden plot" do
+    String :gardener_name
+    String :plot_number
+    String :crop_name
+    Float :weight_pounds
+    String :harvest_date
+    String :destination
+    reference_to Plot
+    reference_to Gardener
+
+    value_object "CropDetail" do
+      String :variety
+      String :planting_date
+      String :days_to_harvest
+    end
+
+    LogHarvest do
+      role "Gardener"
+      description "Record produce harvested from the garden plot"
+      reference_to(Plot)
+      reference_to(Gardener)
+      String :gardener_name
+      String :plot_number
+      String :crop_name
+      Float :weight_pounds
+      String :harvest_date
+      String :destination
+      emits "HarvestLogged"
+      then_set :gardener_name, to: :gardener_name
+      then_set :plot_number, to: :plot_number
+      then_set :crop_name, to: :crop_name
+      then_set :weight_pounds, to: :weight_pounds
+      then_set :harvest_date, to: :harvest_date
+      then_set :destination, to: :destination
+    end
+
+    DonateHarvest do
+      role "Gardener"
+      description "Designate harvested produce for community donation"
+      reference_to(Harvest)
+      emits "HarvestDonated"
+      then_set :destination, to: "food_bank"
+    end
+  end
+
+  aggregate "GardenEvent", "A community event held at the garden" do
+    String :event_name
+    String :event_date
+    String :event_type
+    String :organizer
+    Integer :expected_attendees
+    String :status
+    list_of(EventTask) :tasks
+
+    value_object "EventTask" do
+      String :task_name
+      String :assigned_to
+      String :completed
+    end
+
+    PlanEvent do
+      role "GardenManager"
+      description "Organize a community garden event"
+      String :event_name
+      String :event_date
+      String :event_type
+      String :organizer
+      Integer :expected_attendees
+      emits "EventPlanned"
+      then_set :event_name, to: :event_name
+      then_set :event_date, to: :event_date
+      then_set :event_type, to: :event_type
+      then_set :organizer, to: :organizer
+      then_set :expected_attendees, to: :expected_attendees
+      then_set :status, to: "planned"
+    end
+
+    HoldEvent do
+      role "GardenManager"
+      description "Execute the event and record participation"
+      reference_to(GardenEvent)
+      given("must be planned") { status == "planned" }
+      emits "EventHeld"
+      then_set :status, to: "completed"
+    end
+
+    CancelEvent do
+      role "GardenManager"
+      description "Cancel a planned garden event"
+      reference_to(GardenEvent)
+      given("must be planned") { status == "planned" }
+      emits "EventCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  # Workflow: Register → AssignPlot → CheckoutTool → LogHarvest → DonateHarvest → ReturnTool → PlanEvent → HoldEvent → ReleasePlot → RenewMembership
+  policy "AssignPlotOnRegister" do
+    on "GardenerRegistered"
+    trigger "AssignPlot"
+  end
+
+  policy "CheckoutToolOnAssignment" do
+    on "PlotAssigned"
+    trigger "CheckoutTool"
+  end
+
+  policy "DonateOnHarvest" do
+    on "HarvestLogged"
+    trigger "DonateHarvest"
+  end
+
+  policy "PlanEventOnHarvest" do
+    on "HarvestDonated"
+    trigger "PlanEvent"
+  end
+
+  policy "RenewOnEventHeld" do
+    on "EventHeld"
+    trigger "RenewMembership"
+  end
+
+  policy "ReleasePlotOnSuspension" do
+    on "GardenerSuspended"
+    trigger "ReleasePlot"
+  end
+
+  policy "ReturnToolOnHarvest" do
+    on "HarvestLogged"
+    trigger "ReturnTool"
+  end
+end

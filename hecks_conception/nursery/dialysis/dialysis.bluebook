@@ -1,0 +1,292 @@
+Hecks.bluebook "Dialysis" do
+  vision "Renal replacement therapy — patients, treatment sessions, dialysis machines, supply tracking, and lab monitoring"
+
+  aggregate "Patient", "A person with kidney failure receiving dialysis treatments" do
+    String :name
+    String :date_of_birth
+    String :blood_type
+    String :access_type
+    String :nephrologist
+    String :status
+
+    EnrollPatient do
+      role "Coordinator"
+      description "Register a patient in the dialysis program"
+      String :name
+      String :date_of_birth
+      String :blood_type
+      String :access_type
+      String :nephrologist
+      emits "PatientEnrolled"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :blood_type, to: :blood_type
+      then_set :access_type, to: :access_type
+      then_set :nephrologist, to: :nephrologist
+      then_set :status, to: "enrolled"
+    end
+
+    ActivatePatient do
+      role "Nephrologist"
+      description "Clear patient for regular dialysis sessions after labs"
+      reference_to(Patient)
+      given("must be enrolled") { status == "enrolled" }
+      emits "PatientActivated"
+      then_set :status, to: "active"
+    end
+
+    UpdateAccessType do
+      role "Nephrologist"
+      description "Change the vascular access method for the patient"
+      reference_to(Patient)
+      String :access_type
+      emits "AccessTypeUpdated"
+      then_set :access_type, to: :access_type
+    end
+
+    TransferPatient do
+      role "Coordinator"
+      description "Transfer the patient to another dialysis facility"
+      reference_to(Patient)
+      emits "PatientTransferred"
+      then_set :status, to: "transferred"
+    end
+  end
+
+  aggregate "DialysisSession", "A single dialysis treatment session" do
+    String :patient_name
+    String :session_date
+    Float :pre_weight
+    Float :post_weight
+    Float :fluid_removed
+    Integer :duration_minutes
+    String :nurse_name
+    String :status
+    list_of(VitalReading) :intra_vitals
+    reference_to Patient
+
+    value_object "VitalReading" do
+      String :timestamp
+      Integer :blood_pressure_systolic
+      Integer :blood_pressure_diastolic
+      Integer :heart_rate
+    end
+
+    StartSession do
+      role "Nurse"
+      description "Begin a dialysis treatment session for the patient"
+      reference_to(Patient)
+      String :patient_name
+      String :session_date
+      Float :pre_weight
+      String :nurse_name
+      emits "SessionStarted"
+      then_set :patient_name, to: :patient_name
+      then_set :session_date, to: :session_date
+      then_set :pre_weight, to: :pre_weight
+      then_set :nurse_name, to: :nurse_name
+      then_set :status, to: "in_progress"
+    end
+
+    RecordIntraVitals do
+      role "Nurse"
+      description "Log vital signs during the dialysis session"
+      reference_to(DialysisSession)
+      given("session must be in progress") { status == "in_progress" }
+      emits "IntraVitalsRecorded"
+    end
+
+    EndSession do
+      role "Nurse"
+      description "Complete the dialysis session and record post-treatment metrics"
+      reference_to(DialysisSession)
+      Float :post_weight
+      Float :fluid_removed
+      Integer :duration_minutes
+      given("session must be in progress") { status == "in_progress" }
+      emits "SessionEnded"
+      then_set :post_weight, to: :post_weight
+      then_set :fluid_removed, to: :fluid_removed
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "DialysisMachine", "A hemodialysis machine used for treatments" do
+    String :machine_id
+    String :model
+    String :location
+    String :last_disinfection_date
+    String :status
+
+    RegisterMachine do
+      role "BiomedTechnician"
+      description "Add a new dialysis machine to the clinic inventory"
+      String :machine_id
+      String :model
+      String :location
+      String :last_disinfection_date
+      emits "MachineRegistered"
+      then_set :machine_id, to: :machine_id
+      then_set :model, to: :model
+      then_set :location, to: :location
+      then_set :last_disinfection_date, to: :last_disinfection_date
+      then_set :status, to: "available"
+    end
+
+    DisinfectMachine do
+      role "Technician"
+      description "Perform post-treatment disinfection of the machine"
+      reference_to(DialysisMachine)
+      String :last_disinfection_date
+      emits "MachineDisinfected"
+      then_set :last_disinfection_date, to: :last_disinfection_date
+      then_set :status, to: "available"
+    end
+
+    FlagMalfunction do
+      role "Nurse"
+      description "Report a machine malfunction during treatment"
+      reference_to(DialysisMachine)
+      emits "MalfunctionFlagged"
+      then_set :status, to: "out_of_service"
+    end
+  end
+
+  aggregate "DialysisSupply", "Consumable supplies needed for dialysis treatments" do
+    String :supply_name
+    String :category
+    Integer :quantity_on_hand
+    Integer :reorder_level
+    String :supplier
+    String :status
+    list_of(UsageRecord) :usage_history
+
+    specification "BelowReorderLevel" do
+      satisfied_by { quantity_on_hand <= reorder_level }
+    end
+
+    value_object "UsageRecord" do
+      String :used_date
+      Integer :quantity_used
+      String :session_reference
+    end
+
+    StockSupply do
+      role "SupplyClerk"
+      description "Add inventory for a dialysis supply item"
+      String :supply_name
+      String :category
+      Integer :quantity_on_hand
+      Integer :reorder_level
+      String :supplier
+      emits "SupplyStocked"
+      then_set :supply_name, to: :supply_name
+      then_set :category, to: :category
+      then_set :quantity_on_hand, to: :quantity_on_hand
+      then_set :reorder_level, to: :reorder_level
+      then_set :supplier, to: :supplier
+      then_set :status, to: "in_stock"
+    end
+
+    ConsumeSupply do
+      role "Nurse"
+      description "Record supply usage during a dialysis session"
+      reference_to(DialysisSupply)
+      Integer :quantity_used
+      given("must be in stock") { status == "in_stock" }
+      emits "SupplyConsumed"
+    end
+
+    ReorderSupply do
+      role "System"
+      description "Trigger a reorder when inventory falls below threshold"
+      reference_to(DialysisSupply)
+      emits "SupplyReordered"
+      then_set :status, to: "reordering"
+    end
+  end
+
+  aggregate "LabResult", "A laboratory test result for monitoring dialysis adequacy" do
+    String :patient_name
+    String :test_name
+    String :result_value
+    String :reference_range
+    String :result_date
+    String :status
+    reference_to Patient
+
+    RecordLabResult do
+      role "LabTechnician"
+      description "Enter lab results for a dialysis patient"
+      reference_to(Patient)
+      String :patient_name
+      String :test_name
+      String :result_value
+      String :reference_range
+      String :result_date
+      emits "LabResultRecorded"
+      then_set :patient_name, to: :patient_name
+      then_set :test_name, to: :test_name
+      then_set :result_value, to: :result_value
+      then_set :reference_range, to: :reference_range
+      then_set :result_date, to: :result_date
+      then_set :status, to: "pending_review"
+    end
+
+    ReviewLabResult do
+      role "Nephrologist"
+      description "Review and acknowledge the lab result"
+      reference_to(LabResult)
+      given("must be pending") { status == "pending_review" }
+      emits "LabResultReviewed"
+      then_set :status, to: "reviewed"
+    end
+  end
+
+  # Workflow: Enroll → RecordLab → ReviewLab → Activate → StartSession → RecordVitals → EndSession → Disinfect → ConsumeSupply → Reorder
+  policy "RecordLabOnEnrollment" do
+    on "PatientEnrolled"
+    trigger "RecordLabResult"
+  end
+
+  policy "ReviewLabOnRecord" do
+    on "LabResultRecorded"
+    trigger "ReviewLabResult"
+  end
+
+  policy "ActivateOnLabReview" do
+    on "LabResultReviewed"
+    trigger "ActivatePatient"
+  end
+
+  policy "RecordVitalsOnStart" do
+    on "SessionStarted"
+    trigger "RecordIntraVitals"
+  end
+
+  policy "DisinfectAfterSession" do
+    on "SessionEnded"
+    trigger "DisinfectMachine"
+  end
+
+  policy "ConsumeSupplyOnSession" do
+    on "SessionStarted"
+    trigger "ConsumeSupply"
+  end
+
+  policy "ReorderOnConsumption" do
+    on "SupplyConsumed"
+    trigger "ReorderSupply"
+  end
+
+  policy "RecordLabOnSessionEnd" do
+    on "SessionEnded"
+    trigger "RecordLabResult"
+  end
+
+  policy "StartSessionOnActivation" do
+    on "PatientActivated"
+    trigger "StartSession"
+  end
+end

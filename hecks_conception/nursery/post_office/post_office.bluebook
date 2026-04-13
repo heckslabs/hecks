@@ -1,0 +1,265 @@
+Hecks.bluebook "PostOffice" do
+  vision "Process mail, manage routes, assign carriers, handle packages, and forward addresses"
+
+  aggregate "MailPiece", "A letter or flat moving through the postal system" do
+    String :tracking_id
+    String :mail_class
+    String :sender_address
+    String :recipient_address
+    String :status
+    reference_to(CarrierRoute)
+
+    value_object "Postmark" do
+      String :office_of_origin
+      String :date_stamped
+    end
+
+    AcceptMail do
+      description "Receive a mail piece at the counter or collection box"
+      String :mail_class
+      String :sender_address
+      String :recipient_address
+      emits "MailAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    CancelMail do
+      description "Apply postmark cancellation to the stamp"
+      reference_to(MailPiece)
+      given { status == "accepted" }
+      emits "MailCancelled"
+      then_set :status, to: "cancelled_stamp"
+    end
+
+    SortMail do
+      description "Route mail to the correct carrier route"
+      reference_to(MailPiece)
+      reference_to(CarrierRoute)
+      given { status == "cancelled_stamp" }
+      emits "MailSorted"
+      then_set :status, to: "sorted"
+    end
+
+    SequenceMail do
+      description "Order sorted mail by walk sequence for the carrier"
+      reference_to(MailPiece)
+      given { status == "sorted" }
+      emits "MailSequenced"
+      then_set :status, to: "sequenced"
+    end
+
+    DeliverMail do
+      description "Place mail in the recipient's mailbox"
+      reference_to(MailPiece)
+      given { status == "sequenced" }
+      emits "MailDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    ReturnUndeliverable do
+      description "Send undeliverable mail back to sender"
+      reference_to(MailPiece)
+      String :reason
+      given { status == "sequenced" }
+      emits "MailReturnedUndeliverable"
+      then_set :status, to: "returned"
+    end
+  end
+
+  aggregate "CarrierRoute", "A delivery route walked or driven by a mail carrier" do
+    String :route_code
+    String :zip_code
+    Integer :stop_count
+    String :route_type
+    String :status
+    reference_to(Carrier)
+
+    value_object "RouteMetrics" do
+      Float :distance_miles
+      Integer :avg_delivery_minutes
+    end
+
+    DefineRoute do
+      description "Create a new carrier delivery route"
+      String :route_code
+      String :zip_code
+      Integer :stop_count
+      String :route_type
+      emits "RouteDefined"
+      then_set :status, to: "active"
+    end
+
+    SuspendRoute do
+      description "Temporarily halt deliveries on a route due to weather"
+      reference_to(CarrierRoute)
+      String :reason
+      given { status == "active" }
+      emits "RouteSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    ResumeRoute do
+      description "Reactivate a suspended route"
+      reference_to(CarrierRoute)
+      given { status == "suspended" }
+      emits "RouteResumed"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "Carrier", "A postal worker assigned to deliver mail on a route" do
+    String :employee_id
+    String :name
+    String :carrier_type
+    String :status
+    Float :hours_worked
+
+    value_object "Uniform" do
+      String :size
+      String :issued_date
+    end
+
+    HireCarrier do
+      description "Onboard a new mail carrier"
+      String :employee_id
+      String :name
+      String :carrier_type
+      emits "CarrierHired"
+      then_set :status, to: "available"
+      then_set :hours_worked, to: 0.0
+    end
+
+    DispatchCarrier do
+      description "Send a carrier out on their delivery route"
+      reference_to(Carrier)
+      given { status == "available" }
+      emits "CarrierDispatched"
+      then_set :status, to: "delivering"
+    end
+
+    ReturnCarrier do
+      description "Clock a carrier back in after their route"
+      reference_to(Carrier)
+      given { status == "delivering" }
+      emits "CarrierReturned"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Package", "A parcel requiring tracking, scanning, and signature" do
+    String :package_id
+    Float :weight_lbs
+    String :service_level
+    String :status
+    String :destination
+    reference_to(Carrier)
+
+    value_object "InsuranceInfo" do
+      Float :declared_value
+      Float :premium_cents
+    end
+
+    AcceptPackage do
+      description "Receive a package at the postal counter"
+      Float :weight_lbs
+      String :service_level
+      String :destination
+      emits "PackageAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    ScanPackage do
+      description "Record a package scan at a processing facility"
+      reference_to(Package)
+      String :facility_code
+      emits "PackageScanned"
+      then_set :status, to: "in_transit"
+    end
+
+    OutForDelivery do
+      description "Load package onto carrier vehicle for final delivery"
+      reference_to(Package)
+      given { status == "in_transit" }
+      emits "PackageOutForDelivery"
+      then_set :status, to: "out_for_delivery"
+    end
+
+    DeliverPackage do
+      description "Complete package delivery with signature if required"
+      reference_to(Package)
+      given { status == "out_for_delivery" }
+      emits "PackageDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    HoldForPickup do
+      description "Hold an undeliverable package at the post office for customer pickup"
+      reference_to(Package)
+      given { status == "out_for_delivery" }
+      emits "PackageHeld"
+      then_set :status, to: "held"
+    end
+  end
+
+  aggregate "ForwardingOrder", "A request to redirect mail to a new address" do
+    String :order_id
+    String :old_address
+    String :new_address
+    String :start_date
+    String :end_date
+    String :status
+
+    value_object "Verification" do
+      String :verified_by
+      String :verification_date
+    end
+
+    CreateForwarding do
+      description "Set up mail forwarding from old to new address"
+      String :old_address
+      String :new_address
+      String :start_date
+      String :end_date
+      emits "ForwardingCreated"
+      then_set :status, to: "active"
+    end
+
+    CancelForwarding do
+      description "Stop forwarding mail before the end date"
+      reference_to(ForwardingOrder)
+      given { status == "active" }
+      emits "ForwardingCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  policy "CancelStampOnAccept" do
+    on "MailAccepted"
+    trigger "CancelMail"
+  end
+
+  policy "SortOnCancel" do
+    on "MailCancelled"
+    trigger "SortMail"
+  end
+
+  policy "SequenceOnSort" do
+    on "MailSorted"
+    trigger "SequenceMail"
+  end
+
+  policy "DispatchOnSequence" do
+    on "MailSequenced"
+    trigger "DispatchCarrier"
+  end
+
+  policy "ReturnOnDeliveryComplete" do
+    on "MailDelivered"
+    trigger "ReturnCarrier"
+  end
+
+  policy "OutForDeliveryOnScan" do
+    on "PackageScanned"
+    trigger "OutForDelivery"
+  end
+end

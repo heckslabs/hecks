@@ -1,0 +1,261 @@
+Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
+  vision "Automating software delivery — managing repos, building artifacts, deploying releases, rolling back failures, and tracking pipeline metrics"
+  category "technology"
+
+  aggregate "Repository", "A source code repository tracked by the pipeline" do
+    String :repo_name
+    String :clone_url
+    String :default_branch
+    String :language
+    String :status
+    list_of(Webhook) :webhooks
+
+    value_object "Webhook" do
+      String :event_type
+      String :callback_url
+      String :secret
+    end
+
+    RegisterRepository do
+      role "PlatformEngineer"
+      description "Connect a source code repository to the pipeline"
+      String :repo_name
+      String :clone_url
+      String :default_branch
+      String :language
+      emits "RepositoryRegistered"
+    end
+
+    UpdateBranch do
+      description "Change the default branch tracked for builds"
+      reference_to(Repository)
+      String :default_branch
+      emits "BranchUpdated"
+    end
+
+    DisconnectRepository do
+      description "Remove a repository from the pipeline"
+      reference_to(Repository)
+      given("no active builds") { status == "idle" }
+      emits "RepositoryDisconnected"
+    end
+  end
+
+  aggregate "Build", "A compilation and test run producing a deployable artifact" do
+    String :build_number
+    String :commit_sha
+    String :artifact_url
+    Integer :duration_seconds
+    String :status
+    reference_to Repository
+    list_of(BuildStep) :steps
+
+    value_object "BuildStep" do
+      String :step_name
+      String :outcome
+      Integer :duration_seconds
+    end
+
+    TriggerBuild do
+      role "CI System"
+      description "Start a new build from a commit"
+      String :build_number
+      String :commit_sha
+      reference_to(Repository)
+      emits "BuildTriggered"
+    end
+
+    CompleteBuild do
+      description "Mark a build as finished with an artifact URL"
+      reference_to(Build)
+      String :artifact_url
+      Integer :duration_seconds
+      emits "BuildCompleted"
+    end
+
+    FailBuild do
+      description "Record a build failure with error details"
+      reference_to(Build)
+      String :error_message
+      emits "BuildFailed"
+    end
+  end
+
+  aggregate "Deployment", "A release of a build artifact to a target environment" do
+    String :deploy_id
+    String :environment
+    String :strategy
+    String :deployed_by
+    String :status
+    reference_to Build
+    list_of(HealthCheck) :health_checks
+
+    value_object "HealthCheck" do
+      String :endpoint
+      Integer :response_code
+      String :checked_at
+    end
+
+    DeployArtifact do
+      role "ReleaseEngineer"
+      description "Push a build artifact to a target environment"
+      String :deploy_id
+      String :environment
+      String :strategy
+      String :deployed_by
+      reference_to(Build)
+      emits "ArtifactDeployed"
+    end
+
+    PromoteDeployment do
+      description "Advance a deployment from staging to production"
+      reference_to(Deployment)
+      given("deployment is healthy") { status == "healthy" }
+      emits "DeploymentPromoted"
+    end
+
+    AbortDeployment do
+      description "Stop an in-progress deployment due to issues"
+      reference_to(Deployment)
+      emits "DeploymentAborted"
+    end
+  end
+
+  aggregate "Rollback", "A reversion to a previous deployment after a failure" do
+    String :rollback_id
+    String :reason
+    String :target_version
+    String :initiated_by
+    String :status
+    reference_to Deployment
+
+    value_object "RollbackStep" do
+      String :action
+      String :outcome
+      String :completed_at
+    end
+
+    InitiateRollback do
+      role "OnCallEngineer"
+      description "Begin reverting to a prior known-good deployment"
+      String :rollback_id
+      String :reason
+      String :target_version
+      String :initiated_by
+      reference_to(Deployment)
+      emits "RollbackInitiated"
+    end
+
+    CompleteRollback do
+      description "Confirm the rollback restored service successfully"
+      reference_to(Rollback)
+      given("rollback is in progress") { status == "in_progress" }
+      emits "RollbackCompleted"
+    end
+
+    AbandonRollback do
+      description "Cancel a rollback that is no longer needed"
+      reference_to(Rollback)
+      emits "RollbackAbandoned"
+    end
+  end
+
+  aggregate "PipelineMetric", "A performance measurement for pipeline health" do
+    String :metric_name
+    Float :value
+    String :unit
+    String :period
+    String :status
+    reference_to Repository
+
+    value_object "Threshold" do
+      Float :warning_level
+      Float :critical_level
+      String :direction
+    end
+
+    RecordMetric do
+      role "MetricsCollector"
+      description "Log a pipeline performance metric for a period"
+      String :metric_name
+      Float :value
+      String :unit
+      String :period
+      reference_to(Repository)
+      emits "MetricRecorded"
+    end
+
+    SetThreshold do
+      description "Define warning and critical levels for a metric"
+      reference_to(PipelineMetric)
+      Float :warning_level
+      Float :critical_level
+      emits "ThresholdSet"
+    end
+
+    AlertOnBreach do
+      description "Fire an alert when a metric exceeds its threshold"
+      reference_to(PipelineMetric)
+      given("metric exceeds threshold") { value > 0 }
+      emits "ThresholdBreached"
+    end
+  end
+
+  lifecycle "ReleaseFlow" do
+    state "code_pushed"
+    state "building"
+    state "tested"
+    state "staged"
+    state "canary"
+    state "production"
+    state "rolled_back"
+
+    transition from: "code_pushed", to: "building", on: "BuildTriggered"
+    transition from: "building", to: "tested", on: "BuildCompleted"
+    transition from: "tested", to: "staged", on: "ArtifactDeployed"
+    transition from: "staged", to: "canary", on: "DeploymentPromoted"
+    transition from: "canary", to: "production", on: "DeploymentPromoted"
+    transition from: "production", to: "rolled_back", on: "RollbackCompleted"
+    transition from: "staged", to: "rolled_back", on: "DeploymentAborted"
+  end
+
+  policy "RepositoryRegisteredTriggerBuild" do
+    on "RepositoryRegistered"
+    trigger "TriggerBuild"
+  end
+
+  policy "BuildCompletedDeployToStaging" do
+    on "BuildCompleted"
+    trigger "DeployArtifact"
+  end
+
+  policy "ArtifactDeployedPromote" do
+    on "ArtifactDeployed"
+    trigger "PromoteDeployment"
+  end
+
+  policy "DeploymentPromotedRecordMetric" do
+    on "DeploymentPromoted"
+    trigger "RecordMetric"
+  end
+
+  policy "DeploymentAbortedRollback" do
+    on "DeploymentAborted"
+    trigger "InitiateRollback"
+  end
+
+  policy "ThresholdBreachedAlertOnBreach" do
+    on "MetricRecorded"
+    trigger "AlertOnBreach"
+  end
+
+  policy "BuildFailedTriggerRebuild" do
+    on "BuildFailed"
+    trigger "TriggerBuild"
+  end
+
+  policy "RollbackCompletedRecordMetric" do
+    on "RollbackCompleted"
+    trigger "RecordMetric"
+  end
+end

@@ -1,0 +1,242 @@
+Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
+  vision "Cartography meets courier delivery — maps, parcels, traffic patterns, and delivery windows"
+  category "crossover"
+
+  aggregate "MapRegion", "A mapped delivery region — boundaries, road network, elevation" do
+    String :name
+    Float :area_sq_km
+    Integer :road_count
+    Float :avg_elevation_m
+    String :status
+
+    value_object "BoundingBox" do
+      Float :north_lat
+      Float :south_lat
+      Float :east_lon
+      Float :west_lon
+    end
+
+    DefineRegion do
+      role "Cartographer"
+      description "Define a delivery region with boundaries and road network"
+      String :name
+      Float :area_sq_km
+      Integer :road_count
+      emits "RegionDefined"
+      then_set :name, to: :name
+      then_set :area_sq_km, to: :area_sq_km
+      then_set :road_count, to: :road_count
+      then_set :status, to: "defined"
+    end
+
+    UpdateRoadNetwork do
+      role "Cartographer"
+      description "Refresh road data for the region"
+      reference_to(MapRegion)
+      Integer :road_count
+      given { status == "defined" }
+      emits "RoadNetworkUpdated"
+      then_set :road_count, to: :road_count
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DefineRegion" => "defined", from: "undefined"
+    end
+  end
+
+  aggregate "Parcel", "A delivery parcel — dimensions, weight, priority, destination" do
+    String :tracking_id
+    Float :weight_kg
+    String :destination_address
+    String :priority
+    String :delivery_window
+    String :status
+
+    value_object "Dimensions" do
+      Float :length_cm
+      Float :width_cm
+      Float :height_cm
+    end
+
+    RegisterParcel do
+      role "Dispatcher"
+      description "Register a new parcel for delivery"
+      String :tracking_id
+      Float :weight_kg
+      String :destination_address
+      String :priority
+      String :delivery_window
+      emits "ParcelRegistered"
+      then_set :tracking_id, to: :tracking_id
+      then_set :weight_kg, to: :weight_kg
+      then_set :destination_address, to: :destination_address
+      then_set :priority, to: :priority
+      then_set :delivery_window, to: :delivery_window
+      then_set :status, to: "registered"
+    end
+
+    AssignToRoute do
+      role "System"
+      description "Assign parcel to an optimized delivery route"
+      reference_to(Parcel)
+      given { status == "registered" }
+      emits "ParcelAssignedToRoute"
+      then_set :status, to: "assigned"
+    end
+
+    DeliverParcel do
+      role "Courier"
+      description "Mark parcel as delivered at destination"
+      reference_to(Parcel)
+      given { status == "assigned" }
+      emits "ParcelDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterParcel" => "registered", from: "pending"
+      transition "AssignToRoute" => "assigned", from: "registered"
+      transition "DeliverParcel" => "delivered", from: "assigned"
+    end
+  end
+
+  aggregate "TrafficCondition", "Real-time traffic data — congestion, speed, incidents" do
+    String :road_segment
+    Float :avg_speed_kmh
+    Float :congestion_level
+    String :incident_type
+    String :timestamp
+    String :status
+
+    value_object "SpeedReading" do
+      Float :speed_kmh
+      String :timestamp
+      String :source
+    end
+
+    ReportTraffic do
+      role "System"
+      description "Ingest real-time traffic data for a road segment"
+      String :road_segment
+      Float :avg_speed_kmh
+      Float :congestion_level
+      String :timestamp
+      emits "TrafficReported"
+      then_set :road_segment, to: :road_segment
+      then_set :avg_speed_kmh, to: :avg_speed_kmh
+      then_set :congestion_level, to: :congestion_level
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "current"
+    end
+
+    DetectCongestion do
+      role "System"
+      description "Flag road segments with severe congestion"
+      reference_to(TrafficCondition)
+      given { status == "current" }
+      emits "CongestionDetected"
+      then_set :status, to: "congested"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "ReportTraffic" => "current", from: "unknown"
+      transition "DetectCongestion" => "congested", from: "current"
+    end
+  end
+
+  aggregate "DeliveryRoute", "An optimized delivery route — stops, sequence, time estimates" do
+    String :name
+    String :courier_name
+    Integer :stop_count
+    Float :total_distance_km
+    Float :estimated_hours
+    String :status
+
+    list_of "RouteStop" do
+      Integer :sequence
+      String :address
+      String :parcel_tracking_id
+      Float :eta_minutes
+    end
+
+    value_object "RouteMetrics" do
+      Float :fuel_cost
+      Float :time_efficiency
+      Integer :on_time_count
+    end
+
+    OptimizeRoute do
+      role "System"
+      description "Calculate optimal stop sequence minimizing distance and respecting windows"
+      String :name
+      String :courier_name
+      Integer :stop_count
+      Float :total_distance_km
+      Float :estimated_hours
+      emits "RouteOptimized"
+      then_set :name, to: :name
+      then_set :courier_name, to: :courier_name
+      then_set :stop_count, to: :stop_count
+      then_set :total_distance_km, to: :total_distance_km
+      then_set :estimated_hours, to: :estimated_hours
+      then_set :status, to: "optimized"
+    end
+
+    AdjustForTraffic do
+      role "System"
+      description "Resequence route stops based on real-time traffic conditions"
+      reference_to(DeliveryRoute)
+      given { status == "optimized" }
+      emits "RouteAdjustedForTraffic"
+    end
+
+    DispatchRoute do
+      role "Dispatcher"
+      description "Send optimized route to courier for execution"
+      reference_to(DeliveryRoute)
+      given { status == "optimized" }
+      emits "RouteDispatched"
+      then_set :status, to: "dispatched"
+    end
+
+    CompleteRoute do
+      role "Courier"
+      description "Mark route as completed — all parcels delivered"
+      reference_to(DeliveryRoute)
+      given { status == "dispatched" }
+      emits "RouteCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "OptimizeRoute" => "optimized", from: "pending"
+      transition "DispatchRoute" => "dispatched", from: "optimized"
+      transition "CompleteRoute" => "completed", from: "dispatched"
+    end
+  end
+
+  policy "AssignParcelOnRegister" do
+    on "ParcelRegistered"
+    trigger "AssignToRoute"
+  end
+
+  policy "AdjustOnTraffic" do
+    on "TrafficReported"
+    trigger "DetectCongestion"
+  end
+
+  policy "RerouteOnCongestion" do
+    on "CongestionDetected"
+    trigger "AdjustForTraffic"
+  end
+
+  policy "DispatchOnOptimize" do
+    on "RouteOptimized"
+    trigger "DispatchRoute"
+  end
+
+  policy "UpdateNetworkOnRegion" do
+    on "RegionDefined"
+    trigger "UpdateRoadNetwork"
+  end
+end

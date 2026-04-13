@@ -1,0 +1,195 @@
+Hecks.bluebook "InteriorDesign" do
+  aggregate "DesignProject", "An interior design engagement for a residential or commercial space" do
+    String :name
+    String :space_type
+    String :style_direction
+    String :status, default: "consultation"
+    Float :budget
+
+    ScopeProject do
+      description "Define the project scope after initial client consultation"
+      String :name
+      String :space_type
+      String :style_direction
+      Float :budget
+      emits "ProjectScoped"
+    end
+
+    PresentConcept do
+      description "Present the design concept boards to the client"
+      reference_to(DesignProject)
+      given { status == "consultation" }
+      emits "ConceptPresented"
+      then_set :status, to: "concept_review"
+    end
+
+    ApproveConcept do
+      description "Client signs off on the design concept"
+      reference_to(DesignProject)
+      given { status == "concept_review" }
+      emits "ConceptApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  aggregate "RoomDesign", "Design specifications for a single room or zone" do
+    String :room_name
+    String :function
+    Float :square_footage
+    String :color_palette
+    String :status, default: "planning"
+    reference_to(DesignProject)
+
+    value_object "MoodBoard" do
+      String :theme
+      String :primary_color
+      String :accent_color
+      String :texture_notes
+      String :inspiration_source
+    end
+
+    PlanRoom do
+      description "Create the room design plan with layout and palette"
+      reference_to(DesignProject)
+      String :room_name
+      String :function
+      Float :square_footage
+      String :color_palette
+      emits "RoomPlanned"
+    end
+
+    SpecifyFixtures do
+      description "Select lighting, hardware, and plumbing fixtures"
+      reference_to(RoomDesign)
+      String :fixture_list
+      given { status == "planning" }
+      emits "FixturesSpecified"
+      then_set :status, to: "specified"
+    end
+  end
+
+  aggregate "MaterialSelection", "A specified material with source, cost, and lead time" do
+    String :material_name
+    String :category
+    String :supplier
+    Float :unit_cost
+    Integer :lead_time_days
+    reference_to(RoomDesign)
+
+    SpecifyMaterial do
+      description "Select a material for a room element"
+      reference_to(RoomDesign)
+      String :material_name
+      String :category
+      String :supplier
+      Float :unit_cost
+      Integer :lead_time_days
+      emits "MaterialSpecified"
+    end
+
+    OrderMaterial do
+      description "Place a purchase order for the specified material"
+      reference_to(MaterialSelection)
+      Integer :quantity
+      emits "MaterialOrdered"
+    end
+  end
+
+  aggregate "Vendor", "A trade vendor or supplier for furnishings and materials" do
+    String :company_name
+    String :specialty
+    String :contact_name
+    String :phone
+    Integer :lead_time_days
+
+    value_object "TradeDiscount" do
+      Float :discount_percentage
+      String :discount_type
+      Float :minimum_order
+    end
+
+    RegisterVendor do
+      description "Add a new vendor to the trade directory"
+      String :company_name
+      String :specialty
+      String :contact_name
+      String :phone
+      emits "VendorRegistered"
+    end
+
+    NegotiateTerms do
+      description "Update trade discount terms with a vendor"
+      reference_to(Vendor)
+      Float :discount_percentage
+      emits "TermsNegotiated"
+    end
+  end
+
+  aggregate "Installation", "On-site installation of furnishings and finishes" do
+    String :date
+    String :crew_lead
+    String :status, default: "scheduled"
+    String :punch_list
+    reference_to(DesignProject)
+
+    ScheduleInstallation do
+      description "Book the installation crew for a project"
+      reference_to(DesignProject)
+      String :date
+      String :crew_lead
+      emits "InstallationScheduled"
+    end
+
+    CompleteInstallation do
+      description "Finish the installation and walk through with client"
+      reference_to(Installation)
+      given { status == "scheduled" }
+      emits "InstallationCompleted"
+      then_set :status, to: "completed"
+    end
+
+    ResolvePunchList do
+      description "Fix remaining punch list items after walkthrough"
+      reference_to(Installation)
+      String :punch_list
+      given { status == "completed" }
+      emits "PunchListResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  policy "PlanRoomsOnApproval" do
+    on "ConceptApproved"
+    trigger "PlanRoom"
+  end
+
+  policy "SpecifyFixturesOnPlan" do
+    on "RoomPlanned"
+    trigger "SpecifyFixtures"
+  end
+
+  policy "SpecifyMaterialOnFixtures" do
+    on "FixturesSpecified"
+    trigger "SpecifyMaterial"
+  end
+
+  policy "OrderMaterialsOnSpec" do
+    on "MaterialSpecified"
+    trigger "OrderMaterial"
+  end
+
+  policy "ScheduleInstallOnOrder" do
+    on "MaterialOrdered"
+    trigger "ScheduleInstallation"
+  end
+
+  policy "CompleteOnInstall" do
+    on "InstallationScheduled"
+    trigger "CompleteInstallation"
+  end
+
+  policy "ResolvePunchOnComplete" do
+    on "InstallationCompleted"
+    trigger "ResolvePunchList"
+  end
+end

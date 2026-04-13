@@ -1,0 +1,246 @@
+Hecks.bluebook "HazmatTransport" do
+  aggregate "HazmatShipment" do
+    String :shipment_id
+    String :shipper_name
+    String :consignee_name
+    String :un_number
+    String :proper_shipping_name
+    String :hazard_class
+    Float :weight_kg
+    String :status
+
+    value_object "EmergencyContact" do
+      String :contact_name
+      String :phone_number
+      String :erg_guide_number
+    end
+
+    BookHazmatShipment do
+      description "Accept hazardous materials shipment with UN classification details"
+      String :shipper_name
+      String :un_number
+      String :hazard_class
+      reference_to "HazmatShipment"
+      emits "HazmatShipmentBooked"
+    end
+
+    PackageMaterial do
+      description "Pack hazmat material into DOT-approved containers per packing group"
+      String :container_type
+      String :packing_group
+      reference_to "HazmatShipment"
+      emits "MaterialPackaged"
+    end
+
+    LoadShipment do
+      description "Load packaged hazmat onto transport vehicle per segregation rules"
+      String :vehicle_id
+      String :load_position
+      reference_to "HazmatShipment"
+      emits "ShipmentLoaded"
+    end
+
+    ConfirmDelivery do
+      description "Record safe delivery of hazardous materials to consignee"
+      String :receiver_name
+      String :delivery_condition
+      reference_to "HazmatShipment"
+      emits "DeliveryConfirmed"
+    end
+
+    lifecycle :status, default: "booked" do
+      transition "BookHazmatShipment" => "booked"
+      transition "PackageMaterial" => "packaged", from: "booked"
+      transition "LoadShipment" => "in_transit", from: "packaged"
+      transition "ConfirmDelivery" => "delivered", from: "in_transit"
+    end
+
+    policy "Incompatible hazard classes must not be loaded on same vehicle"
+    policy "Shipping papers must accompany shipment at all times"
+
+    given "A Class 3 flammable liquid shipment is booked" do
+      String :un_number, "UN1203"
+      String :proper_shipping_name, "Gasoline"
+      String :hazard_class, "3"
+    end
+  end
+
+  aggregate "HazmatMaterial" do
+    String :material_id
+    String :un_number
+    String :proper_shipping_name
+    String :hazard_class
+    String :packing_group
+    String :status
+
+    RegisterMaterial do
+      description "Register hazardous material profile with regulatory classification"
+      String :un_number
+      String :proper_shipping_name
+      String :packing_group
+      reference_to "HazmatMaterial"
+      emits "MaterialRegistered"
+    end
+
+    UpdateClassification do
+      description "Update material hazard classification per regulatory change"
+      String :new_hazard_class
+      String :effective_date
+      reference_to "HazmatMaterial"
+      emits "ClassificationUpdated"
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterMaterial" => "registered", from: "unregistered"
+      transition "UpdateClassification" => "updated", from: "registered"
+    end
+
+    policy "Materials must be classified per current DOT 49 CFR"
+  end
+
+  aggregate "DriverCertification" do
+    String :certification_id
+    String :driver_name
+    String :certification_type
+    String :expiry_date
+    String :issuing_authority
+    String :status
+
+    IssueCertification do
+      description "Issue hazmat training certification to qualified driver"
+      String :driver_name
+      String :certification_type
+      String :issuing_authority
+      reference_to "DriverCertification"
+      emits "CertificationIssued"
+    end
+
+    RenewCertification do
+      description "Renew expiring driver hazmat certification after retraining"
+      String :new_expiry_date
+      reference_to "DriverCertification"
+      emits "CertificationRenewed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "IssueCertification" => "active", from: "pending"
+      transition "RenewCertification" => "renewed", from: "active"
+    end
+
+    policy "Expired certifications prohibit driver from hauling hazmat"
+  end
+
+  aggregate "TransportRoute" do
+    String :route_id
+    String :origin
+    String :destination
+    Float :distance_miles
+    String :route_restrictions
+    String :status
+    list_of "HazmatShipment"
+
+    value_object "RouteRestriction" do
+      String :restriction_type
+      String :location
+      String :description_text
+    end
+
+    PlanHazmatRoute do
+      description "Plan transport route avoiding tunnels, bridges, and restricted zones"
+      String :origin
+      String :destination
+      reference_to "TransportRoute"
+      emits "RoutePlanned"
+    end
+
+    ApproveRoute do
+      description "Approve planned route after safety and compliance review"
+      String :approver
+      reference_to "TransportRoute"
+      emits "RouteApproved"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanHazmatRoute" => "planned", from: "draft"
+      transition "ApproveRoute" => "approved", from: "planned"
+    end
+
+    policy "Routes through population centers require special permit"
+  end
+
+  aggregate "HazmatIncident" do
+    String :incident_id
+    String :shipment_id
+    String :incident_type
+    String :location
+    String :severity
+    String :status
+
+    ReportSpill do
+      description "Report hazardous material spill or release during transport"
+      String :incident_type
+      String :location
+      Float :estimated_quantity_kg
+      reference_to "HazmatShipment"
+      emits "SpillReported"
+    end
+
+    ContainSpill do
+      description "Deploy containment measures to prevent spread of hazardous material"
+      String :containment_method
+      reference_to "HazmatIncident"
+      emits "SpillContained"
+    end
+
+    CloseIncident do
+      description "Close incident after cleanup completion and agency notification"
+      String :cleanup_contractor
+      String :agency_notified
+      reference_to "HazmatIncident"
+      emits "IncidentClosed"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "ReportSpill" => "reported", from: "clear"
+      transition "ContainSpill" => "contained", from: "reported"
+      transition "CloseIncident" => "closed", from: "contained"
+    end
+
+    policy "Reportable quantity spills require NRC notification within 15 minutes"
+  end
+
+  policy "PlanHazmatRouteOnHazmatShipmentBooked" do
+    on "HazmatShipmentBooked"
+    trigger "PlanHazmatRoute"
+  end
+
+  policy "ApproveRouteOnRoutePlanned" do
+    on "RoutePlanned"
+    trigger "ApproveRoute"
+  end
+
+  policy "PackageMaterialOnRouteApproved" do
+    on "RouteApproved"
+    trigger "PackageMaterial"
+  end
+
+  policy "LoadShipmentOnMaterialPackaged" do
+    on "MaterialPackaged"
+    trigger "LoadShipment"
+  end
+
+  policy "ConfirmDeliveryOnShipmentLoaded" do
+    on "ShipmentLoaded"
+    trigger "ConfirmDelivery"
+  end
+
+  policy "ContainSpillOnSpillReported" do
+    on "SpillReported"
+    trigger "ContainSpill"
+  end
+
+  policy "CloseIncidentOnSpillContained" do
+    on "SpillContained"
+    trigger "CloseIncident"
+  end
+end

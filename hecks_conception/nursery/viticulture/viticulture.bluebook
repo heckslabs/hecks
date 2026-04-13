@@ -1,0 +1,213 @@
+Hecks.bluebook "Viticulture" do
+  vision "Manage vineyards, vine blocks, soil profiles, canopy management, and harvest records"
+
+  aggregate "Vineyard" do
+    description "A named estate where grapevines are cultivated"
+    String :name
+    String :appellation
+    Float :total_hectares
+    Float :elevation_m
+    String :orientation
+
+    command "RegisterVineyard" do
+      description "Add a new vineyard to the management system"
+      emits "VineyardRegistered"
+      String :name
+      String :appellation
+      Float :total_hectares
+    end
+
+    command "CertifyOrganic" do
+      description "Record organic certification for the vineyard"
+      emits "OrganicCertified"
+      reference_to Vineyard
+      given "vineyard must have three years without synthetic inputs"
+    end
+
+    command "UpdateAppellation" do
+      description "Change the official appellation designation"
+      emits "AppellationUpdated"
+      reference_to Vineyard
+      String :new_appellation
+    end
+  end
+
+  aggregate "VineBlock" do
+    description "A contiguous section of vines sharing variety, rootstock, and training"
+    String :block_id
+    String :grape_variety
+    String :rootstock
+    Integer :plant_year
+    Float :vine_spacing_m
+    String :trellis_system
+    reference_to Vineyard
+
+    value_object "PlantingSpec" do
+      Float :row_spacing_m
+      Float :vine_spacing_m
+      Integer :vines_per_hectare
+      String :training_system
+    end
+
+    command "PlantBlock" do
+      description "Establish a new vine block with selected variety"
+      emits "BlockPlanted"
+      reference_to Vineyard
+      String :block_id
+      String :grape_variety
+      String :rootstock
+    end
+
+    command "GraftVariety" do
+      description "Top-graft existing vines to a new variety"
+      emits "VarietyGrafted"
+      reference_to VineBlock
+      String :new_variety
+      given "vines must be dormant"
+    end
+
+    command "RemoveBlock" do
+      description "Pull out a vine block at end of life"
+      emits "BlockRemoved"
+      reference_to VineBlock
+    end
+  end
+
+  aggregate "SoilProfile" do
+    description "A characterization of soil properties in a vine block"
+    String :horizon
+    String :texture
+    Float :ph
+    Float :organic_matter_percent
+    Float :depth_cm
+    reference_to VineBlock
+
+    value_object "NutrientAnalysis" do
+      Float :nitrogen_ppm
+      Float :phosphorus_ppm
+      Float :potassium_ppm
+    end
+
+    command "SampleSoil" do
+      description "Collect and analyze a soil sample from a block"
+      emits "SoilSampled"
+      reference_to VineBlock
+      String :horizon
+      Float :depth_cm
+    end
+
+    command "AmendSoil" do
+      description "Apply compost or mineral amendment to the soil"
+      emits "SoilAmended"
+      reference_to SoilProfile
+      String :amendment_type
+      Float :rate_kg_per_hectare
+      given "soil test must be less than one year old"
+    end
+  end
+
+  aggregate "CanopyPass" do
+    description "A vineyard operation managing leaf area and fruit exposure"
+    String :operation_type
+    String :date_performed
+    String :crew_lead
+    reference_to VineBlock
+
+    command "PerformShootThin" do
+      description "Remove excess shoots to balance vine vigor"
+      emits "ShootsThinned"
+      reference_to VineBlock
+      String :date_performed
+    end
+
+    command "DropFruit" do
+      description "Remove grape clusters for yield control"
+      emits "FruitDropped"
+      reference_to VineBlock
+      Integer :clusters_removed
+      given "veraison must not have started"
+    end
+
+    command "LeafPull" do
+      description "Strip leaves from the fruiting zone for sun exposure"
+      emits "LeavesPulled"
+      reference_to VineBlock
+      String :zone_side
+    end
+  end
+
+  aggregate "HarvestRecord" do
+    description "A log of grapes picked from a block in a given vintage"
+    String :vintage_year
+    Float :tons_picked
+    Float :brix_at_harvest
+    Float :ph_at_harvest
+    reference_to VineBlock
+
+    command "RecordPick" do
+      description "Log the harvest data for a vine block"
+      emits "PickRecorded"
+      reference_to VineBlock
+      String :vintage_year
+      Float :tons_picked
+      Float :brix_at_harvest
+    end
+
+    command "GradeQuality" do
+      description "Assess grape quality after sorting"
+      emits "QualityGraded"
+      reference_to HarvestRecord
+      String :quality_tier
+      given "grapes must be weighed and tested"
+    end
+  end
+
+  lifecycle "GrowingSeason" do
+    state "dormant"
+    state "planted"
+    state "soil_managed"
+    state "canopy_managed"
+    state "veraison"
+    state "harvested"
+    transition from: "dormant", to: "planted", on: "BlockPlanted"
+    transition from: "planted", to: "soil_managed", on: "SoilSampled"
+    transition from: "soil_managed", to: "canopy_managed", on: "ShootsThinned"
+    transition from: "canopy_managed", to: "veraison", on: "LeavesPulled"
+    transition from: "veraison", to: "harvested", on: "PickRecorded"
+  end
+
+  policy "SampleSoilAfterPlanting" do
+    on "BlockPlanted"
+    trigger "SampleSoil"
+  end
+
+  policy "AmendAfterSampling" do
+    on "SoilSampled"
+    trigger "AmendSoil"
+  end
+
+  policy "ThinAfterSoilAmendment" do
+    on "SoilAmended"
+    trigger "PerformShootThin"
+  end
+
+  policy "LeafPullAfterThinning" do
+    on "ShootsThinned"
+    trigger "LeafPull"
+  end
+
+  policy "DropFruitAfterLeafPull" do
+    on "LeavesPulled"
+    trigger "DropFruit"
+  end
+
+  policy "HarvestAfterFruitDrop" do
+    on "FruitDropped"
+    trigger "RecordPick"
+  end
+
+  policy "GradeAfterHarvest" do
+    on "PickRecorded"
+    trigger "GradeQuality"
+  end
+end

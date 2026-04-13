@@ -1,0 +1,227 @@
+Hecks.bluebook "CallCenter" do
+  vision "Manage queues, agents, tickets, escalations, and SLA tracking for a customer support center"
+
+  aggregate "Ticket", "A customer support request tracked from creation to resolution" do
+    String :ticket_number
+    String :subject
+    String :description
+    String :priority
+    String :status
+    String :channel
+    reference_to(Agent)
+
+    value_object "ContactInfo" do
+      String :caller_name
+      String :phone
+      String :email
+    end
+
+    OpenTicket do
+      description "Create a new support ticket from an inbound call or message"
+      String :subject
+      String :description
+      String :priority
+      String :channel
+      emits "TicketOpened"
+      then_set :status, to: "open"
+    end
+
+    AssignToAgent do
+      description "Route a ticket to a specific agent for handling"
+      reference_to(Ticket)
+      reference_to(Agent)
+      given { status == "queued" }
+      emits "TicketAssignedToAgent"
+      then_set :status, to: "assigned"
+    end
+
+    BeginWork do
+      description "Agent starts actively working on the ticket"
+      reference_to(Ticket)
+      given { status == "assigned" }
+      emits "WorkBegun"
+      then_set :status, to: "in_progress"
+    end
+
+    ResolveTicket do
+      description "Mark a ticket as resolved with a resolution note"
+      reference_to(Ticket)
+      String :resolution_note
+      given { status == "in_progress" }
+      emits "TicketResolved"
+      then_set :status, to: "resolved"
+    end
+
+    CloseTicket do
+      description "Close a resolved ticket after customer confirmation"
+      reference_to(Ticket)
+      given { status == "resolved" }
+      emits "TicketClosed"
+      then_set :status, to: "closed"
+    end
+
+    ReopenTicket do
+      description "Reopen a ticket when the customer reports the issue persists"
+      reference_to(Ticket)
+      String :reason
+      given { status == "resolved" }
+      emits "TicketReopened"
+      then_set :status, to: "open"
+    end
+
+    EscalateTicket do
+      description "Push a ticket to a higher-tier agent or supervisor"
+      reference_to(Ticket)
+      String :reason
+      given { status == "in_progress" }
+      emits "TicketEscalated"
+      then_set :priority, to: "urgent"
+    end
+  end
+
+  aggregate "Agent", "A support representative handling customer tickets" do
+    String :agent_id
+    String :name
+    String :skill_level
+    Integer :active_tickets
+    String :status
+
+    value_object "ShiftSchedule" do
+      String :start_time
+      String :end_time
+      String :timezone
+    end
+
+    HireAgent do
+      description "Onboard a new support agent"
+      String :name
+      String :skill_level
+      emits "AgentHired"
+      then_set :status, to: "available"
+      then_set :active_tickets, to: 0
+    end
+
+    AssignTicket do
+      description "Route a ticket to an available agent based on skill"
+      reference_to(Agent)
+      reference_to(Ticket)
+      given { active_tickets < 5 }
+      emits "TicketAssigned"
+    end
+
+    SetAgentBreak do
+      description "Put an agent on break so they receive no new tickets"
+      reference_to(Agent)
+      given { status == "available" }
+      emits "AgentOnBreak"
+      then_set :status, to: "on_break"
+    end
+
+    ReturnFromBreak do
+      description "Bring an agent back to available status after break"
+      reference_to(Agent)
+      given { status == "on_break" }
+      emits "AgentReturned"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Queue", "A waiting line for tickets organized by priority or skill group" do
+    String :queue_name
+    String :skill_group
+    Integer :depth
+    Integer :max_wait_seconds
+    String :status
+
+    value_object "QueueMetrics" do
+      Float :avg_wait_seconds
+      Float :abandonment_rate
+    end
+
+    CreateQueue do
+      description "Set up a new queue for a skill group"
+      String :queue_name
+      String :skill_group
+      Integer :max_wait_seconds
+      emits "QueueCreated"
+      then_set :status, to: "active"
+      then_set :depth, to: 0
+    end
+
+    EnqueueTicket do
+      description "Add a ticket to the back of the queue"
+      reference_to(Queue)
+      reference_to(Ticket)
+      emits "TicketEnqueued"
+    end
+
+    DequeueTicket do
+      description "Pull the next ticket from the queue for assignment"
+      reference_to(Queue)
+      given { depth > 0 }
+      emits "TicketDequeued"
+    end
+  end
+
+  aggregate "SlaPolicy", "A service-level agreement defining response and resolution targets" do
+    String :policy_name
+    String :priority
+    Integer :response_minutes
+    Integer :resolution_minutes
+    String :status
+
+    value_object "Breach" do
+      String :ticket_id
+      String :breach_type
+      String :breached_at
+    end
+
+    DefineSla do
+      description "Create a new SLA policy with time targets"
+      String :policy_name
+      String :priority
+      Integer :response_minutes
+      Integer :resolution_minutes
+      emits "SlaDefined"
+      then_set :status, to: "active"
+    end
+
+    BreachSla do
+      description "Record that a ticket has violated its SLA target"
+      reference_to(SlaPolicy)
+      String :ticket_id
+      String :breach_type
+      emits "SlaBreached"
+    end
+  end
+
+  policy "EnqueueOnOpen" do
+    on "TicketOpened"
+    trigger "EnqueueTicket"
+  end
+
+  policy "DequeueOnAgentAvailable" do
+    on "AgentReturned"
+    trigger "DequeueTicket"
+  end
+
+  policy "AssignOnDequeue" do
+    on "TicketDequeued"
+    trigger "AssignTicket"
+  end
+
+  policy "BeginWorkOnAssignment" do
+    on "TicketAssignedToAgent"
+    trigger "BeginWork"
+  end
+
+  policy "CloseOnResolve" do
+    on "TicketResolved"
+    trigger "CloseTicket"
+  end
+
+  policy "EscalateOnBreach" do
+    on "SlaBreached"
+    trigger "EscalateTicket"
+  end
+end

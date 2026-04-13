@@ -1,0 +1,135 @@
+Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
+  vision "Relief workers — disaster incidents meet volunteer matching, skills, and field deployment"
+  category "healthcare_community"
+
+  aggregate "Incident", "A disaster incident requiring relief workers" do
+    String :incident_id
+    String :disaster_type
+    String :location_name
+    String :severity
+    Integer :workers_needed
+    String :status
+    DeclareIncident do
+      role "Coordinator"
+      description "Declare a disaster incident and request relief workers"
+      String :incident_id
+      String :disaster_type
+      String :location_name
+      String :severity
+      Integer :workers_needed
+      emits "IncidentDeclared"
+      then_set :incident_id, to: :incident_id
+      then_set :disaster_type, to: :disaster_type
+      then_set :location_name, to: :location_name
+      then_set :severity, to: :severity
+      then_set :workers_needed, to: :workers_needed
+      then_set :status, to: "active"
+    end
+    CloseIncident do
+      role "Coordinator"
+      description "Close an incident after relief operations complete"
+      reference_to(Incident)
+      given { status == "active" }
+      emits "IncidentClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Volunteer", "A registered relief volunteer with skills and availability" do
+    String :volunteer_id
+    String :name
+    list_of(VolunteerSkill) :skills
+    String :availability
+    String :status
+    value_object "VolunteerSkill" do
+      String :skill_name
+      String :level
+      String :certified
+    end
+    RegisterVolunteer do
+      role "Volunteer"
+      description "Register as a relief volunteer with skills and availability"
+      String :volunteer_id
+      String :name
+      String :availability
+      emits "VolunteerRegistered"
+      then_set :volunteer_id, to: :volunteer_id
+      then_set :name, to: :name
+      then_set :availability, to: :availability
+      then_set :status, to: "available"
+    end
+    MatchVolunteer do
+      role "System"
+      description "Match volunteer to an incident based on skills and location"
+      reference_to(Volunteer)
+      given { status == "available" }
+      emits "VolunteerMatched"
+      then_set :status, to: "matched"
+    end
+  end
+
+  aggregate "Deployment", "A volunteer deployed to a disaster incident" do
+    String :deployment_id
+    String :volunteer_id
+    String :incident_id
+    String :role_assigned
+    String :start_date
+    String :status
+    DeployVolunteer do
+      role "Coordinator"
+      description "Deploy a matched volunteer to the incident field"
+      String :deployment_id
+      String :volunteer_id
+      String :incident_id
+      String :role_assigned
+      String :start_date
+      emits "VolunteerDeployed"
+      then_set :deployment_id, to: :deployment_id
+      then_set :volunteer_id, to: :volunteer_id
+      then_set :incident_id, to: :incident_id
+      then_set :role_assigned, to: :role_assigned
+      then_set :start_date, to: :start_date
+      then_set :status, to: "deployed"
+    end
+    RecallVolunteer do
+      role "Coordinator"
+      description "Recall a deployed volunteer from the field"
+      reference_to(Deployment)
+      given { status == "deployed" }
+      emits "VolunteerRecalled"
+      then_set :status, to: "recalled"
+    end
+  end
+
+  aggregate "FieldReport", "A field report submitted by a deployed relief worker" do
+    String :report_id
+    String :deployment_id
+    String :conditions
+    Integer :people_assisted
+    String :needs_summary
+    SubmitReport do
+      role "Volunteer"
+      description "Submit a field report from the disaster site"
+      String :report_id
+      String :deployment_id
+      String :conditions
+      Integer :people_assisted
+      String :needs_summary
+      emits "ReportSubmitted"
+      then_set :report_id, to: :report_id
+      then_set :deployment_id, to: :deployment_id
+      then_set :conditions, to: :conditions
+      then_set :people_assisted, to: :people_assisted
+      then_set :needs_summary, to: :needs_summary
+    end
+  end
+
+  policy "MatchOnDeclare" do
+    on "IncidentDeclared"
+    trigger "MatchVolunteer"
+  end
+  policy "DeployOnMatch" do
+    on "VolunteerMatched"
+    trigger "DeployVolunteer"
+  end
+end

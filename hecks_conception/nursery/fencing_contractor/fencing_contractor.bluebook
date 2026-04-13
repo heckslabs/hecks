@@ -1,0 +1,199 @@
+Hecks.bluebook "FencingContractor" do
+  vision "Manage fence installation projects from property survey through material ordering, post setting, and panel installation"
+  core
+
+  aggregate "FenceEstimate" do
+    description "A fence estimate with linear footage, style, height, and gate count"
+    String :customer_name
+    String :address
+    Float :linear_feet
+    String :fence_style
+    Float :height_feet
+    Integer :gate_count
+    Float :total_price
+    String :status
+
+    value_object "FenceSpec" do
+      String :material
+      String :style
+      Float :height_feet
+      Integer :post_spacing_feet
+    end
+
+    MeasureProperty do
+      role "Estimator"
+      goal "Walk the property line and measure the fence run"
+      description "Measure linear footage, mark gate locations, and note grade changes"
+      String :customer_name
+      String :address
+      Float :linear_feet
+      String :fence_style
+      Float :height_feet
+      Integer :gate_count
+      emits "PropertyMeasured"
+    end
+
+    QuoteFence do
+      role "Estimator"
+      goal "Calculate the total price for materials and labor"
+      description "Price out posts, panels, gates, concrete, and labor"
+      reference_to(FenceEstimate)
+      Float :total_price
+      emits "FenceQuoted"
+    end
+
+    AcceptQuote do
+      role "Customer"
+      goal "Approve the fence estimate to schedule installation"
+      description "Customer signs the contract authorizing the work"
+      reference_to(FenceEstimate)
+      given("must be quoted") { status == "quoted" }
+      emits "QuoteAccepted"
+    end
+  end
+
+  aggregate "MaterialOrder" do
+    description "An order for fence materials — posts, panels, rails, gates, concrete, and hardware"
+    String :supplier
+    String :material_list
+    Integer :post_count
+    Integer :panel_count
+    String :status
+    reference_to(FenceEstimate)
+
+    OrderMaterials do
+      role "Office Manager"
+      goal "Place the material order with the supplier"
+      description "Order posts, panels, rails, gates, and concrete"
+      String :supplier
+      Integer :post_count
+      Integer :panel_count
+      reference_to(FenceEstimate)
+      emits "MaterialsOrdered"
+    end
+
+    ReceiveDelivery do
+      role "Crew Lead"
+      goal "Check delivered materials against the order"
+      description "Verify quantities and inspect for damage"
+      reference_to(MaterialOrder)
+      emits "DeliveryReceived"
+    end
+  end
+
+  aggregate "PostSetting" do
+    description "The post-setting phase — hole digging, post placement, concrete, and plumb verification"
+    Integer :posts_set
+    Float :hole_depth_inches
+    String :concrete_type
+    String :status
+    reference_to(FenceEstimate)
+
+    DigHoles do
+      role "Crew Lead"
+      goal "Dig post holes to the required depth and spacing"
+      description "Auger holes at the marked locations per the fence layout"
+      reference_to(FenceEstimate)
+      Float :hole_depth_inches
+      Integer :hole_count
+      emits "HolesDug"
+    end
+
+    SetPosts do
+      role "Crew Lead"
+      goal "Place posts in holes, plumb, and concrete"
+      description "Set each post plumb and pour concrete for a solid base"
+      reference_to(PostSetting)
+      String :concrete_type
+      given("holes must be dug") { status == "holes_dug" }
+      emits "PostsSet"
+    end
+  end
+
+  aggregate "PanelInstallation" do
+    description "The panel and rail installation phase after posts have cured"
+    Integer :panels_installed
+    String :status
+    reference_to(PostSetting)
+
+    HangPanels do
+      role "Installer"
+      goal "Attach fence panels or rails between the set posts"
+      description "Mount panels, level, and secure with appropriate fasteners"
+      reference_to(PostSetting)
+      Integer :panels_installed
+      emits "PanelsHung"
+    end
+
+    InstallGates do
+      role "Installer"
+      goal "Hang gates with proper hardware and swing clearance"
+      description "Mount gate hinges, latch, and verify operation"
+      reference_to(PanelInstallation)
+      Integer :gate_count
+      emits "GatesInstalled"
+    end
+  end
+
+  aggregate "PropertyLine" do
+    description "A property line survey reference ensuring the fence is within property boundaries"
+    String :survey_source
+    Float :setback_inches
+    String :neighbor_notification
+    reference_to(FenceEstimate)
+
+    VerifyPropertyLine do
+      role "Estimator"
+      goal "Confirm the fence will be installed within property boundaries"
+      description "Review the property survey and mark the setback line"
+      String :survey_source
+      Float :setback_inches
+      reference_to(FenceEstimate)
+      emits "PropertyLineVerified"
+    end
+
+    NotifyNeighbor do
+      role "Office Manager"
+      goal "Send required notification to the adjacent property owner"
+      description "Notify the neighbor per local good-neighbor fence laws"
+      reference_to(PropertyLine)
+      String :neighbor_notification
+      emits "NeighborNotified"
+    end
+  end
+
+  policy "VerifyPropertyOnMeasure" do
+    on "PropertyMeasured"
+    trigger "VerifyPropertyLine"
+  end
+
+  policy "QuoteOnMeasure" do
+    on "PropertyMeasured"
+    trigger "QuoteFence"
+  end
+
+  policy "OrderOnAcceptance" do
+    on "QuoteAccepted"
+    trigger "OrderMaterials"
+  end
+
+  policy "DigOnDelivery" do
+    on "DeliveryReceived"
+    trigger "DigHoles"
+  end
+
+  policy "SetPostsOnDig" do
+    on "HolesDug"
+    trigger "SetPosts"
+  end
+
+  policy "HangAfterPosts" do
+    on "PostsSet"
+    trigger "HangPanels"
+  end
+
+  policy "GatesAfterPanels" do
+    on "PanelsHung"
+    trigger "InstallGates"
+  end
+end

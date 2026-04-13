@@ -1,0 +1,204 @@
+Hecks.bluebook "Volcanology" do
+  vision "Monitor volcanoes, eruption events, seismic readings, gas emissions, and hazard zones"
+
+  aggregate "Volcano" do
+    description "A geological vent where magma reaches the surface"
+    String :name
+    String :volcano_type
+    Float :summit_elevation_m
+    Float :latitude
+    Float :longitude
+    String :alert_level
+
+    command "RegisterVolcano" do
+      description "Add a volcano to the monitoring network"
+      emits "VolcanoRegistered"
+      String :name
+      String :volcano_type
+      Float :summit_elevation_m
+    end
+
+    command "RaiseAlertLevel" do
+      description "Escalate the volcanic alert status"
+      emits "AlertLevelRaised"
+      reference_to Volcano
+      String :new_level
+      given "seismic activity must exceed background"
+    end
+
+    command "LowerAlertLevel" do
+      description "Reduce the volcanic alert after activity subsides"
+      emits "AlertLevelLowered"
+      reference_to Volcano
+      String :new_level
+    end
+  end
+
+  aggregate "Eruption" do
+    description "A discrete volcanic eruption event with measured parameters"
+    String :eruption_id
+    String :start_date
+    String :end_date
+    Integer :vei
+    String :eruption_type
+    reference_to Volcano
+
+    value_object "EruptionMetrics" do
+      Float :plume_height_km
+      Float :lava_volume_m3
+      Float :tephra_volume_m3
+    end
+
+    command "DeclareEruption" do
+      description "Officially record the onset of an eruption"
+      emits "EruptionDeclared"
+      reference_to Volcano
+      String :eruption_id
+      String :eruption_type
+    end
+
+    command "UpdateMetrics" do
+      description "Revise eruption parameters as new data arrives"
+      emits "MetricsUpdated"
+      reference_to Eruption
+      Float :plume_height_km
+    end
+
+    command "ConcludeEruption" do
+      description "Mark the eruption as ended"
+      emits "EruptionConcluded"
+      reference_to Eruption
+      given "no tremor detected for 48 hours"
+    end
+  end
+
+  aggregate "SeismicReading" do
+    description "A seismograph recording of volcanic tremor or earthquake"
+    String :station_id
+    String :timestamp
+    Float :magnitude
+    Float :depth_km
+    String :event_type
+    reference_to Volcano
+
+    command "RecordSeismicEvent" do
+      description "Log a seismic event detected near the volcano"
+      emits "SeismicEventRecorded"
+      reference_to Volcano
+      String :station_id
+      Float :magnitude
+      Float :depth_km
+    end
+
+    command "LocateHypocenter" do
+      description "Triangulate the earthquake source location"
+      emits "HypocenterLocated"
+      reference_to SeismicReading
+      given "at least three stations must have detections"
+    end
+
+    command "ClassifyEvent" do
+      description "Categorize the seismic event type"
+      emits "EventClassified"
+      reference_to SeismicReading
+      String :event_type
+    end
+  end
+
+  aggregate "GasEmission" do
+    description "A measurement of volcanic gases escaping from vents or soil"
+    String :gas_type
+    Float :flux_tons_per_day
+    String :measurement_date
+    String :method
+    reference_to Volcano
+
+    command "MeasureEmission" do
+      description "Collect a gas flux measurement from the crater"
+      emits "EmissionMeasured"
+      reference_to Volcano
+      String :gas_type
+      Float :flux_tons_per_day
+    end
+
+    command "DetectAnomaly" do
+      description "Flag an unusual change in gas composition"
+      emits "AnomalyDetected"
+      reference_to GasEmission
+      given "baseline measurements must exist"
+    end
+  end
+
+  aggregate "HazardZone" do
+    description "A mapped area at risk from volcanic phenomena"
+    String :zone_name
+    String :hazard_type
+    String :risk_level
+    String :boundary_wkt
+    reference_to Volcano
+
+    command "DelineateZone" do
+      description "Draw a hazard zone boundary on the map"
+      emits "ZoneDelineated"
+      reference_to Volcano
+      String :zone_name
+      String :hazard_type
+    end
+
+    command "EvacuateZone" do
+      description "Issue an evacuation order for the zone"
+      emits "ZoneEvacuated"
+      reference_to HazardZone
+      given "alert level must be at warning or higher"
+    end
+  end
+
+  lifecycle "VolcanicCrisis" do
+    state "background_monitoring"
+    state "unrest_detected"
+    state "elevated_alert"
+    state "eruption_active"
+    state "hazard_managed"
+    state "crisis_concluded"
+    transition from: "background_monitoring", to: "unrest_detected", on: "SeismicEventRecorded"
+    transition from: "unrest_detected", to: "elevated_alert", on: "AnomalyDetected"
+    transition from: "elevated_alert", to: "eruption_active", on: "EruptionDeclared"
+    transition from: "eruption_active", to: "hazard_managed", on: "ZoneEvacuated"
+    transition from: "hazard_managed", to: "crisis_concluded", on: "EruptionConcluded"
+  end
+
+  policy "MonitorSeismicActivity" do
+    on "VolcanoRegistered"
+    trigger "RecordSeismicEvent"
+  end
+
+  policy "LocateAfterRecording" do
+    on "SeismicEventRecorded"
+    trigger "LocateHypocenter"
+  end
+
+  policy "MeasureGasAfterLocation" do
+    on "HypocenterLocated"
+    trigger "MeasureEmission"
+  end
+
+  policy "DetectAnomalyAfterMeasurement" do
+    on "EmissionMeasured"
+    trigger "DetectAnomaly"
+  end
+
+  policy "RaiseAlertAfterAnomaly" do
+    on "AnomalyDetected"
+    trigger "RaiseAlertLevel"
+  end
+
+  policy "DelineateOnEruption" do
+    on "EruptionDeclared"
+    trigger "DelineateZone"
+  end
+
+  policy "EvacuateAfterDelineation" do
+    on "ZoneDelineated"
+    trigger "EvacuateZone"
+  end
+end

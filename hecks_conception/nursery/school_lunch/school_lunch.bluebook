@@ -1,0 +1,254 @@
+Hecks.bluebook "SchoolLunch", version: "2026.04.13.1" do
+  vision "Nutrition science meets school districts — nutrient planning, menus, allergies, budgets, and USDA compliance"
+  category "crossover"
+
+  aggregate "NutrientProfile", "Nutritional requirements — calories, macros, vitamins, minerals by age group" do
+    String :age_group
+    Float :calories_min
+    Float :calories_max
+    Float :protein_g
+    Float :fat_max_g
+    Float :sodium_max_mg
+    String :status
+
+    value_object "MicronutrientReq" do
+      String :nutrient_name
+      Float :daily_value_mg
+      Float :min_pct
+    end
+
+    DefineNutrientProfile do
+      role "Nutritionist"
+      description "Define nutritional requirements for an age group per USDA guidelines"
+      String :age_group
+      Float :calories_min
+      Float :calories_max
+      Float :protein_g
+      Float :fat_max_g
+      Float :sodium_max_mg
+      emits "NutrientProfileDefined"
+      then_set :age_group, to: :age_group
+      then_set :calories_min, to: :calories_min
+      then_set :calories_max, to: :calories_max
+      then_set :protein_g, to: :protein_g
+      then_set :fat_max_g, to: :fat_max_g
+      then_set :sodium_max_mg, to: :sodium_max_mg
+      then_set :status, to: "active"
+    end
+
+    UpdateRequirements do
+      role "Nutritionist"
+      description "Update nutrient requirements when guidelines change"
+      reference_to(NutrientProfile)
+      Float :calories_min
+      Float :calories_max
+      given { status == "active" }
+      emits "RequirementsUpdated"
+      then_set :calories_min, to: :calories_min
+      then_set :calories_max, to: :calories_max
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DefineNutrientProfile" => "active", from: "undefined"
+    end
+  end
+
+  aggregate "MenuItem", "A lunch menu item — ingredients, nutrients, allergens, cost" do
+    String :name
+    String :category
+    Float :calories
+    Float :protein_g
+    Float :cost_per_serving
+    String :allergens
+    String :status
+
+    value_object "Ingredient" do
+      String :name
+      Float :amount_g
+      String :allergen_flag
+    end
+
+    list_of "AllergenWarning" do
+      String :allergen_type
+      String :severity
+      String :source_ingredient
+    end
+
+    CreateMenuItem do
+      role "Chef"
+      description "Create a lunch menu item with nutritional data and allergens"
+      String :name
+      String :category
+      Float :calories
+      Float :protein_g
+      Float :cost_per_serving
+      String :allergens
+      emits "MenuItemCreated"
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :calories, to: :calories
+      then_set :protein_g, to: :protein_g
+      then_set :cost_per_serving, to: :cost_per_serving
+      then_set :allergens, to: :allergens
+      then_set :status, to: "active"
+    end
+
+    FlagAllergen do
+      role "System"
+      description "Flag menu item containing a common allergen"
+      reference_to(MenuItem)
+      given { status == "active" }
+      emits "AllergenFlagged"
+    end
+
+    RetireMenuItem do
+      role "Chef"
+      description "Remove menu item from rotation"
+      reference_to(MenuItem)
+      given { status == "active" }
+      emits "MenuItemRetired"
+      then_set :status, to: "retired"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateMenuItem" => "active", from: "draft"
+      transition "RetireMenuItem" => "retired", from: "active"
+    end
+  end
+
+  aggregate "WeeklyMenu", "A weekly lunch menu — balanced meals meeting nutritional targets" do
+    String :week_of
+    String :school_name
+    Integer :meal_count
+    Float :avg_calories
+    Float :total_budget
+    String :status
+
+    list_of "DailyMeal" do
+      String :day
+      String :entree
+      String :side
+      String :fruit
+      String :milk
+    end
+
+    PlanWeeklyMenu do
+      role "Nutritionist"
+      description "Plan a week of lunches meeting nutrient and budget targets"
+      String :week_of
+      String :school_name
+      Integer :meal_count
+      Float :total_budget
+      emits "WeeklyMenuPlanned"
+      then_set :week_of, to: :week_of
+      then_set :school_name, to: :school_name
+      then_set :meal_count, to: :meal_count
+      then_set :total_budget, to: :total_budget
+      then_set :status, to: "planned"
+    end
+
+    ValidateNutrition do
+      role "System"
+      description "Validate menu meets USDA nutritional requirements"
+      reference_to(WeeklyMenu)
+      Float :avg_calories
+      given { status == "planned" }
+      emits "NutritionValidated"
+      then_set :avg_calories, to: :avg_calories
+      then_set :status, to: "validated"
+    end
+
+    ApproveMenu do
+      role "Director"
+      description "Approve the weekly menu for service"
+      reference_to(WeeklyMenu)
+      given { status == "validated" }
+      emits "MenuApproved"
+      then_set :status, to: "approved"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanWeeklyMenu" => "planned", from: "draft"
+      transition "ValidateNutrition" => "validated", from: "planned"
+      transition "ApproveMenu" => "approved", from: "validated"
+    end
+  end
+
+  aggregate "ComplianceAudit", "USDA compliance audit — meal pattern, nutrient analysis, documentation" do
+    String :school_name
+    String :audit_period
+    Float :compliance_score
+    String :findings
+    String :status
+
+    value_object "AuditFinding" do
+      String :category
+      String :finding
+      String :corrective_action
+    end
+
+    ConductAudit do
+      role "Auditor"
+      description "Conduct USDA compliance audit of school lunch program"
+      String :school_name
+      String :audit_period
+      emits "AuditConducted"
+      then_set :school_name, to: :school_name
+      then_set :audit_period, to: :audit_period
+      then_set :status, to: "conducted"
+    end
+
+    ScoreCompliance do
+      role "System"
+      description "Calculate compliance score from audit findings"
+      reference_to(ComplianceAudit)
+      Float :compliance_score
+      String :findings
+      given { status == "conducted" }
+      emits "ComplianceScored"
+      then_set :compliance_score, to: :compliance_score
+      then_set :findings, to: :findings
+      then_set :status, to: "scored"
+    end
+
+    IssueCorrectiveAction do
+      role "Auditor"
+      description "Issue corrective action plan for non-compliant items"
+      reference_to(ComplianceAudit)
+      given { status == "scored" }
+      emits "CorrectiveActionIssued"
+      then_set :status, to: "corrective"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ConductAudit" => "conducted", from: "pending"
+      transition "ScoreCompliance" => "scored", from: "conducted"
+      transition "IssueCorrectiveAction" => "corrective", from: "scored"
+    end
+  end
+
+  policy "FlagAllergenOnCreate" do
+    on "MenuItemCreated"
+    trigger "FlagAllergen"
+  end
+
+  policy "ValidateOnPlan" do
+    on "WeeklyMenuPlanned"
+    trigger "ValidateNutrition"
+  end
+
+  policy "ApproveOnValidate" do
+    on "NutritionValidated"
+    trigger "ApproveMenu"
+  end
+
+  policy "ScoreOnConduct" do
+    on "AuditConducted"
+    trigger "ScoreCompliance"
+  end
+
+  policy "CorrectOnScore" do
+    on "ComplianceScored"
+    trigger "IssueCorrectiveAction"
+  end
+end

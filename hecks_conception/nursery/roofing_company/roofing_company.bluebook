@@ -1,0 +1,192 @@
+Hecks.bluebook "RoofingCompany" do
+  vision "Manage roofing projects from estimate through installation, tracking materials, crews, weather holds, and warranties"
+  core
+
+  aggregate "RoofEstimate" do
+    description "A measured estimate for a roofing job including square footage, pitch, and material costs"
+    String :customer_name
+    String :address
+    Float :square_footage
+    Float :pitch
+    Float :total_cost
+    String :status
+
+    value_object "RoofMeasurement" do
+      Float :length_feet
+      Float :width_feet
+      Float :pitch_ratio
+    end
+
+    MeasureRoof do
+      role "Estimator"
+      goal "Take roof measurements for an accurate estimate"
+      description "Climb and measure the roof area, pitch, and penetrations"
+      String :customer_name
+      String :address
+      Float :square_footage
+      Float :pitch
+      emits "RoofMeasured"
+    end
+
+    QuoteJob do
+      role "Estimator"
+      goal "Generate a price quote from measurements and material choices"
+      description "Calculate total cost based on materials, labor, and waste factor"
+      reference_to(RoofEstimate)
+      Float :material_cost_per_square
+      Float :labor_cost_per_square
+      emits "JobQuoted"
+    end
+
+    AcceptQuote do
+      role "Customer"
+      goal "Approve the estimate to begin scheduling"
+      description "Customer signs the estimate to authorize work"
+      reference_to(RoofEstimate)
+      given("estimate must be quoted") { status == "quoted" }
+      emits "QuoteAccepted"
+    end
+  end
+
+  aggregate "MaterialOrder" do
+    description "An order for roofing materials — shingles, underlayment, flashing, fasteners"
+    String :supplier
+    String :material_type
+    Integer :quantity_bundles
+    String :delivery_status
+    reference_to(RoofEstimate)
+
+    OrderMaterials do
+      role "Purchaser"
+      goal "Place an order with the supplier for job materials"
+      description "Order shingles, felt, flashing, and accessories for the job"
+      String :supplier
+      String :material_type
+      Integer :quantity_bundles
+      reference_to(RoofEstimate)
+      emits "MaterialsOrdered"
+    end
+
+    ReceiveDelivery do
+      role "Foreman"
+      goal "Confirm materials arrived on-site and check quantities"
+      description "Verify delivery against the order and note any shortages"
+      reference_to(MaterialOrder)
+      emits "DeliveryReceived"
+    end
+  end
+
+  aggregate "Crew" do
+    description "A roofing crew with a foreman and laborers assigned to jobs"
+    String :foreman_name
+    Integer :crew_size
+    String :availability
+
+    value_object "CrewSkill" do
+      String :roofing_type
+      Integer :years_experience
+    end
+
+    FormCrew do
+      role "Operations Manager"
+      goal "Assemble a crew with the right skills for the job type"
+      description "Assign a foreman and laborers to a crew roster"
+      String :foreman_name
+      Integer :crew_size
+      emits "CrewFormed"
+    end
+
+    AssignToJob do
+      role "Operations Manager"
+      goal "Schedule a crew to a specific roofing job"
+      description "Assign the crew and set the start date"
+      reference_to(Crew)
+      reference_to(RoofEstimate)
+      emits "CrewAssignedToJob"
+    end
+  end
+
+  aggregate "WeatherHold" do
+    description "A work stoppage due to weather conditions unsafe for roofing"
+    String :reason
+    String :hold_date
+    String :resume_date
+    reference_to(RoofEstimate)
+
+    PlaceHold do
+      role "Foreman"
+      goal "Stop work due to rain, wind, or temperature"
+      description "Halt roofing operations until conditions improve"
+      String :reason
+      reference_to(RoofEstimate)
+      emits "HoldPlaced"
+    end
+
+    LiftHold do
+      role "Foreman"
+      goal "Resume work after weather clears"
+      description "Mark the hold as lifted and reschedule the crew"
+      reference_to(WeatherHold)
+      given("hold must be active") { resume_date == nil }
+      emits "HoldLifted"
+    end
+  end
+
+  aggregate "RoofWarranty" do
+    description "A manufacturer or workmanship warranty on the installed roof"
+    String :warranty_type
+    Integer :duration_years
+    String :coverage_details
+    reference_to(RoofEstimate)
+
+    RegisterWarranty do
+      role "Office Manager"
+      goal "File the warranty with the manufacturer after installation"
+      description "Register the installed materials for warranty coverage"
+      String :warranty_type
+      Integer :duration_years
+      String :coverage_details
+      reference_to(RoofEstimate)
+      emits "WarrantyRegistered"
+    end
+
+    FileLeakClaim do
+      role "Customer"
+      goal "Report a roof leak under warranty"
+      description "Customer reports a leak for warranty repair evaluation"
+      reference_to(RoofWarranty)
+      String :leak_location
+      emits "LeakClaimFiled"
+    end
+  end
+
+  policy "QuoteAfterMeasure" do
+    on "RoofMeasured"
+    trigger "QuoteJob"
+  end
+
+  policy "OrderMaterialsOnAcceptance" do
+    on "QuoteAccepted"
+    trigger "OrderMaterials"
+  end
+
+  policy "AssignCrewOnDelivery" do
+    on "DeliveryReceived"
+    trigger "AssignToJob"
+  end
+
+  policy "WarrantyOnCompletion" do
+    on "CrewAssignedToJob"
+    trigger "RegisterWarranty"
+  end
+
+  policy "HoldOnBadWeather" do
+    on "CrewAssignedToJob"
+    trigger "PlaceHold"
+  end
+
+  policy "DispatchOnLeakClaim" do
+    on "LeakClaimFiled"
+    trigger "MeasureRoof"
+  end
+end

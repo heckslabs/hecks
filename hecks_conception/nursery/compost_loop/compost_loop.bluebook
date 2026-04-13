@@ -1,0 +1,190 @@
+Hecks.bluebook "CompostLoop" do
+  vision "Cross-wire community garden cultivation with waste management for a closed-loop composting system"
+  core
+
+  aggregate "GardenPlot" do
+    description "A community garden plot with crops and soil needs"
+    attribute :plot_id
+    attribute :gardener
+    attribute :crops, list_of(Crop)
+    attribute :soil_health, Float
+    attribute :status, default: "active"
+
+    value_object "Crop" do
+      attribute :crop_name
+      attribute :planted_date
+      attribute :nutrient_needs
+    end
+
+    command "AssignPlot" do
+      role "GardenCoordinator"
+      goal "Assign a plot to a gardener"
+      attribute :plot_id
+      attribute :gardener
+    end
+
+    command "PlantCrop" do
+      role "Gardener"
+      goal "Plant a crop in the plot"
+      reference_to GardenPlot
+      attribute :crop_name
+      attribute :planted_date
+      attribute :nutrient_needs
+      given("max 20 crops") { crops.size < 20 }
+      then_set :crops, append: { crop_name: :crop_name, planted_date: :planted_date, nutrient_needs: :nutrient_needs }
+    end
+
+    command "HarvestCrop" do
+      role "Gardener"
+      goal "Harvest a crop"
+      reference_to GardenPlot
+      attribute :crop_name
+    end
+  end
+
+  aggregate "WasteStream" do
+    description "An organic waste stream collected for composting"
+    attribute :source
+    attribute :waste_type
+    attribute :collections, list_of(WasteCollection)
+    attribute :status, default: "active"
+
+    value_object "WasteCollection" do
+      attribute :date
+      attribute :weight_kg, Float
+      attribute :contamination_pct, Float
+      invariant "weight must be positive" do
+        weight_kg > 0
+      end
+    end
+
+    command "RegisterStream" do
+      role "WasteCoordinator"
+      goal "Register an organic waste stream"
+      attribute :source
+      attribute :waste_type
+    end
+
+    command "RecordCollection" do
+      role "WasteCollector"
+      goal "Record a waste collection"
+      reference_to WasteStream
+      attribute :date
+      attribute :weight_kg, Float
+      attribute :contamination_pct, Float
+      given("max 365 collections") { collections.size < 365 }
+      then_set :collections, append: { date: :date, weight_kg: :weight_kg, contamination_pct: :contamination_pct }
+    end
+  end
+
+  aggregate "CompostBatch" do
+    description "A compost batch processing organic waste into soil amendment"
+    reference_to WasteStream
+    attribute :batch_id
+    attribute :readings, list_of(CompostReading)
+    attribute :status, default: "building"
+
+    value_object "CompostReading" do
+      attribute :day, Integer
+      attribute :temperature_c, Float
+      attribute :moisture_pct, Float
+      attribute :carbon_nitrogen_ratio, Float
+      invariant "day must be positive" do
+        day > 0
+      end
+    end
+
+    command "StartBatch" do
+      role "CompostMaster"
+      goal "Start a new compost batch"
+      reference_to WasteStream
+      attribute :batch_id
+    end
+
+    command "RecordReading" do
+      role "CompostMaster"
+      goal "Record a compost monitoring reading"
+      reference_to CompostBatch
+      attribute :day, Integer
+      attribute :temperature_c, Float
+      attribute :moisture_pct, Float
+      attribute :carbon_nitrogen_ratio, Float
+      given("max 180 readings") { readings.size < 180 }
+      then_set :readings, append: { day: :day, temperature_c: :temperature_c, moisture_pct: :moisture_pct, carbon_nitrogen_ratio: :carbon_nitrogen_ratio }
+    end
+
+    command "CureBatch" do
+      role "CompostMaster"
+      goal "Mark batch as cured and ready"
+      reference_to CompostBatch
+      given("must have readings") { readings.size > 0 }
+    end
+  end
+
+  aggregate "SoilAmendment" do
+    description "Finished compost applied to garden plots"
+    reference_to CompostBatch
+    reference_to GardenPlot
+    attribute :application_date
+    attribute :volume_liters, Float
+    attribute :nutrients, list_of(NutrientLevel)
+    attribute :status, default: "pending"
+
+    value_object "NutrientLevel" do
+      attribute :nutrient
+      attribute :concentration_ppm, Float
+      invariant "concentration must be positive" do
+        concentration_ppm > 0
+      end
+    end
+
+    command "ApplyAmendment" do
+      role "GardenCoordinator"
+      goal "Apply compost to a garden plot"
+      reference_to CompostBatch
+      reference_to GardenPlot
+      attribute :application_date
+      attribute :volume_liters, Float
+    end
+
+    command "MeasureNutrient" do
+      role "SoilScientist"
+      goal "Measure nutrient levels after application"
+      reference_to SoilAmendment
+      attribute :nutrient
+      attribute :concentration_ppm, Float
+      given("max 20 nutrients") { nutrients.size < 20 }
+      then_set :nutrients, append: { nutrient: :nutrient, concentration_ppm: :concentration_ppm }
+    end
+  end
+
+  policy "WasteCollectedTriggersBatch" do
+    on "WasteCollected"
+    trigger "StartBatch"
+    map waste_stream_id: :stream_id
+  end
+
+  policy "BatchCuredTriggersAmendment" do
+    on "BatchCured"
+    trigger "ApplyAmendment"
+    map compost_batch_id: :batch_id
+  end
+
+  policy "CropHarvestedTriggersWaste" do
+    on "CropHarvested"
+    trigger "RecordCollection"
+    map waste_stream_id: :garden_waste_stream_id, date: :harvest_date
+  end
+
+  policy "AmendmentAppliedTriggersPlanting" do
+    on "AmendmentApplied"
+    trigger "PlantCrop"
+    map garden_plot_id: :plot_id
+  end
+
+  policy "NutrientMeasuredTriggersCrop" do
+    on "NutrientMeasured"
+    trigger "PlantCrop"
+    map garden_plot_id: :plot_id, nutrient_needs: :nutrient
+  end
+end

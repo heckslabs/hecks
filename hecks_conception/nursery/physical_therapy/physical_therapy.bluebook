@@ -1,0 +1,288 @@
+Hecks.bluebook "PhysicalTherapy" do
+  vision "Rehabilitation through guided exercise — patients, prescriptions, sessions, and measurable progress"
+
+  aggregate "Patient", "A person receiving physical therapy services" do
+    String :name
+    String :date_of_birth
+    String :diagnosis
+    String :insurance_id
+    String :status
+    list_of(Limitation) :limitations
+
+    value_object "Limitation" do
+      String :body_region
+      String :description
+      Integer :severity_score
+    end
+
+    RegisterPatient do
+      role "FrontDesk"
+      description "Intake a new patient into the physical therapy practice"
+      String :name
+      String :date_of_birth
+      String :diagnosis
+      String :insurance_id
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :diagnosis, to: :diagnosis
+      then_set :insurance_id, to: :insurance_id
+      then_set :status, to: "intake"
+    end
+
+    AssessLimitation do
+      role "Therapist"
+      description "Document a functional limitation for the patient"
+      reference_to(Patient)
+      String :body_region
+      String :description
+      Integer :severity_score
+      emits "LimitationAssessed"
+      then_set :status, to: "assessed"
+    end
+
+    ActivatePatient do
+      role "Therapist"
+      description "Move patient to active treatment after assessment and plan creation"
+      reference_to(Patient)
+      given("patient must be assessed") { status == "assessed" }
+      emits "PatientActivated"
+      then_set :status, to: "active"
+    end
+
+    DischargePatient do
+      role "Therapist"
+      description "Complete the patient's course of therapy"
+      reference_to(Patient)
+      given("patient must be active") { status == "active" }
+      emits "PatientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "Exercise", "A therapeutic exercise prescribed for rehabilitation" do
+    String :name
+    String :target_muscle_group
+    String :difficulty
+    String :instructions
+    Integer :repetitions
+    Integer :sets
+
+    value_object "Contraindication" do
+      String :condition
+      String :reason
+    end
+
+    DefineExercise do
+      role "Therapist"
+      description "Create a new exercise in the therapy library"
+      String :name
+      String :target_muscle_group
+      String :difficulty
+      String :instructions
+      Integer :repetitions
+      Integer :sets
+      emits "ExerciseDefined"
+      then_set :name, to: :name
+      then_set :target_muscle_group, to: :target_muscle_group
+      then_set :difficulty, to: :difficulty
+      then_set :instructions, to: :instructions
+      then_set :repetitions, to: :repetitions
+      then_set :sets, to: :sets
+    end
+
+    AdjustDifficulty do
+      role "Therapist"
+      description "Modify the difficulty level based on patient progress"
+      reference_to(Exercise)
+      String :difficulty
+      emits "DifficultyAdjusted"
+      then_set :difficulty, to: :difficulty
+    end
+  end
+
+  aggregate "Session", "A scheduled therapy session between patient and therapist" do
+    String :patient_name
+    String :therapist_name
+    String :scheduled_date
+    String :status
+    list_of(SessionExercise) :exercises_performed
+    String :notes
+    reference_to Patient
+
+    value_object "SessionExercise" do
+      String :exercise_name
+      Integer :actual_reps
+      Integer :actual_sets
+      Integer :pain_level
+    end
+
+    ScheduleSession do
+      role "FrontDesk"
+      description "Book a therapy session for a patient"
+      reference_to(Patient)
+      String :patient_name
+      String :therapist_name
+      String :scheduled_date
+      emits "SessionScheduled"
+      then_set :patient_name, to: :patient_name
+      then_set :therapist_name, to: :therapist_name
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteSession do
+      role "Therapist"
+      description "Record session completion with exercises performed"
+      reference_to(Session)
+      String :notes
+      given("session must be scheduled") { status == "scheduled" }
+      emits "SessionCompleted"
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+
+    CancelSession do
+      role "FrontDesk"
+      description "Cancel a previously scheduled session"
+      reference_to(Session)
+      given("session must be scheduled") { status == "scheduled" }
+      emits "SessionCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "Prescription", "A physician's order for physical therapy treatment" do
+    String :physician_name
+    String :patient_name
+    String :diagnosis
+    Integer :authorized_visits
+    Integer :visits_used
+    String :status
+    reference_to Patient
+
+    specification "VisitsExhausted" do
+      satisfied_by { visits_used >= authorized_visits }
+    end
+
+    CreatePrescription do
+      role "Physician"
+      description "Write a physical therapy prescription for a patient"
+      reference_to(Patient)
+      String :physician_name
+      String :patient_name
+      String :diagnosis
+      Integer :authorized_visits
+      emits "PrescriptionCreated"
+      then_set :physician_name, to: :physician_name
+      then_set :patient_name, to: :patient_name
+      then_set :diagnosis, to: :diagnosis
+      then_set :authorized_visits, to: :authorized_visits
+      then_set :visits_used, to: 0
+      then_set :status, to: "active"
+    end
+
+    RecordVisit do
+      role "Therapist"
+      description "Decrement remaining authorized visits after a session"
+      reference_to(Prescription)
+      given("visits remaining") { visits_used < authorized_visits }
+      emits "VisitRecorded"
+    end
+
+    ExpirePrescription do
+      role "System"
+      description "Mark the prescription as expired when visits are exhausted"
+      reference_to(Prescription)
+      emits "PrescriptionExpired"
+      then_set :status, to: "expired"
+    end
+  end
+
+  aggregate "ProgressReport", "A measurable record of patient improvement over time" do
+    String :patient_name
+    String :assessment_date
+    Integer :pain_score
+    Integer :range_of_motion
+    Integer :strength_score
+    String :therapist_notes
+    reference_to Patient
+
+    RecordProgress do
+      role "Therapist"
+      description "Document patient progress metrics at a point in time"
+      reference_to(Patient)
+      String :patient_name
+      String :assessment_date
+      Integer :pain_score
+      Integer :range_of_motion
+      Integer :strength_score
+      String :therapist_notes
+      emits "ProgressRecorded"
+      then_set :patient_name, to: :patient_name
+      then_set :assessment_date, to: :assessment_date
+      then_set :pain_score, to: :pain_score
+      then_set :range_of_motion, to: :range_of_motion
+      then_set :strength_score, to: :strength_score
+      then_set :therapist_notes, to: :therapist_notes
+    end
+
+    FlagRegression do
+      role "System"
+      description "Alert when patient metrics show decline instead of improvement"
+      reference_to(ProgressReport)
+      emits "RegressionFlagged"
+    end
+  end
+
+  # Workflow: Register → Assess → CreatePrescription → ScheduleSession → CompleteSession → RecordVisit → RecordProgress → FlagRegression → ExpirePrescription → Discharge
+  policy "AssessOnRegistration" do
+    on "PatientRegistered"
+    trigger "AssessLimitation"
+  end
+
+  policy "CreatePrescriptionOnAssessment" do
+    on "LimitationAssessed"
+    trigger "CreatePrescription"
+  end
+
+  policy "ActivateOnPrescription" do
+    on "PrescriptionCreated"
+    trigger "ActivatePatient"
+  end
+
+  policy "ScheduleSessionOnActivation" do
+    on "PatientActivated"
+    trigger "ScheduleSession"
+  end
+
+  policy "RecordVisitOnSessionComplete" do
+    on "SessionCompleted"
+    trigger "RecordVisit"
+  end
+
+  policy "RecordProgressOnVisit" do
+    on "VisitRecorded"
+    trigger "RecordProgress"
+  end
+
+  policy "FlagRegressionOnProgress" do
+    on "ProgressRecorded"
+    trigger "FlagRegression"
+  end
+
+  policy "ExpireOnVisitsExhausted" do
+    on "PrescriptionExpired"
+    trigger "DischargePatient"
+  end
+
+  policy "AdjustDifficultyOnProgress" do
+    on "ProgressRecorded"
+    trigger "AdjustDifficulty"
+  end
+
+  policy "ScheduleOnSessionComplete" do
+    on "SessionCompleted"
+    trigger "ScheduleSession"
+  end
+end

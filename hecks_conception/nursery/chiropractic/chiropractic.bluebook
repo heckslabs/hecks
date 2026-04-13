@@ -1,0 +1,261 @@
+Hecks.bluebook "Chiropractic" do
+  vision "Spinal and musculoskeletal care — patients, adjustments, imaging, treatment plans, and billing"
+
+  aggregate "Patient", "A person receiving chiropractic care for musculoskeletal issues" do
+    String :name
+    String :date_of_birth
+    String :chief_complaint
+    String :insurance_id
+    String :status
+
+    RegisterPatient do
+      role "FrontDesk"
+      description "Intake a new chiropractic patient"
+      String :name
+      String :date_of_birth
+      String :chief_complaint
+      String :insurance_id
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :chief_complaint, to: :chief_complaint
+      then_set :insurance_id, to: :insurance_id
+      then_set :status, to: "intake"
+    end
+
+    ActivatePatient do
+      role "Chiropractor"
+      description "Move patient to active treatment after imaging and plan creation"
+      reference_to(Patient)
+      given("must be intake") { status == "intake" }
+      emits "PatientActivated"
+      then_set :status, to: "active"
+    end
+
+    DeactivatePatient do
+      role "Chiropractor"
+      description "Mark a patient as inactive after completing treatment"
+      reference_to(Patient)
+      given("must be active") { status == "active" }
+      emits "PatientDeactivated"
+      then_set :status, to: "inactive"
+    end
+  end
+
+  aggregate "Adjustment", "A chiropractic spinal or joint manipulation session" do
+    String :patient_name
+    String :adjustment_date
+    String :technique
+    list_of(SegmentAdjusted) :segments
+    Integer :pain_before
+    Integer :pain_after
+    String :notes
+    reference_to Patient
+
+    value_object "SegmentAdjusted" do
+      String :vertebra
+      String :direction
+      String :subluxation_type
+    end
+
+    PerformAdjustment do
+      role "Chiropractor"
+      description "Execute a spinal adjustment using the chosen technique"
+      reference_to(Patient)
+      String :patient_name
+      String :adjustment_date
+      String :technique
+      Integer :pain_before
+      emits "AdjustmentPerformed"
+      then_set :patient_name, to: :patient_name
+      then_set :adjustment_date, to: :adjustment_date
+      then_set :technique, to: :technique
+      then_set :pain_before, to: :pain_before
+    end
+
+    RecordPostAdjustment do
+      role "Chiropractor"
+      description "Document patient response and pain level after the adjustment"
+      reference_to(Adjustment)
+      Integer :pain_after
+      String :notes
+      emits "PostAdjustmentRecorded"
+      then_set :pain_after, to: :pain_after
+      then_set :notes, to: :notes
+    end
+  end
+
+  aggregate "ImagingStudy", "An X-ray or MRI ordered to evaluate spinal alignment" do
+    String :patient_name
+    String :imaging_type
+    String :body_region
+    String :order_date
+    String :findings
+    String :status
+    reference_to Patient
+
+    OrderImaging do
+      role "Chiropractor"
+      description "Request diagnostic imaging for a patient"
+      reference_to(Patient)
+      String :patient_name
+      String :imaging_type
+      String :body_region
+      String :order_date
+      emits "ImagingOrdered"
+      then_set :patient_name, to: :patient_name
+      then_set :imaging_type, to: :imaging_type
+      then_set :body_region, to: :body_region
+      then_set :order_date, to: :order_date
+      then_set :status, to: "ordered"
+    end
+
+    InterpretImaging do
+      role "Chiropractor"
+      description "Review imaging results and document findings"
+      reference_to(ImagingStudy)
+      String :findings
+      given("imaging must be ordered") { status == "ordered" }
+      emits "ImagingInterpreted"
+      then_set :findings, to: :findings
+      then_set :status, to: "interpreted"
+    end
+  end
+
+  aggregate "TreatmentPlan", "A structured course of chiropractic treatment" do
+    String :patient_name
+    String :diagnosis
+    Integer :planned_visits
+    Integer :completed_visits
+    String :frequency
+    String :status
+    reference_to Patient
+
+    CreateTreatmentPlan do
+      role "Chiropractor"
+      description "Design a treatment plan with visit frequency and goals"
+      reference_to(Patient)
+      String :patient_name
+      String :diagnosis
+      Integer :planned_visits
+      String :frequency
+      emits "TreatmentPlanCreated"
+      then_set :patient_name, to: :patient_name
+      then_set :diagnosis, to: :diagnosis
+      then_set :planned_visits, to: :planned_visits
+      then_set :frequency, to: :frequency
+      then_set :completed_visits, to: 0
+      then_set :status, to: "active"
+    end
+
+    RecordCompletedVisit do
+      role "Chiropractor"
+      description "Increment completed visits after an adjustment session"
+      reference_to(TreatmentPlan)
+      given("plan must be active") { status == "active" }
+      emits "VisitCompleted"
+    end
+
+    CloseTreatmentPlan do
+      role "Chiropractor"
+      description "Complete the treatment plan when goals are achieved"
+      reference_to(TreatmentPlan)
+      emits "TreatmentPlanClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Invoice", "A billing record for chiropractic services rendered" do
+    String :patient_name
+    String :service_date
+    list_of(LineItem) :line_items
+    Float :total_amount
+    String :insurance_claim_status
+    String :payment_status
+    reference_to Patient
+
+    value_object "LineItem" do
+      String :cpt_code
+      String :description
+      Float :amount
+    end
+
+    CreateInvoice do
+      role "BillingClerk"
+      description "Generate an invoice for services rendered"
+      reference_to(Patient)
+      String :patient_name
+      String :service_date
+      Float :total_amount
+      emits "InvoiceCreated"
+      then_set :patient_name, to: :patient_name
+      then_set :service_date, to: :service_date
+      then_set :total_amount, to: :total_amount
+      then_set :payment_status, to: "unpaid"
+      then_set :insurance_claim_status, to: "pending"
+    end
+
+    SubmitInsuranceClaim do
+      role "BillingClerk"
+      description "File the invoice with the patient's insurance carrier"
+      reference_to(Invoice)
+      emits "InsuranceClaimSubmitted"
+      then_set :insurance_claim_status, to: "submitted"
+    end
+
+    RecordPayment do
+      role "BillingClerk"
+      description "Mark the invoice as paid after receiving payment"
+      reference_to(Invoice)
+      given("must be unpaid") { payment_status == "unpaid" }
+      emits "PaymentRecorded"
+      then_set :payment_status, to: "paid"
+    end
+  end
+
+  # Workflow: Register → OrderImaging → InterpretImaging → CreateTreatmentPlan → Activate → PerformAdjustment → RecordVisit → CreateInvoice → SubmitClaim → ClosePlan → Deactivate
+  policy "OrderImagingOnRegistration" do
+    on "PatientRegistered"
+    trigger "OrderImaging"
+  end
+
+  policy "CreatePlanOnImaging" do
+    on "ImagingInterpreted"
+    trigger "CreateTreatmentPlan"
+  end
+
+  policy "ActivateOnPlanCreation" do
+    on "TreatmentPlanCreated"
+    trigger "ActivatePatient"
+  end
+
+  policy "RecordVisitOnAdjustment" do
+    on "AdjustmentPerformed"
+    trigger "RecordCompletedVisit"
+  end
+
+  policy "CreateInvoiceOnAdjustment" do
+    on "PostAdjustmentRecorded"
+    trigger "CreateInvoice"
+  end
+
+  policy "SubmitClaimOnInvoice" do
+    on "InvoiceCreated"
+    trigger "SubmitInsuranceClaim"
+  end
+
+  policy "DeactivateOnPlanClosed" do
+    on "TreatmentPlanClosed"
+    trigger "DeactivatePatient"
+  end
+
+  policy "PerformAdjustmentOnActivation" do
+    on "PatientActivated"
+    trigger "PerformAdjustment"
+  end
+
+  policy "RecordPaymentOnInvoice" do
+    on "InsuranceClaimSubmitted"
+    trigger "RecordPayment"
+  end
+end

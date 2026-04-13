@@ -1,0 +1,276 @@
+Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
+  vision "Operating a data center — provisioning racks, monitoring servers, managing cooling and power, and responding to incidents"
+  category "technology"
+
+  aggregate "Rack", "A physical cabinet housing servers and network gear" do
+    String :rack_id
+    String :location_aisle
+    Integer :unit_capacity
+    Integer :units_used
+    String :power_zone
+    String :status
+    list_of(MountedDevice) :mounted_devices
+
+    specification "Full" do
+      satisfied_by { units_used >= unit_capacity }
+    end
+
+    value_object "MountedDevice" do
+      String :device_id
+      Integer :start_unit
+      Integer :unit_span
+      String :device_type
+    end
+
+    InstallRack do
+      role "FacilityEngineer"
+      description "Bring a new rack online in a specified aisle and power zone"
+      String :rack_id
+      String :location_aisle
+      Integer :unit_capacity
+      String :power_zone
+      emits "RackInstalled"
+    end
+
+    MountDevice do
+      description "Install a device into available rack units"
+      reference_to(Rack)
+      String :device_id
+      Integer :start_unit
+      Integer :unit_span
+      given("rack has available units") { units_used + unit_span <= unit_capacity }
+      emits "DeviceMounted"
+    end
+
+    RemoveRack do
+      description "Take a rack offline for maintenance or removal"
+      reference_to(Rack)
+      given("rack is empty") { units_used == 0 }
+      emits "RackRemoved"
+    end
+  end
+
+  aggregate "Server", "A compute node running workloads inside a rack" do
+    String :hostname
+    String :ip_address
+    Integer :cpu_cores
+    Integer :ram_gb
+    String :os_version
+    String :status
+    reference_to Rack
+
+    value_object "HealthMetric" do
+      Float :cpu_usage_pct
+      Float :memory_usage_pct
+      Float :disk_usage_pct
+      String :sampled_at
+    end
+
+    SetupServer do
+      role "SysAdmin"
+      description "Set up a new server with OS and assign it to a rack"
+      String :hostname
+      String :ip_address
+      Integer :cpu_cores
+      Integer :ram_gb
+      String :os_version
+      reference_to(Rack)
+      emits "ServerSetUp"
+    end
+
+    RebootServer do
+      description "Restart a server to apply patches or recover from errors"
+      reference_to(Server)
+      emits "ServerRebooted"
+    end
+
+    RetireServer do
+      description "Permanently remove a server from service"
+      reference_to(Server)
+      given("server is powered off") { status == "powered_off" }
+      emits "ServerRetired"
+    end
+  end
+
+  aggregate "CoolingUnit", "An HVAC or liquid cooling system maintaining safe temperatures" do
+    String :unit_id
+    String :zone
+    Float :target_temp_c
+    Float :current_temp_c
+    String :coolant_type
+    String :status
+
+    value_object "TemperatureReading" do
+      Float :temp_c
+      Float :humidity_pct
+      String :recorded_at
+    end
+
+    InstallCoolingUnit do
+      role "FacilityEngineer"
+      description "Add a cooling unit to a thermal zone"
+      String :unit_id
+      String :zone
+      Float :target_temp_c
+      String :coolant_type
+      emits "CoolingUnitInstalled"
+    end
+
+    AdjustTargetTemperature do
+      description "Change the target temperature setpoint for a cooling unit"
+      reference_to(CoolingUnit)
+      Float :target_temp_c
+      emits "TargetTemperatureAdjusted"
+    end
+
+    ShutdownCoolingUnit do
+      description "Take a cooling unit offline for service"
+      reference_to(CoolingUnit)
+      emits "CoolingUnitShutdown"
+    end
+  end
+
+  aggregate "PowerCircuit", "An electrical feed delivering power to racks" do
+    String :circuit_id
+    Float :capacity_kw
+    Float :current_load_kw
+    String :redundancy_level
+    String :status
+    list_of(LoadReading) :load_history
+
+    value_object "LoadReading" do
+      Float :load_kw
+      String :recorded_at
+    end
+
+    ActivateCircuit do
+      role "FacilityEngineer"
+      description "Energize a power circuit and connect it to rack rows"
+      String :circuit_id
+      Float :capacity_kw
+      String :redundancy_level
+      emits "CircuitActivated"
+    end
+
+    RecordLoad do
+      description "Log the current power draw on a circuit"
+      reference_to(PowerCircuit)
+      Float :load_kw
+      given("load within capacity") { load_kw <= capacity_kw }
+      emits "LoadRecorded"
+    end
+
+    TripCircuit do
+      description "Emergency shutdown of an overloaded circuit"
+      reference_to(PowerCircuit)
+      emits "CircuitTripped"
+    end
+  end
+
+  aggregate "Incident", "An unplanned event requiring investigation and resolution" do
+    String :incident_number
+    String :severity
+    String :summary
+    String :affected_zone
+    String :assigned_to
+    String :status
+    reference_to Server
+    list_of(TimelineEntry) :timeline
+
+    value_object "TimelineEntry" do
+      String :note
+      String :author
+      String :recorded_at
+    end
+
+    ReportIncident do
+      role "OnCallEngineer"
+      description "Open a new incident when an anomaly is detected"
+      String :incident_number
+      String :severity
+      String :summary
+      String :affected_zone
+      reference_to(Server)
+      emits "IncidentReported"
+    end
+
+    EscalateIncident do
+      description "Raise the severity or reassign an incident"
+      reference_to(Incident)
+      String :severity
+      String :assigned_to
+      given("incident is open") { status == "open" }
+      emits "IncidentEscalated"
+    end
+
+    ResolveIncident do
+      description "Close an incident with a root cause note"
+      reference_to(Incident)
+      String :resolution_note
+      emits "IncidentResolved"
+    end
+  end
+
+  lifecycle "ServerProvision" do
+    state "ordered"
+    state "racked"
+    state "configured"
+    state "online"
+    state "degraded"
+    state "maintenance"
+    state "retired"
+
+    transition from: "ordered", to: "racked", on: "DeviceMounted"
+    transition from: "racked", to: "configured", on: "ServerSetUp"
+    transition from: "configured", to: "online", on: "ServerSetUp"
+    transition from: "online", to: "degraded", on: "IncidentReported"
+    transition from: "degraded", to: "maintenance", on: "ServerRebooted"
+    transition from: "maintenance", to: "online", on: "IncidentResolved"
+    transition from: "online", to: "retired", on: "ServerRetired"
+  end
+
+  policy "RackInstalledMountDevice" do
+    on "RackInstalled"
+    trigger "MountDevice"
+  end
+
+  policy "DeviceMountedSetupServer" do
+    on "DeviceMounted"
+    trigger "SetupServer"
+  end
+
+  policy "ServerSetUpActivateCircuit" do
+    on "ServerSetUp"
+    trigger "ActivateCircuit"
+  end
+
+  policy "CircuitActivatedInstallCooling" do
+    on "CircuitActivated"
+    trigger "InstallCoolingUnit"
+  end
+
+  policy "IncidentReportedRebootServer" do
+    on "IncidentEscalated"
+    trigger "RebootServer"
+  end
+
+  policy "OverheatReportIncident" do
+    on "TargetTemperatureAdjusted"
+    trigger "ReportIncident"
+  end
+
+  policy "RecordLoadOnSetup" do
+    on "ServerSetUp"
+    trigger "RecordLoad"
+  end
+
+  policy "ShutdownCoolingOnTrip" do
+    on "CircuitTripped"
+    trigger "ShutdownCoolingUnit"
+  end
+
+  policy "RebootOnIncident" do
+    on "IncidentReported"
+    trigger "RebootServer"
+  end
+end

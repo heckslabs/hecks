@@ -1,0 +1,265 @@
+Hecks.bluebook "StormwaterManagement", version: "2026.04.13.1" do
+  vision "Hydrology meets waste management — watersheds, drains, runoff modeling, and compliance"
+  category "crossover"
+
+  aggregate "Watershed", "A drainage basin — area, soil type, imperviousness, runoff coefficient" do
+    String :name
+    Float :area_sq_km
+    String :soil_type
+    Float :impervious_pct
+    Float :runoff_coefficient
+    String :status
+
+    value_object "SoilProfile" do
+      String :texture
+      Float :infiltration_rate_mm_hr
+      Float :porosity
+    end
+
+    DelineateWatershed do
+      role "Hydrologist"
+      description "Define watershed boundary and compute area"
+      String :name
+      Float :area_sq_km
+      String :soil_type
+      Float :impervious_pct
+      emits "WatershedDelineated"
+      then_set :name, to: :name
+      then_set :area_sq_km, to: :area_sq_km
+      then_set :soil_type, to: :soil_type
+      then_set :impervious_pct, to: :impervious_pct
+      then_set :status, to: "delineated"
+    end
+
+    CalculateRunoffCoefficient do
+      role "System"
+      description "Compute C value from soil type and impervious percentage"
+      reference_to(Watershed)
+      Float :runoff_coefficient
+      given { status == "delineated" }
+      emits "RunoffCoefficientCalculated"
+      then_set :runoff_coefficient, to: :runoff_coefficient
+    end
+
+    UpdateImperviousness do
+      role "Planner"
+      description "Update impervious percentage after development changes"
+      reference_to(Watershed)
+      Float :impervious_pct
+      given { status == "delineated" }
+      emits "ImperviousnessUpdated"
+      then_set :impervious_pct, to: :impervious_pct
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DelineateWatershed" => "delineated", from: "undefined"
+    end
+  end
+
+  aggregate "DrainNetwork", "Storm drain infrastructure — pipes, inlets, outlets, capacity" do
+    String :name
+    String :watershed_name
+    Float :total_capacity_cms
+    Integer :inlet_count
+    Integer :outlet_count
+    String :status
+
+    value_object "PipeSegment" do
+      String :pipe_id
+      Float :diameter_mm
+      Float :slope_pct
+      Float :capacity_cms
+    end
+
+    list_of "Inlet" do
+      String :inlet_id
+      Float :latitude
+      Float :longitude
+      String :inlet_type
+    end
+
+    MapDrainNetwork do
+      role "Engineer"
+      description "Map all storm drain pipes, inlets, and outlets in a watershed"
+      String :name
+      String :watershed_name
+      Float :total_capacity_cms
+      Integer :inlet_count
+      Integer :outlet_count
+      emits "DrainNetworkMapped"
+      then_set :name, to: :name
+      then_set :watershed_name, to: :watershed_name
+      then_set :total_capacity_cms, to: :total_capacity_cms
+      then_set :inlet_count, to: :inlet_count
+      then_set :outlet_count, to: :outlet_count
+      then_set :status, to: "mapped"
+    end
+
+    AssessCapacity do
+      role "System"
+      description "Evaluate if drain capacity meets projected runoff volume"
+      reference_to(DrainNetwork)
+      given { status == "mapped" }
+      emits "CapacityAssessed"
+    end
+
+    FlagOverflow do
+      role "System"
+      description "Alert when projected runoff exceeds drain capacity"
+      reference_to(DrainNetwork)
+      given { status == "mapped" }
+      emits "OverflowFlagged"
+      then_set :status, to: "at_risk"
+    end
+
+    lifecycle :status, default: "unmapped" do
+      transition "MapDrainNetwork" => "mapped", from: "unmapped"
+      transition "FlagOverflow" => "at_risk", from: "mapped"
+    end
+  end
+
+  aggregate "StormEvent", "A rainfall event — intensity, duration, return period, and runoff volume" do
+    String :name
+    Float :intensity_mm_hr
+    Float :duration_hours
+    Integer :return_period_years
+    Float :total_rainfall_mm
+    Float :runoff_volume_m3
+    String :status
+
+    value_object "HydrographPoint" do
+      Float :time_hours
+      Float :flow_cms
+    end
+
+    RecordStormEvent do
+      role "Hydrologist"
+      description "Record a storm event with intensity and duration"
+      String :name
+      Float :intensity_mm_hr
+      Float :duration_hours
+      Integer :return_period_years
+      emits "StormEventRecorded"
+      then_set :name, to: :name
+      then_set :intensity_mm_hr, to: :intensity_mm_hr
+      then_set :duration_hours, to: :duration_hours
+      then_set :return_period_years, to: :return_period_years
+      then_set :status, to: "recorded"
+    end
+
+    ModelRunoff do
+      role "System"
+      description "Calculate runoff volume using rational method Q = CiA"
+      reference_to(StormEvent)
+      Float :runoff_volume_m3
+      given { status == "recorded" }
+      emits "RunoffModeled"
+      then_set :runoff_volume_m3, to: :runoff_volume_m3
+    end
+
+    GenerateHydrograph do
+      role "System"
+      description "Produce time-flow curve for the storm event"
+      reference_to(StormEvent)
+      given { status == "recorded" }
+      emits "HydrographGenerated"
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordStormEvent" => "recorded", from: "pending"
+      transition "GenerateHydrograph" => "analyzed", from: "recorded"
+    end
+  end
+
+  aggregate "ComplianceReport", "Regulatory compliance — permits, discharge limits, monitoring results" do
+    String :watershed_name
+    String :permit_number
+    Float :max_discharge_cms
+    Float :actual_discharge_cms
+    String :compliance_status
+    String :report_date
+    String :status
+
+    value_object "DischargeReading" do
+      String :location
+      Float :flow_cms
+      Float :sediment_mg_l
+      String :timestamp
+    end
+
+    FileComplianceReport do
+      role "Inspector"
+      description "File a stormwater compliance report for a watershed"
+      String :watershed_name
+      String :permit_number
+      Float :max_discharge_cms
+      Float :actual_discharge_cms
+      String :report_date
+      emits "ComplianceReportFiled"
+      then_set :watershed_name, to: :watershed_name
+      then_set :permit_number, to: :permit_number
+      then_set :max_discharge_cms, to: :max_discharge_cms
+      then_set :actual_discharge_cms, to: :actual_discharge_cms
+      then_set :report_date, to: :report_date
+      then_set :status, to: "filed"
+    end
+
+    EvaluateCompliance do
+      role "System"
+      description "Compare actual discharge against permit limits"
+      reference_to(ComplianceReport)
+      String :compliance_status
+      given { status == "filed" }
+      emits "ComplianceEvaluated"
+      then_set :compliance_status, to: :compliance_status
+      then_set :status, to: "evaluated"
+    end
+
+    IssueViolation do
+      role "Inspector"
+      description "Issue violation notice when discharge exceeds permit"
+      reference_to(ComplianceReport)
+      given { status == "evaluated" }
+      emits "ViolationIssued"
+      then_set :status, to: "violation"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FileComplianceReport" => "filed", from: "pending"
+      transition "EvaluateCompliance" => "evaluated", from: "filed"
+      transition "IssueViolation" => "violation", from: "evaluated"
+    end
+  end
+
+  # Workflow: Delineate watershed -> calculate runoff coeff -> record storm -> model runoff -> assess capacity -> compliance
+  policy "CalcRunoffOnDelineation" do
+    on "WatershedDelineated"
+    trigger "CalculateRunoffCoefficient"
+  end
+
+  policy "ModelRunoffOnStorm" do
+    on "StormEventRecorded"
+    trigger "ModelRunoff"
+  end
+
+  policy "HydrographOnRunoff" do
+    on "RunoffModeled"
+    trigger "GenerateHydrograph"
+  end
+
+  policy "AssessCapacityOnHydrograph" do
+    on "HydrographGenerated"
+    trigger "AssessCapacity"
+  end
+
+  policy "FlagOverflowOnCapacity" do
+    on "CapacityAssessed"
+    trigger "FlagOverflow"
+  end
+
+  policy "EvaluateOnFiling" do
+    on "ComplianceReportFiled"
+    trigger "EvaluateCompliance"
+  end
+end

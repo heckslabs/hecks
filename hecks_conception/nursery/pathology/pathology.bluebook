@@ -1,0 +1,291 @@
+Hecks.bluebook "Pathology" do
+  vision "Laboratory diagnostics — specimens, tests, results, quality control, and pathology reports"
+
+  aggregate "Specimen", "A biological sample submitted for laboratory analysis" do
+    String :accession_number
+    String :patient_name
+    String :specimen_type
+    String :collection_date
+    String :collected_by
+    String :status
+    list_of(ProcessingStep) :processing_history
+
+    value_object "ProcessingStep" do
+      String :step_name
+      String :performed_by
+      String :timestamp
+      String :notes
+    end
+
+    ReceiveSpecimen do
+      role "LabTechnician"
+      description "Receive and log a specimen into the laboratory system"
+      String :accession_number
+      String :patient_name
+      String :specimen_type
+      String :collection_date
+      String :collected_by
+      emits "SpecimenAccessioned"
+      then_set :accession_number, to: :accession_number
+      then_set :patient_name, to: :patient_name
+      then_set :specimen_type, to: :specimen_type
+      then_set :collection_date, to: :collection_date
+      then_set :collected_by, to: :collected_by
+      then_set :status, to: "received"
+    end
+
+    ProcessSpecimen do
+      role "LabTechnician"
+      description "Prepare the specimen for testing — sectioning, staining, or extraction"
+      reference_to(Specimen)
+      given("must be received") { status == "received" }
+      emits "SpecimenProcessed"
+      then_set :status, to: "processed"
+    end
+
+    RejectSpecimen do
+      role "LabTechnician"
+      description "Reject a specimen that does not meet quality standards"
+      reference_to(Specimen)
+      emits "SpecimenRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  aggregate "LabTest", "A specific diagnostic test performed on a specimen" do
+    String :test_name
+    String :test_code
+    String :methodology
+    String :specimen_accession
+    String :ordered_by
+    String :status
+    reference_to Specimen
+
+    OrderTest do
+      role "Physician"
+      description "Request a specific laboratory test on a specimen"
+      reference_to(Specimen)
+      String :test_name
+      String :test_code
+      String :methodology
+      String :specimen_accession
+      String :ordered_by
+      emits "TestOrdered"
+      then_set :test_name, to: :test_name
+      then_set :test_code, to: :test_code
+      then_set :methodology, to: :methodology
+      then_set :specimen_accession, to: :specimen_accession
+      then_set :ordered_by, to: :ordered_by
+      then_set :status, to: "ordered"
+    end
+
+    RunTest do
+      role "LabTechnician"
+      description "Execute the laboratory test according to protocol"
+      reference_to(LabTest)
+      given("must be ordered") { status == "ordered" }
+      emits "TestRun"
+      then_set :status, to: "completed"
+    end
+
+    RepeatTest do
+      role "Pathologist"
+      description "Order a repeat of a test due to inconclusive results"
+      reference_to(LabTest)
+      emits "TestRepeated"
+      then_set :status, to: "ordered"
+    end
+  end
+
+  aggregate "TestResult", "The outcome of a laboratory test with reference ranges" do
+    String :test_name
+    String :result_value
+    String :unit
+    String :reference_range
+    String :interpretation
+    String :resulted_by
+    String :result_date
+    String :status
+    reference_to LabTest
+
+    value_object "AbnormalFlag" do
+      String :flag_type
+      String :description
+      String :clinical_significance
+    end
+
+    RecordResult do
+      role "LabTechnician"
+      description "Enter the test result with values and interpretation"
+      reference_to(LabTest)
+      String :test_name
+      String :result_value
+      String :unit
+      String :reference_range
+      String :interpretation
+      String :resulted_by
+      String :result_date
+      emits "ResultRecorded"
+      then_set :test_name, to: :test_name
+      then_set :result_value, to: :result_value
+      then_set :unit, to: :unit
+      then_set :reference_range, to: :reference_range
+      then_set :interpretation, to: :interpretation
+      then_set :resulted_by, to: :resulted_by
+      then_set :result_date, to: :result_date
+      then_set :status, to: "preliminary"
+    end
+
+    VerifyResult do
+      role "Pathologist"
+      description "Review and verify the test result for clinical accuracy"
+      reference_to(TestResult)
+      given("must be preliminary") { status == "preliminary" }
+      emits "ResultVerified"
+      then_set :status, to: "verified"
+    end
+
+    AmendResult do
+      role "Pathologist"
+      description "Correct a previously verified result"
+      reference_to(TestResult)
+      String :result_value
+      String :interpretation
+      emits "ResultAmended"
+      then_set :result_value, to: :result_value
+      then_set :interpretation, to: :interpretation
+    end
+  end
+
+  aggregate "QualityControl", "A quality assurance check ensuring instrument and process accuracy" do
+    String :instrument_name
+    String :control_material
+    String :expected_value
+    String :observed_value
+    String :run_date
+    String :status
+
+    RunQualityControl do
+      role "LabTechnician"
+      description "Execute a quality control check on the instrument"
+      String :instrument_name
+      String :control_material
+      String :expected_value
+      String :observed_value
+      String :run_date
+      emits "QualityControlRun"
+      then_set :instrument_name, to: :instrument_name
+      then_set :control_material, to: :control_material
+      then_set :expected_value, to: :expected_value
+      then_set :observed_value, to: :observed_value
+      then_set :run_date, to: :run_date
+      then_set :status, to: "pending_review"
+    end
+
+    ApproveQualityControl do
+      role "Supervisor"
+      description "Accept the quality control results as within acceptable range"
+      reference_to(QualityControl)
+      given("must be pending review") { status == "pending_review" }
+      emits "QualityControlApproved"
+      then_set :status, to: "approved"
+    end
+
+    FailQualityControl do
+      role "Supervisor"
+      description "Flag a quality control failure requiring corrective action"
+      reference_to(QualityControl)
+      emits "QualityControlFailed"
+      then_set :status, to: "failed"
+    end
+  end
+
+  aggregate "PathologyReport", "A comprehensive report summarizing specimen findings" do
+    String :patient_name
+    String :specimen_accession
+    String :gross_description
+    String :microscopic_findings
+    String :diagnosis
+    String :pathologist_name
+    String :report_date
+    String :status
+    reference_to Specimen
+
+    DraftPathologyReport do
+      role "Pathologist"
+      description "Write the initial pathology report with findings and diagnosis"
+      reference_to(Specimen)
+      String :patient_name
+      String :specimen_accession
+      String :gross_description
+      String :microscopic_findings
+      String :diagnosis
+      String :pathologist_name
+      String :report_date
+      emits "PathologyReportDrafted"
+      then_set :patient_name, to: :patient_name
+      then_set :specimen_accession, to: :specimen_accession
+      then_set :gross_description, to: :gross_description
+      then_set :microscopic_findings, to: :microscopic_findings
+      then_set :diagnosis, to: :diagnosis
+      then_set :pathologist_name, to: :pathologist_name
+      then_set :report_date, to: :report_date
+      then_set :status, to: "draft"
+    end
+
+    SignOutReport do
+      role "Pathologist"
+      description "Finalize and sign the pathology report for distribution"
+      reference_to(PathologyReport)
+      given("must be draft") { status == "draft" }
+      emits "PathologyReportSignedOut"
+      then_set :status, to: "final"
+    end
+  end
+
+  # Workflow: ReceiveSpecimen → ProcessSpecimen → OrderTest → RunQC → RunTest → RecordResult → VerifyResult → DraftReport → SignOutReport
+  policy "ProcessOnReceive" do
+    on "SpecimenAccessioned"
+    trigger "ProcessSpecimen"
+  end
+
+  policy "OrderTestOnProcess" do
+    on "SpecimenProcessed"
+    trigger "OrderTest"
+  end
+
+  policy "RunQCBeforeTest" do
+    on "TestOrdered"
+    trigger "RunQualityControl"
+  end
+
+  policy "RunTestOnQCApproval" do
+    on "QualityControlApproved"
+    trigger "RunTest"
+  end
+
+  policy "RecordResultOnTest" do
+    on "TestRun"
+    trigger "RecordResult"
+  end
+
+  policy "VerifyOnResult" do
+    on "ResultRecorded"
+    trigger "VerifyResult"
+  end
+
+  policy "DraftReportOnVerify" do
+    on "ResultVerified"
+    trigger "DraftPathologyReport"
+  end
+
+  policy "SignOutOnDraft" do
+    on "PathologyReportDrafted"
+    trigger "SignOutReport"
+  end
+
+  policy "RepeatOnQCFailure" do
+    on "QualityControlFailed"
+    trigger "RepeatTest"
+  end
+end

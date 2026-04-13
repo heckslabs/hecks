@@ -1,0 +1,277 @@
+Hecks.bluebook "ZooManagement" do
+  vision "Manage animals, habitats, feedings, veterinary care, and breeding programs for a zoo"
+
+  aggregate "Animal", "A living specimen in the zoo collection" do
+    String :animal_id
+    String :common_name
+    String :species
+    String :sex
+    String :status
+    String :date_of_birth
+    reference_to(Habitat)
+
+    value_object "TaxonomicClassification" do
+      String :kingdom
+      String :family
+      String :genus
+    end
+
+    RegisterAnimal do
+      description "Register a new animal into the zoo collection"
+      String :common_name
+      String :species
+      String :sex
+      String :date_of_birth
+      emits "AnimalRegistered"
+      then_set :status, to: "quarantine"
+    end
+
+    ClearQuarantine do
+      description "Release animal from quarantine after health clearance"
+      reference_to(Animal)
+      given { status == "quarantine" }
+      emits "QuarantineCleared"
+      then_set :status, to: "cleared"
+    end
+
+    PlaceOnExhibit do
+      description "Move a cleared animal to its exhibit habitat"
+      reference_to(Animal)
+      reference_to(Habitat)
+      given { status == "cleared" }
+      emits "AnimalPlacedOnExhibit"
+      then_set :status, to: "on_exhibit"
+    end
+
+    MoveOffExhibit do
+      description "Temporarily remove an animal from public exhibit"
+      reference_to(Animal)
+      String :reason
+      given { status == "on_exhibit" }
+      emits "AnimalMovedOffExhibit"
+      then_set :status, to: "off_exhibit"
+    end
+
+    TransferAnimal do
+      description "Move an animal to another zoo via species survival plan"
+      reference_to(Animal)
+      String :destination_zoo
+      given { status == "on_exhibit" }
+      emits "AnimalTransferred"
+      then_set :status, to: "transferred"
+    end
+  end
+
+  aggregate "Habitat", "An enclosure or exhibit housing one or more species" do
+    String :habitat_id
+    String :name
+    String :biome_type
+    Float :area_sqft
+    Integer :max_capacity
+    Integer :current_occupancy
+    String :status
+
+    value_object "EnvironmentalControls" do
+      Float :temperature_f
+      Float :humidity_percent
+      String :lighting_cycle
+    end
+
+    BuildHabitat do
+      description "Construct a new animal habitat"
+      String :name
+      String :biome_type
+      Float :area_sqft
+      Integer :max_capacity
+      emits "HabitatBuilt"
+      then_set :status, to: "built"
+      then_set :current_occupancy, to: 0
+    end
+
+    InspectHabitat do
+      description "Perform safety and readiness inspection"
+      reference_to(Habitat)
+      given { status == "built" }
+      emits "HabitatInspected"
+      then_set :status, to: "active"
+    end
+
+    CloseHabitat do
+      description "Shut down a habitat for renovation"
+      reference_to(Habitat)
+      String :reason
+      given { status == "active" }
+      emits "HabitatClosed"
+      then_set :status, to: "closed"
+    end
+
+    ReopenHabitat do
+      description "Return a closed habitat to active use"
+      reference_to(Habitat)
+      given { status == "closed" }
+      emits "HabitatReopened"
+      then_set :status, to: "active"
+    end
+
+    AssignAnimalToHabitat do
+      description "Place an animal in a habitat"
+      reference_to(Habitat)
+      reference_to(Animal)
+      given { current_occupancy < max_capacity }
+      emits "AnimalAssignedToHabitat"
+    end
+  end
+
+  aggregate "FeedingSchedule", "A routine feeding plan for animals in a habitat" do
+    String :schedule_id
+    String :diet_type
+    String :feeding_time
+    Float :portion_kg
+    String :status
+    reference_to(Animal)
+
+    value_object "DietItem" do
+      String :food_name
+      Float :quantity_kg
+      String :frequency
+    end
+
+    CreateFeedingSchedule do
+      description "Set up a feeding plan for an animal"
+      String :diet_type
+      String :feeding_time
+      Float :portion_kg
+      reference_to(Animal)
+      emits "FeedingScheduleCreated"
+      then_set :status, to: "active"
+    end
+
+    RecordFeeding do
+      description "Log that a feeding was completed"
+      reference_to(FeedingSchedule)
+      String :fed_by
+      emits "FeedingRecorded"
+    end
+
+    AdjustDiet do
+      description "Modify an animal's diet based on vet recommendation"
+      reference_to(FeedingSchedule)
+      String :new_diet_type
+      Float :new_portion_kg
+      given { status == "active" }
+      emits "DietAdjusted"
+    end
+  end
+
+  aggregate "VeterinaryExam", "A health examination or treatment by the zoo vet" do
+    String :exam_id
+    String :exam_type
+    String :veterinarian
+    String :findings
+    String :status
+    reference_to(Animal)
+
+    value_object "LabWork" do
+      String :test_name
+      String :result
+    end
+
+    ScheduleExam do
+      description "Book a veterinary exam for an animal"
+      String :exam_type
+      String :veterinarian
+      reference_to(Animal)
+      emits "ExamScheduled"
+      then_set :status, to: "scheduled"
+    end
+
+    PerformExam do
+      description "Complete the exam and record findings"
+      reference_to(VeterinaryExam)
+      String :findings
+      given { status == "scheduled" }
+      emits "ExamPerformed"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "BreedingProgram", "A species survival plan pairing animals for reproduction" do
+    String :program_id
+    String :species
+    String :status
+    Integer :target_offspring
+    reference_to(Animal)
+
+    value_object "GeneticProfile" do
+      Float :inbreeding_coefficient
+      String :studbook_number
+    end
+
+    InitiateBreeding do
+      description "Start a breeding program for a species"
+      String :species
+      Integer :target_offspring
+      reference_to(Animal)
+      emits "BreedingInitiated"
+      then_set :status, to: "active"
+    end
+
+    RecordBirth do
+      description "Log a successful birth in the breeding program"
+      reference_to(BreedingProgram)
+      String :offspring_name
+      given { status == "active" }
+      emits "BirthRecorded"
+    end
+  end
+
+  policy "ExamOnAccession" do
+    on "AnimalRegistered"
+    trigger "ScheduleExam"
+  end
+
+  policy "ClearQuarantineOnExam" do
+    on "ExamPerformed"
+    trigger "ClearQuarantine"
+  end
+
+  policy "PlaceOnExhibitOnClear" do
+    on "QuarantineCleared"
+    trigger "PlaceOnExhibit"
+  end
+
+  policy "CreateFeedingOnExhibit" do
+    on "AnimalPlacedOnExhibit"
+    trigger "CreateFeedingSchedule"
+  end
+
+  policy "AdjustDietOnExam" do
+    on "ExamPerformed"
+    trigger "AdjustDiet"
+  end
+
+  policy "InspectHabitatOnBuild" do
+    on "HabitatBuilt"
+    trigger "InspectHabitat"
+  end
+
+  policy "RegisterOffspringOnBirth" do
+    on "BirthRecorded"
+    trigger "RegisterAnimal"
+  end
+
+  policy "AssignToHabitatOnInspected" do
+    on "HabitatInspected"
+    trigger "AssignAnimalToHabitat"
+  end
+
+  policy "FeedOnScheduleCreated" do
+    on "FeedingScheduleCreated"
+    trigger "RecordFeeding"
+  end
+
+  policy "ScheduleExamOnExhibit" do
+    on "AnimalPlacedOnExhibit"
+    trigger "ScheduleExam"
+  end
+end

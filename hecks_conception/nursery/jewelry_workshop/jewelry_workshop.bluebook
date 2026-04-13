@@ -1,0 +1,194 @@
+Hecks.bluebook "JewelryWorkshop" do
+  aggregate "JewelryPiece", "A handcrafted jewelry item from design to finishing" do
+    String :name
+    String :piece_type
+    String :metal
+    String :status, default: "designed"
+    Float :weight_grams
+
+    value_object "MetalAlloy" do
+      String :base_metal
+      Float :karat
+      Float :purity_percentage
+      String :color
+    end
+
+    DesignPiece do
+      description "Create a new jewelry design with metal and stone selections"
+      String :name
+      String :piece_type
+      String :metal
+      emits "PieceDesigned"
+    end
+
+    CastPiece do
+      description "Cast the piece using lost wax or direct casting"
+      reference_to(JewelryPiece)
+      String :casting_method
+      given { status == "designed" }
+      emits "PieceCast"
+      then_set :status, to: "cast"
+    end
+
+    PolishPiece do
+      description "Polish and finish the piece to final luster"
+      reference_to(JewelryPiece)
+      given { status == "set" }
+      emits "PiecePolished"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "Gemstone", "A precious or semi-precious stone with grading details" do
+    String :stone_type
+    Float :carat_weight
+    String :cut
+    String :clarity
+    String :color_grade
+    String :status, default: "loose"
+
+    value_object "CertificateOfAuthenticity" do
+      String :lab_name
+      String :certificate_number
+      String :date_graded
+      String :grade_summary
+    end
+
+    AcquireStone do
+      description "Purchase a gemstone from a dealer with grading report"
+      String :stone_type
+      Float :carat_weight
+      String :cut
+      String :clarity
+      String :color_grade
+      emits "StoneAcquired"
+    end
+
+    GradeStone do
+      description "Submit stone for independent gemological grading"
+      reference_to(Gemstone)
+      String :lab_name
+      emits "StoneGraded"
+    end
+  end
+
+  aggregate "Setting", "The mounting or setting that holds a gemstone in a piece" do
+    String :setting_type
+    String :prong_count
+    String :metal
+    String :status, default: "prepared"
+    reference_to(JewelryPiece)
+    reference_to(Gemstone)
+
+    PrepareSetting do
+      description "Fabricate the stone setting for a piece"
+      reference_to(JewelryPiece)
+      String :setting_type
+      String :metal
+      emits "SettingPrepared"
+    end
+
+    SetStone do
+      description "Secure the gemstone into its setting"
+      reference_to(Setting)
+      reference_to(Gemstone)
+      given { status == "prepared" }
+      emits "StoneSet"
+      then_set :status, to: "set"
+    end
+  end
+
+  aggregate "Appraisal", "A professional valuation of a jewelry piece" do
+    Float :appraised_value
+    String :appraiser_name
+    String :date
+    String :purpose
+    reference_to(JewelryPiece)
+
+    AppraisePiece do
+      description "Conduct a formal appraisal for insurance or sale"
+      reference_to(JewelryPiece)
+      String :appraiser_name
+      String :purpose
+      Float :appraised_value
+      emits "PieceAppraised"
+    end
+
+    UpdateAppraisal do
+      description "Revise the appraised value based on market changes"
+      reference_to(Appraisal)
+      Float :new_value
+      emits "AppraisalUpdated"
+      then_set :appraised_value, to: :new_value
+    end
+  end
+
+  aggregate "Commission", "A custom jewelry order from a client" do
+    String :client_name
+    String :description
+    Float :quoted_price
+    String :status, default: "quoted"
+    String :deadline
+    reference_to(JewelryPiece)
+
+    QuoteCommission do
+      description "Provide a price quote for a custom jewelry order"
+      String :client_name
+      String :description
+      Float :quoted_price
+      String :deadline
+      emits "CommissionQuoted"
+    end
+
+    AcceptCommission do
+      description "Client accepts the quote and work begins"
+      reference_to(Commission)
+      given { status == "quoted" }
+      emits "CommissionAccepted"
+      then_set :status, to: "in_progress"
+    end
+
+    DeliverCommission do
+      description "Hand over the finished custom piece to the client"
+      reference_to(Commission)
+      given { status == "in_progress" }
+      emits "CommissionDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "DesignOnCommission" do
+    on "CommissionAccepted"
+    trigger "DesignPiece"
+  end
+
+  policy "CastAfterDesign" do
+    on "PieceDesigned"
+    trigger "CastPiece"
+  end
+
+  policy "PrepareSettingOnCast" do
+    on "PieceCast"
+    trigger "PrepareSetting"
+  end
+
+  policy "SetStoneOnPrepare" do
+    on "SettingPrepared"
+    trigger "SetStone"
+  end
+
+  policy "PolishAfterStoneSetting" do
+    on "StoneSet"
+    trigger "PolishPiece"
+  end
+
+  policy "AppraiseOnPolish" do
+    on "PiecePolished"
+    trigger "AppraisePiece"
+  end
+
+  policy "DeliverOnAppraisal" do
+    on "PieceAppraised"
+    trigger "DeliverCommission"
+  end
+end

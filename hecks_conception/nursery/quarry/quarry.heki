@@ -1,0 +1,222 @@
+Hecks.bluebook "Quarry" do
+  aggregate "StoneBlock" do
+    String :block_id
+    String :stone_type
+    Float :length_m
+    Float :width_m
+    Float :height_m
+    String :grade
+    String :status
+
+    value_object "BlockDimensions" do
+      Float :length_m
+      Float :width_m
+      Float :height_m
+      Float :volume_cubic_m
+    end
+
+    ExtractBlock do
+      description "Extract raw stone block from quarry face using wire saw"
+      String :stone_type
+      String :bench_location
+      reference_to "StoneBlock"
+      emits "BlockExtracted"
+    end
+
+    GradeBlock do
+      description "Assess stone block quality and assign commercial grade"
+      String :grade
+      String :defect_notes
+      reference_to "StoneBlock"
+      emits "BlockGraded"
+    end
+
+    lifecycle :status, default: "in_situ" do
+      transition "ExtractBlock" => "extracted", from: "in_situ"
+      transition "GradeBlock" => "graded", from: "extracted"
+    end
+
+    policy "Blocks must be graded within 24 hours of extraction"
+    policy "Cracked blocks must be downgraded or rejected"
+
+    given "A marble block is extracted from bench 3" do
+      String :stone_type, "Carrara Marble"
+      String :grade, "Premium"
+      Float :length_m, 3.0
+    end
+  end
+
+  aggregate "CuttingJob" do
+    String :job_id
+    String :cut_type
+    Float :thickness_mm
+    Integer :slab_count
+    String :status
+    list_of "StoneBlock"
+
+    SawSlabs do
+      description "Cut stone block into slabs on the gang saw or bridge saw"
+      String :cut_type
+      Float :thickness_mm
+      reference_to "StoneBlock"
+      emits "SlabsSawn"
+    end
+
+    PolishSlabs do
+      description "Polish slab surfaces to specified finish level"
+      String :finish_type
+      Integer :grit_level
+      reference_to "CuttingJob"
+      emits "SlabsPolished"
+    end
+
+    InspectSlabs do
+      description "Quality inspect finished slabs for cracks, stains, and dimensions"
+      String :inspector
+      Integer :passed_count
+      Integer :rejected_count
+      reference_to "CuttingJob"
+      emits "SlabsInspected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SawSlabs" => "sawn", from: "pending"
+      transition "PolishSlabs" => "polished", from: "sawn"
+      transition "InspectSlabs" => "inspected", from: "polished"
+    end
+
+    policy "Saw blades must be inspected before each cutting job"
+  end
+
+  aggregate "QuarryEquipment" do
+    String :equipment_id
+    String :equipment_type
+    Float :operating_hours
+    String :status
+
+    value_object "MaintenanceRecord" do
+      String :service_type
+      String :technician
+      String :service_date
+      Float :hours_at_service
+    end
+
+    ServiceEquipment do
+      description "Perform preventive maintenance on quarry machinery"
+      String :service_type
+      String :technician
+      reference_to "QuarryEquipment"
+      emits "EquipmentServiced"
+    end
+
+    ReportFault do
+      description "Report equipment malfunction requiring unplanned repair"
+      String :fault_description
+      String :severity
+      reference_to "QuarryEquipment"
+      emits "FaultReported"
+    end
+
+    lifecycle :status, default: "operational" do
+      transition "ServiceEquipment" => "serviced", from: "operational"
+      transition "ReportFault" => "faulted", from: "operational"
+    end
+
+    policy "Equipment exceeding 500 hours must be serviced"
+  end
+
+  aggregate "StoneInventory" do
+    String :inventory_id
+    String :stone_type
+    String :grade
+    Integer :block_count
+    Float :total_volume_cubic_m
+    String :yard_location
+
+    ReceiveIntoYard do
+      description "Move graded blocks into inventory yard with location tag"
+      String :yard_location
+      Integer :block_count
+      reference_to "StoneBlock"
+      emits "StockReceived"
+    end
+
+    ReserveStock do
+      description "Reserve inventory blocks against a customer order"
+      String :order_id
+      Integer :reserved_count
+      reference_to "StoneInventory"
+      emits "StockReserved"
+    end
+
+    policy "Reserved stock cannot be sold to another customer"
+  end
+
+  aggregate "QuarryOrder" do
+    String :order_id
+    String :customer_name
+    String :stone_type
+    String :cut_specification
+    Integer :quantity
+    String :status
+
+    PlaceQuarryOrder do
+      description "Receive customer order for stone products with specifications"
+      String :customer_name
+      String :stone_type
+      Integer :quantity
+      reference_to "QuarryOrder"
+      emits "OrderPlaced"
+    end
+
+    DispatchOrder do
+      description "Load finished stone products for delivery to customer"
+      String :carrier
+      String :truck_id
+      reference_to "QuarryOrder"
+      emits "OrderDispatched"
+    end
+
+    lifecycle :status, default: "received" do
+      transition "PlaceQuarryOrder" => "confirmed", from: "received"
+      transition "DispatchOrder" => "dispatched", from: "confirmed"
+    end
+
+    policy "Orders require deposit before production begins"
+  end
+
+  policy "GradeBlockOnBlockExtracted" do
+    on "BlockExtracted"
+    trigger "GradeBlock"
+  end
+
+  policy "ReceiveIntoYardOnBlockGraded" do
+    on "BlockGraded"
+    trigger "ReceiveIntoYard"
+  end
+
+  policy "ReserveStockOnStockReceived" do
+    on "StockReceived"
+    trigger "ReserveStock"
+  end
+
+  policy "SawSlabsOnStockReserved" do
+    on "StockReserved"
+    trigger "SawSlabs"
+  end
+
+  policy "PolishSlabsOnSlabsSawn" do
+    on "SlabsSawn"
+    trigger "PolishSlabs"
+  end
+
+  policy "InspectSlabsOnSlabsPolished" do
+    on "SlabsPolished"
+    trigger "InspectSlabs"
+  end
+
+  policy "DispatchOrderOnSlabsInspected" do
+    on "SlabsInspected"
+    trigger "DispatchOrder"
+  end
+end

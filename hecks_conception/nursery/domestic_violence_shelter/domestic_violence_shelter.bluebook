@@ -1,0 +1,259 @@
+Hecks.bluebook "DomesticViolenceShelter" do
+  vision "Survivor safety and empowerment — residents, safety plans, support services, advocates, and safe exit planning"
+
+  aggregate "Resident", "A survivor of domestic violence sheltered in the facility" do
+    String :alias_name
+    String :intake_date
+    Integer :dependents_count
+    String :risk_level
+    String :status
+
+    AdmitResident do
+      role "IntakeAdvocate"
+      description "Securely admit a survivor into the shelter with confidential intake"
+      String :alias_name
+      String :intake_date
+      Integer :dependents_count
+      String :risk_level
+      emits "ResidentAdmitted"
+      then_set :alias_name, to: :alias_name
+      then_set :intake_date, to: :intake_date
+      then_set :dependents_count, to: :dependents_count
+      then_set :risk_level, to: :risk_level
+      then_set :status, to: "sheltered"
+    end
+
+    ReassessRisk do
+      role "Advocate"
+      description "Update the resident's risk assessment based on new information"
+      reference_to(Resident)
+      String :risk_level
+      emits "RiskReassessed"
+      then_set :risk_level, to: :risk_level
+    end
+
+    TransitionToHousing do
+      role "CaseManager"
+      description "Move the resident to permanent safe housing"
+      reference_to(Resident)
+      given("must be sheltered") { status == "sheltered" }
+      emits "ResidentTransitioned"
+      then_set :status, to: "transitioned"
+    end
+  end
+
+  aggregate "SafetyPlan", "A personalized safety strategy for the resident" do
+    String :resident_alias
+    String :created_date
+    list_of(SafetyStep) :steps
+    String :emergency_contacts
+    String :escape_route
+    String :status
+    reference_to Resident
+
+    value_object "SafetyStep" do
+      String :scenario
+      String :action
+      String :resources_needed
+      Integer :priority
+    end
+
+    CreateSafetyPlan do
+      role "Advocate"
+      description "Develop a personalized safety plan with the resident"
+      reference_to(Resident)
+      String :resident_alias
+      String :created_date
+      String :emergency_contacts
+      String :escape_route
+      emits "SafetyPlanCreated"
+      then_set :resident_alias, to: :resident_alias
+      then_set :created_date, to: :created_date
+      then_set :emergency_contacts, to: :emergency_contacts
+      then_set :escape_route, to: :escape_route
+      then_set :status, to: "active"
+    end
+
+    AddSafetyStep do
+      role "Advocate"
+      description "Add a specific safety action to the plan"
+      reference_to(SafetyPlan)
+      String :scenario
+      String :action
+      String :resources_needed
+      Integer :priority
+      emits "SafetyStepAdded"
+    end
+
+    ReviewSafetyPlan do
+      role "Advocate"
+      description "Conduct a scheduled review of the safety plan"
+      reference_to(SafetyPlan)
+      emits "SafetyPlanReviewed"
+    end
+  end
+
+  aggregate "SupportService", "A service provided to residents such as legal aid, counseling, or childcare" do
+    String :service_name
+    String :service_type
+    String :provider_name
+    String :availability
+    String :status
+
+    RegisterService do
+      role "ShelterDirector"
+      description "Add a support service to the shelter's offerings"
+      String :service_name
+      String :service_type
+      String :provider_name
+      String :availability
+      emits "ServiceRegistered"
+      then_set :service_name, to: :service_name
+      then_set :service_type, to: :service_type
+      then_set :provider_name, to: :provider_name
+      then_set :availability, to: :availability
+      then_set :status, to: "active"
+    end
+
+    ReferToService do
+      role "Advocate"
+      description "Connect a resident with a specific support service"
+      reference_to(SupportService)
+      emits "ResidentReferred"
+    end
+
+    SuspendService do
+      role "ShelterDirector"
+      description "Temporarily suspend a service due to provider unavailability"
+      reference_to(SupportService)
+      emits "ServiceSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "Advocate", "A trained professional providing direct support to residents" do
+    String :name
+    String :role_type
+    String :certification
+    Integer :active_cases
+    String :status
+
+    OnboardAdvocate do
+      role "ShelterDirector"
+      description "Add a new advocate to the shelter team"
+      String :name
+      String :role_type
+      String :certification
+      emits "AdvocateOnboarded"
+      then_set :name, to: :name
+      then_set :role_type, to: :role_type
+      then_set :certification, to: :certification
+      then_set :active_cases, to: 0
+      then_set :status, to: "active"
+    end
+
+    AssignResident do
+      role "CaseManager"
+      description "Assign a resident to this advocate's caseload"
+      reference_to(Advocate)
+      emits "ResidentAssigned"
+    end
+  end
+
+  aggregate "ExitPlan", "A structured plan for safely leaving the shelter" do
+    String :resident_alias
+    String :target_exit_date
+    String :housing_arrangement
+    String :employment_status
+    String :support_network
+    String :status
+    list_of(ExitTask) :tasks
+    reference_to Resident
+
+    value_object "ExitTask" do
+      String :task_description
+      String :responsible_party
+      String :due_date
+      String :completed
+    end
+
+    CreateExitPlan do
+      role "CaseManager"
+      description "Develop a safe exit and rehousing plan for the resident"
+      reference_to(Resident)
+      String :resident_alias
+      String :target_exit_date
+      String :housing_arrangement
+      String :employment_status
+      emits "ExitPlanCreated"
+      then_set :resident_alias, to: :resident_alias
+      then_set :target_exit_date, to: :target_exit_date
+      then_set :housing_arrangement, to: :housing_arrangement
+      then_set :employment_status, to: :employment_status
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteExitTask do
+      role "CaseManager"
+      description "Mark an exit plan task as completed"
+      reference_to(ExitPlan)
+      String :task_description
+      emits "ExitTaskCompleted"
+    end
+
+    FinalizeExit do
+      role "CaseManager"
+      description "Complete the exit plan and discharge the resident safely"
+      reference_to(ExitPlan)
+      given("must be in progress") { status == "in_progress" }
+      emits "ExitFinalized"
+      then_set :status, to: "finalized"
+    end
+  end
+
+  # Workflow: Admit → AssignAdvocate → CreateSafetyPlan → ReferToService → ReassessRisk → CreateExitPlan → CompleteExitTasks → FinalizeExit → TransitionToHousing
+  policy "AssignAdvocateOnAdmit" do
+    on "ResidentAdmitted"
+    trigger "AssignResident"
+  end
+
+  policy "CreateSafetyPlanOnAdmit" do
+    on "ResidentAdmitted"
+    trigger "CreateSafetyPlan"
+  end
+
+  policy "ReferToServiceOnSafetyPlan" do
+    on "SafetyPlanCreated"
+    trigger "ReferToService"
+  end
+
+  policy "ReassessRiskOnReview" do
+    on "SafetyPlanReviewed"
+    trigger "ReassessRisk"
+  end
+
+  policy "CreateExitPlanOnReassessment" do
+    on "RiskReassessed"
+    trigger "CreateExitPlan"
+  end
+
+  policy "TransitionOnExit" do
+    on "ExitFinalized"
+    trigger "TransitionToHousing"
+  end
+
+  policy "ReviewSafetyOnReferral" do
+    on "ResidentReferred"
+    trigger "ReviewSafetyPlan"
+  end
+
+  policy "OnboardAdvocateOnAdmit" do
+    on "ResidentAdmitted"
+    trigger "OnboardAdvocate"
+  end
+
+  policy "CompleteExitTaskOnExitPlan" do
+    on "ExitPlanCreated"
+    trigger "CompleteExitTask"
+  end
+end

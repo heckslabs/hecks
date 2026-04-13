@@ -1,0 +1,333 @@
+Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
+  vision "Blood products route to the trauma site before the patient arrives — dispatch triggers blood type matching and cold transport"
+  category "crossover_gen2"
+
+  # === TraumaCall ===
+
+  aggregate "TraumaCall", "A trauma dispatch event — the moment that sets the pipeline in motion" do
+    String :incident_type
+    String :location
+    String :severity
+    String :blood_type_needed
+    String :status
+    Integer :estimated_arrival_minutes
+    reference_to(TraumaBay) :assigned_bay
+
+    value_object "IncidentDetail" do
+      String :mechanism_of_injury
+      Integer :patient_count
+      String :hazmat_present
+      String :scene_safety
+    end
+
+    DispatchTrauma do
+      role "Dispatcher"
+      description "Initiate a trauma call — ambulance and blood pipeline activate simultaneously"
+      String :incident_type
+      String :location
+      String :severity
+      String :blood_type_needed
+      Integer :estimated_arrival_minutes
+      emits "TraumaDispatched"
+      then_set :incident_type, to: :incident_type
+      then_set :location, to: :location
+      then_set :severity, to: :severity
+      then_set :blood_type_needed, to: :blood_type_needed
+      then_set :estimated_arrival_minutes, to: :estimated_arrival_minutes
+      then_set :status, to: "dispatched"
+    end
+
+    UpdateETA do
+      role "Paramedic"
+      description "Revise estimated arrival as ambulance progresses"
+      reference_to(TraumaCall)
+      Integer :estimated_arrival_minutes
+      emits "ETAUpdated"
+      then_set :estimated_arrival_minutes, to: :estimated_arrival_minutes
+    end
+
+    ArriveAtBay do
+      role "Paramedic"
+      description "Ambulance arrives at trauma bay — patient handoff begins"
+      reference_to(TraumaCall)
+      given { status == "dispatched" }
+      emits "AmbulanceArrived"
+      then_set :status, to: "arrived"
+    end
+
+    CloseCall do
+      role "Dispatcher"
+      description "Trauma pipeline complete — all resources released"
+      reference_to(TraumaCall)
+      given { status == "arrived" }
+      emits "TraumaCallClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "DispatchTrauma" => "dispatched", from: "pending"
+      transition "ArriveAtBay" => "arrived", from: "dispatched"
+      transition "CloseCall" => "closed", from: "arrived"
+    end
+  end
+
+  # === BloodUnit ===
+
+  aggregate "BloodUnit", "A unit of blood product — typed, tested, and tracked through the cold chain" do
+    String :blood_type
+    String :product_type
+    String :donation_id
+    String :status
+    Float :temperature
+    String :expiration_date
+
+    RegisterUnit do
+      role "BloodBankTech"
+      description "Register a new blood unit into inventory"
+      String :blood_type
+      String :product_type
+      String :donation_id
+      String :expiration_date
+      emits "BloodUnitRegistered"
+      then_set :blood_type, to: :blood_type
+      then_set :product_type, to: :product_type
+      then_set :donation_id, to: :donation_id
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "available"
+    end
+
+    ReserveUnit do
+      role "System"
+      description "Reserve a blood unit for an incoming trauma patient"
+      reference_to(BloodUnit)
+      given { status == "available" }
+      emits "BloodUnitReserved"
+      then_set :status, to: "reserved"
+    end
+
+    ReleaseUnit do
+      role "BloodBankTech"
+      description "Release a reserved unit back to available inventory"
+      reference_to(BloodUnit)
+      given { status == "reserved" }
+      emits "BloodUnitReleased"
+      then_set :status, to: "available"
+    end
+
+    TransfuseUnit do
+      role "Physician"
+      description "Administer blood unit to patient — final step"
+      reference_to(BloodUnit)
+      given { status == "reserved" }
+      emits "BloodUnitTransfused"
+      then_set :status, to: "transfused"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterUnit" => "available", from: "pending"
+      transition "ReserveUnit" => "reserved", from: "available"
+      transition "ReleaseUnit" => "available", from: "reserved"
+      transition "TransfuseUnit" => "transfused", from: "reserved"
+    end
+  end
+
+  # === ColdTransport ===
+
+  aggregate "ColdTransport", "A temperature-controlled courier run — blood from bank to trauma site" do
+    reference_to(BloodUnit) :blood_unit
+    String :courier_id
+    Float :temperature
+    String :origin
+    String :destination
+    String :status
+    list_of(TempReading) :temperature_log
+
+    value_object "TempReading" do
+      Float :temperature
+      String :timestamp
+      String :within_range
+    end
+
+    DeployBloodCourier do
+      role "System"
+      description "Dispatch a cold-chain courier with matched blood to the trauma site"
+      reference_to(BloodUnit) :blood_unit
+      String :courier_id
+      String :origin
+      String :destination
+      emits "BloodCourierDeployed"
+      then_set :blood_unit, to: :blood_unit
+      then_set :courier_id, to: :courier_id
+      then_set :origin, to: :origin
+      then_set :destination, to: :destination
+      then_set :status, to: "in_transit"
+    end
+
+    RecordTemperature do
+      role "System"
+      description "Log temperature during transport to ensure cold chain integrity"
+      reference_to(ColdTransport)
+      Float :temperature
+      emits "TemperatureRecorded"
+      then_set :temperature, to: :temperature
+    end
+
+    FlagTempBreach do
+      role "System"
+      description "Temperature out of safe range — blood unit may be compromised"
+      reference_to(ColdTransport)
+      emits "ColdChainBreached"
+      then_set :status, to: "breached"
+    end
+
+    DeliverBlood do
+      role "Courier"
+      description "Blood arrives at trauma bay — ready for transfusion"
+      reference_to(ColdTransport)
+      given { status == "in_transit" }
+      emits "BloodDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "DeployBloodCourier" => "in_transit", from: "pending"
+      transition "FlagTempBreach" => "breached", from: "in_transit"
+      transition "DeliverBlood" => "delivered", from: "in_transit"
+    end
+  end
+
+  # === TraumaBay ===
+
+  aggregate "TraumaBay", "A prepared trauma receiving area — bed, blood, team, all staged before patient arrival" do
+    String :bay_number
+    String :status
+    String :trauma_level
+    reference_to(TraumaCall) :active_call
+
+    PrepareBay do
+      role "Nurse"
+      description "Stage a trauma bay with equipment and blood for incoming patient"
+      String :bay_number
+      String :trauma_level
+      emits "BayPrepared"
+      then_set :bay_number, to: :bay_number
+      then_set :trauma_level, to: :trauma_level
+      then_set :status, to: "prepared"
+    end
+
+    AssignCall do
+      role "System"
+      description "Link a trauma call to this bay so blood routes correctly"
+      reference_to(TraumaBay)
+      reference_to(TraumaCall) :active_call
+      given { status == "prepared" }
+      emits "BayAssignedToCall"
+      then_set :active_call, to: :active_call
+      then_set :status, to: "assigned"
+    end
+
+    ReleaseBay do
+      role "Nurse"
+      description "Clean and release bay after trauma pipeline completes"
+      reference_to(TraumaBay)
+      given { status == "assigned" }
+      emits "BayReleased"
+      then_set :status, to: "available"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "PrepareBay" => "prepared", from: "available"
+      transition "AssignCall" => "assigned", from: "prepared"
+      transition "ReleaseBay" => "available", from: "assigned"
+    end
+  end
+
+  # === CrossMatch ===
+
+  aggregate "CrossMatch", "A compatibility test between patient blood and donor unit — the safety gate" do
+    reference_to(TraumaCall) :trauma_call
+    reference_to(BloodUnit) :blood_unit
+    String :patient_blood_type
+    String :donor_blood_type
+    String :result
+    String :status
+
+    MatchBloodType do
+      role "System"
+      description "Run compatibility check between patient need and available blood units"
+      reference_to(TraumaCall) :trauma_call
+      reference_to(BloodUnit) :blood_unit
+      String :patient_blood_type
+      String :donor_blood_type
+      emits "CrossMatchPerformed"
+      then_set :trauma_call, to: :trauma_call
+      then_set :blood_unit, to: :blood_unit
+      then_set :patient_blood_type, to: :patient_blood_type
+      then_set :donor_blood_type, to: :donor_blood_type
+      then_set :status, to: "tested"
+    end
+
+    ApproveMatch do
+      role "BloodBankTech"
+      description "Confirm cross-match is compatible — clear for transfusion"
+      reference_to(CrossMatch)
+      given { status == "tested" }
+      emits "CrossMatchApproved"
+      then_set :result, to: "compatible"
+      then_set :status, to: "approved"
+    end
+
+    RejectMatch do
+      role "BloodBankTech"
+      description "Cross-match failed — find alternative blood unit"
+      reference_to(CrossMatch)
+      given { status == "tested" }
+      emits "CrossMatchRejected"
+      then_set :result, to: "incompatible"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "MatchBloodType" => "tested", from: "pending"
+      transition "ApproveMatch" => "approved", from: "tested"
+      transition "RejectMatch" => "rejected", from: "tested"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "MatchBloodOnDispatch" do
+    on "TraumaDispatched"
+    trigger "MatchBloodType"
+  end
+
+  policy "DeployBloodOnEnRoute" do
+    on "CrossMatchApproved"
+    trigger "DeployBloodCourier"
+  end
+
+  policy "ReserveUnitOnMatch" do
+    on "CrossMatchPerformed"
+    trigger "ReserveUnit"
+  end
+
+  policy "PrepareBayOnDispatch" do
+    on "TraumaDispatched"
+    trigger "PrepareBay"
+  end
+
+  policy "AssignBayOnBloodDelivery" do
+    on "BloodDelivered"
+    trigger "AssignCall"
+  end
+
+  policy "ReleaseOnClose" do
+    on "TraumaCallClosed"
+    trigger "ReleaseBay"
+  end
+
+  policy "FlagBreachOnTemp" do
+    on "TemperatureRecorded"
+    trigger "FlagTempBreach"
+  end
+end

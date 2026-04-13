@@ -1,0 +1,248 @@
+Hecks.bluebook "FireDepartment" do
+  vision "Manage fire stations, apparatus, emergency calls, crews, and hydrants for a fire department"
+
+  aggregate "Station", "A fire station housing apparatus and crews" do
+    String :station_number
+    String :address
+    String :district
+    Integer :bay_count
+    String :status
+
+    value_object "StationCapability" do
+      String :has_hazmat
+      String :has_ladder
+      String :has_ems
+    end
+
+    OpenStation do
+      description "Activate a new fire station in the district"
+      String :station_number
+      String :address
+      String :district
+      Integer :bay_count
+      emits "StationOpened"
+      then_set :status, to: "active"
+    end
+
+    ShutdownStation do
+      description "Take a station out of service permanently"
+      reference_to(Station)
+      given { status == "active" }
+      emits "StationShutdown"
+      then_set :status, to: "decommissioned"
+    end
+  end
+
+  aggregate "Apparatus", "A fire truck, engine, or rescue vehicle assigned to a station" do
+    String :unit_id
+    String :apparatus_type
+    Float :water_capacity_gallons
+    Float :fuel_level
+    String :status
+    reference_to(Station)
+
+    value_object "PumpSpec" do
+      Integer :gpm_rating
+      String :pump_type
+    end
+
+    RegisterApparatus do
+      description "Put a new fire apparatus into service at a station"
+      String :unit_id
+      String :apparatus_type
+      Float :water_capacity_gallons
+      reference_to(Station)
+      emits "ApparatusRegistered"
+      then_set :status, to: "in_service"
+      then_set :fuel_level, to: 100.0
+    end
+
+    DispatchApparatus do
+      description "Send an apparatus to respond to an emergency call"
+      reference_to(Apparatus)
+      given { status == "in_service" }
+      emits "ApparatusDispatched"
+      then_set :status, to: "dispatched"
+    end
+
+    ArriveOnScene do
+      description "Record apparatus arrival at the emergency location"
+      reference_to(Apparatus)
+      given { status == "dispatched" }
+      emits "ApparatusOnScene"
+      then_set :status, to: "on_scene"
+    end
+
+    EngageOperations do
+      description "Begin active firefighting or rescue operations"
+      reference_to(Apparatus)
+      given { status == "on_scene" }
+      emits "OperationsEngaged"
+      then_set :status, to: "operating"
+    end
+
+    BeginOverhaul do
+      description "Start post-fire overhaul to check for hidden fire"
+      reference_to(Apparatus)
+      given { status == "operating" }
+      emits "OverhaulStarted"
+      then_set :status, to: "overhauling"
+    end
+
+    ClearScene do
+      description "Mark all operations complete and prepare to return"
+      reference_to(Apparatus)
+      given { status == "overhauling" }
+      emits "SceneCleared"
+      then_set :status, to: "returning"
+    end
+
+    ReturnToStation do
+      description "Mark apparatus as back in quarters after a call"
+      reference_to(Apparatus)
+      given { status == "returning" }
+      emits "ApparatusReturned"
+      then_set :status, to: "in_service"
+    end
+  end
+
+  aggregate "EmergencyCall", "A 911 call dispatched to the fire department" do
+    String :call_id
+    String :call_type
+    String :address
+    String :priority
+    String :status
+    reference_to(Apparatus)
+
+    specification "MultiAlarm" do
+      satisfied_by { priority == "high" }
+    end
+
+    value_object "CallerInfo" do
+      String :caller_name
+      String :phone_number
+    end
+
+    ReceiveCall do
+      description "Log an incoming emergency call from dispatch"
+      String :call_type
+      String :address
+      String :priority
+      emits "CallReceived"
+      then_set :status, to: "received"
+    end
+
+    AssignCall do
+      description "Dispatch apparatus and crew to respond"
+      reference_to(EmergencyCall)
+      reference_to(Apparatus)
+      given { status == "received" }
+      emits "CallAssigned"
+      then_set :status, to: "dispatched"
+    end
+
+    FileReport do
+      description "Submit the official incident report after operations"
+      reference_to(EmergencyCall)
+      String :report_summary
+      given { status == "dispatched" }
+      emits "ReportFiled"
+      then_set :status, to: "reported"
+    end
+
+    CloseCall do
+      description "Mark an emergency call as resolved"
+      reference_to(EmergencyCall)
+      given { status == "reported" }
+      emits "CallClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Hydrant", "A fire hydrant in the district water system" do
+    String :hydrant_id
+    String :location
+    Float :flow_rate_gpm
+    String :status
+    String :last_inspected
+
+    value_object "HydrantSpec" do
+      Integer :outlet_count
+      String :color_code
+    end
+
+    RegisterHydrant do
+      description "Add a hydrant to the district map"
+      String :hydrant_id
+      String :location
+      Float :flow_rate_gpm
+      emits "HydrantRegistered"
+      then_set :status, to: "serviceable"
+    end
+
+    InspectHydrant do
+      description "Perform a flow test and visual inspection"
+      reference_to(Hydrant)
+      emits "HydrantInspected"
+    end
+
+    TagOutOfService do
+      description "Mark a hydrant as broken or obstructed"
+      reference_to(Hydrant)
+      String :reason
+      given { status == "serviceable" }
+      emits "HydrantOutOfService"
+      then_set :status, to: "out_of_service"
+    end
+  end
+
+  policy "DispatchOnCallReceived" do
+    on "CallReceived"
+    trigger "DispatchApparatus"
+  end
+
+  policy "ArriveOnDispatch" do
+    on "ApparatusDispatched"
+    trigger "ArriveOnScene"
+  end
+
+  policy "EngageOnArrival" do
+    on "ApparatusOnScene"
+    trigger "EngageOperations"
+  end
+
+  policy "OverhaulOnOperationsComplete" do
+    on "OperationsEngaged"
+    trigger "BeginOverhaul"
+  end
+
+  policy "ClearOnOverhaul" do
+    on "OverhaulStarted"
+    trigger "ClearScene"
+  end
+
+  policy "FileReportOnClear" do
+    on "SceneCleared"
+    trigger "FileReport"
+  end
+
+  policy "ReturnOnReport" do
+    on "ReportFiled"
+    trigger "ReturnToStation"
+  end
+
+  policy "AssignCallOnReceived" do
+    on "CallReceived"
+    trigger "AssignCall"
+  end
+
+  policy "DispatchOnCallAssigned" do
+    on "CallAssigned"
+    trigger "DispatchApparatus"
+  end
+
+  policy "CloseCallOnApparatusReturned" do
+    on "ApparatusReturned"
+    trigger "CloseCall"
+  end
+end

@@ -1,0 +1,278 @@
+Hecks.bluebook "AquariumOperations" do
+  vision "Manage tanks, aquatic species, water quality, feedings, and exhibits for a public aquarium"
+
+  aggregate "Tank", "A water vessel housing aquatic organisms" do
+    String :tank_id
+    String :name
+    String :water_type
+    Float :volume_gallons
+    Integer :max_species
+    Integer :current_species_count
+    String :status
+
+    value_object "Filtration" do
+      String :filter_type
+      Float :flow_rate_gph
+      String :media
+    end
+
+    SetupTank do
+      description "Set up a new tank with its water system"
+      String :tank_id
+      String :name
+      String :water_type
+      Float :volume_gallons
+      Integer :max_species
+      emits "TankSetup"
+      then_set :status, to: "cycling"
+      then_set :current_species_count, to: 0
+    end
+
+    TestWaterCycle do
+      description "Verify nitrogen cycle is established in a cycling tank"
+      reference_to(Tank)
+      given { status == "cycling" }
+      emits "WaterCycleTested"
+      then_set :status, to: "tested"
+    end
+
+    ActivateTank do
+      description "Mark a tested tank as ready for inhabitants"
+      reference_to(Tank)
+      given { status == "tested" }
+      emits "TankActivated"
+      then_set :status, to: "active"
+    end
+
+    QuarantineTank do
+      description "Isolate a tank due to disease or water quality emergency"
+      reference_to(Tank)
+      given { status == "active" }
+      emits "TankQuarantined"
+      then_set :status, to: "quarantined"
+    end
+
+    ClearTankQuarantine do
+      description "Return a quarantined tank to active status after treatment"
+      reference_to(Tank)
+      given { status == "quarantined" }
+      emits "TankQuarantineCleared"
+      then_set :status, to: "active"
+    end
+
+    DrainTank do
+      description "Empty a tank for maintenance or decommission"
+      reference_to(Tank)
+      String :reason
+      emits "TankDrained"
+      then_set :status, to: "drained"
+    end
+  end
+
+  aggregate "Species", "A type of aquatic organism kept in the aquarium collection" do
+    String :species_id
+    String :common_name
+    String :scientific_name
+    String :water_type_requirement
+    Float :min_temperature_f
+    Float :max_temperature_f
+    Integer :population_count
+    reference_to(Tank)
+
+    value_object "HabitatRequirements" do
+      Float :min_ph
+      Float :max_ph
+      Float :salinity_ppt
+    end
+
+    IntroduceSpecies do
+      description "Add a new species to the aquarium collection"
+      String :common_name
+      String :scientific_name
+      String :water_type_requirement
+      Float :min_temperature_f
+      Float :max_temperature_f
+      Integer :population_count
+      reference_to(Tank)
+      emits "SpeciesIntroduced"
+    end
+
+    AcclimateSpecies do
+      description "Begin temperature and water chemistry acclimation"
+      reference_to(Species)
+      emits "SpeciesAcclimating"
+    end
+
+    ReleaseIntoTank do
+      description "Place acclimated species into their display tank"
+      reference_to(Species)
+      reference_to(Tank)
+      emits "SpeciesReleased"
+    end
+
+    AdjustPopulation do
+      description "Update population count after births, deaths, or transfers"
+      reference_to(Species)
+      Integer :new_count
+      emits "PopulationAdjusted"
+    end
+
+    RelocateSpecies do
+      description "Move a species to a different tank"
+      reference_to(Species)
+      reference_to(Tank)
+      emits "SpeciesRelocated"
+    end
+  end
+
+  aggregate "WaterQualityReading", "A measured snapshot of water chemistry in a tank" do
+    String :reading_id
+    Float :temperature_f
+    Float :ph
+    Float :ammonia_ppm
+    Float :nitrate_ppm
+    Float :salinity_ppt
+    String :status
+    reference_to(Tank)
+
+    value_object "Threshold" do
+      Float :critical_ammonia
+      Float :critical_nitrate
+    end
+
+    RecordReading do
+      description "Log water quality parameters for a tank"
+      reference_to(Tank)
+      Float :temperature_f
+      Float :ph
+      Float :ammonia_ppm
+      Float :nitrate_ppm
+      Float :salinity_ppt
+      emits "ReadingRecorded"
+      then_set :status, to: "recorded"
+    end
+
+    ApproveReading do
+      description "Confirm water quality is within acceptable ranges"
+      reference_to(WaterQualityReading)
+      given { status == "recorded" }
+      emits "ReadingApproved"
+      then_set :status, to: "approved"
+    end
+
+    FlagAnomaly do
+      description "Alert staff to dangerous water quality levels"
+      reference_to(WaterQualityReading)
+      String :parameter
+      given { status == "recorded" }
+      emits "AnomalyFlagged"
+      then_set :status, to: "flagged"
+    end
+  end
+
+  aggregate "FeedingLog", "A record of feeding events for a tank or species" do
+    String :log_id
+    String :food_type
+    Float :quantity_grams
+    String :fed_by
+    String :feeding_time
+    reference_to(Species)
+
+    value_object "NutritionalProfile" do
+      Float :protein_percent
+      Float :fat_percent
+    end
+
+    LogFeeding do
+      description "Record a feeding event for a species"
+      reference_to(Species)
+      String :food_type
+      Float :quantity_grams
+      String :fed_by
+      emits "FeedingLogged"
+    end
+
+    SkipFeeding do
+      description "Record that a scheduled feeding was intentionally skipped"
+      reference_to(Species)
+      String :reason
+      emits "FeedingSkipped"
+    end
+  end
+
+  aggregate "Exhibit", "A public display area themed around a specific ecosystem" do
+    String :exhibit_id
+    String :name
+    String :theme
+    String :status
+    Integer :tank_count
+    reference_to(Tank)
+
+    value_object "ExhibitSignage" do
+      String :description_text
+      String :conservation_status
+    end
+
+    OpenExhibit do
+      description "Make an exhibit available for public viewing"
+      String :name
+      String :theme
+      Integer :tank_count
+      reference_to(Tank)
+      emits "ExhibitOpened"
+      then_set :status, to: "open"
+    end
+
+    CloseExhibit do
+      description "Close an exhibit for renovation or seasonal shutdown"
+      reference_to(Exhibit)
+      String :reason
+      given { status == "open" }
+      emits "ExhibitClosed"
+      then_set :status, to: "closed"
+    end
+
+    ReopenExhibit do
+      description "Reopen a closed exhibit after renovation"
+      reference_to(Exhibit)
+      given { status == "closed" }
+      emits "ExhibitReopened"
+      then_set :status, to: "open"
+    end
+  end
+
+  policy "TestCycleOnSetup" do
+    on "TankSetup"
+    trigger "TestWaterCycle"
+  end
+
+  policy "ActivateOnCycleTest" do
+    on "WaterCycleTested"
+    trigger "ActivateTank"
+  end
+
+  policy "AcclimateOnIntroduce" do
+    on "SpeciesIntroduced"
+    trigger "AcclimateSpecies"
+  end
+
+  policy "ReleaseOnAcclimate" do
+    on "SpeciesAcclimating"
+    trigger "ReleaseIntoTank"
+  end
+
+  policy "QuarantineOnAnomaly" do
+    on "AnomalyFlagged"
+    trigger "QuarantineTank"
+  end
+
+  policy "RelocateOnAnomaly" do
+    on "AnomalyFlagged"
+    trigger "RelocateSpecies"
+  end
+
+  policy "CloseExhibitOnDrain" do
+    on "TankDrained"
+    trigger "CloseExhibit"
+  end
+end

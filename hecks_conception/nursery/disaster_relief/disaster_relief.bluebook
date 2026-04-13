@@ -1,0 +1,276 @@
+Hecks.bluebook "DisasterRelief" do
+  vision "Emergency response coordination — incidents, shelters, volunteer deployment, supply logistics, and evacuations"
+
+  aggregate "Incident", "A declared disaster event requiring emergency response" do
+    String :incident_name
+    String :incident_type
+    String :declared_date
+    String :affected_area
+    String :severity_level
+    String :status
+
+    DeclareIncident do
+      role "EmergencyManager"
+      description "Officially declare a disaster incident and activate response"
+      String :incident_name
+      String :incident_type
+      String :declared_date
+      String :affected_area
+      String :severity_level
+      emits "IncidentDeclared"
+      then_set :incident_name, to: :incident_name
+      then_set :incident_type, to: :incident_type
+      then_set :declared_date, to: :declared_date
+      then_set :affected_area, to: :affected_area
+      then_set :severity_level, to: :severity_level
+      then_set :status, to: "active"
+    end
+
+    EscalateIncident do
+      role "EmergencyManager"
+      description "Increase the severity level as the disaster situation worsens"
+      reference_to(Incident)
+      String :severity_level
+      emits "IncidentEscalated"
+      then_set :severity_level, to: :severity_level
+    end
+
+    CloseIncident do
+      role "EmergencyManager"
+      description "End the active disaster response and begin recovery phase"
+      reference_to(Incident)
+      given("must be active") { status == "active" }
+      emits "IncidentClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Shelter", "A temporary shelter facility for displaced persons" do
+    String :shelter_name
+    String :address
+    Integer :capacity
+    Integer :current_occupancy
+    String :status
+    list_of(ShelterResource) :resources
+    reference_to Incident
+
+    specification "AtCapacity" do
+      satisfied_by { current_occupancy >= capacity }
+    end
+
+    value_object "ShelterResource" do
+      String :resource_type
+      Integer :quantity
+      String :status
+    end
+
+    OpenShelter do
+      role "ShelterManager"
+      description "Activate a shelter location and begin accepting evacuees"
+      reference_to(Incident)
+      String :shelter_name
+      String :address
+      Integer :capacity
+      emits "ShelterOpened"
+      then_set :shelter_name, to: :shelter_name
+      then_set :address, to: :address
+      then_set :capacity, to: :capacity
+      then_set :current_occupancy, to: 0
+      then_set :status, to: "open"
+    end
+
+    RegisterEvacuee do
+      role "ShelterStaff"
+      description "Check in a displaced person at the shelter"
+      reference_to(Shelter)
+      given("shelter must be open") { status == "open" }
+      emits "EvacueeRegistered"
+    end
+
+    CloseShelter do
+      role "ShelterManager"
+      description "Decommission the shelter when no longer needed"
+      reference_to(Shelter)
+      emits "ShelterClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "ReliefVolunteer", "A person volunteering for disaster relief operations" do
+    String :name
+    String :skills
+    String :phone
+    String :deployment_status
+    String :assigned_location
+
+    RegisterVolunteer do
+      role "VolunteerCoordinator"
+      description "Enroll a new volunteer for disaster relief duty"
+      String :name
+      String :skills
+      String :phone
+      emits "VolunteerRegistered"
+      then_set :name, to: :name
+      then_set :skills, to: :skills
+      then_set :phone, to: :phone
+      then_set :deployment_status, to: "available"
+    end
+
+    DeployVolunteer do
+      role "VolunteerCoordinator"
+      description "Assign a volunteer to a specific relief location"
+      reference_to(ReliefVolunteer)
+      String :assigned_location
+      given("must be available") { deployment_status == "available" }
+      emits "VolunteerDeployed"
+      then_set :assigned_location, to: :assigned_location
+      then_set :deployment_status, to: "deployed"
+    end
+
+    ReleaseVolunteer do
+      role "VolunteerCoordinator"
+      description "End a volunteer's active deployment"
+      reference_to(ReliefVolunteer)
+      emits "VolunteerReleased"
+      then_set :deployment_status, to: "available"
+      then_set :assigned_location, to: ""
+    end
+  end
+
+  aggregate "ReliefSupply", "Emergency supplies distributed during disaster response" do
+    String :supply_name
+    String :category
+    Integer :quantity
+    String :warehouse_location
+    String :status
+    list_of(Shipment) :shipments
+
+    value_object "Shipment" do
+      String :destination
+      Integer :quantity_shipped
+      String :ship_date
+      String :carrier
+    end
+
+    ReceiveSupply do
+      role "LogisticsOfficer"
+      description "Log incoming relief supplies into the warehouse"
+      String :supply_name
+      String :category
+      Integer :quantity
+      String :warehouse_location
+      emits "SupplyReceived"
+      then_set :supply_name, to: :supply_name
+      then_set :category, to: :category
+      then_set :quantity, to: :quantity
+      then_set :warehouse_location, to: :warehouse_location
+      then_set :status, to: "in_stock"
+    end
+
+    DispatchSupply do
+      role "LogisticsOfficer"
+      description "Ship supplies to a shelter or distribution point"
+      reference_to(ReliefSupply)
+      String :destination
+      Integer :quantity_shipped
+      given("must be in stock") { status == "in_stock" }
+      emits "SupplyDispatched"
+    end
+
+    RequestResupply do
+      role "ShelterManager"
+      description "Request additional supplies for a shelter running low"
+      reference_to(ReliefSupply)
+      emits "ResupplyRequested"
+    end
+  end
+
+  aggregate "Evacuation", "An organized movement of people from a danger zone" do
+    String :evacuation_zone
+    String :order_date
+    String :transport_method
+    Integer :people_evacuated
+    String :destination
+    String :status
+    reference_to Incident
+
+    OrderEvacuation do
+      role "EmergencyManager"
+      description "Issue an evacuation order for a specific zone"
+      reference_to(Incident)
+      String :evacuation_zone
+      String :order_date
+      String :transport_method
+      String :destination
+      emits "EvacuationOrdered"
+      then_set :evacuation_zone, to: :evacuation_zone
+      then_set :order_date, to: :order_date
+      then_set :transport_method, to: :transport_method
+      then_set :destination, to: :destination
+      then_set :status, to: "ordered"
+      then_set :people_evacuated, to: 0
+    end
+
+    ExecuteEvacuation do
+      role "FieldCommander"
+      description "Carry out the evacuation and record people moved"
+      reference_to(Evacuation)
+      Integer :people_evacuated
+      given("must be ordered") { status == "ordered" }
+      emits "EvacuationExecuted"
+      then_set :people_evacuated, to: :people_evacuated
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Workflow: Declare → Evacuate → OpenShelter → DeployVolunteers → ReceiveSupply → DispatchSupply → RegisterEvacuee → RequestResupply → CloseIncident → CloseShelter → ReleaseVolunteers
+  policy "EvacuateOnIncident" do
+    on "IncidentDeclared"
+    trigger "OrderEvacuation"
+  end
+
+  policy "OpenShelterOnIncident" do
+    on "IncidentDeclared"
+    trigger "OpenShelter"
+  end
+
+  policy "DeployVolunteersOnShelter" do
+    on "ShelterOpened"
+    trigger "DeployVolunteer"
+  end
+
+  policy "DispatchSupplyOnShelter" do
+    on "ShelterOpened"
+    trigger "DispatchSupply"
+  end
+
+  policy "RegisterEvacueeOnEvacuation" do
+    on "EvacuationExecuted"
+    trigger "RegisterEvacuee"
+  end
+
+  policy "DispatchOnResupply" do
+    on "ResupplyRequested"
+    trigger "DispatchSupply"
+  end
+
+  policy "CloseShelterOnIncidentClose" do
+    on "IncidentClosed"
+    trigger "CloseShelter"
+  end
+
+  policy "ReleaseVolunteersOnClose" do
+    on "ShelterClosed"
+    trigger "ReleaseVolunteer"
+  end
+
+  policy "ReceiveSupplyOnIncident" do
+    on "IncidentDeclared"
+    trigger "ReceiveSupply"
+  end
+
+  policy "RegisterVolunteerOnIncident" do
+    on "IncidentDeclared"
+    trigger "RegisterVolunteer"
+  end
+end

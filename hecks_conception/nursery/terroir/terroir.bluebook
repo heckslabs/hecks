@@ -1,0 +1,197 @@
+Hecks.bluebook "Terroir" do
+  vision "Cross-wire wine vineyard viticulture with geological survey for terroir-driven winemaking"
+  core
+
+  aggregate "GeologicalSurvey" do
+    description "A geological survey of vineyard soil and bedrock"
+    attribute :survey_id
+    attribute :location
+    attribute :strata, list_of(Stratum)
+    attribute :status, default: "sampling"
+
+    value_object "Stratum" do
+      attribute :rock_type
+      attribute :depth_m, Float
+      attribute :mineral_content
+      invariant "depth must be positive" do
+        depth_m > 0
+      end
+    end
+
+    command "StartSurvey" do
+      role "Geologist"
+      goal "Begin a geological survey of vineyard land"
+      attribute :survey_id
+      attribute :location
+    end
+
+    command "RecordStratum" do
+      role "Geologist"
+      goal "Record a geological stratum"
+      reference_to GeologicalSurvey
+      attribute :rock_type
+      attribute :depth_m, Float
+      attribute :mineral_content
+      given("max 20 strata") { strata.size < 20 }
+      then_set :strata, append: { rock_type: :rock_type, depth_m: :depth_m, mineral_content: :mineral_content }
+    end
+
+    command "CompleteSurvey" do
+      role "Geologist"
+      goal "Finalize the geological survey"
+      reference_to GeologicalSurvey
+      given("must have strata") { strata.size > 0 }
+    end
+  end
+
+  aggregate "Vineyard" do
+    description "A vineyard block with grape variety and terroir data"
+    reference_to GeologicalSurvey
+    attribute :block_name
+    attribute :grape_variety
+    attribute :acres, Float
+    attribute :vines, list_of(VineRow)
+    attribute :status, default: "planted"
+
+    value_object "VineRow" do
+      attribute :row_number, Integer
+      attribute :vine_count, Integer
+      attribute :rootstock
+      invariant "vine count must be positive" do
+        vine_count > 0
+      end
+    end
+
+    command "PlantVineyard" do
+      role "Viticulturist"
+      goal "Plant a vineyard block"
+      reference_to GeologicalSurvey
+      attribute :block_name
+      attribute :grape_variety
+      attribute :acres, Float
+    end
+
+    command "AddVineRow" do
+      role "Viticulturist"
+      goal "Add a row of vines"
+      reference_to Vineyard
+      attribute :row_number, Integer
+      attribute :vine_count, Integer
+      attribute :rootstock
+      given("max 200 rows") { vines.size < 200 }
+      then_set :vines, append: { row_number: :row_number, vine_count: :vine_count, rootstock: :rootstock }
+    end
+  end
+
+  aggregate "Harvest" do
+    description "A grape harvest from the vineyard"
+    reference_to Vineyard
+    attribute :harvest_date
+    attribute :brix, Float
+    attribute :tons, Float
+    attribute :lots, list_of(GrapeLot)
+    attribute :status, default: "picking"
+
+    value_object "GrapeLot" do
+      attribute :lot_number
+      attribute :weight_kg, Float
+      attribute :quality_grade
+      invariant "weight must be positive" do
+        weight_kg > 0
+      end
+    end
+
+    command "StartHarvest" do
+      role "VineyardManager"
+      goal "Begin harvesting grapes"
+      reference_to Vineyard
+      attribute :harvest_date
+      attribute :brix, Float
+    end
+
+    command "AddLot" do
+      role "HarvestCrew"
+      goal "Add a grape lot"
+      reference_to Harvest
+      attribute :lot_number
+      attribute :weight_kg, Float
+      attribute :quality_grade
+      given("max 50 lots") { lots.size < 50 }
+      then_set :lots, append: { lot_number: :lot_number, weight_kg: :weight_kg, quality_grade: :quality_grade }
+    end
+  end
+
+  aggregate "Fermentation" do
+    description "Wine fermentation process informed by terroir"
+    reference_to Harvest
+    reference_to GeologicalSurvey
+    attribute :vessel_type
+    attribute :yeast_strain
+    attribute :readings, list_of(FermentReading)
+    attribute :status, default: "active"
+
+    value_object "FermentReading" do
+      attribute :day, Integer
+      attribute :temperature_c, Float
+      attribute :sugar_pct, Float
+      invariant "day must be positive" do
+        day > 0
+      end
+    end
+
+    command "StartFermentation" do
+      role "Winemaker"
+      goal "Begin fermentation of harvested grapes"
+      reference_to Harvest
+      attribute :vessel_type
+      attribute :yeast_strain
+    end
+
+    command "RecordReading" do
+      role "CellarWorker"
+      goal "Record a fermentation reading"
+      reference_to Fermentation
+      attribute :day, Integer
+      attribute :temperature_c, Float
+      attribute :sugar_pct, Float
+      given("max 90 readings") { readings.size < 90 }
+      then_set :readings, append: { day: :day, temperature_c: :temperature_c, sugar_pct: :sugar_pct }
+    end
+
+    command "CompleteFermentation" do
+      role "Winemaker"
+      goal "Complete the fermentation process"
+      reference_to Fermentation
+    end
+  end
+
+  policy "SurveyCompletedTriggersPlanting" do
+    on "SurveyCompleted"
+    trigger "PlantVineyard"
+    map geological_survey_id: :survey_id, block_name: :location
+  end
+
+  policy "VineyardPlantedTriggersHarvest" do
+    on "VineRowAdded"
+    trigger "StartHarvest"
+    map vineyard_id: :vineyard_id
+  end
+
+  policy "HarvestLotAddedTriggersFerment" do
+    on "LotAdded"
+    trigger "StartFermentation"
+    map harvest_id: :harvest_id
+  end
+
+  policy "FermentCompletedTriggersSurveyReview" do
+    on "FermentationCompleted"
+    trigger "StartSurvey"
+    map location: :vineyard_location
+  end
+
+  policy "StratumRecordedTriggersRootstock" do
+    on "StratumRecorded"
+    trigger "AddVineRow"
+    map vineyard_id: :vineyard_id, rootstock: :mineral_content
+  end
+end

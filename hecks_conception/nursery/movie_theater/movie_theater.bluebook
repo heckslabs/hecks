@@ -1,0 +1,210 @@
+Hecks.bluebook "MovieTheater" do
+  vision "Manage screens, showings, seat reservations, concessions, and projectors for a cinema"
+
+  aggregate "Screen", "A physical auditorium with seating and projection equipment" do
+    String :screen_number
+    Integer :seat_count
+    String :sound_format
+    String :status
+    reference_to(Projector)
+
+    value_object "SeatingLayout" do
+      Integer :rows
+      Integer :seats_per_row
+      String :has_wheelchair_spots
+    end
+
+    SetupScreen do
+      description "Bring a new screen online in the cinema complex"
+      String :screen_number
+      Integer :seat_count
+      String :sound_format
+      emits "ScreenSetup"
+      then_set :status, to: "active"
+    end
+
+    CloseScreen do
+      description "Take a screen out of service for renovation"
+      reference_to(Screen)
+      String :reason
+      emits "ScreenClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Showing", "A scheduled screening of a film on a particular screen" do
+    String :film_title
+    String :showtime
+    String :rating
+    Integer :available_seats
+    String :status
+    reference_to(Screen)
+
+    value_object "TicketPrice" do
+      Integer :cents
+      String :tier
+    end
+
+    ScheduleShowing do
+      description "Add a film showing to the daily schedule"
+      String :film_title
+      String :showtime
+      String :rating
+      reference_to(Screen)
+      emits "ShowingScheduled"
+      then_set :status, to: "scheduled"
+    end
+
+    OpenSales do
+      description "Make tickets available for purchase"
+      reference_to(Showing)
+      given { status == "scheduled" }
+      emits "SalesOpened"
+      then_set :status, to: "on_sale"
+    end
+
+    SellTicket do
+      description "Reserve a seat for a patron at a showing"
+      reference_to(Showing)
+      String :patron_name
+      String :seat_number
+      given { available_seats > 0 }
+      emits "TicketSold"
+    end
+
+    OpenDoors do
+      description "Allow patrons to enter the auditorium before showtime"
+      reference_to(Showing)
+      given { status == "on_sale" }
+      emits "DoorsOpened"
+      then_set :status, to: "seating"
+    end
+
+    StartProjection do
+      description "Begin the film projection on screen"
+      reference_to(Showing)
+      given { status == "seating" }
+      emits "ProjectionStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    EndShowing do
+      description "Mark the showing as finished after credits roll"
+      reference_to(Showing)
+      given { status == "in_progress" }
+      emits "ShowingEnded"
+      then_set :status, to: "ended"
+    end
+
+    ClearAuditorium do
+      description "Confirm auditorium is empty and ready for cleaning"
+      reference_to(Showing)
+      given { status == "ended" }
+      emits "AuditoriumCleared"
+      then_set :status, to: "cleared"
+    end
+
+    CancelShowing do
+      description "Remove a showing from the schedule due to low demand"
+      reference_to(Showing)
+      String :reason
+      given { status == "scheduled" }
+      emits "ShowingCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "Concession", "A food or beverage item sold at the snack bar" do
+    String :item_name
+    Integer :price_cents
+    Integer :stock_count
+    String :category
+
+    value_object "NutritionFacts" do
+      Integer :calories
+      Float :sugar_grams
+    end
+
+    StockConcession do
+      description "Add inventory for a concession item"
+      String :item_name
+      Integer :price_cents
+      Integer :stock_count
+      String :category
+      emits "ConcessionStocked"
+    end
+
+    SellConcession do
+      description "Record a concession sale at the counter"
+      reference_to(Concession)
+      Integer :quantity
+      given { stock_count > 0 }
+      emits "ConcessionSold"
+    end
+  end
+
+  aggregate "Projector", "A digital or film projector installed in a screen" do
+    String :projector_id
+    String :technology
+    Integer :lamp_hours
+    String :status
+
+    value_object "LampSpec" do
+      Integer :max_hours
+      String :bulb_type
+    end
+
+    InstallProjector do
+      description "Mount a new projector in a screen room"
+      String :projector_id
+      String :technology
+      emits "ProjectorInstalled"
+      then_set :status, to: "operational"
+      then_set :lamp_hours, to: 0
+    end
+
+    CalibrateProjector do
+      description "Run color and focus calibration before the day's first show"
+      reference_to(Projector)
+      given { status == "operational" }
+      emits "ProjectorCalibrated"
+    end
+
+    ReportLampFailure do
+      description "Flag a projector lamp as burnt out or dim"
+      reference_to(Projector)
+      emits "LampFailed"
+      then_set :status, to: "faulty"
+    end
+  end
+
+  policy "OpenSalesOnSchedule" do
+    on "ShowingScheduled"
+    trigger "OpenSales"
+  end
+
+  policy "CalibrateBeforeShowing" do
+    on "SalesOpened"
+    trigger "CalibrateProjector"
+  end
+
+  policy "OpenDoorsOnCalibration" do
+    on "ProjectorCalibrated"
+    trigger "OpenDoors"
+  end
+
+  policy "StartProjectionOnSeating" do
+    on "DoorsOpened"
+    trigger "StartProjection"
+  end
+
+  policy "ClearAfterShowing" do
+    on "ShowingEnded"
+    trigger "ClearAuditorium"
+  end
+
+  policy "CancelShowingOnLampFailure" do
+    on "LampFailed"
+    trigger "CancelShowing"
+  end
+end

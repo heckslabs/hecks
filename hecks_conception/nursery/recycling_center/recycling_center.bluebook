@@ -1,0 +1,238 @@
+Hecks.bluebook "RecyclingCenter" do
+  vision "Sort materials, manage contamination, bale output, and sell to buyers at a recycling facility"
+
+  aggregate "Material", "A type of recyclable material received at the facility" do
+    String :material_code
+    String :name
+    String :category
+    Float :market_price_per_ton
+    Float :inventory_tons
+    String :status
+
+    value_object "MaterialGrade" do
+      String :grade
+      Float :contamination_threshold
+    end
+
+    RegisterMaterial do
+      description "Add a new recyclable material type to the catalog"
+      String :material_code
+      String :name
+      String :category
+      Float :market_price_per_ton
+      emits "MaterialRegistered"
+      then_set :status, to: "active"
+      then_set :inventory_tons, to: 0.0
+    end
+
+    ReceiveInbound do
+      description "Accept a load of material from a collection truck"
+      reference_to(Material)
+      Float :weight_tons
+      emits "InboundReceived"
+    end
+
+    WeighInbound do
+      description "Record certified weight of inbound load at the scale"
+      reference_to(Material)
+      Float :gross_weight_tons
+      Float :tare_weight_tons
+      emits "InboundWeighed"
+    end
+
+    UpdatePrice do
+      description "Adjust market price based on commodity index"
+      reference_to(Material)
+      Float :new_price_per_ton
+      emits "PriceUpdated"
+    end
+  end
+
+  aggregate "SortingLine", "A conveyor system that separates mixed recyclables" do
+    String :line_id
+    String :line_type
+    Float :throughput_tons_per_hour
+    String :status
+    reference_to(Material)
+
+    value_object "EquipmentConfig" do
+      String :separator_type
+      Integer :optical_sorter_count
+    end
+
+    StartLine do
+      description "Begin sorting operations on a line"
+      String :line_id
+      String :line_type
+      Float :throughput_tons_per_hour
+      emits "LineStarted"
+      then_set :status, to: "running"
+    end
+
+    CompleteSortRun do
+      description "Mark a sorting run as finished with output tallied"
+      reference_to(SortingLine)
+      given { status == "running" }
+      emits "SortRunCompleted"
+      then_set :status, to: "idle"
+    end
+
+    HaltLine do
+      description "Stop a sorting line for jam or maintenance"
+      reference_to(SortingLine)
+      String :reason
+      given { status == "running" }
+      emits "LineHalted"
+      then_set :status, to: "halted"
+    end
+
+    RestartLine do
+      description "Resume a halted sorting line after clearing the issue"
+      reference_to(SortingLine)
+      given { status == "halted" }
+      emits "LineRestarted"
+      then_set :status, to: "running"
+    end
+  end
+
+  aggregate "Bale", "A compressed block of sorted material ready for sale" do
+    String :bale_id
+    Float :weight_tons
+    String :material_type
+    String :status
+    reference_to(Material)
+
+    value_object "BaleSpec" do
+      Float :density_lbs_per_cuft
+      String :banding_type
+    end
+
+    PressBale do
+      description "Compress sorted material into a bale"
+      reference_to(Material)
+      Float :weight_tons
+      emits "BalePressed"
+      then_set :status, to: "pressed"
+    end
+
+    InspectBale do
+      description "Check bale quality and contamination level"
+      reference_to(Bale)
+      given { status == "pressed" }
+      emits "BaleInspected"
+      then_set :status, to: "inspected"
+    end
+
+    StageBale do
+      description "Move inspected bale to the shipping yard"
+      reference_to(Bale)
+      given { status == "inspected" }
+      emits "BaleStaged"
+      then_set :status, to: "staged"
+    end
+
+    ShipBale do
+      description "Load a bale onto a truck for the buyer"
+      reference_to(Bale)
+      given { status == "staged" }
+      emits "BaleShipped"
+      then_set :status, to: "shipped"
+    end
+  end
+
+  aggregate "ContaminationReport", "A record of contamination found in inbound loads" do
+    String :report_id
+    String :contaminant_type
+    Float :contamination_percent
+    String :status
+    reference_to(Material)
+
+    value_object "SourceTrace" do
+      String :hauler_id
+      String :collection_route
+    end
+
+    FileContamination do
+      description "Document contamination found during sorting"
+      String :contaminant_type
+      Float :contamination_percent
+      reference_to(Material)
+      emits "ContaminationFiled"
+      then_set :status, to: "open"
+    end
+
+    ResolveContamination do
+      description "Close a contamination report after corrective action"
+      reference_to(ContaminationReport)
+      given { status == "open" }
+      emits "ContaminationResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "Buyer", "A purchaser of baled recyclable commodities" do
+    String :buyer_id
+    String :company_name
+    String :material_interest
+    Float :contracted_price_per_ton
+    String :status
+
+    value_object "Contract" do
+      String :start_date
+      String :end_date
+      Float :minimum_tons
+    end
+
+    RegisterBuyer do
+      description "Onboard a new commodity buyer"
+      String :buyer_id
+      String :company_name
+      String :material_interest
+      Float :contracted_price_per_ton
+      emits "BuyerRegistered"
+      then_set :status, to: "active"
+    end
+
+    PlaceOrder do
+      description "Buyer requests a quantity of baled material"
+      reference_to(Buyer)
+      Float :tons_requested
+      emits "OrderPlaced"
+    end
+  end
+
+  policy "WeighOnReceive" do
+    on "InboundReceived"
+    trigger "WeighInbound"
+  end
+
+  policy "SortOnWeigh" do
+    on "InboundWeighed"
+    trigger "StartLine"
+  end
+
+  policy "PressOnSortComplete" do
+    on "SortRunCompleted"
+    trigger "PressBale"
+  end
+
+  policy "InspectOnPress" do
+    on "BalePressed"
+    trigger "InspectBale"
+  end
+
+  policy "StageOnInspect" do
+    on "BaleInspected"
+    trigger "StageBale"
+  end
+
+  policy "ShipOnOrder" do
+    on "OrderPlaced"
+    trigger "ShipBale"
+  end
+
+  policy "HaltOnContamination" do
+    on "ContaminationFiled"
+    trigger "HaltLine"
+  end
+end

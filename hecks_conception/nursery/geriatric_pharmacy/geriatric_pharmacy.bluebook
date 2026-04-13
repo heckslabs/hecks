@@ -1,0 +1,291 @@
+Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
+  vision "Pharmacology meets elder care — compounds, drug interactions, dosing adjustments, and monitoring protocols"
+  category "crossover"
+
+  aggregate "Medication", "A pharmaceutical compound — class, mechanism, metabolism, half-life" do
+    String :name
+    String :drug_class
+    String :mechanism_of_action
+    Float :half_life_hours
+    String :metabolism_pathway
+    String :status
+
+    value_object "Pharmacokinetics" do
+      Float :bioavailability_pct
+      Float :protein_binding_pct
+      Float :volume_of_distribution_l
+      String :elimination_route
+    end
+
+    RegisterMedication do
+      role "Pharmacist"
+      description "Register a medication in the formulary with pharmacological data"
+      String :name
+      String :drug_class
+      String :mechanism_of_action
+      Float :half_life_hours
+      String :metabolism_pathway
+      emits "MedicationRegistered"
+      then_set :name, to: :name
+      then_set :drug_class, to: :drug_class
+      then_set :mechanism_of_action, to: :mechanism_of_action
+      then_set :half_life_hours, to: :half_life_hours
+      then_set :metabolism_pathway, to: :metabolism_pathway
+      then_set :status, to: "active"
+    end
+
+    WithdrawMedication do
+      role "Pharmacist"
+      description "Withdraw medication from formulary"
+      reference_to(Medication)
+      given { status == "active" }
+      emits "MedicationWithdrawn"
+      then_set :status, to: "withdrawn"
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterMedication" => "active", from: "unregistered"
+      transition "WithdrawMedication" => "withdrawn", from: "active"
+    end
+  end
+
+  aggregate "Resident", "An elder care resident — age, conditions, kidney function, current medications" do
+    String :name
+    Integer :age
+    Float :weight_kg
+    Float :creatinine_clearance_ml_min
+    String :hepatic_function
+    String :status
+
+    value_object "RenalProfile" do
+      Float :serum_creatinine
+      Float :gfr_ml_min
+      String :stage
+    end
+
+    list_of "ActiveMedication" do
+      String :medication_name
+      Float :dose_mg
+      String :frequency
+      String :route
+    end
+
+    AdmitResident do
+      role "Nurse"
+      description "Admit a new resident with baseline health data"
+      String :name
+      Integer :age
+      Float :weight_kg
+      Float :creatinine_clearance_ml_min
+      String :hepatic_function
+      emits "ResidentAdmitted"
+      then_set :name, to: :name
+      then_set :age, to: :age
+      then_set :weight_kg, to: :weight_kg
+      then_set :creatinine_clearance_ml_min, to: :creatinine_clearance_ml_min
+      then_set :hepatic_function, to: :hepatic_function
+      then_set :status, to: "active"
+    end
+
+    UpdateRenalFunction do
+      role "Physician"
+      description "Update kidney function lab results"
+      reference_to(Resident)
+      Float :creatinine_clearance_ml_min
+      given { status == "active" }
+      emits "RenalFunctionUpdated"
+      then_set :creatinine_clearance_ml_min, to: :creatinine_clearance_ml_min
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AdmitResident" => "active", from: "pending"
+    end
+  end
+
+  aggregate "InteractionCheck", "Drug interaction screening — severity, mechanism, recommendation" do
+    String :medication_a
+    String :medication_b
+    String :interaction_type
+    String :severity
+    String :mechanism
+    String :recommendation
+    String :status
+
+    value_object "InteractionEvidence" do
+      String :study_type
+      String :population
+      Float :risk_ratio
+      String :source
+    end
+
+    ScreenInteraction do
+      role "System"
+      description "Screen for drug-drug interactions between two medications"
+      String :medication_a
+      String :medication_b
+      String :interaction_type
+      String :severity
+      String :mechanism
+      emits "InteractionScreened"
+      then_set :medication_a, to: :medication_a
+      then_set :medication_b, to: :medication_b
+      then_set :interaction_type, to: :interaction_type
+      then_set :severity, to: :severity
+      then_set :mechanism, to: :mechanism
+      then_set :status, to: "screened"
+    end
+
+    RecommendAction do
+      role "Pharmacist"
+      description "Provide recommendation for managing the interaction"
+      reference_to(InteractionCheck)
+      String :recommendation
+      given { status == "screened" }
+      emits "ActionRecommended"
+      then_set :recommendation, to: :recommendation
+      then_set :status, to: "recommended"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ScreenInteraction" => "screened", from: "pending"
+      transition "RecommendAction" => "recommended", from: "screened"
+    end
+  end
+
+  aggregate "DosingRegimen", "A dosing plan adjusted for geriatric physiology — renal, hepatic, weight" do
+    String :resident_name
+    String :medication_name
+    Float :standard_dose_mg
+    Float :adjusted_dose_mg
+    String :frequency
+    String :adjustment_reason
+    String :status
+
+    value_object "DoseAdjustment" do
+      String :factor
+      Float :adjustment_pct
+      String :guideline
+    end
+
+    CalculateDose do
+      role "System"
+      description "Calculate age and renal-adjusted dose for geriatric patient"
+      String :resident_name
+      String :medication_name
+      Float :standard_dose_mg
+      Float :adjusted_dose_mg
+      String :frequency
+      String :adjustment_reason
+      emits "DoseCalculated"
+      then_set :resident_name, to: :resident_name
+      then_set :medication_name, to: :medication_name
+      then_set :standard_dose_mg, to: :standard_dose_mg
+      then_set :adjusted_dose_mg, to: :adjusted_dose_mg
+      then_set :frequency, to: :frequency
+      then_set :adjustment_reason, to: :adjustment_reason
+      then_set :status, to: "calculated"
+    end
+
+    ApproveDose do
+      role "Physician"
+      description "Physician approves the adjusted dosing regimen"
+      reference_to(DosingRegimen)
+      given { status == "calculated" }
+      emits "DoseApproved"
+      then_set :status, to: "approved"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CalculateDose" => "calculated", from: "pending"
+      transition "ApproveDose" => "approved", from: "calculated"
+    end
+  end
+
+  aggregate "MonitoringPlan", "Therapeutic drug monitoring — levels, timing, toxicity thresholds" do
+    String :resident_name
+    String :medication_name
+    Float :target_trough_ng_ml
+    Float :target_peak_ng_ml
+    Float :toxicity_threshold_ng_ml
+    String :monitoring_frequency
+    String :status
+
+    value_object "LabResult" do
+      String :test_name
+      Float :value
+      String :unit
+      String :timestamp
+    end
+
+    CreateMonitoringPlan do
+      role "Pharmacist"
+      description "Create therapeutic monitoring plan for a medication"
+      String :resident_name
+      String :medication_name
+      Float :target_trough_ng_ml
+      Float :target_peak_ng_ml
+      Float :toxicity_threshold_ng_ml
+      String :monitoring_frequency
+      emits "MonitoringPlanCreated"
+      then_set :resident_name, to: :resident_name
+      then_set :medication_name, to: :medication_name
+      then_set :target_trough_ng_ml, to: :target_trough_ng_ml
+      then_set :target_peak_ng_ml, to: :target_peak_ng_ml
+      then_set :toxicity_threshold_ng_ml, to: :toxicity_threshold_ng_ml
+      then_set :monitoring_frequency, to: :monitoring_frequency
+      then_set :status, to: "active"
+    end
+
+    RecordLevel do
+      role "LabTechnician"
+      description "Record drug level from blood draw"
+      reference_to(MonitoringPlan)
+      given { status == "active" }
+      emits "LevelRecorded"
+    end
+
+    FlagToxicity do
+      role "System"
+      description "Alert when drug level approaches toxicity threshold"
+      reference_to(MonitoringPlan)
+      given { status == "active" }
+      emits "ToxicityFlagged"
+      then_set :status, to: "alert"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CreateMonitoringPlan" => "active", from: "pending"
+      transition "FlagToxicity" => "alert", from: "active"
+    end
+  end
+
+  policy "ScreenOnAdmit" do
+    on "ResidentAdmitted"
+    trigger "ScreenInteraction"
+  end
+
+  policy "RecommendOnScreen" do
+    on "InteractionScreened"
+    trigger "RecommendAction"
+  end
+
+  policy "CalculateDoseOnAdmit" do
+    on "ResidentAdmitted"
+    trigger "CalculateDose"
+  end
+
+  policy "MonitorOnApprove" do
+    on "DoseApproved"
+    trigger "CreateMonitoringPlan"
+  end
+
+  policy "FlagToxicityOnLevel" do
+    on "LevelRecorded"
+    trigger "FlagToxicity"
+  end
+
+  policy "RecalcOnRenalUpdate" do
+    on "RenalFunctionUpdated"
+    trigger "CalculateDose"
+  end
+end

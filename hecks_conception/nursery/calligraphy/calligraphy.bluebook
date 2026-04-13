@@ -1,0 +1,193 @@
+Hecks.bluebook "Calligraphy" do
+  aggregate "CalligraphyCommission", "A custom calligraphy order for events, gifts, or documents" do
+    String :client_name
+    String :text_content
+    String :purpose
+    String :status, default: "quoted"
+    String :deadline
+    Float :price
+
+    QuoteCommission do
+      description "Provide a price quote for calligraphy work"
+      String :client_name
+      String :text_content
+      String :purpose
+      String :deadline
+      emits "CommissionQuoted"
+    end
+
+    AcceptCommission do
+      description "Client accepts the quote and work is confirmed"
+      reference_to(CalligraphyCommission)
+      given { status == "quoted" }
+      emits "CommissionAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    LetterCommission do
+      description "Execute the calligraphy lettering on prepared paper"
+      reference_to(CalligraphyCommission)
+      given { status == "accepted" }
+      emits "CommissionLettered"
+      then_set :status, to: "lettered"
+    end
+
+    DeliverCommission do
+      description "Ship or hand off the finished calligraphy piece"
+      reference_to(CalligraphyCommission)
+      given { status == "lettered" }
+      emits "CommissionDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Script", "A calligraphic script style with stroke characteristics" do
+    String :name
+    String :historical_period
+    String :tool_type
+    Float :x_height_mm
+    Float :nib_angle_degrees
+
+    value_object "LetterformSpec" do
+      Float :ascender_ratio
+      Float :descender_ratio
+      Float :letter_spacing
+      String :baseline_style
+    end
+
+    DefineScript do
+      description "Document a calligraphic script with its proportions"
+      String :name
+      String :historical_period
+      String :tool_type
+      Float :x_height_mm
+      Float :nib_angle_degrees
+      emits "ScriptDefined"
+    end
+
+    PracticeScript do
+      description "Log a practice session with a script for skill building"
+      reference_to(Script)
+      Integer :duration_minutes
+      String :focus_area
+      emits "ScriptPracticed"
+    end
+  end
+
+  aggregate "InkFormulation", "A custom ink recipe with pigments and binder" do
+    String :name
+    String :color
+    String :base_type
+    Float :viscosity
+    String :status, default: "formulated"
+
+    value_object "PigmentMix" do
+      String :pigment_name
+      Float :percentage
+      String :source
+    end
+
+    FormulateInk do
+      description "Mix a custom ink formulation from pigments and binder"
+      String :name
+      String :color
+      String :base_type
+      Float :viscosity
+      emits "InkFormulated"
+    end
+
+    TestInk do
+      description "Test the ink on different papers for flow and opacity"
+      reference_to(InkFormulation)
+      String :paper_type
+      emits "InkTested"
+    end
+  end
+
+  aggregate "PaperSelection", "A paper stock selected for calligraphy work" do
+    String :name
+    String :finish
+    Integer :gsm
+    String :fiber_content
+    String :status, default: "stocked"
+    reference_to(CalligraphyCommission)
+
+    SelectPaper do
+      description "Choose a paper stock for a commission"
+      reference_to(CalligraphyCommission)
+      String :name
+      String :finish
+      Integer :gsm
+      String :fiber_content
+      emits "PaperSelected"
+    end
+
+    CutPaper do
+      description "Cut paper to the required dimensions for lettering"
+      reference_to(PaperSelection)
+      Float :width_inches
+      Float :height_inches
+      given { status == "stocked" }
+      emits "PaperCut"
+      then_set :status, to: "cut"
+    end
+  end
+
+  aggregate "Portfolio", "A curated collection of calligraphy work samples" do
+    String :title
+    String :theme
+    Integer :piece_count
+    String :status, default: "curating"
+
+    CuratePortfolio do
+      description "Select pieces for a themed portfolio"
+      String :title
+      String :theme
+      Integer :piece_count
+      emits "PortfolioCurated"
+    end
+
+    PublishPortfolio do
+      description "Make the portfolio available for client viewing"
+      reference_to(Portfolio)
+      given { status == "curating" }
+      emits "PortfolioPublished"
+      then_set :status, to: "published"
+    end
+  end
+
+  policy "SelectPaperOnAcceptance" do
+    on "CommissionAccepted"
+    trigger "SelectPaper"
+  end
+
+  policy "CutPaperOnSelection" do
+    on "PaperSelected"
+    trigger "CutPaper"
+  end
+
+  policy "FormulateInkOnCut" do
+    on "PaperCut"
+    trigger "FormulateInk"
+  end
+
+  policy "TestInkOnFormulation" do
+    on "InkFormulated"
+    trigger "TestInk"
+  end
+
+  policy "LetterOnInkTest" do
+    on "InkTested"
+    trigger "LetterCommission"
+  end
+
+  policy "DeliverOnLettering" do
+    on "CommissionLettered"
+    trigger "DeliverCommission"
+  end
+
+  policy "CurateOnDelivery" do
+    on "CommissionDelivered"
+    trigger "CuratePortfolio"
+  end
+end

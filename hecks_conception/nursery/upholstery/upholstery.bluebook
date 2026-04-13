@@ -1,0 +1,231 @@
+Hecks.bluebook "Upholstery" do
+  aggregate "UpholsteryProject", "A furniture reupholstery job from teardown to delivery" do
+    String :piece_description
+    String :furniture_type
+    String :status, default: "assessed"
+    String :client_name
+    Float :quoted_price
+
+    AssessProject do
+      description "Inspect the furniture piece and assess scope of work"
+      String :piece_description
+      String :furniture_type
+      String :client_name
+      emits "ProjectAssessed"
+    end
+
+    ApproveEstimate do
+      description "Client approves the estimate and work begins"
+      reference_to(UpholsteryProject)
+      Float :quoted_price
+      given { status == "assessed" }
+      emits "EstimateApproved"
+      then_set :status, to: "approved"
+      then_set :quoted_price, to: :quoted_price
+    end
+
+    BeginWork do
+      description "Start the teardown and reupholstery process"
+      reference_to(UpholsteryProject)
+      given { status == "approved" }
+      emits "WorkBegun"
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteProject do
+      description "Finish the upholstery and prepare for pickup"
+      reference_to(UpholsteryProject)
+      given { status == "in_progress" }
+      emits "ProjectCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "FabricSelection", "Fabric chosen for a project with yardage and specs" do
+    String :fabric_name
+    String :material
+    String :color
+    Float :yards_needed
+    Float :price_per_yard
+    String :status, default: "selected"
+    reference_to(UpholsteryProject)
+
+    value_object "FabricSpec" do
+      Float :width_inches
+      Integer :thread_count
+      String :weave_type
+      String :durability_rating
+    end
+
+    SelectFabric do
+      description "Choose upholstery fabric from swatches"
+      reference_to(UpholsteryProject)
+      String :fabric_name
+      String :material
+      String :color
+      Float :yards_needed
+      Float :price_per_yard
+      emits "FabricSelected"
+    end
+
+    OrderFabric do
+      description "Place the fabric order with the mill or distributor"
+      reference_to(FabricSelection)
+      given { status == "selected" }
+      emits "FabricOrdered"
+      then_set :status, to: "ordered"
+    end
+
+    ReceiveFabric do
+      description "Check in the fabric delivery and inspect for defects"
+      reference_to(FabricSelection)
+      given { status == "ordered" }
+      emits "FabricReceived"
+      then_set :status, to: "received"
+    end
+  end
+
+  aggregate "FrameWork", "The furniture frame — repair, refinish, or rebuild" do
+    String :frame_material
+    String :condition
+    String :status, default: "inspected"
+    String :repair_notes
+    reference_to(UpholsteryProject)
+
+    InspectFrame do
+      description "Strip old upholstery and inspect the frame"
+      reference_to(UpholsteryProject)
+      String :frame_material
+      String :condition
+      emits "FrameInspected"
+    end
+
+    RepairFrame do
+      description "Fix structural issues in the furniture frame"
+      reference_to(FrameWork)
+      String :repair_notes
+      given { status == "inspected" }
+      emits "FrameRepaired"
+      then_set :status, to: "repaired"
+      then_set :repair_notes, to: :repair_notes
+    end
+
+    RefinishFrame do
+      description "Sand and refinish exposed wood on the frame"
+      reference_to(FrameWork)
+      String :finish_type
+      emits "FrameRefinished"
+    end
+  end
+
+  aggregate "Estimate", "A detailed cost estimate for an upholstery job" do
+    Float :labor_cost
+    Float :material_cost
+    Float :total
+    String :status, default: "draft"
+    reference_to(UpholsteryProject)
+
+    value_object "LineItem" do
+      String :description
+      Float :quantity
+      Float :unit_price
+      String :category
+    end
+
+    DraftEstimate do
+      description "Create a detailed estimate breaking down labor and materials"
+      reference_to(UpholsteryProject)
+      Float :labor_cost
+      Float :material_cost
+      emits "EstimateDrafted"
+    end
+
+    SendEstimate do
+      description "Send the estimate to the client for review"
+      reference_to(Estimate)
+      given { status == "draft" }
+      emits "EstimateSent"
+      then_set :status, to: "sent"
+    end
+  end
+
+  aggregate "UpholsteryDelivery", "Delivery or pickup of finished upholstered furniture" do
+    String :delivery_type
+    String :address
+    String :date
+    String :status, default: "scheduled"
+    reference_to(UpholsteryProject)
+
+    ScheduleDelivery do
+      description "Book delivery or pickup for the finished piece"
+      reference_to(UpholsteryProject)
+      String :delivery_type
+      String :address
+      String :date
+      emits "DeliveryScheduled"
+    end
+
+    CompleteDelivery do
+      description "Confirm the furniture was delivered to the client"
+      reference_to(UpholsteryDelivery)
+      given { status == "scheduled" }
+      emits "DeliveryCompleted"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "DraftEstimateOnAssess" do
+    on "ProjectAssessed"
+    trigger "DraftEstimate"
+  end
+
+  policy "SendEstimateOnDraft" do
+    on "EstimateDrafted"
+    trigger "SendEstimate"
+  end
+
+  policy "InspectFrameOnApproval" do
+    on "EstimateApproved"
+    trigger "InspectFrame"
+  end
+
+  policy "RepairFrameOnInspect" do
+    on "FrameInspected"
+    trigger "RepairFrame"
+  end
+
+  policy "SelectFabricOnRepair" do
+    on "FrameRepaired"
+    trigger "SelectFabric"
+  end
+
+  policy "OrderFabricOnSelection" do
+    on "FabricSelected"
+    trigger "OrderFabric"
+  end
+
+  policy "ReceiveFabricOnOrder" do
+    on "FabricOrdered"
+    trigger "ReceiveFabric"
+  end
+
+  policy "BeginWorkOnFabricReceive" do
+    on "FabricReceived"
+    trigger "BeginWork"
+  end
+
+  policy "CompleteOnWork" do
+    on "WorkBegun"
+    trigger "CompleteProject"
+  end
+
+  policy "DeliverOnCompletion" do
+    on "ProjectCompleted"
+    trigger "ScheduleDelivery"
+  end
+
+  policy "ConfirmDeliveryOnSchedule" do
+    on "DeliveryScheduled"
+    trigger "CompleteDelivery"
+  end
+end

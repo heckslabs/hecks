@@ -1,0 +1,158 @@
+Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
+  vision "Relief logistics — disaster supplies meet container shipping, customs, and distribution"
+  category "healthcare_community"
+
+  aggregate "SupplyRequest", "A request for disaster relief supplies" do
+    String :request_id
+    String :disaster_type
+    String :location_name
+    list_of(SupplyItem) :items
+    String :urgency
+    String :status
+    value_object "SupplyItem" do
+      String :item_name
+      Integer :quantity
+      String :unit
+    end
+    SubmitRequest do
+      role "FieldCoordinator"
+      description "Submit a request for disaster relief supplies"
+      String :request_id
+      String :disaster_type
+      String :location_name
+      String :urgency
+      emits "RequestSubmitted"
+      then_set :request_id, to: :request_id
+      then_set :disaster_type, to: :disaster_type
+      then_set :location_name, to: :location_name
+      then_set :urgency, to: :urgency
+      then_set :status, to: "submitted"
+    end
+    ApproveRequest do
+      role "HQCoordinator"
+      description "Approve the supply request for shipment"
+      reference_to(SupplyRequest)
+      given { status == "submitted" }
+      emits "RequestApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  aggregate "ShippingContainer", "A shipping container loaded with relief supplies" do
+    String :container_id
+    String :request_id
+    String :origin_port
+    String :dest_port
+    Float :weight_tons
+    String :status
+    LoadContainer do
+      role "WarehouseTeam"
+      description "Load relief supplies into a shipping container"
+      String :container_id
+      String :request_id
+      String :origin_port
+      String :dest_port
+      Float :weight_tons
+      emits "ContainerLoaded"
+      then_set :container_id, to: :container_id
+      then_set :request_id, to: :request_id
+      then_set :origin_port, to: :origin_port
+      then_set :dest_port, to: :dest_port
+      then_set :weight_tons, to: :weight_tons
+      then_set :status, to: "loaded"
+    end
+    ShipContainer do
+      role "ShippingAgent"
+      description "Ship the container to destination port"
+      reference_to(ShippingContainer)
+      given { status == "loaded" }
+      emits "ContainerShipped"
+      then_set :status, to: "in_transit"
+    end
+    ReceiveContainer do
+      role "PortAgent"
+      description "Receive container at destination port"
+      reference_to(ShippingContainer)
+      given { status == "in_transit" }
+      emits "ContainerReceived"
+      then_set :status, to: "received"
+    end
+  end
+
+  aggregate "CustomsClearance", "Customs processing for relief supply containers" do
+    String :clearance_id
+    String :container_id
+    String :country
+    String :documentation_status
+    String :status
+    FileClearance do
+      role "CustomsBroker"
+      description "File customs clearance for a relief container"
+      String :clearance_id
+      String :container_id
+      String :country
+      emits "ClearanceFiled"
+      then_set :clearance_id, to: :clearance_id
+      then_set :container_id, to: :container_id
+      then_set :country, to: :country
+      then_set :status, to: "filed"
+    end
+    GrantClearance do
+      role "CustomsOfficer"
+      description "Grant customs clearance for humanitarian supplies"
+      reference_to(CustomsClearance)
+      given { status == "filed" }
+      emits "ClearanceGranted"
+      then_set :status, to: "cleared"
+    end
+  end
+
+  aggregate "FieldDistribution", "Distribution of supplies from port to disaster site" do
+    String :distribution_id
+    String :container_id
+    String :site_name
+    Integer :beneficiaries
+    String :status
+    list_of(DistributionPoint) :points
+    value_object "DistributionPoint" do
+      String :location_name
+      Integer :people_served
+      String :date
+    end
+    PlanDistribution do
+      role "FieldCoordinator"
+      description "Plan field distribution from port to disaster sites"
+      String :distribution_id
+      String :container_id
+      String :site_name
+      emits "DistributionPlanned"
+      then_set :distribution_id, to: :distribution_id
+      then_set :container_id, to: :container_id
+      then_set :site_name, to: :site_name
+      then_set :status, to: "planned"
+    end
+    ExecuteDistribution do
+      role "FieldTeam"
+      description "Execute the supply distribution to beneficiaries"
+      reference_to(FieldDistribution)
+      Integer :beneficiaries
+      given { status == "planned" }
+      emits "DistributionExecuted"
+      then_set :beneficiaries, to: :beneficiaries
+      then_set :status, to: "executed"
+    end
+  end
+
+  policy "LoadOnApprove" do
+    on "RequestApproved"
+    trigger "LoadContainer"
+  end
+  policy "ClearOnReceive" do
+    on "ContainerReceived"
+    trigger "FileClearance"
+  end
+  policy "DistributeOnClear" do
+    on "ClearanceGranted"
+    trigger "PlanDistribution"
+  end
+end

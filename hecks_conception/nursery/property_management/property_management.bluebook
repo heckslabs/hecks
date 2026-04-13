@@ -1,0 +1,279 @@
+Hecks.bluebook "PropertyManagement" do
+  vision "Manage rental units, tenants, leases, maintenance requests, and property inspections"
+  category "real_estate"
+
+  aggregate "RentalUnit", "A rentable property unit with address, type, and availability" do
+    String :unit_number
+    String :address
+    String :unit_type
+    Integer :bedrooms
+    Integer :bathrooms
+    Float :square_footage
+    Float :monthly_rent
+    String :status
+
+    value_object "UnitFeatures" do
+      String :flooring
+      String :appliances
+      String :parking
+      String :laundry
+    end
+
+    ListUnit do
+      role "PropertyManager"
+      description "Add a rental unit to the available inventory"
+      String :unit_number
+      String :address
+      String :unit_type
+      Integer :bedrooms
+      Float :monthly_rent
+      emits "UnitListed"
+      then_set :unit_number, to: :unit_number
+      then_set :address, to: :address
+      then_set :unit_type, to: :unit_type
+      then_set :bedrooms, to: :bedrooms
+      then_set :monthly_rent, to: :monthly_rent
+      then_set :status, to: "available"
+    end
+
+    MarkVacant do
+      role "PropertyManager"
+      description "Update unit status when a tenant moves out"
+      reference_to(RentalUnit)
+      given { status == "occupied" }
+      emits "UnitVacated"
+      then_set :status, to: "vacant"
+    end
+
+    TakeOffMarket do
+      role "PropertyManager"
+      description "Remove a unit from listings for renovation or sale"
+      reference_to(RentalUnit)
+      emits "UnitRemovedFromMarket"
+      then_set :status, to: "off_market"
+    end
+  end
+
+  aggregate "Tenant", "A renter with contact info, background check status, and payment history" do
+    String :first_name
+    String :last_name
+    String :phone
+    String :email
+    String :employer
+    Float :monthly_income
+    String :background_check_status
+
+    value_object "CreditReport" do
+      Integer :score
+      String :report_date
+      String :risk_level
+    end
+
+    ScreenTenant do
+      role "PropertyManager"
+      description "Register an applicant and initiate background screening"
+      String :first_name
+      String :last_name
+      String :phone
+      String :email
+      Float :monthly_income
+      emits "TenantScreened"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :phone, to: :phone
+      then_set :email, to: :email
+      then_set :monthly_income, to: :monthly_income
+      then_set :background_check_status, to: "pending"
+    end
+
+    ApproveTenant do
+      role "PropertyManager"
+      description "Approve the tenant's application after successful screening"
+      reference_to(Tenant)
+      given { background_check_status == "pending" }
+      emits "TenantApproved"
+      then_set :background_check_status, to: "approved"
+    end
+
+    RejectTenant do
+      role "PropertyManager"
+      description "Deny the application due to failed screening criteria"
+      reference_to(Tenant)
+      given { background_check_status == "pending" }
+      emits "TenantRejected"
+      then_set :background_check_status, to: "rejected"
+    end
+  end
+
+  aggregate "Lease", "A binding rental agreement between landlord and tenant for a unit" do
+    String :start_date
+    String :end_date
+    Float :monthly_rent
+    Float :security_deposit
+    String :status
+    reference_to(RentalUnit)
+    reference_to(Tenant)
+
+    SignLease do
+      role "PropertyManager"
+      description "Execute a lease agreement between tenant and property"
+      reference_to(RentalUnit)
+      reference_to(Tenant)
+      String :start_date
+      String :end_date
+      Float :monthly_rent
+      Float :security_deposit
+      emits "LeaseSigned"
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :monthly_rent, to: :monthly_rent
+      then_set :security_deposit, to: :security_deposit
+      then_set :status, to: "active"
+    end
+
+    RenewLease do
+      role "PropertyManager"
+      description "Extend the lease for an additional term with updated rent"
+      reference_to(Lease)
+      String :new_end_date
+      Float :new_monthly_rent
+      given { status == "active" }
+      emits "LeaseRenewed"
+      then_set :end_date, to: :new_end_date
+      then_set :monthly_rent, to: :new_monthly_rent
+    end
+
+    TerminateLease do
+      role "PropertyManager"
+      description "End the lease early due to breach or mutual agreement"
+      reference_to(Lease)
+      given { status == "active" }
+      emits "LeaseTerminated"
+      then_set :status, to: "terminated"
+    end
+  end
+
+  aggregate "MaintenanceRequest", "A tenant-submitted repair or maintenance work order" do
+    String :description
+    String :category
+    String :priority
+    String :assigned_to
+    String :status
+    String :resolution_notes
+    reference_to(RentalUnit)
+    reference_to(Tenant)
+
+    SubmitRequest do
+      role "Tenant"
+      description "File a maintenance request describing the issue"
+      reference_to(RentalUnit)
+      reference_to(Tenant)
+      String :description
+      String :category
+      String :priority
+      emits "RequestSubmitted"
+      then_set :description, to: :description
+      then_set :category, to: :category
+      then_set :priority, to: :priority
+      then_set :status, to: "open"
+    end
+
+    AssignTechnician do
+      role "PropertyManager"
+      description "Dispatch a maintenance worker to handle the request"
+      reference_to(MaintenanceRequest)
+      String :assigned_to
+      given { status == "open" }
+      emits "TechnicianAssigned"
+      then_set :assigned_to, to: :assigned_to
+      then_set :status, to: "assigned"
+    end
+
+    ResolveRequest do
+      role "MaintenanceWorker"
+      description "Mark the maintenance request as completed with resolution notes"
+      reference_to(MaintenanceRequest)
+      String :resolution_notes
+      given { status == "assigned" }
+      emits "RequestResolved"
+      then_set :resolution_notes, to: :resolution_notes
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "PropertyInspection", "A scheduled walkthrough to assess unit condition" do
+    String :inspection_date
+    String :inspection_type
+    String :findings
+    String :status
+    reference_to(RentalUnit)
+
+    ScheduleInspection do
+      role "PropertyManager"
+      description "Plan a routine or move-out inspection for a unit"
+      reference_to(RentalUnit)
+      String :inspection_date
+      String :inspection_type
+      emits "InspectionScheduled"
+      then_set :inspection_date, to: :inspection_date
+      then_set :inspection_type, to: :inspection_type
+      then_set :status, to: "scheduled"
+    end
+
+    RecordFindings do
+      role "PropertyManager"
+      description "Document the condition and any issues found during inspection"
+      reference_to(PropertyInspection)
+      String :findings
+      given { status == "scheduled" }
+      emits "FindingsRecorded"
+      then_set :findings, to: :findings
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "SignLeaseOnApproval" do
+    on "TenantApproved"
+    trigger "SignLease"
+  end
+
+  policy "InspectOnLeaseEnd" do
+    on "LeaseTerminated"
+    trigger "ScheduleInspection"
+  end
+
+  policy "VacateOnTermination" do
+    on "LeaseTerminated"
+    trigger "MarkVacant"
+  end
+
+  policy "AssignMaintenanceOnSubmit" do
+    on "RequestSubmitted"
+    trigger "AssignTechnician"
+  end
+
+  policy "InspectOnResolve" do
+    on "RequestResolved"
+    trigger "ScheduleInspection"
+  end
+
+  policy "ListOnVacancy" do
+    on "UnitVacated"
+    trigger "ListUnit"
+  end
+
+  policy "ScreenTenantOnUnitListed" do
+    on "UnitListed"
+    trigger "ScreenTenant"
+  end
+
+  policy "RecordFindingsOnInspectionScheduled" do
+    on "InspectionScheduled"
+    trigger "RecordFindings"
+  end
+
+  policy "RenewLeaseOnLeaseSigned" do
+    on "LeaseSigned"
+    trigger "RenewLease"
+  end
+end

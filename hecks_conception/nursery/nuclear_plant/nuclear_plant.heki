@@ -1,0 +1,279 @@
+Hecks.bluebook "NuclearPlant" do
+  aggregate "Reactor" do
+    String :reactor_id
+    String :reactor_type
+    Float :thermal_capacity_mwt
+    Float :electrical_capacity_mwe
+    Float :current_power_percent
+    String :status
+
+    value_object "CoreState" do
+      Float :power_percent
+      Float :coolant_temp_c
+      Float :neutron_flux
+      Float :boron_concentration_ppm
+    end
+
+    LoadFuel do
+      description "Complete fuel loading during refueling outage before startup"
+      Integer :assemblies_loaded
+      String :core_map_version
+      reference_to "Reactor"
+      emits "FuelLoaded"
+    end
+
+    StartReactor do
+      description "Begin controlled reactor startup by withdrawing control rods"
+      Float :target_power_percent
+      String :shift_supervisor
+      reference_to "Reactor"
+      emits "ReactorStarted"
+    end
+
+    SynchronizeToGrid do
+      description "Connect generator to electrical grid at synchronous speed"
+      Float :output_mwe
+      reference_to "Reactor"
+      emits "GeneratorSynchronized"
+    end
+
+    RaisePower do
+      description "Increase reactor power level toward full rated capacity"
+      Float :target_power_percent
+      reference_to "Reactor"
+      emits "PowerRaised"
+    end
+
+    TripReactor do
+      description "Initiate emergency reactor shutdown by inserting all control rods"
+      String :trip_reason
+      reference_to "Reactor"
+      emits "ReactorTripped"
+    end
+
+    lifecycle :status, default: "shutdown" do
+      transition "LoadFuel" => "fueled", from: "shutdown"
+      transition "StartReactor" => "startup", from: "fueled"
+      transition "SynchronizeToGrid" => "online", from: "startup"
+      transition "RaisePower" => "full_power", from: "online"
+      transition "TripReactor" => "tripped", from: "full_power"
+    end
+
+    policy "Reactor startup requires dual authorization from licensed operators"
+    policy "Any trip must be followed by root cause investigation"
+
+    given "Unit 1 operates at full power" do
+      String :reactor_type, "PWR"
+      Float :electrical_capacity_mwe, 1100.0
+      Float :current_power_percent, 100.0
+    end
+  end
+
+  aggregate "FuelAssembly" do
+    String :assembly_id
+    String :fuel_type
+    Float :enrichment_percent
+    Integer :burn_cycle
+    String :core_position
+    String :status
+    list_of "FuelRod"
+
+    LoadAssembly do
+      description "Place fuel assembly into reactor core during refueling outage"
+      String :core_position
+      Integer :burn_cycle
+      reference_to "Reactor"
+      emits "AssemblyLoaded"
+    end
+
+    TransferToPool do
+      description "Move spent fuel assembly from core to cooling pool"
+      String :pool_location
+      reference_to "FuelAssembly"
+      emits "AssemblyTransferred"
+    end
+
+    TransferToDryStorage do
+      description "Move cooled spent fuel from pool to dry cask storage"
+      String :cask_id
+      reference_to "FuelAssembly"
+      emits "AssemblyInDryStorage"
+    end
+
+    lifecycle :status, default: "new" do
+      transition "LoadAssembly" => "in_core", from: "new"
+      transition "TransferToPool" => "cooling", from: "in_core"
+      transition "TransferToDryStorage" => "dry_storage", from: "cooling"
+    end
+
+    policy "Spent fuel must cool in pool for minimum 5 years before dry storage"
+  end
+
+  aggregate "CoolingSystem" do
+    String :system_id
+    String :loop_designation
+    Float :coolant_temp_inlet_c
+    Float :coolant_temp_outlet_c
+    Float :flow_rate_kgps
+    String :status
+
+    value_object "CoolantChemistry" do
+      Float :boron_ppm
+      Float :ph_level
+      Float :dissolved_oxygen_ppb
+      Float :conductivity
+    end
+
+    StartCoolantPump do
+      description "Start reactor coolant pump for primary or secondary loop"
+      String :loop_designation
+      String :pump_id
+      reference_to "CoolingSystem"
+      emits "CoolantPumpStarted"
+    end
+
+    AdjustBoronConcentration do
+      description "Dilute or borate primary coolant to control reactivity"
+      Float :target_boron_ppm
+      String :direction
+      reference_to "CoolingSystem"
+      emits "BoronAdjusted"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "StartCoolantPump" => "circulating", from: "idle"
+      transition "AdjustBoronConcentration" => "adjusted", from: "circulating"
+    end
+
+    policy "Primary coolant chemistry must remain within tech spec limits"
+  end
+
+  aggregate "RadiationSurvey" do
+    String :survey_id
+    String :area
+    String :surveyor
+    Float :dose_rate_msv_hr
+    String :survey_date
+    String :status
+
+    ConductSurvey do
+      description "Perform radiation dose rate survey in plant area"
+      String :area
+      String :surveyor
+      Float :dose_rate_msv_hr
+      reference_to "RadiationSurvey"
+      emits "SurveyConducted"
+    end
+
+    PostRadiationArea do
+      description "Post warning signs and access controls for elevated radiation area"
+      String :posting_level
+      Float :access_limit_msv
+      reference_to "RadiationSurvey"
+      emits "AreaPosted"
+    end
+
+    PassInspection do
+      description "Record NRC or internal inspection passed for the surveyed area"
+      String :inspector_name
+      String :inspection_id
+      reference_to "RadiationSurvey"
+      emits "InspectionPassed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ConductSurvey" => "surveyed", from: "pending"
+      transition "PostRadiationArea" => "posted", from: "surveyed"
+      transition "PassInspection" => "cleared", from: "posted"
+    end
+
+    policy "High radiation areas require health physics escort"
+  end
+
+  aggregate "WastePackage" do
+    String :package_id
+    String :waste_class
+    String :container_type
+    Float :activity_becquerels
+    Float :weight_kg
+    String :storage_location
+    String :status
+
+    PackageWaste do
+      description "Containerize radioactive waste per disposal facility requirements"
+      String :waste_class
+      String :container_type
+      Float :activity_becquerels
+      reference_to "WastePackage"
+      emits "WastePackaged"
+    end
+
+    CertifyPackage do
+      description "Certify waste package meets DOT and NRC transport requirements"
+      String :certifier
+      reference_to "WastePackage"
+      emits "PackageCertified"
+    end
+
+    ShipWaste do
+      description "Transfer waste package to licensed disposal facility"
+      String :transporter
+      String :disposal_facility
+      reference_to "WastePackage"
+      emits "WasteShipped"
+    end
+
+    lifecycle :status, default: "generated" do
+      transition "PackageWaste" => "packaged", from: "generated"
+      transition "CertifyPackage" => "certified", from: "packaged"
+      transition "ShipWaste" => "shipped", from: "certified"
+    end
+
+    policy "Waste packages must meet DOT and NRC transport requirements"
+  end
+
+  policy "StartReactorOnFuelLoaded" do
+    on "FuelLoaded"
+    trigger "StartReactor"
+  end
+
+  policy "SynchronizeOnReactorStarted" do
+    on "ReactorStarted"
+    trigger "SynchronizeToGrid"
+  end
+
+  policy "RaisePowerOnSynchronized" do
+    on "GeneratorSynchronized"
+    trigger "RaisePower"
+  end
+
+  policy "StartCoolantPumpOnFuelLoaded" do
+    on "FuelLoaded"
+    trigger "StartCoolantPump"
+  end
+
+  policy "ConductSurveyOnPowerRaised" do
+    on "PowerRaised"
+    trigger "ConductSurvey"
+  end
+
+  policy "PostRadiationAreaOnSurveyConducted" do
+    on "SurveyConducted"
+    trigger "PostRadiationArea"
+  end
+
+  policy "PackageWasteOnReactorTripped" do
+    on "ReactorTripped"
+    trigger "PackageWaste"
+  end
+
+  policy "CertifyPackageOnWastePackaged" do
+    on "WastePackaged"
+    trigger "CertifyPackage"
+  end
+
+  policy "ShipWasteOnPackageCertified" do
+    on "PackageCertified"
+    trigger "ShipWaste"
+  end
+end

@@ -1,0 +1,224 @@
+Hecks.bluebook "SteelMill" do
+  aggregate "Heat" do
+    String :heat_number
+    String :grade
+    Float :target_temperature
+    Float :actual_temperature
+    String :status
+    list_of "SlabOrder"
+
+    ChargeHeat do
+      description "Load scrap and raw materials into electric arc furnace for melting"
+      String :furnace_id
+      Float :charge_weight_tons
+      reference_to "Heat"
+      emits "HeatCharged"
+    end
+
+    TapHeat do
+      description "Tap molten steel from furnace into ladle"
+      Float :tap_temperature
+      String :ladle_id
+      reference_to "Heat"
+      emits "HeatTapped"
+    end
+
+    AdjustChemistry do
+      description "Add alloys to adjust chemical composition of heat"
+      String :alloy_type
+      Float :quantity_kg
+      reference_to "Heat"
+      emits "ChemistryAdjusted"
+    end
+
+    lifecycle :status, default: "charging" do
+      transition "ChargeHeat" => "melting", from: "charging"
+      transition "AdjustChemistry" => "refining", from: "melting"
+      transition "TapHeat" => "tapped", from: "refining"
+    end
+
+    policy "Heat temperature must reach target before tapping"
+    policy "Chemistry adjustments must occur before casting begins"
+  end
+
+  aggregate "Slab" do
+    String :slab_id
+    String :grade
+    Float :thickness_mm
+    Float :width_mm
+    Float :length_mm
+    String :status
+
+    value_object "SlabDimensions" do
+      Float :thickness_mm
+      Float :width_mm
+      Float :length_mm
+    end
+
+    CastSlab do
+      description "Cast molten steel into slab form via continuous caster"
+      String :heat_number
+      Float :thickness_mm
+      Float :width_mm
+      reference_to "Heat"
+      emits "SlabCast"
+    end
+
+    InspectSlab do
+      description "Perform surface and internal quality inspection on slab"
+      String :inspection_type
+      String :result
+      reference_to "Slab"
+      emits "SlabInspected"
+    end
+
+    lifecycle :status, default: "cast" do
+      transition "CastSlab" => "cast"
+      transition "InspectSlab" => "inspected", from: "cast"
+      transition "ScheduleRolling" => "scheduled", from: "inspected"
+      transition "CompleteRolling" => "rolled", from: "scheduled"
+    end
+
+    policy "Slabs must pass inspection before rolling"
+  end
+
+  aggregate "RollingSchedule" do
+    String :schedule_id
+    String :mill_line
+    String :shift_date
+    String :status
+    list_of "Slab"
+
+    ScheduleRolling do
+      description "Assign slabs to a rolling mill line for a shift"
+      String :mill_line
+      String :shift_date
+      reference_to "RollingSchedule"
+      emits "RollingScheduled"
+    end
+
+    CompleteRolling do
+      description "Mark a rolling pass as complete with measured dimensions"
+      Float :final_thickness_mm
+      Float :final_width_mm
+      reference_to "Slab"
+      emits "RollingCompleted"
+    end
+
+    RunQualityTest do
+      description "Perform tensile and hardness tests on rolled product"
+      String :test_type
+      Float :measured_value
+      reference_to "Slab"
+      emits "QualityTestPassed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ScheduleRolling" => "scheduled", from: "pending"
+      transition "CompleteRolling" => "rolled", from: "scheduled"
+      transition "RunQualityTest" => "tested", from: "rolled"
+    end
+
+    policy "Rolling schedule must not exceed mill capacity per shift"
+    policy "Quality test must pass before product certification"
+  end
+
+  aggregate "QualityCertificate" do
+    String :certificate_id
+    String :heat_number
+    String :grade
+    String :standard
+    String :status
+
+    value_object "TestResult" do
+      String :test_type
+      Float :value
+      String :unit
+      String :pass_fail
+    end
+
+    IssueCertificate do
+      description "Issue quality certificate for shipped steel products"
+      String :standard
+      String :customer_id
+      reference_to "Heat"
+      emits "CertificateIssued"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "IssueCertificate" => "certified", from: "pending"
+    end
+
+    policy "Certificate requires all test results to pass"
+    policy "Certificate must reference a valid heat number"
+
+    given "A heat is tapped and slabs are cast and inspected" do
+      String :heat_number, "HT-2024-001"
+      String :grade, "A36"
+      Float :target_temperature, 1600.0
+    end
+  end
+
+  aggregate "CustomerOrder" do
+    String :order_id
+    String :customer_name
+    String :grade
+    Float :quantity_tons
+    String :delivery_date
+    String :status
+    list_of "Slab"
+
+    PlaceOrder do
+      description "Receive and record a new customer steel order"
+      String :customer_name
+      String :grade
+      Float :quantity_tons
+      reference_to "CustomerOrder"
+      emits "OrderPlaced"
+    end
+
+    FulfillOrder do
+      description "Ship finished product and close out customer order"
+      String :shipping_method
+      reference_to "CustomerOrder"
+      emits "OrderFulfilled"
+    end
+
+    lifecycle :status, default: "received" do
+      transition "PlaceOrder" => "received"
+      transition "FulfillOrder" => "shipped", from: "received"
+    end
+
+    policy "Orders must specify a valid steel grade"
+  end
+
+  policy "CastSlabOnHeatTapped" do
+    on "HeatTapped"
+    trigger "CastSlab"
+  end
+
+  policy "InspectSlabOnSlabCast" do
+    on "SlabCast"
+    trigger "InspectSlab"
+  end
+
+  policy "ScheduleRollingOnSlabInspected" do
+    on "SlabInspected"
+    trigger "ScheduleRolling"
+  end
+
+  policy "RunQualityTestOnRollingCompleted" do
+    on "RollingCompleted"
+    trigger "RunQualityTest"
+  end
+
+  policy "CertifyProductOnQualityTestPassed" do
+    on "QualityTestPassed"
+    trigger "IssueCertificate"
+  end
+
+  policy "FulfillOrderOnCertificateIssued" do
+    on "CertificateIssued"
+    trigger "FulfillOrder"
+  end
+end

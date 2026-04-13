@@ -1,0 +1,190 @@
+Hecks.bluebook "TreeService" do
+  vision "Manage tree care operations including assessments, removals, prunings, stump grindings, and municipal permit compliance"
+  core
+
+  aggregate "TreeAssessment" do
+    description "An arborist assessment of a tree's health, structure, and risk level"
+    String :species
+    Float :dbh_inches
+    Float :height_feet
+    String :health_rating
+    String :risk_level
+    String :address
+
+    value_object "StructuralCondition" do
+      String :crown_condition
+      String :trunk_condition
+      String :root_condition
+    end
+
+    AssessTree do
+      role "Arborist"
+      goal "Evaluate a tree's health and structural integrity"
+      description "Inspect crown, trunk, and root zone to determine risk and care plan"
+      String :species
+      Float :dbh_inches
+      Float :height_feet
+      String :address
+      emits "TreeAssessed"
+    end
+
+    RecommendAction do
+      role "Arborist"
+      goal "Prescribe the appropriate treatment — prune, cable, remove, or monitor"
+      description "Based on assessment, recommend the best course of action"
+      reference_to(TreeAssessment)
+      String :recommendation
+      emits "ActionRecommended"
+    end
+
+    FlagHazard do
+      role "Arborist"
+      goal "Mark a tree as an immediate hazard requiring urgent action"
+      description "Elevate priority when a tree poses imminent danger"
+      reference_to(TreeAssessment)
+      given("risk must be high or extreme") { risk_level != "low" }
+      emits "HazardFlagged"
+    end
+  end
+
+  aggregate "RemovalJob" do
+    description "A tree removal job with rigging plan, crew assignment, and disposal method"
+    String :rigging_method
+    String :disposal_method
+    String :status
+    Integer :crew_size
+    reference_to(TreeAssessment)
+
+    ScheduleRemoval do
+      role "Operations Manager"
+      goal "Schedule a crew for the tree removal"
+      description "Assign crew, equipment, and date for the removal"
+      reference_to(TreeAssessment)
+      String :rigging_method
+      Integer :crew_size
+      emits "RemovalScheduled"
+    end
+
+    ExecuteRemoval do
+      role "Crew Lead"
+      goal "Fell or dismantle the tree safely"
+      description "Perform the removal using the specified rigging method"
+      reference_to(RemovalJob)
+      String :disposal_method
+      emits "RemovalExecuted"
+    end
+  end
+
+  aggregate "PruningJob" do
+    description "A pruning job specifying cut types — crown reduction, deadwooding, clearance, or structural"
+    String :prune_type
+    Float :canopy_reduction_pct
+    String :status
+    reference_to(TreeAssessment)
+
+    SchedulePruning do
+      role "Operations Manager"
+      goal "Book a pruning job with the appropriate crew"
+      description "Schedule the pruning with cut specifications"
+      reference_to(TreeAssessment)
+      String :prune_type
+      Float :canopy_reduction_pct
+      emits "PruningScheduled"
+    end
+
+    CompletePruning do
+      role "Climber"
+      goal "Execute the prescribed pruning cuts per ANSI A300 standards"
+      description "Prune the tree and clean up debris"
+      reference_to(PruningJob)
+      emits "PruningCompleted"
+    end
+  end
+
+  aggregate "StumpGrinding" do
+    description "A stump grinding job after tree removal with depth and backfill specifications"
+    Float :stump_diameter_inches
+    Float :grind_depth_inches
+    String :backfill_type
+    String :status
+    reference_to(RemovalJob)
+
+    ScheduleGrinding do
+      role "Operations Manager"
+      goal "Book the stump grinder for the removal site"
+      description "Schedule grinding after the tree is removed"
+      reference_to(RemovalJob)
+      Float :stump_diameter_inches
+      Float :grind_depth_inches
+      emits "GrindingScheduled"
+    end
+
+    CompleteGrinding do
+      role "Operator"
+      goal "Grind the stump below grade and backfill"
+      description "Grind to specified depth and fill with grindings or topsoil"
+      reference_to(StumpGrinding)
+      String :backfill_type
+      emits "GrindingCompleted"
+    end
+  end
+
+  aggregate "TreePermit" do
+    description "A municipal permit required for removing or significantly pruning protected trees"
+    String :permit_number
+    String :municipality
+    String :tree_species
+    String :status
+    reference_to(TreeAssessment)
+
+    ApplyForPermit do
+      role "Office Manager"
+      goal "Submit a tree removal or pruning permit application"
+      description "File the application with the municipality including the arborist report"
+      String :municipality
+      String :tree_species
+      reference_to(TreeAssessment)
+      emits "PermitApplied"
+    end
+
+    ReceivePermit do
+      role "Office Manager"
+      goal "Record the approved permit number"
+      description "Log the permit approval from the municipality"
+      reference_to(TreePermit)
+      String :permit_number
+      given("must be pending") { status == "pending" }
+      emits "PermitReceived"
+    end
+  end
+
+  policy "RecommendOnAssess" do
+    on "TreeAssessed"
+    trigger "RecommendAction"
+  end
+
+  policy "PermitOnHazard" do
+    on "HazardFlagged"
+    trigger "ApplyForPermit"
+  end
+
+  policy "ScheduleRemovalOnPermit" do
+    on "PermitReceived"
+    trigger "ScheduleRemoval"
+  end
+
+  policy "ExecuteOnSchedule" do
+    on "RemovalScheduled"
+    trigger "ExecuteRemoval"
+  end
+
+  policy "GrindAfterRemoval" do
+    on "RemovalExecuted"
+    trigger "ScheduleGrinding"
+  end
+
+  policy "CompleteGrindOnSchedule" do
+    on "GrindingScheduled"
+    trigger "CompleteGrinding"
+  end
+end

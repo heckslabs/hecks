@@ -1,0 +1,241 @@
+Hecks.bluebook "Hydroelectric" do
+  aggregate "Reservoir" do
+    String :reservoir_id
+    String :reservoir_name
+    Float :full_supply_level_m
+    Float :current_level_m
+    Float :storage_volume_mcm
+    String :status
+
+    RecordLevel do
+      description "Measure and record reservoir water level and inflow data"
+      Float :current_level_m
+      Float :inflow_cms
+      reference_to "Reservoir"
+      emits "LevelRecorded"
+    end
+
+    ForecastInflow do
+      description "Project reservoir inflow based on weather and snowpack data"
+      Float :forecast_inflow_cms
+      Integer :forecast_days
+      reference_to "Reservoir"
+      emits "InflowForecasted"
+    end
+
+    lifecycle :status, default: "monitoring" do
+      transition "RecordLevel" => "measured", from: "monitoring"
+      transition "ForecastInflow" => "forecasted", from: "measured"
+    end
+
+    policy "Reservoir must maintain minimum environmental flow release"
+  end
+
+  aggregate "HydroTurbine" do
+    String :turbine_id
+    String :turbine_type
+    Float :rated_capacity_mw
+    Float :runner_diameter_m
+    Float :current_output_mw
+    String :status
+
+    value_object "TurbineEfficiency" do
+      Float :head_meters
+      Float :flow_cms
+      Float :efficiency_percent
+      Float :output_mw
+    end
+
+    StartTurbine do
+      description "Open wicket gates and bring turbine generator up to synchronous speed"
+      Float :target_output_mw
+      reference_to "HydroTurbine"
+      emits "TurbineStarted"
+    end
+
+    SynchronizeGenerator do
+      description "Connect generator to grid at synchronous frequency and voltage"
+      Float :output_mw
+      reference_to "HydroTurbine"
+      emits "GeneratorSynchronized"
+    end
+
+    AdjustOutput do
+      description "Modulate wicket gate opening to change power output"
+      Float :new_output_mw
+      reference_to "HydroTurbine"
+      emits "OutputAdjusted"
+    end
+
+    StopTurbine do
+      description "Close wicket gates and shut down turbine generator unit"
+      String :stop_reason
+      reference_to "HydroTurbine"
+      emits "TurbineStopped"
+    end
+
+    lifecycle :status, default: "offline" do
+      transition "StartTurbine" => "starting", from: "offline"
+      transition "SynchronizeGenerator" => "online", from: "starting"
+      transition "AdjustOutput" => "generating", from: "online"
+      transition "StopTurbine" => "offline", from: "generating"
+    end
+
+    policy "Turbine must reach synchronous speed before connecting to grid"
+    policy "Cavitation detection triggers immediate load reduction"
+
+    given "Unit 3 Francis turbine runs at 85 MW" do
+      String :turbine_type, "Francis"
+      Float :rated_capacity_mw, 100.0
+      Float :current_output_mw, 85.0
+    end
+  end
+
+  aggregate "SpillwayGate" do
+    String :gate_id
+    String :gate_type
+    Float :width_m
+    Float :current_opening_m
+    Float :max_opening_m
+    String :status
+
+    value_object "GatePosition" do
+      Float :opening_m
+      Float :discharge_cms
+      String :control_mode
+    end
+
+    OpenGate do
+      description "Raise spillway gate to release excess water downstream"
+      Float :target_opening_m
+      String :authorization
+      reference_to "SpillwayGate"
+      emits "GateOpened"
+    end
+
+    CloseGate do
+      description "Lower spillway gate to reduce or stop controlled discharge"
+      reference_to "SpillwayGate"
+      emits "GateClosed"
+    end
+
+    lifecycle :status, default: "closed" do
+      transition "OpenGate" => "open", from: "closed"
+      transition "CloseGate" => "closed", from: "open"
+    end
+
+    policy "Gate operations require dam safety officer authorization"
+  end
+
+  aggregate "GenerationSchedule" do
+    String :schedule_id
+    String :schedule_date
+    Float :peak_dispatch_mw
+    Float :off_peak_dispatch_mw
+    String :status
+    list_of "HydroTurbine"
+
+    CommitSchedule do
+      description "Submit hourly generation schedule to grid operator"
+      String :schedule_date
+      Float :peak_dispatch_mw
+      reference_to "GenerationSchedule"
+      emits "ScheduleCommitted"
+    end
+
+    ReviseSchedule do
+      description "Update generation schedule due to water or grid conditions"
+      Float :revised_peak_mw
+      String :revision_reason
+      reference_to "GenerationSchedule"
+      emits "ScheduleRevised"
+    end
+
+    SettleGeneration do
+      description "Reconcile actual generation against committed schedule for billing"
+      Float :actual_mwh
+      reference_to "GenerationSchedule"
+      emits "GenerationSettled"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CommitSchedule" => "committed", from: "draft"
+      transition "ReviseSchedule" => "revised", from: "committed"
+      transition "SettleGeneration" => "settled", from: "committed"
+    end
+
+    policy "Scheduled generation must not exceed available water budget"
+  end
+
+  aggregate "EnvironmentalRelease" do
+    String :release_id
+    String :release_point
+    Float :minimum_flow_cms
+    Float :actual_flow_cms
+    String :monitoring_period
+    String :status
+
+    RecordRelease do
+      description "Log environmental minimum flow release downstream of dam"
+      Float :actual_flow_cms
+      String :monitoring_period
+      reference_to "EnvironmentalRelease"
+      emits "ReleaseRecorded"
+    end
+
+    AdjustRelease do
+      description "Modify environmental release rate per regulatory or seasonal order"
+      Float :new_minimum_cms
+      String :regulatory_order
+      reference_to "EnvironmentalRelease"
+      emits "ReleaseAdjusted"
+    end
+
+    lifecycle :status, default: "baseline" do
+      transition "RecordRelease" => "recorded", from: "baseline"
+      transition "AdjustRelease" => "adjusted", from: "recorded"
+    end
+
+    policy "Environmental flow must never drop below regulatory minimum"
+  end
+
+  policy "CommitScheduleOnInflowForecasted" do
+    on "InflowForecasted"
+    trigger "CommitSchedule"
+  end
+
+  policy "StartTurbineOnScheduleCommitted" do
+    on "ScheduleCommitted"
+    trigger "StartTurbine"
+  end
+
+  policy "SynchronizeGeneratorOnTurbineStarted" do
+    on "TurbineStarted"
+    trigger "SynchronizeGenerator"
+  end
+
+  policy "AdjustOutputOnGeneratorSynchronized" do
+    on "GeneratorSynchronized"
+    trigger "AdjustOutput"
+  end
+
+  policy "RecordReleaseOnOutputAdjusted" do
+    on "OutputAdjusted"
+    trigger "RecordRelease"
+  end
+
+  policy "SettleGenerationOnTurbineStopped" do
+    on "TurbineStopped"
+    trigger "SettleGeneration"
+  end
+
+  policy "RecordLevelOnInflowForecasted" do
+    on "InflowForecasted"
+    trigger "RecordLevel"
+  end
+
+  policy "OpenGateOnLevelRecorded" do
+    on "LevelRecorded"
+    trigger "OpenGate"
+  end
+end

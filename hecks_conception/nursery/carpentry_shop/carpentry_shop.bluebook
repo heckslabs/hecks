@@ -1,0 +1,215 @@
+Hecks.bluebook "CarpentryShop" do
+  vision "Manage custom carpentry projects from client brief through lumber selection, joinery, finishing, and client approval"
+  core
+
+  aggregate "Project" do
+    description "A custom carpentry project — cabinets, furniture, trim, or framing with specifications and timeline"
+    String :client_name
+    String :project_type
+    String :description
+    Float :quoted_price
+    String :status
+
+    value_object "ProjectSpec" do
+      String :wood_species
+      String :finish_type
+      String :joinery_method
+    end
+
+    AcceptProject do
+      role "Shop Owner"
+      goal "Accept a new carpentry project from a client"
+      description "Create the project with specifications and pricing"
+      String :client_name
+      String :project_type
+      String :description
+      Float :quoted_price
+      emits "ProjectCommissioned"
+    end
+
+    BeginFabrication do
+      role "Lead Carpenter"
+      goal "Start cutting and assembling the project"
+      description "Move the project from planning to active fabrication"
+      reference_to(Project)
+      given("lumber must be received") { status == "materials_ready" }
+      emits "FabricationBegun"
+    end
+
+    DeliverProject do
+      role "Shop Owner"
+      goal "Deliver and install the finished piece at the client site"
+      description "Transport and install the completed carpentry work"
+      reference_to(Project)
+      emits "ProjectDelivered"
+    end
+  end
+
+  aggregate "LumberOrder" do
+    description "An order for lumber — species, grade, board feet, and supplier"
+    String :species
+    String :grade
+    Float :board_feet
+    String :supplier
+    String :status
+    reference_to(Project)
+
+    OrderLumber do
+      role "Shop Owner"
+      goal "Purchase lumber for an upcoming project"
+      description "Order the specified species and quantity from the supplier"
+      String :species
+      String :grade
+      Float :board_feet
+      String :supplier
+      reference_to(Project)
+      emits "LumberOrdered"
+    end
+
+    ReceiveLumber do
+      role "Shop Worker"
+      goal "Check in delivered lumber and inspect quality"
+      description "Verify board feet, grade, and moisture content"
+      reference_to(LumberOrder)
+      Float :moisture_pct
+      emits "LumberReceived"
+    end
+
+    RejectLumber do
+      role "Lead Carpenter"
+      goal "Return defective or wrong-grade lumber to supplier"
+      description "Send back lumber that does not meet specifications"
+      reference_to(LumberOrder)
+      String :rejection_reason
+      given("must be received first") { status == "received" }
+      emits "LumberRejected"
+    end
+  end
+
+  aggregate "JointAssembly" do
+    description "A joinery connection — mortise and tenon, dovetail, biscuit, dowel, or pocket screw"
+    String :joint_type
+    String :location_in_piece
+    String :wood_species
+    String :adhesive
+    reference_to(Project)
+
+    value_object "JointStrength" do
+      Float :shear_psi
+      Float :tensile_psi
+    end
+
+    CutJoint do
+      role "Carpenter"
+      goal "Machine or hand-cut the joint to specification"
+      description "Create the joint using the appropriate technique and tooling"
+      String :joint_type
+      String :location_in_piece
+      String :wood_species
+      reference_to(Project)
+      emits "JointCut"
+    end
+
+    GlueUp do
+      role "Carpenter"
+      goal "Apply adhesive and clamp the joint assembly"
+      description "Glue, align, and clamp the pieces for curing"
+      reference_to(JointAssembly)
+      String :adhesive
+      Integer :clamp_hours
+      emits "GlueUpCompleted"
+    end
+  end
+
+  aggregate "Finish" do
+    description "A surface finish — stain, lacquer, polyurethane, oil, or paint with coats and dry times"
+    String :finish_type
+    String :color
+    Integer :coats_applied
+    Integer :dry_hours_per_coat
+    reference_to(Project)
+
+    ApplyFinish do
+      role "Finisher"
+      goal "Apply the specified finish to the assembled piece"
+      description "Sand, apply coat, and allow drying between coats"
+      String :finish_type
+      String :color
+      Integer :coats_applied
+      Integer :dry_hours_per_coat
+      reference_to(Project)
+      emits "FinishApplied"
+    end
+
+    SandBetweenCoats do
+      role "Finisher"
+      goal "Smooth the surface between finish coats"
+      description "Sand with fine grit between coats for adhesion"
+      reference_to(Finish)
+      Integer :grit
+      emits "SandingCompleted"
+    end
+  end
+
+  aggregate "ClientApproval" do
+    description "A client sign-off on a project milestone — design, sample, or final piece"
+    String :milestone
+    String :client_feedback
+    String :approval_status
+    reference_to(Project)
+
+    RequestApproval do
+      role "Shop Owner"
+      goal "Send a milestone for client review and sign-off"
+      description "Present the work-in-progress for client approval"
+      String :milestone
+      reference_to(Project)
+      emits "ApprovalRequested"
+    end
+
+    RecordApproval do
+      role "Client"
+      goal "Approve or request changes to the milestone"
+      description "Client reviews and provides feedback"
+      reference_to(ClientApproval)
+      String :client_feedback
+      String :approval_status
+      emits "ApprovalRecorded"
+    end
+  end
+
+  policy "OrderLumberOnCommission" do
+    on "ProjectCommissioned"
+    trigger "OrderLumber"
+  end
+
+  policy "BeginOnLumberReceipt" do
+    on "LumberReceived"
+    trigger "BeginFabrication"
+  end
+
+  policy "CutJointsOnFabrication" do
+    on "FabricationBegun"
+    trigger "CutJoint"
+  end
+
+  policy "GlueAfterJoint" do
+    on "JointCut"
+    trigger "GlueUp"
+  end
+
+  policy "FinishAfterGlueUp" do
+    on "GlueUpCompleted"
+    trigger "ApplyFinish"
+  end
+
+  policy "RequestApprovalOnFinish" do
+    on "FinishApplied"
+    trigger "RequestApproval"
+  end
+
+  policy "DeliverOnApproval" do
+    on "ApprovalRecorded"
+    trigger "DeliverProject"
+  end
+end

@@ -1,0 +1,255 @@
+Hecks.bluebook "SolarOptics", version: "2026.04.13.1" do
+  vision "Optics meets solar installation — light angles, panel tilt optimization, shading analysis, and output maximization"
+  category "crossover"
+
+  aggregate "SolarPosition", "Sun position calculation — altitude, azimuth, hour angle by location and time" do
+    String :location_name
+    Float :latitude
+    Float :longitude
+    Float :solar_altitude_deg
+    Float :solar_azimuth_deg
+    String :date_time
+    String :status
+
+    value_object "SunPath" do
+      Float :sunrise_hour
+      Float :sunset_hour
+      Float :peak_altitude_deg
+      Float :day_length_hours
+    end
+
+    CalculateSolarPosition do
+      role "System"
+      description "Calculate sun position from location, date, and time"
+      String :location_name
+      Float :latitude
+      Float :longitude
+      String :date_time
+      emits "SolarPositionCalculated"
+      then_set :location_name, to: :location_name
+      then_set :latitude, to: :latitude
+      then_set :longitude, to: :longitude
+      then_set :date_time, to: :date_time
+      then_set :status, to: "calculated"
+    end
+
+    ComputeSunPath do
+      role "System"
+      description "Compute full sun path for a given day — sunrise to sunset"
+      reference_to(SolarPosition)
+      Float :solar_altitude_deg
+      Float :solar_azimuth_deg
+      given { status == "calculated" }
+      emits "SunPathComputed"
+      then_set :solar_altitude_deg, to: :solar_altitude_deg
+      then_set :solar_azimuth_deg, to: :solar_azimuth_deg
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CalculateSolarPosition" => "calculated", from: "pending"
+    end
+  end
+
+  aggregate "SolarPanel", "A solar panel installation — tilt, azimuth, area, efficiency, output" do
+    String :panel_id
+    Float :tilt_degrees
+    Float :azimuth_degrees
+    Float :area_m2
+    Float :efficiency_pct
+    Float :peak_power_watts
+    String :status
+
+    value_object "PanelSpecs" do
+      String :manufacturer
+      String :model
+      Float :voltage_voc
+      Float :current_isc
+    end
+
+    InstallPanel do
+      role "Installer"
+      description "Install a solar panel with tilt and azimuth orientation"
+      String :panel_id
+      Float :tilt_degrees
+      Float :azimuth_degrees
+      Float :area_m2
+      Float :efficiency_pct
+      Float :peak_power_watts
+      emits "PanelInstalled"
+      then_set :panel_id, to: :panel_id
+      then_set :tilt_degrees, to: :tilt_degrees
+      then_set :azimuth_degrees, to: :azimuth_degrees
+      then_set :area_m2, to: :area_m2
+      then_set :efficiency_pct, to: :efficiency_pct
+      then_set :peak_power_watts, to: :peak_power_watts
+      then_set :status, to: "installed"
+    end
+
+    OptimizeTilt do
+      role "System"
+      description "Calculate optimal tilt angle for maximum annual irradiance"
+      reference_to(SolarPanel)
+      Float :tilt_degrees
+      given { status == "installed" }
+      emits "TiltOptimized"
+      then_set :tilt_degrees, to: :tilt_degrees
+    end
+
+    AdjustPanel do
+      role "Installer"
+      description "Physically adjust panel tilt to optimized angle"
+      reference_to(SolarPanel)
+      given { status == "installed" }
+      emits "PanelAdjusted"
+      then_set :status, to: "optimized"
+    end
+
+    lifecycle :status, default: "uninstalled" do
+      transition "InstallPanel" => "installed", from: "uninstalled"
+      transition "AdjustPanel" => "optimized", from: "installed"
+    end
+  end
+
+  aggregate "ShadingAnalysis", "Shade impact analysis — obstructions, shade hours, energy loss" do
+    String :site_name
+    String :obstruction_type
+    Float :obstruction_height_m
+    Float :obstruction_distance_m
+    Float :shade_hours_per_day
+    Float :energy_loss_pct
+    String :status
+
+    value_object "ShadowProfile" do
+      Float :morning_shade_hours
+      Float :midday_shade_hours
+      Float :afternoon_shade_hours
+    end
+
+    list_of "Obstruction" do
+      String :type
+      Float :height_m
+      Float :distance_m
+      Float :azimuth_deg
+    end
+
+    AnalyzeShading do
+      role "Engineer"
+      description "Analyze shading from nearby obstructions using sun path data"
+      String :site_name
+      String :obstruction_type
+      Float :obstruction_height_m
+      Float :obstruction_distance_m
+      emits "ShadingAnalyzed"
+      then_set :site_name, to: :site_name
+      then_set :obstruction_type, to: :obstruction_type
+      then_set :obstruction_height_m, to: :obstruction_height_m
+      then_set :obstruction_distance_m, to: :obstruction_distance_m
+      then_set :status, to: "analyzed"
+    end
+
+    CalculateShadeHours do
+      role "System"
+      description "Calculate hours of shade per day from obstruction geometry and sun path"
+      reference_to(ShadingAnalysis)
+      Float :shade_hours_per_day
+      given { status == "analyzed" }
+      emits "ShadeHoursCalculated"
+      then_set :shade_hours_per_day, to: :shade_hours_per_day
+    end
+
+    EstimateEnergyLoss do
+      role "System"
+      description "Estimate energy production loss due to shading"
+      reference_to(ShadingAnalysis)
+      Float :energy_loss_pct
+      given { status == "analyzed" }
+      emits "EnergyLossEstimated"
+      then_set :energy_loss_pct, to: :energy_loss_pct
+      then_set :status, to: "quantified"
+    end
+
+    lifecycle :status, default: "unanalyzed" do
+      transition "AnalyzeShading" => "analyzed", from: "unanalyzed"
+      transition "EstimateEnergyLoss" => "quantified", from: "analyzed"
+    end
+  end
+
+  aggregate "OutputForecast", "Solar energy output forecast — irradiance, temperature derating, yield" do
+    String :site_name
+    Float :global_irradiance_kwh_m2
+    Float :temperature_derating_pct
+    Float :shade_derating_pct
+    Float :estimated_yield_kwh
+    String :forecast_period
+    String :status
+
+    value_object "IrradianceComponent" do
+      Float :direct_normal_kwh_m2
+      Float :diffuse_horizontal_kwh_m2
+      Float :ground_reflected_kwh_m2
+    end
+
+    ForecastOutput do
+      role "System"
+      description "Forecast solar energy output accounting for irradiance, temp, and shade"
+      String :site_name
+      Float :global_irradiance_kwh_m2
+      Float :temperature_derating_pct
+      Float :shade_derating_pct
+      String :forecast_period
+      emits "OutputForecasted"
+      then_set :site_name, to: :site_name
+      then_set :global_irradiance_kwh_m2, to: :global_irradiance_kwh_m2
+      then_set :temperature_derating_pct, to: :temperature_derating_pct
+      then_set :shade_derating_pct, to: :shade_derating_pct
+      then_set :forecast_period, to: :forecast_period
+      then_set :status, to: "forecasted"
+    end
+
+    CalculateYield do
+      role "System"
+      description "Calculate net energy yield after all derating factors"
+      reference_to(OutputForecast)
+      Float :estimated_yield_kwh
+      given { status == "forecasted" }
+      emits "YieldCalculated"
+      then_set :estimated_yield_kwh, to: :estimated_yield_kwh
+      then_set :status, to: "finalized"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ForecastOutput" => "forecasted", from: "pending"
+      transition "CalculateYield" => "finalized", from: "forecasted"
+    end
+  end
+
+  policy "ComputeSunPathOnCalc" do
+    on "SolarPositionCalculated"
+    trigger "ComputeSunPath"
+  end
+
+  policy "OptimizeTiltOnInstall" do
+    on "PanelInstalled"
+    trigger "OptimizeTilt"
+  end
+
+  policy "AdjustOnOptimize" do
+    on "TiltOptimized"
+    trigger "AdjustPanel"
+  end
+
+  policy "CalculateShadeOnAnalyze" do
+    on "ShadingAnalyzed"
+    trigger "CalculateShadeHours"
+  end
+
+  policy "EstimateLossOnShade" do
+    on "ShadeHoursCalculated"
+    trigger "EstimateEnergyLoss"
+  end
+
+  policy "CalculateYieldOnForecast" do
+    on "OutputForecasted"
+    trigger "CalculateYield"
+  end
+end

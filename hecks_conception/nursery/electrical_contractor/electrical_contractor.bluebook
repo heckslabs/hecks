@@ -1,0 +1,200 @@
+Hecks.bluebook "ElectricalContractor" do
+  vision "Manage electrical contracting jobs from permit to final inspection, tracking panels, circuits, and code compliance"
+  core
+
+  aggregate "Job" do
+    description "An electrical contracting job at a property with scope, timeline, and permit requirements"
+    String :property_address
+    String :scope_of_work
+    String :status
+    Float :bid_amount
+    reference_to(Permit)
+
+    value_object "JobSchedule" do
+      String :start_date
+      String :end_date
+      Integer :crew_size
+    end
+
+    BookJob do
+      role "Estimator"
+      goal "Accept a new electrical job with scope and pricing"
+      description "Create a job record after the customer accepts the bid"
+      String :property_address
+      String :scope_of_work
+      Float :bid_amount
+      emits "JobBooked"
+    end
+
+    AssignElectrician do
+      role "Foreman"
+      goal "Assign a licensed electrician to the job"
+      description "Schedule an electrician for the job dates"
+      reference_to(Job)
+      String :electrician_name
+      emits "ElectricianAssigned"
+    end
+
+    CloseOutJob do
+      role "Foreman"
+      goal "Mark the job complete after final inspection passes"
+      description "Close the job and trigger invoicing"
+      reference_to(Job)
+      given("inspection must pass first") { status == "inspected" }
+      emits "JobClosedOut"
+    end
+  end
+
+  aggregate "Panel" do
+    description "An electrical panel or breaker box with rated amperage and circuit slots"
+    String :label
+    Integer :rated_amps
+    Integer :total_slots
+    Integer :used_slots
+    String :location
+    reference_to(Job)
+
+    value_object "BusRating" do
+      Integer :amps
+      Integer :voltage
+      String :phase
+    end
+
+    InstallPanel do
+      role "Electrician"
+      goal "Mount and wire a new electrical panel"
+      description "Install a breaker panel at the specified location"
+      String :label
+      Integer :rated_amps
+      Integer :total_slots
+      String :location
+      reference_to(Job)
+      emits "PanelInstalled"
+    end
+
+    UpgradePanel do
+      role "Electrician"
+      goal "Replace an undersized panel with a higher-rated one"
+      description "Swap old panel for new with higher amperage rating"
+      reference_to(Panel)
+      Integer :new_rated_amps
+      emits "PanelUpgraded"
+    end
+  end
+
+  aggregate "Circuit" do
+    description "A branch circuit from panel to outlets, switches, or dedicated loads"
+    String :label
+    Integer :amperage
+    String :wire_gauge
+    String :circuit_type
+    reference_to(Panel)
+
+    PullCircuit do
+      role "Electrician"
+      goal "Run a new circuit from panel to load location"
+      description "Pull wire and connect a new branch circuit"
+      String :label
+      Integer :amperage
+      String :wire_gauge
+      String :circuit_type
+      reference_to(Panel)
+      given("panel must have open slots") { used_slots < total_slots }
+      emits "CircuitPulled"
+    end
+
+    LabelCircuit do
+      role "Electrician"
+      goal "Mark the circuit with its load description on the panel schedule"
+      description "Update panel directory with circuit identification"
+      reference_to(Circuit)
+      String :description
+      emits "CircuitLabeled"
+    end
+  end
+
+  aggregate "Permit" do
+    description "A building permit required for electrical work over a certain scope"
+    String :permit_number
+    String :jurisdiction
+    String :status
+    String :work_description
+
+    PullPermit do
+      role "Office Manager"
+      goal "Apply for an electrical work permit from the local authority"
+      description "Submit permit application to the building department"
+      String :jurisdiction
+      String :work_description
+      emits "PermitPulled"
+    end
+
+    ReceiveApproval do
+      role "Inspector"
+      goal "Record that the permit has been approved"
+      description "Building department approves the electrical permit"
+      reference_to(Permit)
+      String :permit_number
+      given("must be pending") { status == "pending" }
+      emits "PermitApproved"
+    end
+  end
+
+  aggregate "Inspection" do
+    description "A code inspection by the local authority having jurisdiction"
+    String :inspector_name
+    String :result
+    String :notes
+    String :inspection_type
+    reference_to(Job)
+
+    ScheduleInspection do
+      role "Office Manager"
+      goal "Book an inspection with the building department"
+      description "Request a rough or final inspection date"
+      String :inspection_type
+      reference_to(Job)
+      emits "InspectionScheduled"
+    end
+
+    RecordResult do
+      role "Inspector"
+      goal "Document whether the inspection passed or failed"
+      description "Record the inspection outcome and any corrections needed"
+      reference_to(Inspection)
+      String :result
+      String :notes
+      emits "InspectionResultRecorded"
+    end
+  end
+
+  policy "PermitBeforeWork" do
+    on "JobBooked"
+    trigger "PullPermit"
+  end
+
+  policy "AssignOnPermit" do
+    on "PermitApproved"
+    trigger "AssignElectrician"
+  end
+
+  policy "InstallPanelOnAssignment" do
+    on "ElectricianAssigned"
+    trigger "InstallPanel"
+  end
+
+  policy "PullCircuitOnPanel" do
+    on "PanelInstalled"
+    trigger "PullCircuit"
+  end
+
+  policy "InspectAfterCircuit" do
+    on "CircuitPulled"
+    trigger "ScheduleInspection"
+  end
+
+  policy "CloseOnPassingInspection" do
+    on "InspectionResultRecorded"
+    trigger "CloseOutJob"
+  end
+end

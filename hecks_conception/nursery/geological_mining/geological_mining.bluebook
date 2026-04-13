@@ -1,0 +1,297 @@
+Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
+  vision "Geology meets mining operations — formations, ore bodies, drill cores, assay analysis, and extraction planning"
+  category "crossover"
+
+  aggregate "GeologicalFormation", "A geological formation — rock type, age, structure, mineralization" do
+    String :name
+    String :rock_type
+    String :geological_age
+    Float :depth_m
+    Float :thickness_m
+    String :mineralization
+    String :status
+
+    value_object "StructuralFeature" do
+      String :feature_type
+      Float :strike_degrees
+      Float :dip_degrees
+      Float :extent_m
+    end
+
+    MapFormation do
+      role "Geologist"
+      description "Map a geological formation with rock type and structural data"
+      String :name
+      String :rock_type
+      String :geological_age
+      Float :depth_m
+      Float :thickness_m
+      String :mineralization
+      emits "FormationMapped"
+      then_set :name, to: :name
+      then_set :rock_type, to: :rock_type
+      then_set :geological_age, to: :geological_age
+      then_set :depth_m, to: :depth_m
+      then_set :thickness_m, to: :thickness_m
+      then_set :mineralization, to: :mineralization
+      then_set :status, to: "mapped"
+    end
+
+    ClassifyFormation do
+      role "Geologist"
+      description "Classify formation for mining potential"
+      reference_to(GeologicalFormation)
+      given { status == "mapped" }
+      emits "FormationClassified"
+      then_set :status, to: "classified"
+    end
+
+    lifecycle :status, default: "unexplored" do
+      transition "MapFormation" => "mapped", from: "unexplored"
+      transition "ClassifyFormation" => "classified", from: "mapped"
+    end
+  end
+
+  aggregate "OreBody", "A defined ore body — mineral content, grade, tonnage, geometry" do
+    String :name
+    String :mineral
+    Float :grade_pct
+    Float :estimated_tonnage
+    Float :depth_m
+    String :status
+
+    value_object "OreGeometry" do
+      Float :strike_length_m
+      Float :width_m
+      Float :depth_extent_m
+    end
+
+    list_of "MineralAssociation" do
+      String :mineral_name
+      Float :grade_pct
+      String :relationship
+    end
+
+    DelineateOreBody do
+      role "Geologist"
+      description "Delineate an ore body from drill core and assay data"
+      String :name
+      String :mineral
+      Float :grade_pct
+      Float :estimated_tonnage
+      Float :depth_m
+      emits "OreBodyDelineated"
+      then_set :name, to: :name
+      then_set :mineral, to: :mineral
+      then_set :grade_pct, to: :grade_pct
+      then_set :estimated_tonnage, to: :estimated_tonnage
+      then_set :depth_m, to: :depth_m
+      then_set :status, to: "delineated"
+    end
+
+    UpgradeResource do
+      role "Geologist"
+      description "Upgrade resource classification with additional drilling"
+      reference_to(OreBody)
+      Float :grade_pct
+      Float :estimated_tonnage
+      given { status == "delineated" }
+      emits "ResourceUpgraded"
+      then_set :grade_pct, to: :grade_pct
+      then_set :estimated_tonnage, to: :estimated_tonnage
+      then_set :status, to: "measured"
+    end
+
+    lifecycle :status, default: "inferred" do
+      transition "DelineateOreBody" => "delineated", from: "inferred"
+      transition "UpgradeResource" => "measured", from: "delineated"
+    end
+  end
+
+  aggregate "DrillCore", "A drill core sample — depth intervals, lithology, assay results" do
+    String :hole_id
+    Float :from_m
+    Float :to_m
+    String :lithology
+    Float :recovery_pct
+    String :status
+
+    value_object "CoreInterval" do
+      Float :from_m
+      Float :to_m
+      String :rock_type
+      String :alteration
+    end
+
+    LogDrillCore do
+      role "Geologist"
+      description "Log a drill core with depth intervals and lithology"
+      String :hole_id
+      Float :from_m
+      Float :to_m
+      String :lithology
+      Float :recovery_pct
+      emits "DrillCoreLogged"
+      then_set :hole_id, to: :hole_id
+      then_set :from_m, to: :from_m
+      then_set :to_m, to: :to_m
+      then_set :lithology, to: :lithology
+      then_set :recovery_pct, to: :recovery_pct
+      then_set :status, to: "logged"
+    end
+
+    SubmitForAssay do
+      role "Geologist"
+      description "Submit core samples to assay lab for mineral analysis"
+      reference_to(DrillCore)
+      given { status == "logged" }
+      emits "CoreSubmittedForAssay"
+      then_set :status, to: "submitted"
+    end
+
+    lifecycle :status, default: "unlogged" do
+      transition "LogDrillCore" => "logged", from: "unlogged"
+      transition "SubmitForAssay" => "submitted", from: "logged"
+    end
+  end
+
+  aggregate "AssayResult", "Chemical assay of drill core — element concentrations, grade calculations" do
+    String :sample_id
+    String :hole_id
+    String :element
+    Float :concentration_ppm
+    Float :grade_pct
+    String :lab_name
+    String :status
+
+    value_object "QualityControl" do
+      String :standard_name
+      Float :expected_value
+      Float :measured_value
+      Float :variance_pct
+    end
+
+    RecordAssayResult do
+      role "LabTechnician"
+      description "Record assay results for a core sample"
+      String :sample_id
+      String :hole_id
+      String :element
+      Float :concentration_ppm
+      Float :grade_pct
+      String :lab_name
+      emits "AssayResultRecorded"
+      then_set :sample_id, to: :sample_id
+      then_set :hole_id, to: :hole_id
+      then_set :element, to: :element
+      then_set :concentration_ppm, to: :concentration_ppm
+      then_set :grade_pct, to: :grade_pct
+      then_set :lab_name, to: :lab_name
+      then_set :status, to: "recorded"
+    end
+
+    ValidateQC do
+      role "System"
+      description "Validate assay quality control standards and duplicates"
+      reference_to(AssayResult)
+      given { status == "recorded" }
+      emits "QCValidated"
+      then_set :status, to: "validated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordAssayResult" => "recorded", from: "pending"
+      transition "ValidateQC" => "validated", from: "recorded"
+    end
+  end
+
+  aggregate "ExtractionPlan", "A mining extraction plan — method, sequence, equipment, economics" do
+    String :name
+    String :ore_body_name
+    String :extraction_method
+    Float :planned_tonnage
+    Float :strip_ratio
+    Float :cost_per_ton
+    String :status
+
+    value_object "EconomicModel" do
+      Float :revenue_per_ton
+      Float :cost_per_ton
+      Float :npv
+      Float :irr_pct
+    end
+
+    DesignExtractionPlan do
+      role "MiningEngineer"
+      description "Design extraction plan with method and economics"
+      String :name
+      String :ore_body_name
+      String :extraction_method
+      Float :planned_tonnage
+      Float :strip_ratio
+      Float :cost_per_ton
+      emits "ExtractionPlanDesigned"
+      then_set :name, to: :name
+      then_set :ore_body_name, to: :ore_body_name
+      then_set :extraction_method, to: :extraction_method
+      then_set :planned_tonnage, to: :planned_tonnage
+      then_set :strip_ratio, to: :strip_ratio
+      then_set :cost_per_ton, to: :cost_per_ton
+      then_set :status, to: "designed"
+    end
+
+    ApproveExtraction do
+      role "Director"
+      description "Approve extraction plan for execution"
+      reference_to(ExtractionPlan)
+      given { status == "designed" }
+      emits "ExtractionApproved"
+      then_set :status, to: "approved"
+    end
+
+    BeginExtraction do
+      role "MiningEngineer"
+      description "Begin ore extraction per approved plan"
+      reference_to(ExtractionPlan)
+      given { status == "approved" }
+      emits "ExtractionStarted"
+      then_set :status, to: "extracting"
+    end
+
+    lifecycle :status, default: "concept" do
+      transition "DesignExtractionPlan" => "designed", from: "concept"
+      transition "ApproveExtraction" => "approved", from: "designed"
+      transition "BeginExtraction" => "extracting", from: "approved"
+    end
+  end
+
+  policy "ClassifyOnMap" do
+    on "FormationMapped"
+    trigger "ClassifyFormation"
+  end
+
+  policy "SubmitCoreOnLog" do
+    on "DrillCoreLogged"
+    trigger "SubmitForAssay"
+  end
+
+  policy "ValidateQCOnRecord" do
+    on "AssayResultRecorded"
+    trigger "ValidateQC"
+  end
+
+  policy "DelineateOnValidate" do
+    on "QCValidated"
+    trigger "DelineateOreBody"
+  end
+
+  policy "DesignOnUpgrade" do
+    on "ResourceUpgraded"
+    trigger "DesignExtractionPlan"
+  end
+
+  policy "ApproveOnDesign" do
+    on "ExtractionPlanDesigned"
+    trigger "ApproveExtraction"
+  end
+end

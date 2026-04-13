@@ -1,0 +1,248 @@
+Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
+  vision "Operating a domain registrar — registering domains, processing renewals, handling transfers, managing DNS records, and tracking WHOIS data"
+  category "technology"
+
+  aggregate "DomainName", "A registered internet domain under management" do
+    String :domain
+    String :tld
+    String :registrant_email
+    String :registered_at
+    String :expires_at
+    String :status
+    list_of(NameServer) :name_servers
+
+    value_object "NameServer" do
+      String :hostname
+      String :ip_address
+      Integer :priority
+    end
+
+    RegisterDomain do
+      role "Customer"
+      description "Claim and register a new domain name"
+      String :domain
+      String :tld
+      String :registrant_email
+      Integer :registration_years
+      emits "DomainRegistered"
+    end
+
+    LockDomain do
+      description "Enable transfer lock to prevent unauthorized transfers"
+      reference_to(DomainName)
+      emits "DomainLocked"
+    end
+
+    SuspendDomain do
+      description "Place a domain on hold for policy violations"
+      reference_to(DomainName)
+      given("domain is active") { status == "active" }
+      emits "DomainSuspended"
+    end
+  end
+
+  aggregate "Renewal", "A renewal transaction extending a domain's registration" do
+    String :renewal_id
+    Integer :years
+    Float :price
+    String :renewed_at
+    String :status
+    reference_to DomainName
+
+    value_object "RenewalReceipt" do
+      String :transaction_id
+      Float :amount_paid
+      String :payment_method
+    end
+
+    RenewDomain do
+      role "Customer"
+      description "Extend a domain registration for additional years"
+      String :renewal_id
+      Integer :years
+      Float :price
+      reference_to(DomainName)
+      emits "DomainRenewed"
+    end
+
+    AutoRenew do
+      description "Automatically renew a domain before expiration"
+      reference_to(Renewal)
+      emits "DomainAutoRenewed"
+    end
+
+    CancelRenewal do
+      description "Void a pending renewal before processing"
+      reference_to(Renewal)
+      given("renewal is pending") { status == "pending" }
+      emits "RenewalCanceled"
+    end
+  end
+
+  aggregate "Transfer", "A domain transfer between registrars" do
+    String :transfer_id
+    String :auth_code
+    String :gaining_registrar
+    String :losing_registrar
+    String :status
+    reference_to DomainName
+
+    value_object "TransferTimeline" do
+      String :event
+      String :occurred_at
+      String :actor
+    end
+
+    InitiateTransfer do
+      role "Customer"
+      description "Begin transferring a domain to another registrar"
+      String :transfer_id
+      String :auth_code
+      String :gaining_registrar
+      reference_to(DomainName)
+      emits "TransferInitiated"
+    end
+
+    ApproveTransfer do
+      description "Authorize the transfer from the losing registrar side"
+      reference_to(Transfer)
+      given("transfer is pending approval") { status == "pending_approval" }
+      emits "TransferApproved"
+    end
+
+    RejectTransfer do
+      description "Deny a transfer request"
+      reference_to(Transfer)
+      String :rejection_reason
+      emits "TransferRejected"
+    end
+  end
+
+  aggregate "DNSRecord", "A DNS entry pointing a domain to an IP or service" do
+    String :record_id
+    String :record_type
+    String :hostname
+    String :value
+    Integer :ttl
+    String :status
+    reference_to DomainName
+
+    value_object "RecordHistory" do
+      String :previous_value
+      String :changed_at
+      String :changed_by
+    end
+
+    CreateDNSRecord do
+      role "Customer"
+      description "Add a DNS record to a managed domain"
+      String :record_id
+      String :record_type
+      String :hostname
+      String :value
+      Integer :ttl
+      reference_to(DomainName)
+      emits "DNSRecordCreated"
+    end
+
+    UpdateDNSRecord do
+      description "Modify the value or TTL of a DNS record"
+      reference_to(DNSRecord)
+      String :value
+      Integer :ttl
+      emits "DNSRecordUpdated"
+    end
+
+    DeleteDNSRecord do
+      description "Remove a DNS record from the zone"
+      reference_to(DNSRecord)
+      given("record is active") { status == "active" }
+      emits "DNSRecordDeleted"
+    end
+  end
+
+  aggregate "WHOISPrivacy", "A privacy shield hiding registrant contact details" do
+    String :privacy_id
+    String :proxy_email
+    String :proxy_name
+    String :enabled_at
+    String :status
+    reference_to DomainName
+
+    value_object "PrivacySetting" do
+      String :field_name
+      String :masked
+      String :proxy_value
+    end
+
+    ActivatePrivacy do
+      role "Customer"
+      description "Activate WHOIS privacy protection for a domain"
+      String :privacy_id
+      String :proxy_email
+      String :proxy_name
+      reference_to(DomainName)
+      emits "PrivacyActivated"
+    end
+
+    DeactivatePrivacy do
+      description "Remove WHOIS privacy and reveal registrant data"
+      reference_to(WHOISPrivacy)
+      given("privacy is active") { status == "active" }
+      emits "PrivacyDeactivated"
+    end
+
+    RefreshProxy do
+      description "Rotate the proxy contact details"
+      reference_to(WHOISPrivacy)
+      String :proxy_email
+      emits "ProxyRefreshed"
+    end
+  end
+
+  lifecycle "DomainLifecycle" do
+    state "available"
+    state "registered"
+    state "locked"
+    state "transferring"
+    state "expired"
+    state "suspended"
+
+    transition from: "available", to: "registered", on: "DomainRegistered"
+    transition from: "registered", to: "locked", on: "DomainLocked"
+    transition from: "locked", to: "transferring", on: "TransferInitiated"
+    transition from: "transferring", to: "registered", on: "TransferApproved"
+    transition from: "registered", to: "expired", on: "RenewalCanceled"
+    transition from: "registered", to: "suspended", on: "DomainSuspended"
+  end
+
+  policy "RegisteredLockDomain" do
+    on "DomainRegistered"
+    trigger "LockDomain"
+  end
+
+  policy "RegisteredActivatePrivacy" do
+    on "DomainRegistered"
+    trigger "ActivatePrivacy"
+  end
+
+  policy "RegisteredCreateDNS" do
+    on "DomainRegistered"
+    trigger "CreateDNSRecord"
+  end
+
+  policy "LockedAutoRenew" do
+    on "DomainLocked"
+    trigger "AutoRenew"
+  end
+
+  policy "TransferApprovedRefreshProxy" do
+    on "TransferApproved"
+    trigger "RefreshProxy"
+  end
+
+  policy "RenewalCanceledSuspendDomain" do
+    on "RenewalCanceled"
+    trigger "SuspendDomain"
+  end
+end

@@ -1,0 +1,241 @@
+Hecks.bluebook "Cannery" do
+  aggregate "ProductionBatch" do
+    String :batch_id
+    String :product_name
+    String :recipe_code
+    Float :batch_size_kg
+    String :status
+    list_of "CanRun"
+
+    StartBatch do
+      description "Initiate a production batch with recipe and raw ingredients"
+      String :recipe_code
+      Float :batch_size_kg
+      reference_to "ProductionBatch"
+      emits "BatchStarted"
+    end
+
+    CookBatch do
+      description "Heat batch contents to required temperature for sterilization"
+      Float :cook_temperature_c
+      Float :cook_duration_minutes
+      reference_to "ProductionBatch"
+      emits "BatchCooked"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "StartBatch" => "mixing", from: "planned"
+      transition "CookBatch" => "cooked", from: "mixing"
+    end
+
+    policy "Batch must reach sterilization temperature before filling"
+    policy "All ingredients must be within use-by date"
+
+    given "A tomato soup batch is started" do
+      String :batch_id, "BTH-2024-0501"
+      String :product_name, "Tomato Soup"
+      Float :batch_size_kg, 2000.0
+    end
+  end
+
+  aggregate "CanRun" do
+    String :run_id
+    String :can_size
+    Integer :target_count
+    Integer :filled_count
+    Integer :rejected_count
+    String :status
+
+    value_object "CanSpecification" do
+      String :size_code
+      Float :volume_ml
+      Float :fill_weight_g
+      Float :headspace_mm
+    end
+
+    FillCans do
+      description "Fill cans from batch contents on the filling line"
+      String :can_size
+      Integer :target_count
+      reference_to "ProductionBatch"
+      emits "CansFilled"
+    end
+
+    SeamCans do
+      description "Double-seam lids onto filled cans for hermetic seal"
+      String :seamer_id
+      reference_to "CanRun"
+      emits "CansSeamed"
+    end
+
+    RetortCans do
+      description "Sterilize sealed cans in retort at required time and temperature"
+      Float :retort_temp_c
+      Float :retort_duration_min
+      reference_to "CanRun"
+      emits "CansRetorted"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FillCans" => "filled", from: "pending"
+      transition "SeamCans" => "seamed", from: "filled"
+      transition "RetortCans" => "sterilized", from: "seamed"
+    end
+
+    policy "Seam integrity must be checked every 30 minutes"
+  end
+
+  aggregate "LabelDesign" do
+    String :design_id
+    String :product_name
+    String :label_version
+    String :regulatory_text
+    String :status
+
+    ApproveLabelDesign do
+      description "Approve label artwork and regulatory text for production"
+      String :approver_name
+      String :approval_notes
+      reference_to "LabelDesign"
+      emits "LabelDesignApproved"
+    end
+
+    ApplyLabels do
+      description "Apply labels to sealed cans on the labeling line"
+      String :line_id
+      Integer :can_count
+      reference_to "CanRun"
+      emits "LabelsApplied"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "ApproveLabelDesign" => "approved", from: "draft"
+      transition "ApplyLabels" => "applied", from: "approved"
+    end
+
+    policy "Labels must include allergen and nutrition information"
+  end
+
+  aggregate "QualityHold" do
+    String :hold_id
+    String :batch_id
+    String :reason
+    String :inspector
+    String :status
+
+    value_object "IncubationResult" do
+      Float :temperature_c
+      Integer :duration_days
+      String :swelling_detected
+      String :result
+    end
+
+    PlaceHold do
+      description "Place production lot on quality hold pending investigation"
+      String :reason
+      String :inspector
+      reference_to "ProductionBatch"
+      emits "HoldPlaced"
+    end
+
+    IncubateTest do
+      description "Run incubation test on held samples to detect spoilage"
+      Float :incubation_temp_c
+      Integer :duration_days
+      reference_to "QualityHold"
+      emits "IncubationComplete"
+    end
+
+    ReleaseHold do
+      description "Release held product after quality investigation passes"
+      String :resolution_notes
+      reference_to "QualityHold"
+      emits "HoldReleased"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "PlaceHold" => "held", from: "clear"
+      transition "IncubateTest" => "tested", from: "held"
+      transition "ReleaseHold" => "released", from: "tested"
+    end
+
+    policy "Product under hold cannot be shipped"
+  end
+
+  aggregate "ShippingLot" do
+    String :lot_id
+    String :destination
+    Integer :pallet_count
+    String :carrier
+    String :status
+    list_of "CanRun"
+
+    AssembleLot do
+      description "Assemble pallets of canned goods into a shipping lot"
+      String :destination
+      Integer :pallet_count
+      reference_to "ShippingLot"
+      emits "LotAssembled"
+    end
+
+    DispatchLot do
+      description "Load shipping lot onto carrier vehicle for delivery"
+      String :carrier
+      String :trailer_number
+      reference_to "ShippingLot"
+      emits "LotDispatched"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AssembleLot" => "assembled", from: "pending"
+      transition "DispatchLot" => "dispatched", from: "assembled"
+    end
+
+    policy "Only released lots may be dispatched"
+  end
+
+  policy "FillCansOnBatchCooked" do
+    on "BatchCooked"
+    trigger "FillCans"
+  end
+
+  policy "SeamCansOnCansFilled" do
+    on "CansFilled"
+    trigger "SeamCans"
+  end
+
+  policy "RetortCansOnCansSeamed" do
+    on "CansSeamed"
+    trigger "RetortCans"
+  end
+
+  policy "PlaceHoldOnCansRetorted" do
+    on "CansRetorted"
+    trigger "PlaceHold"
+  end
+
+  policy "IncubateTestOnHoldPlaced" do
+    on "HoldPlaced"
+    trigger "IncubateTest"
+  end
+
+  policy "ReleaseHoldOnIncubationComplete" do
+    on "IncubationComplete"
+    trigger "ReleaseHold"
+  end
+
+  policy "ApplyLabelsOnHoldReleased" do
+    on "HoldReleased"
+    trigger "ApplyLabels"
+  end
+
+  policy "AssembleLotOnLabelsApplied" do
+    on "LabelsApplied"
+    trigger "AssembleLot"
+  end
+
+  policy "DispatchLotOnLotAssembled" do
+    on "LotAssembled"
+    trigger "DispatchLot"
+  end
+end

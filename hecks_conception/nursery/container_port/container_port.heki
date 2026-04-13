@@ -1,0 +1,238 @@
+Hecks.bluebook "ContainerPort" do
+  aggregate "VesselCall" do
+    String :call_id
+    String :vessel_name
+    String :voyage_number
+    String :shipping_line
+    Integer :discharge_count
+    Integer :load_count
+    String :status
+    list_of "Container"
+
+    RegisterCall do
+      description "Register expected vessel call with cargo manifest details"
+      String :vessel_name
+      String :voyage_number
+      Integer :discharge_count
+      reference_to "VesselCall"
+      emits "CallRegistered"
+    end
+
+    ArriveVessel do
+      description "Record vessel arrival at port anchorage or pilot station"
+      String :arrival_time
+      String :pilot_name
+      reference_to "VesselCall"
+      emits "VesselArrived"
+    end
+
+    CompleteCall do
+      description "Finalize vessel operations and issue departure clearance"
+      reference_to "VesselCall"
+      emits "CallCompleted"
+    end
+
+    lifecycle :status, default: "expected" do
+      transition "RegisterCall" => "registered", from: "expected"
+      transition "ArriveVessel" => "arrived", from: "registered"
+      transition "CompleteCall" => "departed", from: "arrived"
+    end
+
+    policy "Manifest must be received 24 hours before vessel arrival"
+  end
+
+  aggregate "Berth" do
+    String :berth_id
+    String :berth_name
+    Float :length_meters
+    Float :depth_meters
+    String :status
+
+    AssignBerth do
+      description "Assign incoming vessel to available berth based on size and draft"
+      String :vessel_id
+      String :estimated_arrival
+      reference_to "Berth"
+      emits "BerthAssigned"
+    end
+
+    ReleaseBerth do
+      description "Free berth after vessel departure and post-departure inspection"
+      reference_to "Berth"
+      emits "BerthReleased"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "AssignBerth" => "occupied", from: "available"
+      transition "ReleaseBerth" => "available", from: "occupied"
+    end
+
+    policy "Vessel draft must not exceed berth depth"
+    policy "Berth must be released within 2 hours of vessel departure"
+  end
+
+  aggregate "GantryCrane" do
+    String :crane_id
+    String :crane_type
+    Float :outreach_meters
+    Integer :moves_per_hour
+    String :status
+
+    value_object "CranePerformance" do
+      Integer :gross_moves
+      Integer :net_moves
+      Float :idle_time_minutes
+      Float :utilization_percent
+    end
+
+    DeployCrane do
+      description "Position gantry crane at berth for vessel loading or discharge"
+      String :berth_id
+      String :operation_type
+      reference_to "Berth"
+      emits "CraneDeployed"
+    end
+
+    CompleteCraneWork do
+      description "All crane moves for vessel completed and crane returned to park"
+      Integer :total_moves
+      reference_to "GantryCrane"
+      emits "CraneWorkCompleted"
+    end
+
+    RecordDowntime do
+      description "Log crane downtime event with cause and duration"
+      String :cause
+      Float :duration_minutes
+      reference_to "GantryCrane"
+      emits "DowntimeRecorded"
+    end
+
+    lifecycle :status, default: "parked" do
+      transition "DeployCrane" => "working", from: "parked"
+      transition "CompleteCraneWork" => "parked", from: "working"
+      transition "RecordDowntime" => "down", from: "working"
+    end
+
+    policy "Crane operations halt when wind exceeds 55 knots"
+  end
+
+  aggregate "Container" do
+    String :container_id
+    String :iso_size_type
+    String :shipping_line
+    Float :gross_weight_kg
+    String :seal_number
+    String :status
+
+    DischargeContainer do
+      description "Lift container from vessel hold or deck to quay"
+      String :vessel_id
+      String :bay_position
+      reference_to "Berth"
+      emits "ContainerDischarged"
+    end
+
+    StackContainer do
+      description "Transport and stack container in yard block position"
+      String :block_id
+      String :row_bay_tier
+      reference_to "Container"
+      emits "ContainerStacked"
+    end
+
+    GateOutContainer do
+      description "Release container through gate to trucker after clearance"
+      String :trucker_id
+      String :gate_pass
+      reference_to "Container"
+      emits "ContainerGatedOut"
+    end
+
+    lifecycle :status, default: "on_vessel" do
+      transition "DischargeContainer" => "on_quay", from: "on_vessel"
+      transition "StackContainer" => "in_yard", from: "on_quay"
+      transition "GateOutContainer" => "delivered", from: "in_yard"
+    end
+
+    policy "Reefer containers must be plugged in within 30 minutes of discharge"
+
+    given "A 40ft reefer container is discharged" do
+      String :iso_size_type, "45R1"
+      String :shipping_line, "Maersk"
+      Float :gross_weight_kg, 28000.0
+    end
+  end
+
+  aggregate "CustomsClearance" do
+    String :clearance_id
+    String :container_id
+    String :declaration_type
+    String :broker_name
+    String :status
+
+    value_object "DutyAssessment" do
+      String :tariff_code
+      Float :dutiable_value
+      Float :duty_amount
+      String :currency
+    end
+
+    SubmitDeclaration do
+      description "Submit customs import or export declaration for container"
+      String :declaration_type
+      String :broker_name
+      reference_to "Container"
+      emits "DeclarationSubmitted"
+    end
+
+    GrantRelease do
+      description "Issue customs release allowing container to leave port"
+      String :release_number
+      reference_to "CustomsClearance"
+      emits "ReleaseGranted"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SubmitDeclaration" => "filed", from: "pending"
+      transition "GrantRelease" => "cleared", from: "filed"
+    end
+
+    policy "Container cannot gate out without customs release"
+  end
+
+  policy "AssignBerthOnVesselArrived" do
+    on "VesselArrived"
+    trigger "AssignBerth"
+  end
+
+  policy "DeployCraneOnBerthAssigned" do
+    on "BerthAssigned"
+    trigger "DeployCrane"
+  end
+
+  policy "DischargeContainerOnCraneDeployed" do
+    on "CraneDeployed"
+    trigger "DischargeContainer"
+  end
+
+  policy "StackContainerOnContainerDischarged" do
+    on "ContainerDischarged"
+    trigger "StackContainer"
+  end
+
+  policy "SubmitDeclarationOnContainerStacked" do
+    on "ContainerStacked"
+    trigger "SubmitDeclaration"
+  end
+
+  policy "GateOutOnReleaseGranted" do
+    on "ReleaseGranted"
+    trigger "GateOutContainer"
+  end
+
+  policy "ReleaseBerthOnCallCompleted" do
+    on "CallCompleted"
+    trigger "ReleaseBerth"
+  end
+end

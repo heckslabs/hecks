@@ -1,0 +1,269 @@
+Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
+  vision "Defending an organization — detecting threats, triaging incidents, deploying patches, auditing compliance, and governing access"
+  category "technology"
+
+  aggregate "Threat", "A known or emerging cyber threat tracked by the security team" do
+    String :threat_id
+    String :name
+    String :category
+    String :severity
+    String :source_feed
+    String :status
+    list_of(Indicator) :indicators
+
+    specification "CriticalSeverity" do
+      satisfied_by { severity == "critical" }
+    end
+
+    value_object "Indicator" do
+      String :ioc_type
+      String :ioc_value
+      String :first_seen
+    end
+
+    IdentifyThreat do
+      role "ThreatAnalyst"
+      description "Register a new threat from intelligence feeds"
+      String :threat_id
+      String :name
+      String :category
+      String :severity
+      String :source_feed
+      emits "ThreatIdentified"
+    end
+
+    EscalateThreat do
+      description "Raise threat severity when new indicators emerge"
+      reference_to(Threat)
+      String :severity
+      emits "ThreatEscalated"
+    end
+
+    NeutralizeThreat do
+      description "Mark a threat as contained and no longer active"
+      reference_to(Threat)
+      given("threat is active") { status == "active" }
+      emits "ThreatNeutralized"
+    end
+  end
+
+  aggregate "SecurityIncident", "A confirmed breach or attack requiring response" do
+    String :incident_id
+    String :title
+    String :severity
+    String :attack_vector
+    String :assigned_team
+    String :status
+    reference_to Threat
+    list_of(ResponseAction) :actions
+
+    value_object "ResponseAction" do
+      String :action_type
+      String :description
+      String :performed_by
+      String :completed_at
+    end
+
+    DeclareIncident do
+      role "IncidentCommander"
+      description "Open a security incident when a breach is confirmed"
+      String :incident_id
+      String :title
+      String :severity
+      String :attack_vector
+      reference_to(Threat)
+      emits "IncidentDeclared"
+    end
+
+    AssignResponseTeam do
+      description "Route the incident to a specialized response team"
+      reference_to(SecurityIncident)
+      String :assigned_team
+      emits "ResponseTeamAssigned"
+    end
+
+    CloseIncident do
+      description "Resolve and close an incident after containment"
+      reference_to(SecurityIncident)
+      String :root_cause
+      given("incident is in progress") { status == "in_progress" }
+      emits "IncidentClosed"
+    end
+  end
+
+  aggregate "Patch", "A software update that fixes a vulnerability" do
+    String :patch_id
+    String :cve_id
+    String :target_system
+    String :urgency
+    String :status
+    list_of(DeploymentRecord) :deployments
+
+    value_object "DeploymentRecord" do
+      String :host
+      String :deployed_at
+      String :outcome
+    end
+
+    ReleasePatch do
+      role "SecurityEngineer"
+      description "Publish a patch to address a known vulnerability"
+      String :patch_id
+      String :cve_id
+      String :target_system
+      String :urgency
+      emits "PatchReleased"
+    end
+
+    DeployPatch do
+      description "Push a patch to a specific host or host group"
+      reference_to(Patch)
+      String :host
+      emits "PatchDeployed"
+    end
+
+    RollbackPatch do
+      description "Revert a patch that caused regression"
+      reference_to(Patch)
+      given("patch is deployed") { status == "deployed" }
+      emits "PatchRolledBack"
+    end
+  end
+
+  aggregate "SecurityAudit", "A periodic review of security posture and compliance" do
+    String :audit_id
+    String :scope
+    String :framework
+    String :auditor
+    String :status
+    list_of(Finding) :findings
+
+    value_object "Finding" do
+      String :control_id
+      String :description
+      String :severity
+      String :remediation
+    end
+
+    InitiateAudit do
+      role "ComplianceOfficer"
+      description "Start a security audit against a compliance framework"
+      String :audit_id
+      String :scope
+      String :framework
+      String :auditor
+      emits "AuditInitiated"
+    end
+
+    RecordFinding do
+      description "Document a gap or violation found during audit"
+      reference_to(SecurityAudit)
+      String :control_id
+      String :description
+      String :severity
+      emits "FindingRecorded"
+    end
+
+    CompleteAudit do
+      description "Finalize the audit and publish the report"
+      reference_to(SecurityAudit)
+      given("all findings documented") { status == "in_progress" }
+      emits "AuditCompleted"
+    end
+  end
+
+  aggregate "AccessPolicy", "A rule governing who can access which resources" do
+    String :policy_name
+    String :resource_scope
+    String :permission_level
+    String :status
+    list_of(RoleBinding) :role_bindings
+
+    value_object "RoleBinding" do
+      String :principal
+      String :role
+      String :granted_at
+    end
+
+    CreateAccessPolicy do
+      role "SecurityAdmin"
+      description "Define a new access control policy for a resource scope"
+      String :policy_name
+      String :resource_scope
+      String :permission_level
+      emits "AccessPolicyCreated"
+    end
+
+    GrantAccess do
+      description "Bind a principal to a role under this policy"
+      reference_to(AccessPolicy)
+      String :principal
+      String :role
+      emits "AccessGranted"
+    end
+
+    RevokeAccess do
+      description "Remove a principal's access under this policy"
+      reference_to(AccessPolicy)
+      String :principal
+      emits "AccessRevoked"
+    end
+  end
+
+  lifecycle "IncidentResponse" do
+    state "detected"
+    state "declared"
+    state "assigned"
+    state "contained"
+    state "patched"
+    state "audited"
+    state "closed"
+
+    transition from: "detected", to: "declared", on: "IncidentDeclared"
+    transition from: "declared", to: "assigned", on: "ResponseTeamAssigned"
+    transition from: "assigned", to: "contained", on: "ThreatNeutralized"
+    transition from: "contained", to: "patched", on: "PatchDeployed"
+    transition from: "patched", to: "audited", on: "AuditCompleted"
+    transition from: "audited", to: "closed", on: "IncidentClosed"
+  end
+
+  policy "ThreatIdentifiedDeclareIncident" do
+    on "ThreatIdentified"
+    trigger "DeclareIncident"
+  end
+
+  policy "IncidentDeclaredAssignTeam" do
+    on "IncidentDeclared"
+    trigger "AssignResponseTeam"
+  end
+
+  policy "TeamAssignedReleasePatch" do
+    on "ResponseTeamAssigned"
+    trigger "ReleasePatch"
+  end
+
+  policy "PatchReleasedDeployPatch" do
+    on "PatchReleased"
+    trigger "DeployPatch"
+  end
+
+  policy "IncidentClosedInitiateAudit" do
+    on "IncidentClosed"
+    trigger "InitiateAudit"
+  end
+
+  policy "AuditCompletedRevokeAccess" do
+    on "FindingRecorded"
+    trigger "RevokeAccess"
+  end
+
+  policy "NeutralizeOnPatchDeploy" do
+    on "PatchDeployed"
+    trigger "NeutralizeThreat"
+  end
+
+  policy "CreatePolicyOnAudit" do
+    on "AuditCompleted"
+    trigger "CreateAccessPolicy"
+  end
+end

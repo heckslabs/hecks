@@ -1,0 +1,238 @@
+Hecks.bluebook "SurfShop", version: "2026.04.13.1" do
+  vision "Running a surf shop — selling boards, fitting wetsuits, renting gear, teaching lessons, and repairing dings"
+  category "retail"
+
+  aggregate "Surfboard", "A board for sale or rent — shortboard, longboard, or foam" do
+    String :board_id
+    String :shaper
+    String :model
+    String :board_type
+    Float :length_ft
+    Float :volume_liters
+    Float :price
+    String :status
+    list_of(FinSetup) :fin_setups
+
+    value_object "FinSetup" do
+      String :fin_system
+      Integer :fin_count
+      String :description
+    end
+
+    StockBoard do
+      role "Manager"
+      description "Add a new surfboard to the shop inventory"
+      String :board_id
+      String :shaper
+      String :model
+      String :board_type
+      Float :length_ft
+      Float :volume_liters
+      Float :price
+      emits "BoardStocked"
+      then_set :board_id, to: :board_id
+      then_set :shaper, to: :shaper
+      then_set :model, to: :model
+      then_set :board_type, to: :board_type
+      then_set :length_ft, to: :length_ft
+      then_set :volume_liters, to: :volume_liters
+      then_set :price, to: :price
+      then_set :status, to: "available"
+    end
+
+    SellBoard do
+      role "SalesAssociate"
+      description "Complete the sale of a surfboard"
+      reference_to(Surfboard)
+      given { status == "available" }
+      emits "BoardSold"
+      then_set :status, to: "sold"
+    end
+  end
+
+  aggregate "Wetsuit", "A neoprene suit for cold-water surfing" do
+    String :wetsuit_id
+    String :brand
+    String :thickness_mm
+    String :size
+    Float :price
+    Integer :quantity
+
+    StockWetsuit do
+      role "Manager"
+      description "Add wetsuits to inventory from a supplier shipment"
+      String :wetsuit_id
+      String :brand
+      String :thickness_mm
+      String :size
+      Float :price
+      Integer :quantity
+      emits "WetsuitStocked"
+      then_set :wetsuit_id, to: :wetsuit_id
+      then_set :brand, to: :brand
+      then_set :thickness_mm, to: :thickness_mm
+      then_set :size, to: :size
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+    end
+
+    SellWetsuit do
+      role "SalesAssociate"
+      description "Ring up a wetsuit purchase"
+      reference_to(Wetsuit)
+      given { quantity > 0 }
+      emits "WetsuitSold"
+    end
+  end
+
+  aggregate "GearRental", "A board or wetsuit rented out for a session or day" do
+    String :rental_id
+    String :item_type
+    String :item_id
+    String :renter_name
+    String :start_time
+    String :end_time
+    Float :rate
+    String :status
+
+    RentGear do
+      role "Staff"
+      description "Check out a board or wetsuit to a customer"
+      String :rental_id
+      String :item_type
+      String :item_id
+      String :renter_name
+      String :start_time
+      String :end_time
+      Float :rate
+      emits "GearRented"
+      then_set :rental_id, to: :rental_id
+      then_set :item_type, to: :item_type
+      then_set :item_id, to: :item_id
+      then_set :renter_name, to: :renter_name
+      then_set :start_time, to: :start_time
+      then_set :end_time, to: :end_time
+      then_set :rate, to: :rate
+      then_set :status, to: "rented"
+    end
+
+    ReturnGear do
+      role "Staff"
+      description "Check in a returned rental and inspect for damage"
+      reference_to(GearRental)
+      given { status == "rented" }
+      emits "GearReturned"
+      then_set :status, to: "returned"
+    end
+  end
+
+  aggregate "SurfLesson", "A coached session teaching surfing fundamentals" do
+    String :lesson_id
+    String :instructor_name
+    String :skill_level
+    Integer :max_students
+    String :scheduled_date
+    String :status
+
+    ScheduleLesson do
+      role "Manager"
+      description "Set up a surf lesson with an instructor and time slot"
+      String :lesson_id
+      String :instructor_name
+      String :skill_level
+      Integer :max_students
+      String :scheduled_date
+      emits "LessonScheduled"
+      then_set :lesson_id, to: :lesson_id
+      then_set :instructor_name, to: :instructor_name
+      then_set :skill_level, to: :skill_level
+      then_set :max_students, to: :max_students
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    ConductLesson do
+      role "Instructor"
+      description "Deliver the surf lesson in the water"
+      reference_to(SurfLesson)
+      given { status == "scheduled" }
+      emits "LessonConducted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "DingRepair", "Fixing damage to a surfboard — cracks, dings, delamination" do
+    String :repair_id
+    String :board_id
+    String :damage_type
+    Float :estimated_cost
+    String :status
+
+    AcceptRepair do
+      role "Technician"
+      description "Take in a damaged board for evaluation and repair"
+      String :repair_id
+      String :board_id
+      String :damage_type
+      Float :estimated_cost
+      emits "RepairAccepted"
+      then_set :repair_id, to: :repair_id
+      then_set :board_id, to: :board_id
+      then_set :damage_type, to: :damage_type
+      then_set :estimated_cost, to: :estimated_cost
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteRepair do
+      role "Technician"
+      description "Finish the ding repair and sand/polish the board"
+      reference_to(DingRepair)
+      given { status == "in_progress" }
+      emits "RepairCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Lifecycle: stocked → rented/sold → returned → inspected → repaired → restocked
+  # Workflow: Stock board → Schedule lesson → Rent gear → Conduct lesson → Return gear → Inspect for dings → Repair → Restock
+
+  policy "ScheduleLessonOnStock" do
+    on "BoardStocked"
+    trigger "ScheduleLesson"
+  end
+
+  policy "RentGearForLesson" do
+    on "LessonScheduled"
+    trigger "RentGear"
+  end
+
+  policy "ConductOnRent" do
+    on "GearRented"
+    trigger "ConductLesson"
+  end
+
+  policy "ReturnOnConduct" do
+    on "LessonConducted"
+    trigger "ReturnGear"
+  end
+
+  policy "InspectOnReturn" do
+    on "GearReturned"
+    trigger "AcceptRepair"
+  end
+
+  policy "RestockOnRepair" do
+    on "RepairCompleted"
+    trigger "StockBoard"
+  end
+
+  policy "SellBoardOnLesson" do
+    on "LessonConducted"
+    trigger "SellBoard"
+  end
+
+  policy "StockWetsuitOnReturn" do
+    on "GearReturned"
+    trigger "StockWetsuit"
+  end
+end

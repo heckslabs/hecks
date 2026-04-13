@@ -1,0 +1,199 @@
+Hecks.bluebook "FireRobotics" do
+  vision "Cross-wire fire department operations with robotics for autonomous firefighting and rescue"
+  core
+
+  aggregate "FireIncident" do
+    description "A fire emergency incident with location and severity"
+    attribute :incident_id
+    attribute :location
+    attribute :fire_type
+    attribute :severity
+    attribute :reports, list_of(FieldReport)
+    attribute :status, default: "reported"
+
+    value_object "FieldReport" do
+      attribute :reporter
+      attribute :observation
+      attribute :timestamp
+    end
+
+    command "ReportFire" do
+      role "Dispatcher"
+      goal "Report a fire incident"
+      attribute :incident_id
+      attribute :location
+      attribute :fire_type
+      attribute :severity
+    end
+
+    command "AddFieldReport" do
+      role "FirefighterLead"
+      goal "Add a field observation report"
+      reference_to FireIncident
+      attribute :reporter
+      attribute :observation
+      attribute :timestamp
+      given("max 50 reports") { reports.size < 50 }
+      then_set :reports, append: { reporter: :reporter, observation: :observation, timestamp: :timestamp }
+    end
+
+    command "ContainFire" do
+      role "IncidentCommander"
+      goal "Mark fire as contained"
+      reference_to FireIncident
+    end
+  end
+
+  aggregate "FireRobot" do
+    description "An autonomous firefighting robot"
+    attribute :robot_id
+    attribute :robot_type
+    attribute :capabilities, list_of(RobotCapability)
+    attribute :battery_pct, Float
+    attribute :status, default: "standby"
+
+    value_object "RobotCapability" do
+      attribute :capability_name
+      attribute :range_meters, Float
+      invariant "range must be positive" do
+        range_meters > 0
+      end
+    end
+
+    command "DeployRobot" do
+      role "RoboticsCommander"
+      goal "Deploy a robot to an incident"
+      attribute :robot_id
+      attribute :robot_type
+    end
+
+    command "AddCapability" do
+      role "RoboticsEngineer"
+      goal "Add a capability to the robot"
+      reference_to FireRobot
+      attribute :capability_name
+      attribute :range_meters, Float
+      given("max 10 capabilities") { capabilities.size < 10 }
+      then_set :capabilities, append: { capability_name: :capability_name, range_meters: :range_meters }
+    end
+
+    command "RecallRobot" do
+      role "RoboticsCommander"
+      goal "Recall robot from field"
+      reference_to FireRobot
+    end
+  end
+
+  aggregate "Mission" do
+    description "A robotic mission assigned to a fire incident"
+    reference_to FireIncident
+    reference_to FireRobot
+    attribute :mission_type
+    attribute :waypoints, list_of(Waypoint)
+    attribute :status, default: "planned"
+
+    value_object "Waypoint" do
+      attribute :lat, Float
+      attribute :lng, Float
+      attribute :action
+      invariant "coordinates must be valid" do
+        lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+      end
+    end
+
+    command "PlanMission" do
+      role "RoboticsCommander"
+      goal "Plan a robotic mission for the incident"
+      reference_to FireIncident
+      reference_to FireRobot
+      attribute :mission_type
+    end
+
+    command "AddWaypoint" do
+      role "RoboticsCommander"
+      goal "Add a waypoint to the mission"
+      reference_to Mission
+      attribute :lat, Float
+      attribute :lng, Float
+      attribute :action
+      given("max 50 waypoints") { waypoints.size < 50 }
+      then_set :waypoints, append: { lat: :lat, lng: :lng, action: :action }
+    end
+
+    command "ExecuteMission" do
+      role "RoboticsCommander"
+      goal "Execute the planned mission"
+      reference_to Mission
+      given("must have waypoints") { waypoints.size > 0 }
+    end
+  end
+
+  aggregate "RescueOperation" do
+    description "A rescue operation using robots to locate and extract victims"
+    reference_to FireIncident
+    reference_to FireRobot
+    attribute :victims_located, Integer
+    attribute :extractions, list_of(Extraction)
+    attribute :status, default: "searching"
+
+    value_object "Extraction" do
+      attribute :victim_id
+      attribute :condition
+      attribute :extracted_at
+    end
+
+    command "InitiateRescue" do
+      role "IncidentCommander"
+      goal "Start a robotic rescue operation"
+      reference_to FireIncident
+      reference_to FireRobot
+    end
+
+    command "RecordExtraction" do
+      role "RescueRobot"
+      goal "Record a victim extraction"
+      reference_to RescueOperation
+      attribute :victim_id
+      attribute :condition
+      attribute :extracted_at
+      given("max 100 extractions") { extractions.size < 100 }
+      then_set :extractions, append: { victim_id: :victim_id, condition: :condition, extracted_at: :extracted_at }
+    end
+
+    command "CompleteRescue" do
+      role "IncidentCommander"
+      goal "Complete the rescue operation"
+      reference_to RescueOperation
+    end
+  end
+
+  policy "FireReportedTriggersDeploy" do
+    on "FireReported"
+    trigger "DeployRobot"
+    map robot_type: :fire_type
+  end
+
+  policy "RobotDeployedTriggersMission" do
+    on "RobotDeployed"
+    trigger "PlanMission"
+    map fire_robot_id: :robot_id, fire_incident_id: :incident_id
+  end
+
+  policy "MissionExecutedTriggersRescue" do
+    on "MissionExecuted"
+    trigger "InitiateRescue"
+    map fire_incident_id: :incident_id, fire_robot_id: :robot_id
+  end
+
+  policy "FireContainedTriggersRecall" do
+    on "FireContained"
+    trigger "RecallRobot"
+    map fire_robot_id: :robot_id
+  end
+
+  policy "ExtractionRecordedTriggersReport" do
+    on "ExtractionRecorded"
+    trigger "AddFieldReport"
+    map fire_incident_id: :incident_id, reporter: :robot_id, observation: :condition
+  end
+end

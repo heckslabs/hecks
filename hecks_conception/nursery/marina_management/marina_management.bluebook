@@ -1,0 +1,267 @@
+Hecks.bluebook "MarinaManagement" do
+  vision "Manage marina slips, boats, maintenance schedules, fuel dispensing, and weather alerts"
+  category "maritime"
+
+  aggregate "Slip", "A docking space at the marina with size, utilities, and occupancy status" do
+    String :slip_number
+    Float :length_feet
+    Float :beam_feet
+    String :dock_section
+    String :power_hookup
+    Float :monthly_rate
+    String :status
+
+    value_object "SlipAmenities" do
+      String :water_hookup
+      String :wifi_available
+      String :pump_out_station
+    end
+
+    OpenSlip do
+      role "HarborMaster"
+      description "Add a new slip to the marina inventory with dimensions and utilities"
+      String :slip_number
+      Float :length_feet
+      Float :beam_feet
+      String :dock_section
+      String :power_hookup
+      Float :monthly_rate
+      emits "SlipOpened"
+      then_set :slip_number, to: :slip_number
+      then_set :length_feet, to: :length_feet
+      then_set :beam_feet, to: :beam_feet
+      then_set :dock_section, to: :dock_section
+      then_set :power_hookup, to: :power_hookup
+      then_set :monthly_rate, to: :monthly_rate
+      then_set :status, to: "available"
+    end
+
+    ReserveSlip do
+      role "HarborMaster"
+      description "Reserve a slip for an incoming vessel"
+      reference_to(Slip)
+      given { status == "available" }
+      emits "SlipReserved"
+      then_set :status, to: "reserved"
+    end
+
+    VacateSlip do
+      role "HarborMaster"
+      description "Mark a slip as empty after a vessel departs"
+      reference_to(Slip)
+      given { status == "occupied" }
+      emits "SlipVacated"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Vessel", "A boat or yacht registered at the marina with owner and specifications" do
+    String :vessel_name
+    String :registration_number
+    String :vessel_type
+    Float :length_overall
+    Float :draft_feet
+    String :owner_name
+    String :owner_phone
+    String :status
+    reference_to(Slip)
+
+    value_object "EngineDetails" do
+      String :engine_type
+      Integer :horsepower
+      String :fuel_type
+      Integer :engine_count
+    end
+
+    RegisterVessel do
+      role "HarborMaster"
+      description "Register a vessel at the marina with its specifications"
+      String :vessel_name
+      String :registration_number
+      String :vessel_type
+      Float :length_overall
+      Float :draft_feet
+      String :owner_name
+      String :owner_phone
+      emits "VesselRegistered"
+      then_set :vessel_name, to: :vessel_name
+      then_set :registration_number, to: :registration_number
+      then_set :vessel_type, to: :vessel_type
+      then_set :length_overall, to: :length_overall
+      then_set :owner_name, to: :owner_name
+      then_set :status, to: "active"
+    end
+
+    AssignToSlip do
+      role "HarborMaster"
+      description "Dock a vessel in its assigned slip"
+      reference_to(Vessel)
+      reference_to(Slip)
+      emits "VesselDocked"
+      then_set :status, to: "docked"
+    end
+
+    RecordDeparture do
+      role "HarborMaster"
+      description "Log a vessel leaving the marina for a voyage"
+      reference_to(Vessel)
+      given { status == "docked" }
+      emits "VesselDeparted"
+      then_set :status, to: "at_sea"
+    end
+  end
+
+  aggregate "MaintenanceJob", "A scheduled or emergency maintenance task for a vessel" do
+    String :job_type
+    String :description
+    String :scheduled_date
+    Float :estimated_cost
+    String :status
+    reference_to(Vessel)
+
+    ScheduleMaintenance do
+      role "ServiceManager"
+      description "Plan a maintenance job for a vessel with type and estimated cost"
+      reference_to(Vessel)
+      String :job_type
+      String :description
+      String :scheduled_date
+      Float :estimated_cost
+      emits "MaintenanceScheduled"
+      then_set :job_type, to: :job_type
+      then_set :description, to: :description
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :estimated_cost, to: :estimated_cost
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteMaintenance do
+      role "Technician"
+      description "Mark the maintenance job as finished"
+      reference_to(MaintenanceJob)
+      given { status == "scheduled" }
+      emits "MaintenanceCompleted"
+      then_set :status, to: "completed"
+    end
+
+    CancelMaintenance do
+      role "ServiceManager"
+      description "Cancel a scheduled job that is no longer needed"
+      reference_to(MaintenanceJob)
+      given { status == "scheduled" }
+      emits "MaintenanceCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "FuelDispensing", "A fuel transaction recording gallons pumped and cost" do
+    String :fuel_type
+    Float :gallons
+    Float :price_per_gallon
+    Float :total_cost
+    String :dispensed_date
+    reference_to(Vessel)
+
+    DispenseFuel do
+      role "FuelDockAttendant"
+      description "Pump fuel into a vessel and record the transaction"
+      reference_to(Vessel)
+      String :fuel_type
+      Float :gallons
+      Float :price_per_gallon
+      emits "FuelDispensed"
+      then_set :fuel_type, to: :fuel_type
+      then_set :gallons, to: :gallons
+      then_set :price_per_gallon, to: :price_per_gallon
+    end
+
+    VoidTransaction do
+      role "FuelDockAttendant"
+      description "Cancel a fuel transaction due to pump error"
+      reference_to(FuelDispensing)
+      String :reason
+      emits "TransactionVoided"
+    end
+  end
+
+  aggregate "WeatherAlert", "A marine weather advisory affecting marina operations" do
+    String :alert_type
+    String :severity
+    String :description
+    String :effective_from
+    String :effective_until
+    String :status
+
+    value_object "WindConditions" do
+      Float :speed_knots
+      String :direction
+      Float :gust_knots
+    end
+
+    IssueAlert do
+      role "HarborMaster"
+      description "Post a weather alert affecting marina operations and vessel safety"
+      String :alert_type
+      String :severity
+      String :description
+      String :effective_from
+      String :effective_until
+      emits "AlertIssued"
+      then_set :alert_type, to: :alert_type
+      then_set :severity, to: :severity
+      then_set :description, to: :description
+      then_set :effective_from, to: :effective_from
+      then_set :effective_until, to: :effective_until
+      then_set :status, to: "active"
+    end
+
+    EscalateAlert do
+      role "HarborMaster"
+      description "Upgrade alert severity as conditions worsen"
+      reference_to(WeatherAlert)
+      String :new_severity
+      given { status == "active" }
+      emits "AlertEscalated"
+      then_set :severity, to: :new_severity
+    end
+
+    LiftAlert do
+      role "HarborMaster"
+      description "Cancel the weather alert when conditions improve"
+      reference_to(WeatherAlert)
+      given { status == "active" }
+      emits "AlertLifted"
+      then_set :status, to: "lifted"
+    end
+  end
+
+  policy "AssignSlipOnRegistration" do
+    on "VesselRegistered"
+    trigger "ReserveSlip"
+  end
+
+  policy "DockOnReservation" do
+    on "SlipReserved"
+    trigger "AssignToSlip"
+  end
+
+  policy "FuelOnDocking" do
+    on "VesselDocked"
+    trigger "DispenseFuel"
+  end
+
+  policy "VacateOnDeparture" do
+    on "VesselDeparted"
+    trigger "VacateSlip"
+  end
+
+  policy "ScheduleMaintenanceOnDock" do
+    on "VesselDocked"
+    trigger "ScheduleMaintenance"
+  end
+
+  policy "AlertOnSevereWeather" do
+    on "AlertEscalated"
+    trigger "ScheduleMaintenance"
+  end
+end

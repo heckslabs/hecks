@@ -1,0 +1,161 @@
+Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
+  vision "Mobile dialysis — patients and treatments meet mobile truck units, routing, and scheduling"
+  category "healthcare_technology"
+
+  aggregate "DialysisPatient", "A patient requiring regular dialysis treatments" do
+    String :patient_id
+    String :name
+    String :blood_type
+    String :access_type
+    Integer :treatments_per_week
+    String :status
+    EnrollPatient do
+      role "Nephrologist"
+      description "Enroll a patient in the mobile dialysis program"
+      String :patient_id
+      String :name
+      String :blood_type
+      String :access_type
+      Integer :treatments_per_week
+      emits "PatientEnrolled"
+      then_set :patient_id, to: :patient_id
+      then_set :name, to: :name
+      then_set :blood_type, to: :blood_type
+      then_set :access_type, to: :access_type
+      then_set :treatments_per_week, to: :treatments_per_week
+      then_set :status, to: "enrolled"
+    end
+    PauseEnrollment do
+      role "Nephrologist"
+      description "Pause a patient enrollment temporarily"
+      reference_to(DialysisPatient)
+      given { status == "enrolled" }
+      emits "EnrollmentPaused"
+      then_set :status, to: "paused"
+    end
+  end
+
+  aggregate "MobileUnit", "A truck-based mobile dialysis treatment unit" do
+    String :unit_id
+    String :license_plate
+    Integer :treatment_stations
+    String :nurse_name
+    String :status
+    RegisterUnit do
+      role "FleetManager"
+      description "Register a mobile dialysis truck unit"
+      String :unit_id
+      String :license_plate
+      Integer :treatment_stations
+      String :nurse_name
+      emits "UnitRegistered"
+      then_set :unit_id, to: :unit_id
+      then_set :license_plate, to: :license_plate
+      then_set :treatment_stations, to: :treatment_stations
+      then_set :nurse_name, to: :nurse_name
+      then_set :status, to: "available"
+    end
+    DispatchUnit do
+      role "Dispatcher"
+      description "Dispatch a mobile unit to a scheduled location"
+      reference_to(MobileUnit)
+      given { status == "available" }
+      emits "UnitDispatched"
+      then_set :status, to: "dispatched"
+    end
+    ReturnUnit do
+      role "Driver"
+      description "Return the mobile unit to base after route"
+      reference_to(MobileUnit)
+      given { status == "dispatched" }
+      emits "UnitReturned"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "TreatmentRoute", "A daily route for the mobile dialysis unit" do
+    String :route_id
+    String :unit_id
+    String :date
+    list_of(RouteStop) :stops
+    Float :total_miles
+    String :status
+    value_object "RouteStop" do
+      String :patient_id
+      String :address
+      String :scheduled_time
+    end
+    PlanRoute do
+      role "Dispatcher"
+      description "Plan a daily treatment route with patient stops"
+      String :route_id
+      String :unit_id
+      String :date
+      Float :total_miles
+      emits "RoutePlanned"
+      then_set :route_id, to: :route_id
+      then_set :unit_id, to: :unit_id
+      then_set :date, to: :date
+      then_set :total_miles, to: :total_miles
+      then_set :status, to: "planned"
+    end
+    StartRoute do
+      role "Driver"
+      description "Begin the daily treatment route"
+      reference_to(TreatmentRoute)
+      given { status == "planned" }
+      emits "RouteStarted"
+      then_set :status, to: "in_progress"
+    end
+    FinishRoute do
+      role "Driver"
+      description "Complete the daily treatment route"
+      reference_to(TreatmentRoute)
+      given { status == "in_progress" }
+      emits "RouteFinished"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "TreatmentSession", "A dialysis treatment session performed on the mobile unit" do
+    String :session_id
+    String :patient_id
+    String :unit_id
+    Float :duration_hours
+    Float :fluid_removed_liters
+    String :status
+    StartTreatment do
+      role "Nurse"
+      description "Start a dialysis treatment session on the mobile unit"
+      String :session_id
+      String :patient_id
+      String :unit_id
+      emits "TreatmentStarted"
+      then_set :session_id, to: :session_id
+      then_set :patient_id, to: :patient_id
+      then_set :unit_id, to: :unit_id
+      then_set :status, to: "in_progress"
+    end
+    EndTreatment do
+      role "Nurse"
+      description "End the dialysis treatment and record outcome"
+      reference_to(TreatmentSession)
+      Float :duration_hours
+      Float :fluid_removed_liters
+      given { status == "in_progress" }
+      emits "TreatmentEnded"
+      then_set :duration_hours, to: :duration_hours
+      then_set :fluid_removed_liters, to: :fluid_removed_liters
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "DispatchOnPlan" do
+    on "RoutePlanned"
+    trigger "DispatchUnit"
+  end
+  policy "TreatOnStart" do
+    on "RouteStarted"
+    trigger "StartTreatment"
+  end
+end

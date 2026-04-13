@@ -1,0 +1,148 @@
+Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
+  vision "Vision API — optometry prescriptions meet lens APIs and insurance integrations"
+  category "healthcare_technology"
+
+  aggregate "EyeExam", "An optometry eye examination for a patient" do
+    String :exam_id
+    String :patient_name
+    String :optometrist
+    String :exam_date
+    String :status
+    value_object "Refraction" do
+      Float :sphere
+      Float :cylinder
+      Float :axis
+      String :eye
+    end
+    ConductExam do
+      role "Optometrist"
+      description "Conduct an eye examination and record findings"
+      String :exam_id
+      String :patient_name
+      String :optometrist
+      String :exam_date
+      emits "ExamConducted"
+      then_set :exam_id, to: :exam_id
+      then_set :patient_name, to: :patient_name
+      then_set :optometrist, to: :optometrist
+      then_set :exam_date, to: :exam_date
+      then_set :status, to: "completed"
+    end
+    WriteRx do
+      role "Optometrist"
+      description "Write the vision prescription from exam results"
+      reference_to(EyeExam)
+      given { status == "completed" }
+      emits "RxWritten"
+      then_set :status, to: "prescribed"
+    end
+  end
+
+  aggregate "LensOrder", "An order for prescription lenses via API" do
+    String :order_id
+    String :exam_id
+    String :lens_type
+    String :vendor
+    Float :price
+    String :status
+    PlaceLensOrder do
+      role "Optician"
+      description "Place a lens order through the vendor API"
+      String :order_id
+      String :exam_id
+      String :lens_type
+      String :vendor
+      Float :price
+      emits "LensOrderPlaced"
+      then_set :order_id, to: :order_id
+      then_set :exam_id, to: :exam_id
+      then_set :lens_type, to: :lens_type
+      then_set :vendor, to: :vendor
+      then_set :price, to: :price
+      then_set :status, to: "ordered"
+    end
+    FulfillOrder do
+      role "Vendor"
+      description "Mark lens order as fulfilled and ready for pickup"
+      reference_to(LensOrder)
+      given { status == "ordered" }
+      emits "OrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+  end
+
+  aggregate "InsuranceClaim", "An insurance claim for vision services" do
+    String :claim_id
+    String :patient_name
+    String :provider_name
+    Float :amount
+    String :status
+    SubmitClaim do
+      role "BillingClerk"
+      description "Submit an insurance claim for vision services via integration"
+      String :claim_id
+      String :patient_name
+      String :provider_name
+      Float :amount
+      emits "ClaimSubmitted"
+      then_set :claim_id, to: :claim_id
+      then_set :patient_name, to: :patient_name
+      then_set :provider_name, to: :provider_name
+      then_set :amount, to: :amount
+      then_set :status, to: "submitted"
+    end
+    AdjudicateClaim do
+      role "Insurer"
+      description "Process and adjudicate the insurance claim"
+      reference_to(InsuranceClaim)
+      given { status == "submitted" }
+      emits "ClaimAdjudicated"
+      then_set :status, to: "adjudicated"
+    end
+  end
+
+  aggregate "APIClient", "A registered API client consuming vision services" do
+    String :client_id
+    String :client_name
+    String :api_key
+    Integer :rate_limit
+    String :status
+    list_of(Endpoint) :endpoints
+    value_object "Endpoint" do
+      String :path
+      String :method
+      String :version
+    end
+    RegisterAPIClient do
+      role "Admin"
+      description "Register an API client with key and rate limits"
+      String :client_id
+      String :client_name
+      String :api_key
+      Integer :rate_limit
+      emits "APIClientRegistered"
+      then_set :client_id, to: :client_id
+      then_set :client_name, to: :client_name
+      then_set :api_key, to: :api_key
+      then_set :rate_limit, to: :rate_limit
+      then_set :status, to: "active"
+    end
+    RevokeAccess do
+      role "Admin"
+      description "Revoke API access for a client"
+      reference_to(APIClient)
+      given { status == "active" }
+      emits "AccessRevoked"
+      then_set :status, to: "revoked"
+    end
+  end
+
+  policy "OrderOnRx" do
+    on "RxWritten"
+    trigger "PlaceLensOrder"
+  end
+  policy "ClaimOnFulfill" do
+    on "OrderFulfilled"
+    trigger "SubmitClaim"
+  end
+end

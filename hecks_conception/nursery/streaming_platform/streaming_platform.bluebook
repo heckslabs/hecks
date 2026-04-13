@@ -1,0 +1,260 @@
+Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
+  vision "Running a streaming service — managing content library, organizing channels, handling subscriptions, generating recommendations, and tracking analytics"
+  category "technology"
+
+  aggregate "Content", "A media asset available for streaming" do
+    String :content_id
+    String :title
+    String :genre
+    Integer :duration_seconds
+    String :content_rating
+    String :status
+    list_of(MediaFile) :media_files
+
+    value_object "MediaFile" do
+      String :quality
+      String :codec
+      String :url
+      Integer :bitrate_kbps
+    end
+
+    IngestContent do
+      role "ContentManager"
+      description "Upload and register new media for the streaming library"
+      String :content_id
+      String :title
+      String :genre
+      Integer :duration_seconds
+      String :content_rating
+      emits "ContentIngested"
+    end
+
+    PublishContent do
+      description "Make content available for streaming to subscribers"
+      reference_to(Content)
+      given("content is processed") { status == "processed" }
+      emits "ContentPublished"
+    end
+
+    ArchiveContent do
+      description "Remove content from active streaming catalog"
+      reference_to(Content)
+      emits "ContentArchived"
+    end
+  end
+
+  aggregate "Channel", "A curated collection of content organized by theme" do
+    String :channel_name
+    String :description
+    String :curator
+    String :category
+    String :status
+    list_of(ChannelSlot) :slots
+    reference_to Content
+
+    value_object "ChannelSlot" do
+      String :content_id
+      Integer :position
+      String :added_at
+    end
+
+    CreateChannel do
+      role "ContentManager"
+      description "Set up a new themed channel for content curation"
+      String :channel_name
+      String :description
+      String :curator
+      String :category
+      emits "ChannelCreated"
+    end
+
+    AddToChannel do
+      description "Place a piece of content into a channel lineup"
+      reference_to(Channel)
+      String :content_id
+      Integer :position
+      emits "ContentAddedToChannel"
+    end
+
+    DeactivateChannel do
+      description "Take a channel offline"
+      reference_to(Channel)
+      given("channel is active") { status == "active" }
+      emits "ChannelDeactivated"
+    end
+  end
+
+  aggregate "Subscriber", "A paying viewer with access to the streaming catalog" do
+    String :subscriber_id
+    String :email
+    String :plan
+    String :payment_method
+    String :status
+    list_of(WatchHistory) :watch_history
+
+    value_object "WatchHistory" do
+      String :content_id
+      Integer :watch_seconds
+      String :watched_at
+    end
+
+    EnrollSubscriber do
+      role "SubscriptionEngine"
+      description "Register a new paying subscriber"
+      String :subscriber_id
+      String :email
+      String :plan
+      String :payment_method
+      emits "SubscriberEnrolled"
+    end
+
+    UpgradePlan do
+      description "Move a subscriber to a premium plan"
+      reference_to(Subscriber)
+      String :plan
+      emits "PlanUpgraded"
+    end
+
+    CancelSubscription do
+      description "End a subscriber's access at the current period"
+      reference_to(Subscriber)
+      given("subscriber is active") { status == "active" }
+      emits "SubscriptionCanceled"
+    end
+  end
+
+  aggregate "Recommendation", "A personalized content suggestion for a subscriber" do
+    String :recommendation_id
+    String :algorithm
+    Float :relevance_score
+    String :reason
+    String :status
+    reference_to Subscriber
+    reference_to Content
+
+    value_object "FeatureWeight" do
+      String :feature_name
+      Float :weight
+      String :source
+    end
+
+    GenerateRecommendation do
+      role "RecommendationEngine"
+      description "Produce a personalized content suggestion"
+      String :recommendation_id
+      String :algorithm
+      Float :relevance_score
+      String :reason
+      reference_to(Subscriber)
+      reference_to(Content)
+      emits "RecommendationGenerated"
+    end
+
+    DismissRecommendation do
+      description "Record that a subscriber declined a suggestion"
+      reference_to(Recommendation)
+      emits "RecommendationDismissed"
+    end
+
+    ConvertRecommendation do
+      description "Mark that a subscriber watched the recommended content"
+      reference_to(Recommendation)
+      given("recommendation is pending") { status == "pending" }
+      emits "RecommendationConverted"
+    end
+  end
+
+  aggregate "AnalyticsSnapshot", "A periodic summary of platform viewing metrics" do
+    String :snapshot_id
+    String :period
+    Integer :total_streams
+    Integer :unique_viewers
+    Float :avg_watch_minutes
+    String :status
+
+    value_object "GenreBreakdown" do
+      String :genre
+      Integer :stream_count
+      Float :percentage
+    end
+
+    CaptureSnapshot do
+      role "AnalyticsEngine"
+      description "Record a periodic summary of streaming metrics"
+      String :snapshot_id
+      String :period
+      Integer :total_streams
+      Integer :unique_viewers
+      Float :avg_watch_minutes
+      emits "SnapshotCaptured"
+    end
+
+    PublishReport do
+      description "Make an analytics snapshot available to stakeholders"
+      reference_to(AnalyticsSnapshot)
+      given("snapshot is captured") { status == "captured" }
+      emits "ReportPublished"
+    end
+
+    ArchiveSnapshot do
+      description "Move an old snapshot to cold storage"
+      reference_to(AnalyticsSnapshot)
+      emits "SnapshotArchived"
+    end
+  end
+
+  lifecycle "ContentPipeline" do
+    state "ingested"
+    state "processed"
+    state "published"
+    state "channeled"
+    state "recommended"
+    state "archived"
+
+    transition from: "ingested", to: "processed", on: "ContentIngested"
+    transition from: "processed", to: "published", on: "ContentPublished"
+    transition from: "published", to: "channeled", on: "ContentAddedToChannel"
+    transition from: "channeled", to: "recommended", on: "RecommendationGenerated"
+    transition from: "published", to: "archived", on: "ContentArchived"
+  end
+
+  policy "ContentIngestedPublish" do
+    on "ContentIngested"
+    trigger "PublishContent"
+  end
+
+  policy "ContentPublishedAddToChannel" do
+    on "ContentPublished"
+    trigger "AddToChannel"
+  end
+
+  policy "SubscriberEnrolledRecommend" do
+    on "SubscriberEnrolled"
+    trigger "GenerateRecommendation"
+  end
+
+  policy "RecommendationConvertedCaptureSnapshot" do
+    on "RecommendationConverted"
+    trigger "CaptureSnapshot"
+  end
+
+  policy "SnapshotCapturedPublishReport" do
+    on "SnapshotCaptured"
+    trigger "PublishReport"
+  end
+
+  policy "ChannelDeactivatedArchive" do
+    on "ChannelDeactivated"
+    trigger "ArchiveContent"
+  end
+
+  policy "RecommendOnPublish" do
+    on "ContentPublished"
+    trigger "GenerateRecommendation"
+  end
+
+  policy "UpgradePlanOnConvert" do
+    on "RecommendationConverted"
+    trigger "UpgradePlan"
+  end
+end

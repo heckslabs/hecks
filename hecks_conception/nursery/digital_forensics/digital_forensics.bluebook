@@ -1,0 +1,150 @@
+Hecks.bluebook "DigitalForensics", version: "2026.04.13.1" do
+  vision "Digital forensics — evidence collection meets chain of custody, content analysis, and moderation"
+  category "healthcare_technology"
+
+  aggregate "EvidenceItem", "A digital evidence item collected from a device or service" do
+    String :evidence_id
+    String :case_number
+    String :source_device
+    String :file_type
+    Float :size_mb
+    String :hash_value
+    String :status
+    CollectEvidence do
+      role "Examiner"
+      description "Collect a piece of digital evidence and compute its hash"
+      String :evidence_id
+      String :case_number
+      String :source_device
+      String :file_type
+      Float :size_mb
+      String :hash_value
+      emits "EvidenceCollected"
+      then_set :evidence_id, to: :evidence_id
+      then_set :case_number, to: :case_number
+      then_set :source_device, to: :source_device
+      then_set :file_type, to: :file_type
+      then_set :size_mb, to: :size_mb
+      then_set :hash_value, to: :hash_value
+      then_set :status, to: "collected"
+    end
+    VerifyIntegrity do
+      role "Examiner"
+      description "Verify evidence integrity by recomputing hash"
+      reference_to(EvidenceItem)
+      given { status == "collected" }
+      emits "IntegrityVerified"
+      then_set :status, to: "verified"
+    end
+  end
+
+  aggregate "ChainOfCustody", "A tamper-evident chain of custody log for evidence" do
+    String :chain_id
+    String :evidence_id
+    list_of(CustodyEntry) :entries
+    String :status
+    value_object "CustodyEntry" do
+      String :handler_name
+      String :action_type
+      String :timestamp
+      String :location_name
+    end
+    StartChain do
+      role "Examiner"
+      description "Start a chain of custody record for evidence"
+      String :chain_id
+      String :evidence_id
+      emits "ChainStarted"
+      then_set :chain_id, to: :chain_id
+      then_set :evidence_id, to: :evidence_id
+      then_set :status, to: "active"
+    end
+    TransferCustody do
+      role "Examiner"
+      description "Record a custody transfer between handlers"
+      reference_to(ChainOfCustody)
+      given { status == "active" }
+      emits "CustodyTransferred"
+    end
+    SealChain do
+      role "Examiner"
+      description "Seal the chain of custody when case is closed"
+      reference_to(ChainOfCustody)
+      given { status == "active" }
+      emits "ChainSealed"
+      then_set :status, to: "sealed"
+    end
+  end
+
+  aggregate "ContentAnalysis", "An analysis of digital content for forensic relevance" do
+    String :analysis_id
+    String :evidence_id
+    String :analysis_type
+    String :findings
+    Float :confidence
+    String :status
+    AnalyzeContent do
+      role "Analyst"
+      description "Run forensic content analysis on evidence"
+      String :analysis_id
+      String :evidence_id
+      String :analysis_type
+      emits "ContentAnalysisStarted"
+      then_set :analysis_id, to: :analysis_id
+      then_set :evidence_id, to: :evidence_id
+      then_set :analysis_type, to: :analysis_type
+      then_set :status, to: "running"
+    end
+    FinalizeAnalysis do
+      role "Analyst"
+      description "Finalize analysis with findings and confidence score"
+      reference_to(ContentAnalysis)
+      String :findings
+      Float :confidence
+      given { status == "running" }
+      emits "AnalysisFinalized"
+      then_set :findings, to: :findings
+      then_set :confidence, to: :confidence
+      then_set :status, to: "finalized"
+    end
+  end
+
+  aggregate "ForensicReport", "A forensic investigation report summarizing findings" do
+    String :report_id
+    String :case_number
+    String :examiner
+    String :summary
+    String :status
+    DraftReport do
+      role "Examiner"
+      description "Draft a forensic investigation report"
+      String :report_id
+      String :case_number
+      String :examiner
+      String :summary
+      emits "ReportDrafted"
+      then_set :report_id, to: :report_id
+      then_set :case_number, to: :case_number
+      then_set :examiner, to: :examiner
+      then_set :summary, to: :summary
+      then_set :status, to: "draft"
+    end
+    SubmitReport do
+      role "Examiner"
+      description "Submit the finalized report for the case"
+      reference_to(ForensicReport)
+      given { status == "draft" }
+      emits "ReportSubmitted"
+      then_set :status, to: "submitted"
+    end
+  end
+
+  policy "ChainOnCollect" do
+    on "EvidenceCollected"
+    trigger "StartChain"
+  end
+  policy "AnalyzeOnVerify" do
+    on "IntegrityVerified"
+    trigger "AnalyzeContent"
+  end
+end

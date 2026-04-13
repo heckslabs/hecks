@@ -1,0 +1,365 @@
+Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
+  vision "Oceanography meets cruise routing — currents, weather, fuel planning, and safe passage"
+  category "crossover"
+
+  aggregate "OceanCurrent", "A measured ocean current — direction, speed, depth, and seasonal pattern" do
+    String :name
+    Float :speed_knots
+    Float :direction_degrees
+    Float :depth_meters
+    String :season
+    String :status
+
+    value_object "CurrentVector" do
+      Float :north_component
+      Float :east_component
+      Float :magnitude
+    end
+
+    MeasureCurrent do
+      role "Oceanographer"
+      description "Record ocean current speed and direction at a given depth"
+      String :name
+      Float :speed_knots
+      Float :direction_degrees
+      Float :depth_meters
+      String :season
+      emits "CurrentMeasured"
+      then_set :name, to: :name
+      then_set :speed_knots, to: :speed_knots
+      then_set :direction_degrees, to: :direction_degrees
+      then_set :depth_meters, to: :depth_meters
+      then_set :season, to: :season
+      then_set :status, to: "active"
+    end
+
+    UpdateCurrentData do
+      role "Oceanographer"
+      description "Refresh current measurement with latest sensor data"
+      reference_to(OceanCurrent)
+      Float :speed_knots
+      Float :direction_degrees
+      given { status == "active" }
+      emits "CurrentDataUpdated"
+      then_set :speed_knots, to: :speed_knots
+      then_set :direction_degrees, to: :direction_degrees
+    end
+
+    DeactivateCurrent do
+      role "System"
+      description "Mark a current reading as stale or expired"
+      reference_to(OceanCurrent)
+      given { status == "active" }
+      emits "CurrentDeactivated"
+      then_set :status, to: "stale"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "MeasureCurrent" => "active", from: "pending"
+      transition "DeactivateCurrent" => "stale", from: "active"
+    end
+  end
+
+  aggregate "WeatherForecast", "A marine weather forecast — wind, waves, visibility, and storm warnings" do
+    String :region
+    Float :wind_speed_knots
+    Float :wave_height_meters
+    Float :visibility_nm
+    String :storm_warning
+    String :valid_from
+    String :valid_until
+    String :status
+
+    value_object "WindProfile" do
+      Float :speed
+      Float :direction
+      Float :gust_factor
+    end
+
+    list_of "StormAlert" do
+      String :alert_type
+      String :severity
+      String :region
+      String :issued_at
+    end
+
+    IssueForecast do
+      role "Meteorologist"
+      description "Publish a marine weather forecast for a region"
+      String :region
+      Float :wind_speed_knots
+      Float :wave_height_meters
+      Float :visibility_nm
+      String :storm_warning
+      String :valid_from
+      String :valid_until
+      emits "ForecastIssued"
+      then_set :region, to: :region
+      then_set :wind_speed_knots, to: :wind_speed_knots
+      then_set :wave_height_meters, to: :wave_height_meters
+      then_set :visibility_nm, to: :visibility_nm
+      then_set :storm_warning, to: :storm_warning
+      then_set :valid_from, to: :valid_from
+      then_set :valid_until, to: :valid_until
+      then_set :status, to: "active"
+    end
+
+    EscalateStormWarning do
+      role "Meteorologist"
+      description "Upgrade storm warning severity for a forecast region"
+      reference_to(WeatherForecast)
+      String :storm_warning
+      given { status == "active" }
+      emits "StormWarningEscalated"
+      then_set :storm_warning, to: :storm_warning
+    end
+
+    ExpireForecast do
+      role "System"
+      description "Mark forecast as expired when validity window closes"
+      reference_to(WeatherForecast)
+      given { status == "active" }
+      emits "ForecastExpired"
+      then_set :status, to: "expired"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "IssueForecast" => "active", from: "draft"
+      transition "ExpireForecast" => "expired", from: "active"
+    end
+  end
+
+  aggregate "Vessel", "A cruise ship or cargo vessel — dimensions, fuel capacity, and operational state" do
+    String :name
+    String :vessel_type
+    Float :length_meters
+    Float :fuel_capacity_tons
+    Float :current_fuel_tons
+    Float :max_speed_knots
+    String :status
+
+    value_object "FuelConsumption" do
+      Float :rate_tons_per_hour
+      Float :speed_knots
+      Float :sea_state_factor
+    end
+
+    RegisterVessel do
+      role "Captain"
+      description "Register a vessel with its specifications"
+      String :name
+      String :vessel_type
+      Float :length_meters
+      Float :fuel_capacity_tons
+      Float :max_speed_knots
+      emits "VesselRegistered"
+      then_set :name, to: :name
+      then_set :vessel_type, to: :vessel_type
+      then_set :length_meters, to: :length_meters
+      then_set :fuel_capacity_tons, to: :fuel_capacity_tons
+      then_set :current_fuel_tons, to: :fuel_capacity_tons
+      then_set :max_speed_knots, to: :max_speed_knots
+      then_set :status, to: "docked"
+    end
+
+    Depart do
+      role "Captain"
+      description "Vessel departs port and begins voyage"
+      reference_to(Vessel)
+      given { status == "docked" }
+      emits "VesselDeparted"
+      then_set :status, to: "underway"
+    end
+
+    RefuelVessel do
+      role "PortOperator"
+      description "Refuel vessel at port to full capacity"
+      reference_to(Vessel)
+      given { status == "docked" }
+      emits "VesselRefueled"
+      then_set :current_fuel_tons, to: :fuel_capacity_tons
+    end
+
+    DockVessel do
+      role "Captain"
+      description "Vessel arrives at port and docks"
+      reference_to(Vessel)
+      given { status == "underway" }
+      emits "VesselDocked"
+      then_set :status, to: "docked"
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterVessel" => "docked", from: "unregistered"
+      transition "Depart" => "underway", from: "docked"
+      transition "DockVessel" => "docked", from: "underway"
+    end
+  end
+
+  aggregate "Route", "A planned navigation route — waypoints, fuel estimates, current adjustments" do
+    String :name
+    String :origin_port
+    String :destination_port
+    Float :total_distance_nm
+    Float :estimated_fuel_tons
+    Float :estimated_hours
+    String :status
+
+    value_object "Waypoint" do
+      Float :latitude
+      Float :longitude
+      String :name
+      Float :eta_hours
+    end
+
+    list_of "RouteSegment" do
+      String :from_waypoint
+      String :to_waypoint
+      Float :distance_nm
+      Float :current_assist_knots
+    end
+
+    PlanRoute do
+      role "Navigator"
+      description "Plan a route from origin to destination incorporating current data"
+      String :name
+      String :origin_port
+      String :destination_port
+      Float :total_distance_nm
+      emits "RoutePlanned"
+      then_set :name, to: :name
+      then_set :origin_port, to: :origin_port
+      then_set :destination_port, to: :destination_port
+      then_set :total_distance_nm, to: :total_distance_nm
+      then_set :status, to: "planned"
+    end
+
+    CalculateFuelEstimate do
+      role "System"
+      description "Compute fuel needed based on distance, currents, and weather"
+      reference_to(Route)
+      Float :estimated_fuel_tons
+      Float :estimated_hours
+      given { status == "planned" }
+      emits "FuelEstimated"
+      then_set :estimated_fuel_tons, to: :estimated_fuel_tons
+      then_set :estimated_hours, to: :estimated_hours
+    end
+
+    AdjustForCurrents do
+      role "System"
+      description "Modify route segments to exploit favorable currents"
+      reference_to(Route)
+      given { status == "planned" }
+      emits "RouteAdjustedForCurrents"
+    end
+
+    ApproveRoute do
+      role "Captain"
+      description "Captain approves the planned route for departure"
+      reference_to(Route)
+      given { status == "planned" }
+      emits "RouteApproved"
+      then_set :status, to: "approved"
+    end
+
+    RerouteForWeather do
+      role "Navigator"
+      description "Modify route to avoid storm or severe weather"
+      reference_to(Route)
+      String :reason
+      given { status == "approved" }
+      emits "RouteRerouted"
+      then_set :status, to: "rerouted"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanRoute" => "planned", from: "draft"
+      transition "ApproveRoute" => "approved", from: "planned"
+      transition "RerouteForWeather" => "rerouted", from: "approved"
+    end
+  end
+
+  aggregate "FuelLog", "Fuel consumption tracking — burn rates, efficiency, and bunkering" do
+    String :vessel_name
+    Float :fuel_burned_tons
+    Float :distance_traveled_nm
+    Float :efficiency_nm_per_ton
+    String :timestamp
+    String :status
+
+    value_object "BurnRate" do
+      Float :tons_per_hour
+      Float :speed_knots
+      String :conditions
+    end
+
+    RecordFuelBurn do
+      role "Engineer"
+      description "Log fuel consumption for a voyage segment"
+      String :vessel_name
+      Float :fuel_burned_tons
+      Float :distance_traveled_nm
+      String :timestamp
+      emits "FuelBurnRecorded"
+      then_set :vessel_name, to: :vessel_name
+      then_set :fuel_burned_tons, to: :fuel_burned_tons
+      then_set :distance_traveled_nm, to: :distance_traveled_nm
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "recorded"
+    end
+
+    CalculateEfficiency do
+      role "System"
+      description "Compute fuel efficiency — nautical miles per ton of fuel"
+      reference_to(FuelLog)
+      given { status == "recorded" }
+      emits "EfficiencyCalculated"
+    end
+
+    FlagExcessiveBurn do
+      role "System"
+      description "Alert when fuel burn exceeds expected rate by threshold"
+      reference_to(FuelLog)
+      given { status == "recorded" }
+      emits "ExcessiveBurnFlagged"
+      then_set :status, to: "flagged"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordFuelBurn" => "recorded", from: "pending"
+      transition "FlagExcessiveBurn" => "flagged", from: "recorded"
+    end
+  end
+
+  # Workflow: Plan route -> adjust for currents -> estimate fuel -> approve -> weather check -> reroute
+  policy "AdjustRouteOnPlan" do
+    on "RoutePlanned"
+    trigger "AdjustForCurrents"
+  end
+
+  policy "EstimateFuelOnAdjustment" do
+    on "RouteAdjustedForCurrents"
+    trigger "CalculateFuelEstimate"
+  end
+
+  policy "CheckWeatherOnApproval" do
+    on "RouteApproved"
+    trigger "EscalateStormWarning"
+  end
+
+  policy "RerouteOnStormEscalation" do
+    on "StormWarningEscalated"
+    trigger "RerouteForWeather"
+  end
+
+  policy "CalculateEfficiencyOnBurn" do
+    on "FuelBurnRecorded"
+    trigger "CalculateEfficiency"
+  end
+
+  policy "FlagBurnOnEfficiency" do
+    on "EfficiencyCalculated"
+    trigger "FlagExcessiveBurn"
+  end
+end

@@ -1,0 +1,205 @@
+Hecks.bluebook "PerishableRescue" do
+  vision "Cross-wire food bank distribution with cold chain logistics for perishable food rescue operations"
+  core
+
+  aggregate "FoodDonation" do
+    description "A perishable food donation from a source"
+    attribute :donor_name
+    attribute :donation_date
+    attribute :items, list_of(PerishableItem)
+    attribute :status, default: "received"
+
+    value_object "PerishableItem" do
+      attribute :food_type
+      attribute :weight_kg, Float
+      attribute :expiry_date
+      attribute :temp_requirement_c, Float
+      invariant "weight must be positive" do
+        weight_kg > 0
+      end
+    end
+
+    command "ReceiveDonation" do
+      role "FoodBankWorker"
+      goal "Receive a food donation"
+      attribute :donor_name
+      attribute :donation_date
+    end
+
+    command "AddItem" do
+      role "FoodBankWorker"
+      goal "Add a perishable item to the donation"
+      reference_to FoodDonation
+      attribute :food_type
+      attribute :weight_kg, Float
+      attribute :expiry_date
+      attribute :temp_requirement_c, Float
+      given("max 100 items") { items.size < 100 }
+      then_set :items, append: { food_type: :food_type, weight_kg: :weight_kg, expiry_date: :expiry_date, temp_requirement_c: :temp_requirement_c }
+    end
+
+    command "ApproveDonation" do
+      role "QualityChecker"
+      goal "Approve donation for distribution"
+      reference_to FoodDonation
+      given("must have items") { items.size > 0 }
+    end
+  end
+
+  aggregate "ColdChainRoute" do
+    description "A temperature-controlled transport route"
+    attribute :route_id
+    attribute :vehicle_id
+    attribute :checkpoints, list_of(TempCheckpoint)
+    attribute :status, default: "planned"
+
+    value_object "TempCheckpoint" do
+      attribute :location
+      attribute :target_temp_c, Float
+      attribute :actual_temp_c, Float
+      attribute :timestamp
+    end
+
+    command "PlanRoute" do
+      role "LogisticsPlanner"
+      goal "Plan a cold chain transport route"
+      attribute :route_id
+      attribute :vehicle_id
+    end
+
+    command "RecordCheckpoint" do
+      role "Driver"
+      goal "Record a temperature checkpoint"
+      reference_to ColdChainRoute
+      attribute :location
+      attribute :target_temp_c, Float
+      attribute :actual_temp_c, Float
+      attribute :timestamp
+      given("max 50 checkpoints") { checkpoints.size < 50 }
+      then_set :checkpoints, append: { location: :location, target_temp_c: :target_temp_c, actual_temp_c: :actual_temp_c, timestamp: :timestamp }
+    end
+
+    command "CompleteRoute" do
+      role "Driver"
+      goal "Complete the delivery route"
+      reference_to ColdChainRoute
+    end
+  end
+
+  aggregate "Distribution" do
+    description "A food distribution event at a community site"
+    reference_to FoodDonation
+    reference_to ColdChainRoute
+    attribute :site_name
+    attribute :distribution_date
+    attribute :recipients, list_of(Recipient)
+    attribute :status, default: "scheduled"
+
+    value_object "Recipient" do
+      attribute :family_id
+      attribute :family_size, Integer
+      attribute :dietary_needs
+      invariant "family size must be positive" do
+        family_size > 0
+      end
+    end
+
+    command "ScheduleDistribution" do
+      role "DistributionCoordinator"
+      goal "Schedule a distribution event"
+      reference_to FoodDonation
+      attribute :site_name
+      attribute :distribution_date
+    end
+
+    command "RegisterRecipient" do
+      role "IntakeWorker"
+      goal "Register a recipient family"
+      reference_to Distribution
+      attribute :family_id
+      attribute :family_size, Integer
+      attribute :dietary_needs
+      given("max 200 recipients") { recipients.size < 200 }
+      then_set :recipients, append: { family_id: :family_id, family_size: :family_size, dietary_needs: :dietary_needs }
+    end
+
+    command "ExecuteDistribution" do
+      role "DistributionCoordinator"
+      goal "Execute the distribution"
+      reference_to Distribution
+      given("must have recipients") { recipients.size > 0 }
+    end
+  end
+
+  aggregate "TempAlert" do
+    description "A cold chain temperature breach alert"
+    reference_to ColdChainRoute
+    reference_to FoodDonation
+    attribute :alert_type
+    attribute :temp_deviation_c, Float
+    attribute :responses, list_of(AlertResponse)
+    attribute :status, default: "active"
+
+    value_object "AlertResponse" do
+      attribute :action
+      attribute :responder
+      attribute :timestamp
+    end
+
+    command "RaiseAlert" do
+      role "MonitoringSystem"
+      goal "Raise a temperature breach alert"
+      reference_to ColdChainRoute
+      attribute :alert_type
+      attribute :temp_deviation_c, Float
+    end
+
+    command "RespondToAlert" do
+      role "LogisticsManager"
+      goal "Respond to the temperature alert"
+      reference_to TempAlert
+      attribute :action
+      attribute :responder
+      attribute :timestamp
+      given("max 10 responses") { responses.size < 10 }
+      then_set :responses, append: { action: :action, responder: :responder, timestamp: :timestamp }
+    end
+
+    command "ResolveAlert" do
+      role "LogisticsManager"
+      goal "Resolve the alert"
+      reference_to TempAlert
+    end
+  end
+
+  policy "DonationApprovedTriggersRoute" do
+    on "DonationApproved"
+    trigger "PlanRoute"
+    map route_id: :donation_id
+  end
+
+  policy "RouteCompletedTriggersDistribution" do
+    on "RouteCompleted"
+    trigger "ScheduleDistribution"
+    map food_donation_id: :donation_id
+  end
+
+  policy "CheckpointRecordedTriggersAlert" do
+    on "CheckpointRecorded"
+    trigger "RaiseAlert"
+    map cold_chain_route_id: :route_id
+    condition { |event| (event.actual_temp_c - event.target_temp_c).abs > 3 }
+  end
+
+  policy "AlertResolvedTriggersComplete" do
+    on "AlertResolved"
+    trigger "CompleteRoute"
+    map cold_chain_route_id: :route_id
+  end
+
+  policy "DistributionExecutedTriggersCheckpoint" do
+    on "DistributionExecuted"
+    trigger "RecordCheckpoint"
+    map cold_chain_route_id: :return_route_id, location: :site_name
+  end
+end

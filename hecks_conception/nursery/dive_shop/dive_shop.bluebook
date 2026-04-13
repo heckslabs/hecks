@@ -1,0 +1,272 @@
+Hecks.bluebook "DiveShop", version: "2026.04.13.1" do
+  vision "Running a dive shop — selling and renting equipment, certifying divers, organizing dive trips, servicing tanks, and maintaining gear"
+  category "retail"
+
+  aggregate "DiveEquipment", "A piece of scuba gear for sale or rental" do
+    String :equipment_id
+    String :name
+    String :equipment_type
+    String :brand
+    Float :price
+    Integer :quantity
+    String :status
+    list_of(ServiceRecord) :service_history
+
+    value_object "ServiceRecord" do
+      String :service_date
+      String :service_type
+      String :technician
+      String :notes
+    end
+
+    StockEquipment do
+      role "Manager"
+      description "Add dive equipment to the shop's inventory"
+      String :equipment_id
+      String :name
+      String :equipment_type
+      String :brand
+      Float :price
+      Integer :quantity
+      emits "EquipmentStocked"
+      then_set :equipment_id, to: :equipment_id
+      then_set :name, to: :name
+      then_set :equipment_type, to: :equipment_type
+      then_set :brand, to: :brand
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+      then_set :status, to: "available"
+    end
+
+    SellEquipment do
+      role "SalesAssociate"
+      description "Complete an equipment sale"
+      reference_to(DiveEquipment)
+      given { quantity > 0 }
+      emits "EquipmentSold"
+    end
+
+    RetireEquipment do
+      role "Manager"
+      description "Remove worn-out equipment from service"
+      reference_to(DiveEquipment)
+      emits "EquipmentRetired"
+      then_set :status, to: "retired"
+    end
+  end
+
+  aggregate "DiverCertification", "A training course leading to a dive certification" do
+    String :cert_id
+    String :student_name
+    String :course_level
+    String :instructor_name
+    Integer :pool_sessions
+    Integer :open_water_dives
+    String :status
+
+    EnrollStudent do
+      role "Instructor"
+      description "Register a student for a certification course"
+      String :cert_id
+      String :student_name
+      String :course_level
+      String :instructor_name
+      Integer :pool_sessions
+      Integer :open_water_dives
+      emits "StudentEnrolled"
+      then_set :cert_id, to: :cert_id
+      then_set :student_name, to: :student_name
+      then_set :course_level, to: :course_level
+      then_set :instructor_name, to: :instructor_name
+      then_set :pool_sessions, to: :pool_sessions
+      then_set :open_water_dives, to: :open_water_dives
+      then_set :status, to: "enrolled"
+    end
+
+    CompleteCourse do
+      role "Instructor"
+      description "Certify the student after passing all requirements"
+      reference_to(DiverCertification)
+      given { status == "enrolled" }
+      emits "CourseCompleted"
+      then_set :status, to: "certified"
+    end
+
+    FailStudent do
+      role "Instructor"
+      description "Record that the student did not meet certification standards"
+      reference_to(DiverCertification)
+      given { status == "enrolled" }
+      emits "StudentFailed"
+      then_set :status, to: "failed"
+    end
+  end
+
+  aggregate "DiveTrip", "An organized group dive excursion" do
+    String :trip_id
+    String :destination
+    String :date
+    String :divemaster_name
+    Integer :max_divers
+    Float :price_per_diver
+    String :status
+
+    OrganizeTrip do
+      role "Manager"
+      description "Plan a dive trip with location, date, and divemaster"
+      String :trip_id
+      String :destination
+      String :date
+      String :divemaster_name
+      Integer :max_divers
+      Float :price_per_diver
+      emits "TripOrganized"
+      then_set :trip_id, to: :trip_id
+      then_set :destination, to: :destination
+      then_set :date, to: :date
+      then_set :divemaster_name, to: :divemaster_name
+      then_set :max_divers, to: :max_divers
+      then_set :price_per_diver, to: :price_per_diver
+      then_set :status, to: "open"
+    end
+
+    LaunchTrip do
+      role "Divemaster"
+      description "Depart on the dive trip"
+      reference_to(DiveTrip)
+      given { status == "open" }
+      emits "TripLaunched"
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteTrip do
+      role "Divemaster"
+      description "Return from the dive and log the trip as complete"
+      reference_to(DiveTrip)
+      given { status == "in_progress" }
+      emits "TripCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Tank", "A scuba air tank that requires periodic inspection and filling" do
+    String :tank_id
+    String :material
+    Float :volume_liters
+    String :last_hydro_date
+    String :next_hydro_date
+    String :status
+
+    RegisterTank do
+      role "Technician"
+      description "Add a tank to the shop's rental fleet"
+      String :tank_id
+      String :material
+      Float :volume_liters
+      String :last_hydro_date
+      String :next_hydro_date
+      emits "TankRegistered"
+      then_set :tank_id, to: :tank_id
+      then_set :material, to: :material
+      then_set :volume_liters, to: :volume_liters
+      then_set :last_hydro_date, to: :last_hydro_date
+      then_set :next_hydro_date, to: :next_hydro_date
+      then_set :status, to: "ready"
+    end
+
+    FillTank do
+      role "Technician"
+      description "Fill the tank with compressed air or nitrox"
+      reference_to(Tank)
+      given { status == "ready" }
+      emits "TankFilled"
+    end
+
+    HydroTestTank do
+      role "Technician"
+      description "Perform the required hydrostatic pressure test"
+      reference_to(Tank)
+      String :new_hydro_date
+      emits "TankHydroTested"
+      then_set :last_hydro_date, to: :new_hydro_date
+    end
+  end
+
+  aggregate "EquipmentMaintenance", "Scheduled or reactive servicing of dive gear" do
+    String :maintenance_id
+    String :equipment_id
+    String :issue_description
+    String :technician_name
+    Float :cost
+    String :status
+
+    OpenMaintenanceTicket do
+      role "Staff"
+      description "Log a piece of equipment that needs servicing"
+      String :maintenance_id
+      String :equipment_id
+      String :issue_description
+      String :technician_name
+      Float :cost
+      emits "MaintenanceTicketOpened"
+      then_set :maintenance_id, to: :maintenance_id
+      then_set :equipment_id, to: :equipment_id
+      then_set :issue_description, to: :issue_description
+      then_set :technician_name, to: :technician_name
+      then_set :cost, to: :cost
+      then_set :status, to: "open"
+    end
+
+    CompleteMaintenance do
+      role "Technician"
+      description "Finish the repair or service and return the gear to service"
+      reference_to(EquipmentMaintenance)
+      given { status == "open" }
+      emits "MaintenanceCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Lifecycle: enrolled → certified → trip organized → launched → completed → gear maintained
+  # Workflow: Enroll student → Complete course → Organize trip → Fill tanks → Launch → Complete → Maintain gear
+
+  policy "FillOnRegister" do
+    on "TankRegistered"
+    trigger "FillTank"
+  end
+
+  policy "OrganizeTripOnCertification" do
+    on "CourseCompleted"
+    trigger "OrganizeTrip"
+  end
+
+  policy "FillTanksOnTrip" do
+    on "TripOrganized"
+    trigger "FillTank"
+  end
+
+  policy "LaunchOnFill" do
+    on "TankFilled"
+    trigger "LaunchTrip"
+  end
+
+  policy "ServiceOnTrip" do
+    on "TripCompleted"
+    trigger "OpenMaintenanceTicket"
+  end
+
+  policy "HydroOnMaintenance" do
+    on "MaintenanceCompleted"
+    trigger "HydroTestTank"
+  end
+
+  policy "SellEquipmentOnCertification" do
+    on "CourseCompleted"
+    trigger "SellEquipment"
+  end
+
+  policy "RetireEquipmentOnMaintenance" do
+    on "MaintenanceCompleted"
+    trigger "RetireEquipment"
+  end
+end

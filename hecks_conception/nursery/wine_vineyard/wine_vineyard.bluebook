@@ -1,0 +1,284 @@
+Hecks.bluebook "WineVineyard" do
+  vision "Manage grapevines, vintage production, fermentation, bottling, and tasting notes"
+  category "agriculture"
+
+  aggregate "Vineyard", "A planted vineyard block with grape variety, rootstock, and vine density" do
+    String :block_name
+    String :grape_variety
+    String :rootstock
+    Float :acreage
+    Integer :vine_count
+    Integer :planted_year
+    String :status
+
+    value_object "TerrainProfile" do
+      Float :elevation_meters
+      String :aspect
+      String :soil_drainage
+      Float :slope_degrees
+    end
+
+    EstablishVineyard do
+      role "Viticulturist"
+      description "Plant a new vineyard block with selected grape variety and rootstock"
+      String :block_name
+      String :grape_variety
+      String :rootstock
+      Float :acreage
+      Integer :vine_count
+      Integer :planted_year
+      emits "VineyardEstablished"
+      then_set :block_name, to: :block_name
+      then_set :grape_variety, to: :grape_variety
+      then_set :rootstock, to: :rootstock
+      then_set :acreage, to: :acreage
+      then_set :vine_count, to: :vine_count
+      then_set :status, to: "growing"
+    end
+
+    PruneVines do
+      role "Viticulturist"
+      description "Perform seasonal pruning to manage canopy and yield"
+      reference_to(Vineyard)
+      String :pruning_style
+      given { status == "growing" }
+      emits "VinesPruned"
+    end
+
+    ReportDiseaseOutbreak do
+      role "Viticulturist"
+      description "Document a disease or pest infestation in the vineyard block"
+      reference_to(Vineyard)
+      String :disease_name
+      String :severity
+      emits "DiseaseReported"
+    end
+  end
+
+  aggregate "Vintage", "A single year's grape harvest and wine production run" do
+    Integer :year
+    String :grape_variety
+    Float :tons_harvested
+    Float :brix_at_harvest
+    Float :ph_at_harvest
+    String :status
+    reference_to(Vineyard)
+
+    value_object "HarvestConditions" do
+      Float :temperature_celsius
+      Float :humidity_percent
+      String :weather
+    end
+
+    HarvestGrapes do
+      role "Winemaker"
+      description "Pick grapes at optimal ripeness and record sugar and acid levels"
+      reference_to(Vineyard)
+      Integer :year
+      String :grape_variety
+      Float :tons_harvested
+      Float :brix_at_harvest
+      Float :ph_at_harvest
+      emits "GrapesHarvested"
+      then_set :year, to: :year
+      then_set :grape_variety, to: :grape_variety
+      then_set :tons_harvested, to: :tons_harvested
+      then_set :brix_at_harvest, to: :brix_at_harvest
+      then_set :ph_at_harvest, to: :ph_at_harvest
+      then_set :status, to: "harvested"
+    end
+
+    CrushGrapes do
+      role "Winemaker"
+      description "Destem and crush the harvested grapes for juice extraction"
+      reference_to(Vintage)
+      given { status == "harvested" }
+      emits "GrapesCrushed"
+      then_set :status, to: "crushed"
+    end
+
+    DeclassifyVintage do
+      role "Winemaker"
+      description "Downgrade a vintage due to quality issues"
+      reference_to(Vintage)
+      emits "VintageDeclassified"
+      then_set :status, to: "declassified"
+    end
+  end
+
+  aggregate "Fermentation", "The conversion of grape sugars to alcohol in a specific vessel" do
+    String :vessel_type
+    String :vessel_id
+    Float :volume_liters
+    Float :temperature_celsius
+    String :yeast_strain
+    Integer :days_elapsed
+    String :status
+    reference_to(Vintage)
+
+    value_object "FermentationReadings" do
+      Float :specific_gravity
+      Float :alcohol_percent
+      Float :residual_sugar
+    end
+
+    StartFermentation do
+      role "Winemaker"
+      description "Inoculate the must with yeast and begin fermentation in a vessel"
+      reference_to(Vintage)
+      String :vessel_type
+      String :vessel_id
+      Float :volume_liters
+      String :yeast_strain
+      Float :temperature_celsius
+      emits "FermentationStarted"
+      then_set :vessel_type, to: :vessel_type
+      then_set :vessel_id, to: :vessel_id
+      then_set :volume_liters, to: :volume_liters
+      then_set :yeast_strain, to: :yeast_strain
+      then_set :temperature_celsius, to: :temperature_celsius
+      then_set :status, to: "fermenting"
+    end
+
+    PunchDownCap do
+      role "CellarWorker"
+      description "Submerge the floating grape skin cap to extract color and tannin"
+      reference_to(Fermentation)
+      given { status == "fermenting" }
+      emits "CapPunchedDown"
+    end
+
+    RackWine do
+      role "Winemaker"
+      description "Transfer wine off the lees into a clean vessel for aging"
+      reference_to(Fermentation)
+      given { status == "fermenting" }
+      emits "WineRacked"
+      then_set :status, to: "aging"
+    end
+  end
+
+  aggregate "BottlingRun", "A production run that bottles, labels, and packages finished wine" do
+    Integer :bottle_count
+    String :bottle_date
+    String :label_name
+    Float :alcohol_percent
+    String :closure_type
+    String :status
+    reference_to(Fermentation)
+
+    BottleWine do
+      role "BottlingManager"
+      description "Fill bottles from the aging vessel and apply closures"
+      reference_to(Fermentation)
+      Integer :bottle_count
+      String :bottle_date
+      Float :alcohol_percent
+      String :closure_type
+      emits "WineBottled"
+      then_set :bottle_count, to: :bottle_count
+      then_set :bottle_date, to: :bottle_date
+      then_set :alcohol_percent, to: :alcohol_percent
+      then_set :closure_type, to: :closure_type
+      then_set :status, to: "bottled"
+    end
+
+    LabelBottles do
+      role "BottlingManager"
+      description "Apply front and back labels with vintage and varietal info"
+      reference_to(BottlingRun)
+      String :label_name
+      given { status == "bottled" }
+      emits "BottlesLabeled"
+      then_set :label_name, to: :label_name
+      then_set :status, to: "labeled"
+    end
+
+    ReleaseForSale do
+      role "Winemaker"
+      description "Approve the bottled wine for distribution and tasting room sales"
+      reference_to(BottlingRun)
+      given { status == "labeled" }
+      emits "WineReleased"
+      then_set :status, to: "released"
+    end
+  end
+
+  aggregate "TastingNote", "A professional evaluation of a wine's appearance, aroma, and palate" do
+    String :taster_name
+    String :tasting_date
+    Integer :score
+    String :appearance
+    String :nose
+    String :palate
+    String :finish
+    reference_to(BottlingRun)
+
+    value_object "AromaProfile" do
+      String :primary_aromas
+      String :secondary_aromas
+      String :tertiary_aromas
+    end
+
+    RecordTasting do
+      role "Sommelier"
+      description "Evaluate and score a wine on appearance, nose, palate, and finish"
+      reference_to(BottlingRun)
+      String :taster_name
+      Integer :score
+      String :appearance
+      String :nose
+      String :palate
+      String :finish
+      emits "TastingRecorded"
+      then_set :taster_name, to: :taster_name
+      then_set :score, to: :score
+      then_set :appearance, to: :appearance
+      then_set :nose, to: :nose
+      then_set :palate, to: :palate
+      then_set :finish, to: :finish
+    end
+
+    PublishReview do
+      role "Sommelier"
+      description "Make the tasting note publicly available for consumers"
+      reference_to(TastingNote)
+      emits "ReviewPublished"
+    end
+  end
+
+  policy "CrushOnHarvest" do
+    on "GrapesHarvested"
+    trigger "CrushGrapes"
+  end
+
+  policy "FermentOnCrush" do
+    on "GrapesCrushed"
+    trigger "StartFermentation"
+  end
+
+  policy "RackAfterFermentation" do
+    on "CapPunchedDown"
+    trigger "RackWine"
+  end
+
+  policy "BottleOnRack" do
+    on "WineRacked"
+    trigger "BottleWine"
+  end
+
+  policy "LabelOnBottle" do
+    on "WineBottled"
+    trigger "LabelBottles"
+  end
+
+  policy "ReleaseOnLabel" do
+    on "BottlesLabeled"
+    trigger "ReleaseForSale"
+  end
+
+  policy "TasteOnRelease" do
+    on "WineReleased"
+    trigger "RecordTasting"
+  end
+end

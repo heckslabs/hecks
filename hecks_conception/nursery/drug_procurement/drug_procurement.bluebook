@@ -1,0 +1,154 @@
+Hecks.bluebook "DrugProcurement", version: "2026.04.13.1" do
+  vision "Drug procurement — pharmacology compounds meet online bidding and supplier qualification"
+  category "healthcare_technology"
+
+  aggregate "Compound", "A pharmaceutical compound available for procurement" do
+    String :compound_id
+    String :name
+    String :formula
+    String :therapeutic_class
+    String :regulatory_status
+    RegisterCompound do
+      role "Pharmacologist"
+      description "Register a pharmaceutical compound in the procurement system"
+      String :compound_id
+      String :name
+      String :formula
+      String :therapeutic_class
+      emits "CompoundRegistered"
+      then_set :compound_id, to: :compound_id
+      then_set :name, to: :name
+      then_set :formula, to: :formula
+      then_set :therapeutic_class, to: :therapeutic_class
+      then_set :regulatory_status, to: "pending"
+    end
+    ClearCompound do
+      role "Regulator"
+      description "Clear the compound for procurement after regulatory review"
+      reference_to(Compound)
+      given { regulatory_status == "pending" }
+      emits "CompoundCleared"
+      then_set :regulatory_status, to: "cleared"
+    end
+  end
+
+  aggregate "BidRound", "An auction bid round for pharmaceutical procurement" do
+    String :round_id
+    String :compound_id
+    Float :reserve_price
+    list_of(Bid) :bids
+    String :status
+    value_object "Bid" do
+      String :supplier_id
+      Float :price
+      Float :quantity
+      String :delivery_days
+    end
+    OpenBidRound do
+      role "ProcurementOfficer"
+      description "Open a bidding round for a cleared compound"
+      String :round_id
+      String :compound_id
+      Float :reserve_price
+      emits "BidRoundOpened"
+      then_set :round_id, to: :round_id
+      then_set :compound_id, to: :compound_id
+      then_set :reserve_price, to: :reserve_price
+      then_set :status, to: "open"
+    end
+    PlaceBid do
+      role "Supplier"
+      description "Place a bid in the procurement auction"
+      reference_to(BidRound)
+      given { status == "open" }
+      emits "BidPlaced"
+    end
+    CloseBidRound do
+      role "ProcurementOfficer"
+      description "Close the bid round and select the winner"
+      reference_to(BidRound)
+      given { status == "open" }
+      emits "BidRoundClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "SupplierProfile", "A qualified pharmaceutical supplier" do
+    String :supplier_id
+    String :company_name
+    String :country
+    String :gmp_certified
+    Float :quality_score
+    String :status
+    list_of(Certification) :certifications
+    value_object "Certification" do
+      String :cert_type
+      String :issuer
+      String :expiry_date
+    end
+    QualifySupplier do
+      role "QualityAssurance"
+      description "Qualify a supplier after GMP audit and certification review"
+      String :supplier_id
+      String :company_name
+      String :country
+      String :gmp_certified
+      emits "SupplierQualified"
+      then_set :supplier_id, to: :supplier_id
+      then_set :company_name, to: :company_name
+      then_set :country, to: :country
+      then_set :gmp_certified, to: :gmp_certified
+      then_set :status, to: "qualified"
+    end
+    DisqualifySupplier do
+      role "QualityAssurance"
+      description "Disqualify a supplier after quality failure"
+      reference_to(SupplierProfile)
+      given { status == "qualified" }
+      emits "SupplierDisqualified"
+      then_set :status, to: "disqualified"
+    end
+  end
+
+  aggregate "PurchaseOrder", "A purchase order awarded to a winning bidder" do
+    String :order_id
+    String :round_id
+    String :supplier_id
+    Float :quantity
+    Float :total_price
+    String :status
+    AwardOrder do
+      role "ProcurementOfficer"
+      description "Award a purchase order to the winning bidder"
+      String :order_id
+      String :round_id
+      String :supplier_id
+      Float :quantity
+      Float :total_price
+      emits "OrderAwarded"
+      then_set :order_id, to: :order_id
+      then_set :round_id, to: :round_id
+      then_set :supplier_id, to: :supplier_id
+      then_set :quantity, to: :quantity
+      then_set :total_price, to: :total_price
+      then_set :status, to: "awarded"
+    end
+    ConfirmDelivery do
+      role "Warehouse"
+      description "Confirm delivery of the pharmaceutical order"
+      reference_to(PurchaseOrder)
+      given { status == "awarded" }
+      emits "DeliveryConfirmed"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "AwardOnClose" do
+    on "BidRoundClosed"
+    trigger "AwardOrder"
+  end
+  policy "BidOnClear" do
+    on "CompoundCleared"
+    trigger "OpenBidRound"
+  end
+end

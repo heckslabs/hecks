@@ -1,0 +1,207 @@
+Hecks.bluebook "PodcastProduction" do
+  aggregate "Show", "A podcast show with branding, format, and publishing schedule" do
+    String :title
+    String :category
+    String :format
+    String :status, default: "planning"
+    Integer :episode_count
+
+    value_object "ShowBranding" do
+      String :cover_art_url
+      String :intro_music
+      String :outro_music
+      String :tagline
+    end
+
+    LaunchShow do
+      description "Create a new podcast show with branding and format"
+      String :title
+      String :category
+      String :format
+      emits "ShowLaunched"
+    end
+
+    PublishShow do
+      description "Make the show live on podcast directories"
+      reference_to(Show)
+      given { status == "planning" }
+      emits "ShowPublished"
+      then_set :status, to: "published"
+    end
+
+    HiatusShow do
+      description "Put the show on seasonal hiatus"
+      reference_to(Show)
+      given { status == "published" }
+      emits "ShowOnHiatus"
+      then_set :status, to: "hiatus"
+    end
+  end
+
+  aggregate "Episode", "A single podcast episode from recording through release" do
+    String :title
+    Integer :episode_number
+    Integer :duration_seconds
+    String :status, default: "outlined"
+    reference_to(Show)
+
+    value_object "ShowNotes" do
+      String :summary
+      String :timestamps
+      String :links
+      String :transcript_url
+    end
+
+    OutlineEpisode do
+      description "Draft the episode outline and talking points"
+      reference_to(Show)
+      String :title
+      Integer :episode_number
+      emits "EpisodeOutlined"
+    end
+
+    RecordEpisode do
+      description "Capture the audio recording for an episode"
+      reference_to(Episode)
+      Integer :duration_seconds
+      given { status == "outlined" }
+      emits "EpisodeRecorded"
+      then_set :status, to: "recorded"
+      then_set :duration_seconds, to: :duration_seconds
+    end
+
+    MarkEdited do
+      description "Mark episode as edited after post-production is complete"
+      reference_to(Episode)
+      given { status == "recorded" }
+      emits "EpisodeEdited"
+      then_set :status, to: "edited"
+    end
+
+    ReleaseEpisode do
+      description "Publish the finished episode to the RSS feed"
+      reference_to(Episode)
+      given { status == "edited" }
+      emits "EpisodeReleased"
+      then_set :status, to: "released"
+    end
+  end
+
+  aggregate "Guest", "A guest booked for an interview episode" do
+    String :name
+    String :expertise
+    String :bio
+    String :status, default: "invited"
+    reference_to(Episode)
+
+    InviteGuest do
+      description "Send a guest invitation for an episode"
+      reference_to(Episode)
+      String :name
+      String :expertise
+      String :bio
+      emits "GuestInvited"
+    end
+
+    ConfirmGuest do
+      description "Confirm the guest has accepted the invitation"
+      reference_to(Guest)
+      given { status == "invited" }
+      emits "GuestConfirmed"
+      then_set :status, to: "confirmed"
+    end
+  end
+
+  aggregate "EditingSession", "Post-production audio editing and mixing" do
+    String :editor_name
+    String :status, default: "pending"
+    Integer :cuts_made
+    reference_to(Episode)
+
+    StartEditing do
+      description "Begin post-production editing on a recorded episode"
+      reference_to(Episode)
+      String :editor_name
+      emits "EditingStarted"
+    end
+
+    FinalizeEdit do
+      description "Complete editing and export the master audio file"
+      reference_to(EditingSession)
+      Integer :cuts_made
+      given { status == "pending" }
+      emits "EditFinalized"
+      then_set :status, to: "finalized"
+      then_set :cuts_made, to: :cuts_made
+    end
+  end
+
+  aggregate "DownloadMetric", "Analytics tracking downloads and listener engagement" do
+    Integer :download_count
+    Integer :unique_listeners
+    Float :completion_rate
+    String :period
+    reference_to(Episode)
+
+    RecordDownloads do
+      description "Log download metrics for an episode period"
+      reference_to(Episode)
+      Integer :download_count
+      Integer :unique_listeners
+      Float :completion_rate
+      String :period
+      emits "DownloadsRecorded"
+    end
+
+    GenerateReport do
+      description "Compile analytics into a summary report"
+      reference_to(DownloadMetric)
+      emits "ReportGenerated"
+    end
+  end
+
+  policy "OutlineOnShowLaunch" do
+    on "ShowPublished"
+    trigger "OutlineEpisode"
+  end
+
+  policy "InviteGuestOnOutline" do
+    on "EpisodeOutlined"
+    trigger "InviteGuest"
+  end
+
+  policy "RecordOnGuestConfirm" do
+    on "GuestConfirmed"
+    trigger "RecordEpisode"
+  end
+
+  policy "EditAfterRecording" do
+    on "EpisodeRecorded"
+    trigger "StartEditing"
+  end
+
+  policy "FinalizeOnEditStart" do
+    on "EditingStarted"
+    trigger "FinalizeEdit"
+  end
+
+  policy "MarkEditedOnFinalize" do
+    on "EditFinalized"
+    trigger "MarkEdited"
+  end
+
+  policy "ReleaseOnEdited" do
+    on "EpisodeEdited"
+    trigger "ReleaseEpisode"
+  end
+
+  policy "TrackDownloadsOnRelease" do
+    on "EpisodeReleased"
+    trigger "RecordDownloads"
+  end
+
+  policy "GenerateReportOnDownloads" do
+    on "DownloadsRecorded"
+    trigger "GenerateReport"
+  end
+end

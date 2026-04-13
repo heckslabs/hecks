@@ -1,0 +1,194 @@
+Hecks.bluebook "InmateEducation" do
+  vision "Cross-wire prison management with e-learning for structured inmate education and rehabilitation"
+  core
+
+  aggregate "Inmate" do
+    description "An incarcerated individual enrolled in education programs"
+    attribute :inmate_id
+    attribute :name
+    attribute :facility
+    attribute :education_level
+    attribute :certifications, list_of(Certification)
+    attribute :status, default: "enrolled"
+
+    value_object "Certification" do
+      attribute :cert_name
+      attribute :issued_date
+      attribute :issuing_body
+    end
+
+    command "EnrollInmate" do
+      role "CaseManager"
+      goal "Enroll an inmate in the education system"
+      attribute :inmate_id
+      attribute :name
+      attribute :facility
+      attribute :education_level
+    end
+
+    command "AwardCertification" do
+      role "Instructor"
+      goal "Award a certification upon course completion"
+      reference_to Inmate
+      attribute :cert_name
+      attribute :issued_date
+      attribute :issuing_body
+      given("max 20 certifications") { certifications.size < 20 }
+      then_set :certifications, append: { cert_name: :cert_name, issued_date: :issued_date, issuing_body: :issuing_body }
+    end
+  end
+
+  aggregate "Course" do
+    description "An e-learning course available to inmates"
+    attribute :course_name
+    attribute :subject
+    attribute :modules, list_of(CourseModule)
+    attribute :status, default: "draft"
+
+    value_object "CourseModule" do
+      attribute :module_name
+      attribute :content_type
+      attribute :duration_minutes, Integer
+      invariant "duration must be positive" do
+        duration_minutes > 0
+      end
+    end
+
+    command "CreateCourse" do
+      role "CurriculumDesigner"
+      goal "Create a new e-learning course"
+      attribute :course_name
+      attribute :subject
+    end
+
+    command "AddModule" do
+      role "CurriculumDesigner"
+      goal "Add a learning module"
+      reference_to Course
+      attribute :module_name
+      attribute :content_type
+      attribute :duration_minutes, Integer
+      given("max 20 modules") { modules.size < 20 }
+      then_set :modules, append: { module_name: :module_name, content_type: :content_type, duration_minutes: :duration_minutes }
+    end
+
+    command "PublishCourse" do
+      role "EducationDirector"
+      goal "Publish the course for enrollment"
+      reference_to Course
+      given("must have modules") { modules.size > 0 }
+    end
+  end
+
+  aggregate "Enrollment" do
+    description "An inmate enrollment in a specific course"
+    reference_to Inmate
+    reference_to Course
+    attribute :progress_pct, Float
+    attribute :assignments, list_of(Assignment)
+    attribute :status, default: "active"
+
+    value_object "Assignment" do
+      attribute :assignment_name
+      attribute :score, Float
+      attribute :submitted, default: false
+    end
+
+    command "RegisterEnrollment" do
+      role "CaseManager"
+      goal "Register inmate in a course"
+      reference_to Inmate
+      reference_to Course
+    end
+
+    command "SubmitAssignment" do
+      role "Inmate"
+      goal "Submit a course assignment"
+      reference_to Enrollment
+      attribute :assignment_name
+      attribute :score, Float
+      given("max 30 assignments") { assignments.size < 30 }
+      then_set :assignments, append: { assignment_name: :assignment_name, score: :score, submitted: true }
+    end
+
+    command "CompleteEnrollment" do
+      role "Instructor"
+      goal "Mark enrollment as completed"
+      reference_to Enrollment
+      given("must have assignments") { assignments.size > 0 }
+    end
+  end
+
+  aggregate "BehaviorRecord" do
+    description "Behavioral tracking linked to education participation"
+    reference_to Inmate
+    attribute :infractions, list_of(Infraction)
+    attribute :merits, list_of(Merit)
+    attribute :status, default: "active"
+
+    value_object "Infraction" do
+      attribute :infraction_type
+      attribute :severity
+      attribute :date
+    end
+
+    value_object "Merit" do
+      attribute :merit_type
+      attribute :description
+      attribute :date
+    end
+
+    command "RecordInfraction" do
+      role "CorrectionsOfficer"
+      goal "Record a behavioral infraction"
+      reference_to BehaviorRecord
+      attribute :infraction_type
+      attribute :severity
+      attribute :date
+      given("max 100 infractions") { infractions.size < 100 }
+      then_set :infractions, append: { infraction_type: :infraction_type, severity: :severity, date: :date }
+    end
+
+    command "AwardMerit" do
+      role "CaseManager"
+      goal "Award a behavioral merit for education participation"
+      reference_to BehaviorRecord
+      attribute :merit_type
+      attribute :description
+      attribute :date
+      given("max 100 merits") { merits.size < 100 }
+      then_set :merits, append: { merit_type: :merit_type, description: :description, date: :date }
+    end
+  end
+
+  policy "EnrollmentCompletedTriggersCert" do
+    on "EnrollmentCompleted"
+    trigger "AwardCertification"
+    map inmate_id: :inmate_id, cert_name: :course_name
+  end
+
+  policy "CoursePublishedTriggersEnrollment" do
+    on "CoursePublished"
+    trigger "RegisterEnrollment"
+    map course_id: :course_id
+  end
+
+  policy "CertificationAwardedTriggersMerit" do
+    on "CertificationAwarded"
+    trigger "AwardMerit"
+    map behavior_record_id: :behavior_record_id, merit_type: :cert_name
+  end
+
+  policy "InfractionRecordedTriggersReview" do
+    on "InfractionRecorded"
+    trigger "RegisterEnrollment"
+    map inmate_id: :inmate_id
+    condition { |event| event.infraction_type == "behavioral" }
+  end
+
+  policy "AssignmentSubmittedTriggersProgress" do
+    on "AssignmentSubmitted"
+    trigger "AwardMerit"
+    map behavior_record_id: :behavior_record_id, merit_type: :assignment_name
+  end
+end

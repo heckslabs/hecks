@@ -1,0 +1,145 @@
+Hecks.bluebook "ConnectedCare", version: "2026.04.13.1" do
+  vision "Connected care — home patients meet IoT sensors, real-time alerts, and caregiver dispatch"
+  category "healthcare_technology"
+
+  aggregate "HomePatient", "A home care patient monitored by connected sensors" do
+    String :patient_id
+    String :name
+    String :address
+    String :condition
+    String :primary_caregiver
+    String :status
+    EnrollPatient do
+      role "Coordinator"
+      description "Enroll a patient in the connected care program"
+      String :patient_id
+      String :name
+      String :address
+      String :condition
+      String :primary_caregiver
+      emits "PatientEnrolled"
+      then_set :patient_id, to: :patient_id
+      then_set :name, to: :name
+      then_set :address, to: :address
+      then_set :condition, to: :condition
+      then_set :primary_caregiver, to: :primary_caregiver
+      then_set :status, to: "enrolled"
+    end
+    DischargePatient do
+      role "Coordinator"
+      description "Discharge a patient from connected monitoring"
+      reference_to(HomePatient)
+      given { status == "enrolled" }
+      emits "PatientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "HomeSensor", "An IoT sensor deployed in a patient home" do
+    String :sensor_id
+    String :patient_id
+    String :sensor_type
+    String :location_room
+    Float :battery_pct
+    String :status
+    value_object "SensorReading" do
+      String :metric
+      Float :value
+      String :timestamp
+    end
+    DeploySensor do
+      role "Technician"
+      description "Deploy a sensor in a patient home"
+      String :sensor_id
+      String :patient_id
+      String :sensor_type
+      String :location_room
+      emits "SensorDeployed"
+      then_set :sensor_id, to: :sensor_id
+      then_set :patient_id, to: :patient_id
+      then_set :sensor_type, to: :sensor_type
+      then_set :location_room, to: :location_room
+      then_set :status, to: "active"
+    end
+    ReadSensor do
+      role "System"
+      description "Read current data from the home sensor"
+      reference_to(HomeSensor)
+      Float :battery_pct
+      emits "SensorDataRead"
+      then_set :battery_pct, to: :battery_pct
+    end
+  end
+
+  aggregate "CareAlert", "A real-time alert triggered by sensor anomaly" do
+    String :alert_id
+    String :patient_id
+    String :sensor_id
+    String :alert_type
+    String :severity
+    String :status
+    TriggerAlert do
+      role "System"
+      description "Trigger an alert when sensor detects anomaly"
+      String :alert_id
+      String :patient_id
+      String :sensor_id
+      String :alert_type
+      String :severity
+      emits "AlertTriggered"
+      then_set :alert_id, to: :alert_id
+      then_set :patient_id, to: :patient_id
+      then_set :sensor_id, to: :sensor_id
+      then_set :alert_type, to: :alert_type
+      then_set :severity, to: :severity
+      then_set :status, to: "open"
+    end
+    ResolveAlert do
+      role "Caregiver"
+      description "Resolve the alert after addressing the situation"
+      reference_to(CareAlert)
+      given { status == "open" }
+      emits "AlertResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "CaregiverDispatch", "A caregiver dispatched in response to an alert" do
+    String :dispatch_id
+    String :alert_id
+    String :caregiver_name
+    String :eta
+    String :status
+    DispatchCaregiver do
+      role "Coordinator"
+      description "Dispatch a caregiver to respond to patient alert"
+      String :dispatch_id
+      String :alert_id
+      String :caregiver_name
+      String :eta
+      emits "CaregiverDispatched"
+      then_set :dispatch_id, to: :dispatch_id
+      then_set :alert_id, to: :alert_id
+      then_set :caregiver_name, to: :caregiver_name
+      then_set :eta, to: :eta
+      then_set :status, to: "dispatched"
+    end
+    ConfirmArrival do
+      role "Caregiver"
+      description "Confirm arrival at patient home"
+      reference_to(CaregiverDispatch)
+      given { status == "dispatched" }
+      emits "ArrivalConfirmed"
+      then_set :status, to: "on_site"
+    end
+  end
+
+  policy "AlertOnSensor" do
+    on "SensorDataRead"
+    trigger "TriggerAlert"
+  end
+  policy "DispatchOnAlert" do
+    on "AlertTriggered"
+    trigger "DispatchCaregiver"
+  end
+end

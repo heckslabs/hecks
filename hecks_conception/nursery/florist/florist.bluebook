@@ -1,0 +1,248 @@
+Hecks.bluebook "Florist", version: "2026.04.13.1" do
+  vision "Operating a florist — designing arrangements, sourcing flowers, coordinating event orders, delivering bouquets, and managing subscriptions"
+  category "retail"
+
+  aggregate "Arrangement", "A designed floral piece — bouquet, centerpiece, or display" do
+    String :arrangement_id
+    String :name
+    String :style
+    Float :price
+    String :occasion
+    String :status
+    list_of(StemSelection) :stems
+
+    value_object "StemSelection" do
+      String :flower_name
+      Integer :count
+      String :color
+      String :role_in_design
+    end
+
+    DesignArrangement do
+      role "Designer"
+      description "Compose a new floral arrangement from selected stems"
+      String :arrangement_id
+      String :name
+      String :style
+      Float :price
+      String :occasion
+      emits "ArrangementDesigned"
+      then_set :arrangement_id, to: :arrangement_id
+      then_set :name, to: :name
+      then_set :style, to: :style
+      then_set :price, to: :price
+      then_set :occasion, to: :occasion
+      then_set :status, to: "designed"
+    end
+
+    AssembleArrangement do
+      role "Designer"
+      description "Physically build the arrangement from the design"
+      reference_to(Arrangement)
+      given { status == "designed" }
+      emits "ArrangementAssembled"
+      then_set :status, to: "assembled"
+    end
+  end
+
+  aggregate "Flower", "A type of bloom sourced from growers" do
+    String :flower_id
+    String :common_name
+    String :botanical_name
+    String :color
+    String :season
+    Integer :vase_life_days
+    Integer :quantity_on_hand
+
+    ReceiveFlowers do
+      role "Manager"
+      description "Accept a shipment of fresh flowers from a grower"
+      String :flower_id
+      String :common_name
+      String :botanical_name
+      String :color
+      String :season
+      Integer :vase_life_days
+      Integer :quantity_on_hand
+      emits "FlowersReceived"
+      then_set :flower_id, to: :flower_id
+      then_set :common_name, to: :common_name
+      then_set :botanical_name, to: :botanical_name
+      then_set :color, to: :color
+      then_set :season, to: :season
+      then_set :vase_life_days, to: :vase_life_days
+      then_set :quantity_on_hand, to: :quantity_on_hand
+    end
+
+    DiscardWiltedFlowers do
+      role "Staff"
+      description "Remove past-prime flowers from inventory"
+      reference_to(Flower)
+      Integer :quantity_discarded
+      emits "WiltedFlowersDiscarded"
+    end
+  end
+
+  aggregate "EventOrder", "A large floral order for a wedding, funeral, or celebration" do
+    String :order_id
+    String :customer_name
+    String :event_type
+    String :event_date
+    Float :budget
+    String :status
+    list_of(EventPiece) :pieces
+
+    value_object "EventPiece" do
+      String :arrangement_type
+      Integer :quantity
+      String :placement
+    end
+
+    PlaceEventOrder do
+      role "Customer"
+      description "Submit a floral order for a specific event"
+      String :order_id
+      String :customer_name
+      String :event_type
+      String :event_date
+      Float :budget
+      emits "EventOrderPlaced"
+      then_set :order_id, to: :order_id
+      then_set :customer_name, to: :customer_name
+      then_set :event_type, to: :event_type
+      then_set :event_date, to: :event_date
+      then_set :budget, to: :budget
+      then_set :status, to: "placed"
+    end
+
+    ConfirmEventOrder do
+      role "Manager"
+      description "Verify flower availability and confirm the order"
+      reference_to(EventOrder)
+      given { status == "placed" }
+      emits "EventOrderConfirmed"
+      then_set :status, to: "confirmed"
+    end
+  end
+
+  aggregate "FloralDelivery", "Transporting arrangements to a customer or venue" do
+    String :delivery_id
+    String :order_id
+    String :address
+    String :delivery_date
+    String :time_window
+    String :status
+
+    ScheduleDelivery do
+      role "Coordinator"
+      description "Book a delivery time and assign a driver"
+      String :delivery_id
+      String :order_id
+      String :address
+      String :delivery_date
+      String :time_window
+      emits "DeliveryScheduled"
+      then_set :delivery_id, to: :delivery_id
+      then_set :order_id, to: :order_id
+      then_set :address, to: :address
+      then_set :delivery_date, to: :delivery_date
+      then_set :time_window, to: :time_window
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteDelivery do
+      role "Driver"
+      description "Confirm the arrangement was delivered successfully"
+      reference_to(FloralDelivery)
+      given { status == "scheduled" }
+      emits "DeliveryCompleted"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Subscription", "A recurring flower delivery to a loyal customer" do
+    String :subscription_id
+    String :customer_name
+    String :frequency
+    String :arrangement_style
+    Float :price_per_delivery
+    String :status
+
+    StartSubscription do
+      role "Customer"
+      description "Sign up for regular flower deliveries"
+      String :subscription_id
+      String :customer_name
+      String :frequency
+      String :arrangement_style
+      Float :price_per_delivery
+      emits "SubscriptionStarted"
+      then_set :subscription_id, to: :subscription_id
+      then_set :customer_name, to: :customer_name
+      then_set :frequency, to: :frequency
+      then_set :arrangement_style, to: :arrangement_style
+      then_set :price_per_delivery, to: :price_per_delivery
+      then_set :status, to: "active"
+    end
+
+    PauseSubscription do
+      role "Customer"
+      description "Temporarily halt deliveries without canceling"
+      reference_to(Subscription)
+      given { status == "active" }
+      emits "SubscriptionPaused"
+      then_set :status, to: "paused"
+    end
+
+    CancelSubscription do
+      role "Customer"
+      description "Permanently end the subscription"
+      reference_to(Subscription)
+      emits "SubscriptionCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  # Lifecycle: ordered → confirmed → designed → assembled → delivered
+  # Workflow: Place event order → Confirm → Design arrangement → Assemble → Schedule delivery → Complete delivery → Discard wilted
+
+  policy "ConfirmOnOrder" do
+    on "EventOrderPlaced"
+    trigger "ConfirmEventOrder"
+  end
+
+  policy "DesignOnConfirm" do
+    on "EventOrderConfirmed"
+    trigger "DesignArrangement"
+  end
+
+  policy "AssembleOnDesign" do
+    on "ArrangementDesigned"
+    trigger "AssembleArrangement"
+  end
+
+  policy "DeliverOnAssemble" do
+    on "ArrangementAssembled"
+    trigger "ScheduleDelivery"
+  end
+
+  policy "CompleteOnSchedule" do
+    on "DeliveryScheduled"
+    trigger "CompleteDelivery"
+  end
+
+  policy "DiscardWiltedOnReceive" do
+    on "FlowersReceived"
+    trigger "DiscardWiltedFlowers"
+  end
+
+  policy "DesignOnSubscription" do
+    on "SubscriptionStarted"
+    trigger "DesignArrangement"
+  end
+
+  policy "ReceiveFlowersOnOrder" do
+    on "EventOrderConfirmed"
+    trigger "ReceiveFlowers"
+  end
+end

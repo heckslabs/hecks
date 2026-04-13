@@ -1,0 +1,271 @@
+Hecks.bluebook "HomeHealthCare" do
+  vision "In-home medical care — patients, caregivers, scheduled visits, medication management, and vital sign tracking"
+
+  aggregate "Patient", "A homebound individual receiving in-home medical care" do
+    String :name
+    String :address
+    String :primary_diagnosis
+    String :physician_name
+    String :status
+    list_of(Allergy) :allergies
+
+    value_object "Allergy" do
+      String :substance
+      String :reaction
+      String :severity
+    end
+
+    EnrollPatient do
+      role "Coordinator"
+      description "Add a patient to the home health care program"
+      String :name
+      String :address
+      String :primary_diagnosis
+      String :physician_name
+      emits "PatientEnrolled"
+      then_set :name, to: :name
+      then_set :address, to: :address
+      then_set :primary_diagnosis, to: :primary_diagnosis
+      then_set :physician_name, to: :physician_name
+      then_set :status, to: "enrolled"
+    end
+
+    ActivatePatient do
+      role "Coordinator"
+      description "Move patient to active status after care plan and caregiver assignment"
+      reference_to(Patient)
+      given("must be enrolled") { status == "enrolled" }
+      emits "PatientActivated"
+      then_set :status, to: "active"
+    end
+
+    RecordAllergy do
+      role "Nurse"
+      description "Document a known allergy for safety during medication administration"
+      reference_to(Patient)
+      String :substance
+      String :reaction
+      String :severity
+      emits "AllergyRecorded"
+    end
+
+    UnenrollPatient do
+      role "Coordinator"
+      description "Remove a patient from home health services"
+      reference_to(Patient)
+      emits "PatientUnenrolled"
+      then_set :status, to: "unenrolled"
+    end
+  end
+
+  aggregate "Caregiver", "A licensed health professional delivering care in the home" do
+    String :name
+    String :credential
+    String :phone
+    String :availability
+    Integer :max_visits_per_day
+
+    RegisterCaregiver do
+      role "Administrator"
+      description "Add a caregiver to the home health workforce"
+      String :name
+      String :credential
+      String :phone
+      String :availability
+      Integer :max_visits_per_day
+      emits "CaregiverRegistered"
+      then_set :name, to: :name
+      then_set :credential, to: :credential
+      then_set :phone, to: :phone
+      then_set :availability, to: :availability
+      then_set :max_visits_per_day, to: :max_visits_per_day
+    end
+
+    UpdateAvailability do
+      role "Caregiver"
+      description "Change the caregiver's schedule availability"
+      reference_to(Caregiver)
+      String :availability
+      emits "AvailabilityUpdated"
+      then_set :availability, to: :availability
+    end
+  end
+
+  aggregate "Visit", "A scheduled home visit by a caregiver to a patient" do
+    String :patient_name
+    String :caregiver_name
+    String :visit_date
+    String :visit_type
+    String :notes
+    String :status
+    reference_to Patient
+    reference_to Caregiver
+
+    ScheduleVisit do
+      role "Coordinator"
+      description "Book a home visit for a patient with an available caregiver"
+      reference_to(Patient)
+      reference_to(Caregiver)
+      String :patient_name
+      String :caregiver_name
+      String :visit_date
+      String :visit_type
+      emits "VisitScheduled"
+      then_set :patient_name, to: :patient_name
+      then_set :caregiver_name, to: :caregiver_name
+      then_set :visit_date, to: :visit_date
+      then_set :visit_type, to: :visit_type
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteVisit do
+      role "Caregiver"
+      description "Document visit completion with clinical notes"
+      reference_to(Visit)
+      String :notes
+      given("visit must be scheduled") { status == "scheduled" }
+      emits "VisitCompleted"
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+
+    CancelVisit do
+      role "Coordinator"
+      description "Cancel a scheduled home visit"
+      reference_to(Visit)
+      given("visit must be scheduled") { status == "scheduled" }
+      emits "VisitCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "Medication", "A prescribed medication administered during home visits" do
+    String :patient_name
+    String :drug_name
+    String :dosage
+    String :frequency
+    String :route
+    String :prescriber
+    String :status
+    reference_to Patient
+
+    PrescribeMedication do
+      role "Physician"
+      description "Order a medication for a home health patient"
+      reference_to(Patient)
+      String :patient_name
+      String :drug_name
+      String :dosage
+      String :frequency
+      String :route
+      String :prescriber
+      emits "MedicationPrescribed"
+      then_set :patient_name, to: :patient_name
+      then_set :drug_name, to: :drug_name
+      then_set :dosage, to: :dosage
+      then_set :frequency, to: :frequency
+      then_set :route, to: :route
+      then_set :prescriber, to: :prescriber
+      then_set :status, to: "active"
+    end
+
+    AdministerMedication do
+      role "Nurse"
+      description "Give the medication to the patient and document administration"
+      reference_to(Medication)
+      given("medication must be active") { status == "active" }
+      emits "MedicationAdministered"
+    end
+
+    DiscontinueMedication do
+      role "Physician"
+      description "Stop a medication order"
+      reference_to(Medication)
+      emits "MedicationDiscontinued"
+      then_set :status, to: "discontinued"
+    end
+  end
+
+  aggregate "VitalSign", "A physiological measurement taken during a home visit" do
+    String :patient_name
+    String :measurement_date
+    Integer :systolic
+    Integer :diastolic
+    Integer :heart_rate
+    Float :temperature
+    Integer :oxygen_saturation
+    String :alert_status
+    reference_to Patient
+
+    RecordVitals do
+      role "Nurse"
+      description "Capture vital signs during a home visit"
+      reference_to(Patient)
+      String :patient_name
+      String :measurement_date
+      Integer :systolic
+      Integer :diastolic
+      Integer :heart_rate
+      Float :temperature
+      Integer :oxygen_saturation
+      emits "VitalsRecorded"
+      then_set :patient_name, to: :patient_name
+      then_set :measurement_date, to: :measurement_date
+      then_set :systolic, to: :systolic
+      then_set :diastolic, to: :diastolic
+      then_set :heart_rate, to: :heart_rate
+      then_set :temperature, to: :temperature
+      then_set :oxygen_saturation, to: :oxygen_saturation
+      then_set :alert_status, to: "normal"
+    end
+
+    FlagAbnormalVitals do
+      role "System"
+      description "Alert when vital signs fall outside safe ranges"
+      reference_to(VitalSign)
+      emits "AbnormalVitalsFlagged"
+      then_set :alert_status, to: "abnormal"
+    end
+  end
+
+  # Workflow: Enroll → RecordAllergy → PrescribeMedication → ScheduleVisit → Activate → CompleteVisit → RecordVitals → FlagAbnormals → AdministerMeds
+  policy "RecordAllergyOnEnroll" do
+    on "PatientEnrolled"
+    trigger "RecordAllergy"
+  end
+
+  policy "PrescribeMedsOnEnroll" do
+    on "PatientEnrolled"
+    trigger "PrescribeMedication"
+  end
+
+  policy "ScheduleVisitOnPrescription" do
+    on "MedicationPrescribed"
+    trigger "ScheduleVisit"
+  end
+
+  policy "ActivateOnVisitScheduled" do
+    on "VisitScheduled"
+    trigger "ActivatePatient"
+  end
+
+  policy "RecordVitalsOnVisit" do
+    on "VisitCompleted"
+    trigger "RecordVitals"
+  end
+
+  policy "CheckVitalsOnRecord" do
+    on "VitalsRecorded"
+    trigger "FlagAbnormalVitals"
+  end
+
+  policy "AdministerMedsOnVisit" do
+    on "VisitCompleted"
+    trigger "AdministerMedication"
+  end
+
+  policy "ScheduleVisitOnAbnormal" do
+    on "AbnormalVitalsFlagged"
+    trigger "ScheduleVisit"
+  end
+end

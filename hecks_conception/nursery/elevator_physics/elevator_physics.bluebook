@@ -1,0 +1,339 @@
+Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
+  vision "Physics meets elevator maintenance — forces, cables, counterweights, load calculations, and safety systems"
+  category "crossover"
+
+  aggregate "ElevatorCar", "An elevator car — weight, capacity, current floor, motion state" do
+    String :car_id
+    Float :car_weight_kg
+    Float :max_load_kg
+    Float :current_load_kg
+    Integer :current_floor
+    String :status
+
+    value_object "MotionProfile" do
+      Float :acceleration_ms2
+      Float :max_velocity_ms
+      Float :jerk_ms3
+    end
+
+    InstallCar do
+      role "Engineer"
+      description "Install an elevator car with weight and capacity specifications"
+      String :car_id
+      Float :car_weight_kg
+      Float :max_load_kg
+      emits "CarInstalled"
+      then_set :car_id, to: :car_id
+      then_set :car_weight_kg, to: :car_weight_kg
+      then_set :max_load_kg, to: :max_load_kg
+      then_set :current_load_kg, to: 0.0
+      then_set :current_floor, to: 1
+      then_set :status, to: "idle"
+    end
+
+    LoadPassengers do
+      role "System"
+      description "Record passenger load entering the elevator"
+      reference_to(ElevatorCar)
+      Float :current_load_kg
+      given { status == "idle" }
+      emits "PassengersLoaded"
+      then_set :current_load_kg, to: :current_load_kg
+    end
+
+    MoveToFloor do
+      role "System"
+      description "Move elevator car to target floor"
+      reference_to(ElevatorCar)
+      Integer :current_floor
+      given { status == "idle" }
+      emits "CarMoved"
+      then_set :current_floor, to: :current_floor
+      then_set :status, to: "moving"
+    end
+
+    ArriveAtFloor do
+      role "System"
+      description "Elevator arrives at target floor and opens doors"
+      reference_to(ElevatorCar)
+      given { status == "moving" }
+      emits "CarArrived"
+      then_set :status, to: "idle"
+    end
+
+    EmergencyStop do
+      role "System"
+      description "Engage emergency brakes and stop the car"
+      reference_to(ElevatorCar)
+      given { status == "moving" }
+      emits "EmergencyStopped"
+      then_set :status, to: "emergency"
+    end
+
+    lifecycle :status, default: "uninstalled" do
+      transition "InstallCar" => "idle", from: "uninstalled"
+      transition "MoveToFloor" => "moving", from: "idle"
+      transition "ArriveAtFloor" => "idle", from: "moving"
+      transition "EmergencyStop" => "emergency", from: "moving"
+    end
+  end
+
+  aggregate "CableSystem", "Elevator cable system — material, diameter, safety factor, wear" do
+    String :cable_id
+    String :material
+    Float :diameter_mm
+    Float :breaking_strength_kn
+    Float :safety_factor
+    Float :wear_pct
+    String :status
+
+    value_object "TensionReading" do
+      Float :tension_kn
+      Float :timestamp_hours
+      String :measurement_point
+    end
+
+    InstallCable do
+      role "Engineer"
+      description "Install elevator cable with material specs and safety factor"
+      String :cable_id
+      String :material
+      Float :diameter_mm
+      Float :breaking_strength_kn
+      Float :safety_factor
+      emits "CableInstalled"
+      then_set :cable_id, to: :cable_id
+      then_set :material, to: :material
+      then_set :diameter_mm, to: :diameter_mm
+      then_set :breaking_strength_kn, to: :breaking_strength_kn
+      then_set :safety_factor, to: :safety_factor
+      then_set :wear_pct, to: 0.0
+      then_set :status, to: "active"
+    end
+
+    InspectCable do
+      role "Inspector"
+      description "Inspect cable for wear, fraying, and tension"
+      reference_to(CableSystem)
+      Float :wear_pct
+      given { status == "active" }
+      emits "CableInspected"
+      then_set :wear_pct, to: :wear_pct
+    end
+
+    ReplaceCable do
+      role "Engineer"
+      description "Replace cable that has exceeded wear limits"
+      reference_to(CableSystem)
+      given { status == "active" }
+      emits "CableReplaced"
+      then_set :wear_pct, to: 0.0
+      then_set :status, to: "replaced"
+    end
+
+    lifecycle :status, default: "uninstalled" do
+      transition "InstallCable" => "active", from: "uninstalled"
+      transition "ReplaceCable" => "replaced", from: "active"
+    end
+  end
+
+  aggregate "Counterweight", "Counterweight system — mass, balance ratio, adjustment" do
+    String :counterweight_id
+    Float :mass_kg
+    Float :balance_ratio
+    Float :car_weight_kg
+    String :status
+
+    value_object "ForceBalance" do
+      Float :car_side_force_n
+      Float :counterweight_force_n
+      Float :net_force_n
+      Float :motor_load_pct
+    end
+
+    ConfigureCounterweight do
+      role "Engineer"
+      description "Configure counterweight mass for optimal car balance"
+      String :counterweight_id
+      Float :mass_kg
+      Float :car_weight_kg
+      emits "CounterweightConfigured"
+      then_set :counterweight_id, to: :counterweight_id
+      then_set :mass_kg, to: :mass_kg
+      then_set :car_weight_kg, to: :car_weight_kg
+      then_set :status, to: "configured"
+    end
+
+    CalculateBalanceRatio do
+      role "System"
+      description "Calculate the balance ratio — counterweight vs car plus typical load"
+      reference_to(Counterweight)
+      Float :balance_ratio
+      given { status == "configured" }
+      emits "BalanceRatioCalculated"
+      then_set :balance_ratio, to: :balance_ratio
+    end
+
+    AdjustMass do
+      role "Engineer"
+      description "Add or remove counterweight blocks to optimize balance"
+      reference_to(Counterweight)
+      Float :mass_kg
+      given { status == "configured" }
+      emits "MassAdjusted"
+      then_set :mass_kg, to: :mass_kg
+    end
+
+    lifecycle :status, default: "unconfigured" do
+      transition "ConfigureCounterweight" => "configured", from: "unconfigured"
+    end
+  end
+
+  aggregate "LoadCalculation", "Physics-based load calculation — forces, tensions, motor requirements" do
+    String :calculation_id
+    Float :total_load_kg
+    Float :gravity_force_n
+    Float :cable_tension_n
+    Float :motor_torque_nm
+    Float :power_required_kw
+    String :status
+
+    value_object "ForceVector" do
+      Float :magnitude_n
+      String :direction
+      String :component
+    end
+
+    CalculateForces do
+      role "System"
+      description "Calculate gravitational and tension forces for current load"
+      String :calculation_id
+      Float :total_load_kg
+      emits "ForcesCalculated"
+      then_set :calculation_id, to: :calculation_id
+      then_set :total_load_kg, to: :total_load_kg
+      then_set :status, to: "calculated"
+    end
+
+    DetermineMotorRequirements do
+      role "System"
+      description "Compute motor torque and power needed for the load"
+      reference_to(LoadCalculation)
+      Float :motor_torque_nm
+      Float :power_required_kw
+      given { status == "calculated" }
+      emits "MotorRequirementsDetermined"
+      then_set :motor_torque_nm, to: :motor_torque_nm
+      then_set :power_required_kw, to: :power_required_kw
+      then_set :status, to: "motor_sized"
+    end
+
+    ValidateSafety do
+      role "System"
+      description "Verify all forces within safety margins"
+      reference_to(LoadCalculation)
+      given { status == "motor_sized" }
+      emits "SafetyValidated"
+      then_set :status, to: "validated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CalculateForces" => "calculated", from: "pending"
+      transition "DetermineMotorRequirements" => "motor_sized", from: "calculated"
+      transition "ValidateSafety" => "validated", from: "motor_sized"
+    end
+  end
+
+  aggregate "SafetyInspection", "Periodic safety inspection — brakes, cables, door sensors, compliance" do
+    String :inspection_id
+    String :elevator_id
+    String :inspector_name
+    String :inspection_date
+    String :findings
+    String :status
+
+    value_object "InspectionItem" do
+      String :component
+      String :condition
+      String :pass_fail
+    end
+
+    list_of "DeficiencyReport" do
+      String :component
+      String :deficiency
+      String :severity
+      String :corrective_action
+    end
+
+    ConductInspection do
+      role "Inspector"
+      description "Conduct comprehensive safety inspection"
+      String :inspection_id
+      String :elevator_id
+      String :inspector_name
+      String :inspection_date
+      emits "InspectionConducted"
+      then_set :inspection_id, to: :inspection_id
+      then_set :elevator_id, to: :elevator_id
+      then_set :inspector_name, to: :inspector_name
+      then_set :inspection_date, to: :inspection_date
+      then_set :status, to: "conducted"
+    end
+
+    RecordFindings do
+      role "Inspector"
+      description "Record inspection findings and deficiencies"
+      reference_to(SafetyInspection)
+      String :findings
+      given { status == "conducted" }
+      emits "FindingsRecorded"
+      then_set :findings, to: :findings
+      then_set :status, to: "reported"
+    end
+
+    CertifyElevator do
+      role "Inspector"
+      description "Certify elevator passes safety inspection"
+      reference_to(SafetyInspection)
+      given { status == "reported" }
+      emits "ElevatorCertified"
+      then_set :status, to: "certified"
+    end
+
+    lifecycle :status, default: "due" do
+      transition "ConductInspection" => "conducted", from: "due"
+      transition "RecordFindings" => "reported", from: "conducted"
+      transition "CertifyElevator" => "certified", from: "reported"
+    end
+  end
+
+  policy "CalculateOnLoad" do
+    on "PassengersLoaded"
+    trigger "CalculateForces"
+  end
+
+  policy "MotorOnForces" do
+    on "ForcesCalculated"
+    trigger "DetermineMotorRequirements"
+  end
+
+  policy "SafetyOnMotor" do
+    on "MotorRequirementsDetermined"
+    trigger "ValidateSafety"
+  end
+
+  policy "BalanceOnConfigure" do
+    on "CounterweightConfigured"
+    trigger "CalculateBalanceRatio"
+  end
+
+  policy "InspectCableOnMove" do
+    on "CarMoved"
+    trigger "InspectCable"
+  end
+
+  policy "RecordOnConduct" do
+    on "InspectionConducted"
+    trigger "RecordFindings"
+  end
+end

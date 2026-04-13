@@ -1,0 +1,204 @@
+Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
+  vision "Running a B&B — managing rooms, welcoming guests, preparing meals, collecting reviews, and tracking availability"
+  category "hospitality"
+
+  aggregate "GuestRoom", "A bookable room with its amenities and rate" do
+    String :room_id
+    String :name
+    String :room_type
+    Integer :max_guests
+    Float :nightly_rate
+    String :status
+    list_of(Amenity) :amenities
+
+    value_object "Amenity" do
+      String :name
+      String :description
+    end
+
+    PrepareRoom do
+      role "Housekeeper"
+      description "Clean and set up a room for the next guest"
+      String :room_id
+      String :name
+      String :room_type
+      Integer :max_guests
+      Float :nightly_rate
+      emits "RoomPrepared"
+      then_set :room_id, to: :room_id
+      then_set :name, to: :name
+      then_set :room_type, to: :room_type
+      then_set :max_guests, to: :max_guests
+      then_set :nightly_rate, to: :nightly_rate
+      then_set :status, to: "available"
+    end
+
+    OccupyRoom do
+      role "Host"
+      description "Check a guest into the room"
+      reference_to(GuestRoom)
+      given { status == "available" }
+      emits "RoomOccupied"
+      then_set :status, to: "occupied"
+    end
+
+    VacateRoom do
+      role "Host"
+      description "Check out the guest and mark the room for turnover"
+      reference_to(GuestRoom)
+      given { status == "occupied" }
+      emits "RoomVacated"
+      then_set :status, to: "needs_cleaning"
+    end
+  end
+
+  aggregate "GuestBooking", "A reservation made by a guest for one or more nights" do
+    String :booking_id
+    String :guest_name
+    String :guest_email
+    String :room_id
+    String :check_in_date
+    String :check_out_date
+    Integer :guests
+    Float :total_charge
+    String :status
+
+    MakeBooking do
+      role "Guest"
+      description "Reserve a room for specific dates"
+      String :booking_id
+      String :guest_name
+      String :guest_email
+      String :room_id
+      String :check_in_date
+      String :check_out_date
+      Integer :guests
+      Float :total_charge
+      emits "BookingMade"
+      then_set :booking_id, to: :booking_id
+      then_set :guest_name, to: :guest_name
+      then_set :guest_email, to: :guest_email
+      then_set :room_id, to: :room_id
+      then_set :check_in_date, to: :check_in_date
+      then_set :check_out_date, to: :check_out_date
+      then_set :guests, to: :guests
+      then_set :total_charge, to: :total_charge
+      then_set :status, to: "confirmed"
+    end
+
+    CancelBooking do
+      role "Guest"
+      description "Cancel the reservation before the check-in date"
+      reference_to(GuestBooking)
+      given { status == "confirmed" }
+      emits "BookingCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  aggregate "BreakfastMenu", "The morning meal offering for guests" do
+    String :menu_id
+    String :date
+    list_of(Course) :courses
+    String :status
+
+    value_object "Course" do
+      String :course_name
+      String :description
+      String :dietary_note
+    end
+
+    PlanBreakfast do
+      role "Chef"
+      description "Design the breakfast menu for a specific date"
+      String :menu_id
+      String :date
+      emits "BreakfastPlanned"
+      then_set :menu_id, to: :menu_id
+      then_set :date, to: :date
+      then_set :status, to: "planned"
+    end
+
+    ServeBreakfast do
+      role "Host"
+      description "Serve the morning meal to all checked-in guests"
+      reference_to(BreakfastMenu)
+      given { status == "planned" }
+      emits "BreakfastServed"
+      then_set :status, to: "served"
+    end
+  end
+
+  aggregate "GuestReview", "Feedback left by a guest after their stay" do
+    String :review_id
+    String :guest_name
+    String :booking_id
+    Integer :rating
+    String :comment
+    String :review_date
+
+    SubmitReview do
+      role "Guest"
+      description "Leave a rating and written feedback after checkout"
+      String :review_id
+      String :guest_name
+      String :booking_id
+      Integer :rating
+      String :comment
+      String :review_date
+      given { rating > 0 }
+      emits "ReviewSubmitted"
+      then_set :review_id, to: :review_id
+      then_set :guest_name, to: :guest_name
+      then_set :booking_id, to: :booking_id
+      then_set :rating, to: :rating
+      then_set :comment, to: :comment
+      then_set :review_date, to: :review_date
+    end
+
+    RespondToReview do
+      role "Host"
+      description "Post a public response to the guest's feedback"
+      reference_to(GuestReview)
+      emits "ReviewResponsePosted"
+    end
+  end
+
+  # Lifecycle: booking confirmed → room occupied → breakfast served → room vacated → cleaned → review
+  # Workflow: Book → Prepare room → Check in → Serve breakfast → Check out → Clean → Request review
+
+  policy "PrepareOnBooking" do
+    on "BookingMade"
+    trigger "PrepareRoom"
+  end
+
+  policy "CheckInOnPrepare" do
+    on "RoomPrepared"
+    trigger "OccupyRoom"
+  end
+
+  policy "ServeBreakfastOnCheckIn" do
+    on "RoomOccupied"
+    trigger "PlanBreakfast"
+  end
+
+  policy "ServeOnPlan" do
+    on "BreakfastPlanned"
+    trigger "ServeBreakfast"
+  end
+
+  policy "CleanOnVacate" do
+    on "RoomVacated"
+    trigger "PrepareRoom"
+  end
+
+  policy "ReviewOnCheckout" do
+    on "RoomVacated"
+    trigger "SubmitReview"
+  end
+
+  policy "RespondOnReview" do
+    on "ReviewSubmitted"
+    trigger "RespondToReview"
+  end
+end

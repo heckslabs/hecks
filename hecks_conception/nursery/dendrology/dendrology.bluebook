@@ -1,0 +1,179 @@
+Hecks.bluebook "Dendrology" do
+  vision "Catalog tree specimens, analyze growth rings, assess health, and maintain forest inventories"
+
+  aggregate "TreeSpecimen" do
+    description "An individual tree identified and tracked in the field"
+    String :specimen_id
+    String :species
+    String :common_name
+    Float :dbh_cm
+    Float :height_m
+    reference_to ForestInventory
+
+    value_object "CrownMetrics" do
+      Float :crown_spread_m
+      Float :crown_height_m
+      String :crown_class
+    end
+
+    command "TagTree" do
+      description "Attach an identification tag to a new specimen"
+      emits "TreeTagged"
+      String :specimen_id
+      String :species
+      Float :dbh_cm
+    end
+
+    command "MeasureGrowth" do
+      description "Record updated diameter and height measurements"
+      emits "GrowthMeasured"
+      reference_to TreeSpecimen
+      Float :new_dbh_cm
+      Float :new_height_m
+    end
+
+    command "FellTree" do
+      description "Mark a tree for removal and record reason"
+      emits "TreeFelled"
+      reference_to TreeSpecimen
+      String :reason
+      given "tree must be assessed for wildlife habitat"
+    end
+  end
+
+  aggregate "GrowthRingAnalysis" do
+    description "A dendrochronological study of annual growth rings in a core sample"
+    String :core_id
+    Integer :ring_count
+    Integer :estimated_age
+    Float :mean_ring_width_mm
+    reference_to TreeSpecimen
+
+    command "ExtractCore" do
+      description "Bore an increment core from the tree"
+      emits "CoreExtracted"
+      reference_to TreeSpecimen
+      String :core_id
+    end
+
+    command "CountRings" do
+      description "Analyze the core to count and measure rings"
+      emits "RingsCounted"
+      reference_to GrowthRingAnalysis
+      given "core must be sanded and polished"
+    end
+
+    command "CrossdateRings" do
+      description "Match ring patterns against a regional chronology"
+      emits "RingsCrossdated"
+      reference_to GrowthRingAnalysis
+    end
+  end
+
+  aggregate "HealthAssessment" do
+    description "An evaluation of a tree's structural and physiological condition"
+    String :assessment_date
+    String :assessor
+    String :vigor_rating
+    String :structural_defects
+    String :pest_signs
+    reference_to TreeSpecimen
+
+    command "AssessHealth" do
+      description "Perform a visual tree assessment"
+      emits "HealthAssessed"
+      reference_to TreeSpecimen
+      String :assessment_date
+      String :assessor
+    end
+
+    command "PrescribeTreatment" do
+      description "Recommend remedial action for a detected issue"
+      emits "TreatmentPrescribed"
+      reference_to HealthAssessment
+      String :treatment_type
+      given "assessment must identify at least one defect"
+    end
+
+    command "ScheduleFollowup" do
+      description "Set a date for re-evaluation"
+      emits "FollowupScheduled"
+      reference_to HealthAssessment
+      String :followup_date
+    end
+  end
+
+  aggregate "ForestInventory" do
+    description "A systematic census of trees within a defined plot"
+    String :plot_id
+    Float :area_hectares
+    Integer :tree_count
+    String :inventory_date
+    String :forest_type
+
+    command "InitiateInventory" do
+      description "Begin a new forest plot inventory"
+      emits "InventoryInitiated"
+      String :plot_id
+      Float :area_hectares
+      String :forest_type
+    end
+
+    command "TallySpecies" do
+      description "Record species composition and abundance"
+      emits "SpeciesTallied"
+      reference_to ForestInventory
+    end
+
+    command "CloseInventory" do
+      description "Finalize and submit the inventory data"
+      emits "InventoryClosed"
+      reference_to ForestInventory
+      given "all tagged trees must be measured"
+    end
+  end
+
+  lifecycle "TreeStudy" do
+    state "tagged"
+    state "cored"
+    state "dated"
+    state "health_assessed"
+    state "treatment_prescribed"
+    state "inventoried"
+    transition from: "tagged", to: "cored", on: "CoreExtracted"
+    transition from: "cored", to: "dated", on: "RingsCrossdated"
+    transition from: "dated", to: "health_assessed", on: "HealthAssessed"
+    transition from: "health_assessed", to: "treatment_prescribed", on: "TreatmentPrescribed"
+    transition from: "treatment_prescribed", to: "inventoried", on: "InventoryClosed"
+  end
+
+  policy "ExtractCoreAfterTag" do
+    on "TreeTagged"
+    trigger "ExtractCore"
+  end
+
+  policy "CountRingsAfterExtraction" do
+    on "CoreExtracted"
+    trigger "CountRings"
+  end
+
+  policy "CrossdateAfterCounting" do
+    on "RingsCounted"
+    trigger "CrossdateRings"
+  end
+
+  policy "AssessHealthAfterCrossdate" do
+    on "RingsCrossdated"
+    trigger "AssessHealth"
+  end
+
+  policy "PrescribeAfterAssessment" do
+    on "HealthAssessed"
+    trigger "PrescribeTreatment"
+  end
+
+  policy "FollowupAfterPrescription" do
+    on "TreatmentPrescribed"
+    trigger "ScheduleFollowup"
+  end
+end

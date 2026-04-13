@@ -1,0 +1,233 @@
+Hecks.bluebook "ArtisanMetalworks" do
+  vision "Cross-wire steel mill metallurgy with jewelry workshop artistry to produce bespoke metal art and wearable sculpture"
+  core
+
+  aggregate "Alloy" do
+    description "A steel alloy blend engineered for both structural and aesthetic properties"
+    attribute :name
+    attribute :carbon_content, Float
+    attribute :hardness, Float
+    attribute :finish_quality
+    attribute :compositions, list_of(Composition)
+
+    value_object "Composition" do
+      attribute :element
+      attribute :percentage, Float
+      invariant "percentage must be between 0 and 100" do
+        percentage >= 0 && percentage <= 100
+      end
+    end
+
+    command "FormulatAlloy" do
+      role "Metallurgist"
+      goal "Design a new alloy blend for artisan use"
+      attribute :name
+      attribute :carbon_content, Float
+      attribute :target_hardness, Float
+    end
+
+    command "AddElement" do
+      role "Metallurgist"
+      goal "Add a composition element to the alloy"
+      reference_to Alloy
+      attribute :element
+      attribute :percentage, Float
+      given("total percentage cannot exceed 100") { compositions.map(&:percentage).sum + percentage <= 100 }
+      then_set :compositions, append: { element: :element, percentage: :percentage }
+    end
+
+    query "ByHardness" do |min|
+      where(hardness: min)
+    end
+  end
+
+  aggregate "SmeltBatch" do
+    description "A production batch from the steel mill furnace"
+    reference_to Alloy
+    attribute :temperature, Float
+    attribute :volume_kg, Float
+    attribute :status, default: "charging"
+    attribute :quality_grade
+
+    value_object "HeatProfile" do
+      attribute :peak_temp, Float
+      attribute :hold_minutes, Integer
+      invariant "hold time must be positive" do
+        hold_minutes > 0
+      end
+    end
+
+    command "ChargeFurnace" do
+      role "Operator"
+      goal "Load raw materials into the furnace"
+      reference_to Alloy
+      attribute :volume_kg, Float
+    end
+
+    command "TapSmelt" do
+      role "Operator"
+      goal "Pour molten metal from the furnace"
+      reference_to SmeltBatch
+      given("must be at temperature") { temperature >= 1400 }
+    end
+
+    command "GradeBatch" do
+      role "QualityInspector"
+      goal "Assign quality grade after cooling"
+      reference_to SmeltBatch
+      attribute :quality_grade
+    end
+  end
+
+  aggregate "JewelryDesign" do
+    description "A wearable piece designed from artisan metals"
+    reference_to Alloy
+    attribute :title
+    attribute :style
+    attribute :gemstones, list_of(GemSetting)
+    attribute :status, default: "sketch"
+
+    value_object "GemSetting" do
+      attribute :gem_type
+      attribute :carat, Float
+      attribute :setting_style
+      invariant "carat must be positive" do
+        carat > 0
+      end
+    end
+
+    command "SketchDesign" do
+      role "Artisan"
+      goal "Create initial design concept for a jewelry piece"
+      attribute :title
+      attribute :style
+      reference_to Alloy
+    end
+
+    command "SetGem" do
+      role "Artisan"
+      goal "Add a gemstone setting to the design"
+      reference_to JewelryDesign
+      attribute :gem_type
+      attribute :carat, Float
+      attribute :setting_style
+      given("max 12 gem settings") { gemstones.size < 12 }
+      then_set :gemstones, append: { gem_type: :gem_type, carat: :carat, setting_style: :setting_style }
+    end
+
+    command "ApproveDesign" do
+      role "MasterArtisan"
+      goal "Approve the design for production"
+      reference_to JewelryDesign
+      given("must have at least one gem") { gemstones.size > 0 }
+    end
+  end
+
+  aggregate "CastingOrder" do
+    description "A production order that casts smelted metal into jewelry molds"
+    reference_to SmeltBatch
+    reference_to JewelryDesign
+    attribute :quantity, Integer
+    attribute :status, default: "pending"
+    attribute :defects, list_of(Defect)
+
+    value_object "Defect" do
+      attribute :defect_type
+      attribute :severity
+    end
+
+    command "CreateCastingOrder" do
+      role "ProductionManager"
+      goal "Schedule a casting run from smelted metal to jewelry molds"
+      reference_to SmeltBatch
+      reference_to JewelryDesign
+      attribute :quantity, Integer
+    end
+
+    command "CompleteCasting" do
+      role "Operator"
+      goal "Mark casting as finished"
+      reference_to CastingOrder
+    end
+
+    command "ReportDefect" do
+      role "QualityInspector"
+      goal "Log a defect found during inspection"
+      reference_to CastingOrder
+      attribute :defect_type
+      attribute :severity
+    end
+  end
+
+  aggregate "Showcase" do
+    description "A curated exhibition of finished artisan metalwork pieces"
+    attribute :name
+    attribute :venue
+    attribute :pieces, list_of(ShowcasePiece)
+    attribute :status, default: "planning"
+
+    value_object "ShowcasePiece" do
+      attribute :piece_title
+      attribute :price_cents, Integer
+      attribute :sold, default: false
+      invariant "price must be positive" do
+        price_cents > 0
+      end
+    end
+
+    command "PlanShowcase" do
+      role "GalleryManager"
+      goal "Create a new showcase event"
+      attribute :name
+      attribute :venue
+    end
+
+    command "AddPiece" do
+      role "GalleryManager"
+      goal "Add a finished piece to the showcase"
+      reference_to Showcase
+      attribute :piece_title
+      attribute :price_cents, Integer
+      given("max 50 pieces per showcase") { pieces.size < 50 }
+      then_set :pieces, append: { piece_title: :piece_title, price_cents: :price_cents }
+    end
+
+    command "SellPiece" do
+      role "GalleryManager"
+      goal "Mark a showcase piece as sold"
+      reference_to Showcase
+      attribute :piece_title
+    end
+  end
+
+  policy "BatchGradedTriggersDesignApproval" do
+    on "BatchGraded"
+    trigger "ApproveDesign"
+    map alloy_id: :alloy_id
+  end
+
+  policy "SmeltTappedTriggersCasting" do
+    on "SmeltTapped"
+    trigger "CreateCastingOrder"
+    map smelt_batch_id: :smelt_batch_id
+  end
+
+  policy "CastingCompletedTriggersShowcase" do
+    on "CastingCompleted"
+    trigger "AddPiece"
+    map piece_title: :design_title
+  end
+
+  policy "DesignApprovedTriggersCharge" do
+    on "DesignApproved"
+    trigger "ChargeFurnace"
+    map alloy_id: :alloy_id, volume_kg: :estimated_volume
+  end
+
+  policy "DefectReportedTriggersReSmelt" do
+    on "DefectReported"
+    trigger "ChargeFurnace"
+    map alloy_id: :alloy_id, volume_kg: :replacement_volume
+    condition { |event| event.severity == "critical" }
+  end
+end

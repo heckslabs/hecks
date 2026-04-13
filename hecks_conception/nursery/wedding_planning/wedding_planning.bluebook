@@ -1,0 +1,235 @@
+Hecks.bluebook "WeddingPlanning" do
+  vision "Coordinate wedding events, vendor contracts, budgets, timelines, and guest lists"
+  category "events"
+
+  aggregate "Wedding", "The central event with date, venue, theme, and overall status" do
+    String :couple_names
+    String :wedding_date
+    String :venue_name
+    String :theme
+    Integer :expected_guests
+    Float :total_budget
+    String :status
+
+    value_object "CeremonyDetails" do
+      String :ceremony_type
+      String :officiant
+      String :start_time
+      String :music_selection
+    end
+
+    PlanWedding do
+      role "WeddingPlanner"
+      description "Create a new wedding event with couple names, date, and budget"
+      String :couple_names
+      String :wedding_date
+      String :venue_name
+      Float :total_budget
+      Integer :expected_guests
+      emits "WeddingPlanned"
+      then_set :couple_names, to: :couple_names
+      then_set :wedding_date, to: :wedding_date
+      then_set :venue_name, to: :venue_name
+      then_set :total_budget, to: :total_budget
+      then_set :status, to: "planning"
+    end
+
+    FinalizeDetails do
+      role "WeddingPlanner"
+      description "Lock in all vendor contracts and finalize the timeline"
+      reference_to(Wedding)
+      given { status == "planning" }
+      emits "DetailFinalized"
+      then_set :status, to: "finalized"
+    end
+
+    CancelWedding do
+      role "Couple"
+      description "Cancel the wedding and notify all vendors"
+      reference_to(Wedding)
+      given { status != "completed" }
+      emits "WeddingCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "VendorContract", "An agreement with a vendor for catering, photography, florals, etc." do
+    String :vendor_name
+    String :service_type
+    Float :contract_amount
+    Float :deposit_paid
+    String :delivery_date
+    String :status
+    reference_to(Wedding)
+
+    value_object "PaymentSchedule" do
+      Float :deposit_amount
+      String :deposit_due_date
+      Float :final_payment
+      String :final_due_date
+    end
+
+    BookVendor do
+      role "WeddingPlanner"
+      description "Sign a contract with a vendor for a specific service"
+      reference_to(Wedding)
+      String :vendor_name
+      String :service_type
+      Float :contract_amount
+      Float :deposit_paid
+      emits "VendorBooked"
+      then_set :vendor_name, to: :vendor_name
+      then_set :service_type, to: :service_type
+      then_set :contract_amount, to: :contract_amount
+      then_set :deposit_paid, to: :deposit_paid
+      then_set :status, to: "booked"
+    end
+
+    PayVendor do
+      role "WeddingPlanner"
+      description "Record a payment made to the vendor"
+      reference_to(VendorContract)
+      Float :amount
+      given { status == "booked" }
+      emits "VendorPaid"
+    end
+
+    CancelVendor do
+      role "WeddingPlanner"
+      description "Terminate a vendor contract and process refund if applicable"
+      reference_to(VendorContract)
+      given { status == "booked" }
+      emits "VendorCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "BudgetLineItem", "A budget allocation for a specific wedding expense category" do
+    String :category
+    Float :allocated_amount
+    Float :spent_amount
+    String :notes
+    reference_to(Wedding)
+
+    AllocateBudget do
+      role "WeddingPlanner"
+      description "Set a budget amount for a specific expense category"
+      reference_to(Wedding)
+      String :category
+      Float :allocated_amount
+      emits "BudgetAllocated"
+      then_set :category, to: :category
+      then_set :allocated_amount, to: :allocated_amount
+      then_set :spent_amount, to: 0.0
+    end
+
+    RecordExpense do
+      role "WeddingPlanner"
+      description "Log an actual expenditure against a budget category"
+      reference_to(BudgetLineItem)
+      Float :amount
+      String :notes
+      emits "ExpenseRecorded"
+    end
+
+    AdjustBudget do
+      role "WeddingPlanner"
+      description "Increase or decrease the allocated amount for a category"
+      reference_to(BudgetLineItem)
+      Float :new_amount
+      emits "BudgetAdjusted"
+      then_set :allocated_amount, to: :new_amount
+    end
+  end
+
+  aggregate "GuestListEntry", "An invited guest with RSVP status, meal preference, and seating" do
+    String :guest_name
+    String :email
+    Integer :party_size
+    String :rsvp_status
+    String :meal_preference
+    String :table_assignment
+    reference_to(Wedding)
+
+    value_object "DietaryRestriction" do
+      String :restriction_type
+      String :severity
+      String :notes
+    end
+
+    InviteGuest do
+      role "Couple"
+      description "Add a guest to the wedding invitation list"
+      reference_to(Wedding)
+      String :guest_name
+      String :email
+      Integer :party_size
+      emits "GuestInvited"
+      then_set :guest_name, to: :guest_name
+      then_set :email, to: :email
+      then_set :party_size, to: :party_size
+      then_set :rsvp_status, to: "pending"
+    end
+
+    RecordRSVP do
+      role "Guest"
+      description "Record the guest's response to the invitation"
+      reference_to(GuestListEntry)
+      String :rsvp_status
+      String :meal_preference
+      given { rsvp_status == "pending" }
+      emits "RSVPRecorded"
+      then_set :rsvp_status, to: :rsvp_status
+      then_set :meal_preference, to: :meal_preference
+    end
+
+    AssignTable do
+      role "WeddingPlanner"
+      description "Assign the guest to a specific reception table"
+      reference_to(GuestListEntry)
+      String :table_assignment
+      emits "TableAssigned"
+      then_set :table_assignment, to: :table_assignment
+    end
+  end
+
+  policy "AllocateBudgetOnPlan" do
+    on "WeddingPlanned"
+    trigger "AllocateBudget"
+  end
+
+  policy "TrackBudgetOnVendorBooking" do
+    on "VendorBooked"
+    trigger "RecordExpense"
+  end
+
+  policy "UpdateBudgetOnPayment" do
+    on "VendorPaid"
+    trigger "RecordExpense"
+  end
+
+  policy "SendInvitationsOnFinalize" do
+    on "DetailFinalized"
+    trigger "InviteGuest"
+  end
+
+  policy "AssignTablesOnRSVP" do
+    on "RSVPRecorded"
+    trigger "AssignTable"
+  end
+
+  policy "CancelVendorsOnCancellation" do
+    on "WeddingCancelled"
+    trigger "CancelVendor"
+  end
+
+  policy "AllocateBudgetOnWeddingPlanned" do
+    on "WeddingPlanned"
+    trigger "AllocateBudget"
+  end
+
+  policy "BookVendorOnWeddingPlanned" do
+    on "WeddingPlanned"
+    trigger "BookVendor"
+  end
+end

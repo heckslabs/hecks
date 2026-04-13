@@ -1,0 +1,145 @@
+Hecks.bluebook "HealingGarden", version: "2026.04.13.1" do
+  vision "Healing garden — hospice comfort care meets therapeutic gardens and volunteer coordination"
+  category "healthcare_community"
+
+  aggregate "ComfortPlan", "A comfort care plan for a hospice patient" do
+    String :plan_id
+    String :patient_name
+    String :primary_nurse
+    list_of(Intervention) :interventions
+    String :status
+    value_object "Intervention" do
+      String :type
+      String :frequency
+      String :notes
+    end
+    CreateComfortPlan do
+      role "Nurse"
+      description "Create a comfort care plan for a hospice patient"
+      String :plan_id
+      String :patient_name
+      String :primary_nurse
+      emits "ComfortPlanCreated"
+      then_set :plan_id, to: :plan_id
+      then_set :patient_name, to: :patient_name
+      then_set :primary_nurse, to: :primary_nurse
+      then_set :status, to: "active"
+    end
+    UpdatePlan do
+      role "Nurse"
+      description "Update the comfort plan based on patient needs"
+      reference_to(ComfortPlan)
+      emits "PlanUpdated"
+    end
+  end
+
+  aggregate "GardenPlot", "A therapeutic garden plot maintained for patient healing" do
+    String :plot_id
+    String :garden_name
+    String :plant_type
+    String :therapeutic_purpose
+    String :season
+    String :status
+    PlantPlot do
+      role "Gardener"
+      description "Plant a therapeutic garden plot for patient engagement"
+      String :plot_id
+      String :garden_name
+      String :plant_type
+      String :therapeutic_purpose
+      String :season
+      emits "PlotPlanted"
+      then_set :plot_id, to: :plot_id
+      then_set :garden_name, to: :garden_name
+      then_set :plant_type, to: :plant_type
+      then_set :therapeutic_purpose, to: :therapeutic_purpose
+      then_set :season, to: :season
+      then_set :status, to: "growing"
+    end
+    HarvestPlot do
+      role "Gardener"
+      description "Harvest from the garden plot for patient meals or activities"
+      reference_to(GardenPlot)
+      given { status == "growing" }
+      emits "PlotHarvested"
+      then_set :status, to: "harvested"
+    end
+  end
+
+  aggregate "GardenVisit", "A patient visit to the therapeutic garden" do
+    String :visit_id
+    String :patient_name
+    String :plot_id
+    String :activity
+    Float :duration_minutes
+    String :mood_before
+    String :mood_after
+    LogGardenVisit do
+      role "Volunteer"
+      description "Log a patient visit to the therapeutic garden"
+      String :visit_id
+      String :patient_name
+      String :plot_id
+      String :activity
+      Float :duration_minutes
+      String :mood_before
+      emits "GardenVisitLogged"
+      then_set :visit_id, to: :visit_id
+      then_set :patient_name, to: :patient_name
+      then_set :plot_id, to: :plot_id
+      then_set :activity, to: :activity
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :mood_before, to: :mood_before
+    end
+    RecordMoodAfter do
+      role "Volunteer"
+      description "Record the patient mood after the garden visit"
+      reference_to(GardenVisit)
+      String :mood_after
+      emits "MoodRecorded"
+      then_set :mood_after, to: :mood_after
+    end
+  end
+
+  aggregate "VolunteerShift", "A volunteer shift for garden maintenance and patient accompaniment" do
+    String :shift_id
+    String :volunteer_name
+    String :garden_name
+    String :date
+    Float :hours
+    String :status
+    ScheduleShift do
+      role "Coordinator"
+      description "Schedule a volunteer shift at the healing garden"
+      String :shift_id
+      String :volunteer_name
+      String :garden_name
+      String :date
+      Float :hours
+      emits "ShiftScheduled"
+      then_set :shift_id, to: :shift_id
+      then_set :volunteer_name, to: :volunteer_name
+      then_set :garden_name, to: :garden_name
+      then_set :date, to: :date
+      then_set :hours, to: :hours
+      then_set :status, to: "scheduled"
+    end
+    CompleteShift do
+      role "Volunteer"
+      description "Mark volunteer shift as completed"
+      reference_to(VolunteerShift)
+      given { status == "scheduled" }
+      emits "ShiftCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "VisitOnPlant" do
+    on "PlotPlanted"
+    trigger "ScheduleShift"
+  end
+  policy "UpdatePlanOnMood" do
+    on "MoodRecorded"
+    trigger "UpdatePlan"
+  end
+end

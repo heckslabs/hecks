@@ -1,0 +1,244 @@
+Hecks.bluebook "RecordStore", version: "2026.04.13.1" do
+  vision "Running a record store — curating vinyl, tracking artists, organizing crates, operating listening stations, and fulfilling special orders"
+  category "retail"
+
+  aggregate "VinylRecord", "A physical record — LP, EP, or single — for sale" do
+    String :catalog_number
+    String :title
+    String :artist_name
+    String :genre
+    String :format
+    String :condition
+    Float :price
+    Integer :quantity
+    list_of(TrackListing) :tracks
+
+    value_object "TrackListing" do
+      Integer :track_number
+      String :title
+      String :duration
+      String :side
+    end
+
+    StockRecord do
+      role "Buyer"
+      description "Add a vinyl record to the store's inventory"
+      String :catalog_number
+      String :title
+      String :artist_name
+      String :genre
+      String :format
+      String :condition
+      Float :price
+      Integer :quantity
+      emits "RecordStocked"
+      then_set :catalog_number, to: :catalog_number
+      then_set :title, to: :title
+      then_set :artist_name, to: :artist_name
+      then_set :genre, to: :genre
+      then_set :format, to: :format
+      then_set :condition, to: :condition
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+    end
+
+    GradeRecord do
+      role "Staff"
+      description "Assess the physical condition of a used record"
+      reference_to(VinylRecord)
+      String :condition
+      emits "RecordGraded"
+      then_set :condition, to: :condition
+    end
+
+    SellRecord do
+      role "Cashier"
+      description "Complete a record sale at the register"
+      reference_to(VinylRecord)
+      given { quantity > 0 }
+      emits "RecordSold"
+    end
+  end
+
+  aggregate "Artist", "A musician or band whose records the store carries" do
+    String :artist_id
+    String :name
+    String :genre
+    String :biography
+    list_of(Discography) :discography
+
+    value_object "Discography" do
+      String :album_title
+      String :year
+      String :label
+    end
+
+    RegisterArtist do
+      role "Buyer"
+      description "Add an artist to the store's reference catalog"
+      String :artist_id
+      String :name
+      String :genre
+      String :biography
+      emits "ArtistRegistered"
+      then_set :artist_id, to: :artist_id
+      then_set :name, to: :name
+      then_set :genre, to: :genre
+      then_set :biography, to: :biography
+    end
+
+    FeatureArtist do
+      role "Manager"
+      description "Spotlight an artist with a dedicated display and staff picks"
+      reference_to(Artist)
+      emits "ArtistFeatured"
+    end
+  end
+
+  aggregate "Crate", "A physical browsing bin organized by genre, era, or theme" do
+    String :crate_id
+    String :label
+    String :location
+    Integer :capacity
+    Integer :current_count
+
+    SetupCrate do
+      role "Staff"
+      description "Create a new crate with a label and location on the floor"
+      String :crate_id
+      String :label
+      String :location
+      Integer :capacity
+      emits "CrateSetUp"
+      then_set :crate_id, to: :crate_id
+      then_set :label, to: :label
+      then_set :location, to: :location
+      then_set :capacity, to: :capacity
+      then_set :current_count, to: 0
+    end
+
+    FileRecord do
+      role "Staff"
+      description "Place a record into a crate in alphabetical order"
+      reference_to(Crate)
+      String :catalog_number
+      given { current_count < capacity }
+      emits "RecordFiled"
+    end
+  end
+
+  aggregate "ListeningStation", "A headphone station where customers preview records" do
+    String :station_id
+    String :turntable_model
+    String :current_record
+    String :status
+
+    ActivateStation do
+      role "Staff"
+      description "Power on a listening station and make it available"
+      String :station_id
+      String :turntable_model
+      emits "StationActivated"
+      then_set :station_id, to: :station_id
+      then_set :turntable_model, to: :turntable_model
+      then_set :status, to: "available"
+    end
+
+    LoadRecord do
+      role "Staff"
+      description "Put a record on the turntable for customer preview"
+      reference_to(ListeningStation)
+      String :current_record
+      given { status == "available" }
+      emits "RecordLoaded"
+      then_set :current_record, to: :current_record
+      then_set :status, to: "in_use"
+    end
+
+    FreeStation do
+      role "Staff"
+      description "Remove the record and make the station available again"
+      reference_to(ListeningStation)
+      emits "StationFreed"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "SpecialOrder", "A customer request for a record not currently in stock" do
+    String :order_id
+    String :customer_name
+    String :artist_name
+    String :album_title
+    String :format_requested
+    String :status
+
+    PlaceSpecialOrder do
+      role "Customer"
+      description "Request the store to source a specific record"
+      String :order_id
+      String :customer_name
+      String :artist_name
+      String :album_title
+      String :format_requested
+      emits "SpecialOrderPlaced"
+      then_set :order_id, to: :order_id
+      then_set :customer_name, to: :customer_name
+      then_set :artist_name, to: :artist_name
+      then_set :album_title, to: :album_title
+      then_set :format_requested, to: :format_requested
+      then_set :status, to: "pending"
+    end
+
+    FulfillSpecialOrder do
+      role "Buyer"
+      description "Source the record and notify the customer it has arrived"
+      reference_to(SpecialOrder)
+      given { status == "pending" }
+      emits "SpecialOrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+  end
+
+  # Lifecycle: stocked → graded → filed in crate → previewed → sold | special ordered → fulfilled
+  # Workflow: Stock record → Grade condition → File in crate → Load listening station → Sell → Free station → Fulfill special orders
+
+  policy "GradeOnStock" do
+    on "RecordStocked"
+    trigger "GradeRecord"
+  end
+
+  policy "FileOnGrade" do
+    on "RecordGraded"
+    trigger "FileRecord"
+  end
+
+  policy "LoadStationOnFile" do
+    on "RecordFiled"
+    trigger "LoadRecord"
+  end
+
+  policy "FreeStationOnSale" do
+    on "RecordSold"
+    trigger "FreeStation"
+  end
+
+  policy "FulfillSpecialOnStock" do
+    on "RecordStocked"
+    trigger "FulfillSpecialOrder"
+  end
+
+  policy "FeatureArtistOnStock" do
+    on "RecordStocked"
+    trigger "FeatureArtist"
+  end
+
+  policy "RegisterArtistOnStock" do
+    on "RecordStocked"
+    trigger "RegisterArtist"
+  end
+
+  policy "SetupCrateOnStock" do
+    on "RecordStocked"
+    trigger "SetupCrate"
+  end
+end

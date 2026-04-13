@@ -1,0 +1,117 @@
+Hecks.bluebook "GymReservations", version: "2026.04.13.1" do
+  vision "A gym reservation system — manage class schedules, member bookings, trainer availability, and capacity limits"
+
+  aggregate "ClassSchedule", "A recurring fitness class with time, trainer, and room" do
+    String :class_name
+    String :day_of_week
+    String :time_slot
+    String :trainer_name
+    String :room
+    Integer :capacity
+    Integer :enrolled
+
+    ScheduleClass do
+      description "Add a new class to the weekly timetable"
+      String :class_name
+      String :day_of_week
+      String :time_slot
+      String :trainer_name
+      String :room
+      Integer :capacity
+      given "capacity must be at least 5"
+      emits "ClassScheduled"
+    end
+
+    CancelClass do
+      description "Remove a class from the schedule and notify enrolled members"
+      reference_to(ClassSchedule)
+      emits "ClassCancelled"
+    end
+  end
+
+  aggregate "Booking", "A member's reservation for a specific class session" do
+    String :member_name
+    String :class_name
+    String :session_date
+    String :status
+
+    ReserveSpot do
+      description "Book a member into an upcoming class session"
+      String :member_name
+      String :class_name
+      String :session_date
+      given "class must not be full"
+      emits "SpotReserved"
+    end
+
+    CancelBooking do
+      description "Release a member's spot back to the class"
+      reference_to(Booking)
+      emits "BookingCancelled"
+    end
+
+    MarkAttended do
+      description "Check in a member when they arrive for class"
+      reference_to(Booking)
+      emits "AttendanceMarked"
+    end
+  end
+
+  aggregate "Trainer", "A fitness instructor with certifications and availability windows" do
+    String :name
+    String :specialization
+    list_of(Certification) :certifications
+    list_of(String) :available_days
+
+    value_object "Certification" do
+      String :name
+      String :issued_by
+      String :expires_on
+    end
+
+    RegisterTrainer do
+      description "Add a new trainer to the gym roster"
+      String :name
+      String :specialization
+      emits "TrainerRegistered"
+    end
+
+    UpdateAvailability do
+      description "Set which days a trainer can teach"
+      reference_to(Trainer)
+      list_of(String) :available_days
+      emits "AvailabilityUpdated"
+    end
+  end
+
+  aggregate "WaitList", "Members waiting for a spot in a full class" do
+    String :member_name
+    String :class_name
+    String :requested_date
+    Integer :position
+
+    JoinWaitList do
+      description "Add a member to the wait list when a class is full"
+      String :member_name
+      String :class_name
+      String :requested_date
+      emits "WaitListJoined"
+    end
+
+    PromoteFromWaitList do
+      description "Move the next person on the wait list into the class"
+      reference_to(WaitList)
+      emits "WaitListPromoted"
+    end
+  end
+
+  policy "WaitListOnCancel" do
+    on "BookingCancelled"
+    trigger "PromoteFromWaitList"
+  end
+
+  policy "UpdateCapacityOnReserve" do
+    on "SpotReserved"
+    trigger "UpdateAvailability"
+  end
+end

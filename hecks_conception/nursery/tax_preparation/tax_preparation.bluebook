@@ -1,0 +1,272 @@
+Hecks.bluebook "TaxPreparation" do
+  vision "Manage tax clients, return preparation, document collection, deduction optimization, and electronic filing"
+  category "finance"
+
+  aggregate "TaxClient", "A taxpayer with filing status, income sources, and contact info" do
+    String :first_name
+    String :last_name
+    String :ssn_last_four
+    String :filing_status
+    String :phone
+    String :email
+    String :status
+
+    value_object "IncomeSource" do
+      String :source_type
+      Float :amount
+      String :employer_name
+      String :ein
+    end
+
+    OnboardClient do
+      role "TaxPreparer"
+      description "Register a new tax client with their personal and filing info"
+      String :first_name
+      String :last_name
+      String :ssn_last_four
+      String :filing_status
+      String :phone
+      String :email
+      emits "ClientOnboarded"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :ssn_last_four, to: :ssn_last_four
+      then_set :filing_status, to: :filing_status
+      then_set :phone, to: :phone
+      then_set :status, to: "active"
+    end
+
+    UpdateFilingStatus do
+      role "TaxPreparer"
+      description "Change the client's filing status for the current tax year"
+      reference_to(TaxClient)
+      String :filing_status
+      emits "FilingStatusUpdated"
+      then_set :filing_status, to: :filing_status
+    end
+
+    ArchiveClient do
+      role "OfficeManager"
+      description "Move an inactive client to the archive after the retention period"
+      reference_to(TaxClient)
+      given { status == "active" }
+      emits "ClientArchived"
+      then_set :status, to: "archived"
+    end
+  end
+
+  aggregate "TaxReturn", "A federal or state tax return being prepared for a client" do
+    String :tax_year
+    String :return_type
+    Float :gross_income
+    Float :adjusted_gross_income
+    Float :taxable_income
+    Float :tax_owed
+    Float :refund_amount
+    String :status
+    reference_to(TaxClient)
+
+    value_object "TaxSummary" do
+      Float :federal_tax
+      Float :state_tax
+      Float :self_employment_tax
+      Float :credits_applied
+    end
+
+    StartReturn do
+      role "TaxPreparer"
+      description "Begin preparing a tax return for the specified year and type"
+      reference_to(TaxClient)
+      String :tax_year
+      String :return_type
+      emits "ReturnStarted"
+      then_set :tax_year, to: :tax_year
+      then_set :return_type, to: :return_type
+      then_set :status, to: "in_progress"
+    end
+
+    CalculateTax do
+      role "TaxPreparer"
+      description "Compute tax liability from income, deductions, and credits"
+      reference_to(TaxReturn)
+      Float :gross_income
+      Float :adjusted_gross_income
+      Float :taxable_income
+      Float :tax_owed
+      Float :refund_amount
+      given { status == "in_progress" }
+      emits "TaxCalculated"
+      then_set :gross_income, to: :gross_income
+      then_set :adjusted_gross_income, to: :adjusted_gross_income
+      then_set :taxable_income, to: :taxable_income
+      then_set :tax_owed, to: :tax_owed
+      then_set :refund_amount, to: :refund_amount
+    end
+
+    FinalizeReturn do
+      role "TaxPreparer"
+      description "Mark the return as ready for client review and signature"
+      reference_to(TaxReturn)
+      given { status == "in_progress" }
+      emits "ReturnFinalized"
+      then_set :status, to: "finalized"
+    end
+  end
+
+  aggregate "TaxDocument", "A supporting document collected from the client for their return" do
+    String :document_type
+    String :issuer
+    String :tax_year
+    String :received_date
+    String :status
+    reference_to(TaxClient)
+
+    CollectDocument do
+      role "TaxPreparer"
+      description "Record receipt of a W-2, 1099, or other tax document"
+      reference_to(TaxClient)
+      String :document_type
+      String :issuer
+      String :tax_year
+      emits "DocumentCollected"
+      then_set :document_type, to: :document_type
+      then_set :issuer, to: :issuer
+      then_set :tax_year, to: :tax_year
+      then_set :status, to: "received"
+    end
+
+    VerifyDocument do
+      role "TaxPreparer"
+      description "Confirm the document data matches IRS records"
+      reference_to(TaxDocument)
+      given { status == "received" }
+      emits "DocumentVerified"
+      then_set :status, to: "verified"
+    end
+
+    RequestMissingDocument do
+      role "TaxPreparer"
+      description "Notify the client that a required document is missing"
+      reference_to(TaxClient)
+      String :document_type
+      String :issuer
+      emits "MissingDocumentRequested"
+      then_set :status, to: "requested"
+    end
+  end
+
+  aggregate "Deduction", "A tax deduction or credit claimed on the return" do
+    String :deduction_type
+    String :category
+    Float :amount
+    String :documentation_status
+    reference_to(TaxReturn)
+
+    ClaimDeduction do
+      role "TaxPreparer"
+      description "Add a deduction or credit to the return with supporting amount"
+      reference_to(TaxReturn)
+      String :deduction_type
+      String :category
+      Float :amount
+      emits "DeductionClaimed"
+      then_set :deduction_type, to: :deduction_type
+      then_set :category, to: :category
+      then_set :amount, to: :amount
+      then_set :documentation_status, to: "pending"
+    end
+
+    SubstantiateDeduction do
+      role "TaxPreparer"
+      description "Attach supporting documentation to justify the deduction"
+      reference_to(Deduction)
+      given { documentation_status == "pending" }
+      emits "DeductionSubstantiated"
+      then_set :documentation_status, to: "substantiated"
+    end
+
+    DisallowDeduction do
+      role "TaxPreparer"
+      description "Remove a deduction that does not meet IRS eligibility rules"
+      reference_to(Deduction)
+      emits "DeductionDisallowed"
+      then_set :documentation_status, to: "disallowed"
+    end
+  end
+
+  aggregate "ElectronicFiling", "The electronic submission of a completed tax return to the IRS" do
+    String :confirmation_number
+    String :filed_date
+    String :accepted_date
+    String :status
+    reference_to(TaxReturn)
+
+    FileElectronically do
+      role "TaxPreparer"
+      description "Transmit the finalized return to the IRS via e-file"
+      reference_to(TaxReturn)
+      String :filed_date
+      emits "ReturnEFiled"
+      then_set :filed_date, to: :filed_date
+      then_set :status, to: "transmitted"
+    end
+
+    ReceiveAcceptance do
+      role "System"
+      description "Record the IRS acceptance confirmation and tracking number"
+      reference_to(ElectronicFiling)
+      String :confirmation_number
+      String :accepted_date
+      given { status == "transmitted" }
+      emits "FilingAccepted"
+      then_set :confirmation_number, to: :confirmation_number
+      then_set :accepted_date, to: :accepted_date
+      then_set :status, to: "accepted"
+    end
+
+    HandleRejection do
+      role "TaxPreparer"
+      description "Address IRS rejection by correcting errors and resubmitting"
+      reference_to(ElectronicFiling)
+      String :rejection_reason
+      given { status == "transmitted" }
+      emits "FilingRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  policy "CollectDocsOnOnboard" do
+    on "ClientOnboarded"
+    trigger "CollectDocument"
+  end
+
+  policy "StartReturnOnDocuments" do
+    on "DocumentVerified"
+    trigger "StartReturn"
+  end
+
+  policy "ClaimDeductionsOnStart" do
+    on "ReturnStarted"
+    trigger "ClaimDeduction"
+  end
+
+  policy "CalculateOnSubstantiation" do
+    on "DeductionSubstantiated"
+    trigger "CalculateTax"
+  end
+
+  policy "FinalizeOnCalculation" do
+    on "TaxCalculated"
+    trigger "FinalizeReturn"
+  end
+
+  policy "FileOnFinalize" do
+    on "ReturnFinalized"
+    trigger "FileElectronically"
+  end
+
+  policy "CorrectOnRejection" do
+    on "FilingRejected"
+    trigger "StartReturn"
+  end
+end

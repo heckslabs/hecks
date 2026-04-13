@@ -1,0 +1,210 @@
+Hecks.bluebook "RestaurantReservations" do
+  vision "Manage restaurant table reservations, waitlists, seatings, and party management"
+  category "hospitality"
+
+  aggregate "DiningTable", "A physical table in the restaurant with capacity and location" do
+    String :table_number
+    Integer :seat_capacity
+    String :section
+    String :status
+
+    value_object "TableConfiguration" do
+      String :shape
+      Integer :min_guests
+      Integer :max_guests
+      String :wheelchair_accessible
+    end
+
+    SetupTable do
+      role "HostManager"
+      description "Register a new dining table with its capacity and section"
+      String :table_number
+      Integer :seat_capacity
+      String :section
+      emits "TableSetup"
+      then_set :table_number, to: :table_number
+      then_set :seat_capacity, to: :seat_capacity
+      then_set :section, to: :section
+      then_set :status, to: "available"
+    end
+
+    MarkOccupied do
+      role "Host"
+      description "Mark a table as currently occupied by a seated party"
+      reference_to(DiningTable)
+      given { status == "available" }
+      emits "TableOccupied"
+      then_set :status, to: "occupied"
+    end
+
+    ClearTable do
+      role "Busser"
+      description "Clear and reset a table after guests depart"
+      reference_to(DiningTable)
+      given { status == "occupied" }
+      emits "TableCleared"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Reservation", "A confirmed booking for a party at a specific date and time" do
+    String :guest_name
+    String :phone_number
+    String :reservation_date
+    String :time_slot
+    Integer :party_size
+    String :special_requests
+    String :status
+    reference_to(DiningTable)
+
+    value_object "ContactInfo" do
+      String :phone
+      String :email
+      String :preferred_contact
+    end
+
+    BookReservation do
+      role "Host"
+      description "Create a new reservation for a guest party"
+      String :guest_name
+      String :phone_number
+      String :reservation_date
+      String :time_slot
+      Integer :party_size
+      String :special_requests
+      emits "ReservationBooked"
+      then_set :guest_name, to: :guest_name
+      then_set :phone_number, to: :phone_number
+      then_set :reservation_date, to: :reservation_date
+      then_set :time_slot, to: :time_slot
+      then_set :party_size, to: :party_size
+      then_set :status, to: "confirmed"
+    end
+
+    CancelReservation do
+      role "Host"
+      description "Cancel an existing reservation before the time slot"
+      reference_to(Reservation)
+      given { status == "confirmed" }
+      emits "ReservationCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    MarkNoShow do
+      role "Host"
+      description "Record that a guest did not arrive for their reservation"
+      reference_to(Reservation)
+      given { status == "confirmed" }
+      emits "GuestNoShow"
+      then_set :status, to: "no_show"
+    end
+  end
+
+  aggregate "Waitlist", "Queue of walk-in parties waiting for available tables" do
+    String :party_name
+    Integer :party_size
+    String :quoted_wait_time
+    String :status
+    Integer :position
+
+    value_object "WaitEstimate" do
+      Integer :minutes
+      String :confidence
+    end
+
+    AddToWaitlist do
+      role "Host"
+      description "Place a walk-in party on the waitlist with estimated wait time"
+      String :party_name
+      Integer :party_size
+      String :quoted_wait_time
+      emits "PartyWaitlisted"
+      then_set :party_name, to: :party_name
+      then_set :party_size, to: :party_size
+      then_set :quoted_wait_time, to: :quoted_wait_time
+      then_set :status, to: "waiting"
+    end
+
+    NotifyParty do
+      role "Host"
+      description "Alert a waiting party that their table is ready"
+      reference_to(Waitlist)
+      given { status == "waiting" }
+      emits "PartyNotified"
+      then_set :status, to: "notified"
+    end
+
+    RemoveFromWaitlist do
+      role "Host"
+      description "Remove a party that left before being seated"
+      reference_to(Waitlist)
+      emits "PartyRemovedFromWaitlist"
+      then_set :status, to: "removed"
+    end
+  end
+
+  aggregate "Seating", "The act of assigning a party to a table and tracking their dining session" do
+    String :server_name
+    String :seated_at
+    String :status
+    Integer :covers
+    reference_to(DiningTable)
+    reference_to(Reservation)
+
+    SeatParty do
+      role "Host"
+      description "Assign a party to a specific table and begin their dining session"
+      reference_to(DiningTable)
+      String :server_name
+      Integer :covers
+      emits "PartySeated"
+      then_set :server_name, to: :server_name
+      then_set :covers, to: :covers
+      then_set :status, to: "seated"
+    end
+
+    CloseSeating do
+      role "Server"
+      description "End a dining session after the party departs"
+      reference_to(Seating)
+      given { status == "seated" }
+      emits "SeatingClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  policy "SeatOnNotification" do
+    on "PartyNotified"
+    trigger "SeatParty"
+  end
+
+  policy "OccupyOnSeat" do
+    on "PartySeated"
+    trigger "MarkOccupied"
+  end
+
+  policy "ClearOnClose" do
+    on "SeatingClosed"
+    trigger "ClearTable"
+  end
+
+  policy "NotifyOnAvailability" do
+    on "TableCleared"
+    trigger "NotifyParty"
+  end
+
+  policy "WaitlistOnNoShow" do
+    on "GuestNoShow"
+    trigger "NotifyParty"
+  end
+
+  policy "SetupTableOnReservationBooked" do
+    on "ReservationBooked"
+    trigger "SetupTable"
+  end
+
+  policy "AddToWaitlistOnTableOccupied" do
+    on "TableOccupied"
+    trigger "AddToWaitlist"
+  end
+end

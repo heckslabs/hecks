@@ -1,0 +1,166 @@
+Hecks.bluebook "Pharmacology" do
+  vision "Manage drug compounds, clinical trials, dosage regimens, adverse events, and regulatory approvals"
+
+  aggregate "Compound" do
+    description "A chemical substance being evaluated as a potential drug"
+    String :compound_id
+    String :name
+    String :molecular_formula
+    Float :molecular_weight
+    String :mechanism_of_action
+
+    value_object "PharmacokineticsProfile" do
+      Float :half_life_hours
+      Float :bioavailability_percent
+      Float :clearance_ml_min
+      String :route_of_administration
+    end
+
+    command "RegisterCompound" do
+      description "Enter a new compound into the drug pipeline"
+      emits "CompoundRegistered"
+      String :compound_id
+      String :name
+      String :molecular_formula
+    end
+
+    command "ScreenCompound" do
+      description "Run in-vitro screening assays on the compound"
+      emits "CompoundScreened"
+      reference_to Compound
+      given "compound must have structure data"
+    end
+
+    command "ShelveCompound" do
+      description "Halt development of a compound"
+      emits "CompoundShelved"
+      reference_to Compound
+    end
+  end
+
+  aggregate "ClinicalTrial" do
+    description "A controlled study testing a compound in human subjects"
+    String :trial_id
+    String :phase
+    Integer :enrollment_target
+    Integer :enrolled_count
+    String :start_date
+    reference_to Compound
+
+    command "InitiateTrial" do
+      description "Open enrollment for a new clinical trial"
+      emits "TrialInitiated"
+      reference_to Compound
+      String :trial_id
+      String :phase
+      Integer :enrollment_target
+    end
+
+    command "EnrollSubject" do
+      description "Add a participant to the trial"
+      emits "SubjectEnrolled"
+      reference_to ClinicalTrial
+      String :subject_id
+      given "trial must not be at enrollment capacity"
+    end
+
+    command "ConcludeTrial" do
+      description "Close the trial and lock the database"
+      emits "TrialConcluded"
+      reference_to ClinicalTrial
+    end
+  end
+
+  aggregate "AdverseEvent" do
+    description "An unwanted medical occurrence during a trial"
+    String :event_id
+    String :description
+    String :severity
+    String :causality_assessment
+    reference_to ClinicalTrial
+
+    command "ReportEvent" do
+      description "File an adverse event report"
+      emits "EventReported"
+      reference_to ClinicalTrial
+      String :description
+      String :severity
+    end
+
+    command "AssessCausality" do
+      description "Determine if the event is drug-related"
+      emits "CausalityAssessed"
+      reference_to AdverseEvent
+      String :assessment
+      given "event must be medically reviewed"
+    end
+  end
+
+  aggregate "RegulatorySubmission" do
+    description "A formal application to a regulatory body for drug approval"
+    String :submission_id
+    String :agency
+    String :submission_type
+    String :status
+    reference_to Compound
+
+    command "FileSubmission" do
+      description "Submit a regulatory dossier to the agency"
+      emits "SubmissionFiled"
+      reference_to Compound
+      String :agency
+      String :submission_type
+    end
+
+    command "GrantApproval" do
+      description "Record regulatory approval of the drug"
+      emits "ApprovalGranted"
+      reference_to RegulatorySubmission
+      given "submission must include trial results"
+    end
+  end
+
+  lifecycle "DrugDevelopmentPipeline" do
+    state "discovery"
+    state "preclinical"
+    state "clinical_trial"
+    state "regulatory_review"
+    state "approved"
+    state "post_market"
+    transition from: "discovery", to: "preclinical", on: "CompoundScreened"
+    transition from: "preclinical", to: "clinical_trial", on: "TrialInitiated"
+    transition from: "clinical_trial", to: "regulatory_review", on: "TrialConcluded"
+    transition from: "regulatory_review", to: "approved", on: "ApprovalGranted"
+    transition from: "approved", to: "post_market", on: "SubmissionFiled"
+  end
+
+  policy "ScreenAfterRegistration" do
+    on "CompoundRegistered"
+    trigger "ScreenCompound"
+  end
+
+  policy "TrialAfterScreening" do
+    on "CompoundScreened"
+    trigger "InitiateTrial"
+  end
+
+  policy "ReviewAfterAdverseEvent" do
+    on "EventReported"
+    trigger "AssessCausality"
+  end
+
+  policy "SubmitAfterTrialConcludes" do
+    on "TrialConcluded"
+    trigger "FileSubmission"
+  end
+
+  policy "ApproveAfterSubmission" do
+    on "SubmissionFiled"
+    trigger "GrantApproval"
+  end
+
+  policy "EnrollSubjectOnTrialInitiated" do
+    on "TrialInitiated"
+    trigger "EnrollSubject"
+  end
+end

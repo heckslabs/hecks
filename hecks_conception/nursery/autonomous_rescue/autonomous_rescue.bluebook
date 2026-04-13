@@ -1,0 +1,357 @@
+Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
+  vision "Robots that navigate collapsed buildings, map survivors, deliver supplies, and recharge themselves"
+  category "crossover_gen2"
+
+  # === RescueMission ===
+
+  aggregate "RescueMission", "A disaster rescue operation — the top-level coordination of drones, bots, and survivors" do
+    String :incident_name
+    String :incident_type
+    String :location
+    String :status
+    Integer :survivors_found
+    list_of(MissionPhase) :phases
+
+    value_object "MissionPhase" do
+      String :phase_name
+      String :status
+      String :started_at
+      String :completed_at
+    end
+
+    LaunchMission do
+      role "IncidentCommander"
+      description "Launch a rescue mission at a disaster site"
+      String :incident_name
+      String :incident_type
+      String :location
+      emits "MissionLaunched"
+      then_set :incident_name, to: :incident_name
+      then_set :incident_type, to: :incident_type
+      then_set :location, to: :location
+      then_set :survivors_found, to: 0
+      then_set :status, to: "active"
+    end
+
+    EscalateMission do
+      role "IncidentCommander"
+      description "Escalate mission priority — more resources needed"
+      reference_to(RescueMission)
+      given { status == "active" }
+      emits "MissionEscalated"
+    end
+
+    ConcludeMission do
+      role "IncidentCommander"
+      description "All survivors extracted, area secured — mission complete"
+      reference_to(RescueMission)
+      given { status == "active" }
+      emits "MissionConcluded"
+      then_set :status, to: "concluded"
+    end
+
+    lifecycle :status, default: "planning" do
+      transition "LaunchMission" => "active", from: "planning"
+      transition "ConcludeMission" => "concluded", from: "active"
+    end
+  end
+
+  # === SearchDrone ===
+
+  aggregate "SearchDrone", "An autonomous aerial drone — thermal imaging, structural scanning, survivor detection" do
+    String :drone_id
+    String :status
+    Float :battery_percent
+    reference_to(RescueMission) :mission
+    list_of(ScanResult) :scans
+
+    value_object "ScanResult" do
+      String :scan_type
+      Float :latitude
+      Float :longitude
+      String :finding
+      String :confidence
+    end
+
+    DeployDrone do
+      role "System"
+      description "Deploy a search drone to scan a sector of the disaster site"
+      String :drone_id
+      reference_to(RescueMission) :mission
+      emits "DroneDeployed"
+      then_set :drone_id, to: :drone_id
+      then_set :mission, to: :mission
+      then_set :battery_percent, to: 100.0
+      then_set :status, to: "searching"
+    end
+
+    DetectSurvivor do
+      role "System"
+      description "Thermal signature or audio detected — possible survivor located"
+      reference_to(SearchDrone)
+      Float :latitude
+      Float :longitude
+      String :confidence
+      given { status == "searching" }
+      emits "SurvivorDetected"
+    end
+
+    ReportBatteryLow do
+      role "System"
+      description "Drone battery below operational threshold — needs landing"
+      reference_to(SearchDrone)
+      given { status == "searching" }
+      emits "DroneBatteryLow"
+      then_set :status, to: "returning"
+    end
+
+    RecallDrone do
+      role "IncidentCommander"
+      description "Recall drone from active search for redeployment or recharge"
+      reference_to(SearchDrone)
+      emits "DroneRecalled"
+      then_set :status, to: "returning"
+    end
+
+    lifecycle :status, default: "standby" do
+      transition "DeployDrone" => "searching", from: "standby"
+      transition "ReportBatteryLow" => "returning", from: "searching"
+      transition "RecallDrone" => "returning", from: "searching"
+    end
+  end
+
+  # === SupplyBot ===
+
+  aggregate "SupplyBot", "An autonomous ground robot — navigates debris to deliver water, meds, and comms to trapped survivors" do
+    String :bot_id
+    String :payload_type
+    Float :battery_percent
+    String :status
+    reference_to(SurvivorBeacon) :target_beacon
+    list_of(NavigationLog) :nav_log
+
+    value_object "NavigationLog" do
+      String :timestamp
+      Float :x_position
+      Float :y_position
+      String :obstacle_detected
+      String :action_taken
+    end
+
+    DeploySupplyBot do
+      role "System"
+      description "Deploy a supply bot toward a detected survivor location"
+      String :bot_id
+      String :payload_type
+      reference_to(SurvivorBeacon) :target_beacon
+      emits "SupplyBotDeployed"
+      then_set :bot_id, to: :bot_id
+      then_set :payload_type, to: :payload_type
+      then_set :target_beacon, to: :target_beacon
+      then_set :battery_percent, to: 100.0
+      then_set :status, to: "en_route"
+    end
+
+    DeliverSupplies do
+      role "System"
+      description "Bot reaches survivor — supplies delivered"
+      reference_to(SupplyBot)
+      given { status == "en_route" }
+      emits "SuppliesDelivered"
+      then_set :status, to: "delivered"
+    end
+
+    ReportBotBatteryLow do
+      role "System"
+      description "Bot battery critically low — needs charging station"
+      reference_to(SupplyBot)
+      emits "BotBatteryLow"
+      then_set :status, to: "returning"
+    end
+
+    ReturnToBase do
+      role "System"
+      description "Bot returns to charging station or staging area"
+      reference_to(SupplyBot)
+      emits "BotReturnedToBase"
+      then_set :status, to: "at_base"
+    end
+
+    lifecycle :status, default: "standby" do
+      transition "DeploySupplyBot" => "en_route", from: "standby"
+      transition "DeliverSupplies" => "delivered", from: "en_route"
+      transition "ReportBotBatteryLow" => "returning", from: "en_route"
+      transition "ReturnToBase" => "at_base", from: "returning"
+    end
+  end
+
+  # === SurvivorBeacon ===
+
+  aggregate "SurvivorBeacon", "A detected survivor signal — location, status, and rescue priority" do
+    Float :latitude
+    Float :longitude
+    String :detection_method
+    String :status
+    String :rescue_priority
+    reference_to(RescueMission) :mission
+
+    CreateBeacon do
+      role "System"
+      description "Mark a survivor detection with location and confidence"
+      Float :latitude
+      Float :longitude
+      String :detection_method
+      String :rescue_priority
+      reference_to(RescueMission) :mission
+      emits "BeaconCreated"
+      then_set :latitude, to: :latitude
+      then_set :longitude, to: :longitude
+      then_set :detection_method, to: :detection_method
+      then_set :rescue_priority, to: :rescue_priority
+      then_set :mission, to: :mission
+      then_set :status, to: "active"
+    end
+
+    ConfirmSurvivor do
+      role "Rescuer"
+      description "Ground team confirms survivor presence at beacon location"
+      reference_to(SurvivorBeacon)
+      given { status == "active" }
+      emits "SurvivorConfirmed"
+      then_set :status, to: "confirmed"
+    end
+
+    ExtractSurvivor do
+      role "Rescuer"
+      description "Survivor extracted from debris and moved to safety"
+      reference_to(SurvivorBeacon)
+      given { status == "confirmed" }
+      emits "SurvivorExtracted"
+      then_set :status, to: "extracted"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CreateBeacon" => "active", from: "pending"
+      transition "ConfirmSurvivor" => "confirmed", from: "active"
+      transition "ExtractSurvivor" => "extracted", from: "confirmed"
+    end
+  end
+
+  # === ChargingStation ===
+
+  aggregate "ChargingStation", "An autonomous charging station — keeps drones and bots operational throughout the mission" do
+    String :station_id
+    String :location
+    Integer :charging_slots
+    Integer :slots_available
+    String :status
+
+    DeployStation do
+      role "IncidentCommander"
+      description "Set up a mobile charging station at the disaster site"
+      String :station_id
+      String :location
+      Integer :charging_slots
+      emits "StationDeployed"
+      then_set :station_id, to: :station_id
+      then_set :location, to: :location
+      then_set :charging_slots, to: :charging_slots
+      then_set :slots_available, to: :charging_slots
+      then_set :status, to: "operational"
+    end
+
+    RouteToCharger do
+      role "System"
+      description "Route a low-battery bot or drone to the nearest charging station"
+      reference_to(ChargingStation)
+      given { slots_available > 0 }
+      emits "UnitRoutedToCharger"
+      then_set :status, to: "charging"
+    end
+
+    CompleteCharge do
+      role "System"
+      description "Unit fully charged and released back to mission"
+      reference_to(ChargingStation)
+      emits "ChargingComplete"
+      then_set :status, to: "operational"
+    end
+  end
+
+  # === DebrisMap ===
+
+  aggregate "DebrisMap", "A real-time 3D map of the disaster site — built from drone scans, updated as debris shifts" do
+    reference_to(RescueMission) :mission
+    String :map_version
+    String :status
+    Integer :sectors_mapped
+    list_of(DebrisSector) :sectors
+
+    value_object "DebrisSector" do
+      String :sector_id
+      String :stability_rating
+      String :access_route
+      Integer :survivor_count
+    end
+
+    InitializeMap do
+      role "System"
+      description "Create the initial debris map from first drone scan"
+      reference_to(RescueMission) :mission
+      emits "MapInitialized"
+      then_set :mission, to: :mission
+      then_set :map_version, to: "1"
+      then_set :sectors_mapped, to: 0
+      then_set :status, to: "active"
+    end
+
+    UpdateMap do
+      role "System"
+      description "Incorporate new scan data into the debris map"
+      reference_to(DebrisMap)
+      Integer :sectors_mapped
+      emits "MapUpdated"
+      then_set :sectors_mapped, to: :sectors_mapped
+    end
+
+    FlagUnstableSector do
+      role "System"
+      description "Mark a sector as structurally unstable — bots must reroute"
+      reference_to(DebrisMap)
+      String :sector_id
+      emits "UnstableSectorFlagged"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "DeployBotOnSurvivor" do
+    on "SurvivorDetected"
+    trigger "DeploySupplyBot"
+  end
+
+  policy "RouteToChargerOnBotLow" do
+    on "BotBatteryLow"
+    trigger "RouteToCharger"
+  end
+
+  policy "RouteToChargerOnDroneLow" do
+    on "DroneBatteryLow"
+    trigger "RouteToCharger"
+  end
+
+  policy "CreateBeaconOnDetection" do
+    on "SurvivorDetected"
+    trigger "CreateBeacon"
+  end
+
+  policy "UpdateMapOnDeploy" do
+    on "DroneDeployed"
+    trigger "InitializeMap"
+  end
+
+  policy "UpdateMapOnScan" do
+    on "SurvivorDetected"
+    trigger "UpdateMap"
+  end
+end

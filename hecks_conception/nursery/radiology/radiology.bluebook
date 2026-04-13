@@ -1,0 +1,258 @@
+Hecks.bluebook "Radiology" do
+  vision "Diagnostic imaging services — patients, scan orders, radiologist reports, equipment management, and referral coordination"
+
+  aggregate "Patient", "A person undergoing diagnostic imaging" do
+    String :name
+    String :date_of_birth
+    String :allergies
+    String :pregnancy_status
+    String :status
+
+    RegisterPatient do
+      role "Technologist"
+      description "Check in a patient for their imaging appointment"
+      String :name
+      String :date_of_birth
+      String :allergies
+      String :pregnancy_status
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :allergies, to: :allergies
+      then_set :pregnancy_status, to: :pregnancy_status
+      then_set :status, to: "checked_in"
+    end
+
+    ScreenForContraindications do
+      role "Technologist"
+      description "Verify no contraindications exist before imaging"
+      reference_to(Patient)
+      emits "ScreeningCompleted"
+    end
+  end
+
+  aggregate "ScanOrder", "A physician order for a diagnostic imaging study" do
+    String :patient_name
+    String :ordering_physician
+    String :modality
+    String :body_part
+    String :clinical_indication
+    String :urgency
+    String :status
+    reference_to Patient
+
+    PlaceScanOrder do
+      role "Physician"
+      description "Order a diagnostic imaging study for a patient"
+      reference_to(Patient)
+      String :patient_name
+      String :ordering_physician
+      String :modality
+      String :body_part
+      String :clinical_indication
+      String :urgency
+      emits "ScanOrderPlaced"
+      then_set :patient_name, to: :patient_name
+      then_set :ordering_physician, to: :ordering_physician
+      then_set :modality, to: :modality
+      then_set :body_part, to: :body_part
+      then_set :clinical_indication, to: :clinical_indication
+      then_set :urgency, to: :urgency
+      then_set :status, to: "ordered"
+    end
+
+    PerformScan do
+      role "Technologist"
+      description "Execute the imaging study per protocol"
+      reference_to(ScanOrder)
+      given("must be ordered") { status == "ordered" }
+      emits "ScanPerformed"
+      then_set :status, to: "completed"
+    end
+
+    CancelScanOrder do
+      role "Physician"
+      description "Cancel a scan order before it is performed"
+      reference_to(ScanOrder)
+      given("must be ordered") { status == "ordered" }
+      emits "ScanOrderCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "RadiologyReport", "A diagnostic interpretation of imaging findings by a radiologist" do
+    String :patient_name
+    String :modality
+    String :findings
+    String :impression
+    String :radiologist_name
+    String :report_date
+    String :status
+    reference_to Patient
+    reference_to ScanOrder
+
+    value_object "CriticalFinding" do
+      String :finding
+      String :urgency
+      String :communicated_to
+      String :communication_time
+    end
+
+    DraftReport do
+      role "Radiologist"
+      description "Write the initial interpretation of the imaging study"
+      reference_to(Patient)
+      reference_to(ScanOrder)
+      String :patient_name
+      String :modality
+      String :findings
+      String :impression
+      String :radiologist_name
+      String :report_date
+      emits "ReportDrafted"
+      then_set :patient_name, to: :patient_name
+      then_set :modality, to: :modality
+      then_set :findings, to: :findings
+      then_set :impression, to: :impression
+      then_set :radiologist_name, to: :radiologist_name
+      then_set :report_date, to: :report_date
+      then_set :status, to: "draft"
+    end
+
+    FinalizeReport do
+      role "Radiologist"
+      description "Sign and finalize the radiology report"
+      reference_to(RadiologyReport)
+      given("must be draft") { status == "draft" }
+      emits "ReportFinalized"
+      then_set :status, to: "final"
+    end
+
+    AddendReport do
+      role "Radiologist"
+      description "Add a correction or supplemental finding to a finalized report"
+      reference_to(RadiologyReport)
+      String :findings
+      emits "ReportAddended"
+      then_set :findings, to: :findings
+    end
+  end
+
+  aggregate "ImagingEquipment", "A diagnostic imaging machine in the radiology department" do
+    String :equipment_name
+    String :modality
+    String :serial_number
+    String :last_calibration_date
+    String :status
+    list_of(MaintenanceRecord) :maintenance_history
+
+    value_object "MaintenanceRecord" do
+      String :service_date
+      String :technician
+      String :description
+      String :result
+    end
+
+    RegisterEquipment do
+      role "Administrator"
+      description "Add a new imaging machine to the department inventory"
+      String :equipment_name
+      String :modality
+      String :serial_number
+      String :last_calibration_date
+      emits "EquipmentRegistered"
+      then_set :equipment_name, to: :equipment_name
+      then_set :modality, to: :modality
+      then_set :serial_number, to: :serial_number
+      then_set :last_calibration_date, to: :last_calibration_date
+      then_set :status, to: "operational"
+    end
+
+    CalibrateEquipment do
+      role "Engineer"
+      description "Perform scheduled calibration of the imaging equipment"
+      reference_to(ImagingEquipment)
+      String :last_calibration_date
+      emits "EquipmentCalibrated"
+      then_set :last_calibration_date, to: :last_calibration_date
+    end
+
+    TakeOffline do
+      role "Engineer"
+      description "Remove equipment from service for maintenance or repair"
+      reference_to(ImagingEquipment)
+      emits "EquipmentTakenOffline"
+      then_set :status, to: "offline"
+    end
+  end
+
+  aggregate "Referral", "A referral from an outside physician for imaging services" do
+    String :referring_physician
+    String :patient_name
+    String :clinical_question
+    String :preferred_modality
+    String :status
+    reference_to Patient
+
+    ReceiveReferral do
+      role "Coordinator"
+      description "Accept an imaging referral from an outside physician"
+      reference_to(Patient)
+      String :referring_physician
+      String :patient_name
+      String :clinical_question
+      String :preferred_modality
+      emits "ReferralReceived"
+      then_set :referring_physician, to: :referring_physician
+      then_set :patient_name, to: :patient_name
+      then_set :clinical_question, to: :clinical_question
+      then_set :preferred_modality, to: :preferred_modality
+      then_set :status, to: "received"
+    end
+
+    FulfillReferral do
+      role "Coordinator"
+      description "Mark the referral as fulfilled after imaging and reporting"
+      reference_to(Referral)
+      given("must be received") { status == "received" }
+      emits "ReferralFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+  end
+
+  # Workflow: Register → Screen → PlaceScanOrder → PerformScan → DraftReport → FinalizeReport → FulfillReferral → CalibrateEquipment
+  policy "ScreenOnRegistration" do
+    on "PatientRegistered"
+    trigger "ScreenForContraindications"
+  end
+
+  policy "PlaceOrderOnScreening" do
+    on "ScreeningCompleted"
+    trigger "PlaceScanOrder"
+  end
+
+  policy "PerformScanOnOrder" do
+    on "ScanOrderPlaced"
+    trigger "PerformScan"
+  end
+
+  policy "DraftReportOnScan" do
+    on "ScanPerformed"
+    trigger "DraftReport"
+  end
+
+  policy "FinalizeOnDraft" do
+    on "ReportDrafted"
+    trigger "FinalizeReport"
+  end
+
+  policy "FulfillReferralOnReport" do
+    on "ReportFinalized"
+    trigger "FulfillReferral"
+  end
+
+  policy "CalibrateAfterScan" do
+    on "ScanPerformed"
+    trigger "CalibrateEquipment"
+  end
+end

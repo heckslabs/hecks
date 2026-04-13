@@ -1,0 +1,268 @@
+Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
+  vision "Forensic science meets wildlife management — evidence, species ID, poaching investigation, DNA analysis, prosecution"
+  category "crossover"
+
+  aggregate "Evidence", "Physical evidence from a wildlife crime scene — type, chain of custody" do
+    String :evidence_id
+    String :evidence_type
+    String :location_found
+    String :collected_by
+    String :timestamp
+    String :status
+
+    value_object "ChainOfCustody" do
+      String :custodian
+      String :received_from
+      String :timestamp
+      String :location
+    end
+
+    CollectEvidence do
+      role "FieldOfficer"
+      description "Collect physical evidence from a wildlife crime scene"
+      String :evidence_id
+      String :evidence_type
+      String :location_found
+      String :collected_by
+      String :timestamp
+      emits "EvidenceCollected"
+      then_set :evidence_id, to: :evidence_id
+      then_set :evidence_type, to: :evidence_type
+      then_set :location_found, to: :location_found
+      then_set :collected_by, to: :collected_by
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "collected"
+    end
+
+    TransferEvidence do
+      role "FieldOfficer"
+      description "Transfer evidence to forensic lab maintaining chain of custody"
+      reference_to(Evidence)
+      given { status == "collected" }
+      emits "EvidenceTransferred"
+      then_set :status, to: "in_lab"
+    end
+
+    AnalyzeEvidence do
+      role "ForensicScientist"
+      description "Perform forensic analysis on the evidence"
+      reference_to(Evidence)
+      given { status == "in_lab" }
+      emits "EvidenceAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "CollectEvidence" => "collected", from: "unknown"
+      transition "TransferEvidence" => "in_lab", from: "collected"
+      transition "AnalyzeEvidence" => "analyzed", from: "in_lab"
+    end
+  end
+
+  aggregate "SpeciesIdentification", "Species ID from forensic samples — morphology, DNA, geographic range" do
+    String :sample_id
+    String :identified_species
+    String :common_name
+    String :conservation_status
+    Float :confidence_pct
+    String :status
+
+    value_object "MorphologicalFeature" do
+      String :feature_name
+      String :description
+      Float :diagnostic_value
+    end
+
+    list_of "ReferenceMatch" do
+      String :database
+      String :accession_number
+      Float :similarity_pct
+    end
+
+    IdentifySpecies do
+      role "ForensicScientist"
+      description "Identify species from physical and morphological evidence"
+      String :sample_id
+      String :identified_species
+      String :common_name
+      String :conservation_status
+      Float :confidence_pct
+      emits "SpeciesIdentified"
+      then_set :sample_id, to: :sample_id
+      then_set :identified_species, to: :identified_species
+      then_set :common_name, to: :common_name
+      then_set :conservation_status, to: :conservation_status
+      then_set :confidence_pct, to: :confidence_pct
+      then_set :status, to: "identified"
+    end
+
+    ConfirmWithDNA do
+      role "GeneticAnalyst"
+      description "Confirm species identification with DNA barcoding"
+      reference_to(SpeciesIdentification)
+      given { status == "identified" }
+      emits "DNAConfirmed"
+      then_set :status, to: "confirmed"
+    end
+
+    lifecycle :status, default: "unidentified" do
+      transition "IdentifySpecies" => "identified", from: "unidentified"
+      transition "ConfirmWithDNA" => "confirmed", from: "identified"
+    end
+  end
+
+  aggregate "PoachingCase", "A poaching investigation case — suspects, location, method, species" do
+    String :case_number
+    String :location
+    String :species_involved
+    String :method_used
+    String :lead_investigator
+    String :status
+
+    value_object "SuspectInfo" do
+      String :name
+      String :description
+      String :last_known_location
+    end
+
+    OpenCase do
+      role "Investigator"
+      description "Open a poaching investigation case"
+      String :case_number
+      String :location
+      String :species_involved
+      String :method_used
+      String :lead_investigator
+      emits "CaseOpened"
+      then_set :case_number, to: :case_number
+      then_set :location, to: :location
+      then_set :species_involved, to: :species_involved
+      then_set :method_used, to: :method_used
+      then_set :lead_investigator, to: :lead_investigator
+      then_set :status, to: "open"
+    end
+
+    LinkEvidence do
+      role "Investigator"
+      description "Link forensic evidence to the case"
+      reference_to(PoachingCase)
+      given { status == "open" }
+      emits "EvidenceLinked"
+    end
+
+    ReferForProsecution do
+      role "Investigator"
+      description "Refer case to prosecution with evidence package"
+      reference_to(PoachingCase)
+      given { status == "open" }
+      emits "CaseReferred"
+      then_set :status, to: "referred"
+    end
+
+    CloseCase do
+      role "Investigator"
+      description "Close the case with final disposition"
+      reference_to(PoachingCase)
+      given { status == "referred" }
+      emits "CaseClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "unreported" do
+      transition "OpenCase" => "open", from: "unreported"
+      transition "ReferForProsecution" => "referred", from: "open"
+      transition "CloseCase" => "closed", from: "referred"
+    end
+  end
+
+  aggregate "DNAAnalysis", "Forensic DNA analysis — extraction, sequencing, matching, reporting" do
+    String :analysis_id
+    String :evidence_id
+    String :extraction_method
+    String :sequence_region
+    Float :match_confidence_pct
+    String :status
+
+    value_object "SequenceResult" do
+      String :region
+      Integer :base_pairs
+      Float :quality_score
+    end
+
+    ExtractDNA do
+      role "GeneticAnalyst"
+      description "Extract DNA from forensic evidence sample"
+      String :analysis_id
+      String :evidence_id
+      String :extraction_method
+      emits "DNAExtracted"
+      then_set :analysis_id, to: :analysis_id
+      then_set :evidence_id, to: :evidence_id
+      then_set :extraction_method, to: :extraction_method
+      then_set :status, to: "extracted"
+    end
+
+    SequenceDNA do
+      role "GeneticAnalyst"
+      description "Sequence extracted DNA for species and individual identification"
+      reference_to(DNAAnalysis)
+      String :sequence_region
+      given { status == "extracted" }
+      emits "DNASequenced"
+      then_set :sequence_region, to: :sequence_region
+      then_set :status, to: "sequenced"
+    end
+
+    MatchDatabase do
+      role "System"
+      description "Match DNA sequence against wildlife forensic databases"
+      reference_to(DNAAnalysis)
+      Float :match_confidence_pct
+      given { status == "sequenced" }
+      emits "DatabaseMatched"
+      then_set :match_confidence_pct, to: :match_confidence_pct
+      then_set :status, to: "matched"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ExtractDNA" => "extracted", from: "pending"
+      transition "SequenceDNA" => "sequenced", from: "extracted"
+      transition "MatchDatabase" => "matched", from: "sequenced"
+    end
+  end
+
+  policy "TransferOnCollect" do
+    on "EvidenceCollected"
+    trigger "TransferEvidence"
+  end
+
+  policy "AnalyzeOnTransfer" do
+    on "EvidenceTransferred"
+    trigger "AnalyzeEvidence"
+  end
+
+  policy "ExtractDNAOnAnalyze" do
+    on "EvidenceAnalyzed"
+    trigger "ExtractDNA"
+  end
+
+  policy "SequenceOnExtract" do
+    on "DNAExtracted"
+    trigger "SequenceDNA"
+  end
+
+  policy "MatchOnSequence" do
+    on "DNASequenced"
+    trigger "MatchDatabase"
+  end
+
+  policy "IdentifyOnMatch" do
+    on "DatabaseMatched"
+    trigger "IdentifySpecies"
+  end
+
+  policy "LinkEvidenceOnIdentify" do
+    on "SpeciesIdentified"
+    trigger "LinkEvidence"
+  end
+end

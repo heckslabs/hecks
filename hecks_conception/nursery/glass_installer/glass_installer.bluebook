@@ -1,0 +1,182 @@
+Hecks.bluebook "GlassInstaller" do
+  vision "Manage glass installation from measurement through fabrication, installation, and warranty for windows, storefronts, and custom glass"
+  core
+
+  aggregate "GlassOrder" do
+    description "A customer order for glass — windows, shower doors, storefronts, or custom pieces"
+    String :customer_name
+    String :glass_type
+    String :application
+    Integer :quantity
+    String :status
+
+    value_object "GlassSpec" do
+      Float :thickness_mm
+      String :tempering
+      String :tint
+    end
+
+    PlaceOrder do
+      role "Sales Rep"
+      goal "Create a glass order with type, application, and quantity"
+      description "Record the customer's glass requirements and generate a work order"
+      String :customer_name
+      String :glass_type
+      String :application
+      Integer :quantity
+      emits "OrderPlaced"
+    end
+
+    ConfirmOrder do
+      role "Shop Manager"
+      goal "Verify measurements and confirm the order for fabrication"
+      description "Review specs and approve for cutting"
+      reference_to(GlassOrder)
+      given("measurements must be taken") { status == "measured" }
+      emits "OrderConfirmed"
+    end
+
+    CancelOrder do
+      role "Sales Rep"
+      goal "Cancel an order before fabrication begins"
+      description "Void the order and notify the customer"
+      reference_to(GlassOrder)
+      emits "OrderCancelled"
+    end
+  end
+
+  aggregate "FieldMeasurement" do
+    description "On-site measurements taken for precise glass fabrication"
+    Float :width_inches
+    Float :height_inches
+    Float :depth_inches
+    String :opening_type
+    String :notes
+    reference_to(GlassOrder)
+
+    value_object "Tolerance" do
+      Float :plus_inches
+      Float :minus_inches
+    end
+
+    TakeMeasurements do
+      role "Field Tech"
+      goal "Measure the opening precisely for glass fabrication"
+      description "Record width, height, depth, and any irregularities"
+      Float :width_inches
+      Float :height_inches
+      Float :depth_inches
+      String :opening_type
+      reference_to(GlassOrder)
+      emits "MeasurementsTaken"
+    end
+
+    VerifyMeasurements do
+      role "Shop Manager"
+      goal "Double-check measurements before cutting expensive glass"
+      description "Confirm measurements fall within acceptable tolerances"
+      reference_to(FieldMeasurement)
+      emits "MeasurementsVerified"
+    end
+  end
+
+  aggregate "Installation" do
+    description "The on-site installation of fabricated glass with sealant and hardware"
+    String :installer_name
+    String :install_date
+    String :sealant_type
+    String :status
+    reference_to(GlassOrder)
+
+    ScheduleInstall do
+      role "Dispatcher"
+      goal "Book the installation date and assign an installer"
+      description "Schedule the crew and confirm with the customer"
+      String :installer_name
+      String :install_date
+      reference_to(GlassOrder)
+      emits "InstallScheduled"
+    end
+
+    CompleteInstall do
+      role "Installer"
+      goal "Set the glass, apply sealant, and verify fit"
+      description "Install the glass and ensure proper seal and operation"
+      reference_to(Installation)
+      String :sealant_type
+      emits "InstallCompleted"
+    end
+
+    ReportBreakage do
+      role "Installer"
+      goal "Document glass broken during installation for reorder"
+      description "Record the breakage and trigger a replacement order"
+      reference_to(Installation)
+      String :breakage_cause
+      emits "BreakageReported"
+    end
+  end
+
+  aggregate "GlassWarranty" do
+    description "A warranty on installed glass covering seal failure, defects, and breakage"
+    String :warranty_type
+    Integer :duration_years
+    String :coverage
+    reference_to(GlassOrder)
+
+    IssueWarranty do
+      role "Office Manager"
+      goal "Create a warranty for the completed glass installation"
+      description "Register the warranty with coverage terms and duration"
+      String :warranty_type
+      Integer :duration_years
+      String :coverage
+      reference_to(GlassOrder)
+      emits "WarrantyIssued"
+    end
+
+    FileSealFailure do
+      role "Customer"
+      goal "Report a failed seal under warranty"
+      description "Customer reports fogging or moisture between panes"
+      reference_to(GlassWarranty)
+      String :failure_description
+      emits "SealFailureFiled"
+    end
+  end
+
+  policy "MeasureAfterOrder" do
+    on "OrderPlaced"
+    trigger "TakeMeasurements"
+  end
+
+  policy "VerifyAfterMeasure" do
+    on "MeasurementsTaken"
+    trigger "VerifyMeasurements"
+  end
+
+  policy "ConfirmOnVerify" do
+    on "MeasurementsVerified"
+    trigger "ConfirmOrder"
+  end
+
+  policy "ScheduleOnConfirm" do
+    on "OrderConfirmed"
+    trigger "ScheduleInstall"
+  end
+
+  policy "CompleteOnSchedule" do
+    on "InstallScheduled"
+    trigger "CompleteInstall"
+  end
+
+  policy "WarrantyOnComplete" do
+    on "InstallCompleted"
+    trigger "IssueWarranty"
+  end
+
+  policy "ReorderOnBreakage" do
+    on "BreakageReported"
+    trigger "PlaceOrder"
+  end
+end

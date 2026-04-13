@@ -1,0 +1,238 @@
+Hecks.bluebook "Robotics" do
+  vision "Manage robots, sensors, actuators, missions, and telemetry streams"
+
+  aggregate "Robot" do
+    description "An autonomous or teleoperated machine performing physical tasks"
+    String :robot_id
+    String :name
+    String :platform_type
+    String :firmware_version
+    Float :battery_capacity_wh
+
+    command "ActivateRobot" do
+      description "Bring a new robot online and register it in the fleet"
+      emits "RobotActivated"
+      String :robot_id
+      String :name
+      String :platform_type
+    end
+
+    command "UpdateFirmware" do
+      description "Flash new firmware to the robot controller"
+      emits "FirmwareUpdated"
+      reference_to Robot
+      String :new_version
+      given "robot must be in standby mode"
+    end
+
+    command "RetireRobot" do
+      description "Permanently retire a robot from the fleet"
+      emits "RobotRetired"
+      reference_to Robot
+    end
+  end
+
+  aggregate "Sensor" do
+    description "A device measuring physical quantities for robot perception"
+    String :sensor_id
+    String :sensor_type
+    String :model
+    Float :sampling_rate_hz
+    Float :range_max
+    reference_to Robot
+
+    value_object "CalibrationData" do
+      Float :offset
+      Float :gain
+      String :calibrated_date
+    end
+
+    command "MountSensor" do
+      description "Attach a sensor to a robot and configure it"
+      emits "SensorMounted"
+      reference_to Robot
+      String :sensor_id
+      String :sensor_type
+    end
+
+    command "CalibrateSensor" do
+      description "Run calibration routine against known references"
+      emits "SensorCalibrated"
+      reference_to Sensor
+      given "sensor must be mounted and powered"
+    end
+
+    command "ReplaceSensor" do
+      description "Swap out a faulty sensor for a new one"
+      emits "SensorReplaced"
+      reference_to Sensor
+    end
+  end
+
+  aggregate "Actuator" do
+    description "A motor or mechanism that produces physical movement"
+    String :actuator_id
+    String :actuator_type
+    Float :max_torque_nm
+    Float :max_speed_rpm
+    reference_to Robot
+
+    command "InstallActuator" do
+      description "Fit an actuator into the robot joint"
+      emits "ActuatorInstalled"
+      reference_to Robot
+      String :actuator_id
+      String :actuator_type
+    end
+
+    command "TuneController" do
+      description "Adjust PID gains for the actuator control loop"
+      emits "ControllerTuned"
+      reference_to Actuator
+      Float :kp
+      Float :ki
+      Float :kd
+    end
+
+    command "HaltActuator" do
+      description "Emergency stop an actuator"
+      emits "ActuatorHalted"
+      reference_to Actuator
+      given "fault condition must be detected"
+    end
+  end
+
+  aggregate "Mission" do
+    description "A defined task or objective assigned to a robot"
+    String :mission_id
+    String :objective
+    String :start_time
+    String :end_time
+    String :status
+    reference_to Robot
+
+    value_object "Waypoint" do
+      Float :x_m
+      Float :y_m
+      Float :z_m
+      Float :heading_deg
+    end
+
+    command "PlanMission" do
+      description "Create a mission with objectives and waypoints"
+      emits "MissionPlanned"
+      reference_to Robot
+      String :mission_id
+      String :objective
+    end
+
+    command "LaunchMission" do
+      description "Deploy the robot to execute the mission"
+      emits "MissionLaunched"
+      reference_to Mission
+      given "robot must pass pre-flight checks"
+    end
+
+    command "AbortMission" do
+      description "Cancel an in-progress mission and return to base"
+      emits "MissionAborted"
+      reference_to Mission
+      String :abort_reason
+    end
+  end
+
+  aggregate "TelemetryStream" do
+    description "A real-time data feed of robot state and sensor readings"
+    String :stream_id
+    String :data_type
+    Float :frequency_hz
+    String :encoding
+    reference_to Robot
+
+    command "StartStream" do
+      description "Begin transmitting telemetry data from the robot"
+      emits "StreamStarted"
+      reference_to Robot
+      String :stream_id
+      String :data_type
+    end
+
+    command "PauseStream" do
+      description "Temporarily halt telemetry transmission"
+      emits "StreamPaused"
+      reference_to TelemetryStream
+    end
+
+    command "AnalyzeTelemetry" do
+      description "Run anomaly detection on recorded telemetry"
+      emits "TelemetryAnalyzed"
+      reference_to TelemetryStream
+      given "stream must have at least one minute of data"
+    end
+  end
+
+  aggregate "MissionReport" do
+    description "A post-mission summary of robot performance and findings"
+    String :report_id
+    String :summary
+    String :status
+    String :completion_date
+    reference_to Mission
+
+    command "GenerateReport" do
+      description "Compile telemetry and mission data into a report"
+      emits "ReportGenerated"
+      reference_to Mission
+      String :summary
+    end
+  end
+
+  lifecycle "MissionLifecycle" do
+    state "assembly"
+    state "calibrated"
+    state "mission_planned"
+    state "deployed"
+    state "telemetry_active"
+    state "mission_complete"
+    transition from: "assembly", to: "calibrated", on: "SensorCalibrated"
+    transition from: "calibrated", to: "mission_planned", on: "MissionPlanned"
+    transition from: "mission_planned", to: "deployed", on: "MissionLaunched"
+    transition from: "deployed", to: "telemetry_active", on: "StreamStarted"
+    transition from: "telemetry_active", to: "mission_complete", on: "ReportGenerated"
+  end
+
+  policy "MountSensorsAfterActivation" do
+    on "RobotActivated"
+    trigger "MountSensor"
+  end
+
+  policy "CalibrateAfterMount" do
+    on "SensorMounted"
+    trigger "CalibrateSensor"
+  end
+
+  policy "PlanMissionAfterCalibration" do
+    on "SensorCalibrated"
+    trigger "PlanMission"
+  end
+
+  policy "LaunchAfterPlanning" do
+    on "MissionPlanned"
+    trigger "LaunchMission"
+  end
+
+  policy "StreamOnLaunch" do
+    on "MissionLaunched"
+    trigger "StartStream"
+  end
+
+  policy "AnalyzeTelemetryAfterStream" do
+    on "StreamStarted"
+    trigger "AnalyzeTelemetry"
+  end
+
+  policy "ReportAfterAnalysis" do
+    on "TelemetryAnalyzed"
+    trigger "GenerateReport"
+  end
+end

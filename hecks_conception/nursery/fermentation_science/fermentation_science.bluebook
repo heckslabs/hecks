@@ -1,0 +1,201 @@
+Hecks.bluebook "FermentationScience" do
+  vision "Cross-wire brewery operations with genetics for genetically optimized fermentation science"
+  core
+
+  aggregate "YeastStrain" do
+    description "A yeast strain with genetic markers for brewing"
+    attribute :strain_name
+    attribute :species
+    attribute :genes, list_of(GeneticMarker)
+    attribute :status, default: "cataloged"
+
+    value_object "GeneticMarker" do
+      attribute :gene_name
+      attribute :function
+      attribute :expression_level, Float
+      invariant "expression between 0 and 1" do
+        expression_level >= 0 && expression_level <= 1.0
+      end
+    end
+
+    command "CatalogStrain" do
+      role "Microbiologist"
+      goal "Catalog a yeast strain"
+      attribute :strain_name
+      attribute :species
+    end
+
+    command "MapGene" do
+      role "Geneticist"
+      goal "Map a genetic marker"
+      reference_to YeastStrain
+      attribute :gene_name
+      attribute :function
+      attribute :expression_level, Float
+      given("max 100 genes") { genes.size < 100 }
+      then_set :genes, append: { gene_name: :gene_name, function: :function, expression_level: :expression_level }
+    end
+
+    command "ApproveStrain" do
+      role "LabDirector"
+      goal "Approve strain for brewing trials"
+      reference_to YeastStrain
+      given("must have genes mapped") { genes.size > 0 }
+    end
+  end
+
+  aggregate "BeerRecipe" do
+    description "A beer recipe using specific yeast strains"
+    reference_to YeastStrain
+    attribute :recipe_name
+    attribute :style
+    attribute :ingredients, list_of(BrewIngredient)
+    attribute :target_abv, Float
+    attribute :status, default: "formulating"
+
+    value_object "BrewIngredient" do
+      attribute :ingredient_name
+      attribute :quantity_kg, Float
+      attribute :ingredient_type
+      invariant "quantity must be positive" do
+        quantity_kg > 0
+      end
+    end
+
+    command "FormulateRecipe" do
+      role "Brewmaster"
+      goal "Create a new beer recipe"
+      reference_to YeastStrain
+      attribute :recipe_name
+      attribute :style
+      attribute :target_abv, Float
+    end
+
+    command "AddIngredient" do
+      role "Brewmaster"
+      goal "Add an ingredient"
+      reference_to BeerRecipe
+      attribute :ingredient_name
+      attribute :quantity_kg, Float
+      attribute :ingredient_type
+      given("max 20 ingredients") { ingredients.size < 20 }
+      then_set :ingredients, append: { ingredient_name: :ingredient_name, quantity_kg: :quantity_kg, ingredient_type: :ingredient_type }
+    end
+  end
+
+  aggregate "FermentationTrial" do
+    description "A controlled fermentation trial with genetic monitoring"
+    reference_to BeerRecipe
+    reference_to YeastStrain
+    attribute :trial_number
+    attribute :samples, list_of(TrialSample)
+    attribute :status, default: "inoculated"
+
+    value_object "TrialSample" do
+      attribute :hour, Integer
+      attribute :gravity, Float
+      attribute :ph, Float
+      attribute :cell_count, Integer
+      invariant "hour must be non-negative" do
+        hour >= 0
+      end
+    end
+
+    command "StartTrial" do
+      role "Brewmaster"
+      goal "Start a fermentation trial"
+      reference_to BeerRecipe
+      reference_to YeastStrain
+      attribute :trial_number
+    end
+
+    command "TakeSample" do
+      role "LabTechnician"
+      goal "Take a fermentation sample"
+      reference_to FermentationTrial
+      attribute :hour, Integer
+      attribute :gravity, Float
+      attribute :ph, Float
+      attribute :cell_count, Integer
+      given("max 200 samples") { samples.size < 200 }
+      then_set :samples, append: { hour: :hour, gravity: :gravity, ph: :ph, cell_count: :cell_count }
+    end
+
+    command "CompleteTrial" do
+      role "Brewmaster"
+      goal "Complete the trial and evaluate"
+      reference_to FermentationTrial
+      given("must have samples") { samples.size > 0 }
+    end
+  end
+
+  aggregate "GeneEdit" do
+    description "A CRISPR gene edit to improve yeast performance"
+    reference_to YeastStrain
+    attribute :target_gene
+    attribute :edit_type
+    attribute :outcomes, list_of(EditOutcome)
+    attribute :status, default: "designed"
+
+    value_object "EditOutcome" do
+      attribute :metric
+      attribute :before_value, Float
+      attribute :after_value, Float
+    end
+
+    command "DesignEdit" do
+      role "Geneticist"
+      goal "Design a gene edit for yeast improvement"
+      reference_to YeastStrain
+      attribute :target_gene
+      attribute :edit_type
+    end
+
+    command "RecordOutcome" do
+      role "Geneticist"
+      goal "Record the edit outcome"
+      reference_to GeneEdit
+      attribute :metric
+      attribute :before_value, Float
+      attribute :after_value, Float
+      given("max 20 outcomes") { outcomes.size < 20 }
+      then_set :outcomes, append: { metric: :metric, before_value: :before_value, after_value: :after_value }
+    end
+
+    command "ApplyEdit" do
+      role "LabDirector"
+      goal "Apply the gene edit to the strain"
+      reference_to GeneEdit
+    end
+  end
+
+  policy "StrainApprovedTriggersTrial" do
+    on "StrainApproved"
+    trigger "StartTrial"
+    map yeast_strain_id: :strain_id
+  end
+
+  policy "TrialCompletedTriggersGeneEdit" do
+    on "TrialCompleted"
+    trigger "DesignEdit"
+    map yeast_strain_id: :strain_id, target_gene: :underperforming_gene
+  end
+
+  policy "GeneEditAppliedTriggersRecipe" do
+    on "EditApplied"
+    trigger "FormulateRecipe"
+    map yeast_strain_id: :strain_id
+  end
+
+  policy "GeneMappedTriggersTrial" do
+    on "GeneMapped"
+    trigger "StartTrial"
+    map yeast_strain_id: :strain_id
+  end
+
+  policy "SampleTakenTriggersOutcome" do
+    on "SampleTaken"
+    trigger "RecordOutcome"
+    map gene_edit_id: :edit_id, metric: :gravity
+  end
+end

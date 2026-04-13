@@ -1,0 +1,183 @@
+Hecks.bluebook "Astronomy" do
+  vision "Track celestial bodies, observations, telescope sessions, and sky catalog entries"
+
+  aggregate "CelestialBody" do
+    description "A star, planet, nebula, or other object in the sky catalog"
+    String :designation
+    String :body_type
+    Float :right_ascension
+    Float :declination
+    Float :apparent_magnitude
+    reference_to Catalog
+
+    value_object "Coordinates" do
+      Float :ra_hours
+      Float :dec_degrees
+      String :epoch
+    end
+
+    command "RegisterBody" do
+      description "Add a new celestial body to the catalog"
+      emits "BodyRegistered"
+      String :designation
+      String :body_type
+      Float :right_ascension
+      Float :declination
+    end
+
+    command "UpdateEphemeris" do
+      description "Recalculate position for a given epoch"
+      emits "EphemerisUpdated"
+      reference_to CelestialBody
+      Float :new_ra
+      Float :new_dec
+      given "body must have initial coordinates"
+    end
+
+    command "ReclassifyBody" do
+      description "Change the classification of a body"
+      emits "BodyReclassified"
+      reference_to CelestialBody
+      String :new_type
+    end
+  end
+
+  aggregate "Observation" do
+    description "A recorded sighting of a celestial body through a telescope"
+    String :observer_name
+    String :timestamp
+    String :seeing_conditions
+    Float :measured_magnitude
+    reference_to CelestialBody
+    reference_to Telescope
+
+    command "LogObservation" do
+      description "Record a new observation session"
+      emits "ObservationLogged"
+      String :observer_name
+      String :timestamp
+      reference_to CelestialBody
+      reference_to Telescope
+      given "telescope must be calibrated"
+    end
+
+    command "GradeSeeing" do
+      description "Rate atmospheric seeing conditions"
+      emits "SeeingGraded"
+      reference_to Observation
+      String :seeing_conditions
+    end
+
+    command "CorrectMagnitude" do
+      description "Apply extinction correction to measured magnitude"
+      emits "MagnitudeCorrected"
+      reference_to Observation
+      Float :corrected_value
+    end
+  end
+
+  aggregate "Telescope" do
+    description "An optical instrument used for sky observation"
+    String :name
+    Float :aperture_mm
+    Float :focal_length_mm
+    String :mount_type
+
+    value_object "OpticalConfig" do
+      Float :eyepiece_focal_length
+      Float :barlow_factor
+      Float :resulting_magnification
+    end
+
+    command "ActivateTelescope" do
+      description "Bring a new telescope into service"
+      emits "TelescopeActivated"
+      String :name
+      Float :aperture_mm
+      Float :focal_length_mm
+    end
+
+    command "CalibrateOptics" do
+      description "Align and calibrate the telescope optics"
+      emits "OpticsCalibrated"
+      reference_to Telescope
+    end
+
+    command "RetireTelescope" do
+      description "Take a telescope out of service"
+      emits "TelescopeRetired"
+      reference_to Telescope
+      given "telescope must not have active observation sessions"
+    end
+  end
+
+  aggregate "Catalog" do
+    description "A named collection of celestial bodies like Messier or NGC"
+    String :name
+    String :authority
+    Integer :entry_count
+
+    command "CreateCatalog" do
+      description "Establish a new sky catalog"
+      emits "CatalogCreated"
+      String :name
+      String :authority
+    end
+
+    command "PublishCatalog" do
+      description "Release the catalog for public use"
+      emits "CatalogPublished"
+      reference_to Catalog
+      given "catalog must have at least one entry"
+    end
+  end
+
+  lifecycle "ObservationCampaign" do
+    state "proposed"
+    state "approved"
+    state "calibrating"
+    state "observing"
+    state "analyzing"
+    state "published"
+    transition from: "proposed", to: "approved", on: "BodyRegistered"
+    transition from: "approved", to: "calibrating", on: "OpticsCalibrated"
+    transition from: "calibrating", to: "observing", on: "ObservationLogged"
+    transition from: "observing", to: "analyzing", on: "MagnitudeCorrected"
+    transition from: "analyzing", to: "published", on: "CatalogPublished"
+  end
+
+  policy "CalibrateBeforeObserving" do
+    on "BodyRegistered"
+    trigger "CalibrateOptics"
+  end
+
+  policy "ObserveAfterCalibration" do
+    on "OpticsCalibrated"
+    trigger "LogObservation"
+  end
+
+  policy "GradeSeeingAfterObservation" do
+    on "ObservationLogged"
+    trigger "GradeSeeing"
+  end
+
+  policy "CorrectMagnitudeAfterGrading" do
+    on "SeeingGraded"
+    trigger "CorrectMagnitude"
+  end
+
+  policy "UpdateEphemerisAfterCorrection" do
+    on "MagnitudeCorrected"
+    trigger "UpdateEphemeris"
+  end
+
+  policy "PublishCatalogAfterEphemeris" do
+    on "EphemerisUpdated"
+    trigger "PublishCatalog"
+  end
+
+  policy "ActivateTelescopeOnBodyRegistered" do
+    on "BodyRegistered"
+    trigger "ActivateTelescope"
+  end
+end

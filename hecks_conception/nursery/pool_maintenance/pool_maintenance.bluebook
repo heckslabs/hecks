@@ -1,0 +1,206 @@
+Hecks.bluebook "PoolMaintenance" do
+  vision "Manage pool and spa maintenance including water chemistry, equipment servicing, route scheduling, and repair tracking"
+  core
+
+  aggregate "Pool" do
+    description "A swimming pool or spa with volume, surface type, and equipment configuration"
+    String :owner_name
+    String :address
+    String :pool_type
+    Float :gallons
+    String :surface_type
+    String :sanitizer_type
+
+    value_object "PoolDimensions" do
+      Float :length_feet
+      Float :width_feet
+      Float :depth_shallow
+      Float :depth_deep
+    end
+
+    RegisterPool do
+      role "Service Tech"
+      goal "Add a new pool to the service route"
+      description "Record pool specifications and equipment for ongoing maintenance"
+      String :owner_name
+      String :address
+      String :pool_type
+      Float :gallons
+      String :surface_type
+      String :sanitizer_type
+      emits "PoolRegistered"
+    end
+
+    WinterizePool do
+      role "Service Tech"
+      goal "Prepare the pool for winter shutdown"
+      description "Lower water, blow lines, add antifreeze, and cover"
+      reference_to(Pool)
+      emits "PoolWinterized"
+    end
+
+    OpenPool do
+      role "Service Tech"
+      goal "Reopen the pool for the swimming season"
+      description "Remove cover, refill, start equipment, and balance chemistry"
+      reference_to(Pool)
+      emits "PoolOpened"
+    end
+  end
+
+  aggregate "ChemicalReading" do
+    description "A water chemistry test recording pH, chlorine, alkalinity, calcium, and CYA levels"
+    Float :ph
+    Float :free_chlorine
+    Float :total_alkalinity
+    Float :calcium_hardness
+    Float :cya
+    String :reading_date
+    reference_to(Pool)
+
+    value_object "IdealRange" do
+      Float :min_value
+      Float :max_value
+      String :unit
+    end
+
+    TakeReading do
+      role "Service Tech"
+      goal "Test the water chemistry and record all levels"
+      description "Use test kit or photometer to measure chemical levels"
+      reference_to(Pool)
+      Float :ph
+      Float :free_chlorine
+      Float :total_alkalinity
+      Float :calcium_hardness
+      Float :cya
+      emits "ReadingTaken"
+    end
+
+    DoseChemicals do
+      role "Service Tech"
+      goal "Add chemicals to bring levels into ideal range"
+      description "Calculate and add the correct dose of chemicals"
+      reference_to(ChemicalReading)
+      String :chemical_name
+      Float :dose_oz
+      emits "ChemicalsDosed"
+    end
+  end
+
+  aggregate "PoolEquipment" do
+    description "Pool equipment — pump, filter, heater, salt cell, automation controller"
+    String :equipment_type
+    String :brand
+    String :model
+    String :status
+    String :install_date
+    reference_to(Pool)
+
+    InstallEquipment do
+      role "Service Tech"
+      goal "Install new pool equipment at the pad"
+      description "Plumb and wire the equipment and verify operation"
+      String :equipment_type
+      String :brand
+      String :model
+      reference_to(Pool)
+      emits "EquipmentInstalled"
+    end
+
+    ServiceEquipment do
+      role "Service Tech"
+      goal "Perform maintenance on pool equipment"
+      description "Clean filter, backwash, inspect seals, or replace parts"
+      reference_to(PoolEquipment)
+      String :service_performed
+      emits "EquipmentServiced"
+    end
+  end
+
+  aggregate "ServiceRoute" do
+    description "A weekly service route assigning a technician to a sequence of pools"
+    String :tech_name
+    String :route_day
+    Integer :pool_count
+    String :status
+
+    BuildRoute do
+      role "Route Manager"
+      goal "Create a weekly service route for a technician"
+      description "Assign pools in geographic order for efficient driving"
+      String :tech_name
+      String :route_day
+      Integer :pool_count
+      emits "RouteBuilt"
+    end
+
+    AddPoolToRoute do
+      role "Route Manager"
+      goal "Add a new pool to an existing service route"
+      description "Insert the pool at the optimal position in the route"
+      reference_to(ServiceRoute)
+      reference_to(Pool)
+      emits "PoolAddedToRoute"
+    end
+  end
+
+  aggregate "RepairTicket" do
+    description "A repair request for a pool equipment failure or structural issue"
+    String :problem_description
+    String :diagnosis
+    String :status
+    Float :repair_cost
+    reference_to(Pool)
+
+    OpenRepairTicket do
+      role "Service Tech"
+      goal "Report a problem found during routine service"
+      description "Create a repair ticket when equipment fails or structure is damaged"
+      String :problem_description
+      reference_to(Pool)
+      emits "RepairTicketOpened"
+    end
+
+    CompleteRepair do
+      role "Service Tech"
+      goal "Fix the issue and close the repair ticket"
+      description "Replace parts, verify operation, and record cost"
+      reference_to(RepairTicket)
+      String :diagnosis
+      Float :repair_cost
+      given("must be diagnosed") { status == "diagnosed" }
+      emits "RepairCompleted"
+    end
+  end
+
+  policy "RouteOnRegister" do
+    on "PoolRegistered"
+    trigger "AddPoolToRoute"
+  end
+
+  policy "ReadOnService" do
+    on "PoolOpened"
+    trigger "TakeReading"
+  end
+
+  policy "DoseOnReading" do
+    on "ReadingTaken"
+    trigger "DoseChemicals"
+  end
+
+  policy "ServiceEquipmentOnReading" do
+    on "ReadingTaken"
+    trigger "ServiceEquipment"
+  end
+
+  policy "RepairOnEquipmentIssue" do
+    on "EquipmentServiced"
+    trigger "OpenRepairTicket"
+  end
+
+  policy "WinterizeOnSeason" do
+    on "RepairCompleted"
+    trigger "WinterizePool"
+  end
+end

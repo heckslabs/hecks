@@ -1,0 +1,227 @@
+Hecks.bluebook "WarehouseManagement" do
+  vision "Track inventory locations, pallets, pick lists, receiving, and shipping in a distribution center"
+
+  aggregate "Location", "A named bin, rack, or zone within the warehouse" do
+    String :aisle
+    String :rack
+    String :shelf
+    String :zone
+    Integer :capacity
+    Integer :current_fill
+    String :status
+
+    specification "Full" do
+      satisfied_by { current_fill >= capacity }
+    end
+
+    value_object "Dimensions" do
+      Float :width_ft
+      Float :depth_ft
+      Float :height_ft
+    end
+
+    CreateLocation do
+      description "Register a new storage location in the warehouse map"
+      String :aisle
+      String :rack
+      String :shelf
+      String :zone
+      Integer :capacity
+      emits "LocationCreated"
+      then_set :status, to: "empty"
+      then_set :current_fill, to: 0
+    end
+
+    ReserveLocation do
+      description "Hold a location for an incoming pallet"
+      reference_to(Location)
+      given { current_fill < capacity }
+      emits "LocationReserved"
+      then_set :status, to: "reserved"
+    end
+
+    CloseLocation do
+      description "Mark a location as unavailable for maintenance"
+      reference_to(Location)
+      String :reason
+      emits "LocationClosed"
+      then_set :status, to: "closed"
+    end
+
+    ReopenLocation do
+      description "Restore a closed location to active use"
+      reference_to(Location)
+      given { status == "closed" }
+      emits "LocationReopened"
+      then_set :status, to: "empty"
+    end
+  end
+
+  aggregate "Pallet", "A physical pallet of goods tracked through the warehouse" do
+    String :pallet_id
+    String :sku
+    Integer :quantity
+    String :status
+    reference_to(Location)
+
+    value_object "Weight" do
+      Float :pounds
+      String :unit
+    end
+
+    ReceivePallet do
+      description "Check in a pallet from an inbound truck"
+      String :pallet_id
+      String :sku
+      Integer :quantity
+      emits "PalletReceived"
+      then_set :status, to: "received"
+    end
+
+    InspectPallet do
+      description "Verify pallet contents match the advance shipping notice"
+      reference_to(Pallet)
+      given { status == "received" }
+      emits "PalletInspected"
+      then_set :status, to: "inspected"
+    end
+
+    StowPallet do
+      description "Place a pallet into its assigned storage location"
+      reference_to(Pallet)
+      reference_to(Location)
+      given { status == "inspected" }
+      emits "PalletStowed"
+      then_set :status, to: "stowed"
+    end
+
+    PickPallet do
+      description "Pull a pallet from storage for an outbound order"
+      reference_to(Pallet)
+      given { status == "stowed" }
+      emits "PalletPicked"
+      then_set :status, to: "picked"
+    end
+
+    StagePallet do
+      description "Move a picked pallet to the shipping dock staging area"
+      reference_to(Pallet)
+      given { status == "picked" }
+      emits "PalletStaged"
+      then_set :status, to: "staged"
+    end
+  end
+
+  aggregate "PickList", "A batch of items to be picked for outbound shipment" do
+    String :pick_list_id
+    String :priority
+    Integer :line_count
+    String :status
+    reference_to(Pallet)
+
+    value_object "PickLine" do
+      String :sku
+      Integer :quantity
+      String :location_code
+    end
+
+    GeneratePickList do
+      description "Create a pick list from pending orders"
+      String :priority
+      Integer :line_count
+      emits "PickListGenerated"
+      then_set :status, to: "pending"
+    end
+
+    CompletePickList do
+      description "Mark all lines as picked and ready to ship"
+      reference_to(PickList)
+      given { status == "pending" }
+      emits "PickListCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Shipment", "An outbound shipment leaving the warehouse dock" do
+    String :tracking_number
+    String :carrier
+    String :destination
+    String :status
+    reference_to(PickList)
+
+    value_object "ShippingLabel" do
+      String :barcode
+      String :service_level
+    end
+
+    CreateShipment do
+      description "Prepare a new outbound shipment from completed picks"
+      String :carrier
+      String :destination
+      reference_to(PickList)
+      emits "ShipmentCreated"
+      then_set :status, to: "packing"
+    end
+
+    LoadShipment do
+      description "Load packed shipment onto carrier truck at the dock"
+      reference_to(Shipment)
+      given { status == "packing" }
+      emits "ShipmentLoaded"
+      then_set :status, to: "loaded"
+    end
+
+    DispatchShipment do
+      description "Release the carrier truck from the dock"
+      reference_to(Shipment)
+      given { status == "loaded" }
+      emits "ShipmentDispatched"
+      then_set :status, to: "dispatched"
+    end
+  end
+
+  policy "InspectOnReceive" do
+    on "PalletReceived"
+    trigger "InspectPallet"
+  end
+
+  policy "ReserveLocationOnInspection" do
+    on "PalletInspected"
+    trigger "ReserveLocation"
+  end
+
+  policy "PickOnListGenerated" do
+    on "PickListGenerated"
+    trigger "PickPallet"
+  end
+
+  policy "StageOnPick" do
+    on "PalletPicked"
+    trigger "StagePallet"
+  end
+
+  policy "ShipOnPickComplete" do
+    on "PickListCompleted"
+    trigger "CreateShipment"
+  end
+
+  policy "LoadOnShipmentCreated" do
+    on "ShipmentCreated"
+    trigger "LoadShipment"
+  end
+
+  policy "DispatchOnLoad" do
+    on "ShipmentLoaded"
+    trigger "DispatchShipment"
+  end
+
+  policy "StowOnLocationReserved" do
+    on "LocationReserved"
+    trigger "StowPallet"
+  end
+
+  policy "GeneratePickListOnPalletStowed" do
+    on "PalletStowed"
+    trigger "GeneratePickList"
+  end
+end

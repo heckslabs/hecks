@@ -1,0 +1,146 @@
+Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
+  vision "Health line — ER triage meets call center queues, protocols, and clinical escalation"
+  category "healthcare_technology"
+
+  aggregate "IncomingCall", "A call received on the health triage line" do
+    String :call_id
+    String :caller_name
+    String :phone_number
+    String :chief_complaint
+    String :status
+    ReceiveCall do
+      role "System"
+      description "Receive an incoming call on the health triage line"
+      String :call_id
+      String :caller_name
+      String :phone_number
+      String :chief_complaint
+      emits "CallReceived"
+      then_set :call_id, to: :call_id
+      then_set :caller_name, to: :caller_name
+      then_set :phone_number, to: :phone_number
+      then_set :chief_complaint, to: :chief_complaint
+      then_set :status, to: "queued"
+    end
+    AssignToNurse do
+      role "System"
+      description "Assign the call to an available triage nurse"
+      reference_to(IncomingCall)
+      given { status == "queued" }
+      emits "CallAssigned"
+      then_set :status, to: "assigned"
+    end
+    EndCall do
+      role "TriageNurse"
+      description "End the call after triage assessment"
+      reference_to(IncomingCall)
+      given { status == "assigned" }
+      emits "CallEnded"
+      then_set :status, to: "ended"
+    end
+  end
+
+  aggregate "TriageProtocol", "A clinical triage protocol for symptom assessment" do
+    String :protocol_id
+    String :symptom_category
+    list_of(ProtocolStep) :steps
+    String :severity_outcome
+    String :status
+    value_object "ProtocolStep" do
+      Integer :step_number
+      String :question
+      String :expected_answer
+      String :next_step
+    end
+    DefineProtocol do
+      role "ClinicalDirector"
+      description "Define a triage protocol for a symptom category"
+      String :protocol_id
+      String :symptom_category
+      emits "ProtocolDefined"
+      then_set :protocol_id, to: :protocol_id
+      then_set :symptom_category, to: :symptom_category
+      then_set :status, to: "active"
+    end
+    RetireProtocol do
+      role "ClinicalDirector"
+      description "Retire an outdated triage protocol"
+      reference_to(TriageProtocol)
+      given { status == "active" }
+      emits "ProtocolRetired"
+      then_set :status, to: "retired"
+    end
+  end
+
+  aggregate "TriageAssessment", "A triage assessment performed during a call" do
+    String :assessment_id
+    String :call_id
+    String :protocol_id
+    String :severity
+    String :recommendation
+    String :status
+    PerformAssessment do
+      role "TriageNurse"
+      description "Perform a triage assessment following the protocol"
+      String :assessment_id
+      String :call_id
+      String :protocol_id
+      emits "AssessmentPerformed"
+      then_set :assessment_id, to: :assessment_id
+      then_set :call_id, to: :call_id
+      then_set :protocol_id, to: :protocol_id
+      then_set :status, to: "in_progress"
+    end
+    FinalizeAssessment do
+      role "TriageNurse"
+      description "Finalize triage with severity and recommendation"
+      reference_to(TriageAssessment)
+      String :severity
+      String :recommendation
+      given { status == "in_progress" }
+      emits "AssessmentFinalized"
+      then_set :severity, to: :severity
+      then_set :recommendation, to: :recommendation
+      then_set :status, to: "finalized"
+    end
+  end
+
+  aggregate "Escalation", "An escalation of a critical call to emergency services" do
+    String :escalation_id
+    String :call_id
+    String :target_service
+    String :reason
+    String :status
+    EscalateCall do
+      role "TriageNurse"
+      description "Escalate a critical call to emergency services or physician"
+      String :escalation_id
+      String :call_id
+      String :target_service
+      String :reason
+      emits "CallEscalated"
+      then_set :escalation_id, to: :escalation_id
+      then_set :call_id, to: :call_id
+      then_set :target_service, to: :target_service
+      then_set :reason, to: :reason
+      then_set :status, to: "escalated"
+    end
+    ResolveEscalation do
+      role "Physician"
+      description "Resolve the escalation after clinical intervention"
+      reference_to(Escalation)
+      given { status == "escalated" }
+      emits "EscalationResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  policy "AssessOnAssign" do
+    on "CallAssigned"
+    trigger "PerformAssessment"
+  end
+  policy "EscalateOnSevere" do
+    on "AssessmentFinalized"
+    trigger "EscalateCall"
+  end
+end

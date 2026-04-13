@@ -1,0 +1,295 @@
+Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
+  vision "Protected agricultural zone where land, species, and craft are one domain — soil feeds fermentation, biodiversity feeds flavor"
+  category "crossover_gen3"
+
+  # === ProtectedTerroir ===
+
+  aggregate "ProtectedTerroir", "A legally protected terroir — specific geography where soil, climate, and species create unique flavor" do
+    String :terroir_id
+    String :name
+    String :region
+    String :designation_type
+    Integer :total_hectares
+    String :status
+    list_of(ProtectionRule) :rules
+    value_object "ProtectionRule" do
+      String :rule_type
+      String :description
+      String :enforced_by
+    end
+    DesignateTerroir do
+      role "ConservationAuthority"
+      description "Designate a protected terroir with geographic and ecological boundaries"
+      String :terroir_id
+      String :name
+      String :region
+      String :designation_type
+      Integer :total_hectares
+      emits "TerroirDesignated"
+      then_set :terroir_id, to: :terroir_id
+      then_set :name, to: :name
+      then_set :region, to: :region
+      then_set :designation_type, to: :designation_type
+      then_set :total_hectares, to: :total_hectares
+      then_set :status, to: "protected"
+    end
+    AmendProtection do
+      role "ConservationAuthority"
+      description "Amend protection rules based on ecological assessment"
+      reference_to(ProtectedTerroir)
+      given { status == "protected" }
+      emits "ProtectionAmended"
+    end
+  end
+
+  # === SoilProfile ===
+
+  aggregate "SoilProfile", "Soil characterization within the terroir — minerals, microbiome, moisture, pH that drive flavor" do
+    String :profile_id
+    reference_to(ProtectedTerroir) :terroir
+    String :soil_type
+    Float :ph_level
+    String :mineral_composition
+    String :microbiome_diversity
+    list_of(SoilSample) :samples
+    value_object "SoilSample" do
+      String :sample_date
+      String :depth_cm
+      Float :organic_matter_pct
+      String :texture
+    end
+    CharacterizeSoil do
+      role "Ecologist"
+      description "Characterize soil profile at a specific location within the terroir"
+      String :profile_id
+      reference_to(ProtectedTerroir) :terroir
+      String :soil_type
+      Float :ph_level
+      String :mineral_composition
+      emits "SoilCharacterized"
+      then_set :profile_id, to: :profile_id
+      then_set :terroir, to: :terroir
+      then_set :soil_type, to: :soil_type
+      then_set :ph_level, to: :ph_level
+      then_set :mineral_composition, to: :mineral_composition
+      then_set :microbiome_diversity, to: "pending"
+    end
+    AssessMicrobiome do
+      role "Ecologist"
+      description "Assess soil microbiome diversity — key driver of fermentation character"
+      reference_to(SoilProfile)
+      String :microbiome_diversity
+      emits "MicrobiomeAssessed"
+      then_set :microbiome_diversity, to: :microbiome_diversity
+    end
+  end
+
+  # === CraftProducer ===
+
+  aggregate "CraftProducer", "A craft producer operating within the protected terroir — brewer, vintner, cheesemaker" do
+    String :producer_id
+    String :name
+    String :craft_type
+    reference_to(ProtectedTerroir) :terroir
+    String :certification_status
+    String :status
+    list_of(ProductOffering) :products
+    value_object "ProductOffering" do
+      String :product_name
+      String :style
+      String :vintage_season
+      String :terroir_claim
+    end
+    RegisterProducer do
+      role "ConservationAuthority"
+      description "Register a craft producer within the protected terroir"
+      String :producer_id
+      String :name
+      String :craft_type
+      reference_to(ProtectedTerroir) :terroir
+      emits "ProducerRegistered"
+      then_set :producer_id, to: :producer_id
+      then_set :name, to: :name
+      then_set :craft_type, to: :craft_type
+      then_set :terroir, to: :terroir
+      then_set :certification_status, to: "pending"
+      then_set :status, to: "active"
+    end
+    CertifyProducer do
+      role "ConservationAuthority"
+      description "Certify producer meets terroir protection standards"
+      reference_to(CraftProducer)
+      given { certification_status == "pending" }
+      emits "ProducerCertified"
+      then_set :certification_status, to: "certified"
+    end
+    SuspendProducer do
+      role "ConservationAuthority"
+      description "Suspend producer certification for ecological violations"
+      reference_to(CraftProducer)
+      given { status == "active" }
+      emits "ProducerSuspended"
+      then_set :certification_status, to: "suspended"
+    end
+  end
+
+  # === SpeciesSurvey ===
+
+  aggregate "SpeciesSurvey", "Biodiversity survey of the terroir — wild yeasts, insects, plants that contribute to flavor" do
+    String :survey_id
+    reference_to(ProtectedTerroir) :terroir
+    String :survey_date
+    String :season
+    String :overall_diversity
+    list_of(SpeciesRecord) :records
+    value_object "SpeciesRecord" do
+      String :species_name
+      String :kingdom
+      String :role_in_terroir
+      Integer :abundance
+    end
+    ConductSurvey do
+      role "Ecologist"
+      description "Conduct species survey across the terroir — focus on flavor-contributing organisms"
+      String :survey_id
+      reference_to(ProtectedTerroir) :terroir
+      String :survey_date
+      String :season
+      emits "SurveyConducted"
+      then_set :survey_id, to: :survey_id
+      then_set :terroir, to: :terroir
+      then_set :survey_date, to: :survey_date
+      then_set :season, to: :season
+      then_set :overall_diversity, to: "pending"
+    end
+    AssessDiversity do
+      role "Ecologist"
+      description "Assess overall biodiversity health of the terroir"
+      reference_to(SpeciesSurvey)
+      String :overall_diversity
+      emits "DiversityAssessed"
+      then_set :overall_diversity, to: :overall_diversity
+    end
+  end
+
+  # === VisitorExperience ===
+
+  aggregate "VisitorExperience", "Eco-tourism experience within the terroir — tasting, foraging, producer visits" do
+    String :experience_id
+    reference_to(ProtectedTerroir) :terroir
+    reference_to(CraftProducer) :host_producer
+    String :experience_type
+    Integer :capacity
+    String :status
+    list_of(ItineraryStop) :itinerary
+    value_object "ItineraryStop" do
+      String :stop_name
+      String :activity
+      Integer :duration_minutes
+      String :ecological_note
+    end
+    DesignExperience do
+      role "TourismCoordinator"
+      description "Design a terroir visitor experience — tasting, foraging, ecology walk"
+      String :experience_id
+      reference_to(ProtectedTerroir) :terroir
+      reference_to(CraftProducer) :host_producer
+      String :experience_type
+      Integer :capacity
+      emits "ExperienceDesigned"
+      then_set :experience_id, to: :experience_id
+      then_set :terroir, to: :terroir
+      then_set :host_producer, to: :host_producer
+      then_set :experience_type, to: :experience_type
+      then_set :capacity, to: :capacity
+      then_set :status, to: "available"
+    end
+    BookExperience do
+      role "Visitor"
+      description "Book a spot on a terroir experience"
+      reference_to(VisitorExperience)
+      given { status == "available" }
+      emits "ExperienceBooked"
+    end
+    CompleteExperience do
+      role "TourismCoordinator"
+      description "Complete the experience and collect visitor feedback"
+      reference_to(VisitorExperience)
+      given { status == "available" }
+      emits "ExperienceCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # === FlavorProfile ===
+
+  aggregate "FlavorProfile", "The sensory fingerprint of the terroir — connects soil, species, and craft into measurable flavor" do
+    String :profile_id
+    reference_to(ProtectedTerroir) :terroir
+    reference_to(SoilProfile) :soil
+    reference_to(CraftProducer) :producer
+    String :vintage_season
+    String :overall_character
+    list_of(FlavorNote) :notes
+    value_object "FlavorNote" do
+      String :note_name
+      String :intensity
+      String :source_attribution
+    end
+    CreateProfile do
+      role "SensoryAnalyst"
+      description "Create flavor profile linking terroir soil and species to product character"
+      String :profile_id
+      reference_to(ProtectedTerroir) :terroir
+      reference_to(SoilProfile) :soil
+      reference_to(CraftProducer) :producer
+      String :vintage_season
+      emits "ProfileCreated"
+      then_set :profile_id, to: :profile_id
+      then_set :terroir, to: :terroir
+      then_set :soil, to: :soil
+      then_set :producer, to: :producer
+      then_set :vintage_season, to: :vintage_season
+      then_set :overall_character, to: "pending"
+    end
+    AssessCharacter do
+      role "SensoryAnalyst"
+      description "Assess overall flavor character — the terroir signature in the product"
+      reference_to(FlavorProfile)
+      String :overall_character
+      emits "CharacterAssessed"
+      then_set :overall_character, to: :overall_character
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "CharacterizeSoilOnDesignate" do
+    on "TerroirDesignated"
+    trigger "CharacterizeSoil"
+  end
+  policy "SurveyOnDesignate" do
+    on "TerroirDesignated"
+    trigger "ConductSurvey"
+  end
+  policy "CertifyOnSoilAndDiversity" do
+    on "MicrobiomeAssessed"
+    trigger "CertifyProducer"
+  end
+  policy "CreateProfileOnCertify" do
+    on "ProducerCertified"
+    trigger "CreateProfile"
+  end
+  policy "DesignExperienceOnCertify" do
+    on "ProducerCertified"
+    trigger "DesignExperience"
+  end
+  policy "AssessCharacterOnDiversity" do
+    on "DiversityAssessed"
+    trigger "AssessCharacter"
+  end
+  policy "AmendOnPoorDiversity" do
+    on "DiversityAssessed"
+    trigger "AmendProtection"
+  end
+end

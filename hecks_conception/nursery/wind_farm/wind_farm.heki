@@ -1,0 +1,251 @@
+Hecks.bluebook "WindFarm" do
+  aggregate "Turbine" do
+    String :turbine_id
+    String :model
+    Float :rated_capacity_mw
+    Float :hub_height_meters
+    Float :rotor_diameter_meters
+    String :status
+
+    value_object "TurbineLocation" do
+      Float :latitude
+      Float :longitude
+      Float :elevation_meters
+      String :terrain_class
+    end
+
+    InstallTurbine do
+      description "Complete mechanical and electrical installation of wind turbine"
+      String :model
+      Float :rated_capacity_mw
+      reference_to "Turbine"
+      emits "TurbineInstalled"
+    end
+
+    RunCommissioning do
+      description "Run commissioning tests to verify turbine meets design parameters"
+      String :commissioning_engineer
+      reference_to "Turbine"
+      emits "CommissioningCompleted"
+    end
+
+    ActivateTurbine do
+      description "Complete commissioning tests and connect turbine to grid"
+      String :model
+      Float :rated_capacity_mw
+      reference_to "Turbine"
+      emits "TurbineActivated"
+    end
+
+    CurtailTurbine do
+      description "Reduce or stop turbine output for grid or noise constraints"
+      String :curtailment_reason
+      Float :curtailed_to_mw
+      reference_to "Turbine"
+      emits "TurbineCurtailed"
+    end
+
+    lifecycle :status, default: "erected" do
+      transition "InstallTurbine" => "installed", from: "erected"
+      transition "RunCommissioning" => "commissioned", from: "installed"
+      transition "ActivateTurbine" => "generating", from: "commissioned"
+      transition "CurtailTurbine" => "curtailed", from: "generating"
+    end
+
+    policy "Turbines must be shut down when wind exceeds cut-out speed"
+    policy "Annual inspection required for continued grid connection"
+  end
+
+  aggregate "PowerOutput" do
+    String :reading_id
+    String :turbine_id
+    String :timestamp
+    Float :output_mw
+    Float :wind_speed_mps
+    Float :rotor_rpm
+    String :status
+
+    RecordOutput do
+      description "Capture 10-minute average power output and wind data from turbine"
+      String :turbine_id
+      Float :output_mw
+      Float :wind_speed_mps
+      reference_to "Turbine"
+      emits "OutputRecorded"
+    end
+
+    FlagUnderperformance do
+      description "Flag turbine producing below expected power curve"
+      Float :expected_mw
+      Float :actual_mw
+      reference_to "Turbine"
+      emits "UnderperformanceFlagged"
+    end
+
+    lifecycle :status, default: "recording" do
+      transition "RecordOutput" => "recorded", from: "recording"
+      transition "FlagUnderperformance" => "flagged", from: "recorded"
+    end
+
+    policy "Underperformance beyond 10 percent triggers maintenance review"
+
+    given "Turbine T-07 produces 2.1 MW at 12 m/s wind" do
+      String :turbine_id, "T-07"
+      Float :output_mw, 2.1
+      Float :wind_speed_mps, 12.0
+    end
+  end
+
+  aggregate "MaintenanceCampaign" do
+    String :campaign_id
+    String :campaign_type
+    String :start_date
+    String :end_date
+    Integer :turbine_count
+    String :status
+    list_of "Turbine"
+
+    PlanCampaign do
+      description "Schedule multi-turbine maintenance campaign with crew and parts"
+      String :campaign_type
+      String :start_date
+      Integer :turbine_count
+      reference_to "MaintenanceCampaign"
+      emits "CampaignPlanned"
+    end
+
+    CompleteTurbineService do
+      description "Sign off individual turbine maintenance within campaign"
+      String :turbine_id
+      String :technician
+      reference_to "Turbine"
+      emits "TurbineServiced"
+    end
+
+    CloseCampaign do
+      description "Close campaign after all turbines serviced and reports filed"
+      String :close_notes
+      reference_to "MaintenanceCampaign"
+      emits "CampaignClosed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanCampaign" => "planned", from: "draft"
+      transition "CompleteTurbineService" => "in_progress", from: "planned"
+      transition "CloseCampaign" => "closed", from: "in_progress"
+    end
+
+    policy "All safety lockout procedures required before nacelle entry"
+  end
+
+  aggregate "WeatherStation" do
+    String :station_id
+    String :location
+    Float :wind_speed_mps
+    Float :wind_direction_deg
+    Float :temperature_c
+    Float :air_pressure_hpa
+
+    value_object "WeatherReading" do
+      Float :wind_speed_mps
+      Float :wind_direction_deg
+      Float :temperature_c
+      Float :humidity_percent
+    end
+
+    RecordWeather do
+      description "Log meteorological data from on-site weather station"
+      Float :wind_speed_mps
+      Float :wind_direction_deg
+      Float :temperature_c
+      reference_to "WeatherStation"
+      emits "WeatherRecorded"
+    end
+
+    AlertIcing do
+      description "Issue icing alert when temperature and humidity indicate blade ice risk"
+      Float :temperature_c
+      Float :humidity_percent
+      reference_to "WeatherStation"
+      emits "IcingAlerted"
+    end
+
+    policy "Icing conditions require turbine shutdown and blade inspection"
+  end
+
+  aggregate "GridConnection" do
+    String :connection_id
+    String :substation
+    Float :contracted_capacity_mw
+    Float :current_output_mw
+    String :status
+
+    DispatchPower do
+      description "Deliver generated power to grid substation per schedule"
+      Float :dispatched_mw
+      String :schedule_period
+      reference_to "GridConnection"
+      emits "PowerDispatched"
+    end
+
+    ReportAvailability do
+      description "Submit turbine availability data to grid operator"
+      Float :available_capacity_mw
+      Integer :turbines_online
+      reference_to "GridConnection"
+      emits "AvailabilityReported"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "DispatchPower" => "dispatching", from: "idle"
+      transition "ReportAvailability" => "reported", from: "dispatching"
+    end
+
+    policy "Output must not exceed contracted grid capacity"
+  end
+
+  policy "RunCommissioningOnTurbineInstalled" do
+    on "TurbineInstalled"
+    trigger "RunCommissioning"
+  end
+
+  policy "ActivateTurbineOnCommissioningCompleted" do
+    on "CommissioningCompleted"
+    trigger "ActivateTurbine"
+  end
+
+  policy "RecordOutputOnTurbineActivated" do
+    on "TurbineActivated"
+    trigger "RecordOutput"
+  end
+
+  policy "DispatchPowerOnOutputRecorded" do
+    on "OutputRecorded"
+    trigger "DispatchPower"
+  end
+
+  policy "ReportAvailabilityOnPowerDispatched" do
+    on "PowerDispatched"
+    trigger "ReportAvailability"
+  end
+
+  policy "PlanCampaignOnUnderperformanceFlagged" do
+    on "UnderperformanceFlagged"
+    trigger "PlanCampaign"
+  end
+
+  policy "CurtailTurbineOnIcingAlerted" do
+    on "IcingAlerted"
+    trigger "CurtailTurbine"
+  end
+
+  policy "CompleteTurbineServiceOnCampaignPlanned" do
+    on "CampaignPlanned"
+    trigger "CompleteTurbineService"
+  end
+
+  policy "CloseCampaignOnTurbineServiced" do
+    on "TurbineServiced"
+    trigger "CloseCampaign"
+  end
+end

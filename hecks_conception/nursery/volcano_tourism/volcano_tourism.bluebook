@@ -1,0 +1,238 @@
+Hecks.bluebook "VolcanoTourism" do
+  vision "Cross-wire volcanology monitoring with hotel management for safe and thrilling volcano tourism"
+  core
+
+  aggregate "Volcano" do
+    description "A monitored volcano with seismic and emission data"
+    attribute :name
+    attribute :elevation_m, Float
+    attribute :alert_level
+    attribute :readings, list_of(SeismicReading)
+    attribute :status, default: "monitored"
+
+    value_object "SeismicReading" do
+      attribute :magnitude, Float
+      attribute :depth_km, Float
+      attribute :timestamp
+      invariant "magnitude must be non-negative" do
+        magnitude >= 0
+      end
+    end
+
+    command "RegisterVolcano" do
+      role "Volcanologist"
+      goal "Register a volcano for monitoring"
+      attribute :name
+      attribute :elevation_m, Float
+    end
+
+    command "RecordSeismic" do
+      role "SeismicSensor"
+      goal "Record a seismic reading"
+      reference_to Volcano
+      attribute :magnitude, Float
+      attribute :depth_km, Float
+      attribute :timestamp
+      given("max 500 readings") { readings.size < 500 }
+      then_set :readings, append: { magnitude: :magnitude, depth_km: :depth_km, timestamp: :timestamp }
+    end
+
+    command "UpdateAlertLevel" do
+      role "Volcanologist"
+      goal "Change the volcanic alert level"
+      reference_to Volcano
+      attribute :alert_level
+    end
+  end
+
+  aggregate "HotelProperty" do
+    description "A hotel near the volcano offering tourism packages"
+    attribute :name
+    attribute :distance_km, Float
+    attribute :rooms, list_of(Room)
+    attribute :status, default: "open"
+
+    value_object "Room" do
+      attribute :room_number
+      attribute :room_type
+      attribute :rate_cents, Integer
+      invariant "rate must be positive" do
+        rate_cents > 0
+      end
+    end
+
+    command "RegisterHotel" do
+      role "HotelOwner"
+      goal "Register a hotel property"
+      attribute :name
+      attribute :distance_km, Float
+    end
+
+    command "AddRoom" do
+      role "HotelManager"
+      goal "Add a room to the hotel"
+      reference_to HotelProperty
+      attribute :room_number
+      attribute :room_type
+      attribute :rate_cents, Integer
+      given("max 200 rooms") { rooms.size < 200 }
+      then_set :rooms, append: { room_number: :room_number, room_type: :room_type, rate_cents: :rate_cents }
+    end
+
+    command "CloseHotel" do
+      role "EmergencyManager"
+      goal "Close hotel due to volcanic threat"
+      reference_to HotelProperty
+    end
+  end
+
+  aggregate "TourPackage" do
+    description "A volcano tour package combining science and adventure"
+    reference_to Volcano
+    reference_to HotelProperty
+    attribute :package_name
+    attribute :price_cents, Integer
+    attribute :activities, list_of(Activity)
+    attribute :status, default: "draft"
+
+    value_object "Activity" do
+      attribute :activity_name
+      attribute :duration_hours, Float
+      attribute :risk_level
+      invariant "duration must be positive" do
+        duration_hours > 0
+      end
+    end
+
+    command "DesignPackage" do
+      role "TourDesigner"
+      goal "Design a volcano tour package"
+      reference_to Volcano
+      reference_to HotelProperty
+      attribute :package_name
+      attribute :price_cents, Integer
+    end
+
+    command "AddActivity" do
+      role "TourDesigner"
+      goal "Add an activity to the tour"
+      reference_to TourPackage
+      attribute :activity_name
+      attribute :duration_hours, Float
+      attribute :risk_level
+      given("max 10 activities") { activities.size < 10 }
+      then_set :activities, append: { activity_name: :activity_name, duration_hours: :duration_hours, risk_level: :risk_level }
+    end
+
+    command "ActivatePackage" do
+      role "TourManager"
+      goal "Make the package bookable"
+      reference_to TourPackage
+      given("must have activities") { activities.size > 0 }
+    end
+  end
+
+  aggregate "Booking" do
+    description "A guest booking for a volcano tour"
+    reference_to TourPackage
+    reference_to HotelProperty
+    attribute :guest_name
+    attribute :party_size, Integer
+    attribute :status, default: "confirmed"
+
+    value_object "SafetyWaiver" do
+      attribute :waiver_type
+      attribute :signed, default: false
+    end
+
+    command "BookTour" do
+      role "Guest"
+      goal "Book a volcano tour package"
+      reference_to TourPackage
+      attribute :guest_name
+      attribute :party_size, Integer
+    end
+
+    command "CancelBooking" do
+      role "Guest"
+      goal "Cancel a booking"
+      reference_to Booking
+    end
+  end
+
+  aggregate "EvacuationPlan" do
+    description "Emergency evacuation plan for hotel guests during eruption"
+    reference_to HotelProperty
+    reference_to Volcano
+    attribute :plan_name
+    attribute :routes, list_of(EvacRoute)
+    attribute :status, default: "prepared"
+
+    value_object "EvacRoute" do
+      attribute :route_name
+      attribute :distance_km, Float
+      attribute :capacity, Integer
+      invariant "capacity must be positive" do
+        capacity > 0
+      end
+    end
+
+    command "PreparePlan" do
+      role "EmergencyManager"
+      goal "Prepare an evacuation plan"
+      reference_to HotelProperty
+      reference_to Volcano
+      attribute :plan_name
+    end
+
+    command "AddRoute" do
+      role "EmergencyManager"
+      goal "Add an evacuation route"
+      reference_to EvacuationPlan
+      attribute :route_name
+      attribute :distance_km, Float
+      attribute :capacity, Integer
+      given("max 10 routes") { routes.size < 10 }
+      then_set :routes, append: { route_name: :route_name, distance_km: :distance_km, capacity: :capacity }
+    end
+
+    command "ActivateEvacuation" do
+      role "EmergencyManager"
+      goal "Activate the evacuation plan"
+      reference_to EvacuationPlan
+      given("must have routes") { routes.size > 0 }
+    end
+  end
+
+  policy "AlertLevelUpdatedTriggersEvacuation" do
+    on "AlertLevelUpdated"
+    trigger "ActivateEvacuation"
+    map volcano_id: :volcano_id
+    condition { |event| event.alert_level == "red" }
+  end
+
+  policy "SeismicRecordedTriggersAlertReview" do
+    on "SeismicRecorded"
+    trigger "UpdateAlertLevel"
+    map volcano_id: :volcano_id
+    condition { |event| event.magnitude > 4.0 }
+  end
+
+  policy "HotelClosedTriggersCancellation" do
+    on "HotelClosed"
+    trigger "CancelBooking"
+    map hotel_property_id: :hotel_id
+  end
+
+  policy "PackageActivatedTriggersRoom" do
+    on "PackageActivated"
+    trigger "AddRoom"
+    map hotel_property_id: :hotel_id
+  end
+
+  policy "EvacuationActivatedTriggersClose" do
+    on "EvacuationActivated"
+    trigger "CloseHotel"
+    map hotel_property_id: :hotel_id
+  end
+end

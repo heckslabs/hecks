@@ -1,0 +1,192 @@
+Hecks.bluebook "MentorQuest" do
+  vision "Cross-wire youth mentoring programs with game development for gamified mentorship experiences"
+  core
+
+  aggregate "Mentor" do
+    description "A youth mentor with skills and availability"
+    attribute :name
+    attribute :specialties, list_of(Specialty)
+    attribute :mentees_max, Integer
+    attribute :status, default: "active"
+
+    value_object "Specialty" do
+      attribute :skill_area
+      attribute :experience_years, Integer
+      invariant "experience must be positive" do
+        experience_years > 0
+      end
+    end
+
+    command "RegisterMentor" do
+      role "ProgramCoordinator"
+      goal "Register a new mentor"
+      attribute :name
+      attribute :mentees_max, Integer
+    end
+
+    command "AddSpecialty" do
+      role "Mentor"
+      goal "Add a mentoring specialty"
+      reference_to Mentor
+      attribute :skill_area
+      attribute :experience_years, Integer
+      given("max 10 specialties") { specialties.size < 10 }
+      then_set :specialties, append: { skill_area: :skill_area, experience_years: :experience_years }
+    end
+  end
+
+  aggregate "Youth" do
+    description "A young person enrolled in the mentorship program"
+    attribute :name
+    attribute :age, Integer
+    attribute :interests, list_of(Interest)
+    attribute :xp_points, Integer
+    attribute :status, default: "enrolled"
+
+    value_object "Interest" do
+      attribute :topic
+      attribute :enthusiasm_level, Integer
+      invariant "enthusiasm between 1 and 10" do
+        enthusiasm_level >= 1 && enthusiasm_level <= 10
+      end
+    end
+
+    command "EnrollYouth" do
+      role "ProgramCoordinator"
+      goal "Enroll a young person"
+      attribute :name
+      attribute :age, Integer
+    end
+
+    command "AddInterest" do
+      role "Youth"
+      goal "Add an interest"
+      reference_to Youth
+      attribute :topic
+      attribute :enthusiasm_level, Integer
+      given("max 15 interests") { interests.size < 15 }
+      then_set :interests, append: { topic: :topic, enthusiasm_level: :enthusiasm_level }
+    end
+
+    command "AwardXP" do
+      role "GameEngine"
+      goal "Award experience points"
+      reference_to Youth
+      attribute :xp_points, Integer
+    end
+  end
+
+  aggregate "QuestLine" do
+    description "A gamified quest line with missions for mentees"
+    attribute :quest_name
+    attribute :theme
+    attribute :missions, list_of(Mission)
+    attribute :status, default: "design"
+
+    value_object "Mission" do
+      attribute :mission_name
+      attribute :description
+      attribute :xp_reward, Integer
+      attribute :difficulty
+      invariant "xp reward must be positive" do
+        xp_reward > 0
+      end
+    end
+
+    command "DesignQuest" do
+      role "GameDesigner"
+      goal "Design a new quest line"
+      attribute :quest_name
+      attribute :theme
+    end
+
+    command "AddMission" do
+      role "GameDesigner"
+      goal "Add a mission to the quest"
+      reference_to QuestLine
+      attribute :mission_name
+      attribute :description
+      attribute :xp_reward, Integer
+      attribute :difficulty
+      given("max 20 missions") { missions.size < 20 }
+      then_set :missions, append: { mission_name: :mission_name, description: :description, xp_reward: :xp_reward, difficulty: :difficulty }
+    end
+
+    command "PublishQuest" do
+      role "ProgramDirector"
+      goal "Publish the quest for youth"
+      reference_to QuestLine
+      given("must have missions") { missions.size > 0 }
+    end
+  end
+
+  aggregate "MentorshipSession" do
+    description "A mentoring session that progresses quest objectives"
+    reference_to Mentor
+    reference_to Youth
+    reference_to QuestLine
+    attribute :session_date
+    attribute :achievements, list_of(Achievement)
+    attribute :status, default: "scheduled"
+
+    value_object "Achievement" do
+      attribute :mission_name
+      attribute :completed, default: false
+      attribute :xp_earned, Integer
+    end
+
+    command "ScheduleSession" do
+      role "ProgramCoordinator"
+      goal "Schedule a mentoring session"
+      reference_to Mentor
+      reference_to Youth
+      attribute :session_date
+    end
+
+    command "RecordAchievement" do
+      role "Mentor"
+      goal "Record a quest achievement from the session"
+      reference_to MentorshipSession
+      attribute :mission_name
+      attribute :xp_earned, Integer
+      given("max 10 achievements") { achievements.size < 10 }
+      then_set :achievements, append: { mission_name: :mission_name, completed: true, xp_earned: :xp_earned }
+    end
+
+    command "CompleteSession" do
+      role "Mentor"
+      goal "Complete the mentoring session"
+      reference_to MentorshipSession
+    end
+  end
+
+  policy "YouthEnrolledTriggersQuest" do
+    on "YouthEnrolled"
+    trigger "DesignQuest"
+    map theme: :primary_interest
+  end
+
+  policy "QuestPublishedTriggersSession" do
+    on "QuestPublished"
+    trigger "ScheduleSession"
+    map quest_line_id: :quest_id
+  end
+
+  policy "AchievementRecordedTriggersXP" do
+    on "AchievementRecorded"
+    trigger "AwardXP"
+    map youth_id: :youth_id, xp_points: :xp_earned
+  end
+
+  policy "SessionCompletedTriggersMission" do
+    on "SessionCompleted"
+    trigger "AddMission"
+    map quest_line_id: :quest_id, mission_name: :next_mission
+  end
+
+  policy "InterestAddedTriggersSpecialty" do
+    on "InterestAdded"
+    trigger "AddSpecialty"
+    map mentor_id: :matched_mentor_id, skill_area: :topic
+  end
+end

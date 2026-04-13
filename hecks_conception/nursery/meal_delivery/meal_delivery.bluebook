@@ -1,0 +1,157 @@
+Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
+  vision "Meal delivery — food bank inventory meets courier routes, recipients, and dietary needs"
+  category "healthcare_community"
+
+  aggregate "FoodItem", "A food item in inventory available for meal assembly" do
+    String :item_id
+    String :name
+    String :category
+    Integer :quantity
+    String :expiry_date
+    String :dietary_tags
+    StockItem do
+      role "Volunteer"
+      description "Stock a food item into inventory"
+      String :item_id
+      String :name
+      String :category
+      Integer :quantity
+      String :expiry_date
+      String :dietary_tags
+      emits "ItemStocked"
+      then_set :item_id, to: :item_id
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :quantity, to: :quantity
+      then_set :expiry_date, to: :expiry_date
+      then_set :dietary_tags, to: :dietary_tags
+    end
+    DepletItem do
+      role "System"
+      description "Reduce inventory when item is used in meal assembly"
+      reference_to(FoodItem)
+      Integer :quantity
+      emits "ItemDepleted"
+      then_set :quantity, to: :quantity
+    end
+  end
+
+  aggregate "MealPackage", "An assembled meal package for a recipient" do
+    String :package_id
+    String :recipient_id
+    list_of(MealComponent) :components
+    String :dietary_type
+    String :status
+    value_object "MealComponent" do
+      String :item_name
+      String :category
+      Integer :servings
+    end
+    AssembleMeal do
+      role "Volunteer"
+      description "Assemble a meal package tailored to dietary needs"
+      String :package_id
+      String :recipient_id
+      String :dietary_type
+      emits "MealAssembled"
+      then_set :package_id, to: :package_id
+      then_set :recipient_id, to: :recipient_id
+      then_set :dietary_type, to: :dietary_type
+      then_set :status, to: "assembled"
+    end
+    MarkDelivered do
+      role "Courier"
+      description "Mark meal package as delivered to recipient"
+      reference_to(MealPackage)
+      given { status == "assembled" }
+      emits "MealDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "DeliveryRun", "A courier delivery run with multiple meal stops" do
+    String :run_id
+    String :courier_name
+    String :date
+    list_of(DeliveryStop) :stops
+    Float :total_miles
+    String :status
+    value_object "DeliveryStop" do
+      String :recipient_name
+      String :address
+      String :time_window
+    end
+    PlanRun do
+      role "Dispatcher"
+      description "Plan a delivery run with route-optimized stops"
+      String :run_id
+      String :courier_name
+      String :date
+      Float :total_miles
+      emits "RunPlanned"
+      then_set :run_id, to: :run_id
+      then_set :courier_name, to: :courier_name
+      then_set :date, to: :date
+      then_set :total_miles, to: :total_miles
+      then_set :status, to: "planned"
+    end
+    StartRun do
+      role "Courier"
+      description "Start the delivery run"
+      reference_to(DeliveryRun)
+      given { status == "planned" }
+      emits "RunStarted"
+      then_set :status, to: "in_progress"
+    end
+    FinishRun do
+      role "Courier"
+      description "Finish the delivery run after all stops"
+      reference_to(DeliveryRun)
+      given { status == "in_progress" }
+      emits "RunFinished"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "Recipient", "A meal delivery recipient with dietary requirements" do
+    String :recipient_id
+    String :name
+    String :address
+    String :dietary_restriction
+    Integer :household_size
+    String :status
+    RegisterRecipient do
+      role "CaseWorker"
+      description "Register a new meal delivery recipient"
+      String :recipient_id
+      String :name
+      String :address
+      String :dietary_restriction
+      Integer :household_size
+      emits "RecipientRegistered"
+      then_set :recipient_id, to: :recipient_id
+      then_set :name, to: :name
+      then_set :address, to: :address
+      then_set :dietary_restriction, to: :dietary_restriction
+      then_set :household_size, to: :household_size
+      then_set :status, to: "active"
+    end
+    UpdateDiet do
+      role "CaseWorker"
+      description "Update dietary restriction for a recipient"
+      reference_to(Recipient)
+      String :dietary_restriction
+      emits "DietUpdated"
+      then_set :dietary_restriction, to: :dietary_restriction
+    end
+  end
+
+  policy "AssembleOnRegister" do
+    on "RecipientRegistered"
+    trigger "AssembleMeal"
+  end
+  policy "DeliverOnAssemble" do
+    on "MealAssembled"
+    trigger "PlanRun"
+  end
+end

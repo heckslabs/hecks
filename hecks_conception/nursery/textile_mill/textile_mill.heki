@@ -1,0 +1,224 @@
+Hecks.bluebook "TextileMill" do
+  aggregate "YarnLot" do
+    String :lot_id
+    String :fiber_type
+    Float :denier
+    String :color_code
+    Float :weight_kg
+    String :status
+
+    value_object "YarnTension" do
+      Float :twist_per_meter
+      Float :tensile_strength_cn
+      Float :elongation_percent
+    end
+
+    SpinYarn do
+      description "Spin raw fiber into yarn on the spinning frame"
+      String :fiber_type
+      Float :target_denier
+      Float :twist_per_meter
+      reference_to "YarnLot"
+      emits "YarnSpun"
+    end
+
+    TestYarn do
+      description "Test yarn tensile strength and elongation before dyeing"
+      Float :tensile_strength_cn
+      Float :elongation_percent
+      reference_to "YarnLot"
+      emits "YarnTested"
+    end
+
+    DyeYarn do
+      description "Dye yarn lot to specified color in dye vat"
+      String :dye_recipe
+      String :color_code
+      Float :temperature_c
+      reference_to "YarnLot"
+      emits "YarnDyed"
+    end
+
+    lifecycle :status, default: "raw_fiber" do
+      transition "SpinYarn" => "spun", from: "raw_fiber"
+      transition "TestYarn" => "tested", from: "spun"
+      transition "DyeYarn" => "dyed", from: "tested"
+    end
+
+    policy "Yarn must pass tensile strength test before weaving"
+    policy "Dye lots must be tested for color fastness"
+  end
+
+  aggregate "FabricRoll" do
+    String :roll_id
+    String :weave_pattern
+    Float :width_cm
+    Float :length_meters
+    String :status
+    list_of "YarnLot"
+
+    WeaveCloth do
+      description "Weave yarn into fabric on a loom using specified pattern"
+      String :loom_id
+      String :weave_pattern
+      Float :target_width_cm
+      reference_to "YarnLot"
+      emits "ClothWoven"
+    end
+
+    InspectFabric do
+      description "Inspect woven fabric for defects per 100 meters"
+      Integer :defects_found
+      String :inspector
+      reference_to "FabricRoll"
+      emits "FabricInspected"
+    end
+
+    FinishFabric do
+      description "Apply finishing treatments like calendering or sanforizing"
+      String :finish_type
+      reference_to "FabricRoll"
+      emits "FabricFinished"
+    end
+
+    lifecycle :status, default: "warped" do
+      transition "WeaveCloth" => "woven", from: "warped"
+      transition "InspectFabric" => "inspected", from: "woven"
+      transition "FinishFabric" => "finished", from: "inspected"
+    end
+
+    policy "Fabric must be inspected per 100 meters for defects"
+
+    given "A cotton twill roll is woven" do
+      String :weave_pattern, "2/1 Twill"
+      Float :width_cm, 150.0
+      Float :length_meters, 500.0
+    end
+  end
+
+  aggregate "DyeRecipe" do
+    String :recipe_id
+    String :color_name
+    String :dye_class
+    Float :concentration_gpl
+    Float :temperature_c
+    Float :duration_minutes
+
+    value_object "ColorSpec" do
+      Float :lightness_l
+      Float :chroma_a
+      Float :hue_b
+      Float :delta_e_tolerance
+    end
+
+    FormulateRecipe do
+      description "Create or adjust dye recipe for target color specification"
+      String :color_name
+      String :dye_class
+      Float :concentration_gpl
+      reference_to "DyeRecipe"
+      emits "RecipeFormulated"
+    end
+
+    policy "Delta E must be within tolerance for color approval"
+  end
+
+  aggregate "Loom" do
+    String :loom_id
+    String :loom_type
+    Float :max_width_cm
+    Integer :harness_count
+    String :status
+
+    WarpLoom do
+      description "Thread warp yarns through heddles and reed to prepare loom"
+      String :warp_yarn_lot
+      Integer :end_count
+      reference_to "YarnLot"
+      emits "LoomWarped"
+    end
+
+    PerformLoomMaintenance do
+      description "Service loom mechanisms and replace worn components"
+      String :maintenance_type
+      String :technician
+      reference_to "Loom"
+      emits "LoomServiced"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "WarpLoom" => "warped", from: "idle"
+      transition "PerformLoomMaintenance" => "serviced", from: "idle"
+    end
+
+    policy "Loom must be warped before weaving can begin"
+  end
+
+  aggregate "TextileOrder" do
+    String :order_id
+    String :buyer_name
+    String :fabric_type
+    Float :quantity_meters
+    String :delivery_date
+    String :status
+    list_of "FabricRoll"
+
+    AcceptOrder do
+      description "Accept buyer order specifying fabric type and quantity"
+      String :buyer_name
+      String :fabric_type
+      Float :quantity_meters
+      reference_to "TextileOrder"
+      emits "OrderAccepted"
+    end
+
+    ShipOrder do
+      description "Pack and ship fabric rolls to fulfill buyer order"
+      String :shipping_method
+      reference_to "TextileOrder"
+      emits "OrderShipped"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AcceptOrder" => "accepted", from: "pending"
+      transition "ShipOrder" => "shipped", from: "accepted"
+    end
+
+    policy "Shipped fabric must match order color and weave specifications"
+  end
+
+  policy "TestYarnOnYarnSpun" do
+    on "YarnSpun"
+    trigger "TestYarn"
+  end
+
+  policy "DyeYarnOnYarnTested" do
+    on "YarnTested"
+    trigger "DyeYarn"
+  end
+
+  policy "WarpLoomOnYarnDyed" do
+    on "YarnDyed"
+    trigger "WarpLoom"
+  end
+
+  policy "WeaveClothOnLoomWarped" do
+    on "LoomWarped"
+    trigger "WeaveCloth"
+  end
+
+  policy "InspectFabricOnClothWoven" do
+    on "ClothWoven"
+    trigger "InspectFabric"
+  end
+
+  policy "FinishFabricOnFabricInspected" do
+    on "FabricInspected"
+    trigger "FinishFabric"
+  end
+
+  policy "ShipOrderOnFabricFinished" do
+    on "FabricFinished"
+    trigger "ShipOrder"
+  end
+end

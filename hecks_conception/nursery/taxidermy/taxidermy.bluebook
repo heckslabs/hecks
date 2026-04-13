@@ -1,0 +1,198 @@
+Hecks.bluebook "Taxidermy" do
+  aggregate "Specimen", "An animal specimen received for taxidermy mounting" do
+    String :species
+    String :common_name
+    String :status, default: "received"
+    Float :weight_lbs
+    String :source_type
+
+    value_object "SpecimenMeasurements" do
+      Float :body_length_inches
+      Float :girth_inches
+      Float :horn_length_inches
+      Float :wingspan_inches
+    end
+
+    ReceiveSpecimen do
+      description "Log a new specimen intake with measurements"
+      String :species
+      String :common_name
+      Float :weight_lbs
+      String :source_type
+      emits "SpecimenReceived"
+    end
+
+    SkinSpecimen do
+      description "Remove and prepare the hide or skin for tanning"
+      reference_to(Specimen)
+      given { status == "received" }
+      emits "SpecimenSkinned"
+      then_set :status, to: "skinned"
+    end
+
+    TanHide do
+      description "Tan the hide using the selected tanning method"
+      reference_to(Specimen)
+      String :tanning_method
+      given { status == "skinned" }
+      emits "HideTanned"
+      then_set :status, to: "tanned"
+    end
+  end
+
+  aggregate "Pose", "The pose and form selection for a mounted specimen" do
+    String :pose_name
+    String :position
+    String :expression
+    String :status, default: "selected"
+    reference_to(Specimen)
+
+    value_object "FormSpec" do
+      String :form_manufacturer
+      String :size_code
+      String :material
+      String :alterations_needed
+    end
+
+    SelectPose do
+      description "Choose the pose and expression for the mount"
+      reference_to(Specimen)
+      String :pose_name
+      String :position
+      String :expression
+      emits "PoseSelected"
+    end
+
+    SculptAlteration do
+      description "Modify the form to match the specimen anatomy"
+      reference_to(Pose)
+      String :alteration_details
+      given { status == "selected" }
+      emits "AlterationSculpted"
+      then_set :status, to: "altered"
+    end
+  end
+
+  aggregate "TaxidermyMaterial", "Supplies and materials for taxidermy work" do
+    String :material_name
+    String :category
+    Integer :quantity
+    String :supplier
+    Float :unit_cost
+
+    StockMaterial do
+      description "Add materials to the taxidermy supply inventory"
+      String :material_name
+      String :category
+      Integer :quantity
+      String :supplier
+      Float :unit_cost
+      emits "MaterialStocked"
+    end
+
+    ConsumeMaterial do
+      description "Deduct materials used during a mount"
+      reference_to(TaxidermyMaterial)
+      Integer :quantity_used
+      emits "MaterialConsumed"
+    end
+  end
+
+  aggregate "Preservation", "The preservation and mounting process for a specimen" do
+    String :method
+    String :status, default: "in_progress"
+    String :adhesive_type
+    Integer :drying_days
+    reference_to(Specimen)
+    reference_to(Pose)
+
+    MountSpecimen do
+      description "Stretch the tanned hide over the form and mount"
+      reference_to(Specimen)
+      reference_to(Pose)
+      String :adhesive_type
+      emits "SpecimenMounted"
+    end
+
+    FinishMount do
+      description "Paint details, set eyes, and apply final touches"
+      reference_to(Preservation)
+      given { status == "in_progress" }
+      emits "MountFinished"
+      then_set :status, to: "finished"
+    end
+
+    CureMount do
+      description "Allow the mount to cure and dry completely"
+      reference_to(Preservation)
+      Integer :drying_days
+      emits "MountCured"
+      then_set :drying_days, to: :drying_days
+    end
+  end
+
+  aggregate "Display", "A finished mount displayed in a collection or exhibit" do
+    String :location
+    String :display_type
+    String :plaque_text
+    String :status, default: "staged"
+    reference_to(Preservation)
+
+    StageDisplay do
+      description "Set up the finished mount in a display location"
+      reference_to(Preservation)
+      String :location
+      String :display_type
+      String :plaque_text
+      emits "DisplayStaged"
+    end
+
+    RotateDisplay do
+      description "Move a display to a different location or exhibit"
+      reference_to(Display)
+      String :new_location
+      emits "DisplayRotated"
+      then_set :location, to: :new_location
+    end
+  end
+
+  policy "SkinOnReceive" do
+    on "SpecimenReceived"
+    trigger "SkinSpecimen"
+  end
+
+  policy "TanAfterSkinning" do
+    on "SpecimenSkinned"
+    trigger "TanHide"
+  end
+
+  policy "SelectPoseOnTan" do
+    on "HideTanned"
+    trigger "SelectPose"
+  end
+
+  policy "SculptOnPoseSelect" do
+    on "PoseSelected"
+    trigger "SculptAlteration"
+  end
+
+  policy "MountAfterSculpt" do
+    on "AlterationSculpted"
+    trigger "MountSpecimen"
+  end
+
+  policy "FinishAfterMount" do
+    on "SpecimenMounted"
+    trigger "FinishMount"
+  end
+
+  policy "CureAfterFinish" do
+    on "MountFinished"
+    trigger "CureMount"
+  end
+
+  policy "DisplayAfterCure" do
+    on "MountCured"
+    trigger "StageDisplay"
+  end
+end

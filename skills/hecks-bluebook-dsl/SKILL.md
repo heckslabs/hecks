@@ -25,9 +25,9 @@ The primary building block. An aggregate is a cluster of domain objects with a r
 
 ```ruby
 aggregate "Pizza" do
-  attribute :name, String
-  attribute :style, String, enum: %w[classic tropical spicy]
-  attribute :price, Float
+  String :name
+  String :style, enum: %w[classic tropical spicy]
+  Float :price
 
   # Commands, value objects, entities, etc. go here
 end
@@ -36,17 +36,23 @@ end
 ### Attributes
 
 ```ruby
-attribute :name, String                          # typed attribute
-attribute :name                                  # default type is String
+# Primary (shorthand)
+String :name                                     # typed attribute
+Integer :count
+Float :price
+Boolean :active
+JSON :metadata
+Date :born_on
+DateTime :created_at
+list_of(String) :tags                            # collection
+String :category, enum: %w[a b c]               # enum constraint
+Integer :score, default: 0                       # default value
+
+# Also supported (verbose)
+attribute :name, String
 attribute :count, Integer
-attribute :price, Float
-attribute :active, Boolean
-attribute :metadata, JSON
-attribute :born_on, Date
-attribute :created_at, DateTime
-attribute :tags, list_of("String")               # collection
-attribute :category, String, enum: %w[a b c]     # enum constraint
-attribute :score, Integer, default: 0            # default value
+attribute :tags, list_of("String")
+attribute :name                                  # default type is String
 ```
 
 **Symbol shorthand:** `:string`, `:integer`, `:float`, `:boolean`, `:date`, `:datetime`
@@ -54,9 +60,14 @@ attribute :score, Integer, default: 0            # default value
 ### References
 
 ```ruby
-reference_to "Order"                             # cross-aggregate reference
-reference_to "Team", role: "home_team"           # named role
-reference_to "Billing::Invoice"                  # cross-domain reference
+# Primary
+reference_to(Order)                              # cross-aggregate reference
+reference_to(Order).as(:recent_purchase)         # named role
+reference_to(Billing::Invoice)                   # cross-domain reference
+
+# Also supported (verbose)
+reference_to "Order"
+reference_to "Team", role: "home_team"
 ```
 
 References hold live objects in memory. IDs are a persistence concern only.
@@ -68,15 +79,15 @@ Immutable nested types defined inside an aggregate. No identity.
 ```ruby
 aggregate "Pizza" do
   value_object "Topping" do
-    attribute :name, String
-    attribute :quantity, Integer
+    String :name
+    Integer :quantity
 
     invariant "quantity must be positive" do |vo|
       vo.quantity > 0
     end
   end
 
-  attribute :toppings, list_of("Topping")
+  list_of(Topping) :toppings
 end
 ```
 
@@ -87,8 +98,8 @@ Sub-objects with identity (UUID). Mutable, not frozen.
 ```ruby
 aggregate "Order" do
   entity "LineItem" do
-    attribute :product, String
-    attribute :quantity, Integer
+    String :product
+    Integer :quantity
   end
 end
 ```
@@ -98,13 +109,16 @@ end
 Commands are verb-phrase named actions that modify aggregate state.
 
 ```ruby
-command "CreatePizza" do
-  attribute :name, String
-  attribute :style, String
+# Primary (bare PascalCase)
+CreatePizza do
+  description "Add a new pizza to the menu"
+  String :name
+  String :style
+  emits "PizzaCreated"
 end
 
-command "BakePizza" do
-  attribute :temperature, Integer
+BakePizza do
+  Integer :temperature
 
   # Guard policy (authorization)
   guard do
@@ -120,6 +134,12 @@ command "BakePizza" do
     # Ruby code executed at runtime
   end
 end
+
+# Also supported (verbose)
+command "CreatePizza" do
+  attribute :name, String
+  attribute :style, String
+end
 ```
 
 ### Auto-inferred Events
@@ -131,8 +151,8 @@ Every command auto-generates a past-tense event: `CreatePizza` → `CreatedPizza
 Commands that participate in a lifecycle must have a self-referencing ID attribute so the generator treats them as updates, not creates:
 
 ```ruby
-command "ApproveLoan" do
-  attribute :loan_id, reference_to("Loan")  # self-ref ID
+ApproveLoan do
+  reference_to(Loan) :loan_id                   # self-ref ID
   sets status: "approved"
 end
 ```
@@ -240,9 +260,9 @@ Orchestrate multiple commands across aggregates:
 
 ```ruby
 service "TransferMoney" do
-  attribute :source_id, String
-  attribute :dest_id, String
-  attribute :amount, Float
+  String :source_id
+  String :dest_id
+  Float :amount
   coordinates "Account", "Ledger"
   call do
     dispatch("Withdraw", account_id: source_id, amount: amount)
@@ -307,20 +327,20 @@ subscribe "Pizzas"  # subscribe to another domain's events
 ```ruby
 Hecks.domain "Blog" do
   Post do                              # PascalCase block → aggregate
-    title String                       # bare name Type → attribute
-    body String
-    published Boolean
+    String :title                      # Type :name → attribute
+    String :body
+    Boolean :published
 
     create do                          # snake_case block → command (CreatePost)
-      title String
+      String :title
     end
 
     Address do                         # nested PascalCase → value object
-      street String
-      city String
+      String :street
+      String :city
     end
 
-    ref("Author")                      # short for reference_to
+    reference_to(Author)               # paren syntax for references
   end
 end
 ```

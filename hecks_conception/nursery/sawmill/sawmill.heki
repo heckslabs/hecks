@@ -1,0 +1,233 @@
+Hecks.bluebook "Sawmill" do
+  aggregate "Log" do
+    String :log_id
+    String :species
+    Float :diameter_inches
+    Float :length_feet
+    String :grade
+    String :status
+
+    value_object "LogScale" do
+      Float :gross_board_feet
+      Float :net_board_feet
+      Float :defect_percent
+    end
+
+    ReceiveLog do
+      description "Receive and scale incoming log at the log yard"
+      String :species
+      Float :diameter_inches
+      Float :length_feet
+      reference_to "Log"
+      emits "LogReceived"
+    end
+
+    DebarLog do
+      description "Remove bark from log before sawing"
+      String :debarker_id
+      reference_to "Log"
+      emits "LogDebarked"
+    end
+
+    lifecycle :status, default: "in_yard" do
+      transition "ReceiveLog" => "scaled", from: "in_yard"
+      transition "DebarLog" => "debarked", from: "scaled"
+    end
+
+    policy "Logs must be scaled before entering the mill"
+    policy "Logs must be debarked before primary breakdown"
+  end
+
+  aggregate "LumberBundle" do
+    String :bundle_id
+    String :species
+    String :dimension
+    String :grade
+    Integer :piece_count
+    String :status
+    list_of "LumberPiece"
+
+    SawLumber do
+      description "Cut log into dimensional lumber on the headrig"
+      String :saw_pattern
+      String :target_dimension
+      reference_to "Log"
+      emits "LumberSawn"
+    end
+
+    EdgeLumber do
+      description "Remove wane edges on edger to produce square-edged boards"
+      String :edger_id
+      reference_to "LumberBundle"
+      emits "LumberEdged"
+    end
+
+    GradeLumber do
+      description "Assign structural or appearance grade to lumber pieces"
+      String :grading_standard
+      String :assigned_grade
+      reference_to "LumberBundle"
+      emits "LumberGraded"
+    end
+
+    lifecycle :status, default: "rough" do
+      transition "SawLumber" => "sawn", from: "rough"
+      transition "EdgeLumber" => "edged", from: "sawn"
+      transition "GradeLumber" => "graded", from: "edged"
+    end
+
+    policy "All lumber must be graded before kiln drying"
+
+    given "A bundle of 2x4 Douglas Fir is sawn" do
+      String :species, "Douglas Fir"
+      String :dimension, "2x4"
+      Integer :piece_count, 96
+    end
+  end
+
+  aggregate "KilnCharge" do
+    String :charge_id
+    String :kiln_id
+    String :species
+    Float :target_moisture_percent
+    String :status
+    list_of "LumberBundle"
+
+    value_object "DryingSchedule" do
+      Float :initial_temp_f
+      Float :final_temp_f
+      Float :duration_hours
+      Float :target_moisture
+    end
+
+    LoadKiln do
+      description "Load lumber bundles into kiln for drying cycle"
+      String :kiln_id
+      String :schedule_type
+      reference_to "KilnCharge"
+      emits "KilnLoaded"
+    end
+
+    MonitorMoisture do
+      description "Check moisture content of sample boards during drying cycle"
+      Float :current_moisture_percent
+      reference_to "KilnCharge"
+      emits "MoistureChecked"
+    end
+
+    UnloadKiln do
+      description "Remove dried lumber from kiln after cycle completion"
+      Float :final_moisture_percent
+      reference_to "KilnCharge"
+      emits "KilnUnloaded"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "LoadKiln" => "drying", from: "empty"
+      transition "MonitorMoisture" => "monitored", from: "drying"
+      transition "UnloadKiln" => "complete", from: "monitored"
+    end
+
+    policy "Kiln temperature must follow schedule for species"
+  end
+
+  aggregate "CutOrder" do
+    String :order_id
+    String :customer_name
+    String :species
+    String :dimension
+    Integer :quantity_pieces
+    String :delivery_date
+    String :status
+
+    PlaceCutOrder do
+      description "Record customer order for specific lumber dimensions and species"
+      String :customer_name
+      String :species
+      String :dimension
+      reference_to "CutOrder"
+      emits "CutOrderPlaced"
+    end
+
+    ShipCutOrder do
+      description "Load and ship lumber to fulfill customer order"
+      String :carrier_name
+      String :truck_number
+      reference_to "CutOrder"
+      emits "CutOrderShipped"
+    end
+
+    lifecycle :status, default: "received" do
+      transition "PlaceCutOrder" => "confirmed", from: "received"
+      transition "ShipCutOrder" => "shipped", from: "confirmed"
+    end
+
+    policy "Orders can only be fulfilled from kiln-dried stock"
+  end
+
+  aggregate "MillEquipment" do
+    String :equipment_id
+    String :equipment_type
+    String :location
+    Float :hours_since_service
+    String :status
+
+    ServiceEquipment do
+      description "Perform scheduled maintenance on sawmill equipment"
+      String :service_type
+      String :technician
+      reference_to "MillEquipment"
+      emits "EquipmentServiced"
+    end
+
+    ReportBreakdown do
+      description "Log unplanned equipment failure requiring immediate repair"
+      String :failure_description
+      String :severity
+      reference_to "MillEquipment"
+      emits "BreakdownReported"
+    end
+
+    lifecycle :status, default: "operational" do
+      transition "ServiceEquipment" => "serviced", from: "operational"
+      transition "ReportBreakdown" => "down", from: "operational"
+    end
+
+    policy "Equipment exceeding service interval must be taken offline"
+  end
+
+  policy "DebarLogOnLogReceived" do
+    on "LogReceived"
+    trigger "DebarLog"
+  end
+
+  policy "SawLumberOnLogDebarked" do
+    on "LogDebarked"
+    trigger "SawLumber"
+  end
+
+  policy "EdgeLumberOnLumberSawn" do
+    on "LumberSawn"
+    trigger "EdgeLumber"
+  end
+
+  policy "GradeLumberOnLumberEdged" do
+    on "LumberEdged"
+    trigger "GradeLumber"
+  end
+
+  policy "LoadKilnOnLumberGraded" do
+    on "LumberGraded"
+    trigger "LoadKiln"
+  end
+
+  policy "UnloadKilnOnMoistureChecked" do
+    on "MoistureChecked"
+    trigger "UnloadKiln"
+  end
+
+  policy "ShipCutOrderOnKilnUnloaded" do
+    on "KilnUnloaded"
+    trigger "ShipCutOrder"
+  end
+end

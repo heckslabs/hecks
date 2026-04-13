@@ -1,0 +1,267 @@
+Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
+  vision "Running an online auction house — listing lots, accepting bids, managing sellers, settling winners, and resolving disputes"
+  category "technology"
+
+  aggregate "Lot", "An item or collection offered for auction bidding" do
+    String :lot_number
+    String :title
+    String :description
+    String :category
+    Float :starting_price
+    Float :reserve_price
+    Float :current_bid
+    String :auction_end
+    String :status
+    list_of(LotImage) :images
+
+    specification "ReserveMet" do
+      satisfied_by { current_bid >= reserve_price }
+    end
+
+    value_object "LotImage" do
+      String :url
+      String :caption
+      Integer :display_order
+    end
+
+    ListLot do
+      role "Seller"
+      description "Offer an item for auction with starting price and reserve"
+      String :lot_number
+      String :title
+      String :description
+      String :category
+      Float :starting_price
+      Float :reserve_price
+      String :auction_end
+      emits "LotListed"
+    end
+
+    CloseLot do
+      description "End bidding on a lot when the auction time expires"
+      reference_to(Lot)
+      given("lot is active") { status == "active" }
+      emits "LotClosed"
+    end
+
+    WithdrawLot do
+      description "Remove a lot from auction before any bids"
+      reference_to(Lot)
+      given("no bids placed") { current_bid == 0 }
+      emits "LotWithdrawn"
+    end
+  end
+
+  aggregate "Bid", "A price offer placed on an auction lot" do
+    String :bid_id
+    Float :amount
+    String :bidder_name
+    String :bidder_email
+    String :placed_at
+    String :status
+    reference_to Lot
+
+    value_object "BidIncrement" do
+      Float :minimum_increment
+      Float :previous_bid
+      Float :new_bid
+    end
+
+    PlaceBid do
+      role "Bidder"
+      description "Submit a bid on an active auction lot"
+      String :bid_id
+      Float :amount
+      String :bidder_name
+      String :bidder_email
+      reference_to(Lot)
+      given("bid exceeds current") { amount > 0 }
+      emits "BidPlaced"
+    end
+
+    RetractBid do
+      description "Withdraw a bid under exceptional circumstances"
+      reference_to(Bid)
+      String :retraction_reason
+      emits "BidRetracted"
+    end
+
+    FlagSuspiciousBid do
+      description "Mark a bid for fraud review"
+      reference_to(Bid)
+      emits "BidFlagged"
+    end
+  end
+
+  aggregate "Seller", "A person or entity offering lots for auction" do
+    String :seller_id
+    String :name
+    String :email
+    Float :seller_rating
+    Integer :total_sales
+    String :status
+    list_of(SellerReview) :reviews
+
+    value_object "SellerReview" do
+      String :reviewer
+      Integer :rating
+      String :comment
+      String :reviewed_at
+    end
+
+    RegisterSeller do
+      role "Seller"
+      description "Create a seller account on the auction platform"
+      String :seller_id
+      String :name
+      String :email
+      emits "SellerRegistered"
+    end
+
+    VerifySeller do
+      description "Confirm a seller's identity and payment details"
+      reference_to(Seller)
+      emits "SellerVerified"
+    end
+
+    SuspendSeller do
+      description "Freeze a seller account for policy violations"
+      reference_to(Seller)
+      given("seller is active") { status == "active" }
+      emits "SellerSuspended"
+    end
+  end
+
+  aggregate "AuctionSettlement", "A financial resolution after a lot sells" do
+    String :settlement_id
+    Float :hammer_price
+    Float :buyer_premium
+    Float :seller_commission
+    Float :net_to_seller
+    String :status
+    reference_to Lot
+
+    value_object "FeeBreakdown" do
+      String :fee_type
+      Float :amount
+      Float :rate
+    end
+
+    CreateSettlement do
+      role "AuctionHouse"
+      description "Calculate fees and create a settlement after lot closure"
+      String :settlement_id
+      Float :hammer_price
+      Float :buyer_premium
+      Float :seller_commission
+      reference_to(Lot)
+      emits "SettlementCreated"
+    end
+
+    DisburseToSeller do
+      description "Transfer net proceeds to the seller"
+      reference_to(AuctionSettlement)
+      given("settlement is pending") { status == "pending" }
+      emits "SellerDisbursed"
+    end
+
+    HoldSettlement do
+      description "Freeze settlement pending dispute resolution"
+      reference_to(AuctionSettlement)
+      String :hold_reason
+      emits "SettlementHeld"
+    end
+  end
+
+  aggregate "Dispute", "A disagreement between buyer and seller about a lot" do
+    String :dispute_id
+    String :complainant
+    String :reason
+    String :description
+    String :status
+    reference_to AuctionSettlement
+
+    value_object "DisputeEvidence" do
+      String :document_url
+      String :description
+      String :submitted_by
+    end
+
+    OpenDispute do
+      role "Bidder"
+      description "File a complaint about a lot or transaction"
+      String :dispute_id
+      String :complainant
+      String :reason
+      String :description
+      reference_to(AuctionSettlement)
+      emits "DisputeOpened"
+    end
+
+    ResolveDispute do
+      description "Render a decision on a dispute"
+      reference_to(Dispute)
+      String :resolution
+      given("dispute is open") { status == "open" }
+      emits "DisputeResolved"
+    end
+
+    EscalateDispute do
+      description "Escalate a dispute to senior arbitration"
+      reference_to(Dispute)
+      emits "DisputeEscalated"
+    end
+  end
+
+  lifecycle "AuctionFlow" do
+    state "listed"
+    state "bidding"
+    state "closed"
+    state "settling"
+    state "disbursed"
+    state "disputed"
+    state "resolved"
+
+    transition from: "listed", to: "bidding", on: "BidPlaced"
+    transition from: "bidding", to: "closed", on: "LotClosed"
+    transition from: "closed", to: "settling", on: "SettlementCreated"
+    transition from: "settling", to: "disbursed", on: "SellerDisbursed"
+    transition from: "settling", to: "disputed", on: "DisputeOpened"
+    transition from: "disputed", to: "resolved", on: "DisputeResolved"
+  end
+
+  policy "LotListedVerifySeller" do
+    on "LotListed"
+    trigger "VerifySeller"
+  end
+
+  policy "LotClosedCreateSettlement" do
+    on "LotClosed"
+    trigger "CreateSettlement"
+  end
+
+  policy "SettlementCreatedDisburse" do
+    on "SettlementCreated"
+    trigger "DisburseToSeller"
+  end
+
+  policy "DisputeOpenedHoldSettlement" do
+    on "DisputeOpened"
+    trigger "HoldSettlement"
+  end
+
+  policy "DisputeResolvedDisburse" do
+    on "DisputeResolved"
+    trigger "DisburseToSeller"
+  end
+
+  policy "BidFlaggedEscalateDispute" do
+    on "BidFlagged"
+    trigger "EscalateDispute"
+  end
+
+  policy "SuspendSellerOnDispute" do
+    on "DisputeEscalated"
+    trigger "SuspendSeller"
+  end
+end

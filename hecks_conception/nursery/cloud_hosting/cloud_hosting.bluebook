@@ -1,0 +1,269 @@
+Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
+  vision "Running a cloud hosting platform — spinning up instances, deploying code, auto-scaling, billing tenants, and alerting on anomalies"
+  category "technology"
+
+  aggregate "Instance", "A virtual machine running a customer workload" do
+    String :instance_id
+    String :region
+    String :machine_type
+    Integer :vcpus
+    Integer :memory_gb
+    String :image_id
+    String :status
+    reference_to Tenant
+    list_of(AttachedVolume) :volumes
+
+    value_object "AttachedVolume" do
+      String :volume_id
+      Integer :size_gb
+      String :mount_path
+    end
+
+    LaunchInstance do
+      role "Developer"
+      description "Spin up a new virtual machine from an image"
+      String :instance_id
+      String :region
+      String :machine_type
+      Integer :vcpus
+      Integer :memory_gb
+      String :image_id
+      reference_to(Tenant)
+      emits "InstanceLaunched"
+    end
+
+    TerminateInstance do
+      description "Shut down and destroy a running instance"
+      reference_to(Instance)
+      emits "InstanceTerminated"
+    end
+
+    ResizeInstance do
+      description "Change the machine type of a stopped instance"
+      reference_to(Instance)
+      String :machine_type
+      Integer :vcpus
+      Integer :memory_gb
+      given("instance is stopped") { status == "stopped" }
+      emits "InstanceResized"
+    end
+  end
+
+  aggregate "Deployment", "A versioned release pushed to one or more instances" do
+    String :deploy_id
+    String :artifact_url
+    String :version_tag
+    String :strategy
+    String :status
+    reference_to Instance
+    list_of(DeployStep) :steps
+
+    value_object "DeployStep" do
+      String :step_name
+      String :outcome
+      String :completed_at
+    end
+
+    CreateDeployment do
+      role "Developer"
+      description "Push a new artifact version to a target instance"
+      String :deploy_id
+      String :artifact_url
+      String :version_tag
+      String :strategy
+      reference_to(Instance)
+      emits "DeploymentCreated"
+    end
+
+    RollbackDeployment do
+      description "Revert an instance to the previous artifact version"
+      reference_to(Deployment)
+      given("deployment is active") { status == "active" }
+      emits "DeploymentRolledBack"
+    end
+
+    FinalizeDeployment do
+      description "Mark a deployment as successfully completed"
+      reference_to(Deployment)
+      emits "DeploymentFinalized"
+    end
+  end
+
+  aggregate "ScalingRule", "An auto-scaling policy that adjusts instance count based on metrics" do
+    String :rule_name
+    String :metric_name
+    Float :threshold
+    Integer :min_instances
+    Integer :max_instances
+    Integer :cooldown_seconds
+    String :status
+    reference_to Tenant
+
+    value_object "ScalingEvent" do
+      Integer :from_count
+      Integer :to_count
+      String :triggered_at
+    end
+
+    DefineScalingRule do
+      role "PlatformAdmin"
+      description "Create an auto-scaling policy for a tenant's workload"
+      String :rule_name
+      String :metric_name
+      Float :threshold
+      Integer :min_instances
+      Integer :max_instances
+      Integer :cooldown_seconds
+      reference_to(Tenant)
+      emits "ScalingRuleDefined"
+    end
+
+    TriggerScaleOut do
+      description "Add instances when the metric exceeds the threshold"
+      reference_to(ScalingRule)
+      Integer :additional_count
+      given("below max instances") { additional_count > 0 }
+      emits "ScaledOut"
+    end
+
+    SuspendScalingRule do
+      description "Suspend an auto-scaling rule without deleting it"
+      reference_to(ScalingRule)
+      emits "ScalingRuleDisabled"
+    end
+  end
+
+  aggregate "Tenant", "A customer account consuming cloud resources" do
+    String :tenant_name
+    String :billing_email
+    String :plan_tier
+    Float :balance
+    String :status
+    list_of(Invoice) :invoices
+
+    value_object "Invoice" do
+      String :invoice_number
+      Float :amount
+      String :period
+      String :issued_at
+    end
+
+    RegisterTenant do
+      role "AccountManager"
+      description "Onboard a new customer to the hosting platform"
+      String :tenant_name
+      String :billing_email
+      String :plan_tier
+      emits "TenantRegistered"
+    end
+
+    IssueBill do
+      description "Generate a monthly invoice based on resource usage"
+      reference_to(Tenant)
+      Float :amount
+      String :period
+      emits "BillIssued"
+    end
+
+    SuspendTenant do
+      description "Freeze a tenant account due to non-payment"
+      reference_to(Tenant)
+      given("balance is overdue") { balance < 0 }
+      emits "TenantSuspended"
+    end
+  end
+
+  aggregate "Alert", "A notification triggered by infrastructure anomalies" do
+    String :alert_id
+    String :severity
+    String :message
+    String :source_metric
+    String :status
+    reference_to Instance
+
+    value_object "AlertContext" do
+      String :metric_value
+      String :threshold_value
+      String :region
+    end
+
+    RaiseAlert do
+      role "MonitoringSystem"
+      description "Fire an alert when a metric breaches its threshold"
+      String :alert_id
+      String :severity
+      String :message
+      String :source_metric
+      reference_to(Instance)
+      emits "AlertRaised"
+    end
+
+    AcknowledgeAlert do
+      description "Mark an alert as seen by an on-call engineer"
+      reference_to(Alert)
+      emits "AlertAcknowledged"
+    end
+
+    ResolveAlert do
+      description "Close an alert after the underlying issue is fixed"
+      reference_to(Alert)
+      given("alert is acknowledged") { status == "acknowledged" }
+      emits "AlertResolved"
+    end
+  end
+
+  lifecycle "DeploymentPipeline" do
+    state "pending"
+    state "created"
+    state "health_checking"
+    state "active"
+    state "rolled_back"
+    state "finalized"
+
+    transition from: "pending", to: "created", on: "DeploymentCreated"
+    transition from: "created", to: "health_checking", on: "AlertRaised"
+    transition from: "health_checking", to: "active", on: "DeploymentFinalized"
+    transition from: "health_checking", to: "rolled_back", on: "DeploymentRolledBack"
+    transition from: "active", to: "finalized", on: "DeploymentFinalized"
+  end
+
+  policy "InstanceLaunchedCreateDeploy" do
+    on "InstanceLaunched"
+    trigger "CreateDeployment"
+  end
+
+  policy "DeploymentCreatedDefineScaling" do
+    on "DeploymentCreated"
+    trigger "DefineScalingRule"
+  end
+
+  policy "DeploymentFinalizedIssueBill" do
+    on "DeploymentFinalized"
+    trigger "IssueBill"
+  end
+
+  policy "AlertRaisedScaleOut" do
+    on "AlertRaised"
+    trigger "TriggerScaleOut"
+  end
+
+  policy "AlertAcknowledgedResolve" do
+    on "AlertAcknowledged"
+    trigger "ResolveAlert"
+  end
+
+  policy "BillIssuedSuspendOverdue" do
+    on "BillIssued"
+    trigger "SuspendTenant"
+  end
+
+  policy "TerminateOnSuspend" do
+    on "TenantSuspended"
+    trigger "TerminateInstance"
+  end
+
+  policy "RollbackOnAlert" do
+    on "AlertRaised"
+    trigger "RollbackDeployment"
+  end
+end

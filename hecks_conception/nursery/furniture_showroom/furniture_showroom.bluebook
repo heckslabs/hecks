@@ -1,0 +1,214 @@
+Hecks.bluebook "FurnitureShowroom", version: "2026.04.13.1" do
+  vision "Running a furniture showroom — displaying pieces, managing room vignettes, scheduling deliveries, honoring warranties, and working with designers"
+  category "retail"
+
+  aggregate "FurniturePiece", "A sellable furniture item — the core product" do
+    String :sku
+    String :name
+    String :collection
+    String :material
+    Float :price
+    String :status
+    list_of(Dimension) :dimensions
+
+    value_object "Dimension" do
+      String :measurement
+      Float :value
+      String :unit
+    end
+
+    AddPiece do
+      role "Buyer"
+      description "Introduce a new furniture item to the showroom catalog"
+      String :sku
+      String :name
+      String :collection
+      String :material
+      Float :price
+      emits "PieceAdded"
+      then_set :sku, to: :sku
+      then_set :name, to: :name
+      then_set :collection, to: :collection
+      then_set :material, to: :material
+      then_set :price, to: :price
+      then_set :status, to: "on_display"
+    end
+
+    SellPiece do
+      role "SalesAssociate"
+      description "Complete a sale and mark the piece as sold"
+      reference_to(FurniturePiece)
+      given { status == "on_display" }
+      emits "PieceSold"
+      then_set :status, to: "sold"
+    end
+
+    DiscontinuePiece do
+      role "Buyer"
+      description "Remove a piece from the active catalog"
+      reference_to(FurniturePiece)
+      emits "PieceDiscontinued"
+      then_set :status, to: "discontinued"
+    end
+  end
+
+  aggregate "ShowroomRoom", "A staged vignette that showcases furniture in context" do
+    String :room_name
+    String :style
+    list_of(StagedItem) :staged_items
+    String :status
+
+    value_object "StagedItem" do
+      String :sku
+      String :placement
+      String :role_in_room
+    end
+
+    StageRoom do
+      role "Designer"
+      description "Create a styled room vignette with selected pieces"
+      String :room_name
+      String :style
+      emits "RoomStaged"
+      then_set :room_name, to: :room_name
+      then_set :style, to: :style
+      then_set :status, to: "active"
+    end
+
+    RestageRoom do
+      role "Designer"
+      description "Refresh the room with new pieces or a different style"
+      reference_to(ShowroomRoom)
+      String :style
+      emits "RoomRestaged"
+      then_set :style, to: :style
+    end
+  end
+
+  aggregate "Delivery", "Transporting a sold piece to the customer's home" do
+    String :delivery_id
+    String :sku
+    String :customer_name
+    String :address
+    String :scheduled_date
+    String :status
+
+    ScheduleDelivery do
+      role "Coordinator"
+      description "Book a delivery date and crew for a sold piece"
+      String :delivery_id
+      String :sku
+      String :customer_name
+      String :address
+      String :scheduled_date
+      emits "DeliveryScheduled"
+      then_set :delivery_id, to: :delivery_id
+      then_set :sku, to: :sku
+      then_set :customer_name, to: :customer_name
+      then_set :address, to: :address
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteDelivery do
+      role "Driver"
+      description "Confirm the piece was delivered and accepted"
+      reference_to(Delivery)
+      given { status == "scheduled" }
+      emits "DeliveryCompleted"
+      then_set :status, to: "delivered"
+    end
+
+    ReportDeliveryDamage do
+      role "Customer"
+      description "Flag damage discovered during or after delivery"
+      reference_to(Delivery)
+      String :damage_description
+      emits "DeliveryDamageReported"
+      then_set :status, to: "damaged"
+    end
+  end
+
+  aggregate "Warranty", "A guarantee covering defects or damage after purchase" do
+    String :warranty_id
+    String :sku
+    String :customer_name
+    String :coverage_type
+    String :expiration_date
+    String :status
+
+    ActivateWarranty do
+      role "SalesAssociate"
+      description "Register warranty coverage at point of sale"
+      String :warranty_id
+      String :sku
+      String :customer_name
+      String :coverage_type
+      String :expiration_date
+      emits "WarrantyActivated"
+      then_set :warranty_id, to: :warranty_id
+      then_set :sku, to: :sku
+      then_set :customer_name, to: :customer_name
+      then_set :coverage_type, to: :coverage_type
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "active"
+    end
+
+    FileWarrantyClaim do
+      role "Customer"
+      description "Submit a claim against the warranty for a defect"
+      reference_to(Warranty)
+      String :issue_description
+      given { status == "active" }
+      emits "WarrantyClaimFiled"
+      then_set :status, to: "claim_pending"
+    end
+
+    ResolveWarrantyClaim do
+      role "Manager"
+      description "Approve repair, replacement, or denial of the claim"
+      reference_to(Warranty)
+      String :resolution
+      emits "WarrantyClaimResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  # Lifecycle: added → staged → sold → delivered → warranted
+  # Workflow: Add piece → Stage room → Sell → Schedule delivery → Complete → Activate warranty → Handle damage claims
+
+  policy "StageOnAdd" do
+    on "PieceAdded"
+    trigger "StageRoom"
+  end
+
+  policy "ScheduleDeliveryOnSale" do
+    on "PieceSold"
+    trigger "ScheduleDelivery"
+  end
+
+  policy "ActivateWarrantyOnSale" do
+    on "PieceSold"
+    trigger "ActivateWarranty"
+  end
+
+  policy "CompleteDeliveryOnSchedule" do
+    on "DeliveryScheduled"
+    trigger "CompleteDelivery"
+  end
+
+  policy "FileClaimOnDamage" do
+    on "DeliveryDamageReported"
+    trigger "FileWarrantyClaim"
+  end
+
+  policy "ResolveClaimOnFile" do
+    on "WarrantyClaimFiled"
+    trigger "ResolveWarrantyClaim"
+  end
+
+  policy "RestageOnSale" do
+    on "PieceSold"
+    trigger "RestageRoom"
+  end
+end

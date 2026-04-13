@@ -1,0 +1,187 @@
+Hecks.bluebook "Acoustics" do
+  vision "Model rooms, take acoustic measurements, catalog materials, and design sound treatments"
+
+  aggregate "Room" do
+    description "An enclosed space whose acoustic properties are being analyzed"
+    String :room_id
+    String :name
+    String :room_type
+    Float :length_m
+    Float :width_m
+    Float :height_m
+    Float :volume_m3
+
+    command "DefineRoom" do
+      description "Register a new room for acoustic analysis"
+      emits "RoomDefined"
+      String :room_id
+      String :name
+      Float :length_m
+      Float :width_m
+      Float :height_m
+    end
+
+    command "CalculateReverberation" do
+      description "Compute the RT60 reverberation time using Sabine equation"
+      emits "ReverberationCalculated"
+      reference_to Room
+      given "room must have at least one surface material assigned"
+    end
+
+    command "ArchiveRoom" do
+      description "Move a completed room analysis to archive"
+      emits "RoomArchived"
+      reference_to Room
+    end
+  end
+
+  aggregate "AcousticMeasurement" do
+    description "A recorded impulse response or SPL reading taken in a room"
+    String :measurement_id
+    String :measurement_type
+    String :timestamp
+    Float :spl_db
+    Float :rt60_seconds
+    reference_to Room
+
+    value_object "FrequencyResponse" do
+      Float :frequency_hz
+      Float :amplitude_db
+      Float :phase_degrees
+    end
+
+    command "TakeMeasurement" do
+      description "Capture an acoustic measurement using microphone and source"
+      emits "MeasurementTaken"
+      reference_to Room
+      String :measurement_type
+      Float :spl_db
+    end
+
+    command "AnalyzeSpectrum" do
+      description "Perform FFT analysis on the recorded impulse response"
+      emits "SpectrumAnalyzed"
+      reference_to AcousticMeasurement
+      given "raw audio data must be captured"
+    end
+
+    command "CompareMeasurements" do
+      description "Evaluate before-and-after treatment measurements"
+      emits "MeasurementsCompared"
+      reference_to AcousticMeasurement
+    end
+  end
+
+  aggregate "AcousticMaterial" do
+    description "A building material with known sound absorption properties"
+    String :name
+    String :material_type
+    Float :nrc_rating
+    Float :thickness_mm
+
+    value_object "AbsorptionCoefficients" do
+      Float :at_125hz
+      Float :at_250hz
+      Float :at_500hz
+      Float :at_1000hz
+      Float :at_2000hz
+      Float :at_4000hz
+    end
+
+    command "CatalogMaterial" do
+      description "Add a new acoustic material to the database"
+      emits "MaterialCataloged"
+      String :name
+      String :material_type
+      Float :nrc_rating
+    end
+
+    command "TestAbsorption" do
+      description "Measure absorption coefficients in a reverberation chamber"
+      emits "AbsorptionTested"
+      reference_to AcousticMaterial
+    end
+
+    command "DeprecateMaterial" do
+      description "Mark a material as no longer manufactured"
+      emits "MaterialDeprecated"
+      reference_to AcousticMaterial
+      given "material must not be referenced in active treatments"
+    end
+  end
+
+  aggregate "TreatmentPlan" do
+    description "A designed arrangement of acoustic materials to improve a room"
+    String :plan_name
+    String :objective
+    Float :target_rt60
+    reference_to Room
+
+    command "DesignTreatment" do
+      description "Create an acoustic treatment plan for a room"
+      emits "TreatmentDesigned"
+      reference_to Room
+      String :plan_name
+      String :objective
+    end
+
+    command "ApplyMaterial" do
+      description "Assign an acoustic material to a room surface"
+      emits "MaterialApplied"
+      reference_to TreatmentPlan
+      reference_to AcousticMaterial
+      Float :coverage_m2
+    end
+
+    command "EvaluateTreatment" do
+      description "Compare post-treatment measurements against targets"
+      emits "TreatmentEvaluated"
+      reference_to TreatmentPlan
+      given "post-treatment measurement must exist"
+    end
+  end
+
+  lifecycle "AcousticDesignProcess" do
+    state "room_defined"
+    state "measured"
+    state "analyzed"
+    state "treatment_designed"
+    state "materials_applied"
+    state "evaluated"
+    transition from: "room_defined", to: "measured", on: "MeasurementTaken"
+    transition from: "measured", to: "analyzed", on: "SpectrumAnalyzed"
+    transition from: "analyzed", to: "treatment_designed", on: "ReverberationCalculated"
+    transition from: "treatment_designed", to: "materials_applied", on: "MaterialApplied"
+    transition from: "materials_applied", to: "evaluated", on: "TreatmentEvaluated"
+  end
+
+  policy "MeasureAfterRoomDefined" do
+    on "RoomDefined"
+    trigger "TakeMeasurement"
+  end
+
+  policy "AnalyzeAfterMeasurement" do
+    on "MeasurementTaken"
+    trigger "AnalyzeSpectrum"
+  end
+
+  policy "CalculateReverb" do
+    on "SpectrumAnalyzed"
+    trigger "CalculateReverberation"
+  end
+
+  policy "DesignTreatmentAfterReverb" do
+    on "ReverberationCalculated"
+    trigger "DesignTreatment"
+  end
+
+  policy "MeasureAfterTreatment" do
+    on "MaterialApplied"
+    trigger "TakeMeasurement"
+  end
+
+  policy "EvaluateAfterPostMeasurement" do
+    on "MeasurementsCompared"
+    trigger "EvaluateTreatment"
+  end
+end

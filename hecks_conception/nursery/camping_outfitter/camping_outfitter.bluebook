@@ -1,0 +1,259 @@
+Hecks.bluebook "CampingOutfitter", version: "2026.04.13.1" do
+  vision "Running a camping outfitter — selling gear, renting equipment, distributing trail maps, booking guides, and managing campsite reservations"
+  category "retail"
+
+  aggregate "CampingGear", "An outdoor product for sale — tents, packs, stoves, clothing" do
+    String :sku
+    String :name
+    String :category
+    String :brand
+    Float :weight_kg
+    Float :price
+    Integer :quantity
+    list_of(GearSpec) :specs
+
+    value_object "GearSpec" do
+      String :attribute
+      String :value
+      String :unit
+    end
+
+    StockGear do
+      role "Buyer"
+      description "Add camping gear to the shop inventory"
+      String :sku
+      String :name
+      String :category
+      String :brand
+      Float :weight_kg
+      Float :price
+      Integer :quantity
+      emits "GearStocked"
+      then_set :sku, to: :sku
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :brand, to: :brand
+      then_set :weight_kg, to: :weight_kg
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+    end
+
+    SellGear do
+      role "SalesAssociate"
+      description "Complete a gear purchase at the register"
+      reference_to(CampingGear)
+      given { quantity > 0 }
+      emits "GearSold"
+    end
+  end
+
+  aggregate "GearRental", "Equipment rented for a trip and returned afterward" do
+    String :rental_id
+    String :sku
+    String :renter_name
+    String :start_date
+    String :return_date
+    Float :rental_fee
+    String :status
+
+    RentGear do
+      role "Staff"
+      description "Check out gear to a customer for their trip"
+      String :rental_id
+      String :sku
+      String :renter_name
+      String :start_date
+      String :return_date
+      Float :rental_fee
+      emits "GearRented"
+      then_set :rental_id, to: :rental_id
+      then_set :sku, to: :sku
+      then_set :renter_name, to: :renter_name
+      then_set :start_date, to: :start_date
+      then_set :return_date, to: :return_date
+      then_set :rental_fee, to: :rental_fee
+      then_set :status, to: "rented"
+    end
+
+    ReturnGear do
+      role "Staff"
+      description "Accept gear back and inspect for damage"
+      reference_to(GearRental)
+      given { status == "rented" }
+      emits "GearReturned"
+      then_set :status, to: "returned"
+    end
+
+    ChargeLateFee do
+      role "Manager"
+      description "Apply a surcharge for overdue rental returns"
+      reference_to(GearRental)
+      Float :fee_amount
+      given { fee_amount > 0 }
+      emits "LateFeeCharged"
+    end
+  end
+
+  aggregate "TrailMap", "A printed or digital guide to local trails" do
+    String :map_id
+    String :trail_name
+    String :region
+    String :difficulty
+    Float :distance_km
+    Integer :copies_on_hand
+
+    StockMap do
+      role "Manager"
+      description "Add trail maps to the display rack"
+      String :map_id
+      String :trail_name
+      String :region
+      String :difficulty
+      Float :distance_km
+      Integer :copies_on_hand
+      emits "MapStocked"
+      then_set :map_id, to: :map_id
+      then_set :trail_name, to: :trail_name
+      then_set :region, to: :region
+      then_set :difficulty, to: :difficulty
+      then_set :distance_km, to: :distance_km
+      then_set :copies_on_hand, to: :copies_on_hand
+    end
+
+    DistributeMap do
+      role "Staff"
+      description "Hand out a trail map to a customer"
+      reference_to(TrailMap)
+      given { copies_on_hand > 0 }
+      emits "MapDistributed"
+    end
+  end
+
+  aggregate "GuidedTrip", "A guided outdoor excursion led by a professional" do
+    String :trip_id
+    String :guide_name
+    String :destination
+    String :date
+    Integer :max_participants
+    Float :price_per_person
+    String :status
+
+    ScheduleTrip do
+      role "Manager"
+      description "Plan a guided trip with an itinerary and guide"
+      String :trip_id
+      String :guide_name
+      String :destination
+      String :date
+      Integer :max_participants
+      Float :price_per_person
+      emits "TripScheduled"
+      then_set :trip_id, to: :trip_id
+      then_set :guide_name, to: :guide_name
+      then_set :destination, to: :destination
+      then_set :date, to: :date
+      then_set :max_participants, to: :max_participants
+      then_set :price_per_person, to: :price_per_person
+      then_set :status, to: "scheduled"
+    end
+
+    ConductTrip do
+      role "Guide"
+      description "Lead the group on the excursion"
+      reference_to(GuidedTrip)
+      given { status == "scheduled" }
+      emits "TripConducted"
+      then_set :status, to: "completed"
+    end
+
+    CancelTrip do
+      role "Manager"
+      description "Call off the trip due to weather or low enrollment"
+      reference_to(GuidedTrip)
+      given { status == "scheduled" }
+      emits "TripCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  aggregate "CampsiteReservation", "A booking for a campsite coordinated through the outfitter" do
+    String :reservation_id
+    String :campsite_name
+    String :guest_name
+    String :check_in
+    String :check_out
+    Float :total_fee
+    String :status
+
+    BookCampsite do
+      role "Customer"
+      description "Reserve a campsite for specific dates"
+      String :reservation_id
+      String :campsite_name
+      String :guest_name
+      String :check_in
+      String :check_out
+      Float :total_fee
+      emits "CampsiteBooked"
+      then_set :reservation_id, to: :reservation_id
+      then_set :campsite_name, to: :campsite_name
+      then_set :guest_name, to: :guest_name
+      then_set :check_in, to: :check_in
+      then_set :check_out, to: :check_out
+      then_set :total_fee, to: :total_fee
+      then_set :status, to: "confirmed"
+    end
+
+    CancelReservation do
+      role "Customer"
+      description "Cancel the campsite booking"
+      reference_to(CampsiteReservation)
+      given { status == "confirmed" }
+      emits "ReservationCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  # Lifecycle: booked → gear rented → trip conducted → gear returned → restocked
+  # Workflow: Book campsite → Rent gear → Distribute map → Conduct trip → Return gear → Restock
+
+  policy "RentGearOnBooking" do
+    on "CampsiteBooked"
+    trigger "RentGear"
+  end
+
+  policy "DistributeMapOnRent" do
+    on "GearRented"
+    trigger "DistributeMap"
+  end
+
+  policy "ConductOnTrip" do
+    on "TripScheduled"
+    trigger "ConductTrip"
+  end
+
+  policy "ReturnGearOnTrip" do
+    on "TripConducted"
+    trigger "ReturnGear"
+  end
+
+  policy "RestockOnReturn" do
+    on "GearReturned"
+    trigger "StockGear"
+  end
+
+  policy "LateFeeOnOverdue" do
+    on "GearReturned"
+    trigger "ChargeLateFee"
+  end
+
+  policy "ScheduleTripOnBooking" do
+    on "CampsiteBooked"
+    trigger "ScheduleTrip"
+  end
+
+  policy "StockMapOnReturn" do
+    on "GearReturned"
+    trigger "StockMap"
+  end
+end

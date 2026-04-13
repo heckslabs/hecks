@@ -1,0 +1,344 @@
+Hecks.bluebook "SecondChanceAcademy", version: "2026.04.13.1" do
+  vision "Education as a game where every course earns parole points and every badge is a real credential employers recognize"
+  category "crossover_gen2"
+
+  # === Learner ===
+
+  aggregate "Learner", "An incarcerated learner — identity, sentence info, and progress through the academy" do
+    String :name
+    String :facility
+    String :sentence_end_date
+    Integer :total_credits
+    String :status
+    list_of(SkillProfile) :skills
+
+    value_object "SkillProfile" do
+      String :skill_name
+      String :proficiency_level
+      Integer :hours_practiced
+      String :verified
+    end
+
+    EnrollLearner do
+      role "Educator"
+      description "Enroll an incarcerated individual into the Second Chance Academy"
+      String :name
+      String :facility
+      String :sentence_end_date
+      emits "LearnerEnrolled"
+      then_set :name, to: :name
+      then_set :facility, to: :facility
+      then_set :sentence_end_date, to: :sentence_end_date
+      then_set :total_credits, to: 0
+      then_set :status, to: "enrolled"
+    end
+
+    UpdateSkills do
+      role "System"
+      description "Update learner skill profile after course or quest completion"
+      reference_to(Learner)
+      emits "SkillsUpdated"
+    end
+
+    GraduateAcademy do
+      role "Educator"
+      description "Learner has completed all required courses and quests"
+      reference_to(Learner)
+      given { status == "enrolled" }
+      emits "LearnerGraduated"
+      then_set :status, to: "graduated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "EnrollLearner" => "enrolled", from: "pending"
+      transition "GraduateAcademy" => "graduated", from: "enrolled"
+    end
+  end
+
+  # === Course ===
+
+  aggregate "Course", "An educational course — structured learning with assessments and real credentials" do
+    String :title
+    String :subject
+    String :difficulty
+    Integer :credit_value
+    String :status
+    list_of(Module) :modules
+
+    value_object "Module" do
+      String :title
+      String :content_type
+      Integer :duration_minutes
+      String :assessment_type
+    end
+
+    CreateCourse do
+      role "Educator"
+      description "Design a course with modules, assessments, and credit value"
+      String :title
+      String :subject
+      String :difficulty
+      Integer :credit_value
+      emits "CourseCreated"
+      then_set :title, to: :title
+      then_set :subject, to: :subject
+      then_set :difficulty, to: :difficulty
+      then_set :credit_value, to: :credit_value
+      then_set :status, to: "active"
+    end
+
+    CompleteCourse do
+      role "Learner"
+      description "Learner finishes all modules and passes final assessment"
+      reference_to(Course)
+      reference_to(Learner) :learner
+      given { status == "active" }
+      emits "CourseCompleted"
+    end
+
+    RetireCourse do
+      role "Educator"
+      description "Retire a course from the active catalog"
+      reference_to(Course)
+      given { status == "active" }
+      emits "CourseRetired"
+      then_set :status, to: "retired"
+    end
+  end
+
+  # === Quest ===
+
+  aggregate "Quest", "A gamified challenge — practical tasks that earn XP and unlock badges" do
+    String :title
+    String :description
+    Integer :xp_reward
+    String :difficulty
+    String :status
+    reference_to(Course) :related_course
+    list_of(Objective) :objectives
+
+    value_object "Objective" do
+      String :description
+      String :verification_method
+      String :completed
+    end
+
+    CreateQuest do
+      role "GameDesigner"
+      description "Design a quest with objectives and XP reward"
+      String :title
+      String :description
+      Integer :xp_reward
+      String :difficulty
+      reference_to(Course) :related_course
+      emits "QuestCreated"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :xp_reward, to: :xp_reward
+      then_set :difficulty, to: :difficulty
+      then_set :related_course, to: :related_course
+      then_set :status, to: "available"
+    end
+
+    AcceptQuest do
+      role "Learner"
+      description "Learner accepts a quest and begins working on objectives"
+      reference_to(Quest)
+      reference_to(Learner) :learner
+      given { status == "available" }
+      emits "QuestAccepted"
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteQuest do
+      role "Learner"
+      description "All objectives verified — quest complete, XP awarded"
+      reference_to(Quest)
+      given { status == "in_progress" }
+      emits "QuestCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateQuest" => "available", from: "draft"
+      transition "AcceptQuest" => "in_progress", from: "available"
+      transition "CompleteQuest" => "completed", from: "in_progress"
+    end
+  end
+
+  # === Badge ===
+
+  aggregate "Badge", "A verifiable credential — earned through quests and courses, recognized by employers" do
+    String :name
+    String :description
+    String :issuer
+    String :credential_hash
+    reference_to(Learner) :holder
+    String :status
+
+    IssueBadge do
+      role "System"
+      description "Issue a verified badge when course or quest milestones are met"
+      String :name
+      String :description
+      String :issuer
+      reference_to(Learner) :holder
+      emits "BadgeIssued"
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :issuer, to: :issuer
+      then_set :holder, to: :holder
+      then_set :status, to: "issued"
+    end
+
+    VerifyBadge do
+      role "Employer"
+      description "Employer verifies badge authenticity against credential hash"
+      reference_to(Badge)
+      given { status == "issued" }
+      emits "BadgeVerified"
+      then_set :status, to: "verified"
+    end
+
+    RevokeBadge do
+      role "Administrator"
+      description "Revoke a badge if credential requirements were not legitimately met"
+      reference_to(Badge)
+      emits "BadgeRevoked"
+      then_set :status, to: "revoked"
+    end
+  end
+
+  # === ParoleCredit ===
+
+  aggregate "ParoleCredit", "Educational credits toward early release — every badge earns parole points" do
+    reference_to(Learner) :learner
+    reference_to(Badge) :badge
+    Integer :credits_awarded
+    String :approved_by
+    String :status
+
+    AwardParoleCredit do
+      role "System"
+      description "Award parole credits when a badge is earned"
+      reference_to(Learner) :learner
+      reference_to(Badge) :badge
+      Integer :credits_awarded
+      emits "ParoleCreditAwarded"
+      then_set :learner, to: :learner
+      then_set :badge, to: :badge
+      then_set :credits_awarded, to: :credits_awarded
+      then_set :status, to: "pending_review"
+    end
+
+    ApproveCredit do
+      role "ParoleBoard"
+      description "Parole board reviews and approves educational credits"
+      reference_to(ParoleCredit)
+      String :approved_by
+      given { status == "pending_review" }
+      emits "ParoleCreditApproved"
+      then_set :approved_by, to: :approved_by
+      then_set :status, to: "approved"
+    end
+
+    DenyCredit do
+      role "ParoleBoard"
+      description "Parole board denies credits — does not meet criteria"
+      reference_to(ParoleCredit)
+      given { status == "pending_review" }
+      emits "ParoleCreditDenied"
+      then_set :status, to: "denied"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AwardParoleCredit" => "pending_review", from: "pending"
+      transition "ApproveCredit" => "approved", from: "pending_review"
+      transition "DenyCredit" => "denied", from: "pending_review"
+    end
+  end
+
+  # === EmployerMatch ===
+
+  aggregate "EmployerMatch", "A job match — connecting graduated learners with employers who value their credentials" do
+    reference_to(Learner) :learner
+    String :employer_name
+    String :position
+    String :status
+    list_of(RequiredBadge) :required_badges
+
+    value_object "RequiredBadge" do
+      String :badge_name
+      String :met
+    end
+
+    MatchEmployer do
+      role "System"
+      description "Match a learner to employers based on earned badges and skills"
+      reference_to(Learner) :learner
+      String :employer_name
+      String :position
+      emits "EmployerMatched"
+      then_set :learner, to: :learner
+      then_set :employer_name, to: :employer_name
+      then_set :position, to: :position
+      then_set :status, to: "matched"
+    end
+
+    ScheduleInterview do
+      role "Employer"
+      description "Employer schedules an interview with the matched learner"
+      reference_to(EmployerMatch)
+      given { status == "matched" }
+      emits "InterviewScheduled"
+      then_set :status, to: "interviewing"
+    end
+
+    ExtendOffer do
+      role "Employer"
+      description "Employer extends a job offer to the learner"
+      reference_to(EmployerMatch)
+      given { status == "interviewing" }
+      emits "OfferExtended"
+      then_set :status, to: "offered"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "MatchEmployer" => "matched", from: "pending"
+      transition "ScheduleInterview" => "interviewing", from: "matched"
+      transition "ExtendOffer" => "offered", from: "interviewing"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "BadgeOnQuestComplete" do
+    on "QuestCompleted"
+    trigger "IssueBadge"
+  end
+
+  policy "ParoleCreditOnBadge" do
+    on "BadgeIssued"
+    trigger "AwardParoleCredit"
+  end
+
+  policy "EmployerMatchOnCourse" do
+    on "CourseCompleted"
+    trigger "MatchEmployer"
+  end
+
+  policy "UpdateSkillsOnQuest" do
+    on "QuestCompleted"
+    trigger "UpdateSkills"
+  end
+
+  policy "UpdateSkillsOnCourse" do
+    on "CourseCompleted"
+    trigger "UpdateSkills"
+  end
+
+  policy "BadgeOnCourseComplete" do
+    on "CourseCompleted"
+    trigger "IssueBadge"
+  end
+end

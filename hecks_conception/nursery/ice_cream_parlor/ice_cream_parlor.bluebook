@@ -1,0 +1,223 @@
+Hecks.bluebook "IceCreamParlor", version: "2026.04.13.1" do
+  vision "Running an ice cream parlor — churning flavors, managing batches, stocking toppings, serving cones, and promoting daily specials"
+  category "hospitality"
+
+  aggregate "Flavor", "A distinct ice cream flavor available for scooping" do
+    String :flavor_id
+    String :name
+    String :base
+    String :description
+    String :dairy_free
+    String :available
+    list_of(FlavorNote) :tasting_notes
+
+    value_object "FlavorNote" do
+      String :note
+      String :intensity
+    end
+
+    CreateFlavor do
+      role "Chef"
+      description "Design a new ice cream flavor with its recipe profile"
+      String :flavor_id
+      String :name
+      String :base
+      String :description
+      String :dairy_free
+      emits "FlavorCreated"
+      then_set :flavor_id, to: :flavor_id
+      then_set :name, to: :name
+      then_set :base, to: :base
+      then_set :description, to: :description
+      then_set :dairy_free, to: :dairy_free
+      then_set :available, to: "true"
+    end
+
+    RetireFlavor do
+      role "Manager"
+      description "Remove a flavor from the active rotation"
+      reference_to(Flavor)
+      emits "FlavorRetired"
+      then_set :available, to: "false"
+    end
+  end
+
+  aggregate "Batch", "A production run of a specific flavor" do
+    String :batch_id
+    String :flavor_id
+    Float :volume_liters
+    String :churned_date
+    String :expiration_date
+    String :status
+
+    ChurnBatch do
+      role "Chef"
+      description "Produce a new batch of ice cream in the kitchen"
+      String :batch_id
+      String :flavor_id
+      Float :volume_liters
+      String :churned_date
+      String :expiration_date
+      emits "BatchChurned"
+      then_set :batch_id, to: :batch_id
+      then_set :flavor_id, to: :flavor_id
+      then_set :volume_liters, to: :volume_liters
+      then_set :churned_date, to: :churned_date
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "fresh"
+    end
+
+    DepleteBatch do
+      role "Server"
+      description "Mark a batch as fully scooped out"
+      reference_to(Batch)
+      given { status == "fresh" }
+      emits "BatchDepleted"
+      then_set :status, to: "depleted"
+    end
+
+    DiscardBatch do
+      role "Manager"
+      description "Dispose of an expired or off-quality batch"
+      reference_to(Batch)
+      emits "BatchDiscarded"
+      then_set :status, to: "discarded"
+    end
+  end
+
+  aggregate "Topping", "A garnish or mix-in added to servings" do
+    String :topping_id
+    String :name
+    String :category
+    Float :price_per_serving
+    Integer :quantity_on_hand
+
+    StockTopping do
+      role "Manager"
+      description "Add a topping to the available selection"
+      String :topping_id
+      String :name
+      String :category
+      Float :price_per_serving
+      Integer :quantity_on_hand
+      emits "ToppingStocked"
+      then_set :topping_id, to: :topping_id
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :price_per_serving, to: :price_per_serving
+      then_set :quantity_on_hand, to: :quantity_on_hand
+    end
+
+    ReorderTopping do
+      role "Manager"
+      description "Replenish a topping that is running low"
+      reference_to(Topping)
+      Integer :reorder_amount
+      given { reorder_amount > 0 }
+      emits "ToppingReordered"
+    end
+  end
+
+  aggregate "Serving", "A customer order — scoops, cone, and toppings" do
+    String :serving_id
+    String :cone_type
+    Integer :scoops
+    list_of(ScoopSelection) :selections
+    Float :total_price
+    String :status
+
+    value_object "ScoopSelection" do
+      String :flavor_name
+      String :topping_name
+    end
+
+    PrepareServing do
+      role "Server"
+      description "Assemble a customer's ice cream order"
+      String :serving_id
+      String :cone_type
+      Integer :scoops
+      emits "ServingPrepared"
+      then_set :serving_id, to: :serving_id
+      then_set :cone_type, to: :cone_type
+      then_set :scoops, to: :scoops
+      then_set :status, to: "prepared"
+    end
+
+    HandOffServing do
+      role "Server"
+      description "Give the finished serving to the customer"
+      reference_to(Serving)
+      given { status == "prepared" }
+      emits "ServingHandedOff"
+      then_set :status, to: "served"
+    end
+  end
+
+  aggregate "DailySpecial", "A featured flavor or deal for the day" do
+    String :special_id
+    String :flavor_id
+    String :promotion_text
+    Float :discount_percent
+    String :date
+
+    AnnounceDailySpecial do
+      role "Manager"
+      description "Set the day's featured flavor and discount"
+      String :special_id
+      String :flavor_id
+      String :promotion_text
+      Float :discount_percent
+      String :date
+      emits "DailySpecialAnnounced"
+      then_set :special_id, to: :special_id
+      then_set :flavor_id, to: :flavor_id
+      then_set :promotion_text, to: :promotion_text
+      then_set :discount_percent, to: :discount_percent
+      then_set :date, to: :date
+    end
+  end
+
+  # Lifecycle: flavor created → batch churned → serving prepared → served → batch depleted → rechurned
+  # Workflow: Create flavor → Churn batch → Announce special → Prepare serving → Hand off → Deplete → Rechurn → Reorder toppings
+
+  policy "ChurnOnCreate" do
+    on "FlavorCreated"
+    trigger "ChurnBatch"
+  end
+
+  policy "AnnounceOnChurn" do
+    on "BatchChurned"
+    trigger "AnnounceDailySpecial"
+  end
+
+  policy "PrepareOnAnnounce" do
+    on "DailySpecialAnnounced"
+    trigger "PrepareServing"
+  end
+
+  policy "HandOffOnPrepare" do
+    on "ServingPrepared"
+    trigger "HandOffServing"
+  end
+
+  policy "ReorderOnLowToppings" do
+    on "ServingHandedOff"
+    trigger "ReorderTopping"
+  end
+
+  policy "ChurnOnDepletion" do
+    on "BatchDepleted"
+    trigger "ChurnBatch"
+  end
+
+  policy "StockToppingOnBatch" do
+    on "BatchChurned"
+    trigger "StockTopping"
+  end
+
+  policy "RetireFlavorOnDiscard" do
+    on "BatchDiscarded"
+    trigger "RetireFlavor"
+  end
+end

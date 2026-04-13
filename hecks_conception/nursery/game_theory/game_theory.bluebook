@@ -1,0 +1,204 @@
+Hecks.bluebook "GameTheory" do
+  vision "Model strategic games, player strategies, payoff matrices, equilibria, and simulations"
+
+  aggregate "StrategicGame" do
+    description "A formal game model with players, strategies, and payoffs"
+    String :game_id
+    String :name
+    String :game_type
+    Integer :player_count
+    String :information_structure
+
+    command "DefineGame" do
+      description "Specify a new strategic game model"
+      emits "GameDefined"
+      String :game_id
+      String :name
+      String :game_type
+      Integer :player_count
+    end
+
+    command "ValidateGame" do
+      description "Check the game definition for completeness"
+      emits "GameValidated"
+      reference_to StrategicGame
+      given "game must have at least two players"
+    end
+
+    command "ArchiveGame" do
+      description "Move a game model to the research archive"
+      emits "GameArchived"
+      reference_to StrategicGame
+    end
+  end
+
+  aggregate "Strategy" do
+    description "A complete plan of action for a player across all decision points"
+    String :strategy_id
+    String :player_id
+    String :strategy_type
+    String :action_sequence
+    reference_to StrategicGame
+
+    value_object "MixedStrategy" do
+      String :action
+      Float :probability
+    end
+
+    command "RegisterStrategy" do
+      description "Add a player strategy to the game"
+      emits "StrategyRegistered"
+      reference_to StrategicGame
+      String :player_id
+      String :strategy_type
+    end
+
+    command "ComputeBestResponse" do
+      description "Find the optimal response to opponent strategies"
+      emits "BestResponseComputed"
+      reference_to Strategy
+      given "opponent strategies must be specified"
+    end
+
+    command "EliminateDominated" do
+      description "Remove strictly dominated strategies iteratively"
+      emits "DominatedEliminated"
+      reference_to Strategy
+    end
+  end
+
+  aggregate "PayoffMatrix" do
+    description "A table mapping strategy combinations to player outcomes"
+    String :matrix_id
+    Integer :rows
+    Integer :columns
+    String :payoff_data
+    reference_to StrategicGame
+
+    command "ConstructMatrix" do
+      description "Build the payoff matrix from strategy profiles"
+      emits "MatrixConstructed"
+      reference_to StrategicGame
+      Integer :rows
+      Integer :columns
+    end
+
+    command "ModifyPayoff" do
+      description "Update a specific cell in the payoff matrix"
+      emits "PayoffModified"
+      reference_to PayoffMatrix
+      Integer :row
+      Integer :column
+      String :new_payoff
+    end
+
+    command "VerifySymmetry" do
+      description "Check whether the game is symmetric"
+      emits "SymmetryVerified"
+      reference_to PayoffMatrix
+      given "matrix must be square"
+    end
+  end
+
+  aggregate "Equilibrium" do
+    description "A solution concept where no player benefits from unilateral deviation"
+    String :equilibrium_type
+    String :strategy_profile
+    Float :expected_payoff
+    reference_to StrategicGame
+
+    command "SolveNash" do
+      description "Compute Nash equilibria for the game"
+      emits "NashSolved"
+      reference_to StrategicGame
+    end
+
+    command "RefineEquilibrium" do
+      description "Apply a refinement criterion to narrow equilibrium set"
+      emits "EquilibriumRefined"
+      reference_to Equilibrium
+      String :refinement_type
+      given "at least one Nash equilibrium must exist"
+    end
+  end
+
+  aggregate "Simulation" do
+    description "A computational experiment running repeated game plays"
+    String :simulation_id
+    Integer :iteration_count
+    String :learning_rule
+    Float :convergence_threshold
+    reference_to StrategicGame
+
+    command "ConfigureSimulation" do
+      description "Set up parameters for an evolutionary game simulation"
+      emits "SimulationConfigured"
+      reference_to StrategicGame
+      String :simulation_id
+      Integer :iteration_count
+      String :learning_rule
+    end
+
+    command "RunSimulation" do
+      description "Execute the simulation and collect outcome statistics"
+      emits "SimulationRun"
+      reference_to Simulation
+      given "simulation must be configured with valid parameters"
+    end
+
+    command "ExportResults" do
+      description "Save simulation results for analysis"
+      emits "ResultsExported"
+      reference_to Simulation
+    end
+  end
+
+  lifecycle "GameAnalysisPipeline" do
+    state "defined"
+    state "strategies_registered"
+    state "matrix_built"
+    state "equilibria_solved"
+    state "simulated"
+    state "results_exported"
+    transition from: "defined", to: "strategies_registered", on: "StrategyRegistered"
+    transition from: "strategies_registered", to: "matrix_built", on: "MatrixConstructed"
+    transition from: "matrix_built", to: "equilibria_solved", on: "NashSolved"
+    transition from: "equilibria_solved", to: "simulated", on: "SimulationRun"
+    transition from: "simulated", to: "results_exported", on: "ResultsExported"
+  end
+
+  policy "RegisterStrategiesAfterDefinition" do
+    on "GameDefined"
+    trigger "RegisterStrategy"
+  end
+
+  policy "BuildMatrixAfterStrategies" do
+    on "StrategyRegistered"
+    trigger "ConstructMatrix"
+  end
+
+  policy "SolveAfterMatrixBuilt" do
+    on "MatrixConstructed"
+    trigger "SolveNash"
+  end
+
+  policy "RefineAfterSolving" do
+    on "NashSolved"
+    trigger "RefineEquilibrium"
+  end
+
+  policy "SimulateAfterRefinement" do
+    on "EquilibriumRefined"
+    trigger "ConfigureSimulation"
+  end
+
+  policy "RunAfterConfiguration" do
+    on "SimulationConfigured"
+    trigger "RunSimulation"
+  end
+
+  policy "ExportAfterSimulation" do
+    on "SimulationRun"
+    trigger "ExportResults"
+  end
+end

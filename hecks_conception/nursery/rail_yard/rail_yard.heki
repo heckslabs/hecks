@@ -1,0 +1,228 @@
+Hecks.bluebook "RailYard" do
+  aggregate "RailCar" do
+    String :car_id
+    String :car_type
+    String :reporting_mark
+    Float :capacity_tons
+    String :lading
+    String :status
+
+    value_object "CarCondition" do
+      String :brake_status
+      String :coupler_status
+      String :wheel_condition
+      String :overall_grade
+    end
+
+    ReceiveCar do
+      description "Receive inbound rail car into yard receiving track"
+      String :train_symbol
+      String :origin_yard
+      reference_to "RailCar"
+      emits "CarReceived"
+    end
+
+    InspectCar do
+      description "Perform mechanical safety inspection on received rail car"
+      String :inspection_type
+      String :inspector
+      reference_to "RailCar"
+      emits "CarInspected"
+    end
+
+    ClassifyCar do
+      description "Sort car to correct classification track based on destination"
+      String :destination_track
+      String :outbound_train
+      reference_to "RailCar"
+      emits "CarClassified"
+    end
+
+    lifecycle :status, default: "inbound" do
+      transition "ReceiveCar" => "received", from: "inbound"
+      transition "InspectCar" => "inspected", from: "received"
+      transition "ClassifyCar" => "classified", from: "inspected"
+    end
+
+    policy "Defective cars must be set out for repair before classification"
+    policy "Hazmat cars require special placement rules in consist"
+
+    given "A tank car arrives with crude oil" do
+      String :car_type, "Tank Car"
+      String :reporting_mark, "TILX 198234"
+      String :lading, "Crude Petroleum"
+    end
+  end
+
+  aggregate "TrainConsist" do
+    String :consist_id
+    String :train_symbol
+    String :origin
+    String :destination
+    Integer :car_count
+    String :status
+    list_of "RailCar"
+
+    BuildConsist do
+      description "Assemble classified cars into departure train consist"
+      String :train_symbol
+      String :destination
+      reference_to "TrainConsist"
+      emits "ConsistBuilt"
+    end
+
+    TestBrakes do
+      description "Perform Class I air brake test on assembled consist"
+      String :inspector
+      String :test_result
+      reference_to "TrainConsist"
+      emits "BrakesTested"
+    end
+
+    DepartTrain do
+      description "Release assembled train for mainline departure"
+      String :crew_id
+      String :locomotive_ids
+      reference_to "TrainConsist"
+      emits "TrainDeparted"
+    end
+
+    lifecycle :status, default: "building" do
+      transition "BuildConsist" => "assembled", from: "building"
+      transition "TestBrakes" => "tested", from: "assembled"
+      transition "DepartTrain" => "departed", from: "tested"
+    end
+
+    policy "Air brake test required before departure"
+  end
+
+  aggregate "SwitchMove" do
+    String :move_id
+    String :switch_engine_id
+    String :origin_track
+    String :destination_track
+    Integer :car_count
+    String :status
+
+    ExecuteSwitch do
+      description "Move cars between yard tracks using switch engine"
+      String :switch_engine_id
+      String :origin_track
+      String :destination_track
+      reference_to "RailCar"
+      emits "SwitchExecuted"
+    end
+
+    CoupleAir do
+      description "Connect air hoses and charge brake line after coupling cars"
+      reference_to "SwitchMove"
+      emits "AirCoupled"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "ExecuteSwitch" => "executed", from: "planned"
+      transition "CoupleAir" => "coupled", from: "executed"
+    end
+
+    policy "Blue flag protection required when workers are between cars"
+  end
+
+  aggregate "YardSchedule" do
+    String :schedule_id
+    String :shift_date
+    String :shift
+    Integer :inbound_trains
+    Integer :outbound_trains
+    String :status
+
+    value_object "TrainSlot" do
+      String :train_symbol
+      String :arrival_time
+      String :track_assignment
+    end
+
+    PlanShift do
+      description "Create yard work plan for inbound and outbound trains"
+      String :shift_date
+      String :shift
+      reference_to "YardSchedule"
+      emits "ShiftPlanned"
+    end
+
+    AdjustSchedule do
+      description "Update schedule for late arrivals or equipment changes"
+      String :reason
+      reference_to "YardSchedule"
+      emits "ScheduleAdjusted"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "PlanShift" => "planned", from: "draft"
+      transition "AdjustSchedule" => "adjusted", from: "planned"
+    end
+
+    policy "Outbound trains must depart within scheduled window"
+  end
+
+  aggregate "CarInspection" do
+    String :inspection_id
+    String :car_id
+    String :inspection_type
+    String :inspector
+    String :result
+    String :status
+
+    TagDefect do
+      description "Apply bad order tag to car with identified safety defect"
+      String :defect_code
+      String :defect_description
+      reference_to "RailCar"
+      emits "DefectTagged"
+    end
+
+    RepairDefect do
+      description "Complete repair on defective car and return to service"
+      String :mechanic
+      String :repair_description
+      reference_to "CarInspection"
+      emits "DefectRepaired"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "TagDefect" => "tagged", from: "pending"
+      transition "RepairDefect" => "repaired", from: "tagged"
+    end
+
+    policy "FRA defects require immediate set-out from active service"
+  end
+
+  policy "InspectCarOnCarReceived" do
+    on "CarReceived"
+    trigger "InspectCar"
+  end
+
+  policy "ClassifyCarOnCarInspected" do
+    on "CarInspected"
+    trigger "ClassifyCar"
+  end
+
+  policy "BuildConsistOnCarClassified" do
+    on "CarClassified"
+    trigger "BuildConsist"
+  end
+
+  policy "TestBrakesOnConsistBuilt" do
+    on "ConsistBuilt"
+    trigger "TestBrakes"
+  end
+
+  policy "DepartTrainOnBrakesTested" do
+    on "BrakesTested"
+    trigger "DepartTrain"
+  end
+
+  policy "RepairDefectOnDefectTagged" do
+    on "DefectTagged"
+    trigger "RepairDefect"
+  end
+end

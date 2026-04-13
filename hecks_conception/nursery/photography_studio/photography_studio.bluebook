@@ -1,0 +1,200 @@
+Hecks.bluebook "PhotographyStudio" do
+  aggregate "Shoot", "A scheduled photography session with a client at a location" do
+    String :title
+    String :location
+    String :shoot_type
+    String :status, default: "scheduled"
+    Integer :frame_count
+    reference_to(Client)
+
+    value_object "ShotList" do
+      String :scene
+      String :lighting_setup
+      Integer :estimated_frames
+    end
+
+    ScheduleShoot do
+      description "Book a new photography shoot with a client"
+      String :title
+      String :location
+      String :shoot_type
+      reference_to(Client)
+      emits "ShootScheduled"
+    end
+
+    StartShoot do
+      description "Begin capturing frames at the shoot location"
+      reference_to(Shoot)
+      given { status == "scheduled" }
+      emits "ShootStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    WrapShoot do
+      description "Conclude the shoot and lock the frame count"
+      reference_to(Shoot)
+      Integer :final_frame_count
+      given { status == "in_progress" }
+      emits "ShootWrapped"
+      then_set :status, to: "wrapped"
+      then_set :frame_count, to: :final_frame_count
+    end
+  end
+
+  aggregate "Client", "A photography client with contact info and shoot history" do
+    String :name
+    String :email
+    String :phone
+    String :tier
+
+    RegisterClient do
+      description "Onboard a new client to the studio roster"
+      String :name
+      String :email
+      String :phone
+      emits "ClientRegistered"
+    end
+
+    UpgradeTier do
+      description "Promote a client to a higher service tier"
+      reference_to(Client)
+      String :new_tier
+      emits "ClientTierUpgraded"
+      then_set :tier, to: :new_tier
+    end
+  end
+
+  aggregate "EditSession", "Post-production editing of shoot photos in Lightroom or Capture One" do
+    String :status, default: "pending"
+    Integer :selects_count
+    Integer :finals_count
+    reference_to(Shoot)
+
+    value_object "EditPreset" do
+      String :name
+      String :color_profile
+      Float :exposure_adjustment
+      Float :contrast
+    end
+
+    CullSelects do
+      description "Review raw frames and mark selects for editing"
+      reference_to(Shoot)
+      Integer :selects_count
+      emits "SelectsCulled"
+      then_set :selects_count, to: :selects_count
+      then_set :status, to: "culling"
+    end
+
+    RetouchSelects do
+      description "Apply retouching and color grading to selected frames"
+      reference_to(EditSession)
+      String :preset_name
+      given { status == "culling" }
+      emits "SelectsRetouched"
+      then_set :status, to: "retouched"
+    end
+
+    DeliverFinals do
+      description "Export final edited images for client delivery"
+      reference_to(EditSession)
+      Integer :finals_count
+      given { status == "retouched" }
+      emits "FinalsDelivered"
+      then_set :finals_count, to: :finals_count
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Gallery", "An online gallery for client proofing and print ordering" do
+    String :title
+    String :access_code
+    String :status, default: "draft"
+    Integer :image_count
+    reference_to(Client)
+
+    PublishGallery do
+      description "Make the gallery live for client viewing"
+      reference_to(Gallery)
+      String :title
+      String :access_code
+      Integer :image_count
+      emits "GalleryPublished"
+      then_set :status, to: "published"
+    end
+
+    ExpireGallery do
+      description "Close a gallery after the viewing period ends"
+      reference_to(Gallery)
+      given { status == "published" }
+      emits "GalleryExpired"
+      then_set :status, to: "expired"
+    end
+  end
+
+  aggregate "PrintOrder", "A physical print order from a gallery with sizing and paper stock" do
+    String :paper_stock
+    String :finish
+    Integer :quantity
+    String :status, default: "pending"
+    reference_to(Gallery)
+
+    value_object "PrintSize" do
+      Integer :width_inches
+      Integer :height_inches
+      String :aspect_ratio
+    end
+
+    PlacePrintOrder do
+      description "Order physical prints from a published gallery"
+      reference_to(Gallery)
+      String :paper_stock
+      String :finish
+      Integer :quantity
+      emits "PrintOrderPlaced"
+    end
+
+    FulfillPrintOrder do
+      description "Mark a print order as printed and shipped"
+      reference_to(PrintOrder)
+      given { status == "pending" }
+      emits "PrintOrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+  end
+
+  policy "CullAfterWrap" do
+    on "ShootWrapped"
+    trigger "CullSelects"
+  end
+
+  policy "RetouchAfterCull" do
+    on "SelectsCulled"
+    trigger "RetouchSelects"
+  end
+
+  policy "DeliverAfterRetouch" do
+    on "SelectsRetouched"
+    trigger "DeliverFinals"
+  end
+
+  policy "PublishAfterDelivery" do
+    on "FinalsDelivered"
+    trigger "PublishGallery"
+  end
+
+  policy "OfferPrintsOnGallery" do
+    on "GalleryPublished"
+    trigger "PlacePrintOrder"
+  end
+
+  policy "FulfillAfterOrder" do
+    on "PrintOrderPlaced"
+    trigger "FulfillPrintOrder"
+  end
+
+  policy "UpgradeAfterLargeOrder" do
+    on "PrintOrderFulfilled"
+    trigger "UpgradeTier"
+  end
+end

@@ -1,0 +1,184 @@
+Hecks.bluebook "TattooShop" do
+  aggregate "Artist", "A tattoo artist with a specialty style and portfolio" do
+    String :name
+    String :specialty_style
+    String :station_number
+    Integer :years_experience
+
+    HireArtist do
+      description "Bring a new tattoo artist onto the shop roster"
+      String :name
+      String :specialty_style
+      String :station_number
+      Integer :years_experience
+      emits "ArtistHired"
+    end
+
+    AssignStation do
+      description "Move an artist to a different workstation"
+      reference_to(Artist)
+      String :station_number
+      emits "StationAssigned"
+      then_set :station_number, to: :station_number
+    end
+  end
+
+  aggregate "Appointment", "A booked tattoo session with time, duration, and deposit" do
+    String :date
+    String :time_slot
+    Integer :duration_hours
+    Float :deposit_amount
+    String :status, default: "booked"
+    reference_to(Artist)
+    reference_to(Design)
+
+    value_object "TimeSlot" do
+      String :start_time
+      String :end_time
+      Integer :duration_minutes
+    end
+
+    BookAppointment do
+      description "Reserve a tattoo appointment with an artist"
+      reference_to(Artist)
+      reference_to(Design)
+      String :date
+      String :time_slot
+      Integer :duration_hours
+      Float :deposit_amount
+      emits "AppointmentBooked"
+    end
+
+    StartSession do
+      description "Begin the tattoo session when the client arrives"
+      reference_to(Appointment)
+      given { status == "booked" }
+      emits "SessionStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteSession do
+      description "Finish the tattoo session and record aftercare instructions"
+      reference_to(Appointment)
+      given { status == "in_progress" }
+      emits "SessionCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Design", "A tattoo design with style, placement, and sizing details" do
+    String :title
+    String :style
+    String :placement
+    Float :size_inches
+    String :status, default: "draft"
+
+    value_object "ColorPalette" do
+      String :primary_ink
+      String :secondary_ink
+      String :shading_technique
+    end
+
+    SketchDesign do
+      description "Create an initial tattoo design sketch for client review"
+      String :title
+      String :style
+      String :placement
+      Float :size_inches
+      emits "DesignSketched"
+    end
+
+    ApproveDesign do
+      description "Client approves the design for tattooing"
+      reference_to(Design)
+      given { status == "draft" }
+      emits "DesignApproved"
+      then_set :status, to: "approved"
+    end
+
+    ReviseDesign do
+      description "Modify the design based on client feedback"
+      reference_to(Design)
+      String :revision_notes
+      emits "DesignRevised"
+    end
+  end
+
+  aggregate "ConsentForm", "Legal consent and medical disclosure before tattooing" do
+    String :client_name
+    String :date_signed
+    String :allergies
+    String :status, default: "unsigned"
+    reference_to(Appointment)
+
+    SignConsent do
+      description "Record client signature on consent and medical form"
+      reference_to(Appointment)
+      String :client_name
+      String :allergies
+      emits "ConsentSigned"
+      then_set :status, to: "signed"
+    end
+
+    FlagAllergy do
+      description "Flag a known allergy that may affect ink selection"
+      reference_to(ConsentForm)
+      String :allergen
+      given { status == "signed" }
+      emits "AllergyFlagged"
+    end
+  end
+
+  aggregate "AftercareKit", "Post-tattoo care instructions and product bundle" do
+    String :instructions
+    String :ointment_type
+    Integer :follow_up_days
+    reference_to(Appointment)
+
+    DispenseKit do
+      description "Provide aftercare kit and instructions after session"
+      reference_to(Appointment)
+      String :instructions
+      String :ointment_type
+      Integer :follow_up_days
+      emits "KitDispensed"
+    end
+
+    ScheduleFollowUp do
+      description "Book a follow-up appointment to check healing"
+      reference_to(AftercareKit)
+      String :follow_up_date
+      emits "FollowUpScheduled"
+    end
+  end
+
+  policy "BookAfterDesignApproval" do
+    on "DesignApproved"
+    trigger "BookAppointment"
+  end
+
+  policy "SignConsentOnBooking" do
+    on "AppointmentBooked"
+    trigger "SignConsent"
+  end
+
+  policy "StartSessionOnConsent" do
+    on "ConsentSigned"
+    trigger "StartSession"
+  end
+
+  policy "DispenseAftercareOnCompletion" do
+    on "SessionCompleted"
+    trigger "DispenseKit"
+  end
+
+  policy "ScheduleFollowUpOnKit" do
+    on "KitDispensed"
+    trigger "ScheduleFollowUp"
+  end
+
+  policy "AssignStationOnHire" do
+    on "ArtistHired"
+    trigger "AssignStation"
+  end
+end

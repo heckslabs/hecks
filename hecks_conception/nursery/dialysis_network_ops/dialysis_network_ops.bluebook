@@ -1,0 +1,159 @@
+Hecks.bluebook "DialysisNetworkOps", version: "2026.04.13.1" do
+  vision "Dialysis network operations — dialysis machines meet network connectivity and remote monitoring"
+  category "healthcare_technology"
+
+  aggregate "DialysisMachine", "A hemodialysis machine in a treatment center" do
+    String :machine_id
+    String :model
+    String :center_name
+    Float :hours_used
+    String :status
+    RegisterMachine do
+      role "BiomedTech"
+      description "Register a new dialysis machine at a treatment center"
+      String :machine_id
+      String :model
+      String :center_name
+      emits "MachineRegistered"
+      then_set :machine_id, to: :machine_id
+      then_set :model, to: :model
+      then_set :center_name, to: :center_name
+      then_set :hours_used, to: 0.0
+      then_set :status, to: "online"
+    end
+    StartTreatment do
+      role "Nurse"
+      description "Begin a dialysis treatment session on this machine"
+      reference_to(DialysisMachine)
+      given { status == "online" }
+      emits "TreatmentStarted"
+      then_set :status, to: "treating"
+    end
+    EndTreatment do
+      role "Nurse"
+      description "End the dialysis treatment session"
+      reference_to(DialysisMachine)
+      given { status == "treating" }
+      emits "TreatmentEnded"
+      then_set :status, to: "online"
+    end
+  end
+
+  aggregate "NetworkLink", "A network connection between a dialysis center and central monitoring" do
+    String :link_id
+    String :center_name
+    String :link_type
+    Float :bandwidth_mbps
+    Float :latency_ms
+    String :status
+    EstablishLink do
+      role "NetOps"
+      description "Establish a network link to a dialysis center"
+      String :link_id
+      String :center_name
+      String :link_type
+      Float :bandwidth_mbps
+      emits "LinkEstablished"
+      then_set :link_id, to: :link_id
+      then_set :center_name, to: :center_name
+      then_set :link_type, to: :link_type
+      then_set :bandwidth_mbps, to: :bandwidth_mbps
+      then_set :status, to: "up"
+    end
+    TestLink do
+      role "NetOps"
+      description "Test network latency and throughput to the center"
+      reference_to(NetworkLink)
+      Float :latency_ms
+      emits "LinkTested"
+      then_set :latency_ms, to: :latency_ms
+    end
+    MarkDown do
+      role "System"
+      description "Mark network link as down after failure detection"
+      reference_to(NetworkLink)
+      given { status == "up" }
+      emits "LinkDown"
+      then_set :status, to: "down"
+    end
+  end
+
+  aggregate "RemoteAlert", "An alert generated from remote monitoring of dialysis machines" do
+    String :alert_id
+    String :machine_id
+    String :alert_type
+    String :severity
+    String :message
+    String :status
+    RaiseAlert do
+      role "System"
+      description "Raise a remote monitoring alert for a dialysis machine"
+      String :alert_id
+      String :machine_id
+      String :alert_type
+      String :severity
+      String :message
+      emits "AlertRaised"
+      then_set :alert_id, to: :alert_id
+      then_set :machine_id, to: :machine_id
+      then_set :alert_type, to: :alert_type
+      then_set :severity, to: :severity
+      then_set :message, to: :message
+      then_set :status, to: "open"
+    end
+    AcknowledgeAlert do
+      role "BiomedTech"
+      description "Acknowledge and begin addressing the alert"
+      reference_to(RemoteAlert)
+      given { status == "open" }
+      emits "AlertAcknowledged"
+      then_set :status, to: "acknowledged"
+    end
+    ResolveAlert do
+      role "BiomedTech"
+      description "Mark the alert as resolved after corrective action"
+      reference_to(RemoteAlert)
+      given { status == "acknowledged" }
+      emits "AlertResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "TelemetryLog", "A log of machine telemetry data sent over the network" do
+    String :log_id
+    String :machine_id
+    Float :blood_flow_rate
+    Float :dialysate_temp
+    String :timestamp
+    list_of(Reading) :readings
+    value_object "Reading" do
+      String :metric
+      Float :value
+      String :unit
+    end
+    RecordTelemetry do
+      role "System"
+      description "Record telemetry data from a dialysis machine"
+      String :log_id
+      String :machine_id
+      Float :blood_flow_rate
+      Float :dialysate_temp
+      String :timestamp
+      emits "TelemetryRecorded"
+      then_set :log_id, to: :log_id
+      then_set :machine_id, to: :machine_id
+      then_set :blood_flow_rate, to: :blood_flow_rate
+      then_set :dialysate_temp, to: :dialysate_temp
+      then_set :timestamp, to: :timestamp
+    end
+  end
+
+  policy "RecordOnTreatment" do
+    on "TreatmentStarted"
+    trigger "RecordTelemetry"
+  end
+  policy "AlertOnLinkDown" do
+    on "LinkDown"
+    trigger "RaiseAlert"
+  end
+end

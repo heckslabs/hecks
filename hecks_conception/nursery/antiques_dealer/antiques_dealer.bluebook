@@ -1,0 +1,214 @@
+Hecks.bluebook "AntiquesDealer", version: "2026.04.13.1" do
+  vision "Running an antiques business — authenticating pieces, tracking provenance, appraising value, managing consignments, and performing restorations"
+  category "retail"
+
+  aggregate "AntiquePiece", "A historical object of value — the core inventory item" do
+    String :piece_id
+    String :name
+    String :period
+    String :category
+    String :material
+    String :condition
+    Float :asking_price
+    String :status
+    list_of(ProvenanceEntry) :provenance
+
+    value_object "ProvenanceEntry" do
+      String :owner_name
+      String :date_acquired
+      String :location
+      String :documentation
+    end
+
+    AcquirePiece do
+      role "Dealer"
+      description "Purchase or accept an antique into the collection"
+      String :piece_id
+      String :name
+      String :period
+      String :category
+      String :material
+      String :condition
+      Float :asking_price
+      emits "PieceAcquired"
+      then_set :piece_id, to: :piece_id
+      then_set :name, to: :name
+      then_set :period, to: :period
+      then_set :category, to: :category
+      then_set :material, to: :material
+      then_set :condition, to: :condition
+      then_set :asking_price, to: :asking_price
+      then_set :status, to: "in_stock"
+    end
+
+    SellPiece do
+      role "Dealer"
+      description "Complete the sale of an antique to a buyer"
+      reference_to(AntiquePiece)
+      given { status == "in_stock" }
+      emits "PieceSold"
+      then_set :status, to: "sold"
+    end
+
+    AuthenticatePiece do
+      role "Expert"
+      description "Verify the authenticity and period attribution of the piece"
+      reference_to(AntiquePiece)
+      emits "PieceAuthenticated"
+    end
+  end
+
+  aggregate "Appraisal", "A formal valuation of an antique's worth" do
+    String :appraisal_id
+    String :piece_id
+    String :appraiser_name
+    Float :estimated_value
+    String :appraisal_date
+    String :purpose
+
+    PerformAppraisal do
+      role "Appraiser"
+      description "Evaluate an antique and assign a fair market value"
+      String :appraisal_id
+      String :piece_id
+      String :appraiser_name
+      Float :estimated_value
+      String :appraisal_date
+      String :purpose
+      emits "AppraisalPerformed"
+      then_set :appraisal_id, to: :appraisal_id
+      then_set :piece_id, to: :piece_id
+      then_set :appraiser_name, to: :appraiser_name
+      then_set :estimated_value, to: :estimated_value
+      then_set :appraisal_date, to: :appraisal_date
+      then_set :purpose, to: :purpose
+    end
+
+    ContestAppraisal do
+      role "Owner"
+      description "Challenge the appraised value and request re-evaluation"
+      reference_to(Appraisal)
+      emits "AppraisalContested"
+    end
+  end
+
+  aggregate "Consignment", "An arrangement where the owner places a piece for sale through the dealer" do
+    String :consignment_id
+    String :piece_id
+    String :consignor_name
+    Float :agreed_commission
+    String :start_date
+    String :end_date
+    String :status
+
+    AcceptConsignment do
+      role "Dealer"
+      description "Take a piece on consignment with agreed commission terms"
+      String :consignment_id
+      String :piece_id
+      String :consignor_name
+      Float :agreed_commission
+      String :start_date
+      String :end_date
+      emits "ConsignmentAccepted"
+      then_set :consignment_id, to: :consignment_id
+      then_set :piece_id, to: :piece_id
+      then_set :consignor_name, to: :consignor_name
+      then_set :agreed_commission, to: :agreed_commission
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :status, to: "active"
+    end
+
+    ReturnConsignment do
+      role "Dealer"
+      description "Return an unsold consigned piece to its owner"
+      reference_to(Consignment)
+      given { status == "active" }
+      emits "ConsignmentReturned"
+      then_set :status, to: "returned"
+    end
+
+    SettleConsignment do
+      role "Dealer"
+      description "Pay the consignor their share after the piece sells"
+      reference_to(Consignment)
+      given { status == "active" }
+      emits "ConsignmentSettled"
+      then_set :status, to: "settled"
+    end
+  end
+
+  aggregate "Restoration", "Conservation or repair work performed on an antique" do
+    String :restoration_id
+    String :piece_id
+    String :restorer_name
+    String :work_description
+    Float :cost
+    String :status
+
+    OrderRestoration do
+      role "Dealer"
+      description "Send a piece out for professional restoration work"
+      String :restoration_id
+      String :piece_id
+      String :restorer_name
+      String :work_description
+      Float :cost
+      emits "RestorationOrdered"
+      then_set :restoration_id, to: :restoration_id
+      then_set :piece_id, to: :piece_id
+      then_set :restorer_name, to: :restorer_name
+      then_set :work_description, to: :work_description
+      then_set :cost, to: :cost
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteRestoration do
+      role "Restorer"
+      description "Finish the restoration and return the piece"
+      reference_to(Restoration)
+      given { status == "in_progress" }
+      emits "RestorationCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Lifecycle: acquired → authenticated → appraised → listed → sold
+  # Workflow: Acquire → Authenticate → Appraise → List for sale → Sell → Settle consignment → Order restoration for next piece
+
+  policy "AuthenticateOnAcquisition" do
+    on "PieceAcquired"
+    trigger "AuthenticatePiece"
+  end
+
+  policy "AppraiseOnAuthentication" do
+    on "PieceAuthenticated"
+    trigger "PerformAppraisal"
+  end
+
+  policy "AcceptConsignmentOnAppraisal" do
+    on "AppraisalPerformed"
+    trigger "AcceptConsignment"
+  end
+
+  policy "AuthenticateOnConsignment" do
+    on "ConsignmentAccepted"
+    trigger "AuthenticatePiece"
+  end
+
+  policy "SettleOnSale" do
+    on "PieceSold"
+    trigger "SettleConsignment"
+  end
+
+  policy "RestoreOnContest" do
+    on "AppraisalContested"
+    trigger "OrderRestoration"
+  end
+
+  policy "ReappraiseOnRestoration" do
+    on "RestorationCompleted"
+    trigger "PerformAppraisal"
+  end
+end

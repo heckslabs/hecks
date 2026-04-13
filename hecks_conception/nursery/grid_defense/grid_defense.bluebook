@@ -1,0 +1,192 @@
+Hecks.bluebook "GridDefense" do
+  vision "Cross-wire power grid operations with cybersecurity for critical infrastructure defense"
+  core
+
+  aggregate "GridAsset" do
+    description "A power grid infrastructure asset"
+    attribute :asset_id
+    attribute :asset_type
+    attribute :location
+    attribute :capacity_mw, Float
+    attribute :vulnerabilities, list_of(Vulnerability)
+    attribute :status, default: "online"
+
+    value_object "Vulnerability" do
+      attribute :cve_id
+      attribute :severity
+      attribute :discovered_at
+    end
+
+    command "RegisterAsset" do
+      role "GridEngineer"
+      goal "Register a grid asset"
+      attribute :asset_id
+      attribute :asset_type
+      attribute :location
+      attribute :capacity_mw, Float
+    end
+
+    command "ReportVulnerability" do
+      role "SecurityAnalyst"
+      goal "Report a vulnerability on a grid asset"
+      reference_to GridAsset
+      attribute :cve_id
+      attribute :severity
+      attribute :discovered_at
+      given("max 50 vulnerabilities") { vulnerabilities.size < 50 }
+      then_set :vulnerabilities, append: { cve_id: :cve_id, severity: :severity, discovered_at: :discovered_at }
+    end
+
+    command "IsolateAsset" do
+      role "GridOperator"
+      goal "Isolate a compromised asset from the grid"
+      reference_to GridAsset
+    end
+  end
+
+  aggregate "ThreatIntel" do
+    description "Cybersecurity threat intelligence feed"
+    attribute :source
+    attribute :indicators, list_of(ThreatIndicator)
+    attribute :status, default: "active"
+
+    value_object "ThreatIndicator" do
+      attribute :indicator_type
+      attribute :value
+      attribute :confidence, Float
+      invariant "confidence between 0 and 1" do
+        confidence >= 0 && confidence <= 1.0
+      end
+    end
+
+    command "IngestFeed" do
+      role "ThreatAnalyst"
+      goal "Ingest a threat intelligence feed"
+      attribute :source
+    end
+
+    command "AddIndicator" do
+      role "ThreatAnalyst"
+      goal "Add a threat indicator"
+      reference_to ThreatIntel
+      attribute :indicator_type
+      attribute :value
+      attribute :confidence, Float
+      given("max 500 indicators") { indicators.size < 500 }
+      then_set :indicators, append: { indicator_type: :indicator_type, value: :value, confidence: :confidence }
+    end
+  end
+
+  aggregate "Incident" do
+    description "A security incident affecting the power grid"
+    reference_to GridAsset
+    reference_to ThreatIntel
+    attribute :incident_type
+    attribute :severity
+    attribute :responders, list_of(Responder)
+    attribute :status, default: "detected"
+
+    value_object "Responder" do
+      attribute :name
+      attribute :role
+      attribute :assigned_at
+    end
+
+    command "DetectIncident" do
+      role "SIEM"
+      goal "Detect a security incident on the grid"
+      reference_to GridAsset
+      attribute :incident_type
+      attribute :severity
+    end
+
+    command "AssignResponder" do
+      role "IncidentCommander"
+      goal "Assign a responder to the incident"
+      reference_to Incident
+      attribute :name
+      attribute :role
+      attribute :assigned_at
+      given("max 20 responders") { responders.size < 20 }
+      then_set :responders, append: { name: :name, role: :role, assigned_at: :assigned_at }
+    end
+
+    command "ContainIncident" do
+      role "IncidentCommander"
+      goal "Contain the incident"
+      reference_to Incident
+    end
+
+    command "ResolveIncident" do
+      role "IncidentCommander"
+      goal "Resolve the incident and restore service"
+      reference_to Incident
+    end
+  end
+
+  aggregate "LoadBalancer" do
+    description "Power load balancing during cyber events"
+    reference_to GridAsset
+    attribute :region
+    attribute :redistributions, list_of(LoadRedistribution)
+    attribute :status, default: "normal"
+
+    value_object "LoadRedistribution" do
+      attribute :from_asset
+      attribute :to_asset
+      attribute :amount_mw, Float
+      invariant "amount must be positive" do
+        amount_mw > 0
+      end
+    end
+
+    command "InitiateRebalance" do
+      role "GridOperator"
+      goal "Start rebalancing load after isolation"
+      attribute :region
+    end
+
+    command "Redistribute" do
+      role "GridOperator"
+      goal "Redistribute power between assets"
+      reference_to LoadBalancer
+      attribute :from_asset
+      attribute :to_asset
+      attribute :amount_mw, Float
+      given("max 100 redistributions") { redistributions.size < 100 }
+      then_set :redistributions, append: { from_asset: :from_asset, to_asset: :to_asset, amount_mw: :amount_mw }
+    end
+  end
+
+  policy "IndicatorAddedTriggersDetection" do
+    on "IndicatorAdded"
+    trigger "DetectIncident"
+    map grid_asset_id: :target_asset_id
+    condition { |event| event.confidence > 0.9 }
+  end
+
+  policy "IncidentDetectedTriggersIsolation" do
+    on "IncidentDetected"
+    trigger "IsolateAsset"
+    map grid_asset_id: :asset_id
+    condition { |event| event.severity == "critical" }
+  end
+
+  policy "AssetIsolatedTriggersRebalance" do
+    on "AssetIsolated"
+    trigger "InitiateRebalance"
+    map region: :asset_region
+  end
+
+  policy "VulnerabilityReportedTriggersIntel" do
+    on "VulnerabilityReported"
+    trigger "AddIndicator"
+    map threat_intel_id: :feed_id, indicator_type: :cve_id
+  end
+
+  policy "IncidentResolvedTriggersAssetOnline" do
+    on "IncidentResolved"
+    trigger "RegisterAsset"
+    map asset_id: :asset_id, asset_type: :asset_type, location: :location
+  end
+end

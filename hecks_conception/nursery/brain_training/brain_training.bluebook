@@ -1,0 +1,142 @@
+Hecks.bluebook "BrainTraining", version: "2026.04.13.1" do
+  vision "Brain training — neuroscience experiments meet gamified exercises and cognitive scoring"
+  category "healthcare_technology"
+
+  aggregate "CognitiveExperiment", "A neuroscience experiment measuring cognitive function" do
+    String :experiment_id
+    String :researcher
+    String :cognitive_domain
+    String :protocol
+    Integer :participant_count
+    String :status
+    DesignExperiment do
+      role "Researcher"
+      description "Design a cognitive experiment with protocol and metrics"
+      String :experiment_id
+      String :researcher
+      String :cognitive_domain
+      String :protocol
+      emits "ExperimentDesigned"
+      then_set :experiment_id, to: :experiment_id
+      then_set :researcher, to: :researcher
+      then_set :cognitive_domain, to: :cognitive_domain
+      then_set :protocol, to: :protocol
+      then_set :status, to: "designed"
+    end
+    LaunchExperiment do
+      role "Researcher"
+      description "Launch the experiment and begin collecting data"
+      reference_to(CognitiveExperiment)
+      given { status == "designed" }
+      emits "ExperimentLaunched"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "BrainGame", "A gamified cognitive exercise for training" do
+    String :game_id
+    String :name
+    String :cognitive_target
+    String :difficulty
+    Integer :levels
+    String :status
+    list_of(GameLevel) :game_levels
+    value_object "GameLevel" do
+      Integer :level_number
+      Float :time_limit_seconds
+      Integer :stimuli_count
+    end
+    CreateGame do
+      role "GameDesigner"
+      description "Create a gamified brain training exercise"
+      String :game_id
+      String :name
+      String :cognitive_target
+      String :difficulty
+      Integer :levels
+      emits "GameCreated"
+      then_set :game_id, to: :game_id
+      then_set :name, to: :name
+      then_set :cognitive_target, to: :cognitive_target
+      then_set :difficulty, to: :difficulty
+      then_set :levels, to: :levels
+      then_set :status, to: "active"
+    end
+    PlayGame do
+      role "Participant"
+      description "Play a brain training game session"
+      reference_to(BrainGame)
+      given { status == "active" }
+      emits "GamePlayed"
+    end
+  end
+
+  aggregate "CognitiveScore", "A participant cognitive performance score" do
+    String :score_id
+    String :participant_id
+    String :game_id
+    Float :accuracy
+    Float :reaction_time_ms
+    Float :composite_score
+    RecordScore do
+      role "System"
+      description "Record cognitive performance scores from a game session"
+      String :score_id
+      String :participant_id
+      String :game_id
+      Float :accuracy
+      Float :reaction_time_ms
+      emits "ScoreRecorded"
+      then_set :score_id, to: :score_id
+      then_set :participant_id, to: :participant_id
+      then_set :game_id, to: :game_id
+      then_set :accuracy, to: :accuracy
+      then_set :reaction_time_ms, to: :reaction_time_ms
+    end
+    CalculateComposite do
+      role "System"
+      description "Calculate composite cognitive score from accuracy and reaction time"
+      reference_to(CognitiveScore)
+      Float :composite_score
+      emits "CompositeCalculated"
+      then_set :composite_score, to: :composite_score
+    end
+  end
+
+  aggregate "TrainingPlan", "A personalized brain training plan based on cognitive profile" do
+    String :plan_id
+    String :participant_id
+    list_of(PlanItem) :items
+    String :status
+    value_object "PlanItem" do
+      String :game_id
+      Integer :sessions_per_week
+      String :target_improvement
+    end
+    CreateTrainingPlan do
+      role "System"
+      description "Generate a personalized training plan from cognitive scores"
+      String :plan_id
+      String :participant_id
+      emits "TrainingPlanCreated"
+      then_set :plan_id, to: :plan_id
+      then_set :participant_id, to: :participant_id
+      then_set :status, to: "active"
+    end
+    AdjustPlan do
+      role "System"
+      description "Adjust the training plan based on score improvement trends"
+      reference_to(TrainingPlan)
+      emits "PlanAdjusted"
+    end
+  end
+
+  policy "ScoreOnPlay" do
+    on "GamePlayed"
+    trigger "RecordScore"
+  end
+  policy "PlanOnScore" do
+    on "CompositeCalculated"
+    trigger "AdjustPlan"
+  end
+end

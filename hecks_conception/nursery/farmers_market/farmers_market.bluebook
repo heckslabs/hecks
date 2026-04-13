@@ -1,0 +1,235 @@
+Hecks.bluebook "FarmersMarket", version: "2026.04.13.1" do
+  vision "Managing a farmers market — onboarding vendors, assigning stalls, issuing permits, conducting inspections, and planning seasonal schedules"
+  category "retail"
+
+  aggregate "Vendor", "A farmer or producer who sells at the market" do
+    String :vendor_id
+    String :farm_name
+    String :contact_name
+    String :contact_phone
+    String :product_type
+    String :status
+    list_of(ProductOffering) :offerings
+
+    value_object "ProductOffering" do
+      String :product_name
+      String :unit
+      Float :price_per_unit
+      String :organic
+    end
+
+    RegisterVendor do
+      role "MarketManager"
+      description "Onboard a new vendor with their farm and product details"
+      String :vendor_id
+      String :farm_name
+      String :contact_name
+      String :contact_phone
+      String :product_type
+      emits "VendorRegistered"
+      then_set :vendor_id, to: :vendor_id
+      then_set :farm_name, to: :farm_name
+      then_set :contact_name, to: :contact_name
+      then_set :contact_phone, to: :contact_phone
+      then_set :product_type, to: :product_type
+      then_set :status, to: "active"
+    end
+
+    SuspendVendor do
+      role "MarketManager"
+      description "Temporarily remove a vendor for violations or non-payment"
+      reference_to(Vendor)
+      given { status == "active" }
+      emits "VendorSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    ReinstatVendor do
+      role "MarketManager"
+      description "Restore a suspended vendor to active status"
+      reference_to(Vendor)
+      given { status == "suspended" }
+      emits "VendorReinstated"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "Stall", "A physical selling space at the market" do
+    String :stall_id
+    String :location
+    String :size
+    Float :weekly_fee
+    String :assigned_vendor_id
+    String :status
+
+    AssignStall do
+      role "MarketManager"
+      description "Allocate a stall to a registered vendor"
+      String :stall_id
+      String :location
+      String :size
+      Float :weekly_fee
+      String :assigned_vendor_id
+      emits "StallAssigned"
+      then_set :stall_id, to: :stall_id
+      then_set :location, to: :location
+      then_set :size, to: :size
+      then_set :weekly_fee, to: :weekly_fee
+      then_set :assigned_vendor_id, to: :assigned_vendor_id
+      then_set :status, to: "occupied"
+    end
+
+    VacateStall do
+      role "MarketManager"
+      description "Free up a stall when a vendor leaves or the season ends"
+      reference_to(Stall)
+      given { status == "occupied" }
+      emits "StallVacated"
+      then_set :status, to: "vacant"
+    end
+  end
+
+  aggregate "MarketPermit", "A license required to operate at the market" do
+    String :permit_id
+    String :vendor_id
+    String :permit_type
+    String :issue_date
+    String :expiration_date
+    String :status
+
+    IssuePermit do
+      role "MarketManager"
+      description "Grant a vendor the required permit to sell"
+      String :permit_id
+      String :vendor_id
+      String :permit_type
+      String :issue_date
+      String :expiration_date
+      emits "PermitIssued"
+      then_set :permit_id, to: :permit_id
+      then_set :vendor_id, to: :vendor_id
+      then_set :permit_type, to: :permit_type
+      then_set :issue_date, to: :issue_date
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "valid"
+    end
+
+    RevokePermit do
+      role "Inspector"
+      description "Cancel a permit due to health or safety violation"
+      reference_to(MarketPermit)
+      given { status == "valid" }
+      emits "PermitRevoked"
+      then_set :status, to: "revoked"
+    end
+  end
+
+  aggregate "Inspection", "A health and safety check of a vendor's stall" do
+    String :inspection_id
+    String :vendor_id
+    String :inspector_name
+    String :inspection_date
+    String :result
+    list_of(Finding) :findings
+
+    value_object "Finding" do
+      String :category
+      String :description
+      String :severity
+    end
+
+    ConductInspection do
+      role "Inspector"
+      description "Perform a health and safety audit of a vendor stall"
+      String :inspection_id
+      String :vendor_id
+      String :inspector_name
+      String :inspection_date
+      emits "InspectionConducted"
+      then_set :inspection_id, to: :inspection_id
+      then_set :vendor_id, to: :vendor_id
+      then_set :inspector_name, to: :inspector_name
+      then_set :inspection_date, to: :inspection_date
+      then_set :result, to: "pending"
+    end
+
+    RecordResult do
+      role "Inspector"
+      description "Finalize the inspection outcome — pass, warning, or fail"
+      reference_to(Inspection)
+      String :result
+      emits "ResultRecorded"
+      then_set :result, to: :result
+    end
+  end
+
+  aggregate "MarketSeason", "A calendar period during which the market operates" do
+    String :season_id
+    String :name
+    String :start_date
+    String :end_date
+    String :status
+
+    OpenSeason do
+      role "MarketManager"
+      description "Launch a new market season with opening and closing dates"
+      String :season_id
+      String :name
+      String :start_date
+      String :end_date
+      emits "SeasonOpened"
+      then_set :season_id, to: :season_id
+      then_set :name, to: :name
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :status, to: "open"
+    end
+
+    CloseSeason do
+      role "MarketManager"
+      description "End the season and vacate all stalls"
+      reference_to(MarketSeason)
+      given { status == "open" }
+      emits "SeasonClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  # Lifecycle: season opened → vendors registered → inspected → permitted → stalls assigned → season closed
+  # Workflow: Open season → Register vendor → Inspect → Issue permit → Assign stall → Close season → Vacate
+
+  policy "RegisterOnSeason" do
+    on "SeasonOpened"
+    trigger "RegisterVendor"
+  end
+
+  policy "InspectOnRegistration" do
+    on "VendorRegistered"
+    trigger "ConductInspection"
+  end
+
+  policy "PermitOnPass" do
+    on "ResultRecorded"
+    trigger "IssuePermit"
+  end
+
+  policy "AssignStallOnPermit" do
+    on "PermitIssued"
+    trigger "AssignStall"
+  end
+
+  policy "RevokeOnFail" do
+    on "ResultRecorded"
+    trigger "RevokePermit"
+  end
+
+  policy "SuspendOnRevoke" do
+    on "PermitRevoked"
+    trigger "SuspendVendor"
+  end
+
+  policy "VacateOnSeasonClose" do
+    on "SeasonClosed"
+    trigger "VacateStall"
+  end
+end

@@ -1,0 +1,265 @@
+Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
+  vision "Robotics meets warehouse management — autonomous robots, pick lists, navigation, charging, and throughput"
+  category "crossover"
+
+  aggregate "Robot", "An autonomous warehouse robot — type, battery, location, task capacity" do
+    String :robot_id
+    String :robot_type
+    Float :battery_pct
+    Float :max_payload_kg
+    String :current_zone
+    String :status
+
+    value_object "RobotPosition" do
+      Float :x_m
+      Float :y_m
+      Float :heading_degrees
+      Float :speed_mps
+    end
+
+    ActivateRobot do
+      role "Engineer"
+      description "Activate a new robot for warehouse operations"
+      String :robot_id
+      String :robot_type
+      Float :max_payload_kg
+      String :current_zone
+      emits "RobotActivated"
+      then_set :robot_id, to: :robot_id
+      then_set :robot_type, to: :robot_type
+      then_set :battery_pct, to: 100.0
+      then_set :max_payload_kg, to: :max_payload_kg
+      then_set :current_zone, to: :current_zone
+      then_set :status, to: "idle"
+    end
+
+    AssignTask do
+      role "System"
+      description "Assign a pick task to the robot"
+      reference_to(Robot)
+      given { status == "idle" }
+      emits "TaskAssigned"
+      then_set :status, to: "working"
+    end
+
+    CompleteTask do
+      role "Robot"
+      description "Robot completes its assigned task"
+      reference_to(Robot)
+      Float :battery_pct
+      given { status == "working" }
+      emits "TaskCompleted"
+      then_set :battery_pct, to: :battery_pct
+      then_set :status, to: "idle"
+    end
+
+    SendToCharger do
+      role "System"
+      description "Route robot to charging station when battery low"
+      reference_to(Robot)
+      given { status == "idle" }
+      emits "RobotSentToCharger"
+      then_set :status, to: "charging"
+    end
+
+    FinishCharging do
+      role "System"
+      description "Robot finishes charging and returns to service"
+      reference_to(Robot)
+      given { status == "charging" }
+      emits "ChargingFinished"
+      then_set :battery_pct, to: 100.0
+      then_set :status, to: "idle"
+    end
+
+    lifecycle :status, default: "offline" do
+      transition "ActivateRobot" => "idle", from: "offline"
+      transition "AssignTask" => "working", from: "idle"
+      transition "CompleteTask" => "idle", from: "working"
+      transition "SendToCharger" => "charging", from: "idle"
+      transition "FinishCharging" => "idle", from: "charging"
+    end
+  end
+
+  aggregate "PickList", "A batch of items to pick — locations, quantities, priority" do
+    String :list_id
+    String :order_id
+    Integer :item_count
+    String :priority
+    String :assigned_robot
+    String :status
+
+    list_of "PickItem" do
+      String :sku
+      String :location
+      Integer :quantity
+      String :picked_status
+    end
+
+    GeneratePickList do
+      role "System"
+      description "Generate a pick list from incoming orders"
+      String :list_id
+      String :order_id
+      Integer :item_count
+      String :priority
+      emits "PickListGenerated"
+      then_set :list_id, to: :list_id
+      then_set :order_id, to: :order_id
+      then_set :item_count, to: :item_count
+      then_set :priority, to: :priority
+      then_set :status, to: "generated"
+    end
+
+    AssignToRobot do
+      role "System"
+      description "Assign pick list to an available robot"
+      reference_to(PickList)
+      String :assigned_robot
+      given { status == "generated" }
+      emits "PickListAssigned"
+      then_set :assigned_robot, to: :assigned_robot
+      then_set :status, to: "assigned"
+    end
+
+    CompletePickList do
+      role "Robot"
+      description "All items in pick list have been picked"
+      reference_to(PickList)
+      given { status == "assigned" }
+      emits "PickListCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "GeneratePickList" => "generated", from: "pending"
+      transition "AssignToRobot" => "assigned", from: "generated"
+      transition "CompletePickList" => "completed", from: "assigned"
+    end
+  end
+
+  aggregate "NavigationPath", "A computed path through the warehouse — waypoints, obstacles, timing" do
+    String :path_id
+    String :robot_id
+    String :from_zone
+    String :to_zone
+    Float :distance_m
+    Float :estimated_seconds
+    String :status
+
+    value_object "PathWaypoint" do
+      Float :x_m
+      Float :y_m
+      String :action
+    end
+
+    ComputePath do
+      role "System"
+      description "Compute optimal path avoiding obstacles and other robots"
+      String :path_id
+      String :robot_id
+      String :from_zone
+      String :to_zone
+      Float :distance_m
+      Float :estimated_seconds
+      emits "PathComputed"
+      then_set :path_id, to: :path_id
+      then_set :robot_id, to: :robot_id
+      then_set :from_zone, to: :from_zone
+      then_set :to_zone, to: :to_zone
+      then_set :distance_m, to: :distance_m
+      then_set :estimated_seconds, to: :estimated_seconds
+      then_set :status, to: "computed"
+    end
+
+    ExecutePath do
+      role "Robot"
+      description "Robot follows the computed path"
+      reference_to(NavigationPath)
+      given { status == "computed" }
+      emits "PathExecuted"
+      then_set :status, to: "executed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ComputePath" => "computed", from: "pending"
+      transition "ExecutePath" => "executed", from: "computed"
+    end
+  end
+
+  aggregate "ThroughputMetric", "Warehouse throughput measurement — picks per hour, robot utilization" do
+    String :metric_id
+    String :period
+    Integer :total_picks
+    Float :picks_per_hour
+    Float :robot_utilization_pct
+    String :status
+
+    value_object "BottleneckAnalysis" do
+      String :zone
+      Float :wait_time_sec
+      String :cause
+    end
+
+    RecordThroughput do
+      role "System"
+      description "Record throughput metrics for a time period"
+      String :metric_id
+      String :period
+      Integer :total_picks
+      Float :picks_per_hour
+      Float :robot_utilization_pct
+      emits "ThroughputRecorded"
+      then_set :metric_id, to: :metric_id
+      then_set :period, to: :period
+      then_set :total_picks, to: :total_picks
+      then_set :picks_per_hour, to: :picks_per_hour
+      then_set :robot_utilization_pct, to: :robot_utilization_pct
+      then_set :status, to: "recorded"
+    end
+
+    AnalyzeBottlenecks do
+      role "System"
+      description "Identify throughput bottlenecks and optimization opportunities"
+      reference_to(ThroughputMetric)
+      given { status == "recorded" }
+      emits "BottlenecksAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordThroughput" => "recorded", from: "pending"
+      transition "AnalyzeBottlenecks" => "analyzed", from: "recorded"
+    end
+  end
+
+  policy "AssignPickListOnGenerate" do
+    on "PickListGenerated"
+    trigger "AssignToRobot"
+  end
+
+  policy "ComputePathOnAssign" do
+    on "TaskAssigned"
+    trigger "ComputePath"
+  end
+
+  policy "ExecutePathOnCompute" do
+    on "PathComputed"
+    trigger "ExecutePath"
+  end
+
+  policy "ChargeOnLowBattery" do
+    on "TaskCompleted"
+    trigger "SendToCharger"
+  end
+
+  policy "AnalyzeOnRecord" do
+    on "ThroughputRecorded"
+    trigger "AnalyzeBottlenecks"
+  end
+
+  policy "AssignTaskOnPickList" do
+    on "PickListAssigned"
+    trigger "AssignTask"
+  end
+end

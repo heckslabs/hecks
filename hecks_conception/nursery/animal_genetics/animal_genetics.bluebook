@@ -1,0 +1,244 @@
+Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
+  vision "Genetics meets animal shelter — DNA profiling, breed identification, health predisposition, and adoption matching"
+  category "crossover"
+
+  aggregate "AnimalProfile", "A shelter animal — species, breed mix, age, temperament" do
+    String :name
+    String :species
+    String :primary_breed
+    Float :age_years
+    String :temperament
+    String :status
+
+    value_object "PhysicalTraits" do
+      Float :weight_kg
+      String :coat_color
+      String :coat_type
+      String :size_category
+    end
+
+    IntakeAnimal do
+      role "ShelterStaff"
+      description "Register a new animal at the shelter with basic information"
+      String :name
+      String :species
+      String :primary_breed
+      Float :age_years
+      String :temperament
+      emits "AnimalIntaken"
+      then_set :name, to: :name
+      then_set :species, to: :species
+      then_set :primary_breed, to: :primary_breed
+      then_set :age_years, to: :age_years
+      then_set :temperament, to: :temperament
+      then_set :status, to: "intake"
+    end
+
+    OrderDNATest do
+      role "Veterinarian"
+      description "Order a DNA test for breed identification and health screening"
+      reference_to(AnimalProfile)
+      given { status == "intake" }
+      emits "DNATestOrdered"
+      then_set :status, to: "testing"
+    end
+
+    MakeAvailable do
+      role "ShelterStaff"
+      description "Make animal available for adoption after health clearance"
+      reference_to(AnimalProfile)
+      given { status == "testing" }
+      emits "AnimalAvailable"
+      then_set :status, to: "available"
+    end
+
+    AdoptAnimal do
+      role "Adopter"
+      description "Complete adoption of the animal"
+      reference_to(AnimalProfile)
+      given { status == "available" }
+      emits "AnimalAdopted"
+      then_set :status, to: "adopted"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "IntakeAnimal" => "intake", from: "unknown"
+      transition "OrderDNATest" => "testing", from: "intake"
+      transition "MakeAvailable" => "available", from: "testing"
+      transition "AdoptAnimal" => "adopted", from: "available"
+    end
+  end
+
+  aggregate "DNAProfile", "A genetic profile — markers, breed composition, health genes" do
+    String :animal_name
+    String :sample_id
+    Float :breed_confidence_pct
+    String :primary_breed_result
+    String :secondary_breed_result
+    String :status
+
+    value_object "GeneticMarker" do
+      String :marker_name
+      String :allele_1
+      String :allele_2
+      String :associated_trait
+    end
+
+    list_of "BreedComponent" do
+      String :breed_name
+      Float :percentage
+      Float :confidence
+    end
+
+    ProcessDNASample do
+      role "LabTechnician"
+      description "Process DNA sample and extract genetic markers"
+      String :animal_name
+      String :sample_id
+      emits "DNASampleProcessed"
+      then_set :animal_name, to: :animal_name
+      then_set :sample_id, to: :sample_id
+      then_set :status, to: "processed"
+    end
+
+    IdentifyBreeds do
+      role "System"
+      description "Match genetic markers against breed database"
+      reference_to(DNAProfile)
+      String :primary_breed_result
+      String :secondary_breed_result
+      Float :breed_confidence_pct
+      given { status == "processed" }
+      emits "BreedsIdentified"
+      then_set :primary_breed_result, to: :primary_breed_result
+      then_set :secondary_breed_result, to: :secondary_breed_result
+      then_set :breed_confidence_pct, to: :breed_confidence_pct
+      then_set :status, to: "identified"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ProcessDNASample" => "processed", from: "pending"
+      transition "IdentifyBreeds" => "identified", from: "processed"
+    end
+  end
+
+  aggregate "HealthPredisposition", "Genetic health risks — conditions, probabilities, preventive care" do
+    String :animal_name
+    String :condition_name
+    Float :risk_probability
+    String :severity
+    String :preventive_action
+    String :status
+
+    value_object "GeneVariant" do
+      String :gene_name
+      String :variant
+      String :effect
+      Float :penetrance
+    end
+
+    ScreenForConditions do
+      role "System"
+      description "Screen DNA results for known health predispositions"
+      String :animal_name
+      String :condition_name
+      Float :risk_probability
+      String :severity
+      emits "ConditionsScreened"
+      then_set :animal_name, to: :animal_name
+      then_set :condition_name, to: :condition_name
+      then_set :risk_probability, to: :risk_probability
+      then_set :severity, to: :severity
+      then_set :status, to: "screened"
+    end
+
+    RecommendPrevention do
+      role "Veterinarian"
+      description "Recommend preventive care based on genetic risks"
+      reference_to(HealthPredisposition)
+      String :preventive_action
+      given { status == "screened" }
+      emits "PreventionRecommended"
+      then_set :preventive_action, to: :preventive_action
+      then_set :status, to: "recommended"
+    end
+
+    lifecycle :status, default: "unscreened" do
+      transition "ScreenForConditions" => "screened", from: "unscreened"
+      transition "RecommendPrevention" => "recommended", from: "screened"
+    end
+  end
+
+  aggregate "AdoptionMatch", "A compatibility match between animal genetics and adopter preferences" do
+    String :animal_name
+    String :adopter_name
+    Float :compatibility_score
+    String :match_factors
+    String :status
+
+    value_object "MatchCriteria" do
+      String :factor_name
+      Float :weight
+      Float :score
+    end
+
+    GenerateMatch do
+      role "System"
+      description "Generate adoption match based on genetic traits and adopter preferences"
+      String :animal_name
+      String :adopter_name
+      Float :compatibility_score
+      String :match_factors
+      emits "MatchGenerated"
+      then_set :animal_name, to: :animal_name
+      then_set :adopter_name, to: :adopter_name
+      then_set :compatibility_score, to: :compatibility_score
+      then_set :match_factors, to: :match_factors
+      then_set :status, to: "generated"
+    end
+
+    ApproveMatch do
+      role "ShelterStaff"
+      description "Approve the adoption match for proceeding"
+      reference_to(AdoptionMatch)
+      given { status == "generated" }
+      emits "MatchApproved"
+      then_set :status, to: "approved"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "GenerateMatch" => "generated", from: "pending"
+      transition "ApproveMatch" => "approved", from: "generated"
+    end
+  end
+
+  policy "ProcessOnDNAOrder" do
+    on "DNATestOrdered"
+    trigger "ProcessDNASample"
+  end
+
+  policy "IdentifyOnProcess" do
+    on "DNASampleProcessed"
+    trigger "IdentifyBreeds"
+  end
+
+  policy "ScreenOnIdentify" do
+    on "BreedsIdentified"
+    trigger "ScreenForConditions"
+  end
+
+  policy "RecommendOnScreen" do
+    on "ConditionsScreened"
+    trigger "RecommendPrevention"
+  end
+
+  policy "MatchOnAvailable" do
+    on "AnimalAvailable"
+    trigger "GenerateMatch"
+  end
+
+  policy "MakeAvailableOnRecommend" do
+    on "PreventionRecommended"
+    trigger "MakeAvailable"
+  end
+end

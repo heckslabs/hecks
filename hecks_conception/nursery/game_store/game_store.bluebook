@@ -1,0 +1,224 @@
+Hecks.bluebook "GameStore", version: "2026.04.13.1" do
+  vision "Running a game store — stocking games, hosting tournaments, accepting trade-ins, managing preorders, and organizing community events"
+  category "retail"
+
+  aggregate "Game", "A board game, card game, or video game for sale" do
+    String :sku
+    String :title
+    String :platform
+    String :genre
+    Float :price
+    Integer :quantity
+    String :age_rating
+    list_of(GameFeature) :features
+
+    value_object "GameFeature" do
+      String :feature_name
+      String :description
+    end
+
+    StockGame do
+      role "Buyer"
+      description "Add a new game title to the store inventory"
+      String :sku
+      String :title
+      String :platform
+      String :genre
+      Float :price
+      Integer :quantity
+      String :age_rating
+      emits "GameStocked"
+      then_set :sku, to: :sku
+      then_set :title, to: :title
+      then_set :platform, to: :platform
+      then_set :genre, to: :genre
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+      then_set :age_rating, to: :age_rating
+    end
+
+    SellGame do
+      role "Cashier"
+      description "Complete a game sale at the register"
+      reference_to(Game)
+      given { quantity > 0 }
+      emits "GameSold"
+    end
+
+    ClearanceGame do
+      role "Manager"
+      description "Mark a game for clearance pricing"
+      reference_to(Game)
+      Float :clearance_price
+      given { clearance_price < price }
+      emits "GameClearanced"
+      then_set :price, to: :clearance_price
+    end
+  end
+
+  aggregate "Tournament", "A competitive gaming event held in the store" do
+    String :tournament_id
+    String :game_title
+    String :format
+    Integer :max_players
+    Float :entry_fee
+    String :date
+    String :status
+    list_of(Participant) :participants
+
+    value_object "Participant" do
+      String :player_name
+      String :registered_date
+      Integer :seed
+    end
+
+    CreateTournament do
+      role "EventCoordinator"
+      description "Set up a new tournament with rules and date"
+      String :tournament_id
+      String :game_title
+      String :format
+      Integer :max_players
+      Float :entry_fee
+      String :date
+      emits "TournamentCreated"
+      then_set :tournament_id, to: :tournament_id
+      then_set :game_title, to: :game_title
+      then_set :format, to: :format
+      then_set :max_players, to: :max_players
+      then_set :entry_fee, to: :entry_fee
+      then_set :date, to: :date
+      then_set :status, to: "open"
+    end
+
+    LaunchTournament do
+      role "EventCoordinator"
+      description "Begin the tournament and lock registrations"
+      reference_to(Tournament)
+      given { status == "open" }
+      emits "TournamentLaunched"
+      then_set :status, to: "in_progress"
+    end
+
+    ConcludeTournament do
+      role "EventCoordinator"
+      description "Declare results and award prizes"
+      reference_to(Tournament)
+      given { status == "in_progress" }
+      emits "TournamentConcluded"
+      then_set :status, to: "concluded"
+    end
+  end
+
+  aggregate "TradeIn", "A used game brought in by a customer for store credit" do
+    String :trade_id
+    String :customer_name
+    String :game_title
+    String :condition
+    Float :credit_offered
+    String :status
+
+    AcceptTradeIn do
+      role "Staff"
+      description "Evaluate and accept a used game for store credit"
+      String :trade_id
+      String :customer_name
+      String :game_title
+      String :condition
+      Float :credit_offered
+      emits "TradeInAccepted"
+      then_set :trade_id, to: :trade_id
+      then_set :customer_name, to: :customer_name
+      then_set :game_title, to: :game_title
+      then_set :condition, to: :condition
+      then_set :credit_offered, to: :credit_offered
+      then_set :status, to: "accepted"
+    end
+
+    RejectTradeIn do
+      role "Staff"
+      description "Decline a trade-in due to poor condition or low demand"
+      reference_to(TradeIn)
+      given { status == "accepted" }
+      emits "TradeInRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  aggregate "Preorder", "A customer reservation for an upcoming game release" do
+    String :preorder_id
+    String :customer_name
+    String :game_title
+    String :release_date
+    Float :deposit
+    String :status
+
+    PlacePreorder do
+      role "Customer"
+      description "Reserve a copy of an upcoming game with a deposit"
+      String :preorder_id
+      String :customer_name
+      String :game_title
+      String :release_date
+      Float :deposit
+      emits "PreorderPlaced"
+      then_set :preorder_id, to: :preorder_id
+      then_set :customer_name, to: :customer_name
+      then_set :game_title, to: :game_title
+      then_set :release_date, to: :release_date
+      then_set :deposit, to: :deposit
+      then_set :status, to: "reserved"
+    end
+
+    FulfillPreorder do
+      role "Staff"
+      description "Hand the game to the customer on release day"
+      reference_to(Preorder)
+      given { status == "reserved" }
+      emits "PreorderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+
+    CancelPreorder do
+      role "Customer"
+      description "Cancel the reservation and refund the deposit"
+      reference_to(Preorder)
+      given { status == "reserved" }
+      emits "PreorderCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  # Lifecycle: stocked → preordered → fulfilled | traded in → restocked → sold → clearanced
+  # Workflow: Stock game → Fulfill preorders → Create tournament → Launch → Conclude → Sell games → Restock trade-ins
+
+  policy "FulfillPreorderOnStock" do
+    on "GameStocked"
+    trigger "FulfillPreorder"
+  end
+
+  policy "StockTradeIns" do
+    on "TradeInAccepted"
+    trigger "StockGame"
+  end
+
+  policy "CreateTournamentOnStock" do
+    on "GameStocked"
+    trigger "CreateTournament"
+  end
+
+  policy "LaunchOnCreate" do
+    on "TournamentCreated"
+    trigger "LaunchTournament"
+  end
+
+  policy "ConcludeOnLaunch" do
+    on "TournamentLaunched"
+    trigger "ConcludeTournament"
+  end
+
+  policy "ClearanceOnConclude" do
+    on "TournamentConcluded"
+    trigger "ClearanceGame"
+  end
+end

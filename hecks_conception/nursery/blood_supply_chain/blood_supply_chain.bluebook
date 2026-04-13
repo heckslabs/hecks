@@ -1,0 +1,157 @@
+Hecks.bluebook "BloodSupplyChain", version: "2026.04.13.1" do
+  vision "Blood supply chain — donations and inventory meet cold chain logistics and temperature tracking"
+  category "healthcare_technology"
+
+  aggregate "Donation", "A blood donation collected from a donor" do
+    String :donation_id
+    String :donor_name
+    String :blood_type
+    Float :volume_ml
+    String :collection_date
+    String :status
+    CollectDonation do
+      role "Phlebotomist"
+      description "Collect a blood donation from a donor"
+      String :donation_id
+      String :donor_name
+      String :blood_type
+      Float :volume_ml
+      String :collection_date
+      emits "DonationCollected"
+      then_set :donation_id, to: :donation_id
+      then_set :donor_name, to: :donor_name
+      then_set :blood_type, to: :blood_type
+      then_set :volume_ml, to: :volume_ml
+      then_set :collection_date, to: :collection_date
+      then_set :status, to: "collected"
+    end
+    TestDonation do
+      role "LabTech"
+      description "Screen donation for pathogens and compatibility"
+      reference_to(Donation)
+      given { status == "collected" }
+      emits "DonationTested"
+      then_set :status, to: "tested"
+    end
+  end
+
+  aggregate "ColdStorage", "A temperature-controlled storage unit for blood products" do
+    String :unit_id
+    String :location_name
+    Float :target_temp_c
+    Float :current_temp_c
+    String :status
+    value_object "TempReading" do
+      Float :temperature_c
+      String :timestamp
+      String :within_range
+    end
+    SetupStorage do
+      role "Technician"
+      description "Configure a cold storage unit with target temperature"
+      String :unit_id
+      String :location_name
+      Float :target_temp_c
+      emits "StorageSetup"
+      then_set :unit_id, to: :unit_id
+      then_set :location_name, to: :location_name
+      then_set :target_temp_c, to: :target_temp_c
+      then_set :status, to: "active"
+    end
+    LogTemperature do
+      role "System"
+      description "Record a temperature reading from the storage sensor"
+      reference_to(ColdStorage)
+      Float :current_temp_c
+      emits "TemperatureLogged"
+      then_set :current_temp_c, to: :current_temp_c
+    end
+    FlagBreach do
+      role "System"
+      description "Flag a temperature breach when reading is out of range"
+      reference_to(ColdStorage)
+      emits "BreachFlagged"
+      then_set :status, to: "breached"
+    end
+  end
+
+  aggregate "Transport", "A blood product shipment between facilities" do
+    String :shipment_id
+    String :origin
+    String :target
+    String :blood_type
+    Float :quantity_units
+    String :status
+    list_of(TransportLeg) :legs
+    value_object "TransportLeg" do
+      String :carrier
+      String :departure_time
+      String :arrival_time
+      Float :temp_c
+    end
+    DispatchShipment do
+      role "Coordinator"
+      description "Dispatch a blood shipment from origin to destination"
+      String :shipment_id
+      String :origin
+      String :target
+      String :blood_type
+      Float :quantity_units
+      emits "ShipmentDispatched"
+      then_set :shipment_id, to: :shipment_id
+      then_set :origin, to: :origin
+      then_set :target, to: :target
+      then_set :blood_type, to: :blood_type
+      then_set :quantity_units, to: :quantity_units
+      then_set :status, to: "in_transit"
+    end
+    ConfirmDelivery do
+      role "Receiver"
+      description "Confirm receipt of blood shipment at destination"
+      reference_to(Transport)
+      given { status == "in_transit" }
+      emits "DeliveryConfirmed"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Inventory", "Current blood product inventory at a facility" do
+    String :facility_name
+    String :blood_type
+    Integer :units_available
+    String :oldest_expiry
+    UpdateInventory do
+      role "System"
+      description "Update blood inventory counts after donation or shipment"
+      String :facility_name
+      String :blood_type
+      Integer :units_available
+      String :oldest_expiry
+      emits "InventoryUpdated"
+      then_set :facility_name, to: :facility_name
+      then_set :blood_type, to: :blood_type
+      then_set :units_available, to: :units_available
+      then_set :oldest_expiry, to: :oldest_expiry
+    end
+    FlagShortage do
+      role "System"
+      description "Flag critical shortage when inventory drops below threshold"
+      reference_to(Inventory)
+      given { units_available < 5 }
+      emits "ShortageFlagged"
+    end
+  end
+
+  policy "StoreOnTest" do
+    on "DonationTested"
+    trigger "UpdateInventory"
+  end
+  policy "FlagOnBreach" do
+    on "TemperatureLogged"
+    trigger "FlagBreach"
+  end
+  policy "UpdateOnDelivery" do
+    on "DeliveryConfirmed"
+    trigger "UpdateInventory"
+  end
+end

@@ -1,0 +1,353 @@
+Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
+  vision "A complete restart package for veterans — housing, finances, benefits, legal support, all wired as one workflow"
+  category "crossover_gen2"
+
+  # === Veteran ===
+
+  aggregate "Veteran", "A veteran entering the restart program — the person at the center of all services" do
+    String :name
+    String :service_branch
+    String :discharge_type
+    String :status
+    list_of(ServiceRecord) :service_history
+
+    value_object "ServiceRecord" do
+      String :unit
+      String :rank
+      String :start_date
+      String :end_date
+      String :deployment
+    end
+
+    EnrollVeteran do
+      role "CaseManager"
+      description "Enroll a veteran into the restart program"
+      String :name
+      String :service_branch
+      String :discharge_type
+      emits "VeteranEnrolled"
+      then_set :name, to: :name
+      then_set :service_branch, to: :service_branch
+      then_set :discharge_type, to: :discharge_type
+      then_set :status, to: "enrolled"
+    end
+
+    AssessNeeds do
+      role "CaseManager"
+      description "Comprehensive needs assessment across housing, legal, financial, medical"
+      reference_to(Veteran)
+      given { status == "enrolled" }
+      emits "NeedsAssessed"
+      then_set :status, to: "assessed"
+    end
+
+    GraduateProgram do
+      role "CaseManager"
+      description "Veteran has achieved all milestones — program complete"
+      reference_to(Veteran)
+      emits "VeteranGraduated"
+      then_set :status, to: "graduated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "EnrollVeteran" => "enrolled", from: "pending"
+      transition "AssessNeeds" => "assessed", from: "enrolled"
+      transition "GraduateProgram" => "graduated", from: "assessed"
+    end
+  end
+
+  # === HousingApplication ===
+
+  aggregate "HousingApplication", "A housing search and application — from shelter to stable home" do
+    reference_to(Veteran) :veteran
+    String :housing_type
+    String :location_preference
+    Float :budget
+    String :status
+    list_of(PropertyOption) :options
+
+    value_object "PropertyOption" do
+      String :address
+      Float :monthly_rent
+      String :pet_friendly
+      String :accessibility
+      String :status
+    end
+
+    MatchHousing do
+      role "System"
+      description "Find housing options that match veteran's benefits and needs"
+      reference_to(Veteran) :veteran
+      String :housing_type
+      String :location_preference
+      Float :budget
+      emits "HousingMatched"
+      then_set :veteran, to: :veteran
+      then_set :housing_type, to: :housing_type
+      then_set :location_preference, to: :location_preference
+      then_set :budget, to: :budget
+      then_set :status, to: "matched"
+    end
+
+    SubmitApplication do
+      role "Veteran"
+      description "Apply for a specific housing option"
+      reference_to(HousingApplication)
+      given { status == "matched" }
+      emits "ApplicationSubmitted"
+      then_set :status, to: "submitted"
+    end
+
+    ApproveApplication do
+      role "Landlord"
+      description "Housing application approved — lease can be signed"
+      reference_to(HousingApplication)
+      given { status == "submitted" }
+      emits "ApplicationApproved"
+      then_set :status, to: "approved"
+    end
+
+    SignLease do
+      role "Veteran"
+      description "Sign the lease agreement — veteran has a home"
+      reference_to(HousingApplication)
+      given { status == "approved" }
+      emits "LeasesSigned"
+      then_set :status, to: "leased"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "MatchHousing" => "matched", from: "pending"
+      transition "SubmitApplication" => "submitted", from: "matched"
+      transition "ApproveApplication" => "approved", from: "submitted"
+      transition "SignLease" => "leased", from: "approved"
+    end
+  end
+
+  # === BenefitsClaim ===
+
+  aggregate "BenefitsClaim", "A VA benefits claim — disability, education, healthcare entitlements" do
+    reference_to(Veteran) :veteran
+    String :benefit_type
+    String :description
+    String :status
+    Float :monthly_amount
+
+    FileClaim do
+      role "CaseManager"
+      description "File a benefits claim with the VA on behalf of the veteran"
+      reference_to(Veteran) :veteran
+      String :benefit_type
+      String :description
+      emits "ClaimFiled"
+      then_set :veteran, to: :veteran
+      then_set :benefit_type, to: :benefit_type
+      then_set :description, to: :description
+      then_set :status, to: "filed"
+    end
+
+    ApproveBenefits do
+      role "VAReviewer"
+      description "VA approves benefits claim — monthly payments begin"
+      reference_to(BenefitsClaim)
+      Float :monthly_amount
+      given { status == "filed" }
+      emits "BenefitsApproved"
+      then_set :monthly_amount, to: :monthly_amount
+      then_set :status, to: "approved"
+    end
+
+    DenyClaim do
+      role "VAReviewer"
+      description "Benefits claim denied — may appeal"
+      reference_to(BenefitsClaim)
+      given { status == "filed" }
+      emits "ClaimDenied"
+      then_set :status, to: "denied"
+    end
+
+    AppealClaim do
+      role "CaseManager"
+      description "Appeal a denied benefits claim with additional evidence"
+      reference_to(BenefitsClaim)
+      given { status == "denied" }
+      emits "ClaimAppealed"
+      then_set :status, to: "appealed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FileClaim" => "filed", from: "pending"
+      transition "ApproveBenefits" => "approved", from: "filed"
+      transition "DenyClaim" => "denied", from: "filed"
+      transition "AppealClaim" => "appealed", from: "denied"
+    end
+  end
+
+  # === FinancialPlan ===
+
+  aggregate "FinancialPlan", "A financial restart plan — budgeting, debt management, savings goals" do
+    reference_to(Veteran) :veteran
+    Float :monthly_income
+    Float :monthly_expenses
+    Float :savings_target
+    String :status
+    list_of(BudgetCategory) :budget
+
+    value_object "BudgetCategory" do
+      String :category
+      Float :allocated
+      Float :spent
+      String :priority
+    end
+
+    StartFinancialPlan do
+      role "System"
+      description "Create a financial plan based on approved benefits and housing costs"
+      reference_to(Veteran) :veteran
+      Float :monthly_income
+      emits "FinancialPlanStarted"
+      then_set :veteran, to: :veteran
+      then_set :monthly_income, to: :monthly_income
+      then_set :status, to: "active"
+    end
+
+    SetBudget do
+      role "FinancialCounselor"
+      description "Define monthly budget categories and allocations"
+      reference_to(FinancialPlan)
+      Float :monthly_expenses
+      Float :savings_target
+      emits "BudgetSet"
+      then_set :monthly_expenses, to: :monthly_expenses
+      then_set :savings_target, to: :savings_target
+    end
+
+    ReviewProgress do
+      role "FinancialCounselor"
+      description "Monthly review of financial plan adherence"
+      reference_to(FinancialPlan)
+      given { status == "active" }
+      emits "FinancialProgressReviewed"
+    end
+  end
+
+  # === LegalCase ===
+
+  aggregate "LegalCase", "A legal matter — discharge upgrade, expungement, child custody, debt resolution" do
+    reference_to(Veteran) :veteran
+    String :case_type
+    String :description
+    String :status
+    String :assigned_attorney
+
+    OpenCase do
+      role "LegalAid"
+      description "Open a legal case for the veteran"
+      reference_to(Veteran) :veteran
+      String :case_type
+      String :description
+      String :assigned_attorney
+      emits "LegalCaseOpened"
+      then_set :veteran, to: :veteran
+      then_set :case_type, to: :case_type
+      then_set :description, to: :description
+      then_set :assigned_attorney, to: :assigned_attorney
+      then_set :status, to: "open"
+    end
+
+    ResolveCase do
+      role "LegalAid"
+      description "Legal case resolved — outcome recorded"
+      reference_to(LegalCase)
+      given { status == "open" }
+      emits "LegalCaseResolved"
+      then_set :status, to: "resolved"
+    end
+
+    EscalateCase do
+      role "LegalAid"
+      description "Case requires higher court or additional advocacy"
+      reference_to(LegalCase)
+      given { status == "open" }
+      emits "LegalCaseEscalated"
+      then_set :status, to: "escalated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "OpenCase" => "open", from: "pending"
+      transition "ResolveCase" => "resolved", from: "open"
+      transition "EscalateCase" => "escalated", from: "open"
+    end
+  end
+
+  # === Milestone ===
+
+  aggregate "Milestone", "A restart milestone — trackable achievement on the path to independence" do
+    reference_to(Veteran) :veteran
+    String :milestone_type
+    String :description
+    String :target_date
+    String :status
+
+    SetMilestone do
+      role "CaseManager"
+      description "Define a milestone for the veteran's restart journey"
+      reference_to(Veteran) :veteran
+      String :milestone_type
+      String :description
+      String :target_date
+      emits "MilestoneSet"
+      then_set :veteran, to: :veteran
+      then_set :milestone_type, to: :milestone_type
+      then_set :description, to: :description
+      then_set :target_date, to: :target_date
+      then_set :status, to: "pending"
+    end
+
+    AchieveMilestone do
+      role "CaseManager"
+      description "Mark milestone as achieved — progress toward graduation"
+      reference_to(Milestone)
+      given { status == "pending" }
+      emits "MilestoneAchieved"
+      then_set :status, to: "achieved"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "MatchHousingOnBenefits" do
+    on "BenefitsApproved"
+    trigger "MatchHousing"
+  end
+
+  policy "FinancialPlanOnLease" do
+    on "LeasesSigned"
+    trigger "StartFinancialPlan"
+  end
+
+  policy "FileClaimOnAssessment" do
+    on "NeedsAssessed"
+    trigger "FileClaim"
+  end
+
+  policy "OpenLegalOnAssessment" do
+    on "NeedsAssessed"
+    trigger "OpenCase"
+  end
+
+  policy "MilestoneOnLease" do
+    on "LeasesSigned"
+    trigger "AchieveMilestone"
+  end
+
+  policy "MilestoneOnBenefits" do
+    on "BenefitsApproved"
+    trigger "AchieveMilestone"
+  end
+
+  policy "MilestoneOnLegalResolved" do
+    on "LegalCaseResolved"
+    trigger "AchieveMilestone"
+  end
+end

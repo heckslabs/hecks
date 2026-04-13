@@ -1,0 +1,255 @@
+Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
+  vision "Operating a mobile app marketplace — curating apps, moderating reviews, tracking downloads, pushing updates, and splitting revenue"
+  category "technology"
+
+  aggregate "App", "A published application available for download" do
+    String :bundle_id
+    String :title
+    String :developer_name
+    String :category
+    Float :price
+    String :current_version
+    String :status
+    list_of(Screenshot) :screenshots
+
+    value_object "Screenshot" do
+      String :url
+      String :caption
+      Integer :display_order
+    end
+
+    SubmitApp do
+      role "Developer"
+      description "Submit a new app for review and publication"
+      String :bundle_id
+      String :title
+      String :developer_name
+      String :category
+      Float :price
+      emits "AppSubmitted"
+    end
+
+    ApproveApp do
+      description "Clear an app through review and publish it to the store"
+      reference_to(App)
+      given("app is pending review") { status == "pending_review" }
+      emits "AppApproved"
+    end
+
+    SuspendApp do
+      description "Remove an app from the store for policy violations"
+      reference_to(App)
+      emits "AppSuspended"
+    end
+  end
+
+  aggregate "Review", "A user rating and comment on an app" do
+    String :review_id
+    String :author_name
+    Integer :rating
+    String :comment
+    String :status
+    reference_to App
+
+    value_object "ReviewFlag" do
+      String :reason
+      String :flagged_by
+      String :flagged_at
+    end
+
+    PostReview do
+      role "User"
+      description "Write a review and rate an app"
+      String :review_id
+      String :author_name
+      Integer :rating
+      String :comment
+      reference_to(App)
+      given("rating between 1 and 5") { rating >= 1 && rating <= 5 }
+      emits "ReviewPosted"
+    end
+
+    FlagReview do
+      description "Report a review as inappropriate or spam"
+      reference_to(Review)
+      String :reason
+      emits "ReviewFlagged"
+    end
+
+    RemoveReview do
+      description "Delete a flagged review after moderation"
+      reference_to(Review)
+      given("review is flagged") { status == "flagged" }
+      emits "ReviewRemoved"
+    end
+  end
+
+  aggregate "Download", "A record of an app being installed by a user" do
+    String :download_id
+    String :user_id
+    String :device_type
+    String :os_version
+    String :status
+    reference_to App
+
+    value_object "DeviceInfo" do
+      String :model
+      String :os_version
+      String :screen_size
+    end
+
+    RecordDownload do
+      role "StoreSystem"
+      description "Log an app download event"
+      String :download_id
+      String :user_id
+      String :device_type
+      String :os_version
+      reference_to(App)
+      emits "DownloadRecorded"
+    end
+
+    RecordUninstall do
+      description "Log when a user removes an app"
+      reference_to(Download)
+      emits "UninstallRecorded"
+    end
+
+    RefundPurchase do
+      description "Process a refund for a paid app within the return window"
+      reference_to(Download)
+      given("download is within refund window") { status == "active" }
+      emits "PurchaseRefunded"
+    end
+  end
+
+  aggregate "AppUpdate", "A new version of an existing app pushed by a developer" do
+    String :update_id
+    String :version_number
+    String :release_notes
+    Integer :size_mb
+    String :status
+    reference_to App
+
+    value_object "ChangeEntry" do
+      String :change_type
+      String :description
+    end
+
+    SubmitUpdate do
+      role "Developer"
+      description "Push a new app version for review"
+      String :update_id
+      String :version_number
+      String :release_notes
+      Integer :size_mb
+      reference_to(App)
+      emits "UpdateSubmitted"
+    end
+
+    ApproveUpdate do
+      description "Approve an update and make it available to users"
+      reference_to(AppUpdate)
+      given("update is pending") { status == "pending" }
+      emits "UpdateApproved"
+    end
+
+    RejectUpdate do
+      description "Reject an update that fails policy review"
+      reference_to(AppUpdate)
+      String :rejection_reason
+      emits "UpdateRejected"
+    end
+  end
+
+  aggregate "RevenueSplit", "A revenue distribution record between store and developer" do
+    String :split_id
+    Float :gross_amount
+    Float :store_share
+    Float :developer_share
+    String :period
+    String :status
+    reference_to App
+
+    value_object "SplitBreakdown" do
+      Float :downloads_revenue
+      Float :in_app_revenue
+      Float :ad_revenue
+    end
+
+    CalculateSplit do
+      role "FinanceSystem"
+      description "Compute the revenue split for a billing period"
+      String :split_id
+      Float :gross_amount
+      String :period
+      reference_to(App)
+      emits "SplitCalculated"
+    end
+
+    DisburseDeveloperShare do
+      description "Pay the developer their share of revenue"
+      reference_to(RevenueSplit)
+      given("split is calculated") { status == "calculated" }
+      emits "DeveloperShareDisbursed"
+    end
+
+    DisputeSplit do
+      description "Challenge a revenue split calculation"
+      reference_to(RevenueSplit)
+      String :dispute_reason
+      emits "SplitDisputed"
+    end
+  end
+
+  lifecycle "AppPublishing" do
+    state "submitted"
+    state "in_review"
+    state "approved"
+    state "published"
+    state "update_pending"
+    state "suspended"
+
+    transition from: "submitted", to: "in_review", on: "AppSubmitted"
+    transition from: "in_review", to: "approved", on: "AppApproved"
+    transition from: "approved", to: "published", on: "AppApproved"
+    transition from: "published", to: "update_pending", on: "UpdateSubmitted"
+    transition from: "update_pending", to: "published", on: "UpdateApproved"
+    transition from: "published", to: "suspended", on: "AppSuspended"
+  end
+
+  policy "AppApprovedRecordDownload" do
+    on "AppApproved"
+    trigger "RecordDownload"
+  end
+
+  policy "DownloadRecordedPostReview" do
+    on "DownloadRecorded"
+    trigger "PostReview"
+  end
+
+  policy "UpdateSubmittedApproveUpdate" do
+    on "UpdateSubmitted"
+    trigger "ApproveUpdate"
+  end
+
+  policy "SplitCalculatedDisburse" do
+    on "SplitCalculated"
+    trigger "DisburseDeveloperShare"
+  end
+
+  policy "ReviewFlaggedRemoveReview" do
+    on "ReviewFlagged"
+    trigger "RemoveReview"
+  end
+
+  policy "ReviewRemovedSuspendApp" do
+    on "ReviewRemoved"
+    trigger "SuspendApp"
+  end
+
+  policy "CalculateSplitOnDownload" do
+    on "DownloadRecorded"
+    trigger "CalculateSplit"
+  end
+end

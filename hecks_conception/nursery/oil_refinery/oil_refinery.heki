@@ -1,0 +1,238 @@
+Hecks.bluebook "OilRefinery" do
+  aggregate "CrudeReceipt" do
+    String :receipt_id
+    String :crude_type
+    Float :volume_barrels
+    Float :api_gravity
+    Float :sulfur_percent
+    String :status
+
+    value_object "CrudeAssay" do
+      Float :api_gravity
+      Float :sulfur_percent
+      Float :pour_point_f
+      String :classification
+    end
+
+    ReceiveCrude do
+      description "Receive crude oil shipment into storage tank via pipeline or tanker"
+      String :crude_type
+      Float :volume_barrels
+      String :source_terminal
+      reference_to "CrudeReceipt"
+      emits "CrudeReceived"
+    end
+
+    AssayCrude do
+      description "Run laboratory assay to characterize crude oil properties"
+      Float :api_gravity
+      Float :sulfur_percent
+      reference_to "CrudeReceipt"
+      emits "CrudeAssayed"
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "ReceiveCrude" => "received", from: "scheduled"
+      transition "AssayCrude" => "assayed", from: "received"
+    end
+
+    policy "Crude must be assayed before distillation unit charge"
+    policy "High sulfur crude requires sour service equipment"
+  end
+
+  aggregate "DistillationRun" do
+    String :run_id
+    String :unit_id
+    Float :charge_volume_barrels
+    String :crude_type
+    String :status
+    list_of "ProductFraction"
+
+    ChargeUnit do
+      description "Feed crude oil into atmospheric distillation column"
+      String :unit_id
+      Float :charge_rate_bph
+      reference_to "CrudeReceipt"
+      emits "UnitCharged"
+    end
+
+    AdjustCutPoints do
+      description "Modify distillation cut point temperatures for product yields"
+      Float :naphtha_cut_f
+      Float :kerosene_cut_f
+      Float :diesel_cut_f
+      reference_to "DistillationRun"
+      emits "CutPointsAdjusted"
+    end
+
+    CompleteDistillation do
+      description "End distillation run and drain residuum to vacuum unit"
+      Float :residuum_volume_barrels
+      reference_to "DistillationRun"
+      emits "DistillationCompleted"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "ChargeUnit" => "distilling", from: "idle"
+      transition "AdjustCutPoints" => "optimizing", from: "distilling"
+      transition "CompleteDistillation" => "completed", from: "optimizing"
+    end
+
+    policy "Column pressure must remain within safe operating limits"
+
+    given "A light sweet crude run is charged" do
+      String :crude_type, "West Texas Intermediate"
+      Float :charge_volume_barrels, 50000.0
+    end
+  end
+
+  aggregate "ProductFraction" do
+    String :fraction_id
+    String :product_type
+    Float :volume_barrels
+    Float :octane_rating
+    String :tank_id
+    String :status
+
+    TransferToTank do
+      description "Route product fraction from distillation to storage tank"
+      String :tank_id
+      Float :volume_barrels
+      reference_to "DistillationRun"
+      emits "FractionTransferred"
+    end
+
+    BlendProduct do
+      description "Blend fractions and additives to meet finished product spec"
+      String :additive_package
+      Float :blend_volume
+      reference_to "ProductFraction"
+      emits "ProductBlended"
+    end
+
+    CertifyProduct do
+      description "Run lab tests and certify product meets commercial specification"
+      String :specification
+      String :lab_report_id
+      reference_to "ProductFraction"
+      emits "ProductCertified"
+    end
+
+    lifecycle :status, default: "raw" do
+      transition "TransferToTank" => "stored", from: "raw"
+      transition "BlendProduct" => "blended", from: "stored"
+      transition "CertifyProduct" => "certified", from: "blended"
+    end
+
+    policy "Finished gasoline must meet minimum octane specification"
+  end
+
+  aggregate "CatalystBed" do
+    String :bed_id
+    String :catalyst_type
+    String :reactor_unit
+    Float :activity_percent
+    String :status
+
+    value_object "CatalystPerformance" do
+      Float :activity_percent
+      Float :selectivity_percent
+      Float :coke_buildup_percent
+    end
+
+    RegenerateCatalyst do
+      description "Burn off coke deposits to restore catalyst activity"
+      Float :regeneration_temp_f
+      reference_to "CatalystBed"
+      emits "CatalystRegenerated"
+    end
+
+    ReplaceCatalyst do
+      description "Remove spent catalyst and load fresh bed material"
+      String :new_catalyst_type
+      Float :fresh_activity
+      reference_to "CatalystBed"
+      emits "CatalystReplaced"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "RegenerateCatalyst" => "regenerated", from: "active"
+      transition "ReplaceCatalyst" => "fresh", from: "regenerated"
+    end
+
+    policy "Catalyst below 40 percent activity must be regenerated or replaced"
+  end
+
+  aggregate "ComplianceReport" do
+    String :report_id
+    String :report_type
+    String :regulatory_body
+    String :reporting_period
+    String :status
+
+    FileEmissionsReport do
+      description "Submit emissions data to environmental regulatory agency"
+      String :regulatory_body
+      Float :sox_tons
+      Float :nox_tons
+      reference_to "ComplianceReport"
+      emits "EmissionsReportFiled"
+    end
+
+    RecordExceedance do
+      description "Document permit limit exceedance with corrective action plan"
+      String :parameter
+      Float :measured_value
+      Float :permit_limit
+      reference_to "ComplianceReport"
+      emits "ExceedanceRecorded"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FileEmissionsReport" => "filed", from: "pending"
+      transition "RecordExceedance" => "exceedance", from: "filed"
+    end
+
+    policy "Exceedances must be reported within 24 hours"
+  end
+
+  policy "AssayCrudeOnCrudeReceived" do
+    on "CrudeReceived"
+    trigger "AssayCrude"
+  end
+
+  policy "ChargeUnitOnCrudeAssayed" do
+    on "CrudeAssayed"
+    trigger "ChargeUnit"
+  end
+
+  policy "AdjustCutPointsOnUnitCharged" do
+    on "UnitCharged"
+    trigger "AdjustCutPoints"
+  end
+
+  policy "CompleteDistillationOnCutPointsAdjusted" do
+    on "CutPointsAdjusted"
+    trigger "CompleteDistillation"
+  end
+
+  policy "TransferToTankOnDistillationCompleted" do
+    on "DistillationCompleted"
+    trigger "TransferToTank"
+  end
+
+  policy "FileEmissionsOnProductCertified" do
+    on "ProductCertified"
+    trigger "FileEmissionsReport"
+  end
+
+  policy "BlendProductOnFractionTransferred" do
+    on "FractionTransferred"
+    trigger "BlendProduct"
+  end
+
+  policy "CertifyProductOnProductBlended" do
+    on "ProductBlended"
+    trigger "CertifyProduct"
+  end
+end

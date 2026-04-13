@@ -1,0 +1,253 @@
+Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
+  vision "Running a ticketing platform — creating events, managing venues, selling tickets, tracking sales, and processing refunds"
+  category "technology"
+
+  aggregate "Event", "A scheduled happening that people can attend" do
+    String :event_name
+    String :event_type
+    String :date
+    String :organizer
+    Integer :capacity
+    String :status
+    reference_to Venue
+    list_of(TicketTier) :ticket_tiers
+
+    value_object "TicketTier" do
+      String :tier_name
+      Float :price
+      Integer :quantity_available
+    end
+
+    CreateEvent do
+      role "Organizer"
+      description "Set up a new event with date, venue, and ticket tiers"
+      String :event_name
+      String :event_type
+      String :date
+      String :organizer
+      Integer :capacity
+      reference_to(Venue)
+      emits "EventCreated"
+    end
+
+    PublishEvent do
+      description "Make an event visible and open for ticket sales"
+      reference_to(Event)
+      given("event is draft") { status == "draft" }
+      emits "EventPublished"
+    end
+
+    CancelEvent do
+      description "Cancel an event and trigger refund processing"
+      reference_to(Event)
+      emits "EventCanceled"
+    end
+  end
+
+  aggregate "Venue", "A physical location where events are held" do
+    String :venue_name
+    String :address
+    Integer :total_capacity
+    String :venue_type
+    String :status
+    list_of(Section) :sections
+
+    value_object "Section" do
+      String :section_name
+      Integer :seats
+      String :accessibility
+    end
+
+    RegisterVenue do
+      role "VenueManager"
+      description "Add a new venue to the platform"
+      String :venue_name
+      String :address
+      Integer :total_capacity
+      String :venue_type
+      emits "VenueRegistered"
+    end
+
+    UpdateCapacity do
+      description "Adjust the total or section capacity of a venue"
+      reference_to(Venue)
+      Integer :total_capacity
+      emits "CapacityUpdated"
+    end
+
+    CloseVenue do
+      description "Mark a venue as permanently unavailable"
+      reference_to(Venue)
+      given("venue is active") { status == "active" }
+      emits "VenueClosed"
+    end
+  end
+
+  aggregate "Ticket", "A single admission pass for an event" do
+    String :ticket_id
+    String :tier_name
+    String :holder_name
+    String :holder_email
+    Float :price_paid
+    String :status
+    reference_to Event
+
+    value_object "SeatAssignment" do
+      String :section
+      String :row
+      String :seat_number
+    end
+
+    PurchaseTicket do
+      role "Attendee"
+      description "Buy a ticket for an event"
+      String :ticket_id
+      String :tier_name
+      String :holder_name
+      String :holder_email
+      Float :price_paid
+      reference_to(Event)
+      emits "TicketPurchased"
+    end
+
+    TransferTicket do
+      description "Change the holder of a ticket to another person"
+      reference_to(Ticket)
+      String :new_holder_name
+      String :new_holder_email
+      emits "TicketTransferred"
+    end
+
+    CheckInTicket do
+      description "Scan and validate a ticket at the venue entrance"
+      reference_to(Ticket)
+      given("ticket is valid") { status == "valid" }
+      emits "TicketCheckedIn"
+    end
+  end
+
+  aggregate "SalesReport", "A summary of ticket sales for an event period" do
+    String :report_id
+    String :period
+    Integer :tickets_sold
+    Float :gross_revenue
+    Float :platform_fees
+    String :status
+    reference_to Event
+
+    value_object "TierSummary" do
+      String :tier_name
+      Integer :sold
+      Float :revenue
+    end
+
+    GenerateSalesReport do
+      role "FinanceTeam"
+      description "Compile ticket sales data into a report"
+      String :report_id
+      String :period
+      reference_to(Event)
+      emits "SalesReportGenerated"
+    end
+
+    PublishReport do
+      description "Share the sales report with the event organizer"
+      reference_to(SalesReport)
+      given("report is generated") { status == "generated" }
+      emits "ReportPublished"
+    end
+
+    ArchiveReport do
+      description "Move an old sales report to long-term storage"
+      reference_to(SalesReport)
+      emits "ReportArchived"
+    end
+  end
+
+  aggregate "Refund", "A ticket return and money-back transaction" do
+    String :refund_id
+    Float :refund_amount
+    String :reason
+    String :refund_method
+    String :status
+    reference_to Ticket
+
+    value_object "RefundDetail" do
+      String :original_payment_ref
+      Float :processing_fee
+      String :processed_at
+    end
+
+    RequestRefund do
+      role "Attendee"
+      description "Ask for money back on a purchased ticket"
+      String :refund_id
+      Float :refund_amount
+      String :reason
+      String :refund_method
+      reference_to(Ticket)
+      emits "RefundRequested"
+    end
+
+    ApproveRefund do
+      description "Process and approve a refund request"
+      reference_to(Refund)
+      given("refund is pending") { status == "pending" }
+      emits "RefundApproved"
+    end
+
+    DenyRefund do
+      description "Reject a refund request outside the policy window"
+      reference_to(Refund)
+      String :denial_reason
+      emits "RefundDenied"
+    end
+  end
+
+  lifecycle "EventLifecycle" do
+    state "draft"
+    state "published"
+    state "on_sale"
+    state "sold_out"
+    state "event_day"
+    state "settled"
+    state "canceled"
+
+    transition from: "draft", to: "published", on: "EventPublished"
+    transition from: "published", to: "on_sale", on: "TicketPurchased"
+    transition from: "on_sale", to: "sold_out", on: "TicketPurchased"
+    transition from: "on_sale", to: "event_day", on: "TicketCheckedIn"
+    transition from: "event_day", to: "settled", on: "SalesReportGenerated"
+    transition from: "published", to: "canceled", on: "EventCanceled"
+  end
+
+  policy "EventPublishedGenerateReport" do
+    on "EventPublished"
+    trigger "GenerateSalesReport"
+  end
+
+  policy "TicketPurchasedConfirm" do
+    on "TicketPurchased"
+    trigger "GenerateSalesReport"
+  end
+
+  policy "TicketCheckedInTrackSales" do
+    on "TicketCheckedIn"
+    trigger "GenerateSalesReport"
+  end
+
+  policy "SalesReportGeneratedPublish" do
+    on "SalesReportGenerated"
+    trigger "PublishReport"
+  end
+
+  policy "EventCanceledRefund" do
+    on "EventCanceled"
+    trigger "RequestRefund"
+  end
+
+  policy "RefundRequestedApprove" do
+    on "RefundRequested"
+    trigger "ApproveRefund"
+  end
+end

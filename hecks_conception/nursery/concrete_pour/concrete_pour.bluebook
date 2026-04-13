@@ -1,0 +1,208 @@
+Hecks.bluebook "ConcretePour" do
+  vision "Manage concrete placement operations from mix design through forming, pouring, curing, and strength testing"
+  core
+
+  aggregate "PourSchedule" do
+    description "A scheduled concrete pour with volume, location, and crew requirements"
+    String :project_name
+    String :pour_location
+    Float :cubic_yards
+    String :pour_date
+    String :status
+    Integer :crew_size
+
+    value_object "PourWindow" do
+      String :start_time
+      String :end_time
+      Float :ambient_temp_f
+    end
+
+    SchedulePour do
+      role "Project Manager"
+      goal "Book the pour date with plant, pump, and crew"
+      description "Coordinate concrete delivery, pump truck, and finishing crew"
+      String :project_name
+      String :pour_location
+      Float :cubic_yards
+      String :pour_date
+      Integer :crew_size
+      emits "PourScheduled"
+    end
+
+    PostponePour do
+      role "Project Manager"
+      goal "Delay the pour due to weather or site readiness"
+      description "Reschedule when conditions are unsuitable for placement"
+      reference_to(PourSchedule)
+      String :reason
+      emits "PourPostponed"
+    end
+
+    CompletePour do
+      role "Foreman"
+      goal "Record the pour as successfully placed and finished"
+      description "Mark the pour complete after finishing and initial set"
+      reference_to(PourSchedule)
+      given("must be in progress") { status == "in_progress" }
+      emits "PourCompleted"
+    end
+  end
+
+  aggregate "MixDesign" do
+    description "A concrete mix design specifying cement, water ratio, aggregates, admixtures, and target strength"
+    String :mix_number
+    Float :target_psi
+    Float :water_cement_ratio
+    String :aggregate_size
+    Float :slump_inches
+    reference_to(PourSchedule)
+
+    value_object "Admixture" do
+      String :admixture_type
+      Float :dosage_oz_per_yard
+    end
+
+    SpecifyMix do
+      role "Engineer"
+      goal "Define the concrete mix design for the structural requirements"
+      description "Set target PSI, water-cement ratio, aggregate size, and admixtures"
+      String :mix_number
+      Float :target_psi
+      Float :water_cement_ratio
+      String :aggregate_size
+      Float :slump_inches
+      reference_to(PourSchedule)
+      emits "MixSpecified"
+    end
+
+    AdjustSlump do
+      role "Quality Tech"
+      goal "Adjust the slump on-site if the delivered concrete is too stiff or wet"
+      description "Add water or admixture within allowable limits"
+      reference_to(MixDesign)
+      Float :new_slump_inches
+      given("slump must be out of spec") { slump_inches < 3.0 }
+      emits "SlumpAdjusted"
+    end
+  end
+
+  aggregate "Reinforcement" do
+    description "Steel reinforcement — rebar, wire mesh, or fiber — placed before the pour"
+    String :rebar_size
+    String :spacing
+    String :placement_type
+    Float :coverage_inches
+    reference_to(PourSchedule)
+
+    PlaceRebar do
+      role "Ironworker"
+      goal "Tie and position rebar per the structural drawings"
+      description "Set rebar on chairs at the specified spacing and coverage"
+      String :rebar_size
+      String :spacing
+      Float :coverage_inches
+      reference_to(PourSchedule)
+      emits "RebarPlaced"
+    end
+
+    InspectReinforcement do
+      role "Inspector"
+      goal "Verify rebar placement before the pour"
+      description "Check size, spacing, coverage, and tie-downs against the drawings"
+      reference_to(Reinforcement)
+      String :inspection_result
+      emits "ReinforcementInspected"
+    end
+  end
+
+  aggregate "CuringProtocol" do
+    description "The curing regimen — wet cure, curing compound, or blankets — with duration and temperature monitoring"
+    String :curing_method
+    Integer :cure_days
+    Float :min_temp_f
+    String :status
+    reference_to(PourSchedule)
+
+    BeginCuring do
+      role "Foreman"
+      goal "Start the curing protocol after the pour is finished"
+      description "Apply curing compound, wet burlap, or insulated blankets"
+      String :curing_method
+      Integer :cure_days
+      Float :min_temp_f
+      reference_to(PourSchedule)
+      emits "CuringBegun"
+    end
+
+    MonitorTemperature do
+      role "Quality Tech"
+      goal "Record concrete temperature during curing"
+      description "Check that concrete stays above minimum curing temperature"
+      reference_to(CuringProtocol)
+      Float :measured_temp_f
+      emits "TemperatureMonitored"
+    end
+  end
+
+  aggregate "StrengthTest" do
+    description "A compressive strength test on cured cylinder specimens"
+    Integer :test_day
+    Float :break_psi
+    String :result
+    reference_to(MixDesign)
+
+    BreakCylinder do
+      role "Lab Tech"
+      goal "Crush a test cylinder and record the compressive strength"
+      description "Break 7-day or 28-day cylinders per ASTM C39"
+      Integer :test_day
+      reference_to(MixDesign)
+      emits "CylinderBroken"
+    end
+
+    RecordStrength do
+      role "Lab Tech"
+      goal "Log the break result and compare to target PSI"
+      description "Record actual PSI and pass/fail against the mix design target"
+      reference_to(StrengthTest)
+      Float :break_psi
+      String :result
+      emits "StrengthRecorded"
+    end
+  end
+
+  policy "SpecifyMixOnSchedule" do
+    on "PourScheduled"
+    trigger "SpecifyMix"
+  end
+
+  policy "PlaceRebarOnMix" do
+    on "MixSpecified"
+    trigger "PlaceRebar"
+  end
+
+  policy "InspectRebarBeforePour" do
+    on "RebarPlaced"
+    trigger "InspectReinforcement"
+  end
+
+  policy "PourAfterInspection" do
+    on "ReinforcementInspected"
+    trigger "CompletePour"
+  end
+
+  policy "CureAfterPour" do
+    on "PourCompleted"
+    trigger "BeginCuring"
+  end
+
+  policy "MonitorDuringCure" do
+    on "CuringBegun"
+    trigger "MonitorTemperature"
+  end
+
+  policy "TestAfterCuring" do
+    on "CuringBegun"
+    trigger "BreakCylinder"
+  end
+end

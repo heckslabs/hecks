@@ -1,0 +1,267 @@
+Hecks.bluebook "AssistedLiving" do
+  vision "Residential elder care — residents, rooms, care plans, daily activities, and medication schedules"
+
+  aggregate "Resident", "A person living in the assisted living facility" do
+    String :name
+    String :date_of_birth
+    String :emergency_contact
+    String :medical_conditions
+    String :mobility_level
+    String :status
+
+    AdmitResident do
+      role "Administrator"
+      description "Process admission of a new resident into the facility"
+      String :name
+      String :date_of_birth
+      String :emergency_contact
+      String :medical_conditions
+      String :mobility_level
+      emits "ResidentAdmitted"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :emergency_contact, to: :emergency_contact
+      then_set :medical_conditions, to: :medical_conditions
+      then_set :mobility_level, to: :mobility_level
+      then_set :status, to: "admitted"
+    end
+
+    ActivateResident do
+      role "Administrator"
+      description "Move resident to active status after room assignment and care plan setup"
+      reference_to(Resident)
+      given("must be admitted") { status == "admitted" }
+      emits "ResidentActivated"
+      then_set :status, to: "active"
+    end
+
+    TransferResident do
+      role "Administrator"
+      description "Move a resident to a higher level of care"
+      reference_to(Resident)
+      emits "ResidentTransferred"
+      then_set :status, to: "transferred"
+    end
+
+    DischargeResident do
+      role "Administrator"
+      description "Process a resident leaving the facility"
+      reference_to(Resident)
+      given("resident must be active") { status == "active" }
+      emits "ResidentDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "Room", "A living space assigned to a resident" do
+    String :room_number
+    String :floor
+    String :room_type
+    String :occupant_name
+    String :status
+    reference_to Resident
+
+    value_object "Amenity" do
+      String :name
+      String :description
+    end
+
+    AssignRoom do
+      role "Administrator"
+      description "Place a resident in an available room"
+      reference_to(Resident)
+      String :room_number
+      String :floor
+      String :room_type
+      String :occupant_name
+      emits "RoomAssigned"
+      then_set :room_number, to: :room_number
+      then_set :floor, to: :floor
+      then_set :room_type, to: :room_type
+      then_set :occupant_name, to: :occupant_name
+      then_set :status, to: "occupied"
+    end
+
+    VacateRoom do
+      role "Administrator"
+      description "Mark a room as available after resident departure"
+      reference_to(Room)
+      emits "RoomVacated"
+      then_set :status, to: "available"
+      then_set :occupant_name, to: ""
+    end
+  end
+
+  aggregate "CarePlan", "An individualized plan of daily care for a resident" do
+    String :resident_name
+    String :created_date
+    list_of(CareTask) :tasks
+    String :dietary_needs
+    String :status
+    reference_to Resident
+
+    value_object "CareTask" do
+      String :description
+      String :frequency
+      String :assigned_to
+      String :time_of_day
+    end
+
+    CreateCarePlan do
+      role "Nurse"
+      description "Establish a personalized care plan for a resident"
+      reference_to(Resident)
+      String :resident_name
+      String :created_date
+      String :dietary_needs
+      emits "CarePlanCreated"
+      then_set :resident_name, to: :resident_name
+      then_set :created_date, to: :created_date
+      then_set :dietary_needs, to: :dietary_needs
+      then_set :status, to: "active"
+    end
+
+    AddCareTask do
+      role "Nurse"
+      description "Add a specific care task to the resident's plan"
+      reference_to(CarePlan)
+      String :description
+      String :frequency
+      String :assigned_to
+      String :time_of_day
+      emits "CareTaskAdded"
+    end
+
+    ReviewCarePlan do
+      role "Nurse"
+      description "Conduct a periodic review and update of the care plan"
+      reference_to(CarePlan)
+      emits "CarePlanReviewed"
+    end
+  end
+
+  aggregate "Activity", "A group or individual activity offered to residents" do
+    String :name
+    String :activity_type
+    String :scheduled_time
+    String :location
+    Integer :capacity
+    list_of(Participant) :participants
+
+    value_object "Participant" do
+      String :resident_name
+      String :attendance_status
+    end
+
+    ScheduleActivity do
+      role "ActivityDirector"
+      description "Plan a recreational or therapeutic activity for residents"
+      String :name
+      String :activity_type
+      String :scheduled_time
+      String :location
+      Integer :capacity
+      emits "ActivityScheduled"
+      then_set :name, to: :name
+      then_set :activity_type, to: :activity_type
+      then_set :scheduled_time, to: :scheduled_time
+      then_set :location, to: :location
+      then_set :capacity, to: :capacity
+    end
+
+    EnrollInActivity do
+      role "Caregiver"
+      description "Sign a resident up for a scheduled activity"
+      reference_to(Activity)
+      String :resident_name
+      emits "ResidentEnrolled"
+    end
+  end
+
+  aggregate "MedicationSchedule", "A timed medication regimen for a resident" do
+    String :resident_name
+    list_of(ScheduledDose) :doses
+    String :status
+    reference_to Resident
+
+    value_object "ScheduledDose" do
+      String :drug_name
+      String :dosage
+      String :time_of_day
+      String :administered
+    end
+
+    CreateMedicationSchedule do
+      role "Nurse"
+      description "Set up a daily medication schedule for a resident"
+      reference_to(Resident)
+      String :resident_name
+      emits "MedicationScheduleCreated"
+      then_set :resident_name, to: :resident_name
+      then_set :status, to: "active"
+    end
+
+    AddScheduledDose do
+      role "Nurse"
+      description "Add a medication dose to the resident's schedule"
+      reference_to(MedicationSchedule)
+      String :drug_name
+      String :dosage
+      String :time_of_day
+      emits "DoseScheduled"
+    end
+
+    ConfirmAdministration do
+      role "Nurse"
+      description "Record that a scheduled dose was given to the resident"
+      reference_to(MedicationSchedule)
+      emits "AdministrationConfirmed"
+    end
+  end
+
+  # Workflow: Admit → AssignRoom → CreateCarePlan → CreateMedSchedule → ScheduleActivity → ReviewCarePlan → Discharge → VacateRoom
+  policy "AssignRoomOnAdmission" do
+    on "ResidentAdmitted"
+    trigger "AssignRoom"
+  end
+
+  policy "CreateCarePlanOnAdmission" do
+    on "ResidentAdmitted"
+    trigger "CreateCarePlan"
+  end
+
+  policy "CreateMedScheduleOnCarePlan" do
+    on "CarePlanCreated"
+    trigger "CreateMedicationSchedule"
+  end
+
+  policy "ActivateOnRoomAssigned" do
+    on "RoomAssigned"
+    trigger "ActivateResident"
+  end
+
+  policy "ScheduleActivityOnActivation" do
+    on "ResidentActivated"
+    trigger "ScheduleActivity"
+  end
+
+  policy "ReviewCarePlanOnAdministration" do
+    on "AdministrationConfirmed"
+    trigger "ReviewCarePlan"
+  end
+
+  policy "VacateRoomOnDischarge" do
+    on "ResidentDischarged"
+    trigger "VacateRoom"
+  end
+
+  policy "EnrollInActivityOnCarePlan" do
+    on "CareTaskAdded"
+    trigger "EnrollInActivity"
+  end
+
+  policy "AddDoseOnCarePlan" do
+    on "CarePlanCreated"
+    trigger "AddScheduledDose"
+  end
+end

@@ -1,0 +1,201 @@
+Hecks.bluebook "Cryptography" do
+  vision "Manage cryptographic keys, cipher algorithms, encrypted messages, digital signatures, and certificates"
+
+  aggregate "KeyPair" do
+    description "An asymmetric key pair used for encryption or signing"
+    String :key_id
+    String :algorithm
+    Integer :key_length_bits
+    String :created_date
+    String :expiry_date
+    String :owner
+
+    command "GenerateKeyPair" do
+      description "Create a new public-private key pair"
+      emits "KeyPairGenerated"
+      String :algorithm
+      Integer :key_length_bits
+      String :owner
+    end
+
+    command "RevokeKey" do
+      description "Invalidate a key pair before expiry"
+      emits "KeyRevoked"
+      reference_to KeyPair
+      String :revocation_reason
+      given "key must not already be revoked"
+    end
+
+    command "RotateKey" do
+      description "Replace an existing key with a new one"
+      emits "KeyRotated"
+      reference_to KeyPair
+    end
+  end
+
+  aggregate "Cipher" do
+    description "A cryptographic algorithm implementation for data transformation"
+    String :cipher_name
+    String :cipher_type
+    Integer :block_size_bits
+    String :mode_of_operation
+
+    value_object "CipherSpec" do
+      String :padding_scheme
+      String :initialization_vector_mode
+      Integer :rounds
+    end
+
+    command "RegisterCipher" do
+      description "Add a cipher algorithm to the approved registry"
+      emits "CipherRegistered"
+      String :cipher_name
+      String :cipher_type
+      Integer :block_size_bits
+    end
+
+    command "BenchmarkCipher" do
+      description "Measure throughput and latency of the cipher"
+      emits "CipherBenchmarked"
+      reference_to Cipher
+    end
+
+    command "DeprecateCipher" do
+      description "Mark a cipher as no longer safe for use"
+      emits "CipherDeprecated"
+      reference_to Cipher
+      given "replacement cipher must be available"
+    end
+  end
+
+  aggregate "EncryptedMessage" do
+    description "A plaintext message transformed into ciphertext"
+    String :message_id
+    String :ciphertext
+    String :encrypted_at
+    reference_to KeyPair
+    reference_to Cipher
+
+    command "EncryptMessage" do
+      description "Transform plaintext into encrypted ciphertext"
+      emits "MessageEncrypted"
+      reference_to KeyPair
+      reference_to Cipher
+      String :plaintext
+    end
+
+    command "DecryptMessage" do
+      description "Recover plaintext from ciphertext using the private key"
+      emits "MessageDecrypted"
+      reference_to EncryptedMessage
+      given "decryption key must match encryption key"
+    end
+  end
+
+  aggregate "DigitalSignature" do
+    description "A cryptographic proof of message authenticity and integrity"
+    String :signature_id
+    String :signature_value
+    String :signed_at
+    String :hash_algorithm
+    reference_to KeyPair
+
+    command "SignMessage" do
+      description "Produce a digital signature over message content"
+      emits "MessageSigned"
+      reference_to KeyPair
+      String :message_hash
+      String :hash_algorithm
+    end
+
+    command "VerifySignature" do
+      description "Check a signature against the signer's public key"
+      emits "SignatureVerified"
+      reference_to DigitalSignature
+      given "public key must not be expired or revoked"
+    end
+  end
+
+  aggregate "Certificate" do
+    description "An X.509 certificate binding a public key to an identity"
+    String :serial_number
+    String :subject
+    String :issuer
+    String :valid_from
+    String :valid_to
+    reference_to KeyPair
+
+    value_object "CertificateExtension" do
+      String :oid
+      String :value
+      String :critical
+    end
+
+    command "IssueCertificate" do
+      description "Create and sign a new X.509 certificate"
+      emits "CertificateIssued"
+      reference_to KeyPair
+      String :subject
+      String :valid_from
+      String :valid_to
+    end
+
+    command "RenewCertificate" do
+      description "Extend the validity period of a certificate"
+      emits "CertificateRenewed"
+      reference_to Certificate
+      given "certificate must not be revoked"
+    end
+
+    command "RevokeCertificate" do
+      description "Add the certificate to the revocation list"
+      emits "CertificateRevoked"
+      reference_to Certificate
+      String :reason
+    end
+  end
+
+  lifecycle "CryptographicLifecycle" do
+    state "key_generated"
+    state "certified"
+    state "operational"
+    state "signing"
+    state "verified"
+    state "retired"
+    transition from: "key_generated", to: "certified", on: "CertificateIssued"
+    transition from: "certified", to: "operational", on: "CipherBenchmarked"
+    transition from: "operational", to: "signing", on: "MessageEncrypted"
+    transition from: "signing", to: "verified", on: "SignatureVerified"
+    transition from: "verified", to: "retired", on: "KeyRevoked"
+  end
+
+  policy "CertifyAfterKeyGeneration" do
+    on "KeyPairGenerated"
+    trigger "IssueCertificate"
+  end
+
+  policy "BenchmarkAfterCertification" do
+    on "CertificateIssued"
+    trigger "BenchmarkCipher"
+  end
+
+  policy "EncryptAfterBenchmark" do
+    on "CipherBenchmarked"
+    trigger "EncryptMessage"
+  end
+
+  policy "SignAfterEncryption" do
+    on "MessageEncrypted"
+    trigger "SignMessage"
+  end
+
+  policy "VerifyAfterSigning" do
+    on "MessageSigned"
+    trigger "VerifySignature"
+  end
+
+  policy "RevokeKeyOnCertRevocation" do
+    on "CertificateRevoked"
+    trigger "RevokeKey"
+  end
+end

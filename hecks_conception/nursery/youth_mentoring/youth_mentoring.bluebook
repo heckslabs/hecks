@@ -1,0 +1,254 @@
+Hecks.bluebook "YouthMentoring" do
+  vision "Guided youth development — mentors, mentees, match-making, structured meetings, and goal achievement"
+
+  aggregate "Mentor", "An adult volunteer guiding a young person's development" do
+    String :name
+    String :occupation
+    String :skills
+    String :background_check_status
+    String :availability
+    String :status
+
+    RegisterMentor do
+      role "ProgramCoordinator"
+      description "Enroll a new mentor after background screening"
+      String :name
+      String :occupation
+      String :skills
+      String :availability
+      emits "MentorRegistered"
+      then_set :name, to: :name
+      then_set :occupation, to: :occupation
+      then_set :skills, to: :skills
+      then_set :availability, to: :availability
+      then_set :background_check_status, to: "pending"
+      then_set :status, to: "pending"
+    end
+
+    ClearBackgroundCheck do
+      role "ProgramCoordinator"
+      description "Approve the mentor after passing background verification"
+      reference_to(Mentor)
+      given("must be pending") { background_check_status == "pending" }
+      emits "BackgroundCheckCleared"
+      then_set :background_check_status, to: "cleared"
+      then_set :status, to: "active"
+    end
+
+    DeactivateMentor do
+      role "ProgramCoordinator"
+      description "Remove a mentor from the active roster"
+      reference_to(Mentor)
+      emits "MentorDeactivated"
+      then_set :status, to: "inactive"
+    end
+  end
+
+  aggregate "Mentee", "A young person participating in the mentoring program" do
+    String :name
+    String :age
+    String :school
+    String :interests
+    String :guardian_name
+    String :status
+
+    EnrollMentee do
+      role "ProgramCoordinator"
+      description "Register a young person in the mentoring program with guardian consent"
+      String :name
+      String :age
+      String :school
+      String :interests
+      String :guardian_name
+      emits "MenteeEnrolled"
+      then_set :name, to: :name
+      then_set :age, to: :age
+      then_set :school, to: :school
+      then_set :interests, to: :interests
+      then_set :guardian_name, to: :guardian_name
+      then_set :status, to: "active"
+    end
+
+    GraduateMentee do
+      role "ProgramCoordinator"
+      description "Complete the mentee's participation in the program"
+      reference_to(Mentee)
+      given("must be active") { status == "active" }
+      emits "MenteeGraduated"
+      then_set :status, to: "graduated"
+    end
+  end
+
+  aggregate "MentorMatch", "A pairing between a mentor and mentee based on compatibility" do
+    String :mentor_name
+    String :mentee_name
+    String :match_date
+    String :match_rationale
+    String :status
+    reference_to Mentor
+    reference_to Mentee
+
+    value_object "CompatibilityScore" do
+      String :dimension
+      Integer :score
+      String :notes
+    end
+
+    CreateMatch do
+      role "ProgramCoordinator"
+      description "Pair a mentor with a mentee based on shared interests and goals"
+      reference_to(Mentor)
+      reference_to(Mentee)
+      String :mentor_name
+      String :mentee_name
+      String :match_date
+      String :match_rationale
+      emits "MatchCreated"
+      then_set :mentor_name, to: :mentor_name
+      then_set :mentee_name, to: :mentee_name
+      then_set :match_date, to: :match_date
+      then_set :match_rationale, to: :match_rationale
+      then_set :status, to: "active"
+    end
+
+    CloseMatch do
+      role "ProgramCoordinator"
+      description "End the mentoring relationship"
+      reference_to(MentorMatch)
+      given("must be active") { status == "active" }
+      emits "MatchClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "MentoringMeeting", "A scheduled interaction between mentor and mentee" do
+    String :mentor_name
+    String :mentee_name
+    String :meeting_date
+    String :location
+    String :activity
+    String :notes
+    String :status
+    reference_to MentorMatch
+
+    ScheduleMeeting do
+      role "Mentor"
+      description "Plan a mentoring meeting with the mentee"
+      reference_to(MentorMatch)
+      String :mentor_name
+      String :mentee_name
+      String :meeting_date
+      String :location
+      String :activity
+      emits "MeetingScheduled"
+      then_set :mentor_name, to: :mentor_name
+      then_set :mentee_name, to: :mentee_name
+      then_set :meeting_date, to: :meeting_date
+      then_set :location, to: :location
+      then_set :activity, to: :activity
+      then_set :status, to: "scheduled"
+    end
+
+    LogMeeting do
+      role "Mentor"
+      description "Record meeting completion with activity notes"
+      reference_to(MentoringMeeting)
+      String :notes
+      given("must be scheduled") { status == "scheduled" }
+      emits "MeetingLogged"
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "DevelopmentGoal", "A growth objective for the mentee" do
+    String :mentee_name
+    String :goal_area
+    String :description
+    String :target_date
+    String :status
+    list_of(Milestone) :milestones
+    reference_to Mentee
+
+    value_object "Milestone" do
+      String :description
+      String :achieved_date
+      String :evidence
+    end
+
+    SetDevelopmentGoal do
+      role "Mentor"
+      description "Establish a development goal for the mentee"
+      reference_to(Mentee)
+      String :mentee_name
+      String :goal_area
+      String :description
+      String :target_date
+      emits "GoalSet"
+      then_set :mentee_name, to: :mentee_name
+      then_set :goal_area, to: :goal_area
+      then_set :description, to: :description
+      then_set :target_date, to: :target_date
+      then_set :status, to: "active"
+    end
+
+    RecordMilestone do
+      role "Mentor"
+      description "Document a milestone achieved toward the goal"
+      reference_to(DevelopmentGoal)
+      String :description
+      String :achieved_date
+      emits "MilestoneRecorded"
+    end
+
+    CompleteGoal do
+      role "Mentor"
+      description "Mark the development goal as achieved"
+      reference_to(DevelopmentGoal)
+      given("must be active") { status == "active" }
+      emits "GoalCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Workflow: RegisterMentor → ClearBackground → EnrollMentee → CreateMatch → SetGoal → ScheduleMeeting → LogMeeting → RecordMilestone → CompleteGoal → GraduateMentee → CloseMatch
+  policy "ClearBackgroundOnRegister" do
+    on "MentorRegistered"
+    trigger "ClearBackgroundCheck"
+  end
+
+  policy "CreateMatchOnMenteeEnroll" do
+    on "MenteeEnrolled"
+    trigger "CreateMatch"
+  end
+
+  policy "SetGoalOnMatch" do
+    on "MatchCreated"
+    trigger "SetDevelopmentGoal"
+  end
+
+  policy "ScheduleMeetingOnGoal" do
+    on "GoalSet"
+    trigger "ScheduleMeeting"
+  end
+
+  policy "RecordMilestoneOnMeeting" do
+    on "MeetingLogged"
+    trigger "RecordMilestone"
+  end
+
+  policy "CompleteGoalOnMilestone" do
+    on "MilestoneRecorded"
+    trigger "CompleteGoal"
+  end
+
+  policy "GraduateOnGoalComplete" do
+    on "GoalCompleted"
+    trigger "GraduateMentee"
+  end
+
+  policy "CloseMatchOnGraduation" do
+    on "MenteeGraduated"
+    trigger "CloseMatch"
+  end
+end

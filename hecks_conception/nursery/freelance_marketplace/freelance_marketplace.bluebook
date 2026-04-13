@@ -1,0 +1,257 @@
+Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
+  vision "Operating a freelance marketplace — posting gigs, matching freelancers, managing contracts, processing milestones, and handling payments"
+  category "technology"
+
+  aggregate "Gig", "A work opportunity posted by a client seeking talent" do
+    String :gig_title
+    String :description
+    String :category
+    Float :budget
+    String :deadline
+    String :status
+    list_of(Requirement) :requirements
+
+    value_object "Requirement" do
+      String :skill
+      String :experience_level
+      String :mandatory
+    end
+
+    PostGig do
+      role "Client"
+      description "Create a new freelance work opportunity"
+      String :gig_title
+      String :description
+      String :category
+      Float :budget
+      String :deadline
+      emits "GigPosted"
+    end
+
+    CloseGig do
+      description "Stop accepting proposals for a gig"
+      reference_to(Gig)
+      given("gig is open") { status == "open" }
+      emits "GigClosed"
+    end
+
+    CancelGig do
+      description "Withdraw a gig before any contract is signed"
+      reference_to(Gig)
+      emits "GigCanceled"
+    end
+  end
+
+  aggregate "Freelancer", "A professional offering services on the platform" do
+    String :freelancer_id
+    String :name
+    String :email
+    String :headline
+    Float :hourly_rate
+    String :status
+    list_of(PortfolioItem) :portfolio
+
+    value_object "PortfolioItem" do
+      String :title
+      String :description
+      String :url
+    end
+
+    RegisterFreelancer do
+      role "Freelancer"
+      description "Create a freelancer profile on the marketplace"
+      String :freelancer_id
+      String :name
+      String :email
+      String :headline
+      Float :hourly_rate
+      emits "FreelancerRegistered"
+    end
+
+    UpdateProfile do
+      description "Modify headline, rate, or portfolio"
+      reference_to(Freelancer)
+      String :headline
+      Float :hourly_rate
+      emits "ProfileUpdated"
+    end
+
+    SuspendFreelancer do
+      description "Freeze a freelancer account for policy violations"
+      reference_to(Freelancer)
+      given("freelancer is active") { status == "active" }
+      emits "FreelancerSuspended"
+    end
+  end
+
+  aggregate "Proposal", "A freelancer's bid on a posted gig" do
+    String :proposal_id
+    String :cover_letter
+    Float :proposed_rate
+    Integer :estimated_days
+    String :status
+    reference_to Gig
+    reference_to Freelancer
+
+    value_object "ProposalAttachment" do
+      String :file_name
+      String :url
+      String :file_type
+    end
+
+    SubmitProposal do
+      role "Freelancer"
+      description "Bid on a gig with a rate and timeline"
+      String :proposal_id
+      String :cover_letter
+      Float :proposed_rate
+      Integer :estimated_days
+      reference_to(Gig)
+      reference_to(Freelancer)
+      emits "ProposalSubmitted"
+    end
+
+    AcceptProposal do
+      description "Choose a freelancer's proposal for the gig"
+      reference_to(Proposal)
+      given("proposal is pending") { status == "pending" }
+      emits "ProposalAccepted"
+    end
+
+    RejectProposal do
+      description "Decline a freelancer's bid"
+      reference_to(Proposal)
+      String :rejection_reason
+      emits "ProposalRejected"
+    end
+  end
+
+  aggregate "Contract", "A binding agreement between client and freelancer" do
+    String :contract_id
+    Float :total_amount
+    String :start_date
+    String :end_date
+    String :status
+    reference_to Gig
+    reference_to Freelancer
+    list_of(MilestoneItem) :milestones
+
+    value_object "MilestoneItem" do
+      String :title
+      Float :amount
+      String :due_date
+      String :status
+    end
+
+    CreateContract do
+      role "Client"
+      description "Formalize a contract after accepting a proposal"
+      String :contract_id
+      Float :total_amount
+      String :start_date
+      String :end_date
+      reference_to(Gig)
+      reference_to(Freelancer)
+      emits "ContractCreated"
+    end
+
+    CompleteMilestone do
+      description "Mark a contract milestone as delivered"
+      reference_to(Contract)
+      String :milestone_title
+      emits "MilestoneCompleted"
+    end
+
+    TerminateContract do
+      description "End a contract early due to dispute or completion"
+      reference_to(Contract)
+      given("contract is active") { status == "active" }
+      emits "ContractTerminated"
+    end
+  end
+
+  aggregate "Payment", "A financial transfer from client to freelancer" do
+    String :payment_id
+    Float :amount
+    String :payment_method
+    String :status
+    reference_to Contract
+
+    value_object "PaymentReceipt" do
+      String :transaction_ref
+      Float :platform_fee
+      Float :net_amount
+      String :processed_at
+    end
+
+    ReleasePayment do
+      role "PaymentSystem"
+      description "Transfer funds to the freelancer after milestone approval"
+      String :payment_id
+      Float :amount
+      String :payment_method
+      reference_to(Contract)
+      emits "PaymentReleased"
+    end
+
+    HoldPayment do
+      description "Escrow a payment pending milestone review"
+      reference_to(Payment)
+      emits "PaymentHeld"
+    end
+
+    RefundPayment do
+      description "Return funds to the client after a dispute resolution"
+      reference_to(Payment)
+      given("payment is held") { status == "held" }
+      emits "PaymentRefunded"
+    end
+  end
+
+  lifecycle "GigToPayment" do
+    state "posted"
+    state "bidding"
+    state "awarded"
+    state "contracted"
+    state "in_progress"
+    state "milestone_delivered"
+    state "paid"
+
+    transition from: "posted", to: "bidding", on: "ProposalSubmitted"
+    transition from: "bidding", to: "awarded", on: "ProposalAccepted"
+    transition from: "awarded", to: "contracted", on: "ContractCreated"
+    transition from: "contracted", to: "in_progress", on: "ContractCreated"
+    transition from: "in_progress", to: "milestone_delivered", on: "MilestoneCompleted"
+    transition from: "milestone_delivered", to: "paid", on: "PaymentReleased"
+  end
+
+  policy "GigPostedNotifyFreelancers" do
+    on "GigPosted"
+    trigger "SubmitProposal"
+  end
+
+  policy "ProposalAcceptedCreateContract" do
+    on "ProposalAccepted"
+    trigger "CreateContract"
+  end
+
+  policy "ContractCreatedHoldPayment" do
+    on "ContractCreated"
+    trigger "HoldPayment"
+  end
+
+  policy "MilestoneCompletedReleasePayment" do
+    on "MilestoneCompleted"
+    trigger "ReleasePayment"
+  end
+
+  policy "ContractTerminatedRefund" do
+    on "ContractTerminated"
+    trigger "RefundPayment"
+  end
+
+  policy "GigClosedRejectPending" do
+    on "GigClosed"
+    trigger "RejectProposal"
+  end
+end

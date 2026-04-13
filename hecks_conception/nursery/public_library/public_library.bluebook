@@ -1,0 +1,259 @@
+Hecks.bluebook "PublicLibrary" do
+  vision "Manage books, patrons, loans, holds, and fines for a public library system"
+
+  aggregate "Book", "A cataloged item in the library collection" do
+    String :isbn
+    String :title
+    String :author
+    String :genre
+    Integer :copies_available
+    String :status
+
+    value_object "CatalogEntry" do
+      String :dewey_decimal
+      String :subject_heading
+      String :publication_year
+    end
+
+    AcquireBook do
+      description "Add a new title to the library collection"
+      String :isbn
+      String :title
+      String :author
+      String :genre
+      Integer :copies_available
+      emits "BookAcquired"
+      then_set :status, to: "acquired"
+    end
+
+    CatalogBook do
+      description "Assign classification and shelving location"
+      reference_to(Book)
+      String :dewey_decimal
+      given { status == "acquired" }
+      emits "BookCataloged"
+      then_set :status, to: "cataloged"
+    end
+
+    ShelveBook do
+      description "Place a cataloged book on its assigned shelf"
+      reference_to(Book)
+      given { status == "cataloged" }
+      emits "BookShelved"
+      then_set :status, to: "available"
+    end
+
+    WithdrawBook do
+      description "Remove a damaged or outdated book from circulation"
+      reference_to(Book)
+      String :reason
+      given { status == "available" }
+      emits "BookWithdrawn"
+      then_set :status, to: "withdrawn"
+    end
+  end
+
+  aggregate "Patron", "A registered library member with borrowing privileges" do
+    String :library_card
+    String :name
+    String :email
+    String :membership_type
+    String :status
+    Integer :items_checked_out
+
+    value_object "ContactAddress" do
+      String :street
+      String :city
+      String :zip_code
+    end
+
+    RegisterPatron do
+      description "Issue a library card to a new patron"
+      String :name
+      String :email
+      String :membership_type
+      emits "PatronRegistered"
+      then_set :status, to: "active"
+      then_set :items_checked_out, to: 0
+    end
+
+    SuspendPatron do
+      description "Suspend borrowing privileges for overdue fines"
+      reference_to(Patron)
+      given { status == "active" }
+      emits "PatronSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    ReinstatePatron do
+      description "Restore privileges after fines are paid"
+      reference_to(Patron)
+      given { status == "suspended" }
+      emits "PatronReinstated"
+      then_set :status, to: "active"
+    end
+  end
+
+  aggregate "Loan", "A checkout record tracking a book borrowed by a patron" do
+    String :loan_id
+    String :checkout_date
+    String :due_date
+    String :return_date
+    String :status
+    reference_to(Book)
+    reference_to(Patron)
+
+    value_object "RenewalHistory" do
+      Integer :renewal_count
+      String :last_renewed
+    end
+
+    CheckOutBook do
+      description "Lend a book to a patron"
+      reference_to(Book)
+      reference_to(Patron)
+      String :due_date
+      emits "BookCheckedOut"
+      then_set :status, to: "active"
+    end
+
+    ReturnBook do
+      description "Process a returned book"
+      reference_to(Loan)
+      given { status == "active" }
+      emits "BookReturned"
+      then_set :status, to: "returned"
+    end
+
+    RenewLoan do
+      description "Extend the due date for a current loan"
+      reference_to(Loan)
+      String :new_due_date
+      given { status == "active" }
+      emits "LoanRenewed"
+    end
+
+    MarkOverdue do
+      description "Flag a loan as overdue past its due date"
+      reference_to(Loan)
+      given { status == "active" }
+      emits "LoanOverdue"
+      then_set :status, to: "overdue"
+    end
+  end
+
+  aggregate "Hold", "A reservation request for a book that is currently checked out" do
+    String :hold_id
+    String :placed_date
+    Integer :queue_position
+    String :status
+    reference_to(Book)
+    reference_to(Patron)
+
+    value_object "Notification" do
+      String :notify_method
+      String :notified_at
+    end
+
+    PlaceHold do
+      description "Reserve a book for a patron when it becomes available"
+      reference_to(Book)
+      reference_to(Patron)
+      emits "HoldPlaced"
+      then_set :status, to: "pending"
+    end
+
+    FulfillHold do
+      description "Notify patron that their held book is ready for pickup"
+      reference_to(Hold)
+      given { status == "pending" }
+      emits "HoldFulfilled"
+      then_set :status, to: "ready"
+    end
+
+    CheckOutHeld do
+      description "Complete the checkout for a held book picked up by the patron"
+      reference_to(Hold)
+      given { status == "ready" }
+      emits "HeldBookCheckedOut"
+      then_set :status, to: "completed"
+    end
+
+    CancelHold do
+      description "Remove a hold request"
+      reference_to(Hold)
+      given { status == "pending" }
+      emits "HoldCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "Fine", "A monetary penalty for overdue or lost materials" do
+    String :fine_id
+    Integer :amount_cents
+    String :reason
+    String :status
+    reference_to(Patron)
+    reference_to(Loan)
+
+    value_object "Payment" do
+      Integer :paid_cents
+      String :payment_method
+      String :paid_at
+    end
+
+    AssessFine do
+      description "Charge a fine to a patron for overdue material"
+      Integer :amount_cents
+      String :reason
+      reference_to(Patron)
+      reference_to(Loan)
+      emits "FineAssessed"
+      then_set :status, to: "outstanding"
+    end
+
+    PayFine do
+      description "Record payment of an outstanding fine"
+      reference_to(Fine)
+      Integer :paid_cents
+      given { status == "outstanding" }
+      emits "FinePaid"
+      then_set :status, to: "paid"
+    end
+  end
+
+  policy "CatalogOnAcquire" do
+    on "BookAcquired"
+    trigger "CatalogBook"
+  end
+
+  policy "ShelveOnCatalog" do
+    on "BookCataloged"
+    trigger "ShelveBook"
+  end
+
+  policy "FulfillHoldOnReturn" do
+    on "BookReturned"
+    trigger "FulfillHold"
+  end
+
+  policy "ReshelveOnReturn" do
+    on "BookReturned"
+    trigger "ShelveBook"
+  end
+
+  policy "AssessFineOnOverdue" do
+    on "LoanOverdue"
+    trigger "AssessFine"
+  end
+
+  policy "SuspendOnFineAssessed" do
+    on "FineAssessed"
+    trigger "SuspendPatron"
+  end
+
+  policy "ReinstateOnFinePaid" do
+    on "FinePaid"
+    trigger "ReinstatePatron"
+  end
+end

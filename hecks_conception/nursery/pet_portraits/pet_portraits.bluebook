@@ -1,0 +1,153 @@
+Hecks.bluebook "PetPortraits", version: "2026.04.13.1" do
+  vision "Pet portraits — shelter animals meet photo sessions and compelling adoption profiles"
+  category "healthcare_community"
+
+  aggregate "ShelterAnimal", "A shelter animal awaiting photography and adoption" do
+    String :animal_id
+    String :name
+    String :species
+    String :breed
+    String :personality
+    String :status
+    IntakeAnimal do
+      role "ShelterStaff"
+      description "Register a new animal at the shelter"
+      String :animal_id
+      String :name
+      String :species
+      String :breed
+      String :personality
+      emits "AnimalIntaked"
+      then_set :animal_id, to: :animal_id
+      then_set :name, to: :name
+      then_set :species, to: :species
+      then_set :breed, to: :breed
+      then_set :personality, to: :personality
+      then_set :status, to: "available"
+    end
+    MarkAdopted do
+      role "ShelterStaff"
+      description "Mark animal as adopted"
+      reference_to(ShelterAnimal)
+      given { status == "available" }
+      emits "AnimalAdopted"
+      then_set :status, to: "adopted"
+    end
+  end
+
+  aggregate "PhotoSession", "A professional photo session for a shelter animal" do
+    String :session_id
+    String :animal_id
+    String :photographer
+    String :date
+    String :backdrop
+    String :status
+    list_of(Photo) :photos
+    value_object "Photo" do
+      String :file_path
+      String :angle
+      String :selected
+    end
+    BookSession do
+      role "Coordinator"
+      description "Book a photo session for a shelter animal"
+      String :session_id
+      String :animal_id
+      String :photographer
+      String :date
+      String :backdrop
+      emits "SessionBooked"
+      then_set :session_id, to: :session_id
+      then_set :animal_id, to: :animal_id
+      then_set :photographer, to: :photographer
+      then_set :date, to: :date
+      then_set :backdrop, to: :backdrop
+      then_set :status, to: "booked"
+    end
+    CompleteSession do
+      role "Photographer"
+      description "Complete the photo session and upload photos"
+      reference_to(PhotoSession)
+      given { status == "booked" }
+      emits "SessionCompleted"
+      then_set :status, to: "completed"
+    end
+    SelectBestPhotos do
+      role "Coordinator"
+      description "Select the best photos for the adoption profile"
+      reference_to(PhotoSession)
+      given { status == "completed" }
+      emits "PhotosSelected"
+      then_set :status, to: "selected"
+    end
+  end
+
+  aggregate "AdoptionProfile", "A compelling adoption profile with photos and story" do
+    String :profile_id
+    String :animal_id
+    String :headline
+    String :story
+    String :status
+    CreateProfile do
+      role "Copywriter"
+      description "Create an adoption profile with compelling story and photos"
+      String :profile_id
+      String :animal_id
+      String :headline
+      String :story
+      emits "ProfileCreated"
+      then_set :profile_id, to: :profile_id
+      then_set :animal_id, to: :animal_id
+      then_set :headline, to: :headline
+      then_set :story, to: :story
+      then_set :status, to: "draft"
+    end
+    PublishProfile do
+      role "Coordinator"
+      description "Publish the adoption profile to the website"
+      reference_to(AdoptionProfile)
+      given { status == "draft" }
+      emits "ProfilePublished"
+      then_set :status, to: "published"
+    end
+  end
+
+  aggregate "AdoptionInquiry", "An inquiry from a potential adopter" do
+    String :inquiry_id
+    String :profile_id
+    String :adopter_name
+    String :message
+    String :status
+    SubmitInquiry do
+      role "Adopter"
+      description "Submit an adoption inquiry about an animal"
+      String :inquiry_id
+      String :profile_id
+      String :adopter_name
+      String :message
+      emits "InquirySubmitted"
+      then_set :inquiry_id, to: :inquiry_id
+      then_set :profile_id, to: :profile_id
+      then_set :adopter_name, to: :adopter_name
+      then_set :message, to: :message
+      then_set :status, to: "pending"
+    end
+    RespondToInquiry do
+      role "ShelterStaff"
+      description "Respond to the adoption inquiry"
+      reference_to(AdoptionInquiry)
+      given { status == "pending" }
+      emits "InquiryResponded"
+      then_set :status, to: "responded"
+    end
+  end
+
+  policy "PhotoOnIntake" do
+    on "AnimalIntaked"
+    trigger "BookSession"
+  end
+  policy "ProfileOnPhotos" do
+    on "PhotosSelected"
+    trigger "CreateProfile"
+  end
+end

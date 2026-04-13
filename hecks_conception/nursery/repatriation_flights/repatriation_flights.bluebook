@@ -1,0 +1,198 @@
+Hecks.bluebook "RepatriationFlights" do
+  vision "Cross-wire refugee resettlement case management with air cargo logistics for repatriation flight operations"
+  core
+
+  aggregate "ResettlementCase" do
+    description "A refugee resettlement case with family members and documentation"
+    attribute :case_number
+    attribute :origin_country
+    attribute :destination_country
+    attribute :family_members, list_of(FamilyMember)
+    attribute :status, default: "registered"
+
+    value_object "FamilyMember" do
+      attribute :name
+      attribute :age, Integer
+      attribute :relationship
+      attribute :medical_needs
+    end
+
+    command "RegisterCase" do
+      role "CaseWorker"
+      goal "Register a new resettlement case"
+      attribute :case_number
+      attribute :origin_country
+      attribute :destination_country
+    end
+
+    command "AddFamilyMember" do
+      role "CaseWorker"
+      goal "Add a family member to the case"
+      reference_to ResettlementCase
+      attribute :name
+      attribute :age, Integer
+      attribute :relationship
+      attribute :medical_needs
+      given("max 15 family members") { family_members.size < 15 }
+      then_set :family_members, append: { name: :name, age: :age, relationship: :relationship, medical_needs: :medical_needs }
+    end
+
+    command "ApproveCase" do
+      role "ResettlementOfficer"
+      goal "Approve the case for travel"
+      reference_to ResettlementCase
+      given("must have family members") { family_members.size > 0 }
+    end
+  end
+
+  aggregate "CargoManifest" do
+    description "Air cargo manifest for belongings and supplies"
+    attribute :manifest_number
+    attribute :aircraft_id
+    attribute :items, list_of(CargoItem)
+    attribute :total_weight_kg, Float
+    attribute :status, default: "loading"
+
+    value_object "CargoItem" do
+      attribute :description
+      attribute :weight_kg, Float
+      attribute :fragile, default: false
+      invariant "weight must be positive" do
+        weight_kg > 0
+      end
+    end
+
+    command "CreateManifest" do
+      role "CargoAgent"
+      goal "Create a cargo manifest for the flight"
+      attribute :manifest_number
+      attribute :aircraft_id
+    end
+
+    command "LoadItem" do
+      role "CargoHandler"
+      goal "Load an item onto the aircraft"
+      reference_to CargoManifest
+      attribute :description
+      attribute :weight_kg, Float
+      attribute :fragile
+      given("max 200 items") { items.size < 200 }
+      then_set :items, append: { description: :description, weight_kg: :weight_kg, fragile: :fragile }
+    end
+
+    command "SealManifest" do
+      role "CargoSupervisor"
+      goal "Seal the manifest for departure"
+      reference_to CargoManifest
+      given("must have items") { items.size > 0 }
+    end
+  end
+
+  aggregate "FlightPlan" do
+    description "A repatriation flight plan with route and passengers"
+    reference_to ResettlementCase
+    reference_to CargoManifest
+    attribute :flight_number
+    attribute :departure_date
+    attribute :legs, list_of(FlightLeg)
+    attribute :status, default: "planned"
+
+    value_object "FlightLeg" do
+      attribute :origin
+      attribute :destination
+      attribute :duration_hours, Float
+      invariant "duration must be positive" do
+        duration_hours > 0
+      end
+    end
+
+    command "PlanFlight" do
+      role "FlightPlanner"
+      goal "Plan a repatriation flight"
+      reference_to ResettlementCase
+      attribute :flight_number
+      attribute :departure_date
+    end
+
+    command "AddLeg" do
+      role "FlightPlanner"
+      goal "Add a flight leg"
+      reference_to FlightPlan
+      attribute :origin
+      attribute :destination
+      attribute :duration_hours, Float
+      given("max 5 legs") { legs.size < 5 }
+      then_set :legs, append: { origin: :origin, destination: :destination, duration_hours: :duration_hours }
+    end
+
+    command "ConfirmFlight" do
+      role "FlightDirector"
+      goal "Confirm the flight for departure"
+      reference_to FlightPlan
+      given("must have legs") { legs.size > 0 }
+    end
+  end
+
+  aggregate "ReceptionCenter" do
+    description "A destination reception center for arrivals"
+    attribute :center_name
+    attribute :location
+    attribute :capacity, Integer
+    attribute :services, list_of(ReceptionService)
+    attribute :status, default: "operational"
+
+    value_object "ReceptionService" do
+      attribute :service_type
+      attribute :provider
+      attribute :available, default: true
+    end
+
+    command "SetupCenter" do
+      role "ReceptionManager"
+      goal "Set up a reception center"
+      attribute :center_name
+      attribute :location
+      attribute :capacity, Integer
+    end
+
+    command "AddService" do
+      role "ReceptionManager"
+      goal "Add a reception service"
+      reference_to ReceptionCenter
+      attribute :service_type
+      attribute :provider
+      given("max 20 services") { services.size < 20 }
+      then_set :services, append: { service_type: :service_type, provider: :provider }
+    end
+  end
+
+  policy "CaseApprovedTriggersFlight" do
+    on "CaseApproved"
+    trigger "PlanFlight"
+    map resettlement_case_id: :case_id
+  end
+
+  policy "FlightPlannedTriggersManifest" do
+    on "FlightPlanned"
+    trigger "CreateManifest"
+    map aircraft_id: :aircraft_id
+  end
+
+  policy "ManifestSealedTriggersConfirm" do
+    on "ManifestSealed"
+    trigger "ConfirmFlight"
+    map flight_plan_id: :flight_id
+  end
+
+  policy "FlightConfirmedTriggersCenter" do
+    on "FlightConfirmed"
+    trigger "AddService"
+    map reception_center_id: :destination_center_id, service_type: :medical_needs
+  end
+
+  policy "FamilyMemberAddedTriggersLoad" do
+    on "FamilyMemberAdded"
+    trigger "LoadItem"
+    map cargo_manifest_id: :manifest_id, description: :belongings_desc
+  end
+end

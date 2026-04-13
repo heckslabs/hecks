@@ -1,0 +1,262 @@
+Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
+  vision "Running a multi-tenant SaaS business — onboarding tenants, managing subscriptions, toggling features, metering usage, and generating bills"
+  category "technology"
+
+  aggregate "Tenant", "An organization using the SaaS platform" do
+    String :tenant_name
+    String :slug
+    String :admin_email
+    String :plan
+    String :status
+    list_of(TeamMember) :team_members
+
+    value_object "TeamMember" do
+      String :email
+      String :role
+      String :invited_at
+    end
+
+    OnboardTenant do
+      role "SalesRep"
+      description "Create a new tenant workspace on the platform"
+      String :tenant_name
+      String :slug
+      String :admin_email
+      String :plan
+      emits "TenantOnboarded"
+    end
+
+    SuspendTenant do
+      description "Freeze a tenant account due to policy violation or non-payment"
+      reference_to(Tenant)
+      given("tenant is active") { status == "active" }
+      emits "TenantSuspended"
+    end
+
+    ReactivateTenant do
+      description "Restore a suspended tenant to active status"
+      reference_to(Tenant)
+      emits "TenantReactivated"
+    end
+  end
+
+  aggregate "Subscription", "A billing agreement linking a tenant to a pricing plan" do
+    String :subscription_id
+    String :plan_name
+    Float :monthly_rate
+    String :billing_cycle
+    String :status
+    reference_to Tenant
+
+    value_object "PlanDetail" do
+      Integer :seat_limit
+      Integer :storage_gb
+      String :support_tier
+    end
+
+    StartSubscription do
+      role "BillingAdmin"
+      description "Activate a subscription for a tenant on a chosen plan"
+      String :subscription_id
+      String :plan_name
+      Float :monthly_rate
+      String :billing_cycle
+      reference_to(Tenant)
+      emits "SubscriptionStarted"
+    end
+
+    UpgradePlan do
+      description "Move a tenant to a higher-tier plan"
+      reference_to(Subscription)
+      String :plan_name
+      Float :monthly_rate
+      emits "PlanUpgraded"
+    end
+
+    CancelSubscription do
+      description "End a subscription at the current billing period"
+      reference_to(Subscription)
+      given("subscription is active") { status == "active" }
+      emits "SubscriptionCanceled"
+    end
+  end
+
+  aggregate "FeatureFlag", "A toggle controlling feature availability per tenant" do
+    String :flag_name
+    String :description
+    String :rollout_strategy
+    Integer :rollout_percentage
+    String :status
+    list_of(TenantOverride) :overrides
+
+    value_object "TenantOverride" do
+      String :tenant_slug
+      String :enabled
+      String :set_at
+    end
+
+    CreateFeatureFlag do
+      role "ProductManager"
+      description "Define a new feature toggle for gradual rollout"
+      String :flag_name
+      String :description
+      String :rollout_strategy
+      Integer :rollout_percentage
+      emits "FeatureFlagCreated"
+    end
+
+    ToggleForTenant do
+      description "Enable or disable a feature flag for a specific tenant"
+      reference_to(FeatureFlag)
+      String :tenant_slug
+      String :enabled
+      emits "FlagToggledForTenant"
+    end
+
+    RetireFlag do
+      description "Remove a feature flag after full rollout"
+      reference_to(FeatureFlag)
+      given("flag is fully rolled out") { rollout_percentage == 100 }
+      emits "FlagRetired"
+    end
+  end
+
+  aggregate "UsageMeter", "A counter tracking resource consumption per tenant" do
+    String :meter_name
+    String :unit
+    Integer :current_count
+    Integer :quota
+    String :period
+    reference_to Tenant
+
+    specification "NearQuota" do
+      satisfied_by { current_count > quota }
+    end
+
+    value_object "UsageSample" do
+      Integer :delta
+      String :recorded_at
+    end
+
+    InitializeMeter do
+      role "BillingAdmin"
+      description "Set up a usage meter for a tenant resource"
+      String :meter_name
+      String :unit
+      Integer :quota
+      String :period
+      reference_to(Tenant)
+      emits "MeterInitialized"
+    end
+
+    RecordUsage do
+      description "Increment the usage counter for a metered resource"
+      reference_to(UsageMeter)
+      Integer :delta
+      given("within quota") { current_count + delta <= quota }
+      emits "UsageRecorded"
+    end
+
+    ResetMeter do
+      description "Zero out the counter at the start of a new billing period"
+      reference_to(UsageMeter)
+      emits "MeterReset"
+    end
+  end
+
+  aggregate "BillingEvent", "A charge or credit applied to a tenant account" do
+    String :event_id
+    String :event_type
+    Float :amount
+    String :description
+    String :status
+    reference_to Tenant
+
+    value_object "LineItem" do
+      String :label
+      Float :amount
+      String :unit
+    end
+
+    PostCharge do
+      role "BillingSystem"
+      description "Record a charge against a tenant for resource usage"
+      String :event_id
+      Float :amount
+      String :description
+      reference_to(Tenant)
+      emits "ChargePosted"
+    end
+
+    IssueCredit do
+      description "Apply a credit to a tenant account"
+      reference_to(BillingEvent)
+      Float :amount
+      String :reason
+      emits "CreditIssued"
+    end
+
+    SettleBalance do
+      description "Process payment and settle outstanding charges"
+      reference_to(BillingEvent)
+      emits "BalanceSettled"
+    end
+  end
+
+  lifecycle "TenantOnboarding" do
+    state "signed_up"
+    state "subscribed"
+    state "provisioned"
+    state "active"
+    state "overdue"
+    state "suspended"
+    state "churned"
+
+    transition from: "signed_up", to: "subscribed", on: "SubscriptionStarted"
+    transition from: "subscribed", to: "provisioned", on: "MeterInitialized"
+    transition from: "provisioned", to: "active", on: "FeatureFlagCreated"
+    transition from: "active", to: "overdue", on: "ChargePosted"
+    transition from: "overdue", to: "suspended", on: "TenantSuspended"
+    transition from: "active", to: "churned", on: "SubscriptionCanceled"
+  end
+
+  policy "TenantOnboardedStartSubscription" do
+    on "TenantOnboarded"
+    trigger "StartSubscription"
+  end
+
+  policy "SubscriptionStartedInitializeMeter" do
+    on "SubscriptionStarted"
+    trigger "InitializeMeter"
+  end
+
+  policy "MeterInitializedCreateFlag" do
+    on "MeterInitialized"
+    trigger "CreateFeatureFlag"
+  end
+
+  policy "UsageRecordedPostCharge" do
+    on "UsageRecorded"
+    trigger "PostCharge"
+  end
+
+  policy "ChargePostedSettleBalance" do
+    on "ChargePosted"
+    trigger "SettleBalance"
+  end
+
+  policy "SubscriptionCanceledSuspend" do
+    on "SubscriptionCanceled"
+    trigger "SuspendTenant"
+  end
+
+  policy "ResetMeterOnPeriod" do
+    on "BalanceSettled"
+    trigger "ResetMeter"
+  end
+
+  policy "ToggleFlagOnUpgrade" do
+    on "PlanUpgraded"
+    trigger "ToggleForTenant"
+  end
+end

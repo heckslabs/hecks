@@ -1,0 +1,320 @@
+Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
+  vision "Harvest goes directly to food banks when market price drops — the farm feeds people instead of landfills"
+  category "crossover_gen2"
+
+  # === Field ===
+
+  aggregate "Field", "A cultivated field — weather-monitored, irrigation-scheduled, harvest-tracked" do
+    String :name
+    String :crop_type
+    Float :acreage
+    String :soil_type
+    String :status
+    list_of(WeatherReading) :weather_history
+
+    value_object "WeatherReading" do
+      Float :temperature
+      Float :rainfall_mm
+      Float :humidity
+      String :timestamp
+      String :forecast
+    end
+
+    RegisterField do
+      role "Farmer"
+      description "Register a field with its crop type and soil characteristics"
+      String :name
+      String :crop_type
+      Float :acreage
+      String :soil_type
+      emits "FieldRegistered"
+      then_set :name, to: :name
+      then_set :crop_type, to: :crop_type
+      then_set :acreage, to: :acreage
+      then_set :soil_type, to: :soil_type
+      then_set :status, to: "planted"
+    end
+
+    RecordWeather do
+      role "System"
+      description "Log weather conditions affecting field growth and harvest timing"
+      reference_to(Field)
+      Float :temperature
+      Float :rainfall_mm
+      emits "WeatherRecorded"
+    end
+
+    DeclareHarvestReady do
+      role "Farmer"
+      description "Field crop has reached maturity and is ready for harvest"
+      reference_to(Field)
+      given { status == "planted" }
+      emits "HarvestReady"
+      then_set :status, to: "harvest_ready"
+    end
+
+    CompleteHarvest do
+      role "Farmer"
+      description "Field has been fully harvested"
+      reference_to(Field)
+      given { status == "harvest_ready" }
+      emits "FieldHarvested"
+      then_set :status, to: "harvested"
+    end
+
+    lifecycle :status, default: "fallow" do
+      transition "RegisterField" => "planted", from: "fallow"
+      transition "DeclareHarvestReady" => "harvest_ready", from: "planted"
+      transition "CompleteHarvest" => "harvested", from: "harvest_ready"
+    end
+  end
+
+  # === Harvest ===
+
+  aggregate "Harvest", "The yield from a field — weighed, graded, and routed to market or food bank" do
+    reference_to(Field) :field
+    String :crop_type
+    Float :weight_kg
+    String :grade
+    String :destination
+    String :status
+
+    RecordHarvest do
+      role "Farmer"
+      description "Weigh and grade the harvest from a field"
+      reference_to(Field) :field
+      String :crop_type
+      Float :weight_kg
+      String :grade
+      emits "HarvestRecorded"
+      then_set :field, to: :field
+      then_set :crop_type, to: :crop_type
+      then_set :weight_kg, to: :weight_kg
+      then_set :grade, to: :grade
+      then_set :status, to: "recorded"
+    end
+
+    RouteToMarket do
+      role "System"
+      description "Send harvest to commercial market when price is favorable"
+      reference_to(Harvest)
+      given { status == "recorded" }
+      emits "HarvestRoutedToMarket"
+      then_set :destination, to: "market"
+      then_set :status, to: "routed"
+    end
+
+    RouteToFoodBank do
+      role "System"
+      description "Redirect harvest to food bank when market price is below threshold"
+      reference_to(Harvest)
+      given { status == "recorded" }
+      emits "HarvestRoutedToFoodBank"
+      then_set :destination, to: "food_bank"
+      then_set :status, to: "routed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordHarvest" => "recorded", from: "pending"
+      transition "RouteToMarket" => "routed", from: "recorded"
+      transition "RouteToFoodBank" => "routed", from: "recorded"
+    end
+  end
+
+  # === MarketPrice ===
+
+  aggregate "MarketPrice", "Real-time commodity pricing — the decision point between market and donation" do
+    String :crop_type
+    Float :current_price
+    Float :threshold_price
+    String :trend
+    String :status
+
+    SetPrice do
+      role "System"
+      description "Update current market price for a crop commodity"
+      String :crop_type
+      Float :current_price
+      Float :threshold_price
+      emits "PriceUpdated"
+      then_set :crop_type, to: :crop_type
+      then_set :current_price, to: :current_price
+      then_set :threshold_price, to: :threshold_price
+      then_set :status, to: "active"
+    end
+
+    DetectPriceDrop do
+      role "System"
+      description "Price has fallen below farmer's break-even threshold"
+      reference_to(MarketPrice)
+      given { status == "active" }
+      emits "PriceBelowThreshold"
+      then_set :status, to: "below_threshold"
+    end
+
+    RecoverPrice do
+      role "System"
+      description "Price has recovered above threshold — resume market sales"
+      reference_to(MarketPrice)
+      given { status == "below_threshold" }
+      emits "PriceRecovered"
+      then_set :status, to: "active"
+    end
+  end
+
+  # === FoodBankAllocation ===
+
+  aggregate "FoodBankAllocation", "A food bank receiving allocation — matched to harvest surplus and community need" do
+    String :food_bank_name
+    String :region
+    reference_to(Harvest) :harvest
+    Float :allocated_kg
+    String :status
+    list_of(NeedCategory) :needs
+
+    value_object "NeedCategory" do
+      String :category
+      Float :requested_kg
+      Integer :families_served
+      String :priority
+    end
+
+    AllocateToFoodBank do
+      role "System"
+      description "Assign harvest surplus to a food bank based on regional need"
+      String :food_bank_name
+      String :region
+      reference_to(Harvest) :harvest
+      Float :allocated_kg
+      emits "FoodBankAllocated"
+      then_set :food_bank_name, to: :food_bank_name
+      then_set :region, to: :region
+      then_set :harvest, to: :harvest
+      then_set :allocated_kg, to: :allocated_kg
+      then_set :status, to: "allocated"
+    end
+
+    ConfirmReceipt do
+      role "FoodBankManager"
+      description "Food bank confirms receipt of donated produce"
+      reference_to(FoodBankAllocation)
+      given { status == "allocated" }
+      emits "DonationReceived"
+      then_set :status, to: "received"
+    end
+
+    DistributeToFamilies do
+      role "FoodBankManager"
+      description "Distribute received food to families in need"
+      reference_to(FoodBankAllocation)
+      given { status == "received" }
+      emits "FoodDistributed"
+      then_set :status, to: "distributed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AllocateToFoodBank" => "allocated", from: "pending"
+      transition "ConfirmReceipt" => "received", from: "allocated"
+      transition "DistributeToFamilies" => "distributed", from: "received"
+    end
+  end
+
+  # === ColdRoute ===
+
+  aggregate "ColdRoute", "A refrigerated transport route — keeps produce fresh from field to food bank" do
+    reference_to(Harvest) :harvest
+    reference_to(FoodBankAllocation) :allocation
+    String :driver_id
+    Float :temperature
+    String :status
+    list_of(RouteStop) :stops
+
+    value_object "RouteStop" do
+      String :location
+      String :stop_type
+      String :arrival_time
+      Float :temperature_at_stop
+    end
+
+    ScheduleColdPickup do
+      role "System"
+      description "Schedule a refrigerated pickup from the farm for food bank delivery"
+      reference_to(Harvest) :harvest
+      String :driver_id
+      emits "ColdPickupScheduled"
+      then_set :harvest, to: :harvest
+      then_set :driver_id, to: :driver_id
+      then_set :status, to: "scheduled"
+    end
+
+    BeginTransport do
+      role "Driver"
+      description "Start cold-chain transport from field to food bank"
+      reference_to(ColdRoute)
+      given { status == "scheduled" }
+      emits "ColdTransportStarted"
+      then_set :status, to: "in_transit"
+    end
+
+    RecordTemperature do
+      role "System"
+      description "Log temperature during cold transport"
+      reference_to(ColdRoute)
+      Float :temperature
+      emits "RouteTemperatureRecorded"
+      then_set :temperature, to: :temperature
+    end
+
+    CompleteDelivery do
+      role "Driver"
+      description "Deliver produce to food bank — cold chain maintained"
+      reference_to(ColdRoute)
+      given { status == "in_transit" }
+      emits "ColdDeliveryCompleted"
+      then_set :status, to: "delivered"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ScheduleColdPickup" => "scheduled", from: "pending"
+      transition "BeginTransport" => "in_transit", from: "scheduled"
+      transition "CompleteDelivery" => "delivered", from: "in_transit"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "AllocateOnPriceDrop" do
+    on "PriceBelowThreshold"
+    trigger "AllocateToFoodBank"
+  end
+
+  policy "ColdPickupOnHarvest" do
+    on "HarvestReady"
+    trigger "ScheduleColdPickup"
+  end
+
+  policy "RouteToFoodBankOnAllocation" do
+    on "FoodBankAllocated"
+    trigger "RouteToFoodBank"
+  end
+
+  policy "RecordHarvestOnFieldHarvested" do
+    on "FieldHarvested"
+    trigger "RecordHarvest"
+  end
+
+  policy "DetectDropOnPriceUpdate" do
+    on "PriceUpdated"
+    trigger "DetectPriceDrop"
+  end
+
+  policy "BeginTransportOnScheduled" do
+    on "ColdPickupScheduled"
+    trigger "BeginTransport"
+  end
+
+  policy "ConfirmOnDelivery" do
+    on "ColdDeliveryCompleted"
+    trigger "ConfirmReceipt"
+  end
+end

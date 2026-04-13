@@ -1,0 +1,258 @@
+Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
+  vision "Astronomy meets digital signage — celestial bodies, projectors, shows, schedules, and tickets"
+  category "crossover"
+
+  aggregate "CelestialBody", "A celestial object — type, coordinates, magnitude, current visibility" do
+    String :name
+    String :body_type
+    Float :right_ascension_hr
+    Float :declination_deg
+    Float :apparent_magnitude
+    String :constellation
+    String :status
+
+    value_object "OrbitalElements" do
+      Float :semi_major_axis_au
+      Float :eccentricity
+      Float :inclination_deg
+      Float :period_years
+    end
+
+    CatalogBody do
+      role "Astronomer"
+      description "Catalog a celestial body with coordinates and properties"
+      String :name
+      String :body_type
+      Float :right_ascension_hr
+      Float :declination_deg
+      Float :apparent_magnitude
+      String :constellation
+      emits "BodyCataloged"
+      then_set :name, to: :name
+      then_set :body_type, to: :body_type
+      then_set :right_ascension_hr, to: :right_ascension_hr
+      then_set :declination_deg, to: :declination_deg
+      then_set :apparent_magnitude, to: :apparent_magnitude
+      then_set :constellation, to: :constellation
+      then_set :status, to: "cataloged"
+    end
+
+    UpdatePosition do
+      role "System"
+      description "Update ephemeris position for current date"
+      reference_to(CelestialBody)
+      Float :right_ascension_hr
+      Float :declination_deg
+      given { status == "cataloged" }
+      emits "PositionUpdated"
+      then_set :right_ascension_hr, to: :right_ascension_hr
+      then_set :declination_deg, to: :declination_deg
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "CatalogBody" => "cataloged", from: "unknown"
+    end
+  end
+
+  aggregate "Projector", "A planetarium projector — type, resolution, dome coverage" do
+    String :projector_id
+    String :projector_type
+    Integer :resolution_pixels
+    Float :dome_coverage_pct
+    Float :brightness_lumens
+    String :status
+
+    value_object "ProjectorCalibration" do
+      Float :color_temperature_k
+      Float :gamma
+      Float :edge_blend_pct
+    end
+
+    InstallProjector do
+      role "Technician"
+      description "Install and configure a projector in the planetarium dome"
+      String :projector_id
+      String :projector_type
+      Integer :resolution_pixels
+      Float :dome_coverage_pct
+      Float :brightness_lumens
+      emits "ProjectorInstalled"
+      then_set :projector_id, to: :projector_id
+      then_set :projector_type, to: :projector_type
+      then_set :resolution_pixels, to: :resolution_pixels
+      then_set :dome_coverage_pct, to: :dome_coverage_pct
+      then_set :brightness_lumens, to: :brightness_lumens
+      then_set :status, to: "installed"
+    end
+
+    CalibrateProjector do
+      role "Technician"
+      description "Calibrate projector for accurate star field rendering"
+      reference_to(Projector)
+      given { status == "installed" }
+      emits "ProjectorCalibrated"
+      then_set :status, to: "calibrated"
+    end
+
+    ActivateProjector do
+      role "Operator"
+      description "Power on projector for show"
+      reference_to(Projector)
+      given { status == "calibrated" }
+      emits "ProjectorActivated"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "offline" do
+      transition "InstallProjector" => "installed", from: "offline"
+      transition "CalibrateProjector" => "calibrated", from: "installed"
+      transition "ActivateProjector" => "active", from: "calibrated"
+    end
+  end
+
+  aggregate "Show", "A planetarium show — theme, script, celestial targets, duration" do
+    String :title
+    String :theme
+    Integer :duration_minutes
+    String :target_audience
+    String :narration_type
+    String :status
+
+    list_of "ShowSegment" do
+      String :segment_name
+      Integer :duration_sec
+      String :celestial_focus
+      String :narration_text
+    end
+
+    value_object "VisualEffect" do
+      String :effect_name
+      String :trigger_time
+      Float :intensity
+    end
+
+    CreateShow do
+      role "Director"
+      description "Create a planetarium show with theme and segments"
+      String :title
+      String :theme
+      Integer :duration_minutes
+      String :target_audience
+      String :narration_type
+      emits "ShowCreated"
+      then_set :title, to: :title
+      then_set :theme, to: :theme
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :target_audience, to: :target_audience
+      then_set :narration_type, to: :narration_type
+      then_set :status, to: "created"
+    end
+
+    RehearsalShow do
+      role "Director"
+      description "Run a rehearsal of the show with projectors"
+      reference_to(Show)
+      given { status == "created" }
+      emits "ShowRehearsed"
+      then_set :status, to: "rehearsed"
+    end
+
+    PublishShow do
+      role "Director"
+      description "Publish show for public scheduling"
+      reference_to(Show)
+      given { status == "rehearsed" }
+      emits "ShowPublished"
+      then_set :status, to: "published"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateShow" => "created", from: "draft"
+      transition "RehearsalShow" => "rehearsed", from: "created"
+      transition "PublishShow" => "published", from: "rehearsed"
+    end
+  end
+
+  aggregate "ShowSchedule", "Scheduled show times — date, time, capacity, ticket availability" do
+    String :show_title
+    String :show_date
+    String :show_time
+    Integer :capacity
+    Integer :tickets_sold
+    String :status
+
+    value_object "TicketTier" do
+      String :tier_name
+      Float :price
+      Integer :available
+    end
+
+    ScheduleShow do
+      role "Manager"
+      description "Schedule a show for a specific date and time"
+      String :show_title
+      String :show_date
+      String :show_time
+      Integer :capacity
+      emits "ShowScheduled"
+      then_set :show_title, to: :show_title
+      then_set :show_date, to: :show_date
+      then_set :show_time, to: :show_time
+      then_set :capacity, to: :capacity
+      then_set :tickets_sold, to: 0
+      then_set :status, to: "scheduled"
+    end
+
+    SellTicket do
+      role "System"
+      description "Record a ticket sale for the scheduled show"
+      reference_to(ShowSchedule)
+      given { status == "scheduled" }
+      emits "TicketSold"
+    end
+
+    CancelShow do
+      role "Manager"
+      description "Cancel a scheduled show"
+      reference_to(ShowSchedule)
+      given { status == "scheduled" }
+      emits "ShowCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    lifecycle :status, default: "unscheduled" do
+      transition "ScheduleShow" => "scheduled", from: "unscheduled"
+      transition "CancelShow" => "cancelled", from: "scheduled"
+    end
+  end
+
+  policy "CalibrateOnInstall" do
+    on "ProjectorInstalled"
+    trigger "CalibrateProjector"
+  end
+
+  policy "UpdatePositionsOnCatalog" do
+    on "BodyCataloged"
+    trigger "UpdatePosition"
+  end
+
+  policy "RehearseOnCreate" do
+    on "ShowCreated"
+    trigger "RehearsalShow"
+  end
+
+  policy "PublishOnRehearse" do
+    on "ShowRehearsed"
+    trigger "PublishShow"
+  end
+
+  policy "ScheduleOnPublish" do
+    on "ShowPublished"
+    trigger "ScheduleShow"
+  end
+
+  policy "ActivateOnSchedule" do
+    on "ShowScheduled"
+    trigger "ActivateProjector"
+  end
+end

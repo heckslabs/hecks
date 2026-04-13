@@ -1,0 +1,212 @@
+Hecks.bluebook "PotteryStudio" do
+  aggregate "Piece", "A ceramic piece from throwing through finishing" do
+    String :name
+    String :form
+    String :clay_body
+    String :status, default: "thrown"
+    Float :weight_kg
+
+    value_object "Dimensions" do
+      Float :height_cm
+      Float :diameter_cm
+      Float :wall_thickness_mm
+    end
+
+    ThrowPiece do
+      description "Create a new piece on the pottery wheel"
+      String :name
+      String :form
+      String :clay_body
+      Float :weight_kg
+      emits "PieceThrown"
+    end
+
+    TrimPiece do
+      description "Trim the foot and refine the form on a leather-hard piece"
+      reference_to(Piece)
+      given { status == "thrown" }
+      emits "PieceTrimmed"
+      then_set :status, to: "trimmed"
+    end
+
+    BisqueFire do
+      description "Load piece into kiln for first bisque firing"
+      reference_to(Piece)
+      given { status == "trimmed" }
+      emits "BisqueFired"
+      then_set :status, to: "bisqued"
+    end
+
+    GlazePiece do
+      description "Apply glaze coating to bisque-fired piece"
+      reference_to(Piece)
+      String :glaze_name
+      given { status == "bisqued" }
+      emits "PieceGlazed"
+      then_set :status, to: "glazed"
+    end
+
+    GlazeFire do
+      description "Fire glazed piece to maturity in the kiln"
+      reference_to(Piece)
+      given { status == "glazed" }
+      emits "GlazeFired"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "Firing", "A kiln firing cycle with temperature program and load" do
+    String :firing_type
+    Integer :target_cone
+    String :atmosphere
+    String :status, default: "loading"
+    Integer :piece_count
+    reference_to(Kiln)
+
+    LoadKiln do
+      description "Stack pieces into the kiln for a firing"
+      reference_to(Kiln)
+      String :firing_type
+      Integer :target_cone
+      String :atmosphere
+      Integer :piece_count
+      emits "KilnLoaded"
+    end
+
+    StartFiring do
+      description "Begin the firing program ramp"
+      reference_to(Firing)
+      given { status == "loading" }
+      emits "FiringStarted"
+      then_set :status, to: "firing"
+    end
+
+    CompleteFiring do
+      description "Cool down and unload the kiln after reaching cone"
+      reference_to(Firing)
+      given { status == "firing" }
+      emits "FiringCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Glaze", "A glaze recipe with oxide chemistry and firing range" do
+    String :name
+    String :surface_type
+    Integer :cone_low
+    Integer :cone_high
+    String :color_result
+
+    value_object "GlazeChemistry" do
+      Float :silica
+      Float :alumina
+      Float :flux
+      String :colorant
+      Float :colorant_percentage
+    end
+
+    FormulateGlaze do
+      description "Develop a new glaze recipe from oxide calculations"
+      String :name
+      String :surface_type
+      Integer :cone_low
+      Integer :cone_high
+      emits "GlazeFormulated"
+    end
+
+    TestGlaze do
+      description "Fire test tiles to evaluate a glaze recipe"
+      reference_to(Glaze)
+      Integer :test_cone
+      emits "GlazeTested"
+    end
+  end
+
+  aggregate "Kiln", "A ceramic kiln with capacity, fuel type, and maintenance log" do
+    String :name
+    String :fuel_type
+    Float :cubic_feet
+    String :status, default: "idle"
+    Integer :total_firings
+
+    SetUpKiln do
+      description "Set up a new kiln in the studio"
+      String :name
+      String :fuel_type
+      Float :cubic_feet
+      emits "KilnCommissioned"
+    end
+
+    ServiceKiln do
+      description "Perform maintenance on kiln elements or bricks"
+      reference_to(Kiln)
+      String :service_type
+      emits "KilnServiced"
+    end
+  end
+
+  aggregate "Exhibition", "A curated show of finished pottery pieces" do
+    String :title
+    String :venue
+    String :opening_date
+    Integer :piece_count
+    String :status, default: "planning"
+
+    CurateExhibition do
+      description "Select pieces and plan the exhibition layout"
+      String :title
+      String :venue
+      String :opening_date
+      Integer :piece_count
+      emits "ExhibitionCurated"
+    end
+
+    OpenExhibition do
+      description "Open the exhibition to the public"
+      reference_to(Exhibition)
+      given { status == "planning" }
+      emits "ExhibitionOpened"
+      then_set :status, to: "open"
+    end
+  end
+
+  policy "TrimAfterThrow" do
+    on "PieceThrown"
+    trigger "TrimPiece"
+  end
+
+  policy "BisqueAfterTrim" do
+    on "PieceTrimmed"
+    trigger "BisqueFire"
+  end
+
+  policy "LoadKilnOnBisque" do
+    on "BisqueFired"
+    trigger "LoadKiln"
+  end
+
+  policy "FireAfterLoading" do
+    on "KilnLoaded"
+    trigger "StartFiring"
+  end
+
+  policy "CompleteOnFiring" do
+    on "FiringStarted"
+    trigger "CompleteFiring"
+  end
+
+  policy "TestGlazeOnComplete" do
+    on "FiringCompleted"
+    trigger "TestGlaze"
+  end
+
+  policy "CurateOnGlazeTest" do
+    on "GlazeTested"
+    trigger "CurateExhibition"
+  end
+
+  policy "OpenOnCuration" do
+    on "ExhibitionCurated"
+    trigger "OpenExhibition"
+  end
+end

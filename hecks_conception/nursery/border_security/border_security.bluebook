@@ -1,0 +1,202 @@
+Hecks.bluebook "BorderSecurity" do
+  vision "Cross-wire forensic analysis with customs brokerage for intelligent border security screening"
+  core
+
+  aggregate "ForensicSample" do
+    description "A forensic sample collected at the border"
+    attribute :sample_id
+    attribute :sample_type
+    attribute :collector
+    attribute :analyses, list_of(Analysis)
+    attribute :status, default: "collected"
+
+    value_object "Analysis" do
+      attribute :test_type
+      attribute :result
+      attribute :confidence, Float
+      invariant "confidence between 0 and 1" do
+        confidence >= 0 && confidence <= 1.0
+      end
+    end
+
+    command "CollectSample" do
+      role "ForensicAgent"
+      goal "Collect a forensic sample from cargo or traveler"
+      attribute :sample_id
+      attribute :sample_type
+      attribute :collector
+    end
+
+    command "RunAnalysis" do
+      role "LabTechnician"
+      goal "Run a forensic test on the sample"
+      reference_to ForensicSample
+      attribute :test_type
+      attribute :result
+      attribute :confidence, Float
+      given("max 20 analyses") { analyses.size < 20 }
+      then_set :analyses, append: { test_type: :test_type, result: :result, confidence: :confidence }
+    end
+
+    command "FinalizeReport" do
+      role "ForensicLead"
+      goal "Finalize the forensic report"
+      reference_to ForensicSample
+      given("must have analyses") { analyses.size > 0 }
+    end
+  end
+
+  aggregate "Shipment" do
+    description "A customs shipment crossing the border"
+    attribute :tracking_number
+    attribute :origin_country
+    attribute :destination_country
+    attribute :items, list_of(CargoItem)
+    attribute :status, default: "manifested"
+
+    value_object "CargoItem" do
+      attribute :description
+      attribute :quantity, Integer
+      attribute :declared_value_cents, Integer
+      invariant "quantity must be positive" do
+        quantity > 0
+      end
+    end
+
+    command "DeclareShipment" do
+      role "CustomsBroker"
+      goal "Declare a shipment for customs clearance"
+      attribute :tracking_number
+      attribute :origin_country
+      attribute :destination_country
+    end
+
+    command "AddCargoItem" do
+      role "CustomsBroker"
+      goal "Add an item to the shipment manifest"
+      reference_to Shipment
+      attribute :description
+      attribute :quantity, Integer
+      attribute :declared_value_cents, Integer
+      given("max 100 items") { items.size < 100 }
+      then_set :items, append: { description: :description, quantity: :quantity, declared_value_cents: :declared_value_cents }
+    end
+
+    command "ClearShipment" do
+      role "CustomsOfficer"
+      goal "Clear the shipment through customs"
+      reference_to Shipment
+    end
+  end
+
+  aggregate "RiskAlert" do
+    description "A risk alert generated from forensic or customs data"
+    reference_to ForensicSample
+    reference_to Shipment
+    attribute :alert_level
+    attribute :reason
+    attribute :actions, list_of(AlertAction)
+    attribute :status, default: "active"
+
+    value_object "AlertAction" do
+      attribute :action_type
+      attribute :assigned_to
+      attribute :completed, default: false
+    end
+
+    command "RaiseAlert" do
+      role "SecurityAnalyst"
+      goal "Raise a risk alert"
+      reference_to Shipment
+      attribute :alert_level
+      attribute :reason
+    end
+
+    command "AssignAction" do
+      role "SecuritySupervisor"
+      goal "Assign an action to address the alert"
+      reference_to RiskAlert
+      attribute :action_type
+      attribute :assigned_to
+      given("max 10 actions") { actions.size < 10 }
+      then_set :actions, append: { action_type: :action_type, assigned_to: :assigned_to }
+    end
+
+    command "ResolveAlert" do
+      role "SecuritySupervisor"
+      goal "Resolve the alert"
+      reference_to RiskAlert
+    end
+  end
+
+  aggregate "Inspection" do
+    description "A physical inspection of shipment or traveler"
+    reference_to Shipment
+    reference_to ForensicSample
+    attribute :inspector
+    attribute :findings, list_of(InspectionFinding)
+    attribute :status, default: "scheduled"
+
+    value_object "InspectionFinding" do
+      attribute :finding_type
+      attribute :severity
+      attribute :description
+    end
+
+    command "ScheduleInspection" do
+      role "CustomsOfficer"
+      goal "Schedule a physical inspection"
+      reference_to Shipment
+      attribute :inspector
+    end
+
+    command "RecordFinding" do
+      role "Inspector"
+      goal "Record an inspection finding"
+      reference_to Inspection
+      attribute :finding_type
+      attribute :severity
+      attribute :description
+      given("max 30 findings") { findings.size < 30 }
+      then_set :findings, append: { finding_type: :finding_type, severity: :severity, description: :description }
+    end
+
+    command "CompleteInspection" do
+      role "Inspector"
+      goal "Complete the inspection"
+      reference_to Inspection
+    end
+  end
+
+  policy "AnalysisRunTriggersAlert" do
+    on "AnalysisRun"
+    trigger "RaiseAlert"
+    map shipment_id: :linked_shipment_id, reason: :result
+    condition { |event| event.confidence > 0.8 }
+  end
+
+  policy "ShipmentDeclaredTriggersSample" do
+    on "ShipmentDeclared"
+    trigger "CollectSample"
+    map sample_type: :origin_country
+    condition { |event| event.origin_country == "high_risk" }
+  end
+
+  policy "AlertRaisedTriggersInspection" do
+    on "AlertRaised"
+    trigger "ScheduleInspection"
+    map shipment_id: :shipment_id
+  end
+
+  policy "InspectionCompletedTriggersClearance" do
+    on "InspectionCompleted"
+    trigger "ClearShipment"
+    map shipment_id: :shipment_id
+  end
+
+  policy "FindingRecordedTriggersAnalysis" do
+    on "FindingRecorded"
+    trigger "RunAnalysis"
+    map forensic_sample_id: :sample_id, test_type: :finding_type
+  end
+end

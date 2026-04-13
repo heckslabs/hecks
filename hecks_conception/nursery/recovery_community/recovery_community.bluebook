@@ -1,0 +1,152 @@
+Hecks.bluebook "RecoveryCommunity", version: "2026.04.13.1" do
+  vision "Recovery community — substance recovery milestones meet peer support and content safety"
+  category "healthcare_community"
+
+  aggregate "RecoveryJourney", "A member recovery journey tracking milestones and sobriety" do
+    String :member_id
+    String :name
+    String :program_type
+    Integer :days_sober
+    String :status
+    list_of(Milestone) :milestones
+    value_object "Milestone" do
+      String :name
+      Integer :day_reached
+      String :badge
+    end
+    StartJourney do
+      role "Member"
+      description "Begin a recovery journey with a chosen program"
+      String :member_id
+      String :name
+      String :program_type
+      emits "JourneyStarted"
+      then_set :member_id, to: :member_id
+      then_set :name, to: :name
+      then_set :program_type, to: :program_type
+      then_set :days_sober, to: 0
+      then_set :status, to: "active"
+    end
+    LogDay do
+      role "Member"
+      description "Log a sober day and check for milestone achievement"
+      reference_to(RecoveryJourney)
+      given { status == "active" }
+      emits "DayLogged"
+    end
+    AwardMilestone do
+      role "System"
+      description "Award a milestone badge for reaching a sobriety checkpoint"
+      reference_to(RecoveryJourney)
+      emits "MilestoneAwarded"
+    end
+  end
+
+  aggregate "PeerGroup", "A peer support group for recovery members" do
+    String :group_id
+    String :group_name
+    String :facilitator
+    Integer :max_members
+    String :meeting_schedule
+    String :status
+    CreateGroup do
+      role "Facilitator"
+      description "Create a peer support group with schedule and capacity"
+      String :group_id
+      String :group_name
+      String :facilitator
+      Integer :max_members
+      String :meeting_schedule
+      emits "GroupCreated"
+      then_set :group_id, to: :group_id
+      then_set :group_name, to: :group_name
+      then_set :facilitator, to: :facilitator
+      then_set :max_members, to: :max_members
+      then_set :meeting_schedule, to: :meeting_schedule
+      then_set :status, to: "active"
+    end
+    JoinGroup do
+      role "Member"
+      description "Join a peer support group"
+      reference_to(PeerGroup)
+      given { status == "active" }
+      emits "MemberJoined"
+    end
+  end
+
+  aggregate "CommunityPost", "A post in the recovery community forum" do
+    String :post_id
+    String :author_id
+    String :content
+    String :topic
+    String :status
+    CreatePost do
+      role "Member"
+      description "Create a post in the recovery community forum"
+      String :post_id
+      String :author_id
+      String :content
+      String :topic
+      emits "PostCreated"
+      then_set :post_id, to: :post_id
+      then_set :author_id, to: :author_id
+      then_set :content, to: :content
+      then_set :topic, to: :topic
+      then_set :status, to: "pending_review"
+    end
+    ApprovePost do
+      role "Moderator"
+      description "Approve a post after content safety review"
+      reference_to(CommunityPost)
+      given { status == "pending_review" }
+      emits "PostApproved"
+      then_set :status, to: "published"
+    end
+    RemovePost do
+      role "Moderator"
+      description "Remove a post that violates community safety guidelines"
+      reference_to(CommunityPost)
+      emits "PostRemoved"
+      then_set :status, to: "removed"
+    end
+  end
+
+  aggregate "SafetyFlag", "A content safety flag raised on potentially harmful content" do
+    String :flag_id
+    String :post_id
+    String :reason
+    String :severity
+    String :status
+    RaiseFlag do
+      role "System"
+      description "Raise a safety flag on content that may be triggering"
+      String :flag_id
+      String :post_id
+      String :reason
+      String :severity
+      emits "FlagRaised"
+      then_set :flag_id, to: :flag_id
+      then_set :post_id, to: :post_id
+      then_set :reason, to: :reason
+      then_set :severity, to: :severity
+      then_set :status, to: "open"
+    end
+    ReviewFlag do
+      role "Moderator"
+      description "Review a safety flag and take moderation action"
+      reference_to(SafetyFlag)
+      given { status == "open" }
+      emits "FlagReviewed"
+      then_set :status, to: "reviewed"
+    end
+  end
+
+  policy "FlagOnPost" do
+    on "PostCreated"
+    trigger "RaiseFlag"
+  end
+  policy "MilestoneOnDay" do
+    on "DayLogged"
+    trigger "AwardMilestone"
+  end
+end

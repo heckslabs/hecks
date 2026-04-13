@@ -1,0 +1,140 @@
+Hecks.bluebook "SafeHaven", version: "2026.04.13.1" do
+  vision "Safe haven — domestic violence safety plans meet digital security and location privacy"
+  category "healthcare_community"
+
+  aggregate "SafetyPlan", "A personalized safety plan for a DV survivor" do
+    String :plan_id
+    String :client_code
+    String :advocate_name
+    list_of(SafetyStep) :steps
+    String :status
+    value_object "SafetyStep" do
+      Integer :sequence
+      String :action_desc
+      String :contact
+      String :trigger_event
+    end
+    CreateSafetyPlan do
+      role "Advocate"
+      description "Create a personalized safety plan for a survivor"
+      String :plan_id
+      String :client_code
+      String :advocate_name
+      emits "SafetyPlanCreated"
+      then_set :plan_id, to: :plan_id
+      then_set :client_code, to: :client_code
+      then_set :advocate_name, to: :advocate_name
+      then_set :status, to: "active"
+    end
+    ActivatePlan do
+      role "Client"
+      description "Activate the safety plan when in danger"
+      reference_to(SafetyPlan)
+      given { status == "active" }
+      emits "PlanActivated"
+      then_set :status, to: "activated"
+    end
+  end
+
+  aggregate "DigitalSecurity", "Digital security measures protecting a survivor online" do
+    String :profile_id
+    String :client_code
+    String :threat_level
+    list_of(SecurityMeasure) :measures
+    String :status
+    value_object "SecurityMeasure" do
+      String :measure_type
+      String :platform
+      String :status
+    end
+    AssessThreat do
+      role "SecurityAdvisor"
+      description "Assess digital threat level for a survivor"
+      String :profile_id
+      String :client_code
+      String :threat_level
+      emits "ThreatAssessed"
+      then_set :profile_id, to: :profile_id
+      then_set :client_code, to: :client_code
+      then_set :threat_level, to: :threat_level
+      then_set :status, to: "assessed"
+    end
+    LockAccounts do
+      role "SecurityAdvisor"
+      description "Lock down social media and email accounts"
+      reference_to(DigitalSecurity)
+      given { status == "assessed" }
+      emits "AccountsLocked"
+      then_set :status, to: "secured"
+    end
+  end
+
+  aggregate "LocationPrivacy", "Location masking and safe address management" do
+    String :privacy_id
+    String :client_code
+    String :safe_address
+    String :vpn_status
+    String :gps_spoofing
+    String :status
+    SetupPrivacy do
+      role "SecurityAdvisor"
+      description "Set up location privacy protections for a survivor"
+      String :privacy_id
+      String :client_code
+      String :safe_address
+      emits "PrivacySetup"
+      then_set :privacy_id, to: :privacy_id
+      then_set :client_code, to: :client_code
+      then_set :safe_address, to: :safe_address
+      then_set :status, to: "active"
+    end
+    ActivateVPN do
+      role "SecurityAdvisor"
+      description "Enable VPN to mask network location"
+      reference_to(LocationPrivacy)
+      emits "VPNActivated"
+      then_set :vpn_status, to: "active"
+    end
+  end
+
+  aggregate "IncidentLog", "A confidential log of safety incidents" do
+    String :log_id
+    String :client_code
+    String :incident_type
+    String :description_text
+    String :date
+    String :reported_to
+    LogIncident do
+      role "Advocate"
+      description "Log a safety incident in the confidential record"
+      String :log_id
+      String :client_code
+      String :incident_type
+      String :description_text
+      String :date
+      emits "IncidentLogged"
+      then_set :log_id, to: :log_id
+      then_set :client_code, to: :client_code
+      then_set :incident_type, to: :incident_type
+      then_set :description_text, to: :description_text
+      then_set :date, to: :date
+    end
+    EscalateIncident do
+      role "Advocate"
+      description "Escalate a serious incident to law enforcement"
+      reference_to(IncidentLog)
+      String :reported_to
+      emits "IncidentEscalated"
+      then_set :reported_to, to: :reported_to
+    end
+  end
+
+  policy "SecureOnPlan" do
+    on "SafetyPlanCreated"
+    trigger "AssessThreat"
+  end
+  policy "LockOnActivate" do
+    on "PlanActivated"
+    trigger "LockAccounts"
+  end
+end

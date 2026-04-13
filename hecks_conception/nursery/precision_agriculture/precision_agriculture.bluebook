@@ -1,0 +1,224 @@
+Hecks.bluebook "PrecisionAgriculture" do
+  vision "Cross-wire meteorological forecasting with farm management for data-driven precision agriculture"
+  core
+
+  aggregate "WeatherStation" do
+    description "A meteorological station collecting field data"
+    attribute :station_id
+    attribute :latitude, Float
+    attribute :longitude, Float
+    attribute :readings, list_of(Reading)
+    attribute :status, default: "active"
+
+    value_object "Reading" do
+      attribute :metric
+      attribute :value, Float
+      attribute :recorded_at
+      invariant "value must be numeric" do
+        value.is_a?(Numeric)
+      end
+    end
+
+    command "DeployStation" do
+      role "FieldEngineer"
+      goal "Deploy a weather station on the farm"
+      attribute :station_id
+      attribute :latitude, Float
+      attribute :longitude, Float
+    end
+
+    command "RecordReading" do
+      role "Sensor"
+      goal "Record a weather reading"
+      reference_to WeatherStation
+      attribute :metric
+      attribute :value, Float
+      attribute :recorded_at
+      given("max 1000 readings") { readings.size < 1000 }
+      then_set :readings, append: { metric: :metric, value: :value, recorded_at: :recorded_at }
+    end
+  end
+
+  aggregate "Forecast" do
+    description "A weather forecast model for agricultural planning"
+    reference_to WeatherStation
+    attribute :forecast_date
+    attribute :predictions, list_of(Prediction)
+    attribute :confidence, Float
+    attribute :status, default: "generating"
+
+    value_object "Prediction" do
+      attribute :hour
+      attribute :temp_c, Float
+      attribute :precip_mm, Float
+      attribute :wind_kph, Float
+    end
+
+    command "GenerateForecast" do
+      role "Meteorologist"
+      goal "Generate a weather forecast from station data"
+      reference_to WeatherStation
+      attribute :forecast_date
+    end
+
+    command "AddPrediction" do
+      role "Meteorologist"
+      goal "Add hourly prediction to forecast"
+      reference_to Forecast
+      attribute :hour
+      attribute :temp_c, Float
+      attribute :precip_mm, Float
+      attribute :wind_kph, Float
+      given("max 72 predictions") { predictions.size < 72 }
+      then_set :predictions, append: { hour: :hour, temp_c: :temp_c, precip_mm: :precip_mm, wind_kph: :wind_kph }
+    end
+
+    command "PublishForecast" do
+      role "Meteorologist"
+      goal "Publish the forecast for farm use"
+      reference_to Forecast
+      given("must have predictions") { predictions.size > 0 }
+    end
+  end
+
+  aggregate "CropField" do
+    description "A farm field with crop and soil data"
+    attribute :field_name
+    attribute :crop
+    attribute :acres, Float
+    attribute :soil_samples, list_of(SoilSample)
+    attribute :status, default: "fallow"
+
+    value_object "SoilSample" do
+      attribute :ph, Float
+      attribute :nitrogen_ppm, Float
+      attribute :phosphorus_ppm, Float
+      invariant "pH between 0 and 14" do
+        ph >= 0 && ph <= 14
+      end
+    end
+
+    command "PlantField" do
+      role "Farmer"
+      goal "Plant a crop in a field"
+      attribute :field_name
+      attribute :crop
+      attribute :acres, Float
+    end
+
+    command "SampleSoil" do
+      role "Agronomist"
+      goal "Take a soil sample"
+      reference_to CropField
+      attribute :ph, Float
+      attribute :nitrogen_ppm, Float
+      attribute :phosphorus_ppm, Float
+      given("max 50 samples") { soil_samples.size < 50 }
+      then_set :soil_samples, append: { ph: :ph, nitrogen_ppm: :nitrogen_ppm, phosphorus_ppm: :phosphorus_ppm }
+    end
+  end
+
+  aggregate "IrrigationPlan" do
+    description "An irrigation plan driven by weather and soil data"
+    reference_to CropField
+    reference_to Forecast
+    attribute :water_gallons, Float
+    attribute :schedule_days, Integer
+    attribute :zones, list_of(IrrigationZone)
+    attribute :status, default: "draft"
+
+    value_object "IrrigationZone" do
+      attribute :zone_name
+      attribute :gallons_per_day, Float
+      invariant "gallons must be positive" do
+        gallons_per_day > 0
+      end
+    end
+
+    command "DraftPlan" do
+      role "Agronomist"
+      goal "Create an irrigation plan from forecast data"
+      reference_to CropField
+      reference_to Forecast
+      attribute :water_gallons, Float
+    end
+
+    command "AddZone" do
+      role "Agronomist"
+      goal "Add an irrigation zone"
+      reference_to IrrigationPlan
+      attribute :zone_name
+      attribute :gallons_per_day, Float
+      given("max 20 zones") { zones.size < 20 }
+      then_set :zones, append: { zone_name: :zone_name, gallons_per_day: :gallons_per_day }
+    end
+
+    command "ActivatePlan" do
+      role "Farmer"
+      goal "Activate the irrigation plan"
+      reference_to IrrigationPlan
+      given("must have zones") { zones.size > 0 }
+    end
+  end
+
+  aggregate "HarvestSchedule" do
+    description "A harvest schedule optimized by weather windows"
+    reference_to CropField
+    reference_to Forecast
+    attribute :target_date
+    attribute :crew_size, Integer
+    attribute :status, default: "planned"
+
+    value_object "HarvestWindow" do
+      attribute :start_hour
+      attribute :end_hour
+      attribute :conditions
+    end
+
+    command "PlanHarvest" do
+      role "FarmManager"
+      goal "Schedule harvest based on weather"
+      reference_to CropField
+      reference_to Forecast
+      attribute :target_date
+      attribute :crew_size, Integer
+    end
+
+    command "ExecuteHarvest" do
+      role "Farmer"
+      goal "Execute the harvest"
+      reference_to HarvestSchedule
+    end
+  end
+
+  policy "ForecastPublishedTriggersIrrigation" do
+    on "ForecastPublished"
+    trigger "DraftPlan"
+    map forecast_id: :forecast_id
+  end
+
+  policy "SoilSampledTriggersforecast" do
+    on "SoilSampled"
+    trigger "GenerateForecast"
+    map weather_station_id: :nearest_station_id
+  end
+
+  policy "IrrigationActivatedTriggersHarvest" do
+    on "PlanActivated"
+    trigger "PlanHarvest"
+    map crop_field_id: :field_id
+  end
+
+  policy "ReadingRecordedTriggersPlanting" do
+    on "ReadingRecorded"
+    trigger "PlantField"
+    map field_name: :field_name
+    condition { |event| event.metric == "soil_temp" && event.value > 10 }
+  end
+
+  policy "HarvestExecutedTriggersSample" do
+    on "HarvestExecuted"
+    trigger "SampleSoil"
+    map crop_field_id: :field_id
+  end
+end

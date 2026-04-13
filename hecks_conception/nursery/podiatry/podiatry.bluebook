@@ -1,0 +1,243 @@
+Hecks.bluebook "Podiatry" do
+  vision "Foot and ankle medicine — patients, conditions, custom orthotics, procedures, and follow-up care"
+
+  aggregate "Patient", "A person receiving podiatric foot and ankle care" do
+    String :name
+    String :date_of_birth
+    String :diabetic_status
+    String :insurance_id
+    String :status
+
+    RegisterPatient do
+      role "Receptionist"
+      description "Intake a new podiatry patient"
+      String :name
+      String :date_of_birth
+      String :diabetic_status
+      String :insurance_id
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :diabetic_status, to: :diabetic_status
+      then_set :insurance_id, to: :insurance_id
+      then_set :status, to: "active"
+    end
+
+    FlagHighRisk do
+      role "Podiatrist"
+      description "Mark a patient as high-risk due to diabetes or vascular disease"
+      reference_to(Patient)
+      emits "HighRiskFlagged"
+      then_set :status, to: "high_risk"
+    end
+  end
+
+  aggregate "FootCondition", "A diagnosed condition of the foot or ankle" do
+    String :patient_name
+    String :condition_name
+    String :affected_foot
+    String :severity
+    String :onset_date
+    String :status
+    reference_to Patient
+
+    value_object "ClinicalFinding" do
+      String :finding
+      String :location
+      String :notes
+    end
+
+    DiagnoseCondition do
+      role "Podiatrist"
+      description "Record a foot or ankle condition diagnosis"
+      reference_to(Patient)
+      String :patient_name
+      String :condition_name
+      String :affected_foot
+      String :severity
+      String :onset_date
+      emits "ConditionDiagnosed"
+      then_set :patient_name, to: :patient_name
+      then_set :condition_name, to: :condition_name
+      then_set :affected_foot, to: :affected_foot
+      then_set :severity, to: :severity
+      then_set :onset_date, to: :onset_date
+      then_set :status, to: "active"
+    end
+
+    ResolveCondition do
+      role "Podiatrist"
+      description "Mark a condition as resolved after successful treatment"
+      reference_to(FootCondition)
+      given("condition must be active") { status == "active" }
+      emits "ConditionResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "Orthotic", "A custom-fabricated foot orthotic device" do
+    String :patient_name
+    String :orthotic_type
+    String :material
+    String :corrections
+    String :order_date
+    String :status
+    reference_to Patient
+    reference_to FootCondition
+
+    value_object "CastMeasurement" do
+      Float :arch_height
+      Float :heel_width
+      Float :forefoot_width
+    end
+
+    OrderOrthotic do
+      role "Podiatrist"
+      description "Prescribe a custom orthotic based on biomechanical assessment"
+      reference_to(Patient)
+      reference_to(FootCondition)
+      String :patient_name
+      String :orthotic_type
+      String :material
+      String :corrections
+      String :order_date
+      emits "OrthoticOrdered"
+      then_set :patient_name, to: :patient_name
+      then_set :orthotic_type, to: :orthotic_type
+      then_set :material, to: :material
+      then_set :corrections, to: :corrections
+      then_set :order_date, to: :order_date
+      then_set :status, to: "ordered"
+    end
+
+    FitOrthotic do
+      role "Podiatrist"
+      description "Fit and adjust the orthotic to the patient's foot"
+      reference_to(Orthotic)
+      given("must be ordered") { status == "ordered" }
+      emits "OrthoticFitted"
+      then_set :status, to: "fitted"
+    end
+
+    AdjustOrthotic do
+      role "Podiatrist"
+      description "Modify the orthotic after a wear-in period"
+      reference_to(Orthotic)
+      String :corrections
+      emits "OrthoticAdjusted"
+      then_set :corrections, to: :corrections
+    end
+  end
+
+  aggregate "FootProcedure", "A surgical or non-surgical podiatric procedure" do
+    String :patient_name
+    String :procedure_name
+    String :procedure_date
+    String :anesthesia_type
+    String :notes
+    String :status
+    reference_to Patient
+    reference_to FootCondition
+
+    ScheduleProcedure do
+      role "Podiatrist"
+      description "Plan a podiatric procedure for the patient"
+      reference_to(Patient)
+      reference_to(FootCondition)
+      String :patient_name
+      String :procedure_name
+      String :procedure_date
+      String :anesthesia_type
+      emits "ProcedureScheduled"
+      then_set :patient_name, to: :patient_name
+      then_set :procedure_name, to: :procedure_name
+      then_set :procedure_date, to: :procedure_date
+      then_set :anesthesia_type, to: :anesthesia_type
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteProcedure do
+      role "Podiatrist"
+      description "Document procedure completion and operative notes"
+      reference_to(FootProcedure)
+      String :notes
+      given("must be scheduled") { status == "scheduled" }
+      emits "ProcedureCompleted"
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "PodiatryFollowUp", "A follow-up visit after treatment or procedure" do
+    String :patient_name
+    String :reason
+    String :scheduled_date
+    String :wound_status
+    String :notes
+    String :status
+    reference_to Patient
+
+    ScheduleFollowUp do
+      role "Receptionist"
+      description "Book a follow-up appointment for post-treatment monitoring"
+      reference_to(Patient)
+      String :patient_name
+      String :reason
+      String :scheduled_date
+      emits "FollowUpScheduled"
+      then_set :patient_name, to: :patient_name
+      then_set :reason, to: :reason
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteFollowUp do
+      role "Podiatrist"
+      description "Document healing progress and follow-up findings"
+      reference_to(PodiatryFollowUp)
+      String :wound_status
+      String :notes
+      given("must be scheduled") { status == "scheduled" }
+      emits "FollowUpCompleted"
+      then_set :wound_status, to: :wound_status
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+  end
+
+  # Workflow: Register → FlagHighRisk → Diagnose → OrderOrthotic → FitOrthotic → ScheduleProcedure → CompleteProcedure → ScheduleFollowUp → CompleteFollowUp → AdjustOrthotic → ResolveCondition
+  policy "FlagHighRiskOnRegistration" do
+    on "PatientRegistered"
+    trigger "FlagHighRisk"
+  end
+
+  policy "OrderOrthoticOnDiagnosis" do
+    on "ConditionDiagnosed"
+    trigger "OrderOrthotic"
+  end
+
+  policy "FitOrthoticOnOrder" do
+    on "OrthoticOrdered"
+    trigger "FitOrthotic"
+  end
+
+  policy "ScheduleProcedureOnDiagnosis" do
+    on "ConditionDiagnosed"
+    trigger "ScheduleProcedure"
+  end
+
+  policy "ScheduleFollowUpOnProcedure" do
+    on "ProcedureCompleted"
+    trigger "ScheduleFollowUp"
+  end
+
+  policy "AdjustOrthoticOnFollowUp" do
+    on "FollowUpCompleted"
+    trigger "AdjustOrthotic"
+  end
+
+  policy "ResolveOnFollowUp" do
+    on "FollowUpCompleted"
+    trigger "ResolveCondition"
+  end
+end

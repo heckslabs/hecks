@@ -1,0 +1,245 @@
+Hecks.bluebook "SpeechTherapy" do
+  vision "Communication and swallowing rehabilitation — clients, goals, therapy sessions, exercises, and assessments"
+
+  aggregate "Client", "A person receiving speech-language pathology services" do
+    String :name
+    String :date_of_birth
+    String :referral_source
+    String :primary_disorder
+    String :status
+
+    EnrollClient do
+      role "Coordinator"
+      description "Register a new client for speech therapy services"
+      String :name
+      String :date_of_birth
+      String :referral_source
+      String :primary_disorder
+      emits "ClientEnrolled"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :referral_source, to: :referral_source
+      then_set :primary_disorder, to: :primary_disorder
+      then_set :status, to: "active"
+    end
+
+    DischargeClient do
+      role "Pathologist"
+      description "Complete the client's course of speech therapy"
+      reference_to(Client)
+      given("client must be active") { status == "active" }
+      emits "ClientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "TherapyGoal", "A measurable communication or swallowing objective" do
+    String :client_name
+    String :goal_area
+    String :description
+    String :target_criterion
+    Integer :baseline_score
+    Integer :current_score
+    String :status
+    reference_to Client
+
+    SetGoal do
+      role "Pathologist"
+      description "Establish a measurable therapy goal for the client"
+      reference_to(Client)
+      String :client_name
+      String :goal_area
+      String :description
+      String :target_criterion
+      Integer :baseline_score
+      emits "GoalSet"
+      then_set :client_name, to: :client_name
+      then_set :goal_area, to: :goal_area
+      then_set :description, to: :description
+      then_set :target_criterion, to: :target_criterion
+      then_set :baseline_score, to: :baseline_score
+      then_set :current_score, to: :baseline_score
+      then_set :status, to: "in_progress"
+    end
+
+    UpdateProgress do
+      role "Pathologist"
+      description "Record new score toward the goal"
+      reference_to(TherapyGoal)
+      Integer :current_score
+      emits "ProgressUpdated"
+      then_set :current_score, to: :current_score
+    end
+
+    AchieveGoal do
+      role "Pathologist"
+      description "Mark the goal as achieved when target criterion is met"
+      reference_to(TherapyGoal)
+      given("goal must be in progress") { status == "in_progress" }
+      emits "GoalAchieved"
+      then_set :status, to: "achieved"
+    end
+  end
+
+  aggregate "TherapySession", "A scheduled session between pathologist and client" do
+    String :client_name
+    String :pathologist_name
+    String :session_date
+    String :session_type
+    list_of(ActivityRecord) :activities
+    String :notes
+    String :status
+    reference_to Client
+
+    value_object "ActivityRecord" do
+      String :exercise_name
+      Integer :trials
+      Integer :correct_responses
+      String :cueing_level
+    end
+
+    ScheduleSession do
+      role "Coordinator"
+      description "Book a speech therapy session for a client"
+      reference_to(Client)
+      String :client_name
+      String :pathologist_name
+      String :session_date
+      String :session_type
+      emits "SessionScheduled"
+      then_set :client_name, to: :client_name
+      then_set :pathologist_name, to: :pathologist_name
+      then_set :session_date, to: :session_date
+      then_set :session_type, to: :session_type
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteSession do
+      role "Pathologist"
+      description "Document session activities and clinical notes"
+      reference_to(TherapySession)
+      String :notes
+      given("session must be scheduled") { status == "scheduled" }
+      emits "SessionCompleted"
+      then_set :notes, to: :notes
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Exercise", "A therapeutic exercise targeting a specific communication skill" do
+    String :name
+    String :target_skill
+    String :difficulty
+    String :instructions
+    String :modality
+
+    value_object "MaterialNeeded" do
+      String :item_name
+      String :description
+    end
+
+    CreateExercise do
+      role "Pathologist"
+      description "Design a new speech therapy exercise for the exercise library"
+      String :name
+      String :target_skill
+      String :difficulty
+      String :instructions
+      String :modality
+      emits "ExerciseCreated"
+      then_set :name, to: :name
+      then_set :target_skill, to: :target_skill
+      then_set :difficulty, to: :difficulty
+      then_set :instructions, to: :instructions
+      then_set :modality, to: :modality
+    end
+
+    ModifyExercise do
+      role "Pathologist"
+      description "Adjust exercise parameters for a specific client need"
+      reference_to(Exercise)
+      String :difficulty
+      String :instructions
+      emits "ExerciseModified"
+      then_set :difficulty, to: :difficulty
+      then_set :instructions, to: :instructions
+    end
+  end
+
+  aggregate "SpeechAssessment", "A standardized evaluation of communication abilities" do
+    String :client_name
+    String :assessment_tool
+    String :assessment_date
+    list_of(SubtestResult) :subtest_results
+    Integer :composite_score
+    String :severity_rating
+    reference_to Client
+
+    value_object "SubtestResult" do
+      String :subtest_name
+      Integer :raw_score
+      Integer :standard_score
+      Integer :percentile
+    end
+
+    AdministerAssessment do
+      role "Pathologist"
+      description "Conduct a standardized speech-language assessment"
+      reference_to(Client)
+      String :client_name
+      String :assessment_tool
+      String :assessment_date
+      emits "AssessmentAdministered"
+      then_set :client_name, to: :client_name
+      then_set :assessment_tool, to: :assessment_tool
+      then_set :assessment_date, to: :assessment_date
+    end
+
+    ScoreAssessment do
+      role "Pathologist"
+      description "Calculate composite scores and severity rating"
+      reference_to(SpeechAssessment)
+      Integer :composite_score
+      String :severity_rating
+      emits "AssessmentScored"
+      then_set :composite_score, to: :composite_score
+      then_set :severity_rating, to: :severity_rating
+    end
+  end
+
+  # Workflow: Enroll → Assess → Score → SetGoal → ScheduleSession → CompleteSession → UpdateProgress → AchieveGoal → Discharge
+  policy "AssessOnEnrollment" do
+    on "ClientEnrolled"
+    trigger "AdministerAssessment"
+  end
+
+  policy "ScoreAfterAdministration" do
+    on "AssessmentAdministered"
+    trigger "ScoreAssessment"
+  end
+
+  policy "SetGoalOnScore" do
+    on "AssessmentScored"
+    trigger "SetGoal"
+  end
+
+  policy "ScheduleSessionOnGoal" do
+    on "GoalSet"
+    trigger "ScheduleSession"
+  end
+
+  policy "UpdateProgressOnSession" do
+    on "SessionCompleted"
+    trigger "UpdateProgress"
+  end
+
+  policy "AchieveGoalOnProgress" do
+    on "ProgressUpdated"
+    trigger "AchieveGoal"
+  end
+
+  policy "DischargeOnGoalAchieved" do
+    on "GoalAchieved"
+    trigger "DischargeClient"
+  end
+end

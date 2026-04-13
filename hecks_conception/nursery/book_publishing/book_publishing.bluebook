@@ -1,0 +1,201 @@
+Hecks.bluebook "BookPublishing" do
+  aggregate "Manuscript", "An author's manuscript moving through editorial pipeline" do
+    String :title
+    String :genre
+    String :author_name
+    Integer :word_count
+    String :status, default: "submitted"
+
+    value_object "Synopsis" do
+      String :hook
+      String :summary
+      String :target_audience
+      Integer :comparable_titles_count
+    end
+
+    SubmitManuscript do
+      description "Submit a new manuscript for editorial consideration"
+      String :title
+      String :genre
+      String :author_name
+      Integer :word_count
+      emits "ManuscriptSubmitted"
+    end
+
+    AcceptManuscript do
+      description "Accept the manuscript for publication"
+      reference_to(Manuscript)
+      given { status == "submitted" }
+      emits "ManuscriptAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    RejectManuscript do
+      description "Decline the manuscript with editorial feedback"
+      reference_to(Manuscript)
+      String :rejection_reason
+      given { status == "submitted" }
+      emits "ManuscriptRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  aggregate "EditorialPass", "A round of editing — developmental, copy, or proofread" do
+    String :pass_type
+    String :editor_name
+    String :status, default: "assigned"
+    Integer :change_count
+    reference_to(Manuscript)
+
+    AssignEditor do
+      description "Assign an editor for a specific editorial pass"
+      reference_to(Manuscript)
+      String :pass_type
+      String :editor_name
+      emits "EditorAssigned"
+    end
+
+    CompletePass do
+      description "Finish an editorial pass and return to author"
+      reference_to(EditorialPass)
+      Integer :change_count
+      given { status == "assigned" }
+      emits "PassCompleted"
+      then_set :status, to: "completed"
+      then_set :change_count, to: :change_count
+    end
+
+    RequestRevision do
+      description "Send the manuscript back to the author for revisions"
+      reference_to(EditorialPass)
+      String :revision_notes
+      emits "RevisionRequested"
+    end
+  end
+
+  aggregate "CoverDesign", "Book cover artwork and typography" do
+    String :designer_name
+    String :art_style
+    String :status, default: "briefed"
+    Integer :revision_number
+    reference_to(Manuscript)
+
+    value_object "CoverSpec" do
+      String :trim_size
+      Integer :spine_width_mm
+      String :finish_type
+      String :color_profile
+    end
+
+    BriefDesigner do
+      description "Provide the cover designer with manuscript details and vision"
+      reference_to(Manuscript)
+      String :designer_name
+      String :art_style
+      emits "DesignerBriefed"
+    end
+
+    ApproveCover do
+      description "Sign off on the final cover design"
+      reference_to(CoverDesign)
+      given { status == "briefed" }
+      emits "CoverApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  aggregate "PrintRun", "A production print run with quantity and binding specs" do
+    Integer :quantity
+    String :binding_type
+    String :paper_stock
+    String :status, default: "ordered"
+    reference_to(Manuscript)
+
+    OrderPrintRun do
+      description "Place a print order with the printer"
+      reference_to(Manuscript)
+      Integer :quantity
+      String :binding_type
+      String :paper_stock
+      emits "PrintRunOrdered"
+    end
+
+    ReceiveShipment do
+      description "Receive printed books from the printer"
+      reference_to(PrintRun)
+      Integer :received_quantity
+      given { status == "ordered" }
+      emits "ShipmentReceived"
+      then_set :status, to: "received"
+    end
+  end
+
+  aggregate "RoyaltyAccount", "Author royalty tracking per title" do
+    Float :advance_paid
+    Float :earned_royalties
+    Float :royalty_rate
+    String :status, default: "unearned"
+    reference_to(Manuscript)
+
+    SetUpRoyalty do
+      description "Establish royalty terms for an accepted manuscript"
+      reference_to(Manuscript)
+      Float :advance_paid
+      Float :royalty_rate
+      emits "RoyaltySetUp"
+    end
+
+    RecordSales do
+      description "Apply sales revenue against the royalty advance"
+      reference_to(RoyaltyAccount)
+      Integer :units_sold
+      Float :revenue
+      emits "SalesRecorded"
+    end
+  end
+
+  policy "AssignEditorOnAcceptance" do
+    on "ManuscriptAccepted"
+    trigger "AssignEditor"
+  end
+
+  policy "SetUpRoyaltyOnAcceptance" do
+    on "ManuscriptAccepted"
+    trigger "SetUpRoyalty"
+  end
+
+  policy "BriefDesignerOnPassComplete" do
+    on "PassCompleted"
+    trigger "BriefDesigner"
+  end
+
+  policy "ApproveCoverOnBrief" do
+    on "DesignerBriefed"
+    trigger "ApproveCover"
+  end
+
+  policy "OrderPrintOnCoverApproval" do
+    on "CoverApproved"
+    trigger "OrderPrintRun"
+  end
+
+  policy "ReceiveOnPrintOrder" do
+    on "PrintRunOrdered"
+    trigger "ReceiveShipment"
+  end
+
+  policy "RecordSalesOnShipment" do
+    on "ShipmentReceived"
+    trigger "RecordSales"
+  end
+
+  policy "AcceptManuscriptOnSubmission" do
+    on "ManuscriptSubmitted"
+    trigger "AcceptManuscript"
+  end
+
+  policy "CompletePassOnEditorAssigned" do
+    on "EditorAssigned"
+    trigger "CompletePass"
+  end
+end

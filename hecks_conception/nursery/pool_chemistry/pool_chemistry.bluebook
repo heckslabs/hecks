@@ -1,0 +1,255 @@
+Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
+  vision "Chemistry meets pool maintenance — reactions, pH balance, chlorine levels, algae control, and dosing curves"
+  category "crossover"
+
+  aggregate "WaterTest", "A pool water test — pH, chlorine, alkalinity, temperature" do
+    String :test_id
+    String :pool_name
+    Float :ph
+    Float :free_chlorine_ppm
+    Float :total_alkalinity_ppm
+    Float :temperature_c
+    String :timestamp
+    String :status
+
+    value_object "ChemicalBalance" do
+      Float :langelier_index
+      String :corrosion_tendency
+      String :scale_tendency
+    end
+
+    RecordWaterTest do
+      role "Technician"
+      description "Record pool water chemistry test results"
+      String :test_id
+      String :pool_name
+      Float :ph
+      Float :free_chlorine_ppm
+      Float :total_alkalinity_ppm
+      Float :temperature_c
+      String :timestamp
+      emits "WaterTestRecorded"
+      then_set :test_id, to: :test_id
+      then_set :pool_name, to: :pool_name
+      then_set :ph, to: :ph
+      then_set :free_chlorine_ppm, to: :free_chlorine_ppm
+      then_set :total_alkalinity_ppm, to: :total_alkalinity_ppm
+      then_set :temperature_c, to: :temperature_c
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "recorded"
+    end
+
+    AnalyzeChemistry do
+      role "System"
+      description "Analyze water chemistry and calculate Langelier saturation index"
+      reference_to(WaterTest)
+      given { status == "recorded" }
+      emits "ChemistryAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordWaterTest" => "recorded", from: "pending"
+      transition "AnalyzeChemistry" => "analyzed", from: "recorded"
+    end
+  end
+
+  aggregate "ChemicalReaction", "A chemical reaction in pool water — reagents, products, equilibrium" do
+    String :reaction_name
+    String :reagent_a
+    String :reagent_b
+    String :product
+    Float :equilibrium_constant
+    Float :rate_constant
+    String :status
+
+    value_object "ReactionKinetics" do
+      Float :activation_energy_kj
+      Float :temperature_dependence
+      String :order
+    end
+
+    DefineReaction do
+      role "Chemist"
+      description "Define a chemical reaction relevant to pool chemistry"
+      String :reaction_name
+      String :reagent_a
+      String :reagent_b
+      String :product
+      Float :equilibrium_constant
+      Float :rate_constant
+      emits "ReactionDefined"
+      then_set :reaction_name, to: :reaction_name
+      then_set :reagent_a, to: :reagent_a
+      then_set :reagent_b, to: :reagent_b
+      then_set :product, to: :product
+      then_set :equilibrium_constant, to: :equilibrium_constant
+      then_set :rate_constant, to: :rate_constant
+      then_set :status, to: "defined"
+    end
+
+    CalculateEquilibrium do
+      role "System"
+      description "Calculate equilibrium concentrations at given temperature"
+      reference_to(ChemicalReaction)
+      given { status == "defined" }
+      emits "EquilibriumCalculated"
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DefineReaction" => "defined", from: "undefined"
+    end
+  end
+
+  aggregate "DosingPlan", "A chemical dosing plan — target levels, chemicals, amounts, timing" do
+    String :pool_name
+    String :chemical_name
+    Float :current_level
+    Float :target_level
+    Float :dose_amount_ml
+    String :dosing_method
+    String :status
+
+    value_object "DosingCurve" do
+      Float :volume_liters
+      Float :dose_per_ppm_ml
+      Float :contact_time_min
+    end
+
+    list_of "DosingStep" do
+      Integer :step_number
+      String :chemical
+      Float :amount_ml
+      String :timing
+    end
+
+    CreateDosingPlan do
+      role "Technician"
+      description "Create a dosing plan to bring pool chemistry to target levels"
+      String :pool_name
+      String :chemical_name
+      Float :current_level
+      Float :target_level
+      Float :dose_amount_ml
+      String :dosing_method
+      emits "DosingPlanCreated"
+      then_set :pool_name, to: :pool_name
+      then_set :chemical_name, to: :chemical_name
+      then_set :current_level, to: :current_level
+      then_set :target_level, to: :target_level
+      then_set :dose_amount_ml, to: :dose_amount_ml
+      then_set :dosing_method, to: :dosing_method
+      then_set :status, to: "created"
+    end
+
+    ExecuteDosing do
+      role "Technician"
+      description "Apply the chemical dose to the pool"
+      reference_to(DosingPlan)
+      given { status == "created" }
+      emits "DosingExecuted"
+      then_set :status, to: "executed"
+    end
+
+    VerifyDosing do
+      role "Technician"
+      description "Test water after dosing to verify target levels reached"
+      reference_to(DosingPlan)
+      given { status == "executed" }
+      emits "DosingVerified"
+      then_set :status, to: "verified"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CreateDosingPlan" => "created", from: "pending"
+      transition "ExecuteDosing" => "executed", from: "created"
+      transition "VerifyDosing" => "verified", from: "executed"
+    end
+  end
+
+  aggregate "AlgaeIncident", "An algae bloom incident — type, severity, treatment, prevention" do
+    String :pool_name
+    String :algae_type
+    String :severity
+    String :cause
+    String :treatment_applied
+    String :status
+
+    value_object "AlgaeProfile" do
+      String :species
+      Float :growth_rate_per_day
+      String :preferred_conditions
+    end
+
+    ReportAlgae do
+      role "Technician"
+      description "Report algae growth in the pool"
+      String :pool_name
+      String :algae_type
+      String :severity
+      String :cause
+      emits "AlgaeReported"
+      then_set :pool_name, to: :pool_name
+      then_set :algae_type, to: :algae_type
+      then_set :severity, to: :severity
+      then_set :cause, to: :cause
+      then_set :status, to: "reported"
+    end
+
+    TreatAlgae do
+      role "Technician"
+      description "Apply algaecide treatment based on algae type"
+      reference_to(AlgaeIncident)
+      String :treatment_applied
+      given { status == "reported" }
+      emits "AlgaeTreated"
+      then_set :treatment_applied, to: :treatment_applied
+      then_set :status, to: "treated"
+    end
+
+    ClearAlgae do
+      role "Technician"
+      description "Confirm algae has been eliminated"
+      reference_to(AlgaeIncident)
+      given { status == "treated" }
+      emits "AlgaeCleared"
+      then_set :status, to: "cleared"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "ReportAlgae" => "reported", from: "clear"
+      transition "TreatAlgae" => "treated", from: "reported"
+      transition "ClearAlgae" => "cleared", from: "treated"
+    end
+  end
+
+  policy "AnalyzeOnTest" do
+    on "WaterTestRecorded"
+    trigger "AnalyzeChemistry"
+  end
+
+  policy "DoseOnAnalysis" do
+    on "ChemistryAnalyzed"
+    trigger "CreateDosingPlan"
+  end
+
+  policy "ExecuteOnDosePlan" do
+    on "DosingPlanCreated"
+    trigger "ExecuteDosing"
+  end
+
+  policy "VerifyOnExecute" do
+    on "DosingExecuted"
+    trigger "VerifyDosing"
+  end
+
+  policy "TreatAlgaeOnReport" do
+    on "AlgaeReported"
+    trigger "TreatAlgae"
+  end
+
+  policy "EquilibriumOnDefine" do
+    on "ReactionDefined"
+    trigger "CalculateEquilibrium"
+  end
+end

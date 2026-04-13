@@ -1,0 +1,252 @@
+Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
+  vision "Running an SEO agency — managing clients, tracking keywords, monitoring rankings, performing audits, and building backlinks"
+  category "technology"
+
+  aggregate "Client", "A business hiring the agency for search optimization" do
+    String :client_name
+    String :website_url
+    String :industry
+    String :contact_email
+    String :plan_tier
+    String :status
+    list_of(Goal) :goals
+
+    value_object "Goal" do
+      String :metric
+      String :target_value
+      String :deadline
+    end
+
+    SignClient do
+      role "AccountManager"
+      description "Onboard a new client with their website and goals"
+      String :client_name
+      String :website_url
+      String :industry
+      String :contact_email
+      String :plan_tier
+      emits "ClientSigned"
+    end
+
+    PauseEngagement do
+      description "Temporarily halt SEO work for a client"
+      reference_to(Client)
+      given("client is active") { status == "active" }
+      emits "EngagementPaused"
+    end
+
+    TerminateClient do
+      description "End the agency relationship with a client"
+      reference_to(Client)
+      emits "ClientTerminated"
+    end
+  end
+
+  aggregate "Keyword", "A search term being tracked for ranking performance" do
+    String :phrase
+    Integer :search_volume
+    Float :difficulty_score
+    String :intent_type
+    String :status
+    reference_to Client
+    list_of(RankSnapshot) :rank_history
+
+    value_object "RankSnapshot" do
+      Integer :position
+      String :search_engine
+      String :recorded_at
+    end
+
+    TargetKeyword do
+      role "SEOSpecialist"
+      description "Add a keyword to a client's tracking list"
+      String :phrase
+      Integer :search_volume
+      Float :difficulty_score
+      String :intent_type
+      reference_to(Client)
+      emits "KeywordTargeted"
+    end
+
+    RecordRanking do
+      description "Log the current search position for a keyword"
+      reference_to(Keyword)
+      Integer :position
+      String :search_engine
+      emits "RankingRecorded"
+    end
+
+    DropKeyword do
+      description "Remove a keyword from active tracking"
+      reference_to(Keyword)
+      emits "KeywordDropped"
+    end
+  end
+
+  aggregate "SiteAudit", "A technical analysis of a client website for SEO health" do
+    String :audit_id
+    String :audit_type
+    Integer :pages_crawled
+    Integer :issues_found
+    String :status
+    reference_to Client
+    list_of(AuditIssue) :issues
+
+    value_object "AuditIssue" do
+      String :page_url
+      String :issue_type
+      String :severity
+      String :recommendation
+    end
+
+    RunAudit do
+      role "SEOSpecialist"
+      description "Crawl a client site and identify technical SEO issues"
+      String :audit_id
+      String :audit_type
+      Integer :pages_crawled
+      reference_to(Client)
+      emits "AuditRun"
+    end
+
+    LogIssue do
+      description "Record an SEO issue found during a site audit"
+      reference_to(SiteAudit)
+      String :page_url
+      String :issue_type
+      String :severity
+      emits "IssueLogged"
+    end
+
+    FinalizeAudit do
+      description "Complete the audit and generate the report"
+      reference_to(SiteAudit)
+      given("audit is in progress") { status == "in_progress" }
+      emits "AuditFinalized"
+    end
+  end
+
+  aggregate "Backlink", "An inbound link from an external site to a client page" do
+    String :backlink_id
+    String :source_url
+    String :target_url
+    Float :domain_authority
+    String :anchor_text
+    String :status
+    reference_to Client
+
+    value_object "LinkMetric" do
+      Float :trust_flow
+      Float :citation_flow
+      String :checked_at
+    end
+
+    AcquireBacklink do
+      role "OutreachSpecialist"
+      description "Secure a new backlink from an external domain"
+      String :backlink_id
+      String :source_url
+      String :target_url
+      Float :domain_authority
+      String :anchor_text
+      reference_to(Client)
+      emits "BacklinkAcquired"
+    end
+
+    VerifyBacklink do
+      description "Confirm a backlink is still live and passing value"
+      reference_to(Backlink)
+      emits "BacklinkVerified"
+    end
+
+    DisavowBacklink do
+      description "Flag a toxic backlink for search engine disavowal"
+      reference_to(Backlink)
+      given("backlink is active") { status == "active" }
+      emits "BacklinkDisavowed"
+    end
+  end
+
+  aggregate "RankingReport", "A periodic summary of keyword ranking performance" do
+    String :report_id
+    String :period
+    Integer :keywords_improved
+    Integer :keywords_declined
+    Float :average_position
+    String :status
+    reference_to Client
+
+    value_object "PositionSummary" do
+      String :keyword_phrase
+      Integer :start_position
+      Integer :end_position
+    end
+
+    GenerateReport do
+      role "AccountManager"
+      description "Compile a ranking performance report for a client"
+      String :report_id
+      String :period
+      reference_to(Client)
+      emits "ReportGenerated"
+    end
+
+    DeliverReport do
+      description "Send the ranking report to the client"
+      reference_to(RankingReport)
+      given("report is ready") { status == "ready" }
+      emits "ReportDelivered"
+    end
+
+    ArchiveReport do
+      description "Move an old report to long-term storage"
+      reference_to(RankingReport)
+      emits "ReportArchived"
+    end
+  end
+
+  lifecycle "SEOEngagement" do
+    state "signed"
+    state "audited"
+    state "keywords_targeted"
+    state "links_building"
+    state "ranking"
+    state "reporting"
+
+    transition from: "signed", to: "audited", on: "AuditRun"
+    transition from: "audited", to: "keywords_targeted", on: "KeywordTargeted"
+    transition from: "keywords_targeted", to: "links_building", on: "BacklinkAcquired"
+    transition from: "links_building", to: "ranking", on: "RankingRecorded"
+    transition from: "ranking", to: "reporting", on: "ReportGenerated"
+  end
+
+  policy "ClientSignedRunAudit" do
+    on "ClientSigned"
+    trigger "RunAudit"
+  end
+
+  policy "AuditFinalizedTargetKeywords" do
+    on "AuditFinalized"
+    trigger "TargetKeyword"
+  end
+
+  policy "KeywordTargetedAcquireBacklink" do
+    on "KeywordTargeted"
+    trigger "AcquireBacklink"
+  end
+
+  policy "BacklinkAcquiredRecordRanking" do
+    on "BacklinkAcquired"
+    trigger "RecordRanking"
+  end
+
+  policy "RankingRecordedGenerateReport" do
+    on "RankingRecorded"
+    trigger "GenerateReport"
+  end
+
+  policy "ReportGeneratedDeliverReport" do
+    on "ReportGenerated"
+    trigger "DeliverReport"
+  end
+end

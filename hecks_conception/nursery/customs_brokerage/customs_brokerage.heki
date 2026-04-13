@@ -1,0 +1,227 @@
+Hecks.bluebook "CustomsBrokerage" do
+  aggregate "CustomsEntry" do
+    String :entry_id
+    String :entry_type
+    String :importer_name
+    String :country_of_origin
+    Float :declared_value
+    String :currency
+    String :status
+    list_of "TariffLine"
+
+    FileEntry do
+      description "Prepare and file customs entry with declaration details"
+      String :entry_type
+      String :importer_name
+      String :country_of_origin
+      reference_to "CustomsEntry"
+      emits "EntryFiled"
+    end
+
+    AmendEntry do
+      description "Submit post-entry amendment to correct classification or value"
+      String :amendment_reason
+      String :amended_field
+      reference_to "CustomsEntry"
+      emits "EntryAmended"
+    end
+
+    LiquidateEntry do
+      description "Finalize duty calculation and close entry after CBP review"
+      Float :final_duty_amount
+      reference_to "CustomsEntry"
+      emits "EntryLiquidated"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "FileEntry" => "filed", from: "draft"
+      transition "AmendEntry" => "amended", from: "filed"
+      transition "LiquidateEntry" => "liquidated", from: "filed"
+    end
+
+    policy "Entries must be filed within 15 days of arrival"
+    policy "Amended entries require supporting documentation"
+
+    given "An entry is filed for electronics from China" do
+      String :entry_type, "Consumption Entry"
+      String :importer_name, "TechParts Inc"
+      String :country_of_origin, "China"
+    end
+  end
+
+  aggregate "TariffLine" do
+    String :line_id
+    String :hs_code
+    String :description_text
+    Float :quantity
+    String :unit_of_measure
+    Float :dutiable_value
+    Float :duty_rate_percent
+    String :status
+
+    value_object "DutyCalculation" do
+      Float :dutiable_value
+      Float :duty_rate_percent
+      Float :duty_amount
+      Float :mpf_amount
+      Float :hmf_amount
+    end
+
+    ClassifyGood do
+      description "Determine harmonized tariff classification for imported good"
+      String :hs_code
+      String :description_text
+      reference_to "TariffLine"
+      emits "GoodClassified"
+    end
+
+    CalculateDuty do
+      description "Compute duty amount based on classification and declared value"
+      Float :dutiable_value
+      reference_to "TariffLine"
+      emits "DutyCalculated"
+    end
+
+    ApplyPreferentialRate do
+      description "Apply reduced duty rate under free trade agreement"
+      String :trade_agreement
+      Float :preferential_rate
+      reference_to "TariffLine"
+      emits "PreferentialRateApplied"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ClassifyGood" => "classified", from: "pending"
+      transition "CalculateDuty" => "assessed", from: "classified"
+      transition "ApplyPreferentialRate" => "preferential", from: "assessed"
+    end
+
+    policy "Classification must follow General Rules of Interpretation"
+  end
+
+  aggregate "BrokerDocument" do
+    String :document_id
+    String :document_type
+    String :entry_id
+    String :source
+    String :received_date
+    String :status
+
+    ReceiveDocument do
+      description "Receive and log trade document from importer or carrier"
+      String :document_type
+      String :source
+      reference_to "CustomsEntry"
+      emits "DocumentReceived"
+    end
+
+    ValidateDocument do
+      description "Verify document completeness and accuracy against entry data"
+      String :validator
+      String :validation_result
+      reference_to "BrokerDocument"
+      emits "DocumentValidated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ReceiveDocument" => "received", from: "pending"
+      transition "ValidateDocument" => "validated", from: "received"
+    end
+
+    policy "Commercial invoice and packing list are mandatory for all entries"
+  end
+
+  aggregate "CBPInspection" do
+    String :inspection_id
+    String :entry_id
+    String :inspection_type
+    String :exam_site
+    String :status
+
+    value_object "ExamResult" do
+      String :finding
+      String :action_taken
+      Float :additional_duty
+      Integer :days_delayed
+    end
+
+    NotifyExam do
+      description "Record CBP hold notification for physical or document examination"
+      String :inspection_type
+      String :exam_site
+      reference_to "CustomsEntry"
+      emits "ExamNotified"
+    end
+
+    ReportExamResult do
+      description "Submit exam findings and request cargo release"
+      String :finding
+      String :action_taken
+      reference_to "CBPInspection"
+      emits "ExamResultReported"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "NotifyExam" => "held", from: "clear"
+      transition "ReportExamResult" => "examined", from: "held"
+    end
+
+    policy "Exam cargo must be available at designated site within 5 days"
+  end
+
+  aggregate "EntryRelease" do
+    String :release_id
+    String :entry_id
+    String :release_type
+    String :release_date
+    Float :total_duty_paid
+    String :status
+
+    ProcessRelease do
+      description "Process customs release after duty payment and compliance check"
+      String :release_type
+      Float :total_duty_paid
+      reference_to "CustomsEntry"
+      emits "ReleaseProcessed"
+    end
+
+    NotifyImporter do
+      description "Notify importer that cargo is cleared and available for pickup"
+      String :notification_method
+      reference_to "EntryRelease"
+      emits "ImporterNotified"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ProcessRelease" => "released", from: "pending"
+      transition "NotifyImporter" => "notified", from: "released"
+    end
+
+    policy "Duties must be paid before cargo release"
+  end
+
+  policy "ClassifyGoodOnDocumentValidated" do
+    on "DocumentValidated"
+    trigger "ClassifyGood"
+  end
+
+  policy "CalculateDutyOnGoodClassified" do
+    on "GoodClassified"
+    trigger "CalculateDuty"
+  end
+
+  policy "FileEntryOnDutyCalculated" do
+    on "DutyCalculated"
+    trigger "FileEntry"
+  end
+
+  policy "ProcessReleaseOnEntryFiled" do
+    on "EntryFiled"
+    trigger "ProcessRelease"
+  end
+
+  policy "NotifyImporterOnReleaseProcessed" do
+    on "ReleaseProcessed"
+    trigger "NotifyImporter"
+  end
+end

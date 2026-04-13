@@ -1,0 +1,258 @@
+Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
+  vision "Running an API marketplace — listing APIs, onboarding consumers, issuing keys, enforcing rate limits, and billing usage"
+  category "technology"
+
+  aggregate "APIProduct", "A published API available for consumption" do
+    String :api_name
+    String :version
+    String :description
+    String :base_url
+    String :auth_method
+    String :status
+    list_of(Endpoint) :endpoints
+
+    value_object "Endpoint" do
+      String :method
+      String :path
+      String :description
+    end
+
+    PublishAPI do
+      role "APIProvider"
+      description "List a new API product on the marketplace"
+      String :api_name
+      String :version
+      String :description
+      String :base_url
+      String :auth_method
+      emits "APIPublished"
+    end
+
+    DeprecateAPI do
+      description "Mark an API version as deprecated with a sunset date"
+      reference_to(APIProduct)
+      String :sunset_date
+      emits "APIDeprecated"
+    end
+
+    RetireAPI do
+      description "Permanently remove an API from the marketplace"
+      reference_to(APIProduct)
+      given("api is deprecated") { status == "deprecated" }
+      emits "APIRetired"
+    end
+  end
+
+  aggregate "Consumer", "A developer or organization consuming APIs" do
+    String :consumer_name
+    String :email
+    String :organization
+    String :plan
+    String :status
+    list_of(Subscription) :subscriptions
+
+    value_object "Subscription" do
+      String :api_name
+      String :subscribed_at
+      String :tier
+    end
+
+    RegisterConsumer do
+      role "DeveloperPortal"
+      description "Create a consumer account on the marketplace"
+      String :consumer_name
+      String :email
+      String :organization
+      String :plan
+      emits "ConsumerRegistered"
+    end
+
+    SubscribeToAPI do
+      description "Add an API product to a consumer's subscriptions"
+      reference_to(Consumer)
+      String :api_name
+      String :tier
+      emits "ConsumerSubscribed"
+    end
+
+    SuspendConsumer do
+      description "Freeze a consumer account for abuse or non-payment"
+      reference_to(Consumer)
+      given("consumer is active") { status == "active" }
+      emits "ConsumerSuspended"
+    end
+  end
+
+  aggregate "APIKey", "A credential granting access to subscribed APIs" do
+    String :key_id
+    String :key_hash
+    String :label
+    String :scope
+    String :expires_at
+    String :status
+    reference_to Consumer
+
+    value_object "KeyPermission" do
+      String :api_name
+      String :allowed_methods
+      String :granted_at
+    end
+
+    IssueKey do
+      role "DeveloperPortal"
+      description "Generate a new API key for a consumer"
+      String :key_id
+      String :label
+      String :scope
+      String :expires_at
+      reference_to(Consumer)
+      emits "KeyIssued"
+    end
+
+    RevokeKey do
+      description "Invalidate an API key immediately"
+      reference_to(APIKey)
+      emits "KeyRevoked"
+    end
+
+    RotateKey do
+      description "Replace an existing key with a new one"
+      reference_to(APIKey)
+      given("key is active") { status == "active" }
+      emits "KeyRotated"
+    end
+  end
+
+  aggregate "RateLimitPolicy", "A throttling rule controlling API call frequency" do
+    String :policy_name
+    Integer :requests_per_minute
+    Integer :requests_per_day
+    Integer :burst_limit
+    String :status
+    reference_to APIProduct
+
+    value_object "ThrottleEvent" do
+      String :consumer_id
+      Integer :request_count
+      String :throttled_at
+    end
+
+    DefineRateLimit do
+      role "PlatformAdmin"
+      description "Set rate limiting thresholds for an API product"
+      String :policy_name
+      Integer :requests_per_minute
+      Integer :requests_per_day
+      Integer :burst_limit
+      reference_to(APIProduct)
+      emits "RateLimitDefined"
+    end
+
+    AdjustLimit do
+      description "Modify rate limit thresholds for an existing policy"
+      reference_to(RateLimitPolicy)
+      Integer :requests_per_minute
+      Integer :requests_per_day
+      emits "LimitAdjusted"
+    end
+
+    EnforceThrottle do
+      description "Throttle a consumer who exceeded rate limits"
+      reference_to(RateLimitPolicy)
+      String :consumer_id
+      emits "ConsumerThrottled"
+    end
+  end
+
+  aggregate "UsageBill", "A charge generated from API consumption metering" do
+    String :bill_id
+    Float :amount
+    Integer :total_calls
+    String :billing_period
+    String :status
+    reference_to Consumer
+
+    value_object "BillLine" do
+      String :api_name
+      Integer :call_count
+      Float :unit_price
+      Float :line_total
+    end
+
+    GenerateBill do
+      role "BillingEngine"
+      description "Create an invoice based on metered API usage"
+      String :bill_id
+      Float :amount
+      Integer :total_calls
+      String :billing_period
+      reference_to(Consumer)
+      emits "BillGenerated"
+    end
+
+    CollectPayment do
+      description "Process payment for a usage bill"
+      reference_to(UsageBill)
+      given("bill is unpaid") { status == "unpaid" }
+      emits "PaymentCollected"
+    end
+
+    WaiveBill do
+      description "Write off a bill as a goodwill credit"
+      reference_to(UsageBill)
+      String :waiver_reason
+      emits "BillWaived"
+    end
+  end
+
+  lifecycle "APILifecycle" do
+    state "draft"
+    state "published"
+    state "deprecated"
+    state "retired"
+
+    transition from: "draft", to: "published", on: "APIPublished"
+    transition from: "published", to: "deprecated", on: "APIDeprecated"
+    transition from: "deprecated", to: "retired", on: "APIRetired"
+  end
+
+  policy "RegisteredIssueKey" do
+    on "ConsumerRegistered"
+    trigger "IssueKey"
+  end
+
+  policy "SubscribedDefineRateLimit" do
+    on "ConsumerSubscribed"
+    trigger "DefineRateLimit"
+  end
+
+  policy "ThrottledGenerateBill" do
+    on "ConsumerThrottled"
+    trigger "GenerateBill"
+  end
+
+  policy "BillGeneratedCollectPayment" do
+    on "BillGenerated"
+    trigger "CollectPayment"
+  end
+
+  policy "NonPaymentSuspendConsumer" do
+    on "BillGenerated"
+    trigger "SuspendConsumer"
+  end
+
+  policy "SuspendedRevokeKey" do
+    on "ConsumerSuspended"
+    trigger "RevokeKey"
+  end
+
+  policy "SubscribeOnRegister" do
+    on "ConsumerRegistered"
+    trigger "SubscribeToAPI"
+  end
+
+  policy "RotateKeyOnSubscribe" do
+    on "ConsumerSubscribed"
+    trigger "RotateKey"
+  end
+end

@@ -1,0 +1,187 @@
+Hecks.bluebook "SmartAircraft" do
+  vision "Cross-wire airline operations with IoT platform for smart aircraft fleet management"
+  core
+
+  aggregate "Aircraft" do
+    description "An aircraft in the fleet with IoT sensor array"
+    attribute :tail_number
+    attribute :model
+    attribute :total_hours, Float
+    attribute :sensors, list_of(SensorConfig)
+    attribute :status, default: "active"
+
+    value_object "SensorConfig" do
+      attribute :sensor_id
+      attribute :sensor_type
+      attribute :location
+    end
+
+    command "RegisterAircraft" do
+      role "FleetManager"
+      goal "Register an aircraft in the fleet"
+      attribute :tail_number
+      attribute :model
+    end
+
+    command "InstallSensor" do
+      role "AvionicsEngineer"
+      goal "Install an IoT sensor on the aircraft"
+      reference_to Aircraft
+      attribute :sensor_id
+      attribute :sensor_type
+      attribute :location
+      given("max 200 sensors") { sensors.size < 200 }
+      then_set :sensors, append: { sensor_id: :sensor_id, sensor_type: :sensor_type, location: :location }
+    end
+
+    command "GroundAircraft" do
+      role "FleetManager"
+      goal "Ground an aircraft for maintenance"
+      reference_to Aircraft
+    end
+  end
+
+  aggregate "Flight" do
+    description "A scheduled flight operation"
+    reference_to Aircraft
+    attribute :flight_number
+    attribute :origin
+    attribute :destination
+    attribute :passengers, Integer
+    attribute :status, default: "scheduled"
+
+    value_object "FlightLeg" do
+      attribute :departure_time
+      attribute :arrival_time
+      attribute :altitude_ft, Integer
+    end
+
+    command "ScheduleFlight" do
+      role "Dispatcher"
+      goal "Schedule a flight"
+      reference_to Aircraft
+      attribute :flight_number
+      attribute :origin
+      attribute :destination
+    end
+
+    command "DepartFlight" do
+      role "Captain"
+      goal "Depart on the flight"
+      reference_to Flight
+    end
+
+    command "CompleteFlight" do
+      role "Captain"
+      goal "Complete the flight"
+      reference_to Flight
+    end
+  end
+
+  aggregate "SensorStream" do
+    description "Real-time IoT telemetry stream from aircraft sensors"
+    reference_to Aircraft
+    attribute :stream_id
+    attribute :data_points, list_of(DataPoint)
+    attribute :status, default: "streaming"
+
+    value_object "DataPoint" do
+      attribute :sensor_id
+      attribute :metric
+      attribute :value, Float
+      attribute :timestamp
+    end
+
+    command "StartStream" do
+      role "IoTPlatform"
+      goal "Begin streaming sensor data"
+      reference_to Aircraft
+      attribute :stream_id
+    end
+
+    command "IngestData" do
+      role "IoTPlatform"
+      goal "Ingest a sensor data point"
+      reference_to SensorStream
+      attribute :sensor_id
+      attribute :metric
+      attribute :value, Float
+      attribute :timestamp
+      given("max 10000 points") { data_points.size < 10000 }
+      then_set :data_points, append: { sensor_id: :sensor_id, metric: :metric, value: :value, timestamp: :timestamp }
+    end
+  end
+
+  aggregate "MaintenanceAlert" do
+    description "A maintenance alert triggered by IoT anomaly detection"
+    reference_to Aircraft
+    reference_to SensorStream
+    attribute :alert_type
+    attribute :severity
+    attribute :tasks, list_of(MaintenanceTask)
+    attribute :status, default: "open"
+
+    value_object "MaintenanceTask" do
+      attribute :task_name
+      attribute :estimated_hours, Float
+      attribute :completed, default: false
+    end
+
+    command "RaiseAlert" do
+      role "AnomalyDetector"
+      goal "Raise a maintenance alert from sensor data"
+      reference_to Aircraft
+      reference_to SensorStream
+      attribute :alert_type
+      attribute :severity
+    end
+
+    command "AssignTask" do
+      role "MaintenanceLead"
+      goal "Assign a maintenance task"
+      reference_to MaintenanceAlert
+      attribute :task_name
+      attribute :estimated_hours, Float
+      given("max 20 tasks") { tasks.size < 20 }
+      then_set :tasks, append: { task_name: :task_name, estimated_hours: :estimated_hours }
+    end
+
+    command "ResolveAlert" do
+      role "MaintenanceLead"
+      goal "Resolve the maintenance alert"
+      reference_to MaintenanceAlert
+    end
+  end
+
+  policy "DataIngestedTriggersAlert" do
+    on "DataIngested"
+    trigger "RaiseAlert"
+    map aircraft_id: :aircraft_id, sensor_stream_id: :stream_id
+    condition { |event| event.value > event.threshold }
+  end
+
+  policy "AlertRaisedTriggersGround" do
+    on "AlertRaised"
+    trigger "GroundAircraft"
+    map aircraft_id: :aircraft_id
+    condition { |event| event.severity == "critical" }
+  end
+
+  policy "FlightCompletedTriggersStream" do
+    on "FlightCompleted"
+    trigger "StartStream"
+    map aircraft_id: :aircraft_id
+  end
+
+  policy "AircraftRegisteredTriggersSensor" do
+    on "AircraftRegistered"
+    trigger "InstallSensor"
+    map aircraft_id: :aircraft_id
+  end
+
+  policy "AlertResolvedTriggersSchedule" do
+    on "AlertResolved"
+    trigger "ScheduleFlight"
+    map aircraft_id: :aircraft_id
+  end
+end

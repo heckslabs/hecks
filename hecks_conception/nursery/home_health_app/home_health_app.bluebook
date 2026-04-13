@@ -1,0 +1,152 @@
+Hecks.bluebook "HomeHealthApp", version: "2026.04.13.1" do
+  vision "Home health app — caregiver visits and vitals meet mobile scheduling and patient engagement"
+  category "healthcare_technology"
+
+  aggregate "HomeVisit", "A scheduled home health care visit" do
+    String :visit_id
+    String :patient_name
+    String :caregiver_name
+    String :visit_type
+    String :scheduled_date
+    String :status
+    ScheduleVisit do
+      role "Coordinator"
+      description "Schedule a home health visit for a patient"
+      String :visit_id
+      String :patient_name
+      String :caregiver_name
+      String :visit_type
+      String :scheduled_date
+      emits "VisitScheduled"
+      then_set :visit_id, to: :visit_id
+      then_set :patient_name, to: :patient_name
+      then_set :caregiver_name, to: :caregiver_name
+      then_set :visit_type, to: :visit_type
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+    CheckIn do
+      role "Caregiver"
+      description "Check in at patient location to begin visit"
+      reference_to(HomeVisit)
+      given { status == "scheduled" }
+      emits "CaregiverCheckedIn"
+      then_set :status, to: "in_progress"
+    end
+    CompleteVisit do
+      role "Caregiver"
+      description "Complete the home visit and submit notes"
+      reference_to(HomeVisit)
+      given { status == "in_progress" }
+      emits "VisitCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "VitalSign", "A set of vital signs recorded during a home visit" do
+    String :reading_id
+    String :visit_id
+    Float :heart_rate
+    Float :blood_pressure_sys
+    Float :blood_pressure_dia
+    Float :temperature
+    Float :oxygen_sat
+    RecordVitals do
+      role "Caregiver"
+      description "Record patient vital signs during home visit"
+      String :reading_id
+      String :visit_id
+      Float :heart_rate
+      Float :blood_pressure_sys
+      Float :blood_pressure_dia
+      Float :temperature
+      Float :oxygen_sat
+      emits "VitalsRecorded"
+      then_set :reading_id, to: :reading_id
+      then_set :visit_id, to: :visit_id
+      then_set :heart_rate, to: :heart_rate
+      then_set :blood_pressure_sys, to: :blood_pressure_sys
+      then_set :blood_pressure_dia, to: :blood_pressure_dia
+      then_set :temperature, to: :temperature
+      then_set :oxygen_sat, to: :oxygen_sat
+    end
+    FlagAbnormal do
+      role "System"
+      description "Flag abnormal vital signs that need clinical review"
+      reference_to(VitalSign)
+      emits "AbnormalFlagged"
+    end
+  end
+
+  aggregate "CaregiverProfile", "A mobile app profile for a home health caregiver" do
+    String :caregiver_id
+    String :name
+    String :license_type
+    Float :rating
+    String :status
+    list_of(Skill) :skills
+    value_object "Skill" do
+      String :name
+      String :level
+    end
+    CreateProfile do
+      role "Admin"
+      description "Create a caregiver profile in the mobile app"
+      String :caregiver_id
+      String :name
+      String :license_type
+      emits "ProfileCreated"
+      then_set :caregiver_id, to: :caregiver_id
+      then_set :name, to: :name
+      then_set :license_type, to: :license_type
+      then_set :status, to: "active"
+    end
+    RateCaregiver do
+      role "Patient"
+      description "Rate the caregiver after a visit"
+      reference_to(CaregiverProfile)
+      Float :rating
+      emits "CaregiverRated"
+      then_set :rating, to: :rating
+    end
+  end
+
+  aggregate "PatientAlert", "A push alert sent to patient or family via the app" do
+    String :alert_id
+    String :patient_name
+    String :alert_type
+    String :message
+    String :status
+    SendAlert do
+      role "System"
+      description "Send a push alert to patient or family member"
+      String :alert_id
+      String :patient_name
+      String :alert_type
+      String :message
+      emits "AlertSent"
+      then_set :alert_id, to: :alert_id
+      then_set :patient_name, to: :patient_name
+      then_set :alert_type, to: :alert_type
+      then_set :message, to: :message
+      then_set :status, to: "sent"
+    end
+    DismissAlert do
+      role "Patient"
+      description "Dismiss a notification after reading"
+      reference_to(PatientAlert)
+      given { status == "sent" }
+      emits "AlertDismissed"
+      then_set :status, to: "dismissed"
+    end
+  end
+
+  policy "RecordVitalsOnCheckIn" do
+    on "CaregiverCheckedIn"
+    trigger "RecordVitals"
+  end
+  policy "AlertOnAbnormal" do
+    on "AbnormalFlagged"
+    trigger "SendAlert"
+  end
+end

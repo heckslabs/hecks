@@ -1,0 +1,211 @@
+Hecks.bluebook "Glassblowing" do
+  aggregate "GlassPiece", "A blown glass artwork from gather to finished piece" do
+    String :name
+    String :form
+    String :technique
+    String :status, default: "gathered"
+    Float :weight_oz
+
+    value_object "GlassDimensions" do
+      Float :height_inches
+      Float :diameter_inches
+      Float :wall_thickness_mm
+      String :shape_profile
+    end
+
+    GatherGlass do
+      description "Gather molten glass from the furnace onto the blowpipe"
+      String :name
+      String :form
+      String :technique
+      emits "GlassGathered"
+    end
+
+    BlowPiece do
+      description "Shape the gather by blowing and using tools at the bench"
+      reference_to(GlassPiece)
+      given { status == "gathered" }
+      emits "PieceBlown"
+      then_set :status, to: "blown"
+    end
+
+    TransferToAnnealer do
+      description "Move the finished piece to the annealing oven"
+      reference_to(GlassPiece)
+      given { status == "blown" }
+      emits "TransferredToAnnealer"
+      then_set :status, to: "annealing"
+    end
+  end
+
+  aggregate "Furnace", "A glass furnace maintaining molten glass at working temperature" do
+    String :name
+    String :fuel_type
+    Integer :capacity_lbs
+    Integer :temperature_f
+    String :status, default: "cold"
+
+    LightFurnace do
+      description "Start the furnace and ramp to working temperature"
+      String :name
+      String :fuel_type
+      Integer :capacity_lbs
+      Integer :target_temperature
+      emits "FurnaceLit"
+      then_set :status, to: "heating"
+    end
+
+    ReachWorkingTemp do
+      description "Furnace has reached working temperature"
+      reference_to(Furnace)
+      given { status == "heating" }
+      emits "WorkingTempReached"
+      then_set :status, to: "ready"
+    end
+
+    ShutDownFurnace do
+      description "Begin controlled cool-down of the furnace"
+      reference_to(Furnace)
+      emits "FurnaceShutDown"
+      then_set :status, to: "cooling"
+    end
+  end
+
+  aggregate "ColorBar", "A colored glass rod or frit used for decoration" do
+    String :color_name
+    String :color_type
+    String :manufacturer
+    Float :quantity_lbs
+    Integer :working_temp_f
+
+    value_object "ColorChemistry" do
+      String :base_glass
+      String :colorant
+      Float :percentage
+      String :opacity
+    end
+
+    StockColor do
+      description "Add colored glass to the studio inventory"
+      String :color_name
+      String :color_type
+      String :manufacturer
+      Float :quantity_lbs
+      Integer :working_temp_f
+      emits "ColorStocked"
+    end
+
+    ConsumeColor do
+      description "Deduct colored glass used during a blowing session"
+      reference_to(ColorBar)
+      Float :amount_used
+      emits "ColorConsumed"
+    end
+  end
+
+  aggregate "AnnealingCycle", "A controlled cooling cycle in the annealing oven" do
+    Integer :hold_temp_f
+    Integer :ramp_rate_per_hour
+    Integer :total_hours
+    String :status, default: "loading"
+    reference_to(GlassPiece)
+
+    LoadAnnealer do
+      description "Place pieces in the annealing oven and set the program"
+      reference_to(GlassPiece)
+      Integer :hold_temp_f
+      Integer :ramp_rate_per_hour
+      Integer :total_hours
+      emits "AnnealerLoaded"
+    end
+
+    StartCycle do
+      description "Begin the annealing temperature program"
+      reference_to(AnnealingCycle)
+      given { status == "loading" }
+      emits "CycleStarted"
+      then_set :status, to: "annealing"
+    end
+
+    CompleteCycle do
+      description "Cycle complete — pieces can be safely removed"
+      reference_to(AnnealingCycle)
+      given { status == "annealing" }
+      emits "CycleCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "GlassExhibition", "A curated exhibition of blown glass artworks" do
+    String :title
+    String :venue
+    String :opening_date
+    Integer :piece_count
+    String :status, default: "planning"
+
+    CurateExhibition do
+      description "Select pieces and plan the exhibition"
+      String :title
+      String :venue
+      String :opening_date
+      Integer :piece_count
+      emits "ExhibitionCurated"
+    end
+
+    OpenExhibition do
+      description "Open the exhibition to the public"
+      reference_to(GlassExhibition)
+      given { status == "planning" }
+      emits "ExhibitionOpened"
+      then_set :status, to: "open"
+    end
+
+    CloseExhibition do
+      description "Close the exhibition and return pieces"
+      reference_to(GlassExhibition)
+      given { status == "open" }
+      emits "ExhibitionClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  policy "GatherOnFurnaceReady" do
+    on "WorkingTempReached"
+    trigger "GatherGlass"
+  end
+
+  policy "BlowAfterGather" do
+    on "GlassGathered"
+    trigger "BlowPiece"
+  end
+
+  policy "TransferAfterBlow" do
+    on "PieceBlown"
+    trigger "TransferToAnnealer"
+  end
+
+  policy "AnnealAfterTransfer" do
+    on "TransferredToAnnealer"
+    trigger "LoadAnnealer"
+  end
+
+  policy "StartCycleOnLoad" do
+    on "AnnealerLoaded"
+    trigger "StartCycle"
+  end
+
+  policy "CompleteCycleOnAnneal" do
+    on "CycleStarted"
+    trigger "CompleteCycle"
+  end
+
+  policy "CurateOnCycleComplete" do
+    on "CycleCompleted"
+    trigger "CurateExhibition"
+  end
+
+  policy "OpenOnCuration" do
+    on "ExhibitionCurated"
+    trigger "OpenExhibition"
+  end
+end

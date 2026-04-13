@@ -1,0 +1,221 @@
+Hecks.bluebook "AirportSecurity" do
+  vision "Manage checkpoints, scanners, officers, incidents, and passenger queues for airport security"
+
+  aggregate "Checkpoint", "A security screening point controlling access to the sterile area" do
+    String :checkpoint_id
+    String :terminal
+    Integer :lane_count
+    String :status
+    Integer :throughput_per_hour
+
+    value_object "OperatingHours" do
+      String :open_time
+      String :close_time
+    end
+
+    OpenCheckpoint do
+      description "Activate a checkpoint for passenger screening"
+      String :checkpoint_id
+      String :terminal
+      Integer :lane_count
+      Integer :throughput_per_hour
+      emits "CheckpointOpened"
+      then_set :status, to: "open"
+    end
+
+    CloseCheckpoint do
+      description "Shut down a checkpoint at end of operations"
+      reference_to(Checkpoint)
+      given { status == "open" }
+      emits "CheckpointClosed"
+      then_set :status, to: "closed"
+    end
+
+    AddLane do
+      description "Open an additional screening lane to reduce wait times"
+      reference_to(Checkpoint)
+      given { status == "open" }
+      emits "LaneAdded"
+    end
+
+    EscalateToHighAlert do
+      description "Raise checkpoint security level in response to a threat"
+      reference_to(Checkpoint)
+      given { status == "open" }
+      emits "HighAlertActivated"
+      then_set :status, to: "high_alert"
+    end
+
+    StandDown do
+      description "Return checkpoint from high alert to normal operations"
+      reference_to(Checkpoint)
+      given { status == "high_alert" }
+      emits "CheckpointStoodDown"
+      then_set :status, to: "open"
+    end
+  end
+
+  aggregate "Scanner", "An X-ray or body scanner installed at a checkpoint lane" do
+    String :scanner_id
+    String :scanner_type
+    String :status
+    Integer :scans_today
+    reference_to(Checkpoint)
+
+    value_object "CalibrationRecord" do
+      String :calibrated_on
+      String :technician
+      String :result
+    end
+
+    InstallScanner do
+      description "Deploy a new scanner at a checkpoint"
+      String :scanner_id
+      String :scanner_type
+      reference_to(Checkpoint)
+      emits "ScannerInstalled"
+      then_set :status, to: "installed"
+      then_set :scans_today, to: 0
+    end
+
+    CalibrateScanner do
+      description "Run daily calibration test on a scanner"
+      reference_to(Scanner)
+      given { status == "installed" }
+      emits "ScannerCalibrated"
+      then_set :status, to: "operational"
+    end
+
+    PerformScan do
+      description "Screen a passenger or bag through the scanner"
+      reference_to(Scanner)
+      given { status == "operational" }
+      emits "ScanPerformed"
+    end
+
+    FlagMalfunction do
+      description "Report a scanner as malfunctioning"
+      reference_to(Scanner)
+      given { status == "operational" }
+      emits "ScannerMalfunctioned"
+      then_set :status, to: "faulty"
+    end
+
+    RepairScanner do
+      description "Restore a faulty scanner to service after repair"
+      reference_to(Scanner)
+      given { status == "faulty" }
+      emits "ScannerRepaired"
+      then_set :status, to: "installed"
+    end
+  end
+
+  aggregate "Officer", "A TSA or security officer staffed at a checkpoint" do
+    String :badge_number
+    String :name
+    String :clearance_level
+    String :status
+    reference_to(Checkpoint)
+
+    value_object "Certification" do
+      String :cert_type
+      String :expiry_date
+    end
+
+    DeployOfficer do
+      description "Assign an officer to a checkpoint for a shift"
+      String :badge_number
+      String :name
+      String :clearance_level
+      reference_to(Checkpoint)
+      emits "OfficerDeployed"
+      then_set :status, to: "on_duty"
+    end
+
+    RelieveOfficer do
+      description "End an officer's shift at the checkpoint"
+      reference_to(Officer)
+      given { status == "on_duty" }
+      emits "OfficerRelieved"
+      then_set :status, to: "off_duty"
+    end
+  end
+
+  aggregate "Incident", "A security event requiring documentation and response" do
+    String :incident_id
+    String :incident_type
+    String :severity
+    String :description
+    String :status
+    reference_to(Checkpoint)
+    reference_to(Officer)
+
+    value_object "Evidence" do
+      String :photo_url
+      String :notes
+    end
+
+    ReportIncident do
+      description "File a new security incident report"
+      String :incident_type
+      String :severity
+      String :description
+      reference_to(Checkpoint)
+      reference_to(Officer)
+      emits "IncidentReported"
+      then_set :status, to: "open"
+    end
+
+    InvestigateIncident do
+      description "Begin formal investigation of a reported incident"
+      reference_to(Incident)
+      given { status == "open" }
+      emits "InvestigationStarted"
+      then_set :status, to: "investigating"
+    end
+
+    ResolveIncident do
+      description "Close an incident after investigation"
+      reference_to(Incident)
+      String :resolution
+      given { status == "investigating" }
+      emits "IncidentResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  policy "CalibrateOnInstall" do
+    on "ScannerInstalled"
+    trigger "CalibrateScanner"
+  end
+
+  policy "DeployOfficerOnOpen" do
+    on "CheckpointOpened"
+    trigger "DeployOfficer"
+  end
+
+  policy "EscalateOnIncident" do
+    on "IncidentReported"
+    trigger "EscalateToHighAlert"
+  end
+
+  policy "InvestigateOnReport" do
+    on "IncidentReported"
+    trigger "InvestigateIncident"
+  end
+
+  policy "StandDownOnResolve" do
+    on "IncidentResolved"
+    trigger "StandDown"
+  end
+
+  policy "CloseCheckpointOnMalfunction" do
+    on "ScannerMalfunctioned"
+    trigger "CloseCheckpoint"
+  end
+
+  policy "RecalibrateOnRepair" do
+    on "ScannerRepaired"
+    trigger "CalibrateScanner"
+  end
+end

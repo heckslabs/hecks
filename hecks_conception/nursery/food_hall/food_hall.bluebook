@@ -1,0 +1,236 @@
+Hecks.bluebook "FoodHall", version: "2026.04.13.1" do
+  vision "Managing a food hall — curating vendors, assigning stalls, coordinating menus, organizing shared seating, and hosting culinary events"
+  category "hospitality"
+
+  aggregate "FoodVendor", "A restaurant or food business operating in the hall" do
+    String :vendor_id
+    String :business_name
+    String :cuisine_type
+    String :contact_name
+    String :status
+    list_of(HealthCertification) :certifications
+
+    value_object "HealthCertification" do
+      String :cert_type
+      String :issue_date
+      String :expiration_date
+    end
+
+    OnboardVendor do
+      role "HallManager"
+      description "Bring a new food vendor into the hall"
+      String :vendor_id
+      String :business_name
+      String :cuisine_type
+      String :contact_name
+      emits "VendorOnboarded"
+      then_set :vendor_id, to: :vendor_id
+      then_set :business_name, to: :business_name
+      then_set :cuisine_type, to: :cuisine_type
+      then_set :contact_name, to: :contact_name
+      then_set :status, to: "active"
+    end
+
+    OffboardVendor do
+      role "HallManager"
+      description "Remove a vendor from the food hall"
+      reference_to(FoodVendor)
+      given { status == "active" }
+      emits "VendorOffboarded"
+      then_set :status, to: "offboarded"
+    end
+  end
+
+  aggregate "FoodStall", "A physical kitchen and counter space leased to a vendor" do
+    String :stall_id
+    String :location
+    Float :monthly_rent
+    String :vendor_id
+    String :status
+
+    LeaseStall do
+      role "HallManager"
+      description "Assign a stall to a vendor with lease terms"
+      String :stall_id
+      String :location
+      Float :monthly_rent
+      String :vendor_id
+      emits "StallLeased"
+      then_set :stall_id, to: :stall_id
+      then_set :location, to: :location
+      then_set :monthly_rent, to: :monthly_rent
+      then_set :vendor_id, to: :vendor_id
+      then_set :status, to: "leased"
+    end
+
+    TerminateLease do
+      role "HallManager"
+      description "End the lease and reclaim the stall"
+      reference_to(FoodStall)
+      given { status == "leased" }
+      emits "LeaseTerminated"
+      then_set :status, to: "vacant"
+    end
+  end
+
+  aggregate "HallMenu", "A consolidated menu displayed across the food hall" do
+    String :menu_id
+    String :vendor_id
+    list_of(DishListing) :dishes
+    String :status
+
+    value_object "DishListing" do
+      String :dish_name
+      String :description
+      Float :price
+      String :dietary_tag
+    end
+
+    PublishMenu do
+      role "Vendor"
+      description "Submit the vendor's menu for display on the hall board"
+      String :menu_id
+      String :vendor_id
+      emits "MenuPublished"
+      then_set :menu_id, to: :menu_id
+      then_set :vendor_id, to: :vendor_id
+      then_set :status, to: "published"
+    end
+
+    UpdateMenu do
+      role "Vendor"
+      description "Revise prices or swap dishes on the existing menu"
+      reference_to(HallMenu)
+      emits "MenuUpdated"
+    end
+  end
+
+  aggregate "SeatingArea", "A shared dining space with tables and chairs" do
+    String :area_id
+    String :name
+    Integer :total_seats
+    Integer :available_seats
+    String :status
+
+    OpenSeating do
+      role "HallManager"
+      description "Designate a seating area and set its capacity"
+      String :area_id
+      String :name
+      Integer :total_seats
+      emits "SeatingOpened"
+      then_set :area_id, to: :area_id
+      then_set :name, to: :name
+      then_set :total_seats, to: :total_seats
+      then_set :available_seats, to: :total_seats
+      then_set :status, to: "open"
+    end
+
+    ReserveSeats do
+      role "Guest"
+      description "Claim seats for a party in the shared area"
+      reference_to(SeatingArea)
+      Integer :seats_needed
+      given { seats_needed > 0 }
+      emits "SeatsReserved"
+    end
+
+    CloseSeating do
+      role "HallManager"
+      description "Close a seating area for cleaning or an event"
+      reference_to(SeatingArea)
+      emits "SeatingClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "CulinaryEvent", "A food-related event hosted at the hall" do
+    String :event_id
+    String :name
+    String :event_type
+    String :date
+    Integer :capacity
+    Float :ticket_price
+    String :status
+
+    ScheduleEvent do
+      role "HallManager"
+      description "Plan a cooking demo, tasting, or food festival"
+      String :event_id
+      String :name
+      String :event_type
+      String :date
+      Integer :capacity
+      Float :ticket_price
+      emits "EventScheduled"
+      then_set :event_id, to: :event_id
+      then_set :name, to: :name
+      then_set :event_type, to: :event_type
+      then_set :date, to: :date
+      then_set :capacity, to: :capacity
+      then_set :ticket_price, to: :ticket_price
+      then_set :status, to: "scheduled"
+    end
+
+    HostEvent do
+      role "HallManager"
+      description "Run the event on the scheduled date"
+      reference_to(CulinaryEvent)
+      given { status == "scheduled" }
+      emits "EventHosted"
+      then_set :status, to: "completed"
+    end
+
+    CancelEvent do
+      role "HallManager"
+      description "Call off the event and notify ticket holders"
+      reference_to(CulinaryEvent)
+      given { status == "scheduled" }
+      emits "EventCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  # Lifecycle: vendor onboarded → stall leased → menu published → events hosted → vendor offboarded
+  # Workflow: Onboard vendor → Lease stall → Publish menu → Open seating → Schedule event → Host event
+
+  policy "AssignStallOnOnboard" do
+    on "VendorOnboarded"
+    trigger "LeaseStall"
+  end
+
+  policy "PublishMenuOnLease" do
+    on "StallLeased"
+    trigger "PublishMenu"
+  end
+
+  policy "OpenSeatingOnMenu" do
+    on "MenuPublished"
+    trigger "OpenSeating"
+  end
+
+  policy "ScheduleEventOnMenu" do
+    on "MenuPublished"
+    trigger "ScheduleEvent"
+  end
+
+  policy "HostOnSchedule" do
+    on "EventScheduled"
+    trigger "HostEvent"
+  end
+
+  policy "CloseSeatingOnOffboard" do
+    on "VendorOffboarded"
+    trigger "TerminateLease"
+  end
+
+  policy "CloseSeatingOnEvent" do
+    on "EventScheduled"
+    trigger "CloseSeating"
+  end
+
+  policy "UpdateMenuOnEvent" do
+    on "EventHosted"
+    trigger "UpdateMenu"
+  end
+end

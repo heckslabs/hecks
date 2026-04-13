@@ -1,0 +1,273 @@
+Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
+  vision "Neuroscience meets call center ops — agent fatigue, cognitive load, workload balancing, and break scheduling"
+  category "crossover"
+
+  aggregate "Agent", "A call center agent — skills, cognitive state, shift info" do
+    String :name
+    String :skill_level
+    Float :cognitive_load_pct
+    Float :fatigue_score
+    String :shift_start
+    Integer :calls_handled
+    String :status
+
+    value_object "CognitiveProfile" do
+      Float :attention_span_min
+      Float :working_memory_capacity
+      Float :stress_threshold
+    end
+
+    RegisterAgent do
+      role "Manager"
+      description "Register a call center agent with cognitive baseline"
+      String :name
+      String :skill_level
+      String :shift_start
+      emits "AgentRegistered"
+      then_set :name, to: :name
+      then_set :skill_level, to: :skill_level
+      then_set :shift_start, to: :shift_start
+      then_set :cognitive_load_pct, to: 0.0
+      then_set :fatigue_score, to: 0.0
+      then_set :calls_handled, to: 0
+      then_set :status, to: "available"
+    end
+
+    AssignCall do
+      role "System"
+      description "Route a call to this agent, increasing cognitive load"
+      reference_to(Agent)
+      given { status == "available" }
+      emits "CallAssigned"
+      then_set :status, to: "on_call"
+    end
+
+    CompleteCall do
+      role "Agent"
+      description "Agent completes a call — update fatigue and load"
+      reference_to(Agent)
+      Float :fatigue_score
+      Float :cognitive_load_pct
+      given { status == "on_call" }
+      emits "CallCompleted"
+      then_set :fatigue_score, to: :fatigue_score
+      then_set :cognitive_load_pct, to: :cognitive_load_pct
+      then_set :status, to: "available"
+    end
+
+    SendOnBreak do
+      role "System"
+      description "Send agent on mandatory break to recover cognitive capacity"
+      reference_to(Agent)
+      given { status == "available" }
+      emits "AgentOnBreak"
+      then_set :status, to: "on_break"
+    end
+
+    ReturnFromBreak do
+      role "Agent"
+      description "Agent returns from break with reduced fatigue"
+      reference_to(Agent)
+      given { status == "on_break" }
+      emits "AgentReturned"
+      then_set :fatigue_score, to: 0.0
+      then_set :cognitive_load_pct, to: 0.0
+      then_set :status, to: "available"
+    end
+
+    lifecycle :status, default: "offline" do
+      transition "RegisterAgent" => "available", from: "offline"
+      transition "AssignCall" => "on_call", from: "available"
+      transition "CompleteCall" => "available", from: "on_call"
+      transition "SendOnBreak" => "on_break", from: "available"
+      transition "ReturnFromBreak" => "available", from: "on_break"
+    end
+  end
+
+  aggregate "WorkloadMetric", "Real-time workload measurement — queue depth, avg handle time, wait time" do
+    String :metric_name
+    Integer :queue_depth
+    Float :avg_handle_time_sec
+    Float :avg_wait_time_sec
+    Float :service_level_pct
+    String :timestamp
+    String :status
+
+    value_object "QueueSnapshot" do
+      Integer :waiting
+      Integer :in_progress
+      Integer :completed_last_hour
+    end
+
+    RecordWorkload do
+      role "System"
+      description "Capture current workload metrics for the call center"
+      String :metric_name
+      Integer :queue_depth
+      Float :avg_handle_time_sec
+      Float :avg_wait_time_sec
+      Float :service_level_pct
+      String :timestamp
+      emits "WorkloadRecorded"
+      then_set :metric_name, to: :metric_name
+      then_set :queue_depth, to: :queue_depth
+      then_set :avg_handle_time_sec, to: :avg_handle_time_sec
+      then_set :avg_wait_time_sec, to: :avg_wait_time_sec
+      then_set :service_level_pct, to: :service_level_pct
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "recorded"
+    end
+
+    DetectOverload do
+      role "System"
+      description "Flag when workload metrics indicate system overload"
+      reference_to(WorkloadMetric)
+      given { status == "recorded" }
+      emits "OverloadDetected"
+      then_set :status, to: "overloaded"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "RecordWorkload" => "recorded", from: "idle"
+      transition "DetectOverload" => "overloaded", from: "recorded"
+    end
+  end
+
+  aggregate "FatigueAssessment", "Neuroscience-based fatigue assessment — reaction time, error rate, alertness" do
+    String :agent_name
+    Float :reaction_time_ms
+    Float :error_rate_pct
+    Float :alertness_score
+    String :assessment_time
+    String :recommendation
+    String :status
+
+    value_object "BrainRegionLoad" do
+      String :region_name
+      Float :activation_level
+      String :function
+    end
+
+    list_of "FatigueIndicator" do
+      String :indicator_name
+      Float :value
+      Float :threshold
+    end
+
+    AssessFatigue do
+      role "System"
+      description "Run cognitive fatigue assessment based on performance metrics"
+      String :agent_name
+      Float :reaction_time_ms
+      Float :error_rate_pct
+      Float :alertness_score
+      String :assessment_time
+      emits "FatigueAssessed"
+      then_set :agent_name, to: :agent_name
+      then_set :reaction_time_ms, to: :reaction_time_ms
+      then_set :error_rate_pct, to: :error_rate_pct
+      then_set :alertness_score, to: :alertness_score
+      then_set :assessment_time, to: :assessment_time
+      then_set :status, to: "assessed"
+    end
+
+    RecommendBreak do
+      role "System"
+      description "Generate break recommendation based on fatigue level"
+      reference_to(FatigueAssessment)
+      String :recommendation
+      given { status == "assessed" }
+      emits "BreakRecommended"
+      then_set :recommendation, to: :recommendation
+      then_set :status, to: "recommended"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AssessFatigue" => "assessed", from: "pending"
+      transition "RecommendBreak" => "recommended", from: "assessed"
+    end
+  end
+
+  aggregate "BreakSchedule", "Optimized break schedule balancing cognitive recovery with staffing needs" do
+    String :agent_name
+    String :break_type
+    Integer :duration_minutes
+    String :scheduled_time
+    String :status
+
+    value_object "RecoveryProfile" do
+      Float :pre_break_fatigue
+      Float :post_break_fatigue
+      Float :recovery_rate
+    end
+
+    ScheduleBreak do
+      role "System"
+      description "Schedule a cognitive recovery break for an agent"
+      String :agent_name
+      String :break_type
+      Integer :duration_minutes
+      String :scheduled_time
+      emits "BreakScheduled"
+      then_set :agent_name, to: :agent_name
+      then_set :break_type, to: :break_type
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :scheduled_time, to: :scheduled_time
+      then_set :status, to: "scheduled"
+    end
+
+    StartBreak do
+      role "Agent"
+      description "Agent begins scheduled break"
+      reference_to(BreakSchedule)
+      given { status == "scheduled" }
+      emits "BreakStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    EndBreak do
+      role "Agent"
+      description "Agent returns from break"
+      reference_to(BreakSchedule)
+      given { status == "in_progress" }
+      emits "BreakEnded"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "unscheduled" do
+      transition "ScheduleBreak" => "scheduled", from: "unscheduled"
+      transition "StartBreak" => "in_progress", from: "scheduled"
+      transition "EndBreak" => "completed", from: "in_progress"
+    end
+  end
+
+  policy "AssessFatigueOnCallComplete" do
+    on "CallCompleted"
+    trigger "AssessFatigue"
+  end
+
+  policy "RecommendBreakOnAssessment" do
+    on "FatigueAssessed"
+    trigger "RecommendBreak"
+  end
+
+  policy "ScheduleBreakOnRecommend" do
+    on "BreakRecommended"
+    trigger "ScheduleBreak"
+  end
+
+  policy "SendOnBreakOnSchedule" do
+    on "BreakScheduled"
+    trigger "SendOnBreak"
+  end
+
+  policy "DetectOverloadOnWorkload" do
+    on "WorkloadRecorded"
+    trigger "DetectOverload"
+  end
+
+  policy "ReturnOnBreakEnd" do
+    on "BreakEnded"
+    trigger "ReturnFromBreak"
+  end
+end

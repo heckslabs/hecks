@@ -1,0 +1,256 @@
+Hecks.bluebook "InsuranceClaims" do
+  vision "Process insurance policies, claims, adjuster assignments, settlements, and appeals"
+  category "finance"
+
+  aggregate "PolicyHolder", "An insured party with coverage details and premium history" do
+    String :name
+    String :policy_number
+    String :coverage_type
+    Float :premium
+    Float :deductible
+    String :effective_date
+    String :expiration_date
+    String :status
+
+    value_object "CoverageLimit" do
+      String :category
+      Float :max_amount
+      Float :remaining
+    end
+
+    IssuePolicy do
+      role "Underwriter"
+      description "Create a new insurance policy for a customer"
+      String :name
+      String :policy_number
+      String :coverage_type
+      Float :premium
+      Float :deductible
+      String :effective_date
+      String :expiration_date
+      emits "PolicyIssued"
+      then_set :name, to: :name
+      then_set :policy_number, to: :policy_number
+      then_set :coverage_type, to: :coverage_type
+      then_set :premium, to: :premium
+      then_set :deductible, to: :deductible
+      then_set :status, to: "active"
+    end
+
+    RenewPolicy do
+      role "Underwriter"
+      description "Extend the policy for another term with updated premium"
+      reference_to(PolicyHolder)
+      Float :new_premium
+      String :new_expiration_date
+      given { status == "active" }
+      emits "PolicyRenewed"
+      then_set :premium, to: :new_premium
+      then_set :expiration_date, to: :new_expiration_date
+    end
+
+    LapsePolicy do
+      role "System"
+      description "Mark policy as lapsed due to non-payment or expiration"
+      reference_to(PolicyHolder)
+      given { status == "active" }
+      emits "PolicyLapsed"
+      then_set :status, to: "lapsed"
+    end
+  end
+
+  aggregate "Claim", "A filed insurance claim with incident details and processing status" do
+    String :claim_number
+    String :incident_date
+    String :incident_description
+    Float :claimed_amount
+    String :status
+    reference_to(PolicyHolder)
+
+    specification "HighValue" do
+      satisfied_by { claimed_amount > 50000 }
+    end
+
+    value_object "IncidentReport" do
+      String :location
+      String :witnesses
+      String :police_report_number
+      String :photos_attached
+    end
+
+    FileClaim do
+      role "Claimant"
+      description "Submit a new insurance claim for an incident"
+      reference_to(PolicyHolder)
+      String :claim_number
+      String :incident_date
+      String :incident_description
+      Float :claimed_amount
+      emits "ClaimFiled"
+      then_set :claim_number, to: :claim_number
+      then_set :incident_date, to: :incident_date
+      then_set :incident_description, to: :incident_description
+      then_set :claimed_amount, to: :claimed_amount
+      then_set :status, to: "filed"
+    end
+
+    ApproveClaim do
+      role "ClaimsManager"
+      description "Approve the claim for settlement processing"
+      reference_to(Claim)
+      given { status == "under_review" }
+      emits "ClaimApproved"
+      then_set :status, to: "approved"
+    end
+
+    DenyClaim do
+      role "ClaimsManager"
+      description "Reject the claim with documented reasons"
+      reference_to(Claim)
+      String :denial_reason
+      given { status == "under_review" }
+      emits "ClaimDenied"
+      then_set :status, to: "denied"
+    end
+  end
+
+  aggregate "AdjusterAssignment", "An adjuster assigned to investigate and evaluate a claim" do
+    String :adjuster_name
+    String :assignment_date
+    String :findings
+    Float :assessed_amount
+    String :status
+    reference_to(Claim)
+
+    AssignAdjuster do
+      role "ClaimsManager"
+      description "Dispatch an adjuster to investigate the claim"
+      reference_to(Claim)
+      String :adjuster_name
+      emits "AdjusterAssigned"
+      then_set :adjuster_name, to: :adjuster_name
+      then_set :status, to: "assigned"
+    end
+
+    SubmitAssessment do
+      role "Adjuster"
+      description "File the adjuster's investigation findings and assessed value"
+      reference_to(AdjusterAssignment)
+      String :findings
+      Float :assessed_amount
+      given { status == "assigned" }
+      emits "AssessmentSubmitted"
+      then_set :findings, to: :findings
+      then_set :assessed_amount, to: :assessed_amount
+      then_set :status, to: "assessed"
+    end
+  end
+
+  aggregate "Settlement", "A financial settlement offered to resolve an approved claim" do
+    Float :settlement_amount
+    String :payment_method
+    String :status
+    reference_to(Claim)
+
+    OfferSettlement do
+      role "ClaimsManager"
+      description "Present a settlement amount to the claimant"
+      reference_to(Claim)
+      Float :settlement_amount
+      String :payment_method
+      emits "SettlementOffered"
+      then_set :settlement_amount, to: :settlement_amount
+      then_set :payment_method, to: :payment_method
+      then_set :status, to: "offered"
+    end
+
+    AcceptSettlement do
+      role "Claimant"
+      description "Claimant accepts the settlement terms"
+      reference_to(Settlement)
+      given { status == "offered" }
+      emits "SettlementAccepted"
+      then_set :status, to: "accepted"
+    end
+
+    RejectSettlement do
+      role "Claimant"
+      description "Claimant rejects the settlement and may file an appeal"
+      reference_to(Settlement)
+      given { status == "offered" }
+      emits "SettlementRejected"
+      then_set :status, to: "rejected"
+    end
+  end
+
+  aggregate "Appeal", "A formal dispute of a denied claim or rejected settlement" do
+    String :reason
+    String :supporting_documents
+    String :status
+    String :resolution
+    reference_to(Claim)
+
+    FileAppeal do
+      role "Claimant"
+      description "Submit a formal appeal with supporting evidence"
+      reference_to(Claim)
+      String :reason
+      String :supporting_documents
+      emits "AppealFiled"
+      then_set :reason, to: :reason
+      then_set :supporting_documents, to: :supporting_documents
+      then_set :status, to: "filed"
+    end
+
+    ReviewAppeal do
+      role "AppealBoard"
+      description "Evaluate the appeal and issue a decision"
+      reference_to(Appeal)
+      String :resolution
+      given { status == "filed" }
+      emits "AppealReviewed"
+      then_set :resolution, to: :resolution
+      then_set :status, to: "resolved"
+    end
+  end
+
+  policy "AssignAdjusterOnClaim" do
+    on "ClaimFiled"
+    trigger "AssignAdjuster"
+  end
+
+  policy "ReviewOnAssessment" do
+    on "AssessmentSubmitted"
+    trigger "ApproveClaim"
+  end
+
+  policy "SettleOnApproval" do
+    on "ClaimApproved"
+    trigger "OfferSettlement"
+  end
+
+  policy "AppealOnDenial" do
+    on "ClaimDenied"
+    trigger "FileAppeal"
+  end
+
+  policy "ReOpenOnAppeal" do
+    on "AppealReviewed"
+    trigger "AssignAdjuster"
+  end
+
+  policy "AppealOnRejectedSettlement" do
+    on "SettlementRejected"
+    trigger "FileAppeal"
+  end
+
+  policy "AssignAdjusterOnClaimFiled" do
+    on "ClaimFiled"
+    trigger "AssignAdjuster"
+  end
+
+  policy "SubmitAssessmentOnAdjusterAssigned" do
+    on "AdjusterAssigned"
+    trigger "SubmitAssessment"
+  end
+end

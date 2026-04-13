@@ -1,0 +1,205 @@
+Hecks.bluebook "PavingCompany" do
+  vision "Manage asphalt and concrete paving projects from survey through mix design, placement, compaction, and curing"
+  core
+
+  aggregate "PavingProject" do
+    description "A paving job — driveway, parking lot, road, or patch with area and thickness specs"
+    String :client_name
+    String :location
+    String :project_type
+    Float :area_sqft
+    Float :thickness_inches
+    String :status
+
+    value_object "SubgradeCondition" do
+      String :soil_type
+      Float :cbr_value
+      String :drainage_rating
+    end
+
+    SurveyJobSite do
+      role "Estimator"
+      goal "Assess the site for paving requirements and subgrade condition"
+      description "Measure area, evaluate subgrade, and note drainage needs"
+      String :client_name
+      String :location
+      String :project_type
+      Float :area_sqft
+      Float :thickness_inches
+      emits "JobSiteSurveyed"
+    end
+
+    AwardContract do
+      role "Client"
+      goal "Accept the paving bid and authorize work"
+      description "Client signs the contract to begin the project"
+      reference_to(PavingProject)
+      given("must be estimated") { status == "estimated" }
+      emits "ContractAwarded"
+    end
+
+    CloseProject do
+      role "Project Manager"
+      goal "Mark the paving project as complete after curing"
+      description "Final walkthrough and project closeout"
+      reference_to(PavingProject)
+      emits "ProjectClosed"
+    end
+  end
+
+  aggregate "AsphaltMix" do
+    description "An asphalt mix design specifying aggregate gradation, binder grade, and temperature requirements"
+    String :mix_designation
+    String :binder_grade
+    Float :target_temp_f
+    Float :compaction_density
+    reference_to(PavingProject)
+
+    value_object "AggregateGradation" do
+      String :sieve_sizes
+      String :passing_percentages
+    end
+
+    DesignMix do
+      role "Engineer"
+      goal "Create an asphalt mix design meeting project specifications"
+      description "Specify binder, aggregates, and placement temperature"
+      String :mix_designation
+      String :binder_grade
+      Float :target_temp_f
+      reference_to(PavingProject)
+      emits "MixDesigned"
+    end
+
+    OrderFromPlant do
+      role "Project Manager"
+      goal "Order the mix from the asphalt plant for delivery"
+      description "Schedule hot mix asphalt delivery in tons needed"
+      reference_to(AsphaltMix)
+      Float :tons_needed
+      emits "MixOrdered"
+    end
+  end
+
+  aggregate "PavingEquipment" do
+    description "Heavy equipment used for paving — pavers, rollers, milling machines, and dump trucks"
+    String :equipment_type
+    String :make
+    String :model
+    String :status
+
+    MobilizeEquipment do
+      role "Equipment Manager"
+      goal "Transport equipment to the job site"
+      description "Schedule and track equipment delivery to the paving location"
+      String :equipment_type
+      String :make
+      String :model
+      reference_to(PavingProject)
+      emits "EquipmentMobilized"
+    end
+
+    LogMaintenance do
+      role "Mechanic"
+      goal "Record maintenance performed on paving equipment"
+      description "Track oil changes, repairs, and inspections"
+      reference_to(PavingEquipment)
+      String :maintenance_type
+      emits "MaintenanceLogged"
+    end
+  end
+
+  aggregate "WeatherWindow" do
+    description "A weather-dependent scheduling window for paving operations"
+    String :forecast_date
+    Float :high_temp_f
+    Float :low_temp_f
+    Float :precipitation_chance
+    String :paving_suitability
+    reference_to(PavingProject)
+
+    EvaluateWeather do
+      role "Project Manager"
+      goal "Check weather forecast for paving suitability"
+      description "Asphalt requires dry conditions and minimum 50F ground temp"
+      String :forecast_date
+      Float :high_temp_f
+      Float :low_temp_f
+      Float :precipitation_chance
+      reference_to(PavingProject)
+      emits "WeatherEvaluated"
+    end
+
+    PostponeForWeather do
+      role "Project Manager"
+      goal "Delay paving due to unsuitable weather conditions"
+      description "Push the schedule when rain or cold threatens quality"
+      reference_to(WeatherWindow)
+      given("precipitation must be high") { precipitation_chance > 40.0 }
+      emits "PavingPostponed"
+    end
+  end
+
+  aggregate "CuringRecord" do
+    description "A record of the curing process after paving — temperature, time, and density testing"
+    Float :core_density
+    Float :air_voids_pct
+    String :test_date
+    String :result
+    reference_to(PavingProject)
+
+    TakeCore do
+      role "Quality Tech"
+      goal "Extract a core sample to test compaction density"
+      description "Drill a core and measure density against the mix design target"
+      reference_to(PavingProject)
+      Float :core_density
+      Float :air_voids_pct
+      emits "CoreTaken"
+    end
+
+    RecordCureTime do
+      role "Project Manager"
+      goal "Log the elapsed curing time before opening to traffic"
+      description "Track cure duration for warranty compliance"
+      reference_to(CuringRecord)
+      Integer :cure_hours
+      emits "CureTimeRecorded"
+    end
+  end
+
+  policy "EstimateOnSurvey" do
+    on "JobSiteSurveyed"
+    trigger "EvaluateWeather"
+  end
+
+  policy "DesignMixOnAward" do
+    on "ContractAwarded"
+    trigger "DesignMix"
+  end
+
+  policy "OrderMixOnDesign" do
+    on "MixDesigned"
+    trigger "OrderFromPlant"
+  end
+
+  policy "MobilizeOnMixOrder" do
+    on "MixOrdered"
+    trigger "MobilizeEquipment"
+  end
+
+  policy "TestAfterPaving" do
+    on "EquipmentMobilized"
+    trigger "TakeCore"
+  end
+
+  policy "RecordCureOnTest" do
+    on "CoreTaken"
+    trigger "RecordCureTime"
+  end
+
+  policy "CloseOnCure" do
+    on "CureTimeRecorded"
+    trigger "CloseProject"
+  end
+end

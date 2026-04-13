@@ -1,0 +1,255 @@
+Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
+  vision "Conducting UX research — planning studies, recruiting participants, running sessions, synthesizing findings, and delivering recommendations"
+  category "technology"
+
+  aggregate "Study", "A research initiative exploring a specific user experience question" do
+    String :study_name
+    String :research_question
+    String :methodology
+    String :lead_researcher
+    Integer :target_participants
+    String :status
+    list_of(Objective) :objectives
+
+    value_object "Objective" do
+      String :description
+      String :success_metric
+      String :priority
+    end
+
+    PlanStudy do
+      role "ResearchLead"
+      description "Define a new research study with methodology and objectives"
+      String :study_name
+      String :research_question
+      String :methodology
+      String :lead_researcher
+      Integer :target_participants
+      emits "StudyPlanned"
+    end
+
+    LaunchStudy do
+      description "Begin active recruitment and session scheduling"
+      reference_to(Study)
+      given("study is planned") { status == "planned" }
+      emits "StudyLaunched"
+    end
+
+    ConcludeStudy do
+      description "End data collection and move to analysis phase"
+      reference_to(Study)
+      emits "StudyConcluded"
+    end
+  end
+
+  aggregate "Participant", "A person recruited to take part in research sessions" do
+    String :participant_id
+    String :name
+    String :email
+    String :demographic_segment
+    String :screening_status
+    String :status
+    reference_to Study
+
+    value_object "ScreeningAnswer" do
+      String :question
+      String :answer
+      String :qualified
+    end
+
+    RecruitParticipant do
+      role "Recruiter"
+      description "Add a potential participant to the study pool"
+      String :participant_id
+      String :name
+      String :email
+      String :demographic_segment
+      reference_to(Study)
+      emits "ParticipantRecruited"
+    end
+
+    QualifyParticipant do
+      description "Mark a participant as meeting screening criteria"
+      reference_to(Participant)
+      given("participant is screened") { screening_status == "screened" }
+      emits "ParticipantQualified"
+    end
+
+    ExcludeParticipant do
+      description "Remove a participant who does not meet criteria"
+      reference_to(Participant)
+      emits "ParticipantExcluded"
+    end
+  end
+
+  aggregate "Session", "A scheduled research interaction with a participant" do
+    String :session_id
+    String :session_type
+    String :scheduled_at
+    Integer :duration_minutes
+    String :facilitator
+    String :status
+    reference_to Participant
+    list_of(Note) :notes
+
+    value_object "Note" do
+      String :timestamp
+      String :observation
+      String :tag
+    end
+
+    ScheduleSession do
+      role "ResearchCoordinator"
+      description "Book a research session with a qualified participant"
+      String :session_id
+      String :session_type
+      String :scheduled_at
+      Integer :duration_minutes
+      String :facilitator
+      reference_to(Participant)
+      emits "SessionScheduled"
+    end
+
+    CompleteSession do
+      description "Mark a session as done and ready for note review"
+      reference_to(Session)
+      given("session is in progress") { status == "in_progress" }
+      emits "SessionCompleted"
+    end
+
+    CancelSession do
+      description "Cancel a session due to no-show or scheduling conflict"
+      reference_to(Session)
+      String :cancellation_reason
+      emits "SessionCanceled"
+    end
+  end
+
+  aggregate "Finding", "An insight synthesized from research session data" do
+    String :finding_id
+    String :title
+    String :description
+    String :severity
+    String :evidence_type
+    String :status
+    reference_to Study
+    list_of(SupportingQuote) :quotes
+
+    value_object "SupportingQuote" do
+      String :participant_id
+      String :quote_text
+      String :session_id
+    end
+
+    DocumentFinding do
+      role "Researcher"
+      description "Record an insight emerging from session analysis"
+      String :finding_id
+      String :title
+      String :description
+      String :severity
+      String :evidence_type
+      reference_to(Study)
+      emits "FindingDocumented"
+    end
+
+    ValidateFinding do
+      description "Cross-reference a finding with additional data sources"
+      reference_to(Finding)
+      emits "FindingValidated"
+    end
+
+    ArchiveFinding do
+      description "Move a finding to the historical repository"
+      reference_to(Finding)
+      given("finding is validated") { status == "validated" }
+      emits "FindingArchived"
+    end
+  end
+
+  aggregate "Recommendation", "A design suggestion based on validated findings" do
+    String :recommendation_id
+    String :title
+    String :rationale
+    String :effort_estimate
+    String :priority
+    String :status
+    reference_to Finding
+
+    value_object "DesignChange" do
+      String :component
+      String :current_state
+      String :proposed_state
+    end
+
+    ProposeRecommendation do
+      role "Researcher"
+      description "Suggest a design improvement based on research findings"
+      String :recommendation_id
+      String :title
+      String :rationale
+      String :effort_estimate
+      String :priority
+      reference_to(Finding)
+      emits "RecommendationProposed"
+    end
+
+    AcceptRecommendation do
+      description "Approve a recommendation for implementation"
+      reference_to(Recommendation)
+      emits "RecommendationAccepted"
+    end
+
+    DeferRecommendation do
+      description "Postpone a recommendation to a future sprint"
+      reference_to(Recommendation)
+      given("recommendation is proposed") { status == "proposed" }
+      emits "RecommendationDeferred"
+    end
+  end
+
+  lifecycle "ResearchProcess" do
+    state "planned"
+    state "recruiting"
+    state "sessions_active"
+    state "analyzing"
+    state "findings_ready"
+    state "recommendations_delivered"
+
+    transition from: "planned", to: "recruiting", on: "StudyLaunched"
+    transition from: "recruiting", to: "sessions_active", on: "SessionScheduled"
+    transition from: "sessions_active", to: "analyzing", on: "StudyConcluded"
+    transition from: "analyzing", to: "findings_ready", on: "FindingValidated"
+    transition from: "findings_ready", to: "recommendations_delivered", on: "RecommendationAccepted"
+  end
+
+  policy "StudyPlannedLaunch" do
+    on "StudyPlanned"
+    trigger "LaunchStudy"
+  end
+
+  policy "StudyLaunchedRecruit" do
+    on "StudyLaunched"
+    trigger "RecruitParticipant"
+  end
+
+  policy "ParticipantQualifiedScheduleSession" do
+    on "ParticipantQualified"
+    trigger "ScheduleSession"
+  end
+
+  policy "SessionCompletedDocumentFinding" do
+    on "SessionCompleted"
+    trigger "DocumentFinding"
+  end
+
+  policy "FindingValidatedProposeRecommendation" do
+    on "FindingValidated"
+    trigger "ProposeRecommendation"
+  end
+
+  policy "StudyConcludedValidateFindings" do
+    on "StudyConcluded"
+    trigger "ValidateFinding"
+  end
+end

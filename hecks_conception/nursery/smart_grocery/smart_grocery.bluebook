@@ -1,0 +1,207 @@
+Hecks.bluebook "SmartGrocery" do
+  vision "Cross-wire grocery store inventory with nutrition science for personalized smart grocery shopping"
+  core
+
+  aggregate "Product" do
+    description "A grocery product with nutritional data"
+    attribute :name
+    attribute :category
+    attribute :price_cents, Integer
+    attribute :nutrients, list_of(Nutrient)
+    attribute :status, default: "stocked"
+
+    value_object "Nutrient" do
+      attribute :nutrient_name
+      attribute :amount, Float
+      attribute :unit
+      attribute :daily_value_pct, Float
+      invariant "amount must be non-negative" do
+        amount >= 0
+      end
+    end
+
+    command "StockProduct" do
+      role "StoreManager"
+      goal "Add a product to store inventory"
+      attribute :name
+      attribute :category
+      attribute :price_cents, Integer
+    end
+
+    command "AddNutrient" do
+      role "Nutritionist"
+      goal "Add nutritional info to a product"
+      reference_to Product
+      attribute :nutrient_name
+      attribute :amount, Float
+      attribute :unit
+      attribute :daily_value_pct, Float
+      given("max 30 nutrients") { nutrients.size < 30 }
+      then_set :nutrients, append: { nutrient_name: :nutrient_name, amount: :amount, unit: :unit, daily_value_pct: :daily_value_pct }
+    end
+  end
+
+  aggregate "DietaryProfile" do
+    description "A customer dietary profile with goals and restrictions"
+    attribute :customer_name
+    attribute :calorie_target, Integer
+    attribute :restrictions, list_of(DietaryRestriction)
+    attribute :goals, list_of(NutrientGoal)
+    attribute :status, default: "active"
+
+    value_object "DietaryRestriction" do
+      attribute :restriction_type
+      attribute :severity
+    end
+
+    value_object "NutrientGoal" do
+      attribute :nutrient_name
+      attribute :target_amount, Float
+      attribute :unit
+      invariant "target must be positive" do
+        target_amount > 0
+      end
+    end
+
+    command "CreateProfile" do
+      role "Customer"
+      goal "Create a dietary profile"
+      attribute :customer_name
+      attribute :calorie_target, Integer
+    end
+
+    command "AddRestriction" do
+      role "Customer"
+      goal "Add a dietary restriction"
+      reference_to DietaryProfile
+      attribute :restriction_type
+      attribute :severity
+      given("max 20 restrictions") { restrictions.size < 20 }
+      then_set :restrictions, append: { restriction_type: :restriction_type, severity: :severity }
+    end
+
+    command "SetGoal" do
+      role "Nutritionist"
+      goal "Set a nutrient intake goal"
+      reference_to DietaryProfile
+      attribute :nutrient_name
+      attribute :target_amount, Float
+      attribute :unit
+      given("max 20 goals") { goals.size < 20 }
+      then_set :goals, append: { nutrient_name: :nutrient_name, target_amount: :target_amount, unit: :unit }
+    end
+  end
+
+  aggregate "MealPlan" do
+    description "A weekly meal plan based on dietary profile"
+    reference_to DietaryProfile
+    attribute :week_start
+    attribute :meals, list_of(PlannedMeal)
+    attribute :status, default: "draft"
+
+    value_object "PlannedMeal" do
+      attribute :day
+      attribute :meal_type
+      attribute :recipe_name
+      attribute :calories, Integer
+    end
+
+    command "GeneratePlan" do
+      role "NutritionAlgorithm"
+      goal "Generate a meal plan"
+      reference_to DietaryProfile
+      attribute :week_start
+    end
+
+    command "AddMeal" do
+      role "Nutritionist"
+      goal "Add a meal to the plan"
+      reference_to MealPlan
+      attribute :day
+      attribute :meal_type
+      attribute :recipe_name
+      attribute :calories, Integer
+      given("max 21 meals") { meals.size < 21 }
+      then_set :meals, append: { day: :day, meal_type: :meal_type, recipe_name: :recipe_name, calories: :calories }
+    end
+
+    command "ApprovePlan" do
+      role "Customer"
+      goal "Approve the meal plan"
+      reference_to MealPlan
+      given("must have meals") { meals.size > 0 }
+    end
+  end
+
+  aggregate "ShoppingList" do
+    description "A smart shopping list generated from meal plans"
+    reference_to MealPlan
+    reference_to DietaryProfile
+    attribute :items, list_of(ShoppingItem)
+    attribute :total_cents, Integer
+    attribute :status, default: "generated"
+
+    value_object "ShoppingItem" do
+      attribute :product_name
+      attribute :quantity, Integer
+      attribute :aisle
+      invariant "quantity must be positive" do
+        quantity > 0
+      end
+    end
+
+    command "GenerateList" do
+      role "SmartSystem"
+      goal "Generate shopping list from meal plan"
+      reference_to MealPlan
+    end
+
+    command "AddItem" do
+      role "Customer"
+      goal "Add an item to the list"
+      reference_to ShoppingList
+      attribute :product_name
+      attribute :quantity, Integer
+      attribute :aisle
+      given("max 100 items") { items.size < 100 }
+      then_set :items, append: { product_name: :product_name, quantity: :quantity, aisle: :aisle }
+    end
+
+    command "Checkout" do
+      role "Customer"
+      goal "Checkout with the shopping list"
+      reference_to ShoppingList
+      given("must have items") { items.size > 0 }
+    end
+  end
+
+  policy "ProfileCreatedTriggersPlan" do
+    on "ProfileCreated"
+    trigger "GeneratePlan"
+    map dietary_profile_id: :profile_id
+  end
+
+  policy "PlanApprovedTriggersList" do
+    on "PlanApproved"
+    trigger "GenerateList"
+    map meal_plan_id: :plan_id
+  end
+
+  policy "NutrientAddedTriggersGoal" do
+    on "NutrientAdded"
+    trigger "SetGoal"
+    map dietary_profile_id: :profile_id, nutrient_name: :nutrient_name
+  end
+
+  policy "GoalSetTriggersPlanRefresh" do
+    on "GoalSet"
+    trigger "GeneratePlan"
+    map dietary_profile_id: :profile_id
+  end
+
+  policy "CheckoutTriggersRestock" do
+    on "CheckedOut"
+    trigger "StockProduct"
+    map name: :depleted_product
+  end
+end

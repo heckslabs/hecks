@@ -1,0 +1,247 @@
+Hecks.bluebook "Distillery" do
+  aggregate "MashBill" do
+    String :mash_id
+    String :spirit_type
+    String :grain_recipe
+    Float :volume_gallons
+    Float :original_gravity
+    String :status
+
+    value_object "GrainRatio" do
+      String :grain_type
+      Float :percentage
+      Float :weight_lbs
+    end
+
+    MixMash do
+      description "Combine grains and water to create the mash for fermentation"
+      String :grain_recipe
+      Float :water_temperature_f
+      Float :volume_gallons
+      reference_to "MashBill"
+      emits "MashMixed"
+    end
+
+    FermentMash do
+      description "Pitch yeast and ferment mash to produce wash"
+      String :yeast_strain
+      Float :fermentation_temp_f
+      reference_to "MashBill"
+      emits "MashFermented"
+    end
+
+    DistillWash do
+      description "Run fermented wash through copper pot still or column still"
+      String :still_type
+      Float :cut_point_proof
+      reference_to "MashBill"
+      emits "WashDistilled"
+    end
+
+    lifecycle :status, default: "recipe" do
+      transition "MixMash" => "mashed", from: "recipe"
+      transition "FermentMash" => "fermented", from: "mashed"
+      transition "DistillWash" => "distilled", from: "fermented"
+    end
+
+    policy "Mash must reach target gravity before fermentation"
+    policy "Fermentation must complete before distillation"
+
+    given "A bourbon mash bill is prepared" do
+      String :spirit_type, "Bourbon"
+      String :grain_recipe, "75% Corn, 15% Rye, 10% Malted Barley"
+      Float :volume_gallons, 500.0
+    end
+  end
+
+  aggregate "Barrel" do
+    String :barrel_id
+    String :barrel_type
+    String :char_level
+    Float :fill_proof
+    String :fill_date
+    String :warehouse_location
+    String :status
+
+    FillBarrel do
+      description "Fill a barrel with new make spirit from the still"
+      String :barrel_type
+      String :char_level
+      Float :fill_proof
+      reference_to "MashBill"
+      emits "BarrelFilled"
+    end
+
+    RotateBarrel do
+      description "Move barrel to different warehouse position for even aging"
+      String :new_location
+      reference_to "Barrel"
+      emits "BarrelRotated"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "FillBarrel" => "filled", from: "empty"
+      transition "RotateBarrel" => "aging", from: "filled"
+      transition "SampleBarrel" => "sampled", from: "aging"
+    end
+
+    policy "Barrel proof must be recorded at fill time"
+  end
+
+  aggregate "AgingProgram" do
+    String :program_id
+    String :spirit_type
+    Integer :minimum_age_months
+    String :warehouse_id
+    String :status
+    list_of "Barrel"
+
+    value_object "WarehouseClimate" do
+      Float :temperature_f
+      Float :humidity_percent
+      String :season
+    end
+
+    AssignToProgram do
+      description "Assign filled barrels to an aging program in specific warehouse"
+      String :warehouse_id
+      Integer :minimum_age_months
+      reference_to "Barrel"
+      emits "BarrelAssigned"
+    end
+
+    SampleBarrel do
+      description "Pull sample from aging barrel to assess maturity"
+      Float :sample_proof
+      String :tasting_notes
+      reference_to "Barrel"
+      emits "BarrelSampled"
+    end
+
+    ApproveForBlending do
+      description "Master distiller approves barrel for blending based on sample"
+      String :approver
+      String :approval_notes
+      reference_to "Barrel"
+      emits "BarrelApproved"
+    end
+
+    lifecycle :status, default: "filling" do
+      transition "AssignToProgram" => "aging", from: "filling"
+      transition "SampleBarrel" => "sampled", from: "aging"
+      transition "ApproveForBlending" => "approved", from: "sampled"
+    end
+
+    policy "Barrels cannot be released before minimum age"
+  end
+
+  aggregate "BlendBatch" do
+    String :blend_id
+    String :product_name
+    Integer :barrel_count
+    Float :target_proof
+    String :status
+    list_of "Barrel"
+
+    BlendBarrels do
+      description "Combine selected barrels into a blending tank"
+      String :product_name
+      Integer :barrel_count
+      Float :target_proof
+      reference_to "BlendBatch"
+      emits "BarrelsBlended"
+    end
+
+    ProofDown do
+      description "Add water to bring blend to bottling proof"
+      Float :bottling_proof
+      reference_to "BlendBatch"
+      emits "ProofAdjusted"
+    end
+
+    lifecycle :status, default: "selecting" do
+      transition "BlendBarrels" => "blended", from: "selecting"
+      transition "ProofDown" => "proofed", from: "blended"
+    end
+
+    policy "Blend recipe must be approved by master distiller"
+  end
+
+  aggregate "BottlingRun" do
+    String :run_id
+    String :product_name
+    String :bottle_size
+    Integer :bottle_count
+    String :status
+
+    BottleSpirit do
+      description "Fill and cap bottles from the blending tank"
+      String :bottle_size
+      Integer :target_count
+      reference_to "BlendBatch"
+      emits "SpiritBottled"
+    end
+
+    LabelBottles do
+      description "Apply product labels and tax stamps to filled bottles"
+      String :label_version
+      reference_to "BottlingRun"
+      emits "BottlesLabeled"
+    end
+
+    PackCases do
+      description "Pack labeled bottles into cases for warehouse or shipping"
+      Integer :cases_packed
+      reference_to "BottlingRun"
+      emits "CasesPacked"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "BottleSpirit" => "bottled", from: "pending"
+      transition "LabelBottles" => "labeled", from: "bottled"
+      transition "PackCases" => "packed", from: "labeled"
+    end
+
+    policy "Tax stamps must be applied before case packing"
+  end
+
+  policy "FillBarrelOnWashDistilled" do
+    on "WashDistilled"
+    trigger "FillBarrel"
+  end
+
+  policy "AssignToProgramOnBarrelFilled" do
+    on "BarrelFilled"
+    trigger "AssignToProgram"
+  end
+
+  policy "ApproveForBlendingOnBarrelSampled" do
+    on "BarrelSampled"
+    trigger "ApproveForBlending"
+  end
+
+  policy "BlendBarrelsOnBarrelApproved" do
+    on "BarrelApproved"
+    trigger "BlendBarrels"
+  end
+
+  policy "ProofDownOnBarrelsBlended" do
+    on "BarrelsBlended"
+    trigger "ProofDown"
+  end
+
+  policy "BottleSpiritOnProofAdjusted" do
+    on "ProofAdjusted"
+    trigger "BottleSpirit"
+  end
+
+  policy "LabelBottlesOnSpiritBottled" do
+    on "SpiritBottled"
+    trigger "LabelBottles"
+  end
+
+  policy "PackCasesOnBottlesLabeled" do
+    on "BottlesLabeled"
+    trigger "PackCases"
+  end
+end

@@ -1,0 +1,144 @@
+Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
+  vision "Medical media — dermatology conditions meet educational video production and patient consent"
+  category "healthcare_technology"
+
+  aggregate "DermatologyCase", "A dermatology case documented for educational media" do
+    String :case_id
+    String :patient_code
+    String :condition_name
+    String :severity
+    String :treatment
+    String :status
+    DocumentCase do
+      role "Dermatologist"
+      description "Document a dermatology case for potential educational use"
+      String :case_id
+      String :patient_code
+      String :condition_name
+      String :severity
+      String :treatment
+      emits "CaseDocumented"
+      then_set :case_id, to: :case_id
+      then_set :patient_code, to: :patient_code
+      then_set :condition_name, to: :condition_name
+      then_set :severity, to: :severity
+      then_set :treatment, to: :treatment
+      then_set :status, to: "documented"
+    end
+    ClearForMedia do
+      role "Dermatologist"
+      description "Clear the case for use in educational media"
+      reference_to(DermatologyCase)
+      given { status == "documented" }
+      emits "CaseCleared"
+      then_set :status, to: "cleared"
+    end
+  end
+
+  aggregate "ConsentForm", "A patient consent form for media use of their case" do
+    String :consent_id
+    String :case_id
+    String :patient_code
+    String :scope
+    String :expiry_date
+    String :status
+    ObtainConsent do
+      role "ConsentCoordinator"
+      description "Obtain patient consent for educational media use"
+      String :consent_id
+      String :case_id
+      String :patient_code
+      String :scope
+      String :expiry_date
+      emits "ConsentObtained"
+      then_set :consent_id, to: :consent_id
+      then_set :case_id, to: :case_id
+      then_set :patient_code, to: :patient_code
+      then_set :scope, to: :scope
+      then_set :expiry_date, to: :expiry_date
+      then_set :status, to: "active"
+    end
+    RevokeConsent do
+      role "Patient"
+      description "Revoke consent for media use"
+      reference_to(ConsentForm)
+      given { status == "active" }
+      emits "ConsentRevoked"
+      then_set :status, to: "revoked"
+    end
+  end
+
+  aggregate "VideoProject", "An educational video project about a skin condition" do
+    String :project_id
+    String :case_id
+    String :title
+    String :target_audience
+    Float :duration_minutes
+    String :status
+    list_of(VideoScene) :scenes
+    value_object "VideoScene" do
+      Integer :scene_number
+      String :description_text
+      Float :duration_seconds
+    end
+    CreateProject do
+      role "Producer"
+      description "Create an educational video project from a cleared case"
+      String :project_id
+      String :case_id
+      String :title
+      String :target_audience
+      emits "ProjectCreated"
+      then_set :project_id, to: :project_id
+      then_set :case_id, to: :case_id
+      then_set :title, to: :title
+      then_set :target_audience, to: :target_audience
+      then_set :status, to: "pre_production"
+    end
+    PublishVideo do
+      role "Producer"
+      description "Publish the completed educational video"
+      reference_to(VideoProject)
+      Float :duration_minutes
+      given { status == "pre_production" }
+      emits "VideoPublished"
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :status, to: "published"
+    end
+  end
+
+  aggregate "ViewerFeedback", "Feedback from viewers of educational medical videos" do
+    String :feedback_id
+    String :project_id
+    String :viewer_role
+    Float :clarity_score
+    Float :usefulness_score
+    String :comments
+    SubmitFeedback do
+      role "Viewer"
+      description "Submit feedback on an educational medical video"
+      String :feedback_id
+      String :project_id
+      String :viewer_role
+      Float :clarity_score
+      Float :usefulness_score
+      String :comments
+      emits "FeedbackSubmitted"
+      then_set :feedback_id, to: :feedback_id
+      then_set :project_id, to: :project_id
+      then_set :viewer_role, to: :viewer_role
+      then_set :clarity_score, to: :clarity_score
+      then_set :usefulness_score, to: :usefulness_score
+      then_set :comments, to: :comments
+    end
+  end
+
+  policy "ConsentOnDocument" do
+    on "CaseDocumented"
+    trigger "ObtainConsent"
+  end
+  policy "ProjectOnConsent" do
+    on "ConsentObtained"
+    trigger "CreateProject"
+  end
+end

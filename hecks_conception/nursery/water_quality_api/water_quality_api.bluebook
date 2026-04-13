@@ -1,0 +1,195 @@
+Hecks.bluebook "WaterQualityAPI" do
+  vision "Cross-wire water treatment plant operations with API marketplace for water quality data services"
+  core
+
+  aggregate "TreatmentPlant" do
+    description "A water treatment plant with process stages"
+    attribute :plant_name
+    attribute :capacity_gallons, Float
+    attribute :stages, list_of(TreatmentStage)
+    attribute :status, default: "operational"
+
+    value_object "TreatmentStage" do
+      attribute :stage_name
+      attribute :chemical
+      attribute :dosage_ppm, Float
+      invariant "dosage must be positive" do
+        dosage_ppm > 0
+      end
+    end
+
+    command "RegisterPlant" do
+      role "PlantDirector"
+      goal "Register a water treatment plant"
+      attribute :plant_name
+      attribute :capacity_gallons, Float
+    end
+
+    command "AddStage" do
+      role "ProcessEngineer"
+      goal "Add a treatment stage"
+      reference_to TreatmentPlant
+      attribute :stage_name
+      attribute :chemical
+      attribute :dosage_ppm, Float
+      given("max 15 stages") { stages.size < 15 }
+      then_set :stages, append: { stage_name: :stage_name, chemical: :chemical, dosage_ppm: :dosage_ppm }
+    end
+  end
+
+  aggregate "WaterSample" do
+    description "A water quality sample with lab results"
+    reference_to TreatmentPlant
+    attribute :sample_point
+    attribute :collected_at
+    attribute :results, list_of(LabResult)
+    attribute :status, default: "collected"
+
+    value_object "LabResult" do
+      attribute :parameter
+      attribute :value, Float
+      attribute :unit
+      attribute :within_limit, default: true
+    end
+
+    command "CollectSample" do
+      role "LabTechnician"
+      goal "Collect a water sample"
+      reference_to TreatmentPlant
+      attribute :sample_point
+      attribute :collected_at
+    end
+
+    command "RecordResult" do
+      role "LabTechnician"
+      goal "Record a lab result"
+      reference_to WaterSample
+      attribute :parameter
+      attribute :value, Float
+      attribute :unit
+      given("max 50 results") { results.size < 50 }
+      then_set :results, append: { parameter: :parameter, value: :value, unit: :unit }
+    end
+
+    command "CertifySample" do
+      role "QualityManager"
+      goal "Certify sample results"
+      reference_to WaterSample
+      given("must have results") { results.size > 0 }
+    end
+  end
+
+  aggregate "APIEndpoint" do
+    description "An API endpoint exposing water quality data"
+    attribute :endpoint_path
+    attribute :description
+    attribute :rate_limit, Integer
+    attribute :consumers, list_of(APIConsumer)
+    attribute :status, default: "draft"
+
+    value_object "APIConsumer" do
+      attribute :consumer_name
+      attribute :api_key
+      attribute :tier
+    end
+
+    command "CreateEndpoint" do
+      role "APIDeveloper"
+      goal "Create a new API endpoint"
+      attribute :endpoint_path
+      attribute :description
+      attribute :rate_limit, Integer
+    end
+
+    command "RegisterConsumer" do
+      role "APIManager"
+      goal "Register an API consumer"
+      reference_to APIEndpoint
+      attribute :consumer_name
+      attribute :api_key
+      attribute :tier
+      given("max 100 consumers") { consumers.size < 100 }
+      then_set :consumers, append: { consumer_name: :consumer_name, api_key: :api_key, tier: :tier }
+    end
+
+    command "PublishEndpoint" do
+      role "APIManager"
+      goal "Publish the endpoint to the marketplace"
+      reference_to APIEndpoint
+    end
+  end
+
+  aggregate "DataFeed" do
+    description "A real-time data feed from treatment to API"
+    reference_to TreatmentPlant
+    reference_to APIEndpoint
+    attribute :feed_name
+    attribute :frequency_seconds, Integer
+    attribute :transformations, list_of(DataTransform)
+    attribute :status, default: "configured"
+
+    value_object "DataTransform" do
+      attribute :source_field
+      attribute :target_field
+      attribute :transform_type
+    end
+
+    command "ConfigureFeed" do
+      role "DataEngineer"
+      goal "Configure a data feed from plant to API"
+      reference_to TreatmentPlant
+      reference_to APIEndpoint
+      attribute :feed_name
+      attribute :frequency_seconds, Integer
+    end
+
+    command "AddTransform" do
+      role "DataEngineer"
+      goal "Add a data transformation"
+      reference_to DataFeed
+      attribute :source_field
+      attribute :target_field
+      attribute :transform_type
+      given("max 20 transforms") { transformations.size < 20 }
+      then_set :transformations, append: { source_field: :source_field, target_field: :target_field, transform_type: :transform_type }
+    end
+
+    command "ActivateFeed" do
+      role "DataEngineer"
+      goal "Start the data feed"
+      reference_to DataFeed
+      given("must have transforms") { transformations.size > 0 }
+    end
+  end
+
+  policy "SampleCertifiedTriggersPublish" do
+    on "SampleCertified"
+    trigger "PublishEndpoint"
+    map api_endpoint_id: :endpoint_id
+  end
+
+  policy "EndpointPublishedTriggersFeed" do
+    on "EndpointPublished"
+    trigger "ConfigureFeed"
+    map api_endpoint_id: :endpoint_id
+  end
+
+  policy "ResultRecordedTriggersStageAdjust" do
+    on "ResultRecorded"
+    trigger "AddStage"
+    map treatment_plant_id: :plant_id
+    condition { |event| !event.within_limit }
+  end
+
+  policy "ConsumerRegisteredTriggersSample" do
+    on "ConsumerRegistered"
+    trigger "CollectSample"
+    map treatment_plant_id: :plant_id
+  end
+
+  policy "FeedActivatedTriggersConsumer" do
+    on "FeedActivated"
+    trigger "RegisterConsumer"
+    map api_endpoint_id: :endpoint_id
+  end
+end

@@ -1,0 +1,244 @@
+Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
+  vision "Game theory meets online auctions — strategies, bidding equilibria, pricing, and rational agents"
+  category "crossover"
+
+  aggregate "Auction", "An auction event — item, format, reserve price, timing" do
+    String :name
+    String :item_description
+    String :auction_type
+    Float :reserve_price
+    Float :current_bid
+    String :start_time
+    String :end_time
+    String :status
+
+    value_object "BidIncrement" do
+      Float :min_increment
+      Float :current_price_threshold
+    end
+
+    CreateAuction do
+      role "Seller"
+      description "Create a new auction with item details and reserve price"
+      String :name
+      String :item_description
+      String :auction_type
+      Float :reserve_price
+      String :start_time
+      String :end_time
+      emits "AuctionCreated"
+      then_set :name, to: :name
+      then_set :item_description, to: :item_description
+      then_set :auction_type, to: :auction_type
+      then_set :reserve_price, to: :reserve_price
+      then_set :current_bid, to: 0.0
+      then_set :start_time, to: :start_time
+      then_set :end_time, to: :end_time
+      then_set :status, to: "open"
+    end
+
+    CloseAuction do
+      role "System"
+      description "Close the auction when time expires"
+      reference_to(Auction)
+      given { status == "open" }
+      emits "AuctionClosed"
+      then_set :status, to: "closed"
+    end
+
+    AwardAuction do
+      role "System"
+      description "Award auction to highest bidder if reserve met"
+      reference_to(Auction)
+      given { status == "closed" }
+      emits "AuctionAwarded"
+      then_set :status, to: "awarded"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateAuction" => "open", from: "draft"
+      transition "CloseAuction" => "closed", from: "open"
+      transition "AwardAuction" => "awarded", from: "closed"
+    end
+  end
+
+  aggregate "Bidder", "A strategic bidder — valuation, budget, risk profile, bid history" do
+    String :name
+    Float :max_valuation
+    Float :budget
+    String :risk_profile
+    Integer :bid_count
+    String :status
+
+    value_object "BidderProfile" do
+      Float :win_rate
+      Float :avg_bid_ratio
+      String :preferred_strategy
+    end
+
+    RegisterBidder do
+      role "Bidder"
+      description "Register as a bidder with valuation and budget"
+      String :name
+      Float :max_valuation
+      Float :budget
+      String :risk_profile
+      emits "BidderRegistered"
+      then_set :name, to: :name
+      then_set :max_valuation, to: :max_valuation
+      then_set :budget, to: :budget
+      then_set :risk_profile, to: :risk_profile
+      then_set :bid_count, to: 0
+      then_set :status, to: "active"
+    end
+
+    UpdateValuation do
+      role "Bidder"
+      description "Revise maximum valuation based on new information"
+      reference_to(Bidder)
+      Float :max_valuation
+      given { status == "active" }
+      emits "ValuationUpdated"
+      then_set :max_valuation, to: :max_valuation
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterBidder" => "active", from: "unregistered"
+    end
+  end
+
+  aggregate "BiddingStrategy", "A game-theoretic strategy — type, parameters, expected payoff" do
+    String :name
+    String :strategy_type
+    Float :aggression_factor
+    Float :shade_pct
+    Float :expected_payoff
+    String :status
+
+    value_object "NashEquilibrium" do
+      String :strategy_a
+      String :strategy_b
+      Float :payoff_a
+      Float :payoff_b
+    end
+
+    list_of "PayoffEntry" do
+      String :opponent_strategy
+      Float :my_payoff
+      Float :opponent_payoff
+    end
+
+    DefineStrategy do
+      role "Analyst"
+      description "Define a bidding strategy with game-theoretic parameters"
+      String :name
+      String :strategy_type
+      Float :aggression_factor
+      Float :shade_pct
+      emits "StrategyDefined"
+      then_set :name, to: :name
+      then_set :strategy_type, to: :strategy_type
+      then_set :aggression_factor, to: :aggression_factor
+      then_set :shade_pct, to: :shade_pct
+      then_set :status, to: "defined"
+    end
+
+    ComputeEquilibrium do
+      role "System"
+      description "Find Nash equilibrium for the strategy against known opponent types"
+      reference_to(BiddingStrategy)
+      Float :expected_payoff
+      given { status == "defined" }
+      emits "EquilibriumComputed"
+      then_set :expected_payoff, to: :expected_payoff
+    end
+
+    ActivateStrategy do
+      role "Bidder"
+      description "Activate strategy for use in live auctions"
+      reference_to(BiddingStrategy)
+      given { status == "defined" }
+      emits "StrategyActivated"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "DefineStrategy" => "defined", from: "draft"
+      transition "ActivateStrategy" => "active", from: "defined"
+    end
+  end
+
+  aggregate "Bid", "An individual bid — amount, timing, strategy used, outcome" do
+    String :bidder_name
+    String :auction_name
+    Float :amount
+    String :strategy_used
+    String :timestamp
+    String :outcome
+    String :status
+
+    value_object "BidAnalysis" do
+      Float :bid_to_value_ratio
+      Float :surplus_if_won
+      String :was_optimal
+    end
+
+    PlaceBid do
+      role "Bidder"
+      description "Place a bid on an auction using a chosen strategy"
+      String :bidder_name
+      String :auction_name
+      Float :amount
+      String :strategy_used
+      String :timestamp
+      emits "BidPlaced"
+      then_set :bidder_name, to: :bidder_name
+      then_set :auction_name, to: :auction_name
+      then_set :amount, to: :amount
+      then_set :strategy_used, to: :strategy_used
+      then_set :timestamp, to: :timestamp
+      then_set :status, to: "placed"
+    end
+
+    EvaluateBid do
+      role "System"
+      description "Analyze bid optimality against equilibrium strategy"
+      reference_to(Bid)
+      String :outcome
+      given { status == "placed" }
+      emits "BidEvaluated"
+      then_set :outcome, to: :outcome
+      then_set :status, to: "evaluated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "PlaceBid" => "placed", from: "pending"
+      transition "EvaluateBid" => "evaluated", from: "placed"
+    end
+  end
+
+  policy "ComputeEquilibriumOnDefine" do
+    on "StrategyDefined"
+    trigger "ComputeEquilibrium"
+  end
+
+  policy "EvaluateBidOnPlace" do
+    on "BidPlaced"
+    trigger "EvaluateBid"
+  end
+
+  policy "CloseAuctionOnBid" do
+    on "BidPlaced"
+    trigger "CloseAuction"
+  end
+
+  policy "AwardOnClose" do
+    on "AuctionClosed"
+    trigger "AwardAuction"
+  end
+
+  policy "UpdateValuationOnEval" do
+    on "BidEvaluated"
+    trigger "UpdateValuation"
+  end
+end

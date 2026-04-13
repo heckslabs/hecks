@@ -1,0 +1,249 @@
+Hecks.bluebook "WasteManagement" do
+  aggregate "CollectionRoute" do
+    String :route_id
+    String :route_name
+    String :zone
+    Integer :stop_count
+    String :collection_day
+    String :status
+
+    value_object "RouteMetrics" do
+      Float :distance_miles
+      Float :estimated_hours
+      Integer :bins_serviced
+      Float :tonnage_collected
+    end
+
+    PlanRoute do
+      description "Design collection route with stops optimized for zone coverage"
+      String :zone
+      Integer :stop_count
+      String :collection_day
+      reference_to "CollectionRoute"
+      emits "RoutePlanned"
+    end
+
+    DispatchRoute do
+      description "Assign truck and driver to execute planned collection route"
+      String :truck_id
+      String :driver_id
+      reference_to "CollectionRoute"
+      emits "RouteDispatched"
+    end
+
+    CompleteRoute do
+      description "Record route completion with actual tonnage and missed stops"
+      Float :tonnage_collected
+      Integer :missed_stops
+      reference_to "CollectionRoute"
+      emits "RouteCompleted"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "PlanRoute" => "planned"
+      transition "DispatchRoute" => "dispatched", from: "planned"
+      transition "CompleteRoute" => "completed", from: "dispatched"
+    end
+
+    policy "Missed stops must be serviced within 24 hours"
+    policy "Routes must be rebalanced quarterly for efficiency"
+  end
+
+  aggregate "WasteBin" do
+    String :bin_id
+    String :bin_type
+    String :address
+    Float :capacity_gallons
+    Float :fill_level_percent
+    String :status
+
+    DeployBin do
+      description "Deliver and assign waste bin to residential or commercial address"
+      String :bin_type
+      String :address
+      Float :capacity_gallons
+      reference_to "WasteBin"
+      emits "BinDeployed"
+    end
+
+    CollectBin do
+      description "Empty bin contents into collection truck during route"
+      Float :fill_level_percent
+      reference_to "WasteBin"
+      emits "BinCollected"
+    end
+
+    ReportDamage do
+      description "Log damaged or missing bin for replacement"
+      String :damage_type
+      reference_to "WasteBin"
+      emits "DamageReported"
+    end
+
+    lifecycle :status, default: "assigned" do
+      transition "DeployBin" => "deployed", from: "assigned"
+      transition "CollectBin" => "emptied", from: "deployed"
+      transition "ReportDamage" => "damaged", from: "deployed"
+    end
+
+    policy "Damaged bins must be replaced within 5 business days"
+
+    given "A 96-gallon recycling bin is deployed" do
+      String :bin_type, "Recycling"
+      Float :capacity_gallons, 96.0
+      String :address, "1234 Elm Street"
+    end
+  end
+
+  aggregate "CollectionTruck" do
+    String :truck_id
+    String :truck_type
+    Float :payload_capacity_tons
+    Float :current_load_tons
+    String :assigned_route
+    String :status
+
+    DispatchTruck do
+      description "Assign collection truck to route with driver for shift"
+      String :driver_id
+      String :route_id
+      reference_to "CollectionRoute"
+      emits "TruckDispatched"
+    end
+
+    WeighLoad do
+      description "Record truck weight at scale before tipping at disposal site"
+      Float :gross_weight_tons
+      Float :tare_weight_tons
+      reference_to "CollectionTruck"
+      emits "LoadWeighed"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "DispatchTruck" => "on_route", from: "available"
+      transition "WeighLoad" => "weighed", from: "on_route"
+    end
+
+    policy "Trucks must not exceed legal road weight limits"
+  end
+
+  aggregate "Landfill" do
+    String :landfill_id
+    String :landfill_name
+    Float :permitted_capacity_tons
+    Float :remaining_capacity_tons
+    String :status
+    list_of "LandfillCell"
+
+    TipWaste do
+      description "Deposit collected waste at designated landfill working face"
+      Float :tonnage
+      String :waste_stream
+      reference_to "Landfill"
+      emits "WasteTipped"
+    end
+
+    CompactCell do
+      description "Compact and cover deposited waste in active landfill cell"
+      String :cell_id
+      Float :compacted_density
+      reference_to "Landfill"
+      emits "CellCompacted"
+    end
+
+    ApplyDailyCover do
+      description "Apply soil or tarp cover to active face at end of operating day"
+      String :cover_type
+      reference_to "Landfill"
+      emits "DailyCoverApplied"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "TipWaste" => "receiving", from: "active"
+      transition "CompactCell" => "compacted", from: "receiving"
+      transition "ApplyDailyCover" => "covered", from: "compacted"
+    end
+
+    policy "Daily cover must be applied to active face before end of day"
+  end
+
+  aggregate "RecyclingFacility" do
+    String :facility_id
+    String :facility_name
+    String :material_types_accepted
+    Float :processing_capacity_tpd
+    Float :diversion_rate_percent
+    String :status
+
+    value_object "RecoveryRate" do
+      String :material_type
+      Float :inbound_tons
+      Float :recovered_tons
+      Float :contamination_percent
+    end
+
+    ProcessRecyclables do
+      description "Sort and bale incoming recyclable materials by commodity"
+      Float :inbound_tons
+      String :material_mix
+      reference_to "RecyclingFacility"
+      emits "RecyclablesProcessed"
+    end
+
+    SellCommodity do
+      description "Sell baled recyclable commodity to end market buyer"
+      String :material_type
+      Float :tons_sold
+      Float :price_per_ton
+      reference_to "RecyclingFacility"
+      emits "CommoditySold"
+    end
+
+    lifecycle :status, default: "receiving" do
+      transition "ProcessRecyclables" => "processing", from: "receiving"
+      transition "SellCommodity" => "sold", from: "processing"
+    end
+
+    policy "Contamination above 15 percent rejects the inbound load"
+  end
+
+  policy "DispatchTruckOnRoutePlanned" do
+    on "RoutePlanned"
+    trigger "DispatchTruck"
+  end
+
+  policy "CollectBinOnTruckDispatched" do
+    on "TruckDispatched"
+    trigger "CollectBin"
+  end
+
+  policy "WeighLoadOnRouteCompleted" do
+    on "RouteCompleted"
+    trigger "WeighLoad"
+  end
+
+  policy "TipWasteOnLoadWeighed" do
+    on "LoadWeighed"
+    trigger "TipWaste"
+  end
+
+  policy "CompactCellOnWasteTipped" do
+    on "WasteTipped"
+    trigger "CompactCell"
+  end
+
+  policy "ApplyDailyCoverOnCellCompacted" do
+    on "CellCompacted"
+    trigger "ApplyDailyCover"
+  end
+
+  policy "ProcessRecyclablesOnBinCollected" do
+    on "BinCollected"
+    trigger "ProcessRecyclables"
+  end
+
+  policy "SellCommodityOnRecyclablesProcessed" do
+    on "RecyclablesProcessed"
+    trigger "SellCommodity"
+  end
+end

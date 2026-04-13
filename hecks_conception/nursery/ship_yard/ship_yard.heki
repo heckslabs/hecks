@@ -1,0 +1,251 @@
+Hecks.bluebook "ShipYard" do
+  aggregate "Vessel" do
+    String :vessel_id
+    String :vessel_name
+    String :vessel_type
+    Float :length_meters
+    Float :deadweight_tons
+    String :flag_state
+    String :status
+
+    value_object "VesselClass" do
+      String :classification
+      String :hull_type
+      Float :beam_meters
+      Float :draft_meters
+    end
+
+    DockVessel do
+      description "Bring vessel into dry dock for inspection or repair work"
+      String :dock_id
+      String :purpose
+      reference_to "Vessel"
+      emits "VesselDocked"
+    end
+
+    SurveyHull do
+      description "Perform ultrasonic thickness and visual hull survey"
+      String :surveyor
+      Integer :findings_count
+      reference_to "Vessel"
+      emits "HullSurveyed"
+    end
+
+    UndockVessel do
+      description "Refloat vessel and release from dry dock after work completion"
+      String :sea_trial_required
+      reference_to "Vessel"
+      emits "VesselUndocked"
+    end
+
+    SeaTrial do
+      description "Conduct sea trial to verify all repairs and systems operational"
+      Float :trial_duration_hours
+      String :trial_result
+      reference_to "Vessel"
+      emits "SeaTrialCompleted"
+    end
+
+    lifecycle :status, default: "arriving" do
+      transition "DockVessel" => "docked", from: "arriving"
+      transition "SurveyHull" => "surveyed", from: "docked"
+      transition "UndockVessel" => "undocked", from: "surveyed"
+      transition "SeaTrial" => "delivered", from: "undocked"
+    end
+
+    policy "Hull inspection must be completed before undocking"
+    policy "Ballast tanks must be checked before refloating"
+
+    given "A bulk carrier arrives for annual survey" do
+      String :vessel_name, "MV Pacific Dawn"
+      String :vessel_type, "Bulk Carrier"
+      Float :deadweight_tons, 75000.0
+    end
+  end
+
+  aggregate "DryDock" do
+    String :dock_id
+    String :dock_name
+    Float :length_meters
+    Float :width_meters
+    Float :depth_meters
+    String :status
+
+    FloodDock do
+      description "Flood dry dock to allow vessel entry or departure"
+      Float :target_depth_meters
+      reference_to "DryDock"
+      emits "DockFlooded"
+    end
+
+    DrainDock do
+      description "Pump water from dry dock to expose vessel hull for work"
+      reference_to "DryDock"
+      emits "DockDrained"
+    end
+
+    lifecycle :status, default: "dry" do
+      transition "FloodDock" => "flooded", from: "dry"
+      transition "DrainDock" => "dry", from: "flooded"
+    end
+
+    policy "Dock must be fully drained before hull work begins"
+  end
+
+  aggregate "RepairJob" do
+    String :job_id
+    String :vessel_id
+    String :job_type
+    String :description_text
+    Float :estimated_hours
+    String :status
+    list_of "WorkTask"
+
+    CreateRepairJob do
+      description "Define scope of repair work for a docked vessel"
+      String :job_type
+      String :description_text
+      Float :estimated_hours
+      reference_to "Vessel"
+      emits "RepairJobCreated"
+    end
+
+    ExecuteRepair do
+      description "Carry out the defined repair work on the vessel"
+      String :foreman
+      Float :actual_hours
+      reference_to "RepairJob"
+      emits "RepairExecuted"
+    end
+
+    InspectRepair do
+      description "Class surveyor inspects completed repair for compliance"
+      String :inspector
+      String :inspection_result
+      reference_to "RepairJob"
+      emits "RepairInspected"
+    end
+
+    CompleteRepairJob do
+      description "Sign off repair job after quality inspection and testing"
+      String :inspector
+      String :completion_notes
+      reference_to "RepairJob"
+      emits "RepairJobCompleted"
+    end
+
+    lifecycle :status, default: "scoped" do
+      transition "CreateRepairJob" => "created", from: "scoped"
+      transition "ExecuteRepair" => "executed", from: "created"
+      transition "InspectRepair" => "inspected", from: "executed"
+      transition "CompleteRepairJob" => "completed", from: "inspected"
+    end
+
+    policy "All repair work must be inspected by class surveyor"
+  end
+
+  aggregate "YardCrew" do
+    String :crew_id
+    String :trade
+    Integer :headcount
+    String :shift
+    String :supervisor
+
+    AssignCrew do
+      description "Assign skilled trade crew to a repair job for a shift"
+      String :trade
+      String :shift
+      reference_to "RepairJob"
+      emits "CrewAssigned"
+    end
+
+    RecordHours do
+      description "Log actual hours worked by crew on a specific job"
+      Float :hours_worked
+      reference_to "RepairJob"
+      emits "HoursRecorded"
+    end
+
+    policy "Crew must hold valid trade certifications for assigned work"
+  end
+
+  aggregate "YardContract" do
+    String :contract_id
+    String :vessel_owner
+    String :scope_summary
+    Float :contract_value
+    String :start_date
+    String :end_date
+    String :status
+    list_of "RepairJob"
+
+    value_object "ContractTerms" do
+      Float :daily_dock_rate
+      Float :penalty_per_day_late
+      String :payment_terms
+    end
+
+    NegotiateContract do
+      description "Finalize repair contract terms with vessel owner"
+      String :vessel_owner
+      Float :contract_value
+      String :scope_summary
+      reference_to "YardContract"
+      emits "ContractNegotiated"
+    end
+
+    CloseContract do
+      description "Close contract after all work complete and final invoicing"
+      Float :final_value
+      reference_to "YardContract"
+      emits "ContractClosed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "NegotiateContract" => "active", from: "draft"
+      transition "CloseContract" => "closed", from: "active"
+    end
+
+    policy "Contract changes require written change order approval"
+  end
+
+  policy "CreateRepairJobOnHullSurveyed" do
+    on "HullSurveyed"
+    trigger "CreateRepairJob"
+  end
+
+  policy "AssignCrewOnRepairJobCreated" do
+    on "RepairJobCreated"
+    trigger "AssignCrew"
+  end
+
+  policy "ExecuteRepairOnCrewAssigned" do
+    on "CrewAssigned"
+    trigger "ExecuteRepair"
+  end
+
+  policy "InspectRepairOnRepairExecuted" do
+    on "RepairExecuted"
+    trigger "InspectRepair"
+  end
+
+  policy "UndockVesselOnRepairJobCompleted" do
+    on "RepairJobCompleted"
+    trigger "UndockVessel"
+  end
+
+  policy "SeaTrialOnVesselUndocked" do
+    on "VesselUndocked"
+    trigger "SeaTrial"
+  end
+
+  policy "SurveyHullOnVesselDocked" do
+    on "VesselDocked"
+    trigger "SurveyHull"
+  end
+
+  policy "CloseContractOnSeaTrialCompleted" do
+    on "SeaTrialCompleted"
+    trigger "CloseContract"
+  end
+end

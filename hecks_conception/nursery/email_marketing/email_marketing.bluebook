@@ -1,0 +1,256 @@
+Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
+  vision "Running email marketing — managing subscriber lists, designing campaigns, sending messages, tracking opens, and handling bounces"
+  category "technology"
+
+  aggregate "SubscriberList", "A collection of email contacts segmented by audience" do
+    String :list_name
+    String :description
+    Integer :subscriber_count
+    String :opt_in_method
+    String :status
+    list_of(Subscriber) :subscribers
+
+    value_object "Subscriber" do
+      String :email
+      String :first_name
+      String :subscribed_at
+      String :status
+    end
+
+    CreateList do
+      role "Marketer"
+      description "Set up a new subscriber list for a target audience"
+      String :list_name
+      String :description
+      String :opt_in_method
+      emits "ListCreated"
+    end
+
+    AddSubscriber do
+      description "Add a contact to a subscriber list"
+      reference_to(SubscriberList)
+      String :email
+      String :first_name
+      emits "SubscriberAdded"
+    end
+
+    ArchiveList do
+      description "Deactivate a list that is no longer in use"
+      reference_to(SubscriberList)
+      given("list exists") { status == "active" }
+      emits "ListArchived"
+    end
+  end
+
+  aggregate "EmailCampaign", "A marketing email designed for mass delivery" do
+    String :campaign_name
+    String :subject_line
+    String :from_address
+    String :template_id
+    String :status
+    reference_to SubscriberList
+    list_of(ABVariant) :variants
+
+    value_object "ABVariant" do
+      String :variant_label
+      String :subject_line
+      Integer :send_percentage
+    end
+
+    DesignCampaign do
+      role "Marketer"
+      description "Create a new email campaign with subject and template"
+      String :campaign_name
+      String :subject_line
+      String :from_address
+      String :template_id
+      reference_to(SubscriberList)
+      emits "CampaignDesigned"
+    end
+
+    ScheduleCampaign do
+      description "Queue a campaign for delivery at a specified time"
+      reference_to(EmailCampaign)
+      String :send_at
+      given("campaign is draft") { status == "draft" }
+      emits "CampaignScheduled"
+    end
+
+    CancelCampaign do
+      description "Abort a scheduled campaign before it sends"
+      reference_to(EmailCampaign)
+      emits "CampaignCanceled"
+    end
+  end
+
+  aggregate "Send", "A single email delivery attempt to a subscriber" do
+    String :send_id
+    String :recipient_email
+    String :status
+    String :sent_at
+    String :delivery_status
+    reference_to EmailCampaign
+
+    value_object "DeliveryDetail" do
+      String :smtp_response
+      String :relay_host
+      String :delivered_at
+    end
+
+    DispatchSend do
+      role "EmailEngine"
+      description "Deliver an email to a specific recipient"
+      String :send_id
+      String :recipient_email
+      reference_to(EmailCampaign)
+      emits "SendDispatched"
+    end
+
+    ConfirmDelivery do
+      description "Mark an email as successfully delivered"
+      reference_to(Send)
+      emits "DeliveryConfirmed"
+    end
+
+    MarkFailed do
+      description "Record a permanent delivery failure"
+      reference_to(Send)
+      String :failure_reason
+      emits "SendFailed"
+    end
+  end
+
+  aggregate "OpenEvent", "A tracked email open by a recipient" do
+    String :event_id
+    String :recipient_email
+    String :user_agent
+    String :opened_at
+    String :geo_region
+    reference_to Send
+
+    value_object "OpenContext" do
+      String :device_type
+      String :email_client
+      String :ip_address
+    end
+
+    RecordOpen do
+      role "TrackingPixel"
+      description "Log when a recipient opens an email"
+      String :event_id
+      String :recipient_email
+      String :user_agent
+      String :geo_region
+      reference_to(Send)
+      emits "OpenRecorded"
+    end
+
+    FlagBotOpen do
+      description "Mark an open event as likely automated by email security"
+      reference_to(OpenEvent)
+      emits "BotOpenFlagged"
+    end
+
+    AggregateOpens do
+      description "Roll up open events into campaign-level metrics"
+      reference_to(OpenEvent)
+      emits "OpensAggregated"
+    end
+  end
+
+  aggregate "Bounce", "A failed email delivery returned by the recipient server" do
+    String :bounce_id
+    String :recipient_email
+    String :bounce_type
+    String :smtp_code
+    String :diagnostic
+    String :status
+    reference_to Send
+
+    value_object "BounceDetail" do
+      String :remote_server
+      String :error_message
+      String :bounced_at
+    end
+
+    RecordBounce do
+      role "EmailEngine"
+      description "Log a bounce returned by the recipient mail server"
+      String :bounce_id
+      String :recipient_email
+      String :bounce_type
+      String :smtp_code
+      reference_to(Send)
+      emits "BounceRecorded"
+    end
+
+    ClassifyBounce do
+      description "Categorize a bounce as hard or soft"
+      reference_to(Bounce)
+      String :bounce_type
+      emits "BounceClassified"
+    end
+
+    SuppressAddress do
+      description "Add a hard-bounced address to the suppression list"
+      reference_to(Bounce)
+      given("bounce is hard") { bounce_type == "hard" }
+      emits "AddressSuppressed"
+    end
+  end
+
+  lifecycle "CampaignDelivery" do
+    state "designed"
+    state "scheduled"
+    state "sending"
+    state "delivered"
+    state "tracked"
+    state "analyzed"
+
+    transition from: "designed", to: "scheduled", on: "CampaignScheduled"
+    transition from: "scheduled", to: "sending", on: "SendDispatched"
+    transition from: "sending", to: "delivered", on: "DeliveryConfirmed"
+    transition from: "delivered", to: "tracked", on: "OpenRecorded"
+    transition from: "tracked", to: "analyzed", on: "OpensAggregated"
+  end
+
+  policy "CampaignDesignedSchedule" do
+    on "CampaignDesigned"
+    trigger "ScheduleCampaign"
+  end
+
+  policy "CampaignScheduledDispatch" do
+    on "CampaignScheduled"
+    trigger "DispatchSend"
+  end
+
+  policy "SendDispatchedConfirmDelivery" do
+    on "SendDispatched"
+    trigger "ConfirmDelivery"
+  end
+
+  policy "DeliveryConfirmedRecordOpen" do
+    on "DeliveryConfirmed"
+    trigger "RecordOpen"
+  end
+
+  policy "BounceRecordedClassify" do
+    on "BounceRecorded"
+    trigger "ClassifyBounce"
+  end
+
+  policy "BounceClassifiedSuppress" do
+    on "BounceClassified"
+    trigger "SuppressAddress"
+  end
+
+  policy "AggregateOnOpen" do
+    on "OpenRecorded"
+    trigger "AggregateOpens"
+  end
+
+  policy "RecordBounceOnFail" do
+    on "SendFailed"
+    trigger "RecordBounce"
+  end
+end

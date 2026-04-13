@@ -1,0 +1,245 @@
+Hecks.bluebook "PaperMill" do
+  aggregate "PulpBatch" do
+    String :batch_id
+    String :wood_type
+    Float :consistency_percent
+    String :bleaching_status
+    String :status
+
+    value_object "FiberAnalysis" do
+      Float :fiber_length_mm
+      Float :brightness_iso
+      Float :freeness_csf
+    end
+
+    CookPulp do
+      description "Cook wood chips into pulp using kraft or sulfite process"
+      String :process_type
+      Float :cook_temperature
+      Float :cook_duration_hours
+      reference_to "PulpBatch"
+      emits "PulpCooked"
+    end
+
+    WashPulp do
+      description "Wash cooked pulp to remove residual lignin and chemicals"
+      Float :wash_water_volume
+      reference_to "PulpBatch"
+      emits "PulpWashed"
+    end
+
+    BleachPulp do
+      description "Bleach pulp to target brightness level"
+      Float :target_brightness
+      String :bleaching_agent
+      reference_to "PulpBatch"
+      emits "PulpBleached"
+    end
+
+    RefinePulp do
+      description "Refine bleached pulp to target freeness for paper machine"
+      Float :target_freeness_csf
+      reference_to "PulpBatch"
+      emits "PulpRefined"
+    end
+
+    lifecycle :status, default: "chips" do
+      transition "CookPulp" => "cooked", from: "chips"
+      transition "WashPulp" => "washed", from: "cooked"
+      transition "BleachPulp" => "bleached", from: "washed"
+      transition "RefinePulp" => "refined", from: "bleached"
+    end
+
+    policy "Pulp must be cooked before bleaching"
+    policy "Consistency must be within 3-6 percent for processing"
+  end
+
+  aggregate "PaperRoll" do
+    String :roll_id
+    String :grade
+    Float :basis_weight_gsm
+    Float :width_mm
+    Float :diameter_mm
+    String :status
+    list_of "QualityTest"
+
+    FormSheet do
+      description "Form wet paper sheet on the wire section of paper machine"
+      String :machine_id
+      Float :target_basis_weight
+      reference_to "PulpBatch"
+      emits "SheetFormed"
+    end
+
+    PressSheet do
+      description "Press wet sheet between felts to remove water mechanically"
+      Float :moisture_after_press
+      reference_to "PaperRoll"
+      emits "SheetPressed"
+    end
+
+    DrySheet do
+      description "Pass sheet over heated drying cylinders to final moisture"
+      Float :final_moisture_percent
+      reference_to "PaperRoll"
+      emits "SheetDried"
+    end
+
+    WindRoll do
+      description "Wind finished paper onto a reel at the dry end"
+      Float :tension_newtons
+      Float :moisture_percent
+      reference_to "PaperRoll"
+      emits "RollWound"
+    end
+
+    lifecycle :status, default: "forming" do
+      transition "FormSheet" => "formed", from: "forming"
+      transition "PressSheet" => "pressed", from: "formed"
+      transition "DrySheet" => "dried", from: "pressed"
+      transition "WindRoll" => "wound", from: "dried"
+    end
+
+    policy "Moisture content must be below 8 percent before winding"
+  end
+
+  aggregate "PaperGrade" do
+    String :grade_code
+    String :grade_name
+    Float :min_brightness
+    Float :max_brightness
+    Float :target_basis_weight
+    String :application
+
+    DefineGrade do
+      description "Define a new paper grade specification with target properties"
+      String :grade_name
+      Float :target_basis_weight
+      Float :min_brightness
+      reference_to "PaperGrade"
+      emits "GradeDefined"
+    end
+
+    policy "Grade specifications must have non-overlapping brightness ranges"
+
+    given "A standard copy paper grade is defined" do
+      String :grade_code, "CP-80"
+      String :grade_name, "Copy Paper 80gsm"
+      Float :target_basis_weight, 80.0
+    end
+  end
+
+  aggregate "PaperMachine" do
+    String :machine_id
+    String :machine_name
+    Float :max_speed_mpm
+    String :current_grade
+    String :status
+
+    value_object "MachineReading" do
+      Float :speed_mpm
+      Float :steam_pressure_bar
+      Float :felt_tension
+    end
+
+    StartMachine do
+      description "Start paper machine and ramp up to operating speed"
+      String :target_grade
+      Float :target_speed
+      reference_to "PaperMachine"
+      emits "MachineStarted"
+    end
+
+    ChangeGrade do
+      description "Switch machine to produce a different paper grade"
+      String :new_grade
+      Float :transition_speed
+      reference_to "PaperGrade"
+      emits "GradeChanged"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "StartMachine" => "running", from: "idle"
+      transition "ChangeGrade" => "transitioning", from: "running"
+    end
+
+    policy "Machine must be stopped for felt changes"
+  end
+
+  aggregate "ShippingOrder" do
+    String :order_id
+    String :customer_name
+    String :grade
+    Integer :roll_count
+    String :delivery_date
+    String :status
+    list_of "PaperRoll"
+
+    BookShipment do
+      description "Book rolls for shipment to customer warehouse"
+      String :customer_name
+      String :carrier
+      reference_to "ShippingOrder"
+      emits "ShipmentBooked"
+    end
+
+    DispatchShipment do
+      description "Release loaded truck or rail car for delivery"
+      String :bill_of_lading
+      reference_to "ShippingOrder"
+      emits "ShipmentDispatched"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "BookShipment" => "booked", from: "pending"
+      transition "DispatchShipment" => "dispatched", from: "booked"
+    end
+
+    policy "All rolls must pass quality tests before shipping"
+  end
+
+  policy "WashPulpOnPulpCooked" do
+    on "PulpCooked"
+    trigger "WashPulp"
+  end
+
+  policy "BleachPulpOnPulpWashed" do
+    on "PulpWashed"
+    trigger "BleachPulp"
+  end
+
+  policy "RefinePulpOnPulpBleached" do
+    on "PulpBleached"
+    trigger "RefinePulp"
+  end
+
+  policy "FormSheetOnPulpRefined" do
+    on "PulpRefined"
+    trigger "FormSheet"
+  end
+
+  policy "PressSheetOnSheetFormed" do
+    on "SheetFormed"
+    trigger "PressSheet"
+  end
+
+  policy "DrySheetOnSheetPressed" do
+    on "SheetPressed"
+    trigger "DrySheet"
+  end
+
+  policy "WindRollOnSheetDried" do
+    on "SheetDried"
+    trigger "WindRoll"
+  end
+
+  policy "BookShipmentOnRollWound" do
+    on "RollWound"
+    trigger "BookShipment"
+  end
+
+  policy "DispatchShipmentOnShipmentBooked" do
+    on "ShipmentBooked"
+    trigger "DispatchShipment"
+  end
+end

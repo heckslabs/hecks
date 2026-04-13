@@ -1,0 +1,255 @@
+Hecks.bluebook "ThirdPartyLogistics" do
+  aggregate "LogisticsClient" do
+    String :client_id
+    String :company_name
+    String :industry
+    String :contract_type
+    String :account_manager
+    String :status
+
+    value_object "ServiceLevel" do
+      Float :order_accuracy_target
+      Float :on_time_delivery_target
+      Integer :max_lead_time_hours
+      Float :damage_rate_threshold
+    end
+
+    OnboardClient do
+      description "Set up new logistics client with service level agreement"
+      String :company_name
+      String :contract_type
+      String :account_manager
+      reference_to "LogisticsClient"
+      emits "ClientOnboarded"
+    end
+
+    SuspendClient do
+      description "Temporarily suspend client account due to payment or compliance issue"
+      String :suspension_reason
+      reference_to "LogisticsClient"
+      emits "ClientSuspended"
+    end
+
+    lifecycle :status, default: "prospect" do
+      transition "OnboardClient" => "active", from: "prospect"
+      transition "SuspendClient" => "suspended", from: "active"
+    end
+
+    policy "Service levels must be defined before first order intake"
+    policy "Suspended clients cannot submit new orders"
+
+    given "A consumer electronics client is onboarded" do
+      String :company_name, "BrightScreen Electronics"
+      String :contract_type, "Full Service 3PL"
+      String :industry, "Consumer Electronics"
+    end
+  end
+
+  aggregate "Warehouse" do
+    String :warehouse_id
+    String :warehouse_name
+    String :city
+    Float :total_sqft
+    Float :available_sqft
+    String :status
+    list_of "StorageZone"
+
+    value_object "StorageZone" do
+      String :zone_name
+      String :storage_type
+      Float :capacity_sqft
+      Float :utilization_percent
+    end
+
+    AllocateSpace do
+      description "Reserve warehouse storage space for client inventory"
+      String :client_id
+      Float :sqft_requested
+      String :zone_name
+      reference_to "LogisticsClient"
+      emits "SpaceAllocated"
+    end
+
+    ReceiveInventory do
+      description "Accept inbound inventory from client supplier into warehouse"
+      Integer :pallet_count
+      String :purchase_order
+      reference_to "Warehouse"
+      emits "InventoryReceived"
+    end
+
+    ReleaseSpace do
+      description "Free allocated warehouse space after client inventory removal"
+      String :client_id
+      Float :sqft_released
+      reference_to "Warehouse"
+      emits "SpaceReleased"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "AllocateSpace" => "allocated", from: "available"
+      transition "ReceiveInventory" => "stocked", from: "allocated"
+      transition "ReleaseSpace" => "available", from: "stocked"
+    end
+
+    policy "Warehouse utilization must not exceed 95 percent capacity"
+  end
+
+  aggregate "FulfillmentOrder" do
+    String :order_id
+    String :client_id
+    String :order_type
+    Integer :line_count
+    String :ship_to_address
+    String :priority
+    String :status
+
+    ReceiveOrder do
+      description "Intake fulfillment order from client system via EDI or API"
+      String :client_id
+      String :order_type
+      String :ship_to_address
+      reference_to "FulfillmentOrder"
+      emits "OrderReceived"
+    end
+
+    PickAndPack do
+      description "Pick ordered items from warehouse and pack for shipment"
+      String :picker_id
+      Integer :items_picked
+      reference_to "FulfillmentOrder"
+      emits "OrderPacked"
+    end
+
+    ShipOrder do
+      description "Hand off packed order to carrier for last mile delivery"
+      String :tracking_number
+      reference_to "FulfillmentOrder"
+      emits "OrderShipped"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ReceiveOrder" => "received", from: "pending"
+      transition "PickAndPack" => "packed", from: "received"
+      transition "ShipOrder" => "shipped", from: "packed"
+    end
+
+    policy "Priority orders must be picked within 2 hours of receipt"
+  end
+
+  aggregate "CarrierAssignment" do
+    String :assignment_id
+    String :carrier_name
+    String :service_level
+    String :tracking_number
+    Float :freight_cost
+    String :status
+
+    AssignCarrier do
+      description "Select and assign shipping carrier based on rate and service level"
+      String :carrier_name
+      String :service_level
+      reference_to "FulfillmentOrder"
+      emits "CarrierAssigned"
+    end
+
+    TrackShipment do
+      description "Update shipment tracking status from carrier milestone events"
+      String :milestone
+      String :location
+      String :timestamp
+      reference_to "CarrierAssignment"
+      emits "ShipmentTracked"
+    end
+
+    ConfirmDelivery do
+      description "Record final delivery confirmation from carrier"
+      String :delivery_proof
+      reference_to "CarrierAssignment"
+      emits "DeliveryConfirmed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AssignCarrier" => "assigned", from: "pending"
+      transition "TrackShipment" => "in_transit", from: "assigned"
+      transition "ConfirmDelivery" => "delivered", from: "in_transit"
+    end
+
+    policy "Carrier must provide tracking number within 1 hour of pickup"
+  end
+
+  aggregate "ClientInvoice" do
+    String :invoice_id
+    String :client_id
+    String :billing_period
+    Float :storage_charges
+    Float :fulfillment_charges
+    Float :freight_charges
+    Float :total_amount
+    String :status
+    list_of "FulfillmentOrder"
+
+    GenerateInvoice do
+      description "Calculate and generate monthly client invoice from activity data"
+      String :client_id
+      String :billing_period
+      reference_to "ClientInvoice"
+      emits "InvoiceGenerated"
+    end
+
+    ApplyCredit do
+      description "Apply credit memo to invoice for service failures or disputes"
+      Float :credit_amount
+      String :credit_reason
+      reference_to "ClientInvoice"
+      emits "CreditApplied"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "GenerateInvoice" => "generated", from: "pending"
+      transition "ApplyCredit" => "adjusted", from: "generated"
+    end
+
+    policy "Invoices must be issued within 5 business days of period close"
+  end
+
+  policy "AllocateSpaceOnClientOnboarded" do
+    on "ClientOnboarded"
+    trigger "AllocateSpace"
+  end
+
+  policy "ReceiveInventoryOnSpaceAllocated" do
+    on "SpaceAllocated"
+    trigger "ReceiveInventory"
+  end
+
+  policy "PickAndPackOnOrderReceived" do
+    on "OrderReceived"
+    trigger "PickAndPack"
+  end
+
+  policy "AssignCarrierOnOrderPacked" do
+    on "OrderPacked"
+    trigger "AssignCarrier"
+  end
+
+  policy "ShipOrderOnCarrierAssigned" do
+    on "CarrierAssigned"
+    trigger "ShipOrder"
+  end
+
+  policy "GenerateInvoiceOnDeliveryConfirmed" do
+    on "DeliveryConfirmed"
+    trigger "GenerateInvoice"
+  end
+
+  policy "TrackShipmentOnOrderShipped" do
+    on "OrderShipped"
+    trigger "TrackShipment"
+  end
+
+  policy "ConfirmDeliveryOnShipmentTracked" do
+    on "ShipmentTracked"
+    trigger "ConfirmDelivery"
+  end
+end

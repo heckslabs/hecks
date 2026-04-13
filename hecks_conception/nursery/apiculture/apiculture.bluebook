@@ -1,0 +1,203 @@
+Hecks.bluebook "Apiculture" do
+  vision "Manage beehives, inspections, honey harvests, queen lineages, and disease treatments"
+
+  aggregate "Hive" do
+    description "A managed colony of honeybees housed in an apiary"
+    String :hive_id
+    String :hive_type
+    String :location
+    Integer :frame_count
+    String :status
+
+    command "EstablishHive" do
+      description "Set up a new beehive in the apiary"
+      emits "HiveEstablished"
+      String :hive_id
+      String :hive_type
+      String :location
+    end
+
+    command "SplitHive" do
+      description "Divide a strong colony to prevent swarming"
+      emits "HiveSplit"
+      reference_to Hive
+      given "colony must have at least eight frames of brood"
+    end
+
+    command "RetireHive" do
+      description "Remove a dead or abandoned hive"
+      emits "HiveRetired"
+      reference_to Hive
+    end
+  end
+
+  aggregate "Inspection" do
+    description "A periodic examination of hive health and productivity"
+    String :inspection_date
+    String :inspector
+    Integer :brood_frames
+    Integer :honey_frames
+    String :temperament
+    String :queen_seen
+    reference_to Hive
+
+    value_object "BroodPattern" do
+      String :pattern_quality
+      Integer :capped_cells_percent
+      String :disease_signs
+    end
+
+    command "PerformInspection" do
+      description "Conduct a full hive inspection"
+      emits "InspectionCompleted"
+      reference_to Hive
+      String :inspection_date
+      String :inspector
+    end
+
+    command "FlagConcern" do
+      description "Note a health issue discovered during inspection"
+      emits "ConcernFlagged"
+      reference_to Inspection
+      String :concern_type
+      String :details
+    end
+
+    command "RecordTemperament" do
+      description "Score the colony's defensiveness during handling"
+      emits "TemperamentRecorded"
+      reference_to Inspection
+      String :temperament
+    end
+  end
+
+  aggregate "Harvest" do
+    description "A honey extraction event from one or more hives"
+    String :harvest_date
+    Float :weight_kg
+    String :honey_type
+    Float :moisture_percent
+    reference_to Hive
+
+    command "ExtractHoney" do
+      description "Spin frames and collect honey"
+      emits "HoneyExtracted"
+      reference_to Hive
+      String :harvest_date
+      Float :weight_kg
+      given "moisture content must be below twenty percent"
+    end
+
+    command "JarHoney" do
+      description "Package extracted honey into retail containers"
+      emits "HoneyJarred"
+      reference_to Harvest
+      Integer :jar_count
+    end
+  end
+
+  aggregate "Queen" do
+    description "The reproductive female leading a colony"
+    String :queen_id
+    String :lineage
+    String :marked_color
+    Integer :year_introduced
+    reference_to Hive
+
+    value_object "QueenPerformance" do
+      String :laying_pattern
+      Float :brood_density
+      String :temperament_rating
+    end
+
+    command "IntroduceQueen" do
+      description "Install a new queen into a hive"
+      emits "QueenIntroduced"
+      reference_to Hive
+      String :queen_id
+      String :lineage
+    end
+
+    command "MarkQueen" do
+      description "Paint the queen with the year color code"
+      emits "QueenMarked"
+      reference_to Queen
+      String :marked_color
+    end
+
+    command "SupersedeQueen" do
+      description "Replace an underperforming queen"
+      emits "QueenSuperseded"
+      reference_to Queen
+      given "queen must be at least one year old"
+    end
+  end
+
+  aggregate "DiseaseTreatment" do
+    description "A medication or intervention applied to a sick colony"
+    String :treatment_type
+    String :active_ingredient
+    String :application_date
+    Integer :duration_days
+    reference_to Hive
+
+    command "ApplyTreatment" do
+      description "Administer disease treatment to the hive"
+      emits "TreatmentApplied"
+      reference_to Hive
+      String :treatment_type
+      String :active_ingredient
+    end
+
+    command "EvaluateEfficacy" do
+      description "Assess whether the treatment resolved the condition"
+      emits "EfficacyEvaluated"
+      reference_to DiseaseTreatment
+      given "treatment duration must have elapsed"
+    end
+  end
+
+  lifecycle "ColonyManagement" do
+    state "established"
+    state "inspected"
+    state "treated"
+    state "recovered"
+    state "productive"
+    state "harvested"
+    transition from: "established", to: "inspected", on: "InspectionCompleted"
+    transition from: "inspected", to: "treated", on: "TreatmentApplied"
+    transition from: "treated", to: "recovered", on: "EfficacyEvaluated"
+    transition from: "recovered", to: "productive", on: "QueenIntroduced"
+    transition from: "productive", to: "harvested", on: "HoneyExtracted"
+  end
+
+  policy "InspectAfterEstablishment" do
+    on "HiveEstablished"
+    trigger "PerformInspection"
+  end
+
+  policy "TreatAfterConcern" do
+    on "ConcernFlagged"
+    trigger "ApplyTreatment"
+  end
+
+  policy "EvaluateAfterTreatment" do
+    on "TreatmentApplied"
+    trigger "EvaluateEfficacy"
+  end
+
+  policy "InspectAfterEfficacy" do
+    on "EfficacyEvaluated"
+    trigger "PerformInspection"
+  end
+
+  policy "HarvestAfterQueenMarked" do
+    on "QueenMarked"
+    trigger "ExtractHoney"
+  end
+
+  policy "JarAfterExtraction" do
+    on "HoneyExtracted"
+    trigger "JarHoney"
+  end
+end

@@ -1,0 +1,255 @@
+Hecks.bluebook "DentalPractice" do
+  vision "Manage dental patients, procedures, radiographs, insurance claims, and appointment scheduling"
+  category "healthcare"
+
+  aggregate "Patient", "A dental patient with medical history, allergies, and insurance info" do
+    String :first_name
+    String :last_name
+    String :date_of_birth
+    String :phone
+    String :insurance_provider
+    String :policy_number
+    String :status
+
+    value_object "MedicalHistory" do
+      String :allergies
+      String :medications
+      String :conditions
+      String :last_updated
+    end
+
+    RegisterPatient do
+      role "Receptionist"
+      description "Add a new patient to the practice with their insurance details"
+      String :first_name
+      String :last_name
+      String :date_of_birth
+      String :phone
+      String :insurance_provider
+      String :policy_number
+      emits "PatientRegistered"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :status, to: "active"
+    end
+
+    UpdateInsurance do
+      role "Receptionist"
+      description "Change the patient's insurance provider or policy number"
+      reference_to(Patient)
+      String :insurance_provider
+      String :policy_number
+      emits "InsuranceUpdated"
+      then_set :insurance_provider, to: :insurance_provider
+      then_set :policy_number, to: :policy_number
+    end
+
+    DeactivatePatient do
+      role "OfficeManager"
+      description "Mark a patient as inactive when they transfer to another practice"
+      reference_to(Patient)
+      given { status == "active" }
+      emits "PatientDeactivated"
+      then_set :status, to: "inactive"
+    end
+  end
+
+  aggregate "DentalProcedure", "A clinical procedure performed on a patient with CDT codes" do
+    String :cdt_code
+    String :procedure_name
+    String :tooth_number
+    String :surface
+    String :notes
+    String :performed_date
+    String :status
+    reference_to(Patient)
+
+    value_object "ToothChart" do
+      String :tooth_number
+      String :condition
+      String :existing_restorations
+    end
+
+    PerformProcedure do
+      role "Dentist"
+      description "Record a completed dental procedure with CDT code and tooth info"
+      reference_to(Patient)
+      String :cdt_code
+      String :procedure_name
+      String :tooth_number
+      String :surface
+      String :notes
+      emits "ProcedurePerformed"
+      then_set :cdt_code, to: :cdt_code
+      then_set :procedure_name, to: :procedure_name
+      then_set :tooth_number, to: :tooth_number
+      then_set :surface, to: :surface
+      then_set :status, to: "completed"
+    end
+
+    PlanTreatment do
+      role "Dentist"
+      description "Add a procedure to the patient's treatment plan for a future visit"
+      reference_to(Patient)
+      String :cdt_code
+      String :procedure_name
+      String :tooth_number
+      emits "TreatmentPlanned"
+      then_set :cdt_code, to: :cdt_code
+      then_set :procedure_name, to: :procedure_name
+      then_set :status, to: "planned"
+    end
+  end
+
+  aggregate "Radiograph", "A dental X-ray image with type, findings, and associated tooth" do
+    String :image_type
+    String :tooth_region
+    String :findings
+    String :taken_date
+    reference_to(Patient)
+
+    TakeRadiograph do
+      role "DentalHygienist"
+      description "Capture a dental X-ray of a specific region"
+      reference_to(Patient)
+      String :image_type
+      String :tooth_region
+      emits "RadiographTaken"
+      then_set :image_type, to: :image_type
+      then_set :tooth_region, to: :tooth_region
+    end
+
+    InterpretRadiograph do
+      role "Dentist"
+      description "Record clinical findings from reviewing the X-ray"
+      reference_to(Radiograph)
+      String :findings
+      emits "RadiographInterpreted"
+      then_set :findings, to: :findings
+    end
+  end
+
+  aggregate "InsuranceClaim", "A claim submitted to insurance for reimbursement of procedures" do
+    Float :billed_amount
+    Float :allowed_amount
+    Float :patient_responsibility
+    String :status
+    String :submitted_date
+    reference_to(DentalProcedure)
+    reference_to(Patient)
+
+    SubmitClaim do
+      role "BillingCoordinator"
+      description "File an insurance claim for a completed procedure"
+      reference_to(DentalProcedure)
+      reference_to(Patient)
+      Float :billed_amount
+      emits "ClaimSubmitted"
+      then_set :billed_amount, to: :billed_amount
+      then_set :status, to: "submitted"
+    end
+
+    ProcessPayment do
+      role "BillingCoordinator"
+      description "Record the insurance company's payment and patient balance"
+      reference_to(InsuranceClaim)
+      Float :allowed_amount
+      Float :patient_responsibility
+      given { status == "submitted" }
+      emits "PaymentProcessed"
+      then_set :allowed_amount, to: :allowed_amount
+      then_set :patient_responsibility, to: :patient_responsibility
+      then_set :status, to: "paid"
+    end
+
+    DenyClaim do
+      role "System"
+      description "Record a claim denial from the insurance company"
+      reference_to(InsuranceClaim)
+      given { status == "submitted" }
+      emits "ClaimDenied"
+      then_set :status, to: "denied"
+    end
+  end
+
+  aggregate "DentalAppointment", "A scheduled visit for examination, cleaning, or procedure" do
+    String :appointment_date
+    String :time_slot
+    String :visit_type
+    String :status
+    reference_to(Patient)
+
+    ScheduleVisit do
+      role "Receptionist"
+      description "Book a dental appointment for a patient"
+      reference_to(Patient)
+      String :appointment_date
+      String :time_slot
+      String :visit_type
+      emits "VisitScheduled"
+      then_set :appointment_date, to: :appointment_date
+      then_set :time_slot, to: :time_slot
+      then_set :visit_type, to: :visit_type
+      then_set :status, to: "scheduled"
+    end
+
+    ConfirmVisit do
+      role "Receptionist"
+      description "Confirm the patient has acknowledged their upcoming appointment"
+      reference_to(DentalAppointment)
+      given { status == "scheduled" }
+      emits "VisitConfirmed"
+      then_set :status, to: "confirmed"
+    end
+
+    CancelVisit do
+      role "Receptionist"
+      description "Cancel a scheduled dental appointment"
+      reference_to(DentalAppointment)
+      given { status != "completed" }
+      emits "VisitCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  policy "ConfirmBeforeVisit" do
+    on "VisitScheduled"
+    trigger "ConfirmVisit"
+  end
+
+  policy "TakeXrayOnCheckIn" do
+    on "VisitConfirmed"
+    trigger "TakeRadiograph"
+  end
+
+  policy "InterpretXrayAfterCapture" do
+    on "RadiographTaken"
+    trigger "InterpretRadiograph"
+  end
+
+  policy "PlanTreatmentOnFindings" do
+    on "RadiographInterpreted"
+    trigger "PlanTreatment"
+  end
+
+  policy "FileClaimOnProcedure" do
+    on "ProcedurePerformed"
+    trigger "SubmitClaim"
+  end
+
+  policy "ScheduleFollowUpOnTreatment" do
+    on "TreatmentPlanned"
+    trigger "ScheduleVisit"
+  end
+
+  policy "PerformProcedureOnTreatmentPlanned" do
+    on "TreatmentPlanned"
+    trigger "PerformProcedure"
+  end
+
+  policy "ProcessPaymentOnClaimSubmitted" do
+    on "ClaimSubmitted"
+    trigger "ProcessPayment"
+  end
+end

@@ -1,0 +1,274 @@
+Hecks.bluebook "FarmManagement" do
+  vision "Manage agricultural fields, crop rotations, irrigation schedules, harvests, and soil analysis"
+  category "agriculture"
+
+  aggregate "Field", "A cultivable parcel of land with acreage, soil type, and crop assignment" do
+    String :name
+    Float :acreage
+    String :soil_type
+    String :gps_coordinates
+    String :current_crop
+    String :status
+
+    value_object "SoilComposition" do
+      Float :ph_level
+      Float :nitrogen_ppm
+      Float :phosphorus_ppm
+      Float :potassium_ppm
+    end
+
+    RegisterField do
+      role "Farmer"
+      description "Add a new field to the farm with its acreage and location"
+      String :name
+      Float :acreage
+      String :soil_type
+      String :gps_coordinates
+      emits "FieldRegistered"
+      then_set :name, to: :name
+      then_set :acreage, to: :acreage
+      then_set :soil_type, to: :soil_type
+      then_set :gps_coordinates, to: :gps_coordinates
+      then_set :status, to: "idle"
+    end
+
+    PlantField do
+      role "Farmer"
+      description "Assign a crop to the field and begin the growing season"
+      reference_to(Field)
+      String :current_crop
+      given { status == "idle" }
+      emits "FieldPlanted"
+      then_set :current_crop, to: :current_crop
+      then_set :status, to: "planted"
+    end
+
+    FallowField do
+      role "Farmer"
+      description "Leave the field unplanted to restore soil nutrients"
+      reference_to(Field)
+      emits "FieldFallowed"
+      then_set :current_crop, to: ""
+      then_set :status, to: "fallow"
+    end
+  end
+
+  aggregate "CropCycle", "A planting-to-harvest cycle for a specific crop variety on a field" do
+    String :crop_variety
+    String :planting_date
+    String :expected_harvest_date
+    Integer :days_to_maturity
+    String :growth_stage
+    String :status
+    reference_to(Field)
+
+    value_object "GrowthMetrics" do
+      Float :height_cm
+      String :leaf_color
+      Float :moisture_content
+    end
+
+    StartCropCycle do
+      role "Farmer"
+      description "Begin tracking a crop from seed to harvest"
+      reference_to(Field)
+      String :crop_variety
+      String :planting_date
+      Integer :days_to_maturity
+      emits "CropCycleStarted"
+      then_set :crop_variety, to: :crop_variety
+      then_set :planting_date, to: :planting_date
+      then_set :days_to_maturity, to: :days_to_maturity
+      then_set :growth_stage, to: "seedling"
+      then_set :status, to: "growing"
+    end
+
+    AdvanceGrowthStage do
+      role "Agronomist"
+      description "Record progression to the next growth stage"
+      reference_to(CropCycle)
+      String :growth_stage
+      given { status == "growing" }
+      emits "GrowthStageAdvanced"
+      then_set :growth_stage, to: :growth_stage
+    end
+
+    RecordCropLoss do
+      role "Farmer"
+      description "Document crop damage from weather, pests, or disease"
+      reference_to(CropCycle)
+      String :loss_reason
+      given { status == "growing" }
+      emits "CropLossRecorded"
+      then_set :status, to: "damaged"
+    end
+  end
+
+  aggregate "IrrigationSchedule", "A watering plan for a field with timing, method, and volume" do
+    String :method
+    String :frequency
+    Float :volume_gallons
+    String :start_date
+    String :status
+    reference_to(Field)
+
+    SetIrrigation do
+      role "Farmer"
+      description "Configure the irrigation method and schedule for a field"
+      reference_to(Field)
+      String :method
+      String :frequency
+      Float :volume_gallons
+      emits "IrrigationSet"
+      then_set :method, to: :method
+      then_set :frequency, to: :frequency
+      then_set :volume_gallons, to: :volume_gallons
+      then_set :status, to: "active"
+    end
+
+    AdjustVolume do
+      role "Farmer"
+      description "Change the water volume based on weather or growth stage"
+      reference_to(IrrigationSchedule)
+      Float :new_volume
+      given { status == "active" }
+      emits "VolumeAdjusted"
+      then_set :volume_gallons, to: :new_volume
+    end
+
+    SuspendIrrigation do
+      role "Farmer"
+      description "Pause watering due to rain forecast or field fallow"
+      reference_to(IrrigationSchedule)
+      given { status == "active" }
+      emits "IrrigationSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "Harvest", "The collection of mature crop yield from a field" do
+    String :harvest_date
+    Float :yield_bushels
+    Float :moisture_percent
+    String :quality_grade
+    String :storage_location
+    reference_to(CropCycle)
+    reference_to(Field)
+
+    RecordHarvest do
+      role "Farmer"
+      description "Log the harvested yield with quality and moisture readings"
+      reference_to(CropCycle)
+      reference_to(Field)
+      String :harvest_date
+      Float :yield_bushels
+      Float :moisture_percent
+      String :quality_grade
+      emits "HarvestRecorded"
+      then_set :harvest_date, to: :harvest_date
+      then_set :yield_bushels, to: :yield_bushels
+      then_set :moisture_percent, to: :moisture_percent
+      then_set :quality_grade, to: :quality_grade
+    end
+
+    StoreHarvest do
+      role "Farmer"
+      description "Move harvested crop to a grain bin or storage facility"
+      reference_to(Harvest)
+      String :storage_location
+      emits "HarvestStored"
+      then_set :storage_location, to: :storage_location
+    end
+  end
+
+  aggregate "SoilTest", "A laboratory analysis of soil nutrients, pH, and organic matter" do
+    String :test_date
+    Float :ph_level
+    Float :nitrogen_ppm
+    Float :phosphorus_ppm
+    Float :potassium_ppm
+    Float :organic_matter_percent
+    String :recommendations
+    reference_to(Field)
+
+    CollectSample do
+      role "Agronomist"
+      description "Take soil samples from the field for laboratory analysis"
+      reference_to(Field)
+      String :test_date
+      emits "SampleCollected"
+      then_set :test_date, to: :test_date
+    end
+
+    RecordResults do
+      role "Laboratory"
+      description "Enter the lab results for nutrient levels and pH"
+      reference_to(SoilTest)
+      Float :ph_level
+      Float :nitrogen_ppm
+      Float :phosphorus_ppm
+      Float :potassium_ppm
+      Float :organic_matter_percent
+      emits "ResultsRecorded"
+      then_set :ph_level, to: :ph_level
+      then_set :nitrogen_ppm, to: :nitrogen_ppm
+      then_set :phosphorus_ppm, to: :phosphorus_ppm
+      then_set :potassium_ppm, to: :potassium_ppm
+      then_set :organic_matter_percent, to: :organic_matter_percent
+    end
+
+    IssueRecommendations do
+      role "Agronomist"
+      description "Provide fertilizer and amendment recommendations based on results"
+      reference_to(SoilTest)
+      String :recommendations
+      emits "RecommendationsIssued"
+      then_set :recommendations, to: :recommendations
+    end
+  end
+
+  policy "IrrigateOnPlanting" do
+    on "FieldPlanted"
+    trigger "SetIrrigation"
+  end
+
+  policy "StartCycleOnPlanting" do
+    on "FieldPlanted"
+    trigger "StartCropCycle"
+  end
+
+  policy "AdjustWaterOnGrowth" do
+    on "GrowthStageAdvanced"
+    trigger "AdjustVolume"
+  end
+
+  policy "HarvestOnMaturity" do
+    on "GrowthStageAdvanced"
+    trigger "RecordHarvest"
+  end
+
+  policy "StoreOnHarvest" do
+    on "HarvestRecorded"
+    trigger "StoreHarvest"
+  end
+
+  policy "FallowOnHarvest" do
+    on "HarvestRecorded"
+    trigger "FallowField"
+  end
+
+  policy "TestSoilOnFallow" do
+    on "FieldFallowed"
+    trigger "CollectSample"
+  end
+
+  policy "RecordResultsOnSampleCollected" do
+    on "SampleCollected"
+    trigger "RecordResults"
+  end
+
+  policy "IssueRecommendationsOnResultsRecorded" do
+    on "ResultsRecorded"
+    trigger "IssueRecommendations"
+  end
+end

@@ -1,0 +1,277 @@
+Hecks.bluebook "VeteranServices" do
+  vision "Veteran support and benefits — veterans, benefit claims, counseling, service programs, and advocacy"
+
+  aggregate "Veteran", "A military veteran eligible for services and benefits" do
+    String :name
+    String :service_branch
+    String :discharge_status
+    String :service_dates
+    String :disability_rating
+    String :status
+
+    RegisterVeteran do
+      role "IntakeSpecialist"
+      description "Enroll a veteran in the service center database"
+      String :name
+      String :service_branch
+      String :discharge_status
+      String :service_dates
+      String :disability_rating
+      emits "VeteranRegistered"
+      then_set :name, to: :name
+      then_set :service_branch, to: :service_branch
+      then_set :discharge_status, to: :discharge_status
+      then_set :service_dates, to: :service_dates
+      then_set :disability_rating, to: :disability_rating
+      then_set :status, to: "active"
+    end
+
+    UpdateDisabilityRating do
+      role "BenefitsSpecialist"
+      description "Record a new disability rating from the VA"
+      reference_to(Veteran)
+      String :disability_rating
+      emits "DisabilityRatingUpdated"
+      then_set :disability_rating, to: :disability_rating
+    end
+  end
+
+  aggregate "BenefitClaim", "A claim filed for veteran benefits such as healthcare, disability, or education" do
+    String :veteran_name
+    String :benefit_type
+    String :filing_date
+    String :description
+    String :status
+    list_of(ClaimDocument) :documents
+    reference_to Veteran
+
+    value_object "ClaimDocument" do
+      String :document_name
+      String :document_type
+      String :upload_date
+    end
+
+    FileClaim do
+      role "BenefitsSpecialist"
+      description "Submit a benefit claim on behalf of the veteran"
+      reference_to(Veteran)
+      String :veteran_name
+      String :benefit_type
+      String :filing_date
+      String :description
+      emits "ClaimFiled"
+      then_set :veteran_name, to: :veteran_name
+      then_set :benefit_type, to: :benefit_type
+      then_set :filing_date, to: :filing_date
+      then_set :description, to: :description
+      then_set :status, to: "filed"
+    end
+
+    SubmitEvidence do
+      role "BenefitsSpecialist"
+      description "Attach supporting documentation to the claim"
+      reference_to(BenefitClaim)
+      String :document_name
+      String :document_type
+      emits "EvidenceSubmitted"
+    end
+
+    ApproveClaim do
+      role "Adjudicator"
+      description "Approve the benefit claim after review"
+      reference_to(BenefitClaim)
+      given("must be filed") { status == "filed" }
+      emits "ClaimApproved"
+      then_set :status, to: "approved"
+    end
+
+    DenyClaim do
+      role "Adjudicator"
+      description "Deny the benefit claim with reasons"
+      reference_to(BenefitClaim)
+      given("must be filed") { status == "filed" }
+      emits "ClaimDenied"
+      then_set :status, to: "denied"
+    end
+
+    AppealClaim do
+      role "BenefitsSpecialist"
+      description "File an appeal against a denied benefit claim"
+      reference_to(BenefitClaim)
+      emits "ClaimAppealed"
+      then_set :status, to: "appealed"
+    end
+  end
+
+  aggregate "VeteranCounselor", "A professional providing mental health or career counseling to veterans" do
+    String :name
+    String :specialty
+    String :license_number
+    Integer :caseload
+    String :status
+
+    HireCounselor do
+      role "Director"
+      description "Add a counselor to the veteran services team"
+      String :name
+      String :specialty
+      String :license_number
+      emits "CounselorHired"
+      then_set :name, to: :name
+      then_set :specialty, to: :specialty
+      then_set :license_number, to: :license_number
+      then_set :caseload, to: 0
+      then_set :status, to: "active"
+    end
+
+    AssignVeteran do
+      role "Director"
+      description "Add a veteran to the counselor's caseload"
+      reference_to(VeteranCounselor)
+      emits "VeteranAssigned"
+    end
+  end
+
+  aggregate "ServiceProgram", "A structured program offering veteran-specific services" do
+    String :program_name
+    String :program_type
+    String :eligibility_criteria
+    Integer :capacity
+    Integer :enrolled_count
+    String :status
+    list_of(ProgramSession) :sessions
+
+    value_object "ProgramSession" do
+      String :session_date
+      String :topic
+      String :facilitator
+      Integer :attendees
+    end
+
+    LaunchProgram do
+      role "ProgramManager"
+      description "Start a new service program for veterans"
+      String :program_name
+      String :program_type
+      String :eligibility_criteria
+      Integer :capacity
+      emits "ProgramLaunched"
+      then_set :program_name, to: :program_name
+      then_set :program_type, to: :program_type
+      then_set :eligibility_criteria, to: :eligibility_criteria
+      then_set :capacity, to: :capacity
+      then_set :enrolled_count, to: 0
+      then_set :status, to: "active"
+    end
+
+    EnrollVeteran do
+      role "ProgramManager"
+      description "Add a veteran to the service program"
+      reference_to(ServiceProgram)
+      given("capacity available") { enrolled_count < capacity }
+      emits "VeteranEnrolled"
+    end
+
+    ConductSession do
+      role "Facilitator"
+      description "Run a program session and record attendance"
+      reference_to(ServiceProgram)
+      String :topic
+      String :facilitator
+      Integer :attendees
+      emits "SessionConducted"
+    end
+  end
+
+  aggregate "CrisisIntervention", "An emergency response for a veteran in crisis" do
+    String :veteran_name
+    String :crisis_type
+    String :reported_date
+    String :responder_name
+    String :resolution
+    String :status
+    reference_to Veteran
+
+    ReportCrisis do
+      role "Anyone"
+      description "Report a veteran experiencing a crisis situation"
+      reference_to(Veteran)
+      String :veteran_name
+      String :crisis_type
+      String :reported_date
+      emits "CrisisReported"
+      then_set :veteran_name, to: :veteran_name
+      then_set :crisis_type, to: :crisis_type
+      then_set :reported_date, to: :reported_date
+      then_set :status, to: "reported"
+    end
+
+    RespondToCrisis do
+      role "CrisisResponder"
+      description "Dispatch a responder to assist the veteran"
+      reference_to(CrisisIntervention)
+      String :responder_name
+      given("must be reported") { status == "reported" }
+      emits "CrisisResponded"
+      then_set :responder_name, to: :responder_name
+      then_set :status, to: "responding"
+    end
+
+    ResolveCrisis do
+      role "CrisisResponder"
+      description "Document crisis resolution and follow-up plan"
+      reference_to(CrisisIntervention)
+      String :resolution
+      emits "CrisisResolved"
+      then_set :resolution, to: :resolution
+      then_set :status, to: "resolved"
+    end
+  end
+
+  # Workflow: Register → AssignCounselor → FileClaim → SubmitEvidence → ApproveClaim → EnrollInProgram → ConductSession → UpdateRating
+  # Crisis: Report → Respond → Resolve → AssignCounselor
+  policy "AssignCounselorOnRegister" do
+    on "VeteranRegistered"
+    trigger "AssignVeteran"
+  end
+
+  policy "FileClaimOnRegister" do
+    on "VeteranRegistered"
+    trigger "FileClaim"
+  end
+
+  policy "SubmitEvidenceOnClaim" do
+    on "ClaimFiled"
+    trigger "SubmitEvidence"
+  end
+
+  policy "EnrollOnApproval" do
+    on "ClaimApproved"
+    trigger "EnrollVeteran"
+  end
+
+  policy "AppealOnDenial" do
+    on "ClaimDenied"
+    trigger "AppealClaim"
+  end
+
+  policy "RespondOnCrisisReport" do
+    on "CrisisReported"
+    trigger "RespondToCrisis"
+  end
+
+  policy "AssignCounselorOnCrisisResolved" do
+    on "CrisisResolved"
+    trigger "AssignVeteran"
+  end
+
+  policy "UpdateRatingOnApproval" do
+    on "ClaimApproved"
+    trigger "UpdateDisabilityRating"
+  end
+
+  policy "ConductSessionOnEnroll" do
+    on "VeteranEnrolled"
+    trigger "ConductSession"
+  end
+end

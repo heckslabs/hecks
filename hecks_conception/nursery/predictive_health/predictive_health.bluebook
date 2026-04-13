@@ -1,0 +1,198 @@
+Hecks.bluebook "PredictiveHealth" do
+  vision "Cross-wire genetics research with insurance claims processing for predictive health risk assessment"
+  core
+
+  aggregate "GeneticProfile" do
+    description "A patient genetic profile with marker analysis"
+    attribute :patient_id
+    attribute :ethnicity
+    attribute :markers, list_of(GeneMarker)
+    attribute :status, default: "sequencing"
+
+    value_object "GeneMarker" do
+      attribute :gene_name
+      attribute :variant
+      attribute :risk_factor, Float
+      invariant "risk factor between 0 and 1" do
+        risk_factor >= 0 && risk_factor <= 1.0
+      end
+    end
+
+    command "SubmitSample" do
+      role "GeneticCounselor"
+      goal "Submit a genetic sample for sequencing"
+      attribute :patient_id
+      attribute :ethnicity
+    end
+
+    command "RecordMarker" do
+      role "LabTechnician"
+      goal "Record a genetic marker from sequencing"
+      reference_to GeneticProfile
+      attribute :gene_name
+      attribute :variant
+      attribute :risk_factor, Float
+      given("max 100 markers") { markers.size < 100 }
+      then_set :markers, append: { gene_name: :gene_name, variant: :variant, risk_factor: :risk_factor }
+    end
+
+    command "CompleteProfile" do
+      role "Geneticist"
+      goal "Finalize the genetic profile"
+      reference_to GeneticProfile
+      given("must have markers") { markers.size > 0 }
+    end
+  end
+
+  aggregate "RiskModel" do
+    description "A predictive health risk model based on genetic data"
+    attribute :model_name
+    attribute :conditions, list_of(ConditionRisk)
+    attribute :accuracy, Float
+    attribute :status, default: "training"
+
+    value_object "ConditionRisk" do
+      attribute :condition_name
+      attribute :weight, Float
+      attribute :threshold, Float
+      invariant "weight must be positive" do
+        weight > 0
+      end
+    end
+
+    command "CreateModel" do
+      role "DataScientist"
+      goal "Create a new predictive risk model"
+      attribute :model_name
+    end
+
+    command "AddCondition" do
+      role "DataScientist"
+      goal "Add a condition to the risk model"
+      reference_to RiskModel
+      attribute :condition_name
+      attribute :weight, Float
+      attribute :threshold, Float
+      given("max 50 conditions") { conditions.size < 50 }
+      then_set :conditions, append: { condition_name: :condition_name, weight: :weight, threshold: :threshold }
+    end
+
+    command "ValidateModel" do
+      role "ChiefActuary"
+      goal "Validate the model for production use"
+      reference_to RiskModel
+      attribute :accuracy, Float
+    end
+  end
+
+  aggregate "InsuranceClaim" do
+    description "A health insurance claim with coverage determination"
+    reference_to GeneticProfile
+    attribute :claimant_name
+    attribute :diagnosis
+    attribute :amount_cents, Integer
+    attribute :documents, list_of(ClaimDocument)
+    attribute :status, default: "submitted"
+
+    value_object "ClaimDocument" do
+      attribute :doc_type
+      attribute :reference_number
+    end
+
+    command "FileClaim" do
+      role "Claimant"
+      goal "File a new insurance claim"
+      reference_to GeneticProfile
+      attribute :claimant_name
+      attribute :diagnosis
+      attribute :amount_cents, Integer
+    end
+
+    command "AttachDocument" do
+      role "ClaimsAdjuster"
+      goal "Attach supporting documentation"
+      reference_to InsuranceClaim
+      attribute :doc_type
+      attribute :reference_number
+      given("max 20 documents") { documents.size < 20 }
+      then_set :documents, append: { doc_type: :doc_type, reference_number: :reference_number }
+    end
+
+    command "AdjudicateClaim" do
+      role "ClaimsAdjuster"
+      goal "Decide claim outcome"
+      reference_to InsuranceClaim
+    end
+  end
+
+  aggregate "PolicyPricing" do
+    description "Insurance policy pricing based on genetic risk"
+    reference_to GeneticProfile
+    reference_to RiskModel
+    attribute :premium_cents, Integer
+    attribute :risk_score, Float
+    attribute :adjustments, list_of(PriceAdjustment)
+    attribute :status, default: "calculating"
+
+    value_object "PriceAdjustment" do
+      attribute :reason
+      attribute :multiplier, Float
+      invariant "multiplier must be positive" do
+        multiplier > 0
+      end
+    end
+
+    command "CalculatePremium" do
+      role "Actuary"
+      goal "Calculate insurance premium from genetic risk"
+      reference_to GeneticProfile
+      reference_to RiskModel
+    end
+
+    command "ApplyAdjustment" do
+      role "Underwriter"
+      goal "Apply a pricing adjustment"
+      reference_to PolicyPricing
+      attribute :reason
+      attribute :multiplier, Float
+      given("max 10 adjustments") { adjustments.size < 10 }
+      then_set :adjustments, append: { reason: :reason, multiplier: :multiplier }
+    end
+
+    command "ApprovePricing" do
+      role "ChiefUnderwriter"
+      goal "Approve the final premium"
+      reference_to PolicyPricing
+    end
+  end
+
+  policy "ProfileCompletedTriggersPricing" do
+    on "ProfileCompleted"
+    trigger "CalculatePremium"
+    map genetic_profile_id: :profile_id
+  end
+
+  policy "ModelValidatedTriggersRecalc" do
+    on "ModelValidated"
+    trigger "CalculatePremium"
+    map risk_model_id: :model_id
+  end
+
+  policy "ClaimFiledTriggersMarkerReview" do
+    on "ClaimFiled"
+    trigger "RecordMarker"
+    map genetic_profile_id: :profile_id
+  end
+
+  policy "PricingApprovedTriggersAdjudicate" do
+    on "PricingApproved"
+    trigger "AdjudicateClaim"
+    map insurance_claim_id: :claim_id
+  end
+
+  policy "ClaimAdjudicatedTriggersAdjustment" do
+    on "ClaimAdjudicated"
+    trigger "ApplyAdjustment"
+    map policy_pricing_id: :pricing_id, reason: :diagnosis
+  end
+end

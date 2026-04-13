@@ -1,0 +1,219 @@
+Hecks.bluebook "Woodworking" do
+  aggregate "WoodProject", "A woodworking project from design through finishing" do
+    String :name
+    String :project_type
+    String :wood_species
+    String :status, default: "designed"
+    Float :estimated_hours
+
+    value_object "CutList" do
+      String :part_name
+      Float :length_inches
+      Float :width_inches
+      Float :thickness_inches
+      Integer :quantity
+    end
+
+    PlanProject do
+      description "Design a new woodworking project with cut list and joinery"
+      String :name
+      String :project_type
+      String :wood_species
+      Float :estimated_hours
+      emits "ProjectPlanned"
+    end
+
+    StartMilling do
+      description "Begin milling rough lumber to dimension"
+      reference_to(WoodProject)
+      given { status == "designed" }
+      emits "MillingStarted"
+      then_set :status, to: "milling"
+    end
+
+    AssembleProject do
+      description "Glue up and clamp the jointed components"
+      reference_to(WoodProject)
+      given { status == "milling" }
+      emits "ProjectAssembled"
+      then_set :status, to: "assembled"
+    end
+
+    ApplyFinish do
+      description "Apply the final finish coat to the assembled piece"
+      reference_to(WoodProject)
+      String :finish_type
+      given { status == "assembled" }
+      emits "FinishApplied"
+      then_set :status, to: "finished"
+    end
+  end
+
+  aggregate "LumberStock", "Inventory of rough and dimensional lumber" do
+    String :species
+    String :grade
+    Float :board_feet
+    Float :thickness_quarters
+    String :drying_method
+
+    value_object "MoistureReading" do
+      Float :percentage
+      String :date_measured
+      String :location_in_board
+    end
+
+    ReceiveLumber do
+      description "Check in a lumber delivery to the shop inventory"
+      String :species
+      String :grade
+      Float :board_feet
+      Float :thickness_quarters
+      String :drying_method
+      emits "LumberReceived"
+    end
+
+    ConsumeLumber do
+      description "Deduct lumber used for a project cut list"
+      reference_to(LumberStock)
+      Float :board_feet_used
+      emits "LumberConsumed"
+    end
+  end
+
+  aggregate "Joinery", "A wood joint connecting two parts in an assembly" do
+    String :joint_type
+    String :part_a
+    String :part_b
+    String :status, default: "laid_out"
+    reference_to(WoodProject)
+
+    LayOutJoint do
+      description "Mark and lay out a joint on the workpieces"
+      reference_to(WoodProject)
+      String :joint_type
+      String :part_a
+      String :part_b
+      emits "JointLaidOut"
+    end
+
+    CutJoint do
+      description "Cut the joint with hand tools or machines"
+      reference_to(Joinery)
+      given { status == "laid_out" }
+      emits "JointCut"
+      then_set :status, to: "cut"
+    end
+
+    FitJoint do
+      description "Test fit and pare the joint for a tight fit"
+      reference_to(Joinery)
+      given { status == "cut" }
+      emits "JointFitted"
+      then_set :status, to: "fitted"
+    end
+  end
+
+  aggregate "Finish", "A wood finish with application method and cure time" do
+    String :finish_name
+    String :finish_type
+    Integer :coats_required
+    Integer :cure_hours
+    String :sheen
+
+    value_object "ApplicationMethod" do
+      String :tool
+      String :technique
+      Float :wet_mil_thickness
+    end
+
+    MixFinish do
+      description "Prepare the finish mixture with correct ratios"
+      String :finish_name
+      String :finish_type
+      Integer :coats_required
+      Integer :cure_hours
+      emits "FinishMixed"
+    end
+
+    ApplyCoat do
+      description "Apply a single coat of finish to the workpiece"
+      reference_to(Finish)
+      Integer :coat_number
+      emits "CoatApplied"
+    end
+  end
+
+  aggregate "WoodCommission", "A custom woodworking commission from a client" do
+    String :client_name
+    String :description
+    Float :quoted_price
+    String :status, default: "quoted"
+    String :deadline
+    reference_to(WoodProject)
+
+    QuoteCommission do
+      description "Provide a price estimate for custom woodwork"
+      String :client_name
+      String :description
+      Float :quoted_price
+      String :deadline
+      emits "CommissionQuoted"
+    end
+
+    AcceptCommission do
+      description "Client approves the quote and work begins"
+      reference_to(WoodCommission)
+      given { status == "quoted" }
+      emits "CommissionAccepted"
+      then_set :status, to: "in_progress"
+    end
+
+    DeliverCommission do
+      description "Hand over the finished piece to the client"
+      reference_to(WoodCommission)
+      given { status == "in_progress" }
+      emits "CommissionDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "ConsumeLumberOnPlan" do
+    on "ProjectPlanned"
+    trigger "ConsumeLumber"
+  end
+
+  policy "MillAfterConsume" do
+    on "LumberConsumed"
+    trigger "StartMilling"
+  end
+
+  policy "CutJointsAfterMilling" do
+    on "MillingStarted"
+    trigger "LayOutJoint"
+  end
+
+  policy "CutAfterLayout" do
+    on "JointLaidOut"
+    trigger "CutJoint"
+  end
+
+  policy "FitAfterCut" do
+    on "JointCut"
+    trigger "FitJoint"
+  end
+
+  policy "AssembleAfterFit" do
+    on "JointFitted"
+    trigger "AssembleProject"
+  end
+
+  policy "ApplyFinishAfterAssembly" do
+    on "ProjectAssembled"
+    trigger "ApplyFinish"
+  end
+
+  policy "DeliverOnFinish" do
+    on "FinishApplied"
+    trigger "DeliverCommission"
+  end
+end

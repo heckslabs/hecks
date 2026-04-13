@@ -1,0 +1,265 @@
+Hecks.bluebook "PestControl" do
+  vision "Manage pest control customers, property surveys, treatment applications, chemical inventory, and follow-ups"
+  category "services"
+
+  aggregate "ServiceAccount", "A customer account with property details and service history" do
+    String :customer_name
+    String :phone
+    String :email
+    String :service_address
+    String :property_type
+    String :status
+
+    value_object "PropertyProfile" do
+      Float :square_footage
+      Integer :stories
+      String :construction_type
+      String :landscaping
+    end
+
+    OpenAccount do
+      role "SalesRep"
+      description "Register a new pest control customer with their property details"
+      String :customer_name
+      String :phone
+      String :email
+      String :service_address
+      String :property_type
+      emits "AccountOpened"
+      then_set :customer_name, to: :customer_name
+      then_set :phone, to: :phone
+      then_set :email, to: :email
+      then_set :service_address, to: :service_address
+      then_set :property_type, to: :property_type
+      then_set :status, to: "active"
+    end
+
+    SuspendAccount do
+      role "OfficeManager"
+      description "Pause service for non-payment or customer request"
+      reference_to(ServiceAccount)
+      given { status == "active" }
+      emits "AccountSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    CloseAccount do
+      role "OfficeManager"
+      description "Permanently close the customer's service account"
+      reference_to(ServiceAccount)
+      emits "AccountClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "InspectionReport", "An on-site pest survey documenting pest types and severity" do
+    String :inspection_date
+    String :pest_type
+    String :severity
+    String :entry_points
+    String :recommendations
+    String :status
+    reference_to(ServiceAccount)
+
+    value_object "PestIdentification" do
+      String :species
+      String :life_stage
+      Integer :estimated_population
+    end
+
+    ConductInspection do
+      role "Technician"
+      description "Survey the property and document pest activity and entry points"
+      reference_to(ServiceAccount)
+      String :inspection_date
+      String :pest_type
+      String :severity
+      String :entry_points
+      String :recommendations
+      emits "InspectionConducted"
+      then_set :inspection_date, to: :inspection_date
+      then_set :pest_type, to: :pest_type
+      then_set :severity, to: :severity
+      then_set :entry_points, to: :entry_points
+      then_set :recommendations, to: :recommendations
+      then_set :status, to: "completed"
+    end
+
+    FlagReinfestation do
+      role "Technician"
+      description "Report that pest activity has returned after previous treatment"
+      reference_to(InspectionReport)
+      given { status == "completed" }
+      emits "ReinfestationFlagged"
+      then_set :status, to: "reinfestation"
+    end
+  end
+
+  aggregate "TreatmentApplication", "A chemical or physical pest treatment applied to a property" do
+    String :treatment_type
+    String :target_pest
+    String :application_date
+    String :application_method
+    String :areas_treated
+    String :status
+    reference_to(ServiceAccount)
+    reference_to(InspectionReport)
+
+    ApplyTreatment do
+      role "Technician"
+      description "Apply a pest treatment to the property based on inspection findings"
+      reference_to(ServiceAccount)
+      reference_to(InspectionReport)
+      String :treatment_type
+      String :target_pest
+      String :application_method
+      String :areas_treated
+      emits "TreatmentApplied"
+      then_set :treatment_type, to: :treatment_type
+      then_set :target_pest, to: :target_pest
+      then_set :application_method, to: :application_method
+      then_set :areas_treated, to: :areas_treated
+      then_set :status, to: "applied"
+    end
+
+    RecordReentryTime do
+      role "Technician"
+      description "Set the safe re-entry period after chemical application"
+      reference_to(TreatmentApplication)
+      String :reentry_hours
+      given { status == "applied" }
+      emits "ReentryTimeRecorded"
+    end
+
+    VerifyEffectiveness do
+      role "Technician"
+      description "Confirm the treatment successfully reduced pest activity"
+      reference_to(TreatmentApplication)
+      given { status == "applied" }
+      emits "EffectivenessVerified"
+      then_set :status, to: "effective"
+    end
+  end
+
+  aggregate "ChemicalInventory", "A pesticide or bait product in the technician's inventory" do
+    String :product_name
+    String :epa_registration
+    String :active_ingredient
+    Float :quantity_on_hand
+    String :unit
+    String :expiration_date
+
+    value_object "SafetyData" do
+      String :signal_word
+      String :ppe_required
+      String :first_aid
+    end
+
+    StockChemical do
+      role "InventoryManager"
+      description "Add a pesticide product to inventory with EPA registration info"
+      String :product_name
+      String :epa_registration
+      String :active_ingredient
+      Float :quantity_on_hand
+      String :unit
+      String :expiration_date
+      emits "ChemicalStocked"
+      then_set :product_name, to: :product_name
+      then_set :epa_registration, to: :epa_registration
+      then_set :active_ingredient, to: :active_ingredient
+      then_set :quantity_on_hand, to: :quantity_on_hand
+      then_set :unit, to: :unit
+      then_set :expiration_date, to: :expiration_date
+    end
+
+    UseChemical do
+      role "Technician"
+      description "Record the amount of product used during a treatment"
+      reference_to(ChemicalInventory)
+      Float :amount_used
+      given { quantity_on_hand > 0 }
+      emits "ChemicalUsed"
+    end
+
+    DisposeExpired do
+      role "InventoryManager"
+      description "Remove an expired product from inventory per EPA guidelines"
+      reference_to(ChemicalInventory)
+      emits "ChemicalDisposed"
+    end
+  end
+
+  aggregate "FollowUpVisit", "A scheduled return visit to verify treatment effectiveness" do
+    String :visit_date
+    String :purpose
+    String :findings
+    String :status
+    reference_to(ServiceAccount)
+    reference_to(TreatmentApplication)
+
+    ScheduleFollowUp do
+      role "OfficeManager"
+      description "Book a return visit to check if the treatment resolved the issue"
+      reference_to(ServiceAccount)
+      reference_to(TreatmentApplication)
+      String :visit_date
+      String :purpose
+      emits "FollowUpScheduled"
+      then_set :visit_date, to: :visit_date
+      then_set :purpose, to: :purpose
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteFollowUp do
+      role "Technician"
+      description "Conduct the follow-up visit and record findings"
+      reference_to(FollowUpVisit)
+      String :findings
+      given { status == "scheduled" }
+      emits "FollowUpCompleted"
+      then_set :findings, to: :findings
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "InspectOnAccount" do
+    on "AccountOpened"
+    trigger "ConductInspection"
+  end
+
+  policy "TreatOnInspection" do
+    on "InspectionConducted"
+    trigger "ApplyTreatment"
+  end
+
+  policy "RecordReentryOnTreatment" do
+    on "TreatmentApplied"
+    trigger "RecordReentryTime"
+  end
+
+  policy "FollowUpOnTreatment" do
+    on "TreatmentApplied"
+    trigger "ScheduleFollowUp"
+  end
+
+  policy "VerifyOnFollowUp" do
+    on "FollowUpCompleted"
+    trigger "VerifyEffectiveness"
+  end
+
+  policy "ReinspectOnReinfestation" do
+    on "ReinfestationFlagged"
+    trigger "ConductInspection"
+  end
+
+  policy "InspectOnAccountOpened" do
+    on "AccountOpened"
+    trigger "ConductInspection"
+  end
+
+  policy "UseChemicalOnTreatmentApplied" do
+    on "TreatmentApplied"
+    trigger "UseChemical"
+  end
+end

@@ -1,0 +1,264 @@
+Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
+  vision "Managing network infrastructure — inventorying devices, monitoring links, analyzing traffic, handling outages, and upgrading firmware"
+  category "technology"
+
+  aggregate "NetworkDevice", "A router, switch, or firewall in the network topology" do
+    String :device_id
+    String :hostname
+    String :device_type
+    String :ip_address
+    String :location
+    String :firmware_version
+    String :status
+    list_of(Interface) :interfaces
+
+    value_object "Interface" do
+      String :port_name
+      String :speed
+      String :connected_to
+      String :status
+    end
+
+    RegisterDevice do
+      role "NetworkEngineer"
+      description "Add a new network device to the inventory"
+      String :device_id
+      String :hostname
+      String :device_type
+      String :ip_address
+      String :location
+      String :firmware_version
+      emits "DeviceRegistered"
+    end
+
+    SuspendDevice do
+      description "Take a device offline for maintenance"
+      reference_to(NetworkDevice)
+      emits "DeviceSuspended"
+    end
+
+    RestoreDevice do
+      description "Bring a maintained device back online"
+      reference_to(NetworkDevice)
+      given("device is suspended") { status == "suspended" }
+      emits "DeviceRestored"
+    end
+  end
+
+  aggregate "Link", "A connection between two network devices" do
+    String :link_id
+    String :link_type
+    Integer :bandwidth_mbps
+    Float :latency_ms
+    String :status
+    reference_to NetworkDevice
+
+    value_object "LinkMetric" do
+      Float :throughput_mbps
+      Float :packet_loss_pct
+      String :sampled_at
+    end
+
+    EstablishLink do
+      role "NetworkEngineer"
+      description "Create a network link between two devices"
+      String :link_id
+      String :link_type
+      Integer :bandwidth_mbps
+      reference_to(NetworkDevice)
+      emits "LinkEstablished"
+    end
+
+    MeasureLatency do
+      description "Record the current latency measurement on a link"
+      reference_to(Link)
+      Float :latency_ms
+      emits "LatencyMeasured"
+    end
+
+    SeverLink do
+      description "Disconnect a link due to failure or decommission"
+      reference_to(Link)
+      emits "LinkSevered"
+    end
+  end
+
+  aggregate "TrafficFlow", "An observed data flow pattern across the network" do
+    String :flow_id
+    String :source_ip
+    String :destination_ip
+    String :protocol
+    Integer :bytes_transferred
+    String :classification
+    String :status
+
+    value_object "FlowSample" do
+      Integer :packets
+      Integer :bytes
+      String :sampled_at
+    end
+
+    CaptureFlow do
+      role "NetworkAnalyst"
+      description "Record a traffic flow for analysis"
+      String :flow_id
+      String :source_ip
+      String :destination_ip
+      String :protocol
+      Integer :bytes_transferred
+      emits "FlowCaptured"
+    end
+
+    ClassifyFlow do
+      description "Tag a traffic flow with its application category"
+      reference_to(TrafficFlow)
+      String :classification
+      emits "FlowClassified"
+    end
+
+    FlagAnomalousFlow do
+      description "Mark a flow as suspicious for security review"
+      reference_to(TrafficFlow)
+      given("flow is active") { status == "active" }
+      emits "FlowFlagged"
+    end
+  end
+
+  aggregate "Outage", "A network disruption affecting services" do
+    String :outage_id
+    String :affected_segment
+    String :severity
+    String :root_cause
+    String :assigned_to
+    String :status
+    reference_to NetworkDevice
+    list_of(OutageUpdate) :updates
+
+    value_object "OutageUpdate" do
+      String :note
+      String :author
+      String :posted_at
+    end
+
+    DeclareOutage do
+      role "NOCOperator"
+      description "Report a network outage affecting a segment"
+      String :outage_id
+      String :affected_segment
+      String :severity
+      reference_to(NetworkDevice)
+      emits "OutageDeclared"
+    end
+
+    PostOutageUpdate do
+      description "Add a status update to an ongoing outage"
+      reference_to(Outage)
+      String :note
+      String :author
+      emits "OutageUpdatePosted"
+    end
+
+    ResolveOutage do
+      description "Close an outage after service is restored"
+      reference_to(Outage)
+      String :root_cause
+      given("outage is ongoing") { status == "ongoing" }
+      emits "OutageResolved"
+    end
+  end
+
+  aggregate "FirmwareRelease", "A firmware version available for network devices" do
+    String :release_id
+    String :version
+    String :device_type
+    String :changelog
+    String :status
+    list_of(UpgradeRecord) :upgrades
+
+    value_object "UpgradeRecord" do
+      String :device_id
+      String :upgraded_at
+      String :outcome
+    end
+
+    PublishFirmware do
+      role "NetworkEngineer"
+      description "Make a new firmware version available for deployment"
+      String :release_id
+      String :version
+      String :device_type
+      String :changelog
+      emits "FirmwarePublished"
+    end
+
+    UpgradeDevice do
+      description "Apply firmware to a specific network device"
+      reference_to(FirmwareRelease)
+      String :device_id
+      emits "DeviceUpgraded"
+    end
+
+    RecallFirmware do
+      description "Withdraw a firmware release due to critical bugs"
+      reference_to(FirmwareRelease)
+      given("firmware is published") { status == "published" }
+      emits "FirmwareRecalled"
+    end
+  end
+
+  lifecycle "OutageResponse" do
+    state "normal"
+    state "degraded"
+    state "outage_declared"
+    state "investigating"
+    state "mitigating"
+    state "resolved"
+
+    transition from: "normal", to: "degraded", on: "LatencyMeasured"
+    transition from: "degraded", to: "outage_declared", on: "OutageDeclared"
+    transition from: "outage_declared", to: "investigating", on: "OutageUpdatePosted"
+    transition from: "investigating", to: "mitigating", on: "OutageUpdatePosted"
+    transition from: "mitigating", to: "resolved", on: "OutageResolved"
+    transition from: "resolved", to: "normal", on: "DeviceRestored"
+  end
+
+  policy "DeviceRegisteredEstablishLink" do
+    on "DeviceRegistered"
+    trigger "EstablishLink"
+  end
+
+  policy "LinkEstablishedCaptureFlow" do
+    on "LinkEstablished"
+    trigger "CaptureFlow"
+  end
+
+  policy "FlowFlaggedDeclareOutage" do
+    on "FlowFlagged"
+    trigger "DeclareOutage"
+  end
+
+  policy "OutageDeclaredSuspendDevice" do
+    on "OutageDeclared"
+    trigger "SuspendDevice"
+  end
+
+  policy "OutageResolvedRestoreDevice" do
+    on "OutageResolved"
+    trigger "RestoreDevice"
+  end
+
+  policy "FirmwarePublishedUpgradeDevice" do
+    on "FirmwarePublished"
+    trigger "UpgradeDevice"
+  end
+
+  policy "ClassifyFlowOnCapture" do
+    on "FlowCaptured"
+    trigger "ClassifyFlow"
+  end
+
+  policy "MeasureLatencyOnLink" do
+    on "LinkEstablished"
+    trigger "MeasureLatency"
+  end
+end

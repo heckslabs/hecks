@@ -1,0 +1,255 @@
+Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
+  vision "Managing an IoT fleet — registering devices, collecting sensor readings, triggering alerts, pushing firmware updates, and analyzing telemetry"
+  category "technology"
+
+  aggregate "Device", "A connected hardware unit in the IoT fleet" do
+    String :device_id
+    String :device_type
+    String :firmware_version
+    String :location
+    String :last_heartbeat
+    String :status
+    list_of(Tag) :tags
+
+    value_object "Tag" do
+      String :key
+      String :value
+      String :applied_at
+    end
+
+    RegisterDevice do
+      role "FleetManager"
+      description "Add a new IoT device to the platform registry"
+      String :device_id
+      String :device_type
+      String :firmware_version
+      String :location
+      emits "DeviceRegistered"
+    end
+
+    SuspendDevice do
+      description "Take a device offline for maintenance"
+      reference_to(Device)
+      emits "DeviceSuspended"
+    end
+
+    DeregisterDevice do
+      description "Permanently remove a device from the fleet"
+      reference_to(Device)
+      given("device is suspended") { status == "suspended" }
+      emits "DeviceDeregistered"
+    end
+  end
+
+  aggregate "Sensor", "A measurement component attached to a device" do
+    String :sensor_id
+    String :sensor_type
+    String :unit
+    Float :min_range
+    Float :max_range
+    String :status
+    reference_to Device
+
+    value_object "Calibration" do
+      Float :offset
+      Float :scale_factor
+      String :calibrated_at
+    end
+
+    AttachSensor do
+      role "FleetManager"
+      description "Register a sensor on a device"
+      String :sensor_id
+      String :sensor_type
+      String :unit
+      Float :min_range
+      Float :max_range
+      reference_to(Device)
+      emits "SensorAttached"
+    end
+
+    CalibrateSensor do
+      description "Apply calibration offsets to a sensor"
+      reference_to(Sensor)
+      Float :offset
+      Float :scale_factor
+      emits "SensorCalibrated"
+    end
+
+    DetachSensor do
+      description "Remove a sensor from a device"
+      reference_to(Sensor)
+      given("sensor is active") { status == "active" }
+      emits "SensorDetached"
+    end
+  end
+
+  aggregate "Reading", "A telemetry data point from a sensor" do
+    String :reading_id
+    Float :value
+    String :timestamp
+    String :quality
+    String :status
+    reference_to Sensor
+
+    value_object "ReadingContext" do
+      String :device_id
+      String :location
+      String :batch_id
+    end
+
+    IngestReading do
+      role "TelemetryGateway"
+      description "Receive a sensor reading from the ingestion pipeline"
+      String :reading_id
+      Float :value
+      String :timestamp
+      reference_to(Sensor)
+      emits "ReadingIngested"
+    end
+
+    ValidateReading do
+      description "Check a reading against expected sensor ranges"
+      reference_to(Reading)
+      emits "ReadingValidated"
+    end
+
+    FlagAnomaly do
+      description "Mark a reading as anomalous for investigation"
+      reference_to(Reading)
+      given("reading is validated") { status == "validated" }
+      emits "AnomalyFlagged"
+    end
+  end
+
+  aggregate "Alert", "A notification triggered when telemetry exceeds thresholds" do
+    String :alert_id
+    String :severity
+    String :condition
+    String :message
+    String :status
+    reference_to Device
+
+    value_object "AlertThreshold" do
+      String :metric
+      Float :threshold_value
+      String :comparison
+    end
+
+    RaiseAlert do
+      role "AlertEngine"
+      description "Fire an alert when sensor data breaches a threshold"
+      String :alert_id
+      String :severity
+      String :condition
+      String :message
+      reference_to(Device)
+      emits "AlertRaised"
+    end
+
+    AcknowledgeAlert do
+      description "Mark an alert as seen by an operator"
+      reference_to(Alert)
+      emits "AlertAcknowledged"
+    end
+
+    ResolveAlert do
+      description "Close an alert after the condition is corrected"
+      reference_to(Alert)
+      given("alert is acknowledged") { status == "acknowledged" }
+      emits "AlertResolved"
+    end
+  end
+
+  aggregate "FirmwareUpdate", "A software package pushed to devices over the air" do
+    String :update_id
+    String :version
+    String :target_device_type
+    Integer :package_size_kb
+    String :release_notes
+    String :status
+    list_of(RolloutRecord) :rollouts
+
+    value_object "RolloutRecord" do
+      String :device_id
+      String :outcome
+      String :applied_at
+    end
+
+    PublishUpdate do
+      role "FirmwareEngineer"
+      description "Release a new firmware version for OTA deployment"
+      String :update_id
+      String :version
+      String :target_device_type
+      Integer :package_size_kb
+      String :release_notes
+      emits "UpdatePublished"
+    end
+
+    ApplyUpdate do
+      description "Push firmware to a specific device"
+      reference_to(FirmwareUpdate)
+      String :device_id
+      emits "UpdateApplied"
+    end
+
+    RollbackUpdate do
+      description "Revert a device to the previous firmware version"
+      reference_to(FirmwareUpdate)
+      given("update is applied") { status == "applied" }
+      emits "UpdateRolledBack"
+    end
+  end
+
+  lifecycle "DeviceMonitoring" do
+    state "registered"
+    state "calibrated"
+    state "collecting"
+    state "anomaly_detected"
+    state "alerted"
+    state "resolved"
+
+    transition from: "registered", to: "calibrated", on: "SensorCalibrated"
+    transition from: "calibrated", to: "collecting", on: "ReadingIngested"
+    transition from: "collecting", to: "anomaly_detected", on: "AnomalyFlagged"
+    transition from: "anomaly_detected", to: "alerted", on: "AlertRaised"
+    transition from: "alerted", to: "resolved", on: "AlertResolved"
+    transition from: "resolved", to: "collecting", on: "ReadingIngested"
+  end
+
+  policy "DeviceRegisteredAttachSensor" do
+    on "DeviceRegistered"
+    trigger "AttachSensor"
+  end
+
+  policy "SensorAttachedCalibrate" do
+    on "SensorAttached"
+    trigger "CalibrateSensor"
+  end
+
+  policy "ReadingIngestedValidate" do
+    on "ReadingIngested"
+    trigger "ValidateReading"
+  end
+
+  policy "AnomalyFlaggedRaiseAlert" do
+    on "AnomalyFlagged"
+    trigger "RaiseAlert"
+  end
+
+  policy "AlertRaisedSuspendDevice" do
+    on "AlertRaised"
+    trigger "SuspendDevice"
+  end
+
+  policy "UpdatePublishedApply" do
+    on "UpdatePublished"
+    trigger "ApplyUpdate"
+  end
+
+  policy "AlertResolvedPublishUpdate" do
+    on "AlertResolved"
+    trigger "PublishUpdate"
+  end
+end

@@ -1,0 +1,243 @@
+Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
+  vision "Running a grocery store — stocking products, managing aisles, tracking suppliers, running promotions, and controlling shrinkage"
+  category "retail"
+
+  aggregate "Product", "A grocery item on the shelf — perishable or shelf-stable" do
+    String :sku
+    String :name
+    String :category
+    Float :price
+    Integer :quantity
+    String :expiration_date
+    String :status
+    list_of(NutritionFact) :nutrition_facts
+
+    value_object "NutritionFact" do
+      String :nutrient
+      Float :amount
+      String :unit
+      Float :daily_value_percent
+    end
+
+    StockProduct do
+      role "Stocker"
+      description "Add a product to inventory with initial quantity and price"
+      String :sku
+      String :name
+      String :category
+      Float :price
+      Integer :quantity
+      String :expiration_date
+      emits "ProductStocked"
+      then_set :sku, to: :sku
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :price, to: :price
+      then_set :quantity, to: :quantity
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "available"
+    end
+
+    MarkdownProduct do
+      role "Manager"
+      description "Reduce price on items approaching expiration"
+      reference_to(Product)
+      Float :new_price
+      given { new_price < price }
+      emits "ProductMarkedDown"
+      then_set :price, to: :new_price
+    end
+
+    PullFromShelf do
+      role "Stocker"
+      description "Remove expired or damaged product from the sales floor"
+      reference_to(Product)
+      emits "ProductPulled"
+      then_set :status, to: "pulled"
+    end
+  end
+
+  aggregate "Aisle", "A physical row in the store organized by category" do
+    String :aisle_number
+    String :category
+    Integer :shelf_count
+    list_of(Planogram) :planograms
+
+    value_object "Planogram" do
+      String :sku
+      Integer :shelf_position
+      Integer :facings
+      String :orientation
+    end
+
+    DesignateAisle do
+      role "Manager"
+      description "Assign a category and layout to an aisle"
+      String :aisle_number
+      String :category
+      Integer :shelf_count
+      emits "AisleDesignated"
+      then_set :aisle_number, to: :aisle_number
+      then_set :category, to: :category
+      then_set :shelf_count, to: :shelf_count
+    end
+
+    UpdatePlanogram do
+      role "Manager"
+      description "Rearrange product placement within the aisle"
+      reference_to(Aisle)
+      emits "PlanogramUpdated"
+    end
+  end
+
+  aggregate "Supplier", "A vendor who provides products to the store" do
+    String :name
+    String :contact_email
+    String :delivery_schedule
+    list_of(SuppliedItem) :supplied_items
+
+    value_object "SuppliedItem" do
+      String :sku
+      String :product_name
+      Float :wholesale_price
+      Integer :minimum_order
+    end
+
+    RegisterSupplier do
+      role "Buyer"
+      description "Onboard a new supplier with delivery terms"
+      String :name
+      String :contact_email
+      String :delivery_schedule
+      emits "SupplierRegistered"
+      then_set :name, to: :name
+      then_set :contact_email, to: :contact_email
+      then_set :delivery_schedule, to: :delivery_schedule
+    end
+
+    PlaceReorder do
+      role "Buyer"
+      description "Submit a restocking order to the supplier"
+      reference_to(Supplier)
+      String :sku
+      Integer :quantity
+      given { quantity > 0 }
+      emits "ReorderPlaced"
+    end
+  end
+
+  aggregate "Promotion", "A temporary price reduction or deal to drive sales" do
+    String :promo_code
+    String :description
+    String :start_date
+    String :end_date
+    Float :discount_percent
+    String :status
+
+    LaunchPromotion do
+      role "Manager"
+      description "Activate a promotional deal for a date range"
+      String :promo_code
+      String :description
+      String :start_date
+      String :end_date
+      Float :discount_percent
+      emits "PromotionLaunched"
+      then_set :promo_code, to: :promo_code
+      then_set :description, to: :description
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :discount_percent, to: :discount_percent
+      then_set :status, to: "active"
+    end
+
+    EndPromotion do
+      role "Manager"
+      description "Deactivate a promotion early or at its scheduled end"
+      reference_to(Promotion)
+      emits "PromotionEnded"
+      then_set :status, to: "ended"
+    end
+  end
+
+  aggregate "ShrinkageReport", "Tracking inventory loss from theft, damage, or spoilage" do
+    String :report_id
+    String :sku
+    Integer :units_lost
+    String :cause
+    String :reported_date
+    Float :estimated_loss
+
+    specification "HighShrinkage" do
+      satisfied_by { estimated_loss > 500 }
+    end
+
+    RecordShrinkage do
+      role "Manager"
+      description "Log an inventory loss event with cause and financial impact"
+      String :report_id
+      String :sku
+      Integer :units_lost
+      String :cause
+      String :reported_date
+      Float :estimated_loss
+      emits "ShrinkageRecorded"
+      then_set :report_id, to: :report_id
+      then_set :sku, to: :sku
+      then_set :units_lost, to: :units_lost
+      then_set :cause, to: :cause
+      then_set :reported_date, to: :reported_date
+      then_set :estimated_loss, to: :estimated_loss
+    end
+
+    InvestigateShrinkage do
+      role "LossPrevention"
+      description "Look into the cause and recommend countermeasures"
+      reference_to(ShrinkageReport)
+      emits "ShrinkageInvestigated"
+    end
+  end
+
+  # Lifecycle: stocked → shelved → promoted → sold → pulled (expired) → reordered
+  # Workflow: Stock → Update planogram → Launch promotion → Mark down near expiry → Pull expired → Reorder → Record shrinkage → Investigate
+
+  policy "PlanogramOnStock" do
+    on "ProductStocked"
+    trigger "UpdatePlanogram"
+  end
+
+  policy "PromoteOnStock" do
+    on "ProductStocked"
+    trigger "LaunchPromotion"
+  end
+
+  policy "MarkdownNearExpiry" do
+    on "ProductStocked"
+    trigger "MarkdownProduct"
+  end
+
+  policy "ReorderOnPull" do
+    on "ProductPulled"
+    trigger "PlaceReorder"
+  end
+
+  policy "RecordShrinkageOnPull" do
+    on "ProductPulled"
+    trigger "RecordShrinkage"
+  end
+
+  policy "InvestigateHighShrinkage" do
+    on "ShrinkageRecorded"
+    trigger "InvestigateShrinkage"
+  end
+
+  policy "EndPromotionOnPull" do
+    on "ProductPulled"
+    trigger "EndPromotion"
+  end
+
+  policy "StockOnReorder" do
+    on "ReorderPlaced"
+    trigger "StockProduct"
+  end
+end

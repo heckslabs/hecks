@@ -1,0 +1,273 @@
+Hecks.bluebook "GolfCourse", version: "2026.04.13.1" do
+  vision "Managing a golf course — scheduling tee times, renting carts, maintaining greens, and hosting tournaments"
+  category "hospitality"
+
+  aggregate "TeeTime", "A scheduled slot for a group to play a round" do
+    String :booking_id
+    String :player_name
+    String :date
+    String :time
+    Integer :group_size
+    Float :green_fee
+    String :status
+
+    BookTeeTime do
+      role "Golfer"
+      description "Reserve a tee time for a specific date and time"
+      String :booking_id
+      String :player_name
+      String :date
+      String :time
+      Integer :group_size
+      Float :green_fee
+      emits "TeeTimeBooked"
+      then_set :booking_id, to: :booking_id
+      then_set :player_name, to: :player_name
+      then_set :date, to: :date
+      then_set :time, to: :time
+      then_set :group_size, to: :group_size
+      then_set :green_fee, to: :green_fee
+      then_set :status, to: "booked"
+    end
+
+    CheckInGroup do
+      role "ProShop"
+      description "Register the group's arrival and assign a starting hole"
+      reference_to(TeeTime)
+      given { status == "booked" }
+      emits "GroupCheckedIn"
+      then_set :status, to: "checked_in"
+    end
+
+    CancelTeeTime do
+      role "Golfer"
+      description "Cancel the reservation and free the slot"
+      reference_to(TeeTime)
+      given { status == "booked" }
+      emits "TeeTimeCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  aggregate "GolfCart", "A motorized cart available for rent during a round" do
+    String :cart_id
+    String :cart_type
+    Integer :seating_capacity
+    Float :rental_fee
+    String :status
+    list_of(MaintenanceLog) :maintenance_log
+
+    value_object "MaintenanceLog" do
+      String :date
+      String :work_done
+      String :technician
+    end
+
+    RegisterCart do
+      role "Manager"
+      description "Add a cart to the fleet"
+      String :cart_id
+      String :cart_type
+      Integer :seating_capacity
+      Float :rental_fee
+      emits "CartRegistered"
+      then_set :cart_id, to: :cart_id
+      then_set :cart_type, to: :cart_type
+      then_set :seating_capacity, to: :seating_capacity
+      then_set :rental_fee, to: :rental_fee
+      then_set :status, to: "available"
+    end
+
+    RentCart do
+      role "ProShop"
+      description "Check out a cart to a group for their round"
+      reference_to(GolfCart)
+      given { status == "available" }
+      emits "CartRented"
+      then_set :status, to: "rented"
+    end
+
+    ReturnCart do
+      role "ProShop"
+      description "Accept the cart back and check for damage"
+      reference_to(GolfCart)
+      given { status == "rented" }
+      emits "CartReturned"
+      then_set :status, to: "available"
+    end
+
+    ServiceCart do
+      role "Technician"
+      description "Perform scheduled maintenance on the cart"
+      reference_to(GolfCart)
+      emits "CartServiced"
+    end
+  end
+
+  aggregate "CourseHole", "A single hole on the course with its layout and par" do
+    String :hole_id
+    Integer :hole_number
+    Integer :par
+    Integer :yardage
+    String :hazard_notes
+    String :condition
+
+    DefineHole do
+      role "Superintendent"
+      description "Set up a hole with its par, distance, and hazards"
+      String :hole_id
+      Integer :hole_number
+      Integer :par
+      Integer :yardage
+      String :hazard_notes
+      emits "HoleDefined"
+      then_set :hole_id, to: :hole_id
+      then_set :hole_number, to: :hole_number
+      then_set :par, to: :par
+      then_set :yardage, to: :yardage
+      then_set :hazard_notes, to: :hazard_notes
+      then_set :condition, to: "good"
+    end
+
+    ReportCondition do
+      role "Superintendent"
+      description "Update the condition of the hole — green speed, fairway health"
+      reference_to(CourseHole)
+      String :condition
+      emits "ConditionReported"
+      then_set :condition, to: :condition
+    end
+  end
+
+  aggregate "GreenskeepingTask", "Maintenance work to keep the course in top shape" do
+    String :task_id
+    String :task_type
+    String :area
+    String :assigned_to
+    String :scheduled_date
+    String :status
+
+    ScheduleTask do
+      role "Superintendent"
+      description "Plan a greenskeeping job — mowing, aeration, irrigation"
+      String :task_id
+      String :task_type
+      String :area
+      String :assigned_to
+      String :scheduled_date
+      emits "TaskScheduled"
+      then_set :task_id, to: :task_id
+      then_set :task_type, to: :task_type
+      then_set :area, to: :area
+      then_set :assigned_to, to: :assigned_to
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+
+    CompleteTask do
+      role "GroundsCrew"
+      description "Finish the maintenance task and log completion"
+      reference_to(GreenskeepingTask)
+      given { status == "scheduled" }
+      emits "TaskCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "GolfTournament", "A competitive event hosted at the course" do
+    String :tournament_id
+    String :name
+    String :format
+    String :date
+    Integer :max_players
+    Float :entry_fee
+    String :status
+    list_of(TournamentPlayer) :players
+
+    value_object "TournamentPlayer" do
+      String :player_name
+      Integer :handicap
+      String :registration_date
+    end
+
+    CreateTournament do
+      role "EventCoordinator"
+      description "Set up a new golf tournament with format and rules"
+      String :tournament_id
+      String :name
+      String :format
+      String :date
+      Integer :max_players
+      Float :entry_fee
+      emits "TournamentCreated"
+      then_set :tournament_id, to: :tournament_id
+      then_set :name, to: :name
+      then_set :format, to: :format
+      then_set :date, to: :date
+      then_set :max_players, to: :max_players
+      then_set :entry_fee, to: :entry_fee
+      then_set :status, to: "open"
+    end
+
+    StartTournament do
+      role "EventCoordinator"
+      description "Begin the tournament and close registration"
+      reference_to(GolfTournament)
+      given { status == "open" }
+      emits "TournamentStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    AwardPrizes do
+      role "EventCoordinator"
+      description "Declare winners and distribute prizes"
+      reference_to(GolfTournament)
+      given { status == "in_progress" }
+      emits "PrizesAwarded"
+      then_set :status, to: "concluded"
+    end
+  end
+
+  # Lifecycle: tee time booked → checked in → cart rented → round played → cart returned → course maintained
+  # Workflow: Book tee time → Check in → Rent cart → Play → Return cart → Service cart → Report conditions
+
+  policy "CheckInOnBooking" do
+    on "TeeTimeBooked"
+    trigger "CheckInGroup"
+  end
+
+  policy "RentCartOnCheckIn" do
+    on "GroupCheckedIn"
+    trigger "RentCart"
+  end
+
+  policy "ReturnCartOnRent" do
+    on "CartRented"
+    trigger "ReturnCart"
+  end
+
+  policy "ServiceCartOnReturn" do
+    on "CartReturned"
+    trigger "ServiceCart"
+  end
+
+  policy "GroomForTournament" do
+    on "TournamentCreated"
+    trigger "ScheduleTask"
+  end
+
+  policy "ReportOnGroom" do
+    on "TaskCompleted"
+    trigger "ReportCondition"
+  end
+
+  policy "StartTournamentOnGroom" do
+    on "TaskCompleted"
+    trigger "StartTournament"
+  end
+
+  policy "AwardPrizesOnStart" do
+    on "TournamentStarted"
+    trigger "AwardPrizes"
+  end
+end

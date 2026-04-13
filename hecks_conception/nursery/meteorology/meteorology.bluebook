@@ -1,0 +1,197 @@
+Hecks.bluebook "Meteorology" do
+  vision "Manage weather stations, forecasts, observations, alerts, and pressure systems"
+
+  aggregate "WeatherStation" do
+    description "A ground-based facility recording atmospheric conditions"
+    String :station_id
+    String :name
+    Float :latitude
+    Float :longitude
+    Float :elevation_m
+
+    value_object "Instrumentation" do
+      String :barometer_type
+      String :anemometer_type
+      String :rain_gauge_type
+    end
+
+    command "InstallStation" do
+      description "Commission a new weather station"
+      emits "StationInstalled"
+      String :station_id
+      String :name
+      Float :latitude
+      Float :longitude
+    end
+
+    command "CalibrateInstruments" do
+      description "Run calibration checks on all station instruments"
+      emits "InstrumentsCalibrated"
+      reference_to WeatherStation
+    end
+
+    command "DeactivateStation" do
+      description "Take a station offline for maintenance"
+      emits "StationDeactivated"
+      reference_to WeatherStation
+      given "station must not have pending alerts"
+    end
+  end
+
+  aggregate "SurfaceObservation" do
+    description "A point-in-time weather reading from a station"
+    String :timestamp
+    Float :temperature_c
+    Float :pressure_hpa
+    Float :humidity_percent
+    Float :wind_speed_kts
+    Float :wind_direction_deg
+    reference_to WeatherStation
+
+    command "RecordObservation" do
+      description "Log a METAR-style surface weather observation"
+      emits "ObservationRecorded"
+      reference_to WeatherStation
+      String :timestamp
+      Float :temperature_c
+      Float :pressure_hpa
+    end
+
+    command "ValidateObservation" do
+      description "Check observation against climatological bounds"
+      emits "ObservationValidated"
+      reference_to SurfaceObservation
+      given "observation must have all required fields"
+    end
+  end
+
+  aggregate "Forecast" do
+    description "A predicted weather scenario for a time range and area"
+    String :issued_at
+    String :valid_from
+    String :valid_to
+    String :region
+    String :synopsis
+    reference_to PressureSystem
+
+    command "IssueForecast" do
+      description "Publish a new weather forecast"
+      emits "ForecastIssued"
+      String :region
+      String :synopsis
+      String :valid_from
+      String :valid_to
+    end
+
+    command "AmendForecast" do
+      description "Correct or update an existing forecast"
+      emits "ForecastAmended"
+      reference_to Forecast
+      String :amendment
+    end
+
+    command "VerifyForecast" do
+      description "Compare forecast against actual observations"
+      emits "ForecastVerified"
+      reference_to Forecast
+      given "forecast valid period must have elapsed"
+    end
+  end
+
+  aggregate "PressureSystem" do
+    description "A synoptic-scale high or low pressure feature"
+    String :system_type
+    Float :central_pressure_hpa
+    Float :latitude
+    Float :longitude
+    String :movement_direction
+
+    command "TrackSystem" do
+      description "Begin tracking a new pressure system"
+      emits "SystemTracked"
+      String :system_type
+      Float :central_pressure_hpa
+    end
+
+    command "UpdatePosition" do
+      description "Record the latest position of the system"
+      emits "PositionUpdated"
+      reference_to PressureSystem
+      Float :latitude
+      Float :longitude
+    end
+  end
+
+  aggregate "WeatherAlert" do
+    description "A hazardous weather warning issued for a region"
+    String :alert_type
+    String :severity
+    String :region
+    String :message
+    reference_to Forecast
+
+    command "IssueAlert" do
+      description "Broadcast a severe weather warning"
+      emits "AlertIssued"
+      String :alert_type
+      String :severity
+      String :region
+    end
+
+    command "CancelAlert" do
+      description "Retract an active weather alert"
+      emits "AlertCancelled"
+      reference_to WeatherAlert
+      given "alert must still be active"
+    end
+  end
+
+  lifecycle "ForecastCycle" do
+    state "observing"
+    state "validated"
+    state "modeled"
+    state "forecast_issued"
+    state "alert_active"
+    state "verified"
+    transition from: "observing", to: "validated", on: "ObservationValidated"
+    transition from: "validated", to: "modeled", on: "SystemTracked"
+    transition from: "modeled", to: "forecast_issued", on: "ForecastIssued"
+    transition from: "forecast_issued", to: "alert_active", on: "AlertIssued"
+    transition from: "alert_active", to: "verified", on: "ForecastVerified"
+  end
+
+  policy "CalibrateAfterInstall" do
+    on "StationInstalled"
+    trigger "CalibrateInstruments"
+  end
+
+  policy "RecordAfterCalibration" do
+    on "InstrumentsCalibrated"
+    trigger "RecordObservation"
+  end
+
+  policy "ValidateAfterRecording" do
+    on "ObservationRecorded"
+    trigger "ValidateObservation"
+  end
+
+  policy "TrackSystemAfterValidation" do
+    on "ObservationValidated"
+    trigger "TrackSystem"
+  end
+
+  policy "ForecastAfterTracking" do
+    on "SystemTracked"
+    trigger "IssueForecast"
+  end
+
+  policy "AlertOnExtremePressure" do
+    on "ForecastIssued"
+    trigger "IssueAlert"
+  end
+
+  policy "VerifyAfterExpiry" do
+    on "AlertIssued"
+    trigger "VerifyForecast"
+  end
+end

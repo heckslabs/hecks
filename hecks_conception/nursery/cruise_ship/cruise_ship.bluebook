@@ -1,0 +1,242 @@
+Hecks.bluebook "CruiseShip" do
+  vision "Manage cabins, passengers, ports of call, shore excursions, and dining for a cruise line"
+
+  aggregate "Cabin", "A stateroom aboard the ship with deck, category, and occupancy" do
+    String :cabin_number
+    String :deck
+    String :category
+    Integer :max_occupancy
+    Integer :current_occupancy
+    String :status
+
+    value_object "CabinAmenities" do
+      String :has_balcony
+      String :bed_configuration
+      Integer :square_feet
+    end
+
+    PrepareCabin do
+      description "Prepare a cabin for the upcoming voyage"
+      String :cabin_number
+      String :deck
+      String :category
+      Integer :max_occupancy
+      emits "CabinPrepared"
+      then_set :status, to: "available"
+      then_set :current_occupancy, to: 0
+    end
+
+    AssignPassenger do
+      description "Check a passenger into a specific cabin"
+      reference_to(Cabin)
+      reference_to(Passenger)
+      given { current_occupancy < max_occupancy }
+      emits "PassengerAssigned"
+    end
+
+    InspectCabin do
+      description "Verify cabin readiness before passenger boarding"
+      reference_to(Cabin)
+      given { status == "available" }
+      emits "CabinInspected"
+      then_set :status, to: "inspected"
+    end
+
+    CleanCabin do
+      description "Mark cabin for turnover cleaning between voyages"
+      reference_to(Cabin)
+      emits "CabinCleaned"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "Passenger", "A guest sailing on the cruise with embarkation and muster records" do
+    String :booking_id
+    String :name
+    String :nationality
+    String :muster_status
+    String :embarkation_port
+    String :status
+
+    value_object "EmergencyContact" do
+      String :contact_name
+      String :phone
+      String :relationship
+    end
+
+    CheckInPassenger do
+      description "Process passenger documents at the terminal"
+      String :booking_id
+      String :name
+      String :nationality
+      String :embarkation_port
+      emits "PassengerCheckedIn"
+      then_set :status, to: "checked_in"
+      then_set :muster_status, to: "pending"
+    end
+
+    EmbarkPassenger do
+      description "Board a passenger onto the ship"
+      reference_to(Passenger)
+      given { status == "checked_in" }
+      emits "PassengerEmbarked"
+      then_set :status, to: "embarked"
+    end
+
+    CompleteMusterDrill do
+      description "Record that a passenger attended the safety drill"
+      reference_to(Passenger)
+      given { muster_status == "pending" }
+      emits "MusterCompleted"
+      then_set :muster_status, to: "completed"
+    end
+
+    ClearForShoreLeave do
+      description "Authorize passenger to go ashore at a port of call"
+      reference_to(Passenger)
+      given { status == "embarked" }
+      emits "ShoreLeaveCleared"
+      then_set :status, to: "ashore"
+    end
+
+    ReturnOnboard do
+      description "Record passenger returning to ship from shore leave"
+      reference_to(Passenger)
+      given { status == "ashore" }
+      emits "PassengerReturned"
+      then_set :status, to: "embarked"
+    end
+
+    DisembarkPassenger do
+      description "Remove a passenger from the ship at final port"
+      reference_to(Passenger)
+      given { status == "embarked" }
+      emits "PassengerDisembarked"
+      then_set :status, to: "disembarked"
+    end
+  end
+
+  aggregate "PortOfCall", "A scheduled stop at a harbor during the voyage" do
+    String :port_name
+    String :country
+    String :arrival_time
+    String :departure_time
+    String :status
+
+    value_object "DockingBerth" do
+      String :berth_id
+      Float :max_draft_meters
+    end
+
+    SchedulePort do
+      description "Add a port stop to the voyage itinerary"
+      String :port_name
+      String :country
+      String :arrival_time
+      String :departure_time
+      emits "PortScheduled"
+      then_set :status, to: "scheduled"
+    end
+
+    ArriveAtPort do
+      description "Record the ship docking at the port"
+      reference_to(PortOfCall)
+      given { status == "scheduled" }
+      emits "ArrivedAtPort"
+      then_set :status, to: "in_port"
+    end
+
+    DepartPort do
+      description "Record the ship leaving a port of call"
+      reference_to(PortOfCall)
+      given { status == "in_port" }
+      emits "PortDeparted"
+      then_set :status, to: "departed"
+    end
+  end
+
+  aggregate "Excursion", "A shore activity bookable by passengers at a port" do
+    String :excursion_name
+    String :description
+    Integer :capacity
+    Integer :booked_count
+    Integer :price_cents
+    String :status
+    reference_to(PortOfCall)
+
+    value_object "DifficultyRating" do
+      String :level
+      String :fitness_requirement
+    end
+
+    CreateExcursion do
+      description "Offer a new shore excursion at a port of call"
+      String :excursion_name
+      String :description
+      Integer :capacity
+      Integer :price_cents
+      reference_to(PortOfCall)
+      emits "ExcursionCreated"
+      then_set :status, to: "open"
+      then_set :booked_count, to: 0
+    end
+
+    BookExcursion do
+      description "Reserve a passenger spot on an excursion"
+      reference_to(Excursion)
+      reference_to(Passenger)
+      given { booked_count < capacity }
+      emits "ExcursionBooked"
+    end
+  end
+
+  policy "InspectCabinOnPrepare" do
+    on "CabinPrepared"
+    trigger "InspectCabin"
+  end
+
+  policy "EmbarkOnCheckIn" do
+    on "PassengerCheckedIn"
+    trigger "EmbarkPassenger"
+  end
+
+  policy "AssignCabinOnEmbark" do
+    on "PassengerEmbarked"
+    trigger "AssignPassenger"
+  end
+
+  policy "MusterOnEmbark" do
+    on "PassengerEmbarked"
+    trigger "CompleteMusterDrill"
+  end
+
+  policy "OpenExcursionsOnArrival" do
+    on "ArrivedAtPort"
+    trigger "CreateExcursion"
+  end
+
+  policy "ShoreLeaveOnArrival" do
+    on "ArrivedAtPort"
+    trigger "ClearForShoreLeave"
+  end
+
+  policy "CleanCabinOnDisembark" do
+    on "PassengerDisembarked"
+    trigger "CleanCabin"
+  end
+
+  policy "InspectCabinOnCleaned" do
+    on "CabinCleaned"
+    trigger "InspectCabin"
+  end
+
+  policy "BookExcursionOnExcursionCreated" do
+    on "ExcursionCreated"
+    trigger "BookExcursion"
+  end
+
+  policy "DepartPortOnPassengerReturned" do
+    on "PassengerReturned"
+    trigger "DepartPort"
+  end
+end

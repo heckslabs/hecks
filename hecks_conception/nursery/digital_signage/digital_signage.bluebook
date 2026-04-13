@@ -1,0 +1,246 @@
+Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
+  vision "Managing digital signage — provisioning displays, creating playlists, uploading content, scheduling rotations, and monitoring locations"
+  category "technology"
+
+  aggregate "Display", "A screen device showing content at a physical location" do
+    String :display_id
+    String :model
+    String :resolution
+    String :orientation
+    String :status
+    reference_to Location
+    list_of(DiagnosticLog) :diagnostics
+
+    value_object "DiagnosticLog" do
+      String :metric
+      String :value
+      String :recorded_at
+    end
+
+    InstallDisplay do
+      role "FieldTechnician"
+      description "Install and register a new display at a location"
+      String :display_id
+      String :model
+      String :resolution
+      String :orientation
+      reference_to(Location)
+      emits "DisplayInstalled"
+    end
+
+    RebootDisplay do
+      description "Remotely restart a display to apply updates"
+      reference_to(Display)
+      emits "DisplayRebooted"
+    end
+
+    RemoveDisplay do
+      description "Remove a display from active service"
+      reference_to(Display)
+      given("display is offline") { status == "offline" }
+      emits "DisplayRemoved"
+    end
+  end
+
+  aggregate "Playlist", "An ordered sequence of content items for playback" do
+    String :playlist_name
+    String :description
+    Integer :total_duration_seconds
+    String :loop_mode
+    String :status
+    list_of(PlaylistEntry) :entries
+
+    value_object "PlaylistEntry" do
+      String :content_id
+      Integer :duration_seconds
+      Integer :position
+    end
+
+    CreatePlaylist do
+      role "ContentManager"
+      description "Build a new playlist with a loop mode and entries"
+      String :playlist_name
+      String :description
+      String :loop_mode
+      emits "PlaylistCreated"
+    end
+
+    AddEntry do
+      description "Append a content item to a playlist"
+      reference_to(Playlist)
+      String :content_id
+      Integer :duration_seconds
+      emits "EntryAdded"
+    end
+
+    ArchivePlaylist do
+      description "Remove a playlist from active rotation"
+      reference_to(Playlist)
+      given("playlist is active") { status == "active" }
+      emits "PlaylistArchived"
+    end
+  end
+
+  aggregate "ContentAsset", "A media file available for use in playlists" do
+    String :asset_id
+    String :title
+    String :media_type
+    Integer :file_size_kb
+    String :thumbnail_url
+    String :status
+
+    value_object "AssetMetadata" do
+      String :dimensions
+      Integer :duration_seconds
+      String :encoding
+    end
+
+    UploadAsset do
+      role "ContentManager"
+      description "Add a new media file to the content library"
+      String :asset_id
+      String :title
+      String :media_type
+      Integer :file_size_kb
+      emits "AssetUploaded"
+    end
+
+    ApproveAsset do
+      description "Clear an asset for use in playlists"
+      reference_to(ContentAsset)
+      given("asset is pending review") { status == "pending_review" }
+      emits "AssetApproved"
+    end
+
+    RetireAsset do
+      description "Remove an asset from the content library"
+      reference_to(ContentAsset)
+      emits "AssetRetired"
+    end
+  end
+
+  aggregate "Schedule", "A time-based plan assigning playlists to displays" do
+    String :schedule_id
+    String :start_time
+    String :end_time
+    String :recurrence
+    String :status
+    reference_to Display
+    reference_to Playlist
+
+    value_object "TimeSlot" do
+      String :day_of_week
+      String :start_time
+      String :end_time
+    end
+
+    CreateSchedule do
+      role "ContentManager"
+      description "Assign a playlist to a display for a time window"
+      String :schedule_id
+      String :start_time
+      String :end_time
+      String :recurrence
+      reference_to(Display)
+      reference_to(Playlist)
+      emits "ScheduleCreated"
+    end
+
+    PauseSchedule do
+      description "Temporarily suspend a schedule without deleting it"
+      reference_to(Schedule)
+      given("schedule is active") { status == "active" }
+      emits "SchedulePaused"
+    end
+
+    DeleteSchedule do
+      description "Permanently remove a schedule"
+      reference_to(Schedule)
+      emits "ScheduleDeleted"
+    end
+  end
+
+  aggregate "Location", "A physical site where displays are installed" do
+    String :location_name
+    String :address
+    String :location_type
+    Integer :display_count
+    String :contact_name
+    String :status
+
+    value_object "OperatingHours" do
+      String :day
+      String :open_time
+      String :close_time
+    end
+
+    RegisterLocation do
+      role "AccountManager"
+      description "Add a new physical location to the network"
+      String :location_name
+      String :address
+      String :location_type
+      String :contact_name
+      emits "LocationRegistered"
+    end
+
+    UpdateContact do
+      description "Change the on-site contact for a location"
+      reference_to(Location)
+      String :contact_name
+      emits "ContactUpdated"
+    end
+
+    DeactivateLocation do
+      description "Take a location offline and stop content delivery"
+      reference_to(Location)
+      given("location is active") { status == "active" }
+      emits "LocationDeactivated"
+    end
+  end
+
+  lifecycle "ContentDelivery" do
+    state "uploaded"
+    state "approved"
+    state "in_playlist"
+    state "scheduled"
+    state "displaying"
+    state "archived"
+
+    transition from: "uploaded", to: "approved", on: "AssetApproved"
+    transition from: "approved", to: "in_playlist", on: "EntryAdded"
+    transition from: "in_playlist", to: "scheduled", on: "ScheduleCreated"
+    transition from: "scheduled", to: "displaying", on: "DisplayInstalled"
+    transition from: "displaying", to: "archived", on: "PlaylistArchived"
+  end
+
+  policy "AssetUploadedApprove" do
+    on "AssetUploaded"
+    trigger "ApproveAsset"
+  end
+
+  policy "AssetApprovedAddToPlaylist" do
+    on "AssetApproved"
+    trigger "AddEntry"
+  end
+
+  policy "PlaylistCreatedSchedule" do
+    on "PlaylistCreated"
+    trigger "CreateSchedule"
+  end
+
+  policy "DisplayInstalledAssignSchedule" do
+    on "DisplayInstalled"
+    trigger "CreateSchedule"
+  end
+
+  policy "LocationDeactivatedPauseSchedule" do
+    on "LocationDeactivated"
+    trigger "PauseSchedule"
+  end
+
+  policy "DisplayRebootedRefreshSchedule" do
+    on "DisplayRebooted"
+    trigger "CreateSchedule"
+  end
+end

@@ -1,0 +1,201 @@
+Hecks.bluebook "PlumbingService" do
+  vision "Manage residential and commercial plumbing service calls, fixture installations, parts inventory, and warranty tracking"
+  core
+
+  aggregate "ServiceCall" do
+    description "A dispatched plumbing job at a customer location with diagnosis and resolution"
+    String :customer_name
+    String :address
+    String :problem_description
+    String :diagnosis
+    String :status
+    reference_to(Technician)
+
+    value_object "Urgency" do
+      String :level
+      Integer :response_hours
+      invariant "response within SLA" do
+        response_hours > 0
+      end
+    end
+
+    DispatchCall do
+      role "Dispatcher"
+      goal "Send a technician to a customer site for a plumbing issue"
+      description "Creates a new service call and assigns a technician"
+      String :customer_name
+      String :address
+      String :problem_description
+      reference_to(Technician)
+      emits "CallDispatched"
+    end
+
+    DiagnoseIssue do
+      role "Technician"
+      goal "Record the root cause found on-site"
+      description "Technician documents the plumbing issue after inspection"
+      reference_to(ServiceCall)
+      String :diagnosis
+      given("call must be dispatched") { status == "dispatched" }
+      emits "IssueDiagnosed"
+    end
+
+    CompleteCall do
+      role "Technician"
+      goal "Mark the service call as resolved"
+      description "Close out the job after repair is verified"
+      reference_to(ServiceCall)
+      given("must be diagnosed first") { diagnosis != nil }
+      emits "CallCompleted"
+    end
+  end
+
+  aggregate "Technician" do
+    description "A licensed plumber available for dispatch with certifications and schedule"
+    String :name
+    String :license_number
+    String :specialties
+    String :availability
+
+    HireTechnician do
+      role "Manager"
+      goal "Onboard a new licensed plumber"
+      description "Register a technician with their license and specialties"
+      String :name
+      String :license_number
+      String :specialties
+      emits "TechnicianHired"
+    end
+
+    AssignTerritory do
+      role "Dispatcher"
+      goal "Set the geographic area a technician covers"
+      description "Assign zip codes or neighborhoods to a technician"
+      reference_to(Technician)
+      String :territory
+      emits "TerritoryAssigned"
+    end
+  end
+
+  aggregate "Fixture" do
+    description "A plumbing fixture such as a faucet, toilet, water heater, or disposal"
+    String :type
+    String :brand
+    String :model
+    String :location
+    reference_to(ServiceCall)
+
+    value_object "FixtureSpec" do
+      String :connection_size
+      String :material
+      Float :flow_rate_gpm
+    end
+
+    InstallFixture do
+      role "Technician"
+      goal "Mount and connect a new plumbing fixture"
+      description "Install a fixture at the customer location and record specs"
+      String :type
+      String :brand
+      String :model
+      String :location
+      reference_to(ServiceCall)
+      emits "FixtureInstalled"
+    end
+
+    ReplaceFixture do
+      role "Technician"
+      goal "Swap out a failed fixture with a replacement"
+      description "Remove old fixture and install replacement"
+      reference_to(Fixture)
+      String :new_model
+      emits "FixtureReplaced"
+    end
+  end
+
+  aggregate "Estimate" do
+    description "A cost estimate given to a customer before work begins"
+    Float :labor_cost
+    Float :parts_cost
+    Float :total
+    String :status
+    reference_to(ServiceCall)
+
+    PrepareEstimate do
+      role "Technician"
+      goal "Calculate labor and parts cost for the diagnosed issue"
+      description "Generate an estimate after diagnosis"
+      reference_to(ServiceCall)
+      Float :labor_cost
+      Float :parts_cost
+      emits "EstimatePrepared"
+    end
+
+    ApproveEstimate do
+      role "Customer"
+      goal "Accept the quoted price to authorize work"
+      description "Customer signs off on the estimate"
+      reference_to(Estimate)
+      given("estimate must be pending") { status == "pending" }
+      emits "EstimateApproved"
+    end
+  end
+
+  aggregate "Warranty" do
+    description "A warranty on installed fixtures or completed repairs"
+    String :coverage_type
+    Integer :duration_months
+    String :terms
+    reference_to(Fixture)
+
+    IssueWarranty do
+      role "Manager"
+      goal "Create a warranty for a completed installation"
+      description "Attach warranty terms to an installed fixture"
+      reference_to(Fixture)
+      String :coverage_type
+      Integer :duration_months
+      String :terms
+      emits "WarrantyIssued"
+    end
+
+    FileWarrantyClaim do
+      role "Customer"
+      goal "Report a defect covered under warranty"
+      description "Customer initiates a warranty claim for a failed fixture"
+      reference_to(Warranty)
+      String :defect_description
+      emits "WarrantyClaimFiled"
+    end
+  end
+
+  policy "AutoEstimateAfterDiagnosis" do
+    on "IssueDiagnosed"
+    trigger "PrepareEstimate"
+  end
+
+  policy "DispatchOnApproval" do
+    on "EstimateApproved"
+    trigger "InstallFixture"
+  end
+
+  policy "WarrantyOnInstall" do
+    on "FixtureInstalled"
+    trigger "IssueWarranty"
+  end
+
+  policy "TestAfterRepair" do
+    on "CallCompleted"
+    trigger "PrepareEstimate"
+  end
+
+  policy "DispatchOnWarrantyClaim" do
+    on "WarrantyClaimFiled"
+    trigger "DispatchCall"
+  end
+
+  policy "FollowUpOnReplacement" do
+    on "FixtureReplaced"
+    trigger "IssueWarranty"
+  end
+end

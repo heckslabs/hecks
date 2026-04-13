@@ -1,0 +1,252 @@
+Hecks.bluebook "SubstanceRecovery" do
+  vision "Addiction treatment and recovery — clients, treatment programs, recovery milestones, counselors, and support groups"
+
+  aggregate "Client", "A person seeking treatment for substance use disorder" do
+    String :name
+    String :date_of_birth
+    String :primary_substance
+    String :intake_date
+    String :insurance_id
+    String :status
+
+    IntakeClient do
+      role "IntakeCounselor"
+      description "Register a new client entering the recovery program"
+      String :name
+      String :date_of_birth
+      String :primary_substance
+      String :intake_date
+      String :insurance_id
+      emits "ClientIntaked"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :primary_substance, to: :primary_substance
+      then_set :intake_date, to: :intake_date
+      then_set :insurance_id, to: :insurance_id
+      then_set :status, to: "active"
+    end
+
+    TransitionToAftercare do
+      role "Counselor"
+      description "Move the client from active treatment to aftercare support"
+      reference_to(Client)
+      given("must be active") { status == "active" }
+      emits "ClientTransitionedToAftercare"
+      then_set :status, to: "aftercare"
+    end
+
+    DischargeClient do
+      role "Counselor"
+      description "Complete the client's participation in the program"
+      reference_to(Client)
+      emits "ClientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "TreatmentProgram", "A structured addiction treatment program" do
+    String :program_name
+    String :treatment_level
+    Integer :duration_days
+    String :modality
+    Integer :capacity
+    Integer :current_enrollment
+
+    EstablishProgram do
+      role "ClinicalDirector"
+      description "Create a new treatment program with capacity and modality"
+      String :program_name
+      String :treatment_level
+      Integer :duration_days
+      String :modality
+      Integer :capacity
+      emits "ProgramEstablished"
+      then_set :program_name, to: :program_name
+      then_set :treatment_level, to: :treatment_level
+      then_set :duration_days, to: :duration_days
+      then_set :modality, to: :modality
+      then_set :capacity, to: :capacity
+      then_set :current_enrollment, to: 0
+    end
+
+    EnrollInProgram do
+      role "Counselor"
+      description "Place a client into the treatment program"
+      reference_to(TreatmentProgram)
+      given("capacity not full") { current_enrollment < capacity }
+      emits "ClientEnrolledInProgram"
+    end
+
+    UpdateCapacity do
+      role "ClinicalDirector"
+      description "Adjust the program's enrollment capacity"
+      reference_to(TreatmentProgram)
+      Integer :capacity
+      emits "CapacityUpdated"
+      then_set :capacity, to: :capacity
+    end
+  end
+
+  aggregate "RecoveryMilestone", "A significant achievement in the client's recovery journey" do
+    String :client_name
+    String :milestone_type
+    String :description
+    String :achieved_date
+    Integer :days_sober
+    String :verified_by
+    reference_to Client
+
+    RecordMilestone do
+      role "Counselor"
+      description "Document a recovery milestone for the client"
+      reference_to(Client)
+      String :client_name
+      String :milestone_type
+      String :description
+      String :achieved_date
+      Integer :days_sober
+      String :verified_by
+      emits "MilestoneRecorded"
+      then_set :client_name, to: :client_name
+      then_set :milestone_type, to: :milestone_type
+      then_set :description, to: :description
+      then_set :achieved_date, to: :achieved_date
+      then_set :days_sober, to: :days_sober
+      then_set :verified_by, to: :verified_by
+    end
+
+    CelebrateMilestone do
+      role "Counselor"
+      description "Acknowledge the milestone in a group or individual setting"
+      reference_to(RecoveryMilestone)
+      emits "MilestoneCelebrated"
+    end
+  end
+
+  aggregate "Counselor", "A licensed addiction counselor providing treatment" do
+    String :name
+    String :license_type
+    String :license_number
+    String :specialty
+    Integer :caseload
+    String :status
+
+    HireCounselor do
+      role "ClinicalDirector"
+      description "Add a new counselor to the treatment team"
+      String :name
+      String :license_type
+      String :license_number
+      String :specialty
+      emits "CounselorHired"
+      then_set :name, to: :name
+      then_set :license_type, to: :license_type
+      then_set :license_number, to: :license_number
+      then_set :specialty, to: :specialty
+      then_set :caseload, to: 0
+      then_set :status, to: "active"
+    end
+
+    AssignCase do
+      role "ClinicalDirector"
+      description "Add a client to the counselor's caseload"
+      reference_to(Counselor)
+      emits "CaseAssigned"
+    end
+  end
+
+  aggregate "SupportGroup", "A peer support group meeting for recovery" do
+    String :group_name
+    String :meeting_day
+    String :meeting_time
+    String :facilitator_name
+    Integer :max_members
+    list_of(GroupMember) :members
+    reference_to Counselor
+
+    value_object "GroupMember" do
+      String :client_name
+      String :joined_date
+      String :attendance_status
+    end
+
+    CreateSupportGroup do
+      role "Counselor"
+      description "Start a new peer support group with schedule and facilitator"
+      reference_to(Counselor)
+      String :group_name
+      String :meeting_day
+      String :meeting_time
+      String :facilitator_name
+      Integer :max_members
+      emits "SupportGroupCreated"
+      then_set :group_name, to: :group_name
+      then_set :meeting_day, to: :meeting_day
+      then_set :meeting_time, to: :meeting_time
+      then_set :facilitator_name, to: :facilitator_name
+      then_set :max_members, to: :max_members
+    end
+
+    AddGroupMember do
+      role "Counselor"
+      description "Enroll a client in the support group"
+      reference_to(SupportGroup)
+      String :client_name
+      String :joined_date
+      emits "GroupMemberAdded"
+    end
+
+    RecordAttendance do
+      role "Counselor"
+      description "Log attendance for a group meeting session"
+      reference_to(SupportGroup)
+      emits "AttendanceRecorded"
+    end
+  end
+
+  # Workflow: Intake → AssignCounselor → EnrollInProgram → AddToSupportGroup → RecordMilestone → CelebrateMilestone → TransitionToAftercare → Discharge
+  policy "AssignCaseOnIntake" do
+    on "ClientIntaked"
+    trigger "AssignCase"
+  end
+
+  policy "EnrollOnIntake" do
+    on "ClientIntaked"
+    trigger "EnrollInProgram"
+  end
+
+  policy "AddToGroupOnEnrollment" do
+    on "ClientEnrolledInProgram"
+    trigger "AddGroupMember"
+  end
+
+  policy "RecordMilestoneOnAttendance" do
+    on "AttendanceRecorded"
+    trigger "RecordMilestone"
+  end
+
+  policy "CelebrateOnMilestone" do
+    on "MilestoneRecorded"
+    trigger "CelebrateMilestone"
+  end
+
+  policy "TransitionOnCelebration" do
+    on "MilestoneCelebrated"
+    trigger "TransitionToAftercare"
+  end
+
+  policy "DischargeOnAftercare" do
+    on "ClientTransitionedToAftercare"
+    trigger "DischargeClient"
+  end
+
+  policy "CreateGroupOnProgram" do
+    on "ProgramEstablished"
+    trigger "CreateSupportGroup"
+  end
+
+  policy "RecordAttendanceOnGroupMember" do
+    on "GroupMemberAdded"
+    trigger "RecordAttendance"
+  end
+end

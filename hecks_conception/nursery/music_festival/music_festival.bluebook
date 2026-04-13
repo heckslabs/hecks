@@ -1,0 +1,249 @@
+Hecks.bluebook "MusicFestival" do
+  vision "Organize music festival stages, artist bookings, performance schedules, ticket sales, and vendor permits"
+  category "entertainment"
+
+  aggregate "Stage", "A performance area with capacity, sound system, and schedule slots" do
+    String :stage_name
+    Integer :capacity
+    String :sound_system
+    String :location_on_grounds
+    String :status
+
+    value_object "TechnicalRider" do
+      Integer :monitor_count
+      Integer :microphone_count
+      String :backline_provided
+      String :lighting_package
+    end
+
+    SetupStage do
+      role "ProductionManager"
+      description "Configure a performance stage with sound and capacity specs"
+      String :stage_name
+      Integer :capacity
+      String :sound_system
+      String :location_on_grounds
+      emits "StageSetUp"
+      then_set :stage_name, to: :stage_name
+      then_set :capacity, to: :capacity
+      then_set :sound_system, to: :sound_system
+      then_set :location_on_grounds, to: :location_on_grounds
+      then_set :status, to: "ready"
+    end
+
+    CloseStage do
+      role "ProductionManager"
+      description "Shut down a stage after the final performance"
+      reference_to(Stage)
+      given { status == "ready" }
+      emits "StageClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "ArtistBooking", "A confirmed artist engagement with fee, rider, and set time" do
+    String :artist_name
+    String :genre
+    Float :booking_fee
+    Integer :set_duration_minutes
+    String :status
+    reference_to(Stage)
+
+    value_object "HospitalityRider" do
+      String :dressing_room
+      String :catering_requests
+      Integer :guest_passes
+    end
+
+    BookArtist do
+      role "TalentBuyer"
+      description "Confirm an artist for the festival with fee and set duration"
+      reference_to(Stage)
+      String :artist_name
+      String :genre
+      Float :booking_fee
+      Integer :set_duration_minutes
+      emits "ArtistBooked"
+      then_set :artist_name, to: :artist_name
+      then_set :genre, to: :genre
+      then_set :booking_fee, to: :booking_fee
+      then_set :set_duration_minutes, to: :set_duration_minutes
+      then_set :status, to: "confirmed"
+    end
+
+    CancelBooking do
+      role "TalentBuyer"
+      description "Cancel an artist's appearance and arrange replacement"
+      reference_to(ArtistBooking)
+      given { status == "confirmed" }
+      emits "BookingCancelled"
+      then_set :status, to: "cancelled"
+    end
+
+    CompletePerformance do
+      role "StageManager"
+      description "Record that the artist finished their set"
+      reference_to(ArtistBooking)
+      given { status == "confirmed" }
+      emits "PerformanceCompleted"
+      then_set :status, to: "performed"
+    end
+  end
+
+  aggregate "PerformanceSchedule", "A time slot assignment for an artist on a specific stage and day" do
+    String :performance_date
+    String :start_time
+    String :end_time
+    String :status
+    reference_to(ArtistBooking)
+    reference_to(Stage)
+
+    SchedulePerformance do
+      role "ProductionManager"
+      description "Assign an artist to a specific time slot on a stage"
+      reference_to(ArtistBooking)
+      reference_to(Stage)
+      String :performance_date
+      String :start_time
+      String :end_time
+      emits "PerformanceScheduled"
+      then_set :performance_date, to: :performance_date
+      then_set :start_time, to: :start_time
+      then_set :end_time, to: :end_time
+      then_set :status, to: "scheduled"
+    end
+
+    ReschedulePerformance do
+      role "ProductionManager"
+      description "Move a performance to a different time or stage due to conflicts"
+      reference_to(PerformanceSchedule)
+      String :new_start_time
+      String :new_end_time
+      given { status == "scheduled" }
+      emits "PerformanceRescheduled"
+      then_set :start_time, to: :new_start_time
+      then_set :end_time, to: :new_end_time
+    end
+  end
+
+  aggregate "TicketBatch", "A batch of tickets for a specific day or tier with pricing" do
+    String :tier_name
+    String :valid_date
+    Float :price
+    Integer :total_quantity
+    Integer :sold_count
+    String :status
+
+    value_object "TicketPerks" do
+      String :vip_access
+      String :camping_included
+      String :merch_discount
+    end
+
+    CreateTicketBatch do
+      role "BoxOfficeManager"
+      description "Define a ticket tier with pricing and quantity for a festival day"
+      String :tier_name
+      String :valid_date
+      Float :price
+      Integer :total_quantity
+      emits "TicketBatchCreated"
+      then_set :tier_name, to: :tier_name
+      then_set :valid_date, to: :valid_date
+      then_set :price, to: :price
+      then_set :total_quantity, to: :total_quantity
+      then_set :sold_count, to: 0
+      then_set :status, to: "on_sale"
+    end
+
+    SellTickets do
+      role "BoxOffice"
+      description "Record ticket sales and update remaining inventory"
+      reference_to(TicketBatch)
+      Integer :quantity
+      given { status == "on_sale" }
+      emits "TicketsSold"
+    end
+
+    CloseTicketSales do
+      role "BoxOfficeManager"
+      description "Stop selling tickets for a batch when sold out or event starts"
+      reference_to(TicketBatch)
+      given { status == "on_sale" }
+      emits "TicketSalesClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "FestivalVendor", "A food, drink, or merchandise vendor with booth assignment" do
+    String :vendor_name
+    String :vendor_type
+    String :booth_location
+    Float :booth_fee
+    String :status
+
+    value_object "HealthPermit" do
+      String :permit_number
+      String :expiration_date
+      String :issuing_authority
+    end
+
+    RegisterVendor do
+      role "VendorCoordinator"
+      description "Sign up a vendor with their booth type and location assignment"
+      String :vendor_name
+      String :vendor_type
+      String :booth_location
+      Float :booth_fee
+      emits "VendorRegistered"
+      then_set :vendor_name, to: :vendor_name
+      then_set :vendor_type, to: :vendor_type
+      then_set :booth_location, to: :booth_location
+      then_set :booth_fee, to: :booth_fee
+      then_set :status, to: "registered"
+    end
+
+    ApproveVendor do
+      role "VendorCoordinator"
+      description "Clear the vendor after verifying permits and insurance"
+      reference_to(FestivalVendor)
+      given { status == "registered" }
+      emits "VendorApproved"
+      then_set :status, to: "approved"
+    end
+
+    EjectVendor do
+      role "SecurityDirector"
+      description "Remove a vendor from the festival grounds for violations"
+      reference_to(FestivalVendor)
+      String :reason
+      emits "VendorEjected"
+      then_set :status, to: "ejected"
+    end
+  end
+
+  policy "ScheduleOnBooking" do
+    on "ArtistBooked"
+    trigger "SchedulePerformance"
+  end
+
+  policy "CreateTicketsOnStageSetup" do
+    on "StageSetUp"
+    trigger "CreateTicketBatch"
+  end
+
+  policy "ApproveVendorsOnRegistration" do
+    on "VendorRegistered"
+    trigger "ApproveVendor"
+  end
+
+  policy "CloseStageAfterPerformance" do
+    on "PerformanceCompleted"
+    trigger "CloseStage"
+  end
+
+  policy "CloseTicketsOnSoldOut" do
+    on "TicketSalesClosed"
+    trigger "CloseStage"
+  end
+end

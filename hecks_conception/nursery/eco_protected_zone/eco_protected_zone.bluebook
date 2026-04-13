@@ -1,0 +1,390 @@
+Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
+  vision "Conservation meets tourism — visitors tracked, poachers detected by DNA, wildlife protected, eruption zones enforced"
+  category "crossover_gen2"
+
+  # === ProtectedArea ===
+
+  aggregate "ProtectedArea", "A conservation zone — geographic boundary with protection level and active hazards" do
+    String :name
+    String :protection_level
+    Float :area_sq_km
+    String :status
+    list_of(ZoneBoundary) :boundaries
+
+    value_object "ZoneBoundary" do
+      Float :latitude
+      Float :longitude
+      String :boundary_type
+      String :marker_id
+    end
+
+    DesignateArea do
+      role "ConservationOfficer"
+      description "Establish a new protected area with boundaries and protection level"
+      String :name
+      String :protection_level
+      Float :area_sq_km
+      emits "AreaDesignated"
+      then_set :name, to: :name
+      then_set :protection_level, to: :protection_level
+      then_set :area_sq_km, to: :area_sq_km
+      then_set :status, to: "active"
+    end
+
+    CloseZone do
+      role "System"
+      description "Close the protected area — poaching detected or eruption imminent"
+      reference_to(ProtectedArea)
+      given { status == "active" }
+      emits "ZoneClosed"
+      then_set :status, to: "closed"
+    end
+
+    ReopenZone do
+      role "ConservationOfficer"
+      description "Reopen area after threat has been resolved"
+      reference_to(ProtectedArea)
+      given { status == "closed" }
+      emits "ZoneReopened"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "proposed" do
+      transition "DesignateArea" => "active", from: "proposed"
+      transition "CloseZone" => "closed", from: "active"
+      transition "ReopenZone" => "active", from: "closed"
+    end
+  end
+
+  # === Visitor ===
+
+  aggregate "Visitor", "A tourist in the protected zone — tracked for safety and conservation compliance" do
+    String :name
+    String :nationality
+    reference_to(Permit) :permit
+    String :status
+    list_of(LocationPing) :location_history
+
+    value_object "LocationPing" do
+      Float :latitude
+      Float :longitude
+      String :timestamp
+      String :zone_name
+    end
+
+    RegisterVisitor do
+      role "ParkRanger"
+      description "Register a visitor entering the protected zone"
+      String :name
+      String :nationality
+      emits "VisitorRegistered"
+      then_set :name, to: :name
+      then_set :nationality, to: :nationality
+      then_set :status, to: "registered"
+    end
+
+    TrackVisitor do
+      role "System"
+      description "Log visitor location within the protected zone"
+      reference_to(Visitor)
+      Float :latitude
+      Float :longitude
+      emits "VisitorTracked"
+    end
+
+    EvacuateVisitors do
+      role "System"
+      description "Emergency evacuation — move all visitors out of hazard zone"
+      reference_to(Visitor)
+      given { status == "registered" }
+      emits "VisitorEvacuated"
+      then_set :status, to: "evacuated"
+    end
+
+    CheckOutVisitor do
+      role "ParkRanger"
+      description "Visitor exits the protected zone safely"
+      reference_to(Visitor)
+      emits "VisitorCheckedOut"
+      then_set :status, to: "checked_out"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterVisitor" => "registered", from: "pending"
+      transition "EvacuateVisitors" => "evacuated", from: "registered"
+      transition "CheckOutVisitor" => "checked_out", from: "registered"
+    end
+  end
+
+  # === WildlifeSpecies ===
+
+  aggregate "WildlifeSpecies", "A tracked wildlife species — population, habitat, and threat status" do
+    String :common_name
+    String :scientific_name
+    String :conservation_status
+    Integer :estimated_population
+    String :primary_habitat
+    list_of(SightingRecord) :sightings
+
+    value_object "SightingRecord" do
+      String :date
+      Float :latitude
+      Float :longitude
+      Integer :count
+      String :observer
+    end
+
+    CatalogSpecies do
+      role "Biologist"
+      description "Register a wildlife species within the protected area"
+      String :common_name
+      String :scientific_name
+      String :conservation_status
+      Integer :estimated_population
+      String :primary_habitat
+      emits "SpeciesCataloged"
+      then_set :common_name, to: :common_name
+      then_set :scientific_name, to: :scientific_name
+      then_set :conservation_status, to: :conservation_status
+      then_set :estimated_population, to: :estimated_population
+      then_set :primary_habitat, to: :primary_habitat
+    end
+
+    RecordSighting do
+      role "ParkRanger"
+      description "Log a wildlife sighting with location and count"
+      reference_to(WildlifeSpecies)
+      Float :latitude
+      Float :longitude
+      Integer :count
+      emits "WildlifeSighted"
+    end
+
+    UpdateConservationStatus do
+      role "Biologist"
+      description "Revise species conservation status based on population data"
+      reference_to(WildlifeSpecies)
+      String :conservation_status
+      emits "ConservationStatusUpdated"
+      then_set :conservation_status, to: :conservation_status
+    end
+  end
+
+  # === ForensicCase ===
+
+  aggregate "ForensicCase", "A wildlife forensic investigation — DNA evidence, poacher tracking, prosecution" do
+    String :case_number
+    reference_to(WildlifeSpecies) :species
+    reference_to(ProtectedArea) :area
+    String :evidence_type
+    String :dna_sample_id
+    String :status
+    String :suspect_description
+
+    OpenForensicCase do
+      role "ForensicInvestigator"
+      description "Open a forensic case when poaching evidence is discovered"
+      String :case_number
+      reference_to(WildlifeSpecies) :species
+      reference_to(ProtectedArea) :area
+      String :evidence_type
+      String :dna_sample_id
+      emits "PoachingDetected"
+      then_set :case_number, to: :case_number
+      then_set :species, to: :species
+      then_set :area, to: :area
+      then_set :evidence_type, to: :evidence_type
+      then_set :dna_sample_id, to: :dna_sample_id
+      then_set :status, to: "open"
+    end
+
+    MatchDNA do
+      role "ForensicInvestigator"
+      description "Match DNA evidence to species and individual animal"
+      reference_to(ForensicCase)
+      given { status == "open" }
+      emits "DNAMatched"
+    end
+
+    IdentifySuspect do
+      role "ForensicInvestigator"
+      description "Identify a poaching suspect from evidence"
+      reference_to(ForensicCase)
+      String :suspect_description
+      emits "SuspectIdentified"
+      then_set :suspect_description, to: :suspect_description
+    end
+
+    CloseCase do
+      role "ForensicInvestigator"
+      description "Close the forensic case with prosecution outcome"
+      reference_to(ForensicCase)
+      given { status == "open" }
+      emits "ForensicCaseClosed"
+      then_set :status, to: "closed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "OpenForensicCase" => "open", from: "pending"
+      transition "CloseCase" => "closed", from: "open"
+    end
+  end
+
+  # === HazardZone ===
+
+  aggregate "HazardZone", "A volcanic or geological hazard zone — monitored for eruption, gas, and seismic activity" do
+    String :zone_name
+    String :hazard_type
+    String :alert_level
+    reference_to(ProtectedArea) :area
+    String :status
+    list_of(SeismicReading) :readings
+
+    value_object "SeismicReading" do
+      Float :magnitude
+      Float :depth_km
+      String :timestamp
+      String :tremor_type
+    end
+
+    DefineHazardZone do
+      role "Geologist"
+      description "Define a hazard zone within or adjacent to a protected area"
+      String :zone_name
+      String :hazard_type
+      reference_to(ProtectedArea) :area
+      emits "HazardZoneDefined"
+      then_set :zone_name, to: :zone_name
+      then_set :hazard_type, to: :hazard_type
+      then_set :area, to: :area
+      then_set :alert_level, to: "normal"
+      then_set :status, to: "monitored"
+    end
+
+    RaiseAlert do
+      role "System"
+      description "Escalate hazard alert level — seismic activity detected"
+      reference_to(HazardZone)
+      String :alert_level
+      emits "EruptionAlert"
+      then_set :alert_level, to: :alert_level
+      then_set :status, to: "alert"
+    end
+
+    LowerAlert do
+      role "Geologist"
+      description "De-escalate hazard alert after monitoring period"
+      reference_to(HazardZone)
+      given { status == "alert" }
+      emits "AlertLowered"
+      then_set :alert_level, to: "normal"
+      then_set :status, to: "monitored"
+    end
+
+    RecordSeismicActivity do
+      role "System"
+      description "Log seismic readings from monitoring stations"
+      reference_to(HazardZone)
+      Float :magnitude
+      Float :depth_km
+      emits "SeismicActivityRecorded"
+    end
+
+    lifecycle :status, default: "proposed" do
+      transition "DefineHazardZone" => "monitored", from: "proposed"
+      transition "RaiseAlert" => "alert", from: "monitored"
+      transition "LowerAlert" => "monitored", from: "alert"
+    end
+  end
+
+  # === Permit ===
+
+  aggregate "Permit", "A visitor permit — controls access, tracks fees, enforces zone restrictions" do
+    reference_to(Visitor) :visitor
+    reference_to(ProtectedArea) :area
+    String :permit_type
+    String :valid_from
+    String :valid_until
+    String :status
+    list_of(ZoneAccess) :allowed_zones
+
+    value_object "ZoneAccess" do
+      String :zone_name
+      String :access_level
+      String :time_restriction
+    end
+
+    IssuePermit do
+      role "ParkRanger"
+      description "Issue an access permit for a visitor to enter protected zones"
+      reference_to(Visitor) :visitor
+      reference_to(ProtectedArea) :area
+      String :permit_type
+      String :valid_from
+      String :valid_until
+      emits "PermitIssued"
+      then_set :visitor, to: :visitor
+      then_set :area, to: :area
+      then_set :permit_type, to: :permit_type
+      then_set :valid_from, to: :valid_from
+      then_set :valid_until, to: :valid_until
+      then_set :status, to: "active"
+    end
+
+    RevokePermit do
+      role "ConservationOfficer"
+      description "Revoke a permit — visitor violated zone rules or emergency closure"
+      reference_to(Permit)
+      given { status == "active" }
+      emits "PermitRevoked"
+      then_set :status, to: "revoked"
+    end
+
+    ExpirePermit do
+      role "System"
+      description "Permit has expired — visitor must exit or renew"
+      reference_to(Permit)
+      given { status == "active" }
+      emits "PermitExpired"
+      then_set :status, to: "expired"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "IssuePermit" => "active", from: "pending"
+      transition "RevokePermit" => "revoked", from: "active"
+      transition "ExpirePermit" => "expired", from: "active"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "CloseZoneOnPoaching" do
+    on "PoachingDetected"
+    trigger "CloseZone"
+  end
+
+  policy "EvacuateOnEruption" do
+    on "EruptionAlert"
+    trigger "EvacuateVisitors"
+  end
+
+  policy "CloseZoneOnEruption" do
+    on "EruptionAlert"
+    trigger "CloseZone"
+  end
+
+  policy "RevokePermitOnClosure" do
+    on "ZoneClosed"
+    trigger "RevokePermit"
+  end
+
+  policy "MatchDNAOnPoaching" do
+    on "PoachingDetected"
+    trigger "MatchDNA"
+  end
+
+  policy "RaiseAlertOnSeismic" do
+    on "SeismicActivityRecorded"
+    trigger "RaiseAlert"
+  end
+end

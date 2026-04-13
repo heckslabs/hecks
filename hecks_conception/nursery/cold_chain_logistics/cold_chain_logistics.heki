@@ -1,0 +1,237 @@
+Hecks.bluebook "ColdChainLogistics" do
+  aggregate "ColdShipment" do
+    String :shipment_id
+    String :customer_name
+    String :product_type
+    Float :weight_kg
+    Float :required_temp_c
+    Float :temp_tolerance_c
+    String :status
+    list_of "TemperatureLog"
+
+    BookColdShipment do
+      description "Accept booking for temperature-controlled freight with specs"
+      String :customer_name
+      String :product_type
+      Float :required_temp_c
+      reference_to "ColdShipment"
+      emits "ColdShipmentBooked"
+    end
+
+    PickUpShipment do
+      description "Collect shipment from shipper facility into reefer unit"
+      String :pickup_location
+      Float :pickup_temp_c
+      reference_to "ColdShipment"
+      emits "ShipmentPickedUp"
+    end
+
+    DeliverShipment do
+      description "Complete delivery and capture proof of temperature-compliant receipt"
+      String :receiver_name
+      Float :delivery_temp_c
+      reference_to "ColdShipment"
+      emits "ShipmentDelivered"
+    end
+
+    lifecycle :status, default: "quoted" do
+      transition "BookColdShipment" => "booked", from: "quoted"
+      transition "PickUpShipment" => "in_transit", from: "booked"
+      transition "DeliverShipment" => "delivered", from: "in_transit"
+    end
+
+    policy "Shipment temperature must stay within tolerance throughout transit"
+    policy "Perishable goods must be delivered within maximum transit time"
+
+    given "A pharmaceutical cold shipment is booked" do
+      String :product_type, "Vaccines"
+      Float :required_temp_c, 4.0
+      Float :temp_tolerance_c, 2.0
+    end
+  end
+
+  aggregate "TemperatureLog" do
+    String :log_id
+    String :sensor_id
+    String :timestamp
+    Float :recorded_temp_c
+    String :location
+    String :status
+
+    value_object "SensorReading" do
+      Float :temperature_c
+      Float :humidity_percent
+      String :sensor_battery_status
+    end
+
+    RecordTemperature do
+      description "Capture temperature reading from IoT sensor in transit unit"
+      String :sensor_id
+      Float :recorded_temp_c
+      reference_to "ColdShipment"
+      emits "TemperatureRecorded"
+    end
+
+    DetectExcursion do
+      description "Flag temperature reading outside acceptable range as excursion"
+      Float :excursion_temp_c
+      Float :duration_minutes
+      reference_to "TemperatureLog"
+      emits "ExcursionDetected"
+    end
+
+    lifecycle :status, default: "monitoring" do
+      transition "RecordTemperature" => "logged", from: "monitoring"
+      transition "DetectExcursion" => "excursion", from: "logged"
+    end
+
+    policy "Excursions lasting over 30 minutes require shipment review"
+  end
+
+  aggregate "ReeferVehicle" do
+    String :vehicle_id
+    String :vehicle_type
+    Float :cargo_volume_m3
+    Float :min_temp_capability_c
+    Float :max_temp_capability_c
+    String :status
+
+    PreCoolUnit do
+      description "Pre-cool reefer unit to target temperature before loading"
+      Float :target_temp_c
+      Float :pre_cool_duration_min
+      reference_to "ReeferVehicle"
+      emits "UnitPreCooled"
+    end
+
+    AssignVehicle do
+      description "Assign reefer truck or container to cold shipment"
+      String :shipment_id
+      Float :set_temp_c
+      reference_to "ColdShipment"
+      emits "VehicleAssigned"
+    end
+
+    ReleaseVehicle do
+      description "Return vehicle to available pool after delivery completion"
+      reference_to "ReeferVehicle"
+      emits "VehicleReleased"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "PreCoolUnit" => "pre_cooling", from: "available"
+      transition "AssignVehicle" => "assigned", from: "pre_cooling"
+      transition "ReleaseVehicle" => "available", from: "assigned"
+    end
+
+    policy "Reefer unit must reach target temperature before loading cargo"
+  end
+
+  aggregate "ComplianceCertificate" do
+    String :certificate_id
+    String :shipment_id
+    String :standard
+    String :issued_by
+    String :status
+
+    value_object "ChainOfCustody" do
+      String :handoff_point
+      String :handler_name
+      Float :temperature_at_handoff_c
+      String :timestamp
+    end
+
+    IssueCertificate do
+      description "Generate cold chain compliance certificate from logged data"
+      String :standard
+      String :issued_by
+      reference_to "ColdShipment"
+      emits "CertificateIssued"
+    end
+
+    RevokeCertificate do
+      description "Revoke certificate due to discovered temperature excursion"
+      String :revocation_reason
+      reference_to "ComplianceCertificate"
+      emits "CertificateRevoked"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "IssueCertificate" => "issued", from: "pending"
+      transition "RevokeCertificate" => "revoked", from: "issued"
+    end
+
+    policy "Certificate requires unbroken temperature log for full transit"
+  end
+
+  aggregate "ExcursionAlert" do
+    String :alert_id
+    String :shipment_id
+    String :severity
+    String :alert_source
+    String :status
+
+    RaiseAlert do
+      description "Trigger alert to operations team for temperature deviation"
+      String :severity
+      String :alert_source
+      reference_to "ColdShipment"
+      emits "AlertRaised"
+    end
+
+    ResolveAlert do
+      description "Close alert after corrective action restores temperature compliance"
+      String :resolution_action
+      String :resolved_by
+      reference_to "ExcursionAlert"
+      emits "AlertResolved"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "RaiseAlert" => "active", from: "clear"
+      transition "ResolveAlert" => "resolved", from: "active"
+    end
+
+    policy "Critical alerts must be acknowledged within 15 minutes"
+  end
+
+  policy "PreCoolUnitOnColdShipmentBooked" do
+    on "ColdShipmentBooked"
+    trigger "PreCoolUnit"
+  end
+
+  policy "AssignVehicleOnUnitPreCooled" do
+    on "UnitPreCooled"
+    trigger "AssignVehicle"
+  end
+
+  policy "PickUpShipmentOnVehicleAssigned" do
+    on "VehicleAssigned"
+    trigger "PickUpShipment"
+  end
+
+  policy "RecordTemperatureOnShipmentPickedUp" do
+    on "ShipmentPickedUp"
+    trigger "RecordTemperature"
+  end
+
+  policy "IssueCertificateOnShipmentDelivered" do
+    on "ShipmentDelivered"
+    trigger "IssueCertificate"
+  end
+
+  policy "RaiseAlertOnExcursionDetected" do
+    on "ExcursionDetected"
+    trigger "RaiseAlert"
+  end
+
+  policy "ResolveAlertOnAlertRaised" do
+    on "AlertRaised"
+    trigger "ResolveAlert"
+  end
+
+  policy "ReleaseVehicleOnShipmentDelivered" do
+    on "ShipmentDelivered"
+    trigger "ReleaseVehicle"
+  end
+end

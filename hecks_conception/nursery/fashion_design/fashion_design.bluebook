@@ -1,0 +1,201 @@
+Hecks.bluebook "FashionDesign" do
+  aggregate "Collection", "A seasonal fashion collection with a theme and lookbook" do
+    String :name
+    String :season
+    String :theme
+    String :status, default: "concept"
+    Integer :piece_count
+
+    LaunchCollection do
+      description "Announce a new seasonal collection concept"
+      String :name
+      String :season
+      String :theme
+      emits "CollectionLaunched"
+    end
+
+    FinalizeCollection do
+      description "Lock the collection lineup for production"
+      reference_to(Collection)
+      Integer :piece_count
+      given { status == "concept" }
+      emits "CollectionFinalized"
+      then_set :status, to: "finalized"
+      then_set :piece_count, to: :piece_count
+    end
+
+    ShowCollection do
+      description "Present the collection on the runway"
+      reference_to(Collection)
+      given { status == "finalized" }
+      emits "CollectionShown"
+      then_set :status, to: "shown"
+    end
+  end
+
+  aggregate "Garment", "A single piece in a collection with fabric, cut, and sizing" do
+    String :name
+    String :garment_type
+    String :fabric
+    String :status, default: "drafted"
+    reference_to(Collection)
+
+    value_object "SizeSpec" do
+      String :size_label
+      Float :bust_cm
+      Float :waist_cm
+      Float :hip_cm
+      Float :length_cm
+    end
+
+    DraftGarment do
+      description "Create a new garment design for a collection"
+      reference_to(Collection)
+      String :name
+      String :garment_type
+      String :fabric
+      emits "GarmentDrafted"
+    end
+
+    SewMuslin do
+      description "Produce a muslin prototype for fitting"
+      reference_to(Garment)
+      given { status == "drafted" }
+      emits "MuslinSewn"
+      then_set :status, to: "muslin"
+    end
+
+    ProduceGarment do
+      description "Cut and sew the final garment in production fabric"
+      reference_to(Garment)
+      given { status == "muslin" }
+      emits "GarmentProduced"
+      then_set :status, to: "produced"
+    end
+  end
+
+  aggregate "Pattern", "A technical pattern with grading rules for multiple sizes" do
+    String :name
+    String :garment_type
+    Integer :piece_count
+    String :status, default: "draft"
+    reference_to(Garment)
+
+    value_object "GradingRule" do
+      String :size_range
+      Float :increment_cm
+      String :measurement_point
+    end
+
+    DraftPattern do
+      description "Create the base-size pattern from the design"
+      reference_to(Garment)
+      String :name
+      Integer :piece_count
+      emits "PatternDrafted"
+    end
+
+    GradePattern do
+      description "Apply grading rules to produce all size patterns"
+      reference_to(Pattern)
+      given { status == "draft" }
+      emits "PatternGraded"
+      then_set :status, to: "graded"
+    end
+  end
+
+  aggregate "Fitting", "A fitting session where garments are tried and adjusted" do
+    String :model_name
+    String :date
+    String :status, default: "scheduled"
+    String :notes
+    reference_to(Garment)
+
+    ScheduleFitting do
+      description "Book a fitting session with a model"
+      reference_to(Garment)
+      String :model_name
+      String :date
+      emits "FittingScheduled"
+    end
+
+    RecordAdjustments do
+      description "Note alterations needed after a fitting"
+      reference_to(Fitting)
+      String :notes
+      given { status == "scheduled" }
+      emits "AdjustmentsRecorded"
+      then_set :status, to: "adjusted"
+      then_set :notes, to: :notes
+    end
+  end
+
+  aggregate "RunwayShow", "A fashion show event with lineup, venue, and production" do
+    String :venue
+    String :date
+    Integer :look_count
+    String :status, default: "planning"
+    reference_to(Collection)
+
+    PlanShow do
+      description "Set up a runway show for a collection"
+      reference_to(Collection)
+      String :venue
+      String :date
+      emits "ShowPlanned"
+    end
+
+    RehearsShow do
+      description "Run a rehearsal with models and choreography"
+      reference_to(RunwayShow)
+      given { status == "planning" }
+      emits "ShowRehearsed"
+      then_set :status, to: "rehearsed"
+    end
+  end
+
+  policy "DraftPatternAfterDesign" do
+    on "GarmentDrafted"
+    trigger "DraftPattern"
+  end
+
+  policy "GradePatternAfterDraft" do
+    on "PatternDrafted"
+    trigger "GradePattern"
+  end
+
+  policy "SewMuslinAfterGrade" do
+    on "PatternGraded"
+    trigger "SewMuslin"
+  end
+
+  policy "FitAfterMuslin" do
+    on "MuslinSewn"
+    trigger "ScheduleFitting"
+  end
+
+  policy "ProduceAfterAdjustment" do
+    on "AdjustmentsRecorded"
+    trigger "ProduceGarment"
+  end
+
+  policy "FinalizeCollectionOnProduce" do
+    on "GarmentProduced"
+    trigger "FinalizeCollection"
+  end
+
+  policy "PlanShowOnFinalize" do
+    on "CollectionFinalized"
+    trigger "PlanShow"
+  end
+
+  policy "RehearseBeforeShow" do
+    on "ShowPlanned"
+    trigger "RehearsShow"
+  end
+
+  policy "ShowOnRehearsal" do
+    on "ShowRehearsed"
+    trigger "ShowCollection"
+  end
+end

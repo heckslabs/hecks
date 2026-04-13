@@ -1,0 +1,277 @@
+Hecks.bluebook "HealingThroughLearning", version: "2026.04.13.1" do
+  vision "Nutrition education as therapy — recovering addicts learn to cook, earn credentials, health metrics are grades"
+  category "crossover_gen3"
+
+  # === Learner ===
+
+  aggregate "Learner", "A person in recovery enrolled in nutrition-as-therapy — health and education unified" do
+    String :learner_id
+    String :name
+    String :recovery_stage
+    String :enrollment_date
+    String :status
+    list_of(RecoveryGoal) :goals
+    value_object "RecoveryGoal" do
+      String :goal_type
+      String :target
+      String :progress
+    end
+    EnrollLearner do
+      role "CaseManager"
+      description "Enroll a person in recovery into the nutrition-as-therapy program"
+      String :learner_id
+      String :name
+      String :recovery_stage
+      String :enrollment_date
+      emits "LearnerEnrolled"
+      then_set :learner_id, to: :learner_id
+      then_set :name, to: :name
+      then_set :recovery_stage, to: :recovery_stage
+      then_set :enrollment_date, to: :enrollment_date
+      then_set :status, to: "enrolled"
+    end
+    AdvanceStage do
+      role "CaseManager"
+      description "Advance learner to next recovery stage based on health and education progress"
+      reference_to(Learner)
+      String :recovery_stage
+      given { status == "enrolled" }
+      emits "StageAdvanced"
+      then_set :recovery_stage, to: :recovery_stage
+    end
+    GraduateLearner do
+      role "ProgramDirector"
+      description "Graduate learner from the program with credential"
+      reference_to(Learner)
+      given { status == "enrolled" }
+      emits "LearnerGraduated"
+      then_set :status, to: "graduated"
+    end
+  end
+
+  # === NutritionCurriculum ===
+
+  aggregate "NutritionCurriculum", "A structured nutrition education pathway — modules build from basics to professional skill" do
+    String :curriculum_id
+    String :title
+    String :difficulty_level
+    String :status
+    list_of(LessonPlan) :lessons
+    value_object "LessonPlan" do
+      String :lesson_name
+      String :nutrition_topic
+      String :cooking_skill
+      Integer :duration_minutes
+    end
+    DesignCurriculum do
+      role "Nutritionist"
+      description "Design a nutrition curriculum for recovery learners"
+      String :curriculum_id
+      String :title
+      String :difficulty_level
+      emits "CurriculumDesigned"
+      then_set :curriculum_id, to: :curriculum_id
+      then_set :title, to: :title
+      then_set :difficulty_level, to: :difficulty_level
+      then_set :status, to: "draft"
+    end
+    PublishCurriculum do
+      role "ProgramDirector"
+      description "Publish curriculum for active enrollment"
+      reference_to(NutritionCurriculum)
+      given { status == "draft" }
+      emits "CurriculumPublished"
+      then_set :status, to: "published"
+    end
+  end
+
+  # === CookingLab ===
+
+  aggregate "CookingLab", "A hands-on cooking session — learners practice recipes that address their nutrition targets" do
+    String :session_id
+    reference_to(Learner) :learner
+    reference_to(NutritionCurriculum) :curriculum
+    String :recipe_name
+    String :nutrition_focus
+    String :status
+    list_of(SkillAssessment) :assessments
+    value_object "SkillAssessment" do
+      String :skill_name
+      String :rating
+      String :instructor_notes
+    end
+    ScheduleLab do
+      role "Instructor"
+      description "Schedule a cooking lab session for a learner"
+      String :session_id
+      reference_to(Learner) :learner
+      reference_to(NutritionCurriculum) :curriculum
+      String :recipe_name
+      String :nutrition_focus
+      emits "LabScheduled"
+      then_set :session_id, to: :session_id
+      then_set :learner, to: :learner
+      then_set :curriculum, to: :curriculum
+      then_set :recipe_name, to: :recipe_name
+      then_set :nutrition_focus, to: :nutrition_focus
+      then_set :status, to: "scheduled"
+    end
+    CompleteLab do
+      role "Instructor"
+      description "Complete cooking lab with skill assessment"
+      reference_to(CookingLab)
+      given { status == "scheduled" }
+      emits "LabCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  # === HealthMetric ===
+
+  aggregate "HealthMetric", "Clinical health measurements — the 'grades' in this program are blood work and vitals" do
+    String :metric_id
+    reference_to(Learner) :learner
+    String :metric_type
+    Float :baseline_value
+    Float :current_value
+    String :trend
+    list_of(Reading) :readings
+    value_object "Reading" do
+      String :date
+      Float :value
+      String :context
+    end
+    RecordBaseline do
+      role "Clinician"
+      description "Record baseline health metric at enrollment"
+      String :metric_id
+      reference_to(Learner) :learner
+      String :metric_type
+      Float :baseline_value
+      emits "BaselineRecorded"
+      then_set :metric_id, to: :metric_id
+      then_set :learner, to: :learner
+      then_set :metric_type, to: :metric_type
+      then_set :baseline_value, to: :baseline_value
+      then_set :current_value, to: :baseline_value
+      then_set :trend, to: "stable"
+    end
+    RecordReading do
+      role "Clinician"
+      description "Record new health reading — improvement is the grade"
+      reference_to(HealthMetric)
+      Float :current_value
+      String :trend
+      emits "ReadingRecorded"
+      then_set :current_value, to: :current_value
+      then_set :trend, to: :trend
+    end
+    FlagImprovement do
+      role "System"
+      description "Flag when health metric shows sustained improvement"
+      reference_to(HealthMetric)
+      given { trend == "improving" }
+      emits "ImprovementFlagged"
+    end
+  end
+
+  # === Credential ===
+
+  aggregate "Credential", "A professional credential earned through the program — food handler, nutrition coach" do
+    String :credential_id
+    reference_to(Learner) :learner
+    String :credential_type
+    String :issuing_body
+    String :status
+    list_of(Requirement) :requirements
+    value_object "Requirement" do
+      String :requirement_name
+      String :completion_status
+      String :evidence
+    end
+    InitiateCredential do
+      role "ProgramDirector"
+      description "Begin credential pathway for a learner"
+      String :credential_id
+      reference_to(Learner) :learner
+      String :credential_type
+      String :issuing_body
+      emits "CredentialInitiated"
+      then_set :credential_id, to: :credential_id
+      then_set :learner, to: :learner
+      then_set :credential_type, to: :credential_type
+      then_set :issuing_body, to: :issuing_body
+      then_set :status, to: "in_progress"
+    end
+    AwardCredential do
+      role "ProgramDirector"
+      description "Award credential when all requirements met"
+      reference_to(Credential)
+      given { status == "in_progress" }
+      emits "CredentialAwarded"
+      then_set :status, to: "awarded"
+    end
+  end
+
+  # === RecoveryMilestone ===
+
+  aggregate "RecoveryMilestone", "Cross-domain milestone — connects cooking skill, health improvement, and credential progress" do
+    String :milestone_id
+    reference_to(Learner) :learner
+    String :milestone_type
+    String :description
+    String :achieved_date
+    list_of(Evidence) :evidence_items
+    value_object "Evidence" do
+      String :source_domain
+      String :detail
+      String :verified_by
+    end
+    RecordMilestone do
+      role "CaseManager"
+      description "Record a cross-domain recovery milestone"
+      String :milestone_id
+      reference_to(Learner) :learner
+      String :milestone_type
+      String :description
+      String :achieved_date
+      emits "MilestoneRecorded"
+      then_set :milestone_id, to: :milestone_id
+      then_set :learner, to: :learner
+      then_set :milestone_type, to: :milestone_type
+      then_set :description, to: :description
+      then_set :achieved_date, to: :achieved_date
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "RecordBaselineOnEnroll" do
+    on "LearnerEnrolled"
+    trigger "RecordBaseline"
+  end
+  policy "ScheduleLabOnEnroll" do
+    on "LearnerEnrolled"
+    trigger "ScheduleLab"
+  end
+  policy "InitiateCredentialOnEnroll" do
+    on "LearnerEnrolled"
+    trigger "InitiateCredential"
+  end
+  policy "MilestoneOnLabComplete" do
+    on "LabCompleted"
+    trigger "RecordMilestone"
+  end
+  policy "AdvanceOnImprovement" do
+    on "ImprovementFlagged"
+    trigger "AdvanceStage"
+  end
+  policy "AwardOnGraduation" do
+    on "LearnerGraduated"
+    trigger "AwardCredential"
+  end
+  policy "MilestoneOnCredential" do
+    on "CredentialAwarded"
+    trigger "RecordMilestone"
+  end
+end

@@ -1,0 +1,264 @@
+Hecks.bluebook "PollinationService", version: "2026.04.13.1" do
+  vision "Apiculture meets farm management — hives, fields, pollination schedules, and crop yields"
+  category "crossover"
+
+  aggregate "Hive", "A bee colony hive — population, health, queen status, honey stores" do
+    String :hive_id
+    Integer :population_estimate
+    String :queen_status
+    Float :honey_stores_kg
+    String :health_rating
+    String :status
+
+    value_object "ColonyHealth" do
+      Float :varroa_count
+      String :brood_pattern
+      Float :frame_coverage_pct
+    end
+
+    RegisterHive do
+      role "Beekeeper"
+      description "Register a new hive with initial population and queen status"
+      String :hive_id
+      Integer :population_estimate
+      String :queen_status
+      Float :honey_stores_kg
+      emits "HiveRegistered"
+      then_set :hive_id, to: :hive_id
+      then_set :population_estimate, to: :population_estimate
+      then_set :queen_status, to: :queen_status
+      then_set :honey_stores_kg, to: :honey_stores_kg
+      then_set :health_rating, to: "good"
+      then_set :status, to: "active"
+    end
+
+    InspectHive do
+      role "Beekeeper"
+      description "Perform hive inspection and update health rating"
+      reference_to(Hive)
+      String :health_rating
+      given { status == "active" }
+      emits "HiveInspected"
+      then_set :health_rating, to: :health_rating
+    end
+
+    DeployForPollination do
+      role "Beekeeper"
+      description "Move hive to a field for pollination service"
+      reference_to(Hive)
+      given { status == "active" }
+      emits "HiveDeployed"
+      then_set :status, to: "deployed"
+    end
+
+    ReturnFromField do
+      role "Beekeeper"
+      description "Return hive to apiary after pollination period"
+      reference_to(Hive)
+      given { status == "deployed" }
+      emits "HiveReturned"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterHive" => "active", from: "unregistered"
+      transition "DeployForPollination" => "deployed", from: "active"
+      transition "ReturnFromField" => "active", from: "deployed"
+    end
+  end
+
+  aggregate "CropField", "A farm field — crop type, bloom period, area, pollination needs" do
+    String :name
+    String :crop_type
+    Float :area_hectares
+    String :bloom_start
+    String :bloom_end
+    Integer :hives_needed
+    String :status
+
+    value_object "BloomWindow" do
+      String :start_date
+      String :peak_date
+      String :end_date
+      Float :nectar_flow_rating
+    end
+
+    RegisterField do
+      role "Farmer"
+      description "Register a crop field with bloom period and pollination requirements"
+      String :name
+      String :crop_type
+      Float :area_hectares
+      String :bloom_start
+      String :bloom_end
+      Integer :hives_needed
+      emits "FieldRegistered"
+      then_set :name, to: :name
+      then_set :crop_type, to: :crop_type
+      then_set :area_hectares, to: :area_hectares
+      then_set :bloom_start, to: :bloom_start
+      then_set :bloom_end, to: :bloom_end
+      then_set :hives_needed, to: :hives_needed
+      then_set :status, to: "registered"
+    end
+
+    RequestPollination do
+      role "Farmer"
+      description "Submit pollination service request for a field"
+      reference_to(CropField)
+      given { status == "registered" }
+      emits "PollinationRequested"
+      then_set :status, to: "requested"
+    end
+
+    ConfirmPollination do
+      role "Beekeeper"
+      description "Confirm hives have been deployed to the field"
+      reference_to(CropField)
+      given { status == "requested" }
+      emits "PollinationConfirmed"
+      then_set :status, to: "pollinating"
+    end
+
+    lifecycle :status, default: "unregistered" do
+      transition "RegisterField" => "registered", from: "unregistered"
+      transition "RequestPollination" => "requested", from: "registered"
+      transition "ConfirmPollination" => "pollinating", from: "requested"
+    end
+  end
+
+  aggregate "PollinationSchedule", "A schedule matching hives to fields during bloom windows" do
+    String :schedule_name
+    String :field_name
+    String :hive_id
+    String :start_date
+    String :end_date
+    Integer :hive_count
+    String :status
+
+    list_of "DeploymentEntry" do
+      String :hive_id
+      String :deploy_date
+      String :retrieve_date
+    end
+
+    CreateSchedule do
+      role "Coordinator"
+      description "Create a pollination schedule matching hives to field bloom windows"
+      String :schedule_name
+      String :field_name
+      String :hive_id
+      String :start_date
+      String :end_date
+      Integer :hive_count
+      emits "ScheduleCreated"
+      then_set :schedule_name, to: :schedule_name
+      then_set :field_name, to: :field_name
+      then_set :hive_id, to: :hive_id
+      then_set :start_date, to: :start_date
+      then_set :end_date, to: :end_date
+      then_set :hive_count, to: :hive_count
+      then_set :status, to: "planned"
+    end
+
+    ActivateSchedule do
+      role "Coordinator"
+      description "Activate schedule and begin hive deployments"
+      reference_to(PollinationSchedule)
+      given { status == "planned" }
+      emits "ScheduleActivated"
+      then_set :status, to: "active"
+    end
+
+    CompleteSchedule do
+      role "Coordinator"
+      description "Mark schedule complete after all hives returned"
+      reference_to(PollinationSchedule)
+      given { status == "active" }
+      emits "ScheduleCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateSchedule" => "planned", from: "draft"
+      transition "ActivateSchedule" => "active", from: "planned"
+      transition "CompleteSchedule" => "completed", from: "active"
+    end
+  end
+
+  aggregate "YieldReport", "Post-pollination crop yield measurement and analysis" do
+    String :field_name
+    String :crop_type
+    Float :yield_tons
+    Float :yield_per_hectare
+    Float :pollination_effectiveness
+    String :status
+
+    value_object "YieldComparison" do
+      Float :with_pollination
+      Float :without_pollination
+      Float :improvement_pct
+    end
+
+    RecordYield do
+      role "Farmer"
+      description "Record crop yield after harvest"
+      String :field_name
+      String :crop_type
+      Float :yield_tons
+      Float :yield_per_hectare
+      emits "YieldRecorded"
+      then_set :field_name, to: :field_name
+      then_set :crop_type, to: :crop_type
+      then_set :yield_tons, to: :yield_tons
+      then_set :yield_per_hectare, to: :yield_per_hectare
+      then_set :status, to: "recorded"
+    end
+
+    AnalyzeEffectiveness do
+      role "System"
+      description "Compare yield with pollination service against baseline"
+      reference_to(YieldReport)
+      Float :pollination_effectiveness
+      given { status == "recorded" }
+      emits "EffectivenessAnalyzed"
+      then_set :pollination_effectiveness, to: :pollination_effectiveness
+      then_set :status, to: "analyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RecordYield" => "recorded", from: "pending"
+      transition "AnalyzeEffectiveness" => "analyzed", from: "recorded"
+    end
+  end
+
+  policy "InspectBeforeDeploy" do
+    on "PollinationRequested"
+    trigger "InspectHive"
+  end
+
+  policy "DeployOnScheduleActivation" do
+    on "ScheduleActivated"
+    trigger "DeployForPollination"
+  end
+
+  policy "ConfirmOnDeploy" do
+    on "HiveDeployed"
+    trigger "ConfirmPollination"
+  end
+
+  policy "ReturnOnScheduleComplete" do
+    on "ScheduleCompleted"
+    trigger "ReturnFromField"
+  end
+
+  policy "AnalyzeOnYieldRecord" do
+    on "YieldRecorded"
+    trigger "AnalyzeEffectiveness"
+  end
+
+  policy "ScheduleOnFieldRegister" do
+    on "FieldRegistered"
+    trigger "CreateSchedule"
+  end
+end

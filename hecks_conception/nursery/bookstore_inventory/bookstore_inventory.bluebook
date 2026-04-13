@@ -1,0 +1,269 @@
+Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
+  vision "Managing a bookstore — cataloging titles, tracking shelf placement, fulfilling orders, and handling returns"
+  category "retail"
+
+  aggregate "Book", "A title in the catalog — the fundamental unit of bookstore inventory" do
+    String :isbn
+    String :title
+    String :author_name
+    String :genre
+    Float :price
+    Integer :quantity_on_hand
+    String :status
+    list_of(Edition) :editions
+
+    specification "LowStock" do
+      satisfied_by { quantity_on_hand < 5 }
+    end
+
+    value_object "Edition" do
+      String :format
+      String :publisher
+      String :publish_date
+      Integer :page_count
+    end
+
+    CatalogBook do
+      role "Buyer"
+      description "Add a new title to the store catalog with initial stock"
+      String :isbn
+      String :title
+      String :author_name
+      String :genre
+      Float :price
+      Integer :quantity_on_hand
+      emits "BookCataloged"
+      then_set :isbn, to: :isbn
+      then_set :title, to: :title
+      then_set :author_name, to: :author_name
+      then_set :genre, to: :genre
+      then_set :price, to: :price
+      then_set :quantity_on_hand, to: :quantity_on_hand
+      then_set :status, to: "in_stock"
+    end
+
+    ReplenishStock do
+      role "Buyer"
+      description "Increase on-hand quantity when a shipment arrives"
+      reference_to(Book)
+      Integer :additional_copies
+      given { additional_copies > 0 }
+      emits "StockReplenished"
+    end
+
+    MarkOutOfPrint do
+      role "Buyer"
+      description "Flag a title as no longer available from the publisher"
+      reference_to(Book)
+      emits "BookMarkedOutOfPrint"
+      then_set :status, to: "out_of_print"
+    end
+  end
+
+  aggregate "Author", "A writer whose works the store carries" do
+    String :name
+    String :biography
+    list_of(PublishedWork) :published_works
+
+    value_object "PublishedWork" do
+      String :title
+      String :isbn
+      String :year
+    end
+
+    RegisterAuthor do
+      role "Buyer"
+      description "Add an author to the store's author directory"
+      String :name
+      String :biography
+      emits "AuthorRegistered"
+      then_set :name, to: :name
+      then_set :biography, to: :biography
+    end
+
+    ScheduleSigning do
+      role "EventCoordinator"
+      description "Arrange an in-store author signing event"
+      reference_to(Author)
+      String :event_date
+      emits "SigningScheduled"
+    end
+  end
+
+  aggregate "Shelf", "A physical display location in the store" do
+    String :section
+    String :label
+    Integer :capacity
+    Integer :current_count
+    list_of(ShelfSlot) :slots
+
+    specification "Full" do
+      satisfied_by { current_count >= capacity }
+    end
+
+    value_object "ShelfSlot" do
+      String :isbn
+      Integer :copies
+      String :face_out
+    end
+
+    AssignShelf do
+      role "Clerk"
+      description "Designate a shelf for a particular genre or section"
+      String :section
+      String :label
+      Integer :capacity
+      emits "ShelfAssigned"
+      then_set :section, to: :section
+      then_set :label, to: :label
+      then_set :capacity, to: :capacity
+      then_set :current_count, to: 0
+    end
+
+    ShelveBook do
+      role "Clerk"
+      description "Place copies of a title onto a shelf"
+      reference_to(Shelf)
+      String :isbn
+      Integer :copies
+      given { current_count < capacity }
+      emits "BookShelved"
+    end
+
+    ClearShelf do
+      role "Clerk"
+      description "Remove all books from a shelf for reorganization"
+      reference_to(Shelf)
+      emits "ShelfCleared"
+      then_set :current_count, to: 0
+    end
+  end
+
+  aggregate "Order", "A customer purchase — one or more titles being bought" do
+    String :order_number
+    String :customer_name
+    list_of(LineItem) :line_items
+    Float :total
+    String :status
+
+    value_object "LineItem" do
+      String :isbn
+      String :title
+      Integer :quantity
+      Float :unit_price
+    end
+
+    PlaceOrder do
+      role "Customer"
+      description "Submit a purchase for one or more books"
+      String :order_number
+      String :customer_name
+      emits "OrderPlaced"
+      then_set :order_number, to: :order_number
+      then_set :customer_name, to: :customer_name
+      then_set :status, to: "placed"
+    end
+
+    FulfillOrder do
+      role "Clerk"
+      description "Pick and pack the order for handoff to the customer"
+      reference_to(Order)
+      given { status == "placed" }
+      emits "OrderFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+
+    CancelOrder do
+      role "Customer"
+      description "Withdraw the order before fulfillment"
+      reference_to(Order)
+      given { status == "placed" }
+      emits "OrderCanceled"
+      then_set :status, to: "canceled"
+    end
+  end
+
+  aggregate "Return", "A book coming back — refund or exchange" do
+    String :return_id
+    String :order_number
+    String :isbn
+    String :reason
+    String :condition
+    String :resolution
+
+    InitiateReturn do
+      role "Customer"
+      description "Begin the return process for a purchased book"
+      String :return_id
+      String :order_number
+      String :isbn
+      String :reason
+      emits "ReturnInitiated"
+      then_set :return_id, to: :return_id
+      then_set :order_number, to: :order_number
+      then_set :isbn, to: :isbn
+      then_set :reason, to: :reason
+    end
+
+    InspectReturn do
+      role "Clerk"
+      description "Evaluate the condition of the returned book"
+      reference_to(Return)
+      String :condition
+      emits "ReturnInspected"
+      then_set :condition, to: :condition
+    end
+
+    ResolveReturn do
+      role "Manager"
+      description "Decide whether to refund, exchange, or reject the return"
+      reference_to(Return)
+      String :resolution
+      emits "ReturnResolved"
+      then_set :resolution, to: :resolution
+    end
+  end
+
+  # Lifecycle: cataloged → shelved → ordered → fulfilled → returned (optional)
+  # Workflow: Catalog → Shelve → Place order → Fulfill → Replenish stock → Reorder from publisher
+
+  policy "ShelveOnCatalog" do
+    on "BookCataloged"
+    trigger "ShelveBook"
+  end
+
+  policy "FulfillOnOrder" do
+    on "OrderPlaced"
+    trigger "FulfillOrder"
+  end
+
+  policy "ReplenishOnFulfill" do
+    on "OrderFulfilled"
+    trigger "ReplenishStock"
+  end
+
+  policy "InspectOnReturn" do
+    on "ReturnInitiated"
+    trigger "InspectReturn"
+  end
+
+  policy "ResolveOnInspect" do
+    on "ReturnInspected"
+    trigger "ResolveReturn"
+  end
+
+  policy "ReshelveOnResolve" do
+    on "ReturnResolved"
+    trigger "ShelveBook"
+  end
+
+  policy "ReplenishOnReturn" do
+    on "ReturnResolved"
+    trigger "ReplenishStock"
+  end
+
+  policy "ScheduleSigningOnCatalog" do
+    on "BookCataloged"
+    trigger "ScheduleSigning"
+  end
+end

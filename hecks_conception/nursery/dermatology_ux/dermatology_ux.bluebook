@@ -1,0 +1,144 @@
+Hecks.bluebook "DermatologyUX", version: "2026.04.13.1" do
+  vision "Dermatology UX — skin conditions and treatments meet patient experience research and feedback"
+  category "healthcare_technology"
+
+  aggregate "SkinCondition", "A diagnosed dermatological condition" do
+    String :condition_id
+    String :patient_name
+    String :diagnosis
+    String :severity
+    String :body_area
+    String :status
+    DiagnoseCondition do
+      role "Dermatologist"
+      description "Diagnose a skin condition for a patient"
+      String :condition_id
+      String :patient_name
+      String :diagnosis
+      String :severity
+      String :body_area
+      emits "ConditionDiagnosed"
+      then_set :condition_id, to: :condition_id
+      then_set :patient_name, to: :patient_name
+      then_set :diagnosis, to: :diagnosis
+      then_set :severity, to: :severity
+      then_set :body_area, to: :body_area
+      then_set :status, to: "diagnosed"
+    end
+    PrescribeTreatment do
+      role "Dermatologist"
+      description "Prescribe a treatment plan for the condition"
+      reference_to(SkinCondition)
+      given { status == "diagnosed" }
+      emits "TreatmentPrescribed"
+      then_set :status, to: "treating"
+    end
+  end
+
+  aggregate "PatientSurvey", "A UX research survey measuring patient treatment experience" do
+    String :survey_id
+    String :patient_name
+    String :condition_id
+    list_of(SurveyQuestion) :questions
+    String :status
+    value_object "SurveyQuestion" do
+      String :question_text
+      String :response_type
+      String :answer
+    end
+    SendSurvey do
+      role "Researcher"
+      description "Send a treatment experience survey to a patient"
+      String :survey_id
+      String :patient_name
+      String :condition_id
+      emits "SurveySent"
+      then_set :survey_id, to: :survey_id
+      then_set :patient_name, to: :patient_name
+      then_set :condition_id, to: :condition_id
+      then_set :status, to: "sent"
+    end
+    CollectResponse do
+      role "System"
+      description "Collect completed survey response from patient"
+      reference_to(PatientSurvey)
+      given { status == "sent" }
+      emits "ResponseCollected"
+      then_set :status, to: "collected"
+    end
+  end
+
+  aggregate "TreatmentFeedback", "Aggregated feedback on treatment effectiveness" do
+    String :feedback_id
+    String :condition_id
+    String :treatment_type
+    Float :satisfaction_score
+    Float :effectiveness_score
+    String :summary
+    AggregateFeedback do
+      role "System"
+      description "Aggregate patient feedback for a treatment type"
+      String :feedback_id
+      String :condition_id
+      String :treatment_type
+      Float :satisfaction_score
+      Float :effectiveness_score
+      emits "FeedbackAggregated"
+      then_set :feedback_id, to: :feedback_id
+      then_set :condition_id, to: :condition_id
+      then_set :treatment_type, to: :treatment_type
+      then_set :satisfaction_score, to: :satisfaction_score
+      then_set :effectiveness_score, to: :effectiveness_score
+    end
+    PublishInsight do
+      role "Researcher"
+      description "Publish treatment insight based on aggregated feedback"
+      reference_to(TreatmentFeedback)
+      String :summary
+      emits "InsightPublished"
+      then_set :summary, to: :summary
+    end
+  end
+
+  aggregate "UsabilityTest", "A usability test of the dermatology patient portal" do
+    String :test_id
+    String :feature_name
+    String :participant_id
+    Float :task_time_seconds
+    Float :error_count
+    String :status
+    RunUsabilityTest do
+      role "Researcher"
+      description "Run a usability test on a patient portal feature"
+      String :test_id
+      String :feature_name
+      String :participant_id
+      emits "UsabilityTestRun"
+      then_set :test_id, to: :test_id
+      then_set :feature_name, to: :feature_name
+      then_set :participant_id, to: :participant_id
+      then_set :status, to: "running"
+    end
+    RecordResults do
+      role "Researcher"
+      description "Record task completion time and error count"
+      reference_to(UsabilityTest)
+      Float :task_time_seconds
+      Float :error_count
+      given { status == "running" }
+      emits "ResultsRecorded"
+      then_set :task_time_seconds, to: :task_time_seconds
+      then_set :error_count, to: :error_count
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "SurveyOnTreatment" do
+    on "TreatmentPrescribed"
+    trigger "SendSurvey"
+  end
+  policy "AggregateOnCollect" do
+    on "ResponseCollected"
+    trigger "AggregateFeedback"
+  end
+end

@@ -1,0 +1,140 @@
+Hecks.bluebook "PharmacyOutreach", version: "2026.04.13.1" do
+  vision "Pharmacy outreach — prescriptions meet refill reminders and marketing campaigns"
+  category "healthcare_technology"
+
+  aggregate "Prescription", "A medication prescription tied to a patient" do
+    String :rx_number
+    String :patient_name
+    String :drug_name
+    Integer :refills_remaining
+    String :status
+    value_object "Dosage" do
+      Float :amount
+      String :unit
+      String :frequency
+    end
+
+    FillPrescription do
+      role "Pharmacist"
+      description "Fill a new prescription for a patient"
+      String :rx_number
+      String :patient_name
+      String :drug_name
+      Integer :refills_remaining
+      emits "PrescriptionFilled"
+      then_set :rx_number, to: :rx_number
+      then_set :patient_name, to: :patient_name
+      then_set :drug_name, to: :drug_name
+      then_set :refills_remaining, to: :refills_remaining
+      then_set :status, to: "active"
+    end
+
+    RefillPrescription do
+      role "Pharmacist"
+      description "Process a refill, decrementing remaining count"
+      reference_to(Prescription)
+      given { refills_remaining > 0 }
+      emits "PrescriptionRefilled"
+      then_set :status, to: "refilled"
+    end
+  end
+
+  aggregate "Reminder", "An automated refill reminder sent to a patient" do
+    String :reminder_id
+    String :rx_number
+    String :channel
+    String :scheduled_date
+    String :status
+
+    ScheduleReminder do
+      role "System"
+      description "Schedule a refill reminder via SMS, email, or push"
+      String :reminder_id
+      String :rx_number
+      String :channel
+      String :scheduled_date
+      emits "ReminderScheduled"
+      then_set :reminder_id, to: :reminder_id
+      then_set :rx_number, to: :rx_number
+      then_set :channel, to: :channel
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "pending"
+    end
+
+    SendReminder do
+      role "System"
+      description "Deliver the reminder to the patient"
+      reference_to(Reminder)
+      given { status == "pending" }
+      emits "ReminderSent"
+      then_set :status, to: "sent"
+    end
+  end
+
+  aggregate "Campaign", "A marketing campaign targeting patients for health services" do
+    String :campaign_name
+    String :target_segment
+    Integer :audience_size
+    String :status
+    list_of(CampaignMessage) :messages
+
+    value_object "CampaignMessage" do
+      String :subject
+      String :body
+      String :channel
+    end
+
+    LaunchCampaign do
+      role "Marketer"
+      description "Launch an outreach campaign targeting a patient segment"
+      String :campaign_name
+      String :target_segment
+      Integer :audience_size
+      emits "CampaignLaunched"
+      then_set :campaign_name, to: :campaign_name
+      then_set :target_segment, to: :target_segment
+      then_set :audience_size, to: :audience_size
+      then_set :status, to: "active"
+    end
+
+    PauseCampaign do
+      role "Marketer"
+      description "Pause an active campaign"
+      reference_to(Campaign)
+      given { status == "active" }
+      emits "CampaignPaused"
+      then_set :status, to: "paused"
+    end
+  end
+
+  aggregate "Engagement", "A tracked patient interaction with outreach content" do
+    String :patient_id
+    String :campaign_name
+    String :action_type
+    String :timestamp
+
+    TrackEngagement do
+      role "System"
+      description "Record a patient interaction — open, click, refill"
+      String :patient_id
+      String :campaign_name
+      String :action_type
+      String :timestamp
+      emits "EngagementTracked"
+      then_set :patient_id, to: :patient_id
+      then_set :campaign_name, to: :campaign_name
+      then_set :action_type, to: :action_type
+      then_set :timestamp, to: :timestamp
+    end
+  end
+
+  policy "RemindOnFill" do
+    on "PrescriptionFilled"
+    trigger "ScheduleReminder"
+  end
+
+  policy "TrackOnSend" do
+    on "ReminderSent"
+    trigger "TrackEngagement"
+  end
+end

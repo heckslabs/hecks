@@ -1,0 +1,146 @@
+Hecks.bluebook "RefugeeIdentity", version: "2026.04.13.1" do
+  vision "Refugee identity — resettlement cases meet digital identity and document verification"
+  category "healthcare_community"
+
+  aggregate "ResettlementCase", "A refugee resettlement case managed by an agency" do
+    String :case_id
+    String :family_name
+    String :country_of_origin
+    Integer :family_size
+    String :caseworker
+    String :status
+    OpenCase do
+      role "CaseWorker"
+      description "Open a new resettlement case for a refugee family"
+      String :case_id
+      String :family_name
+      String :country_of_origin
+      Integer :family_size
+      String :caseworker
+      emits "CaseOpened"
+      then_set :case_id, to: :case_id
+      then_set :family_name, to: :family_name
+      then_set :country_of_origin, to: :country_of_origin
+      then_set :family_size, to: :family_size
+      then_set :caseworker, to: :caseworker
+      then_set :status, to: "open"
+    end
+    CloseCase do
+      role "CaseWorker"
+      description "Close the case after successful resettlement"
+      reference_to(ResettlementCase)
+      given { status == "open" }
+      emits "CaseClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "DigitalID", "A digital identity record for a refugee" do
+    String :identity_id
+    String :case_id
+    String :full_name
+    String :date_of_birth
+    String :biometric_hash
+    String :status
+    value_object "BiometricData" do
+      String :fingerprint_hash
+      String :photo_hash
+      String :iris_hash
+    end
+    IssueDigitalID do
+      role "IdentityOfficer"
+      description "Issue a digital identity to a refugee"
+      String :identity_id
+      String :case_id
+      String :full_name
+      String :date_of_birth
+      String :biometric_hash
+      emits "DigitalIDIssued"
+      then_set :identity_id, to: :identity_id
+      then_set :case_id, to: :case_id
+      then_set :full_name, to: :full_name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :biometric_hash, to: :biometric_hash
+      then_set :status, to: "active"
+    end
+    SuspendID do
+      role "IdentityOfficer"
+      description "Suspend a digital identity pending investigation"
+      reference_to(DigitalID)
+      given { status == "active" }
+      emits "IDSuspended"
+      then_set :status, to: "suspended"
+    end
+  end
+
+  aggregate "DocumentRecord", "A verified identity document for a refugee" do
+    String :document_id
+    String :identity_id
+    String :document_type
+    String :issuing_country
+    String :verified_status
+    String :expiry_date
+    VerifyDocument do
+      role "VerificationOfficer"
+      description "Verify an identity document against international databases"
+      String :document_id
+      String :identity_id
+      String :document_type
+      String :issuing_country
+      String :expiry_date
+      emits "DocumentVerified"
+      then_set :document_id, to: :document_id
+      then_set :identity_id, to: :identity_id
+      then_set :document_type, to: :document_type
+      then_set :issuing_country, to: :issuing_country
+      then_set :expiry_date, to: :expiry_date
+      then_set :verified_status, to: "verified"
+    end
+    FlagDocument do
+      role "VerificationOfficer"
+      description "Flag a document as suspicious or fraudulent"
+      reference_to(DocumentRecord)
+      emits "DocumentFlagged"
+      then_set :verified_status, to: "flagged"
+    end
+  end
+
+  aggregate "ServiceReferral", "A referral to community services for a resettled refugee" do
+    String :referral_id
+    String :case_id
+    String :service_type
+    String :provider_name
+    String :status
+    MakeReferral do
+      role "CaseWorker"
+      description "Refer a refugee family to a community service"
+      String :referral_id
+      String :case_id
+      String :service_type
+      String :provider_name
+      emits "ReferralMade"
+      then_set :referral_id, to: :referral_id
+      then_set :case_id, to: :case_id
+      then_set :service_type, to: :service_type
+      then_set :provider_name, to: :provider_name
+      then_set :status, to: "pending"
+    end
+    FulfillReferral do
+      role "Provider"
+      description "Confirm the service has been provided"
+      reference_to(ServiceReferral)
+      given { status == "pending" }
+      emits "ReferralFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+  end
+
+  policy "IDOnCase" do
+    on "CaseOpened"
+    trigger "IssueDigitalID"
+  end
+  policy "ReferOnID" do
+    on "DigitalIDIssued"
+    trigger "MakeReferral"
+  end
+end

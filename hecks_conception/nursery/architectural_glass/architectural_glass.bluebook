@@ -1,0 +1,187 @@
+Hecks.bluebook "ArchitecturalGlass" do
+  vision "Cross-wire glassblowing artistry with architecture firm project management for bespoke glass installations"
+  core
+
+  aggregate "GlassFormula" do
+    description "A glass composition formula for architectural use"
+    attribute :name
+    attribute :transparency, Float
+    attribute :strength_mpa, Float
+    attribute :components, list_of(Component)
+    attribute :status, default: "experimental"
+
+    value_object "Component" do
+      attribute :material
+      attribute :percentage, Float
+      invariant "percentage between 0 and 100" do
+        percentage >= 0 && percentage <= 100
+      end
+    end
+
+    command "CreateFormula" do
+      role "GlassMaster"
+      goal "Design a new glass formula"
+      attribute :name
+      attribute :transparency, Float
+    end
+
+    command "AddComponent" do
+      role "GlassMaster"
+      goal "Add a material component to the formula"
+      reference_to GlassFormula
+      attribute :material
+      attribute :percentage, Float
+      given("max 15 components") { components.size < 15 }
+      then_set :components, append: { material: :material, percentage: :percentage }
+    end
+
+    command "CertifyFormula" do
+      role "MaterialsEngineer"
+      goal "Certify the formula meets building codes"
+      reference_to GlassFormula
+      given("must have components") { components.size > 0 }
+    end
+  end
+
+  aggregate "BuildingProject" do
+    description "An architecture project requiring glass installations"
+    attribute :project_name
+    attribute :client
+    attribute :floors, Integer
+    attribute :installations, list_of(InstallationSpec)
+    attribute :status, default: "design"
+
+    value_object "InstallationSpec" do
+      attribute :location
+      attribute :area_sqm, Float
+      attribute :glass_type
+      invariant "area must be positive" do
+        area_sqm > 0
+      end
+    end
+
+    command "StartProject" do
+      role "Architect"
+      goal "Begin a new building project"
+      attribute :project_name
+      attribute :client
+      attribute :floors, Integer
+    end
+
+    command "SpecifyInstallation" do
+      role "Architect"
+      goal "Specify a glass installation requirement"
+      reference_to BuildingProject
+      attribute :location
+      attribute :area_sqm, Float
+      attribute :glass_type
+      given("max 50 installations") { installations.size < 50 }
+      then_set :installations, append: { location: :location, area_sqm: :area_sqm, glass_type: :glass_type }
+    end
+  end
+
+  aggregate "BlowingSession" do
+    description "A glassblowing production session"
+    reference_to GlassFormula
+    attribute :artisan
+    attribute :furnace_temp, Float
+    attribute :panels, list_of(Panel)
+    attribute :status, default: "heating"
+
+    value_object "Panel" do
+      attribute :panel_id
+      attribute :width_cm, Float
+      attribute :height_cm, Float
+      invariant "dimensions must be positive" do
+        width_cm > 0 && height_cm > 0
+      end
+    end
+
+    command "StartSession" do
+      role "GlassArtisan"
+      goal "Begin a glassblowing session"
+      reference_to GlassFormula
+      attribute :artisan
+      attribute :furnace_temp, Float
+    end
+
+    command "BlowPanel" do
+      role "GlassArtisan"
+      goal "Create a glass panel"
+      reference_to BlowingSession
+      attribute :panel_id
+      attribute :width_cm, Float
+      attribute :height_cm, Float
+      given("max 20 panels per session") { panels.size < 20 }
+      then_set :panels, append: { panel_id: :panel_id, width_cm: :width_cm, height_cm: :height_cm }
+    end
+  end
+
+  aggregate "Installation" do
+    description "Physical installation of glass into a building"
+    reference_to BuildingProject
+    reference_to BlowingSession
+    attribute :installer
+    attribute :status, default: "scheduled"
+    attribute :inspections, list_of(Inspection)
+
+    value_object "Inspection" do
+      attribute :inspector
+      attribute :passed, default: false
+      attribute :notes
+    end
+
+    command "ScheduleInstallation" do
+      role "ProjectManager"
+      goal "Schedule glass installation"
+      reference_to BuildingProject
+      reference_to BlowingSession
+      attribute :installer
+    end
+
+    command "CompleteInstallation" do
+      role "Installer"
+      goal "Mark installation as done"
+      reference_to Installation
+    end
+
+    command "InspectInstallation" do
+      role "BuildingInspector"
+      goal "Inspect installed glass"
+      reference_to Installation
+      attribute :inspector
+      attribute :passed
+      attribute :notes
+    end
+  end
+
+  policy "FormulaCertifiedTriggersSession" do
+    on "FormulaCertified"
+    trigger "StartSession"
+    map glass_formula_id: :formula_id
+  end
+
+  policy "InstallationSpecifiedTriggersFormula" do
+    on "InstallationSpecified"
+    trigger "CreateFormula"
+    map name: :glass_type
+  end
+
+  policy "PanelBlownTriggersInstallation" do
+    on "PanelBlown"
+    trigger "ScheduleInstallation"
+    map blowing_session_id: :session_id
+  end
+
+  policy "InstallationCompletedTriggersInspect" do
+    on "InstallationCompleted"
+    trigger "InspectInstallation"
+    map installation_id: :installation_id
+  end
+
+  policy "ProjectStartedTriggersSpec" do
+    on "ProjectStarted"
+    trigger "SpecifyInstallation"
+    map building_project_id: :project_id
+  end
+end

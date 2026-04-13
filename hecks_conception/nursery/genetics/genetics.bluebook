@@ -1,0 +1,203 @@
+Hecks.bluebook "Genetics" do
+  vision "Track biological specimens, DNA sequences, mutations, phenotypes, and pedigrees"
+
+  aggregate "Specimen" do
+    description "A biological sample collected for genetic analysis"
+    String :specimen_id
+    String :organism
+    String :tissue_type
+    String :collection_date
+    String :collector
+
+    command "CollectSpecimen" do
+      description "Register a new biological specimen"
+      emits "SpecimenCollected"
+      String :specimen_id
+      String :organism
+      String :tissue_type
+    end
+
+    command "ExtractDna" do
+      description "Isolate DNA from the specimen tissue"
+      emits "DnaExtracted"
+      reference_to Specimen
+      given "specimen must be properly preserved"
+    end
+
+    command "DiscardSpecimen" do
+      description "Remove a degraded or contaminated specimen"
+      emits "SpecimenDiscarded"
+      reference_to Specimen
+    end
+  end
+
+  aggregate "DnaSequence" do
+    description "A nucleotide sequence read from a specimen"
+    String :accession
+    String :sequence_data
+    Integer :length_bp
+    String :sequencing_method
+    reference_to Specimen
+
+    value_object "QualityMetrics" do
+      Float :phred_score
+      Float :gc_content
+      Integer :ambiguous_bases
+    end
+
+    command "SubmitSequence" do
+      description "Upload a new DNA sequence to the database"
+      emits "SequenceSubmitted"
+      reference_to Specimen
+      String :accession
+      String :sequencing_method
+      Integer :length_bp
+    end
+
+    command "AlignSequence" do
+      description "Perform multiple sequence alignment against references"
+      emits "SequenceAligned"
+      reference_to DnaSequence
+      given "sequence must pass quality filters"
+    end
+
+    command "AnnotateFeatures" do
+      description "Mark genes, promoters, and regulatory regions"
+      emits "FeaturesAnnotated"
+      reference_to DnaSequence
+    end
+  end
+
+  aggregate "Mutation" do
+    description "A variant detected by comparing sequences to a reference"
+    String :variant_id
+    String :mutation_type
+    Integer :position
+    String :reference_allele
+    String :alternate_allele
+    reference_to DnaSequence
+
+    command "CallVariant" do
+      description "Identify a mutation from aligned sequence data"
+      emits "VariantCalled"
+      reference_to DnaSequence
+      String :mutation_type
+      Integer :position
+    end
+
+    command "ClassifyPathogenicity" do
+      description "Assess whether the variant is pathogenic"
+      emits "PathogenicityClassified"
+      reference_to Mutation
+      String :classification
+      given "variant must be confirmed by two methods"
+    end
+  end
+
+  aggregate "Pedigree" do
+    description "A family tree tracking inheritance patterns across generations"
+    String :family_id
+    String :proband_id
+    Integer :generation_count
+    reference_to Specimen
+
+    value_object "FamilyMember" do
+      String :individual_id
+      String :relationship
+      String :affected_status
+    end
+
+    command "BuildPedigree" do
+      description "Construct a new family pedigree chart"
+      emits "PedigreeBuilt"
+      String :family_id
+      String :proband_id
+    end
+
+    command "AddRelative" do
+      description "Add a family member to the pedigree"
+      emits "RelativeAdded"
+      reference_to Pedigree
+      String :individual_id
+      String :relationship
+    end
+
+    command "TraceInheritance" do
+      description "Analyze the inheritance pattern of a trait"
+      emits "InheritanceTraced"
+      reference_to Pedigree
+      given "pedigree must span at least two generations"
+    end
+  end
+
+  aggregate "Publication" do
+    description "A research report documenting genetic findings"
+    String :publication_id
+    String :title
+    String :journal
+    String :submitted_date
+    reference_to Mutation
+
+    command "PublishFindings" do
+      description "Submit genetic research findings for publication"
+      emits "FindingsPublished"
+      reference_to Mutation
+      String :title
+      String :journal
+    end
+  end
+
+  lifecycle "GeneticAnalysisPipeline" do
+    state "specimen_collected"
+    state "dna_extracted"
+    state "sequenced"
+    state "variants_called"
+    state "pathogenicity_assessed"
+    state "published"
+    transition from: "specimen_collected", to: "dna_extracted", on: "DnaExtracted"
+    transition from: "dna_extracted", to: "sequenced", on: "SequenceAligned"
+    transition from: "sequenced", to: "variants_called", on: "VariantCalled"
+    transition from: "variants_called", to: "pathogenicity_assessed", on: "PathogenicityClassified"
+    transition from: "pathogenicity_assessed", to: "published", on: "FindingsPublished"
+  end
+
+  policy "ExtractDnaAfterCollection" do
+    on "SpecimenCollected"
+    trigger "ExtractDna"
+  end
+
+  policy "SequenceAfterExtraction" do
+    on "DnaExtracted"
+    trigger "SubmitSequence"
+  end
+
+  policy "AlignAfterSubmission" do
+    on "SequenceSubmitted"
+    trigger "AlignSequence"
+  end
+
+  policy "CallVariantsAfterAlignment" do
+    on "SequenceAligned"
+    trigger "CallVariant"
+  end
+
+  policy "ClassifyAfterVariantCall" do
+    on "VariantCalled"
+    trigger "ClassifyPathogenicity"
+  end
+
+  policy "PublishAfterClassification" do
+    on "PathogenicityClassified"
+    trigger "PublishFindings"
+  end
+
+  policy "ExtractDnaOnSpecimenCollected" do
+    on "SpecimenCollected"
+    trigger "ExtractDna"
+  end
+
+  policy "AnnotateFeaturesOnSequenceAligned" do
+    on "SequenceAligned"
+    trigger "AnnotateFeatures"
+  end
+end

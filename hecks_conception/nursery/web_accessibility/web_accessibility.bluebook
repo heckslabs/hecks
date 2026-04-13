@@ -1,0 +1,261 @@
+Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
+  vision "Ensuring web accessibility — auditing pages, detecting violations, tracking remediations, and certifying compliance"
+  category "technology"
+
+  aggregate "AccessibilityAudit", "A systematic review of a website against WCAG guidelines" do
+    String :audit_id
+    String :site_url
+    String :wcag_level
+    String :auditor
+    Integer :pages_scanned
+    String :status
+    list_of(ScanResult) :scan_results
+
+    value_object "ScanResult" do
+      String :page_url
+      Integer :violations_count
+      Integer :warnings_count
+      String :scanned_at
+    end
+
+    LaunchAudit do
+      role "AccessibilityLead"
+      description "Start an accessibility audit of a website"
+      String :audit_id
+      String :site_url
+      String :wcag_level
+      String :auditor
+      emits "AuditLaunched"
+    end
+
+    CompleteAudit do
+      description "Finalize an audit after all pages are scanned"
+      reference_to(AccessibilityAudit)
+      Integer :pages_scanned
+      given("audit is running") { status == "running" }
+      emits "AuditCompleted"
+    end
+
+    ReopenAudit do
+      description "Reopen a completed audit for additional scanning"
+      reference_to(AccessibilityAudit)
+      emits "AuditReopened"
+    end
+  end
+
+  aggregate "Page", "A web page being evaluated for accessibility" do
+    String :page_url
+    String :title
+    String :content_type
+    Integer :dom_elements
+    String :status
+    reference_to AccessibilityAudit
+
+    value_object "PageMetadata" do
+      String :language
+      String :charset
+      String :viewport
+    end
+
+    CrawlPage do
+      role "Scanner"
+      description "Fetch and analyze a page's DOM for accessibility"
+      String :page_url
+      String :title
+      String :content_type
+      Integer :dom_elements
+      reference_to(AccessibilityAudit)
+      emits "PageCrawled"
+    end
+
+    MarkReviewed do
+      description "Flag a page as manually reviewed by a human auditor"
+      reference_to(Page)
+      emits "PageReviewed"
+    end
+
+    ExcludePage do
+      description "Remove a page from audit scope"
+      reference_to(Page)
+      given("page is pending") { status == "pending" }
+      emits "PageExcluded"
+    end
+  end
+
+  aggregate "Violation", "An accessibility rule failure detected on a page" do
+    String :violation_id
+    String :rule_id
+    String :severity
+    String :element_selector
+    String :description
+    String :status
+    reference_to Page
+
+    value_object "WCAGReference" do
+      String :criterion
+      String :level
+      String :technique
+    end
+
+    ReportViolation do
+      role "Scanner"
+      description "Log an accessibility violation found on a page"
+      String :violation_id
+      String :rule_id
+      String :severity
+      String :element_selector
+      String :description
+      reference_to(Page)
+      emits "ViolationReported"
+    end
+
+    ConfirmViolation do
+      description "Verify a violation is genuine after manual review"
+      reference_to(Violation)
+      emits "ViolationConfirmed"
+    end
+
+    DismissViolation do
+      description "Mark a violation as false positive"
+      reference_to(Violation)
+      String :dismissal_reason
+      given("violation is reported") { status == "reported" }
+      emits "ViolationDismissed"
+    end
+  end
+
+  aggregate "Remediation", "A fix applied to resolve an accessibility violation" do
+    String :remediation_id
+    String :fix_description
+    String :assigned_to
+    String :priority
+    String :status
+    reference_to Violation
+
+    value_object "CodeChange" do
+      String :file_path
+      String :before_snippet
+      String :after_snippet
+    end
+
+    AssignRemediation do
+      role "AccessibilityLead"
+      description "Create a remediation task for a confirmed violation"
+      String :remediation_id
+      String :fix_description
+      String :assigned_to
+      String :priority
+      reference_to(Violation)
+      emits "RemediationAssigned"
+    end
+
+    CompleteRemediation do
+      description "Mark a remediation as implemented and ready for retest"
+      reference_to(Remediation)
+      given("remediation is in progress") { status == "in_progress" }
+      emits "RemediationCompleted"
+    end
+
+    RejectRemediation do
+      description "Send a remediation back for rework after failed retest"
+      reference_to(Remediation)
+      String :rejection_reason
+      emits "RemediationRejected"
+    end
+  end
+
+  aggregate "ComplianceCertificate", "A formal attestation that a site meets accessibility standards" do
+    String :certificate_id
+    String :wcag_level
+    String :issued_by
+    String :valid_until
+    String :status
+    reference_to AccessibilityAudit
+
+    value_object "CertificationScope" do
+      String :site_url
+      Integer :pages_covered
+      String :standard_version
+    end
+
+    IssueCertificate do
+      role "ComplianceOfficer"
+      description "Grant an accessibility compliance certificate"
+      String :certificate_id
+      String :wcag_level
+      String :issued_by
+      String :valid_until
+      reference_to(AccessibilityAudit)
+      emits "CertificateIssued"
+    end
+
+    RevokeCertificate do
+      description "Withdraw a certificate after regression is found"
+      reference_to(ComplianceCertificate)
+      given("certificate is valid") { status == "valid" }
+      emits "CertificateRevoked"
+    end
+
+    RenewCertificate do
+      description "Extend a certificate after a passing re-audit"
+      reference_to(ComplianceCertificate)
+      String :valid_until
+      emits "CertificateRenewed"
+    end
+  end
+
+  lifecycle "AccessibilityCompliance" do
+    state "audit_launched"
+    state "scanning"
+    state "violations_found"
+    state "remediating"
+    state "retesting"
+    state "certified"
+
+    transition from: "audit_launched", to: "scanning", on: "PageCrawled"
+    transition from: "scanning", to: "violations_found", on: "ViolationConfirmed"
+    transition from: "violations_found", to: "remediating", on: "RemediationAssigned"
+    transition from: "remediating", to: "retesting", on: "RemediationCompleted"
+    transition from: "retesting", to: "certified", on: "CertificateIssued"
+  end
+
+  policy "AuditLaunchedCrawlPage" do
+    on "AuditLaunched"
+    trigger "CrawlPage"
+  end
+
+  policy "PageCrawledReportViolation" do
+    on "PageCrawled"
+    trigger "ReportViolation"
+  end
+
+  policy "ViolationConfirmedAssignRemediation" do
+    on "ViolationConfirmed"
+    trigger "AssignRemediation"
+  end
+
+  policy "RemediationCompletedCompleteAudit" do
+    on "RemediationCompleted"
+    trigger "CompleteAudit"
+  end
+
+  policy "AuditCompletedIssueCertificate" do
+    on "AuditCompleted"
+    trigger "IssueCertificate"
+  end
+
+  policy "RemediationRejectedReopen" do
+    on "RemediationRejected"
+    trigger "ReopenAudit"
+  end
+
+  policy "ConfirmViolationOnCrawl" do
+    on "ViolationReported"
+    trigger "ConfirmViolation"
+  end
+
+  policy "MarkReviewedOnRemediation" do
+    on "RemediationCompleted"
+    trigger "MarkReviewed"
+  end
+end

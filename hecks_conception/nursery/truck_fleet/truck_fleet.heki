@@ -1,0 +1,248 @@
+Hecks.bluebook "TruckFleet" do
+  aggregate "Truck" do
+    String :truck_id
+    String :vin
+    String :truck_type
+    Float :payload_capacity_tons
+    Float :odometer_miles
+    String :status
+
+    value_object "TruckSpecs" do
+      String :engine_type
+      Integer :axle_count
+      Float :gvwr_lbs
+      String :fuel_type
+    end
+
+    RegisterTruck do
+      description "Add new truck to active fleet with registration and specs"
+      String :vin
+      String :truck_type
+      Float :payload_capacity_tons
+      reference_to "Truck"
+      emits "TruckRegistered"
+    end
+
+    InspectTruck do
+      description "Perform DOT pre-service safety inspection on truck"
+      String :inspector
+      String :result
+      reference_to "Truck"
+      emits "TruckInspected"
+    end
+
+    RetireTruck do
+      description "Remove truck from active fleet for disposal or sale"
+      String :reason
+      reference_to "Truck"
+      emits "TruckRetired"
+    end
+
+    lifecycle :status, default: "acquired" do
+      transition "RegisterTruck" => "registered", from: "acquired"
+      transition "InspectTruck" => "service_ready", from: "registered"
+      transition "RetireTruck" => "retired", from: "service_ready"
+    end
+
+    policy "Trucks must pass DOT inspection before entering service"
+    policy "Trucks exceeding mileage threshold require overhaul"
+  end
+
+  aggregate "Driver" do
+    String :driver_id
+    String :full_name
+    String :cdl_number
+    String :cdl_class
+    String :endorsements
+    String :status
+
+    HireDriver do
+      description "Onboard new driver with CDL verification and training"
+      String :full_name
+      String :cdl_number
+      String :cdl_class
+      reference_to "Driver"
+      emits "DriverHired"
+    end
+
+    RecordHoursOfService do
+      description "Log driver duty hours for HOS compliance tracking"
+      Float :driving_hours
+      Float :on_duty_hours
+      reference_to "Driver"
+      emits "HoursRecorded"
+    end
+
+    lifecycle :status, default: "applicant" do
+      transition "HireDriver" => "active", from: "applicant"
+      transition "RecordHoursOfService" => "on_duty", from: "active"
+    end
+
+    policy "Drivers must not exceed 11 hours driving per shift"
+
+    given "A new CDL-A driver is hired" do
+      String :full_name, "Marcus Rivera"
+      String :cdl_class, "Class A"
+      String :endorsements, "Tanker, Hazmat"
+    end
+  end
+
+  aggregate "Route" do
+    String :route_id
+    String :origin_city
+    String :destination_city
+    Float :distance_miles
+    Float :estimated_hours
+    String :status
+
+    PlanRoute do
+      description "Define delivery route with waypoints and estimated travel time"
+      String :origin_city
+      String :destination_city
+      Float :distance_miles
+      reference_to "Route"
+      emits "RoutePlanned"
+    end
+
+    AssignLoad do
+      description "Assign driver and truck to an active route with cargo"
+      String :driver_id
+      String :truck_id
+      reference_to "Route"
+      emits "LoadAssigned"
+    end
+
+    CompleteDelivery do
+      description "Record successful delivery at destination with proof"
+      String :receiver_name
+      String :delivery_proof
+      reference_to "Route"
+      emits "DeliveryCompleted"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "PlanRoute" => "planned"
+      transition "AssignLoad" => "dispatched", from: "planned"
+      transition "CompleteDelivery" => "delivered", from: "dispatched"
+    end
+
+    policy "Hazmat routes must avoid restricted tunnels and bridges"
+  end
+
+  aggregate "MaintenanceTicket" do
+    String :ticket_id
+    String :truck_id
+    String :issue_type
+    String :priority
+    String :mechanic
+    String :status
+    list_of "PartUsed"
+
+    value_object "PartUsed" do
+      String :part_number
+      String :part_name
+      Integer :quantity
+      Float :cost
+    end
+
+    OpenTicket do
+      description "Create maintenance work order for truck repair or service"
+      String :issue_type
+      String :priority
+      reference_to "Truck"
+      emits "TicketOpened"
+    end
+
+    DiagnoseIssue do
+      description "Mechanic diagnoses root cause and identifies parts needed"
+      String :diagnosis
+      String :parts_required
+      reference_to "MaintenanceTicket"
+      emits "IssueDiagnosed"
+    end
+
+    CloseTicket do
+      description "Complete repair and return truck to service-ready status"
+      String :mechanic
+      Float :labor_hours
+      reference_to "MaintenanceTicket"
+      emits "TicketClosed"
+    end
+
+    lifecycle :status, default: "open" do
+      transition "OpenTicket" => "open"
+      transition "DiagnoseIssue" => "diagnosed", from: "open"
+      transition "CloseTicket" => "closed", from: "diagnosed"
+    end
+
+    policy "Safety-critical issues must be repaired before dispatch"
+  end
+
+  aggregate "FuelTransaction" do
+    String :transaction_id
+    String :truck_id
+    String :station_name
+    Float :gallons
+    Float :price_per_gallon
+    Float :odometer_at_fill
+    String :fuel_type
+
+    RecordFueling do
+      description "Log fuel purchase with volume, cost, and odometer reading"
+      String :station_name
+      Float :gallons
+      Float :price_per_gallon
+      reference_to "Truck"
+      emits "FuelingRecorded"
+    end
+
+    FlagAnomaly do
+      description "Flag suspicious fuel transaction for investigation"
+      String :anomaly_type
+      reference_to "FuelTransaction"
+      emits "AnomalyFlagged"
+    end
+
+    policy "Fuel economy below fleet average triggers driver coaching"
+  end
+
+  policy "InspectTruckOnTruckRegistered" do
+    on "TruckRegistered"
+    trigger "InspectTruck"
+  end
+
+  policy "PlanRouteOnTruckInspected" do
+    on "TruckInspected"
+    trigger "PlanRoute"
+  end
+
+  policy "AssignLoadOnRoutePlanned" do
+    on "RoutePlanned"
+    trigger "AssignLoad"
+  end
+
+  policy "CompleteDeliveryOnLoadAssigned" do
+    on "LoadAssigned"
+    trigger "CompleteDelivery"
+  end
+
+  policy "RecordFuelingOnDeliveryCompleted" do
+    on "DeliveryCompleted"
+    trigger "RecordFueling"
+  end
+
+  policy "RecordHoursOnDeliveryCompleted" do
+    on "DeliveryCompleted"
+    trigger "RecordHoursOfService"
+  end
+
+  policy "DiagnoseIssueOnTicketOpened" do
+    on "TicketOpened"
+    trigger "DiagnoseIssue"
+  end
+
+  policy "CloseTicketOnIssueDiagnosed" do
+    on "IssueDiagnosed"
+    trigger "CloseTicket"
+  end
+end

@@ -1,0 +1,150 @@
+Hecks.bluebook "NutritionApp", version: "2026.04.13.1" do
+  vision "Nutrition app — meal plans and dietary tracking meet mobile food logging and barcode scanning"
+  category "healthcare_technology"
+
+  aggregate "MealPlan", "A personalized meal plan for a user" do
+    String :plan_id
+    String :user_name
+    String :goal
+    Integer :daily_calories
+    list_of(PlannedMeal) :meals
+    String :status
+    value_object "PlannedMeal" do
+      String :meal_type
+      String :recipe_name
+      Integer :calories
+    end
+    CreateMealPlan do
+      role "Dietitian"
+      description "Create a personalized meal plan based on dietary goals"
+      String :plan_id
+      String :user_name
+      String :goal
+      Integer :daily_calories
+      emits "MealPlanCreated"
+      then_set :plan_id, to: :plan_id
+      then_set :user_name, to: :user_name
+      then_set :goal, to: :goal
+      then_set :daily_calories, to: :daily_calories
+      then_set :status, to: "active"
+    end
+    AdjustPlan do
+      role "Dietitian"
+      description "Adjust calorie target or meal composition"
+      reference_to(MealPlan)
+      Integer :daily_calories
+      emits "PlanAdjusted"
+      then_set :daily_calories, to: :daily_calories
+    end
+  end
+
+  aggregate "FoodLog", "A daily food log tracking what a user ate" do
+    String :log_id
+    String :user_name
+    String :date
+    Integer :total_calories
+    list_of(LogEntry) :entries
+    value_object "LogEntry" do
+      String :food_name
+      Integer :calories
+      Float :protein_g
+      Float :carbs_g
+      Float :fat_g
+    end
+    StartDailyLog do
+      role "User"
+      description "Start a daily food log for tracking intake"
+      String :log_id
+      String :user_name
+      String :date
+      emits "DailyLogStarted"
+      then_set :log_id, to: :log_id
+      then_set :user_name, to: :user_name
+      then_set :date, to: :date
+      then_set :total_calories, to: 0
+    end
+    LogFood do
+      role "User"
+      description "Log a food item to the daily intake"
+      reference_to(FoodLog)
+      String :food_name
+      Integer :calories
+      emits "FoodLogged"
+    end
+  end
+
+  aggregate "BarcodeScan", "A barcode scan of a food product for nutritional lookup" do
+    String :scan_id
+    String :barcode
+    String :product_name
+    Integer :calories
+    Float :serving_size_g
+    String :status
+    ScanBarcode do
+      role "User"
+      description "Scan a food product barcode to look up nutrition facts"
+      String :scan_id
+      String :barcode
+      emits "BarcodeScanStarted"
+      then_set :scan_id, to: :scan_id
+      then_set :barcode, to: :barcode
+      then_set :status, to: "scanning"
+    end
+    ResolveProduct do
+      role "System"
+      description "Resolve the barcode to a product with nutrition data"
+      reference_to(BarcodeScan)
+      String :product_name
+      Integer :calories
+      Float :serving_size_g
+      given { status == "scanning" }
+      emits "ProductResolved"
+      then_set :product_name, to: :product_name
+      then_set :calories, to: :calories
+      then_set :serving_size_g, to: :serving_size_g
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "NutrientGoal", "A daily nutrient goal tracked against actual intake" do
+    String :goal_id
+    String :user_name
+    String :nutrient
+    Float :target_amount
+    Float :actual_amount
+    String :unit
+    SetGoal do
+      role "Dietitian"
+      description "Set a daily nutrient intake goal for a user"
+      String :goal_id
+      String :user_name
+      String :nutrient
+      Float :target_amount
+      String :unit
+      emits "GoalSet"
+      then_set :goal_id, to: :goal_id
+      then_set :user_name, to: :user_name
+      then_set :nutrient, to: :nutrient
+      then_set :target_amount, to: :target_amount
+      then_set :unit, to: :unit
+      then_set :actual_amount, to: 0.0
+    end
+    UpdateActual do
+      role "System"
+      description "Update actual intake from food log entries"
+      reference_to(NutrientGoal)
+      Float :actual_amount
+      emits "ActualUpdated"
+      then_set :actual_amount, to: :actual_amount
+    end
+  end
+
+  policy "LogOnScan" do
+    on "ProductResolved"
+    trigger "LogFood"
+  end
+  policy "UpdateGoalOnLog" do
+    on "FoodLogged"
+    trigger "UpdateActual"
+  end
+end

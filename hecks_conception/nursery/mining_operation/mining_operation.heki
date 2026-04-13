@@ -1,0 +1,236 @@
+Hecks.bluebook "MiningOperation" do
+  aggregate "MineShaft" do
+    String :shaft_id
+    String :shaft_name
+    Float :depth_meters
+    String :ore_body
+    String :ventilation_status
+    String :status
+
+    value_object "GeologyProfile" do
+      String :rock_type
+      Float :ore_grade_percent
+      Float :water_inflow_lpm
+      String :structural_stability
+    end
+
+    AdvanceShaft do
+      description "Drill and blast to extend shaft deeper into ore body"
+      Float :advance_meters
+      String :drill_pattern
+      reference_to "MineShaft"
+      emits "ShaftAdvanced"
+    end
+
+    SupportShaft do
+      description "Install ground support bolts and mesh in newly excavated area"
+      String :support_type
+      Float :coverage_sqm
+      reference_to "MineShaft"
+      emits "ShaftSupported"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "AdvanceShaft" => "advanced", from: "planned"
+      transition "SupportShaft" => "supported", from: "advanced"
+    end
+
+    policy "Ground support must be installed before next advance"
+    policy "Ventilation must be verified before personnel entry"
+
+    given "Main shaft reaches 400 meter level" do
+      String :shaft_name, "Main Decline"
+      Float :depth_meters, 400.0
+      String :ore_body, "Copper Porphyry"
+    end
+  end
+
+  aggregate "OreBatch" do
+    String :batch_id
+    String :source_stope
+    Float :tonnage
+    Float :head_grade_percent
+    String :ore_type
+    String :status
+
+    MuckOre do
+      description "Load blasted ore from stope into haul trucks"
+      String :source_stope
+      Float :tonnage
+      reference_to "MineShaft"
+      emits "OreMucked"
+    end
+
+    CrushOre do
+      description "Reduce ore size through primary and secondary crushers"
+      String :crusher_id
+      Float :target_size_mm
+      reference_to "OreBatch"
+      emits "OreCrushed"
+    end
+
+    MillOre do
+      description "Grind crushed ore in ball mill for mineral liberation"
+      String :mill_id
+      Float :target_size_microns
+      reference_to "OreBatch"
+      emits "OreMilled"
+    end
+
+    FloatConcentrate do
+      description "Separate valuable minerals from gangue via froth flotation"
+      Float :recovery_percent
+      reference_to "OreBatch"
+      emits "ConcentrateFloated"
+    end
+
+    lifecycle :status, default: "blasted" do
+      transition "MuckOre" => "mucked", from: "blasted"
+      transition "CrushOre" => "crushed", from: "mucked"
+      transition "MillOre" => "milled", from: "crushed"
+      transition "FloatConcentrate" => "concentrated", from: "milled"
+    end
+
+    policy "Ore grade must be sampled before processing"
+  end
+
+  aggregate "MiningEquipment" do
+    String :equipment_id
+    String :equipment_type
+    String :manufacturer
+    Float :operating_hours
+    String :location
+    String :status
+    list_of "ServiceRecord"
+
+    DeployEquipment do
+      description "Assign heavy equipment to underground working area"
+      String :location
+      String :operator_id
+      reference_to "MiningEquipment"
+      emits "EquipmentDeployed"
+    end
+
+    PerformService do
+      description "Execute scheduled maintenance on mining equipment underground"
+      String :service_type
+      String :mechanic
+      reference_to "MiningEquipment"
+      emits "ServicePerformed"
+    end
+
+    lifecycle :status, default: "available" do
+      transition "DeployEquipment" => "deployed", from: "available"
+      transition "PerformService" => "serviced", from: "deployed"
+    end
+
+    policy "Equipment must be serviced at manufacturer intervals"
+  end
+
+  aggregate "SafetyIncident" do
+    String :incident_id
+    String :incident_type
+    String :location
+    String :severity
+    String :reported_by
+    String :status
+
+    value_object "IncidentDetail" do
+      String :description
+      String :root_cause
+      String :corrective_action
+      Integer :lost_time_days
+    end
+
+    ReportIncident do
+      description "Log safety incident with location and severity classification"
+      String :incident_type
+      String :severity
+      String :reported_by
+      reference_to "SafetyIncident"
+      emits "IncidentReported"
+    end
+
+    InvestigateIncident do
+      description "Conduct root cause analysis and define corrective actions"
+      String :investigator
+      String :root_cause
+      reference_to "SafetyIncident"
+      emits "IncidentInvestigated"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "ReportIncident" => "reported", from: "clear"
+      transition "InvestigateIncident" => "investigated", from: "reported"
+    end
+
+    policy "Lost-time incidents require immediate area shutdown"
+  end
+
+  aggregate "Assay" do
+    String :assay_id
+    String :sample_source
+    String :mineral
+    Float :grade_percent
+    String :lab_id
+    String :status
+
+    SubmitSample do
+      description "Send ore sample to assay laboratory for grade determination"
+      String :sample_source
+      String :mineral
+      reference_to "OreBatch"
+      emits "SampleSubmitted"
+    end
+
+    RecordResult do
+      description "Record laboratory assay results for mine planning"
+      Float :grade_percent
+      String :analysis_method
+      reference_to "Assay"
+      emits "ResultRecorded"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SubmitSample" => "submitted", from: "pending"
+      transition "RecordResult" => "completed", from: "submitted"
+    end
+
+    policy "Assay results must be returned within 48 hours"
+  end
+
+  policy "CrushOreOnOreMucked" do
+    on "OreMucked"
+    trigger "CrushOre"
+  end
+
+  policy "MillOreOnOreCrushed" do
+    on "OreCrushed"
+    trigger "MillOre"
+  end
+
+  policy "FloatConcentrateOnOreMilled" do
+    on "OreMilled"
+    trigger "FloatConcentrate"
+  end
+
+  policy "SubmitSampleOnConcentrateFloated" do
+    on "ConcentrateFloated"
+    trigger "SubmitSample"
+  end
+
+  policy "RecordResultOnSampleSubmitted" do
+    on "SampleSubmitted"
+    trigger "RecordResult"
+  end
+
+  policy "SupportShaftOnShaftAdvanced" do
+    on "ShaftAdvanced"
+    trigger "SupportShaft"
+  end
+
+  policy "MuckOreOnShaftSupported" do
+    on "ShaftSupported"
+    trigger "MuckOre"
+  end
+end

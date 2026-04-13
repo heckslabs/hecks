@@ -1,0 +1,214 @@
+Hecks.bluebook "GameDevelopment" do
+  aggregate "GameProject", "A game title in development with milestone tracking" do
+    String :title
+    String :engine
+    String :genre
+    String :status, default: "pre_production"
+    String :target_platform
+
+    value_object "MilestoneGate" do
+      String :name
+      String :criteria
+      String :target_date
+      String :status
+    end
+
+    KickOffProject do
+      description "Initialize a new game project with engine and platform targets"
+      String :title
+      String :engine
+      String :genre
+      String :target_platform
+      emits "ProjectKickedOff"
+    end
+
+    EnterProduction do
+      description "Transition from pre-production to full production"
+      reference_to(GameProject)
+      given { status == "pre_production" }
+      emits "ProductionEntered"
+      then_set :status, to: "production"
+    end
+
+    ShipGold do
+      description "Declare the game gold master — ready for manufacturing"
+      reference_to(GameProject)
+      given { status == "production" }
+      emits "GoneGold"
+      then_set :status, to: "gold"
+    end
+  end
+
+  aggregate "Sprint", "A time-boxed development iteration with task commitments" do
+    String :name
+    Integer :duration_days
+    String :status, default: "planning"
+    Integer :story_points
+    reference_to(GameProject)
+
+    PlanSprint do
+      description "Define sprint goals and commit story points"
+      reference_to(GameProject)
+      String :name
+      Integer :duration_days
+      Integer :story_points
+      emits "SprintPlanned"
+    end
+
+    StartSprint do
+      description "Begin work on the sprint backlog"
+      reference_to(Sprint)
+      given { status == "planning" }
+      emits "SprintStarted"
+      then_set :status, to: "active"
+    end
+
+    CloseSprint do
+      description "End the sprint and calculate velocity"
+      reference_to(Sprint)
+      Integer :completed_points
+      given { status == "active" }
+      emits "SprintClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Build", "A compiled game build for testing or release" do
+    String :version
+    String :platform
+    String :build_config
+    String :status, default: "building"
+    reference_to(GameProject)
+
+    TriggerBuild do
+      description "Kick off a new build from the current codebase"
+      reference_to(GameProject)
+      String :version
+      String :platform
+      String :build_config
+      emits "BuildTriggered"
+    end
+
+    CertifyBuild do
+      description "Mark a build as passing QA certification"
+      reference_to(Build)
+      given { status == "building" }
+      emits "BuildCertified"
+      then_set :status, to: "certified"
+    end
+  end
+
+  aggregate "Playtest", "A structured playtesting session with feedback collection" do
+    String :session_name
+    Integer :tester_count
+    String :build_version
+    String :status, default: "scheduled"
+    reference_to(Build)
+
+    value_object "FeedbackSummary" do
+      Integer :fun_rating
+      Integer :difficulty_rating
+      String :top_issues
+      Integer :completion_rate
+    end
+
+    SchedulePlaytest do
+      description "Set up a playtest session with testers and build"
+      reference_to(Build)
+      String :session_name
+      Integer :tester_count
+      emits "PlaytestScheduled"
+    end
+
+    ConductPlaytest do
+      description "Run the playtest session and collect feedback"
+      reference_to(Playtest)
+      given { status == "scheduled" }
+      emits "PlaytestConducted"
+      then_set :status, to: "completed"
+    end
+
+    AnalyzeResults do
+      description "Process playtest feedback into actionable insights"
+      reference_to(Playtest)
+      given { status == "completed" }
+      emits "ResultsAnalyzed"
+    end
+  end
+
+  aggregate "BugReport", "A defect found during development or playtesting" do
+    String :title
+    String :severity
+    String :repro_steps
+    String :status, default: "open"
+    reference_to(Build)
+
+    FileBug do
+      description "Report a new bug found during testing"
+      reference_to(Build)
+      String :title
+      String :severity
+      String :repro_steps
+      emits "BugFiled"
+    end
+
+    ResolveBug do
+      description "Mark a bug as fixed with the resolution"
+      reference_to(BugReport)
+      String :resolution
+      given { status == "open" }
+      emits "BugResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  policy "PlanSprintOnKickoff" do
+    on "ProjectKickedOff"
+    trigger "PlanSprint"
+  end
+
+  policy "StartSprintOnPlan" do
+    on "SprintPlanned"
+    trigger "StartSprint"
+  end
+
+  policy "BuildOnSprintClose" do
+    on "SprintClosed"
+    trigger "TriggerBuild"
+  end
+
+  policy "PlaytestAfterBuild" do
+    on "BuildCertified"
+    trigger "SchedulePlaytest"
+  end
+
+  policy "AnalyzeAfterPlaytest" do
+    on "PlaytestConducted"
+    trigger "AnalyzeResults"
+  end
+
+  policy "FileBugsFromPlaytest" do
+    on "ResultsAnalyzed"
+    trigger "FileBug"
+  end
+
+  policy "ShipGoldOnResolve" do
+    on "BugResolved"
+    trigger "ShipGold"
+  end
+
+  policy "EnterProductionOnKickOff" do
+    on "ProjectKickedOff"
+    trigger "EnterProduction"
+  end
+
+  policy "CertifyBuildOnBuildTriggered" do
+    on "BuildTriggered"
+    trigger "CertifyBuild"
+  end
+
+  policy "ConductPlaytestOnPlaytestScheduled" do
+    on "PlaytestScheduled"
+    trigger "ConductPlaytest"
+  end
+end

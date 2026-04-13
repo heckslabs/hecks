@@ -1,0 +1,190 @@
+Hecks.bluebook "Cartography" do
+  vision "Create and manage maps, projections, geographic features, geodetic datums, and map revisions"
+
+  aggregate "MapSheet" do
+    description "A single map covering a defined geographic extent"
+    String :sheet_id
+    String :title
+    String :scale
+    String :edition
+    reference_to Datum
+    reference_to Projection
+
+    command "CreateSheet" do
+      description "Define a new map sheet with its coverage area"
+      emits "SheetCreated"
+      String :sheet_id
+      String :title
+      String :scale
+    end
+
+    command "PublishSheet" do
+      description "Release the map sheet for distribution"
+      emits "SheetPublished"
+      reference_to MapSheet
+      given "sheet must have at least one feature layer"
+    end
+
+    command "RetireSheet" do
+      description "Withdraw an outdated map edition"
+      emits "SheetRetired"
+      reference_to MapSheet
+    end
+  end
+
+  aggregate "Projection" do
+    description "A mathematical transformation from earth surface to flat map"
+    String :name
+    String :projection_type
+    Float :central_meridian
+    Float :standard_parallel
+
+    value_object "ProjectionParameters" do
+      Float :false_easting
+      Float :false_northing
+      Float :scale_factor
+    end
+
+    command "DefineProjection" do
+      description "Register a new map projection system"
+      emits "ProjectionDefined"
+      String :name
+      String :projection_type
+      Float :central_meridian
+    end
+
+    command "ComputeDistortion" do
+      description "Calculate area and angular distortion at a point"
+      emits "DistortionComputed"
+      reference_to Projection
+      Float :latitude
+      Float :longitude
+    end
+  end
+
+  aggregate "GeographicFeature" do
+    description "A real-world object represented on the map"
+    String :feature_id
+    String :feature_type
+    String :name
+    String :geometry_wkt
+    reference_to MapSheet
+
+    command "DigitizeFeature" do
+      description "Trace a feature from imagery or survey data"
+      emits "FeatureDigitized"
+      reference_to MapSheet
+      String :feature_type
+      String :name
+      String :geometry_wkt
+    end
+
+    command "AttributeFeature" do
+      description "Add descriptive metadata to a feature"
+      emits "FeatureAttributed"
+      reference_to GeographicFeature
+      String :attribute_name
+      String :attribute_value
+    end
+
+    command "DeleteFeature" do
+      description "Remove an erroneous feature from the map"
+      emits "FeatureDeleted"
+      reference_to GeographicFeature
+      given "feature must not be referenced by other features"
+    end
+  end
+
+  aggregate "Datum" do
+    description "A geodetic reference frame defining the shape of the earth"
+    String :name
+    String :ellipsoid
+    Float :semi_major_axis_m
+    Float :inverse_flattening
+
+    command "RegisterDatum" do
+      description "Add a new geodetic datum to the registry"
+      emits "DatumRegistered"
+      String :name
+      String :ellipsoid
+      Float :semi_major_axis_m
+    end
+
+    command "TransformCoordinates" do
+      description "Convert coordinates between two datums"
+      emits "CoordinatesTransformed"
+      reference_to Datum
+      Float :source_lat
+      Float :source_lon
+      given "target datum must also be registered"
+    end
+  end
+
+  aggregate "MapRevision" do
+    description "A tracked update to an existing map sheet"
+    String :revision_id
+    String :revision_date
+    String :change_description
+    String :reviewer
+    reference_to MapSheet
+
+    command "SubmitRevision" do
+      description "Propose changes to an existing map sheet"
+      emits "RevisionSubmitted"
+      reference_to MapSheet
+      String :change_description
+    end
+
+    command "ApproveRevision" do
+      description "Accept the proposed map revision after review"
+      emits "RevisionApproved"
+      reference_to MapRevision
+      String :reviewer
+      given "revision must be field-verified"
+    end
+  end
+
+  lifecycle "MapProduction" do
+    state "datum_established"
+    state "projection_selected"
+    state "digitizing"
+    state "attributed"
+    state "reviewed"
+    state "published"
+    transition from: "datum_established", to: "projection_selected", on: "DatumRegistered"
+    transition from: "projection_selected", to: "digitizing", on: "ProjectionDefined"
+    transition from: "digitizing", to: "attributed", on: "FeatureDigitized"
+    transition from: "attributed", to: "reviewed", on: "FeatureAttributed"
+    transition from: "reviewed", to: "published", on: "SheetPublished"
+  end
+
+  policy "DefineProjectionAfterDatum" do
+    on "DatumRegistered"
+    trigger "DefineProjection"
+  end
+
+  policy "CreateSheetAfterProjection" do
+    on "ProjectionDefined"
+    trigger "CreateSheet"
+  end
+
+  policy "DigitizeAfterSheetCreated" do
+    on "SheetCreated"
+    trigger "DigitizeFeature"
+  end
+
+  policy "AttributeAfterDigitize" do
+    on "FeatureDigitized"
+    trigger "AttributeFeature"
+  end
+
+  policy "ComputeDistortionAfterAttribute" do
+    on "FeatureAttributed"
+    trigger "ComputeDistortion"
+  end
+
+  policy "PublishAfterDistortion" do
+    on "DistortionComputed"
+    trigger "PublishSheet"
+  end
+end

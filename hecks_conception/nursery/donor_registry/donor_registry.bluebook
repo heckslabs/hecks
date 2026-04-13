@@ -1,0 +1,143 @@
+Hecks.bluebook "DonorRegistry", version: "2026.04.13.1" do
+  vision "Donor registry — organ donation matching meets transport coordination and financial settlement"
+  category "healthcare_technology"
+
+  aggregate "DonorProfile", "A registered organ donor with consent and medical details" do
+    String :donor_id
+    String :name
+    String :blood_type
+    list_of(OrganConsent) :organs
+    String :status
+    value_object "OrganConsent" do
+      String :organ_name
+      String :consent_date
+      String :hla_type
+    end
+    RegisterDonor do
+      role "Coordinator"
+      description "Register a new organ donor with consent details"
+      String :donor_id
+      String :name
+      String :blood_type
+      emits "DonorRegistered"
+      then_set :donor_id, to: :donor_id
+      then_set :name, to: :name
+      then_set :blood_type, to: :blood_type
+      then_set :status, to: "active"
+    end
+    DeactivateDonor do
+      role "Coordinator"
+      description "Deactivate a donor profile when no longer eligible"
+      reference_to(DonorProfile)
+      given { status == "active" }
+      emits "DonorDeactivated"
+      then_set :status, to: "inactive"
+    end
+  end
+
+  aggregate "RecipientMatch", "A match between a donor organ and a waiting recipient" do
+    String :match_id
+    String :donor_id
+    String :recipient_name
+    String :organ_name
+    Float :compatibility_score
+    String :status
+    FindMatch do
+      role "System"
+      description "Find the best recipient match for an available organ"
+      String :match_id
+      String :donor_id
+      String :recipient_name
+      String :organ_name
+      Float :compatibility_score
+      emits "MatchFound"
+      then_set :match_id, to: :match_id
+      then_set :donor_id, to: :donor_id
+      then_set :recipient_name, to: :recipient_name
+      then_set :organ_name, to: :organ_name
+      then_set :compatibility_score, to: :compatibility_score
+      then_set :status, to: "pending"
+    end
+    ConfirmMatch do
+      role "Surgeon"
+      description "Confirm the organ match and approve for transplant"
+      reference_to(RecipientMatch)
+      given { status == "pending" }
+      emits "MatchConfirmed"
+      then_set :status, to: "confirmed"
+    end
+  end
+
+  aggregate "OrganTransport", "A time-critical organ transport between facilities" do
+    String :transport_id
+    String :match_id
+    String :origin_hospital
+    String :dest_hospital
+    Float :max_hours
+    String :status
+    ArrangeTransport do
+      role "Coordinator"
+      description "Arrange time-critical organ transport between hospitals"
+      String :transport_id
+      String :match_id
+      String :origin_hospital
+      String :dest_hospital
+      Float :max_hours
+      emits "TransportArranged"
+      then_set :transport_id, to: :transport_id
+      then_set :match_id, to: :match_id
+      then_set :origin_hospital, to: :origin_hospital
+      then_set :dest_hospital, to: :dest_hospital
+      then_set :max_hours, to: :max_hours
+      then_set :status, to: "arranged"
+    end
+    ConfirmArrival do
+      role "Coordinator"
+      description "Confirm organ arrived at destination hospital"
+      reference_to(OrganTransport)
+      given { status == "arranged" }
+      emits "ArrivalConfirmed"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "Settlement", "Financial settlement between hospitals for organ procurement" do
+    String :settlement_id
+    String :match_id
+    Float :procurement_cost
+    Float :transport_cost
+    Float :total
+    String :status
+    CreateSettlement do
+      role "BillingClerk"
+      description "Create a financial settlement for organ procurement"
+      String :settlement_id
+      String :match_id
+      Float :procurement_cost
+      Float :transport_cost
+      emits "SettlementCreated"
+      then_set :settlement_id, to: :settlement_id
+      then_set :match_id, to: :match_id
+      then_set :procurement_cost, to: :procurement_cost
+      then_set :transport_cost, to: :transport_cost
+      then_set :status, to: "pending"
+    end
+    ProcessPayment do
+      role "BillingClerk"
+      description "Process payment for the settlement"
+      reference_to(Settlement)
+      given { status == "pending" }
+      emits "PaymentProcessed"
+      then_set :status, to: "paid"
+    end
+  end
+
+  policy "TransportOnMatch" do
+    on "MatchConfirmed"
+    trigger "ArrangeTransport"
+  end
+  policy "SettleOnArrival" do
+    on "ArrivalConfirmed"
+    trigger "CreateSettlement"
+  end
+end

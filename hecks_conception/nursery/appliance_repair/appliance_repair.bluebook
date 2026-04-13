@@ -1,0 +1,218 @@
+Hecks.bluebook "ApplianceRepair" do
+  vision "Manage appliance repair operations from service ticket through diagnosis, parts ordering, repair, and warranty tracking"
+  core
+
+  aggregate "RepairTicket" do
+    description "A service request for a malfunctioning appliance with symptom description and scheduling"
+    String :customer_name
+    String :address
+    String :appliance_type
+    String :symptom
+    String :status
+    String :scheduled_date
+
+    value_object "ServiceWindow" do
+      String :date
+      String :time_slot
+      Integer :duration_hours
+    end
+
+    ScheduleRepair do
+      role "Dispatcher"
+      goal "Book a repair appointment for the customer"
+      description "Create the ticket and assign a time window"
+      String :customer_name
+      String :address
+      String :appliance_type
+      String :symptom
+      String :scheduled_date
+      emits "RepairScheduled"
+    end
+
+    RescheduleRepair do
+      role "Dispatcher"
+      goal "Move the appointment to a different date or time"
+      description "Update the schedule when the customer or tech needs to change"
+      reference_to(RepairTicket)
+      String :new_date
+      emits "RepairRescheduled"
+    end
+
+    CloseTicket do
+      role "Technician"
+      goal "Mark the repair as complete and collect payment"
+      description "Close the ticket after successful repair and testing"
+      reference_to(RepairTicket)
+      given("must be repaired") { status == "repaired" }
+      emits "TicketClosed"
+    end
+  end
+
+  aggregate "Appliance" do
+    description "A customer's appliance with brand, model, serial number, and age"
+    String :brand
+    String :model
+    String :serial_number
+    Integer :age_years
+    String :appliance_type
+    reference_to(RepairTicket)
+
+    value_object "ModelInfo" do
+      String :brand
+      String :model_number
+      Integer :manufacture_year
+    end
+
+    RegisterAppliance do
+      role "Technician"
+      goal "Record the appliance details on-site for the repair record"
+      description "Note brand, model, serial, and age for parts lookup"
+      String :brand
+      String :model
+      String :serial_number
+      Integer :age_years
+      String :appliance_type
+      reference_to(RepairTicket)
+      emits "ApplianceRegistered"
+    end
+
+    RecommendReplacement do
+      role "Technician"
+      goal "Advise the customer that repair cost exceeds replacement value"
+      description "When repair cost is more than 50% of new, recommend replacing"
+      reference_to(Appliance)
+      Float :estimated_repair_cost
+      Float :replacement_cost
+      emits "ReplacementRecommended"
+    end
+  end
+
+  aggregate "Diagnostic" do
+    description "A diagnostic session identifying the root cause of the appliance failure"
+    String :fault_code
+    String :root_cause
+    String :test_performed
+    String :tech_notes
+    reference_to(Appliance)
+
+    RunDiagnostic do
+      role "Technician"
+      goal "Test the appliance to identify the failure mode"
+      description "Run tests, read fault codes, and isolate the failing component"
+      reference_to(Appliance)
+      String :test_performed
+      emits "DiagnosticRun"
+    end
+
+    RecordFaultCode do
+      role "Technician"
+      goal "Log the error code displayed by the appliance"
+      description "Record manufacturer fault codes for parts lookup"
+      reference_to(Diagnostic)
+      String :fault_code
+      String :root_cause
+      emits "FaultCodeRecorded"
+    end
+  end
+
+  aggregate "PartsOrder" do
+    description "An order for replacement parts with part numbers, vendor, and availability"
+    String :part_number
+    String :part_name
+    String :vendor
+    Float :cost
+    String :status
+    reference_to(Diagnostic)
+
+    OrderPart do
+      role "Technician"
+      goal "Order the replacement part identified during diagnosis"
+      description "Look up the part number and place the order"
+      String :part_number
+      String :part_name
+      String :vendor
+      Float :cost
+      reference_to(Diagnostic)
+      emits "PartOrdered"
+    end
+
+    ReceivePart do
+      role "Warehouse"
+      goal "Check in the delivered part and verify correctness"
+      description "Confirm the right part arrived and notify the tech"
+      reference_to(PartsOrder)
+      given("must be ordered") { status == "ordered" }
+      emits "PartReceived"
+    end
+
+    InstallPart do
+      role "Technician"
+      goal "Replace the failed component with the new part"
+      description "Install the part and test the appliance for proper operation"
+      reference_to(PartsOrder)
+      emits "PartInstalled"
+    end
+  end
+
+  aggregate "RepairWarranty" do
+    description "A warranty on the completed repair covering parts and labor"
+    Integer :duration_days
+    String :coverage_type
+    String :status
+    reference_to(RepairTicket)
+
+    IssueWarranty do
+      role "Office Manager"
+      goal "Create a warranty for the completed repair"
+      description "Attach warranty terms to the closed repair ticket"
+      Integer :duration_days
+      String :coverage_type
+      reference_to(RepairTicket)
+      emits "WarrantyIssued"
+    end
+
+    FileWarrantyClaim do
+      role "Customer"
+      goal "Report the same issue recurring within the warranty period"
+      description "Customer reports the appliance failed again under warranty"
+      reference_to(RepairWarranty)
+      String :recurrence_description
+      emits "WarrantyClaimFiled"
+    end
+  end
+
+  policy "RegisterOnSchedule" do
+    on "RepairScheduled"
+    trigger "RegisterAppliance"
+  end
+
+  policy "DiagnoseOnRegister" do
+    on "ApplianceRegistered"
+    trigger "RunDiagnostic"
+  end
+
+  policy "RecordFaultOnDiagnose" do
+    on "DiagnosticRun"
+    trigger "RecordFaultCode"
+  end
+
+  policy "OrderPartOnFault" do
+    on "FaultCodeRecorded"
+    trigger "OrderPart"
+  end
+
+  policy "InstallOnReceive" do
+    on "PartReceived"
+    trigger "InstallPart"
+  end
+
+  policy "CloseOnInstall" do
+    on "PartInstalled"
+    trigger "CloseTicket"
+  end
+
+  policy "WarrantyOnClose" do
+    on "TicketClosed"
+    trigger "IssueWarranty"
+  end
+end

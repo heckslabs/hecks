@@ -1,0 +1,247 @@
+Hecks.bluebook "CementPlant" do
+  aggregate "RawMealBatch" do
+    String :batch_id
+    String :limestone_source
+    Float :limestone_percent
+    Float :clay_percent
+    Float :iron_ore_percent
+    String :status
+
+    BlendRawMeal do
+      description "Proportionally blend limestone, clay, and correctives"
+      Float :limestone_percent
+      Float :clay_percent
+      Float :iron_ore_percent
+      reference_to "RawMealBatch"
+      emits "RawMealBlended"
+    end
+
+    GrindRawMeal do
+      description "Grind blended raw meal to target fineness in ball mill"
+      Float :target_fineness_microns
+      String :mill_id
+      reference_to "RawMealBatch"
+      emits "RawMealGround"
+    end
+
+    lifecycle :status, default: "quarried" do
+      transition "BlendRawMeal" => "blended", from: "quarried"
+      transition "GrindRawMeal" => "ground", from: "blended"
+    end
+
+    policy "Raw meal chemistry must be within LSF target range"
+  end
+
+  aggregate "KilnRun" do
+    String :run_id
+    String :kiln_id
+    Float :feed_rate_tph
+    Float :flame_temperature_c
+    String :clinker_type
+    String :status
+
+    value_object "KilnZoneTemps" do
+      Float :preheat_c
+      Float :calcining_c
+      Float :burning_c
+      Float :cooling_c
+    end
+
+    StartKiln do
+      description "Ignite kiln burner and ramp up to operating temperature"
+      String :kiln_id
+      Float :target_flame_temp_c
+      reference_to "KilnRun"
+      emits "KilnStarted"
+    end
+
+    FeedRawMeal do
+      description "Begin feeding ground raw meal into preheater tower"
+      Float :feed_rate_tph
+      reference_to "RawMealBatch"
+      emits "RawMealFed"
+    end
+
+    AdjustFeedRate do
+      description "Modify raw meal feed rate to optimize clinker quality"
+      Float :new_feed_rate_tph
+      reference_to "KilnRun"
+      emits "FeedRateAdjusted"
+    end
+
+    DischargeClinker do
+      description "Collect hot clinker from kiln outlet into cooler"
+      Float :clinker_temperature_c
+      reference_to "KilnRun"
+      emits "ClinkerDischarged"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "StartKiln" => "heating", from: "idle"
+      transition "FeedRawMeal" => "running", from: "heating"
+      transition "AdjustFeedRate" => "running", from: "running"
+      transition "DischargeClinker" => "producing", from: "running"
+    end
+
+    policy "Kiln must reach stable temperature before raw meal feed begins"
+    policy "Feed rate changes must not exceed 5 tph per adjustment"
+
+    given "Kiln 2 is running at steady state" do
+      String :kiln_id, "KLN-02"
+      Float :feed_rate_tph, 120.0
+      Float :flame_temperature_c, 1450.0
+    end
+  end
+
+  aggregate "ClinkerSample" do
+    String :sample_id
+    String :kiln_id
+    String :sample_time
+    Float :free_lime_percent
+    Float :c3s_percent
+    String :status
+
+    value_object "MineralComposition" do
+      Float :c3s_percent
+      Float :c2s_percent
+      Float :c3a_percent
+      Float :c4af_percent
+    end
+
+    TakeSample do
+      description "Collect clinker sample from kiln discharge for testing"
+      String :kiln_id
+      reference_to "KilnRun"
+      emits "SampleTaken"
+    end
+
+    AnalyzeSample do
+      description "Run XRF analysis on clinker sample for mineral composition"
+      Float :free_lime_percent
+      Float :c3s_percent
+      reference_to "ClinkerSample"
+      emits "SampleAnalyzed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "TakeSample" => "collected", from: "pending"
+      transition "AnalyzeSample" => "analyzed", from: "collected"
+    end
+
+    policy "Free lime above 2 percent triggers kiln adjustment"
+  end
+
+  aggregate "CementSilo" do
+    String :silo_id
+    String :cement_type
+    Float :capacity_tons
+    Float :current_level_tons
+    String :status
+    list_of "RawMealBatch"
+
+    GrindClinker do
+      description "Grind clinker with gypsum in finish mill to produce cement"
+      String :mill_id
+      Float :gypsum_percent
+      reference_to "CementSilo"
+      emits "ClinkerGround"
+    end
+
+    FillSilo do
+      description "Transfer finished cement from mill to storage silo"
+      Float :quantity_tons
+      String :cement_type
+      reference_to "CementSilo"
+      emits "SiloFilled"
+    end
+
+    DrawFromSilo do
+      description "Withdraw cement from silo for dispatch loading"
+      Float :quantity_tons
+      String :dispatch_id
+      reference_to "CementSilo"
+      emits "SiloDrawn"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "GrindClinker" => "grinding"
+      transition "FillSilo" => "stocked", from: "grinding"
+      transition "DrawFromSilo" => "dispensing", from: "stocked"
+    end
+
+    policy "Silo level must not exceed rated capacity"
+  end
+
+  aggregate "DispatchOrder" do
+    String :order_id
+    String :customer_name
+    String :cement_type
+    Float :quantity_tons
+    String :delivery_mode
+    String :status
+
+    ScheduleDispatch do
+      description "Schedule cement delivery by truck or rail to customer"
+      String :customer_name
+      String :delivery_mode
+      Float :quantity_tons
+      reference_to "DispatchOrder"
+      emits "DispatchScheduled"
+    end
+
+    LoadVehicle do
+      description "Load cement into bulk truck or rail hopper from silo"
+      String :vehicle_id
+      Float :loaded_tons
+      reference_to "CementSilo"
+      emits "VehicleLoaded"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ScheduleDispatch" => "scheduled", from: "pending"
+      transition "LoadVehicle" => "loaded", from: "scheduled"
+    end
+
+    policy "Dispatch weight must match order within 2 percent tolerance"
+  end
+
+  policy "FeedRawMealOnKilnStarted" do
+    on "KilnStarted"
+    trigger "FeedRawMeal"
+  end
+
+  policy "DischargeClinkerOnFeedRateAdjusted" do
+    on "RawMealFed"
+    trigger "DischargeClinker"
+  end
+
+  policy "TakeSampleOnClinkerDischarged" do
+    on "ClinkerDischarged"
+    trigger "TakeSample"
+  end
+
+  policy "GrindClinkerOnSampleAnalyzed" do
+    on "SampleAnalyzed"
+    trigger "GrindClinker"
+  end
+
+  policy "FillSiloOnClinkerGround" do
+    on "ClinkerGround"
+    trigger "FillSilo"
+  end
+
+  policy "DrawFromSiloOnSiloFilled" do
+    on "SiloFilled"
+    trigger "DrawFromSilo"
+  end
+
+  policy "LoadVehicleOnDispatchScheduled" do
+    on "DispatchScheduled"
+    trigger "LoadVehicle"
+  end
+
+  policy "GrindRawMealOnRawMealBlended" do
+    on "RawMealBlended"
+    trigger "GrindRawMeal"
+  end
+end

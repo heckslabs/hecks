@@ -1,0 +1,230 @@
+Hecks.bluebook "ElevatorMaintenance" do
+  vision "Manage elevator maintenance, inspections, part replacements, certifications, and emergency entrapment calls"
+  core
+
+  aggregate "ElevatorUnit" do
+    description "An elevator unit — traction, hydraulic, or MRL — with floors served, capacity, and age"
+    String :building_name
+    String :unit_number
+    String :elevator_type
+    Integer :floors_served
+    Integer :capacity_lbs
+    Integer :install_year
+    String :status
+
+    value_object "DriveSpec" do
+      String :drive_type
+      String :controller_model
+      Float :motor_hp
+    end
+
+    RegisterUnit do
+      role "Account Manager"
+      goal "Add an elevator unit to the maintenance portfolio"
+      description "Record the unit's type, capacity, and building location"
+      String :building_name
+      String :unit_number
+      String :elevator_type
+      Integer :floors_served
+      Integer :capacity_lbs
+      Integer :install_year
+      emits "UnitRegistered"
+    end
+
+    ShutDownUnit do
+      role "Mechanic"
+      goal "Shut down an elevator for repair or safety concern"
+      description "Lock out the unit and post out-of-service notice"
+      reference_to(ElevatorUnit)
+      String :reason
+      emits "UnitTakenOutOfService"
+    end
+
+    ReturnToService do
+      role "Mechanic"
+      goal "Restore an elevator to operational status after repair"
+      description "Verify all safety devices and return to automatic operation"
+      reference_to(ElevatorUnit)
+      given("must be out of service") { status == "out_of_service" }
+      emits "UnitReturnedToService"
+    end
+  end
+
+  aggregate "MaintenanceVisit" do
+    description "A scheduled preventive maintenance visit covering lubrication, adjustments, and safety checks"
+    String :mechanic_name
+    String :visit_date
+    String :tasks_performed
+    String :findings
+    reference_to(ElevatorUnit)
+
+    PerformMaintenance do
+      role "Mechanic"
+      goal "Execute the scheduled maintenance checklist"
+      description "Lubricate, adjust, clean, and test per the maintenance plan"
+      String :mechanic_name
+      String :visit_date
+      reference_to(ElevatorUnit)
+      emits "MaintenancePerformed"
+    end
+
+    ReportFinding do
+      role "Mechanic"
+      goal "Document a condition found during maintenance that needs attention"
+      description "Log worn parts, unusual noises, or safety concerns"
+      reference_to(MaintenanceVisit)
+      String :findings
+      emits "FindingReported"
+    end
+  end
+
+  aggregate "PartReplacement" do
+    description "A replacement of an elevator component — door operator, sheave, brake, controller, or rope"
+    String :part_name
+    String :part_number
+    String :vendor
+    Float :cost
+    String :status
+    reference_to(ElevatorUnit)
+
+    OrderPart do
+      role "Parts Coordinator"
+      goal "Order the replacement part from the supplier"
+      description "Source the correct part and arrange delivery"
+      String :part_name
+      String :part_number
+      String :vendor
+      Float :cost
+      reference_to(ElevatorUnit)
+      emits "PartOrdered"
+    end
+
+    InstallPart do
+      role "Mechanic"
+      goal "Replace the worn or failed component"
+      description "Remove the old part and install the replacement"
+      reference_to(PartReplacement)
+      given("part must be received") { status == "received" }
+      emits "PartInstalled"
+    end
+
+    TestAfterInstall do
+      role "Mechanic"
+      goal "Verify proper operation after the part replacement"
+      description "Run the elevator through all floors and test safety devices"
+      reference_to(PartReplacement)
+      emits "PostInstallTestComplete"
+    end
+  end
+
+  aggregate "ElevatorInspection" do
+    description "An annual or periodic inspection by a state-certified elevator inspector"
+    String :inspector_name
+    String :inspection_type
+    String :result
+    String :violations
+    String :inspection_date
+    reference_to(ElevatorUnit)
+
+    ScheduleInspection do
+      role "Account Manager"
+      goal "Book the annual inspection with the state inspector"
+      description "Coordinate with the building and inspector for the date"
+      String :inspection_type
+      String :inspection_date
+      reference_to(ElevatorUnit)
+      emits "InspectionScheduled"
+    end
+
+    RecordInspectionResult do
+      role "Inspector"
+      goal "Document the inspection outcome and any violations"
+      description "Record pass/fail and list violations requiring correction"
+      reference_to(ElevatorInspection)
+      String :result
+      String :violations
+      emits "InspectionResultRecorded"
+    end
+  end
+
+  aggregate "EmergencyCall" do
+    description "An emergency entrapment or breakdown call requiring immediate mechanic dispatch"
+    String :building_name
+    String :unit_number
+    String :call_type
+    String :status
+    String :response_time
+    reference_to(ElevatorUnit)
+
+    value_object "EntrapmentDetail" do
+      Integer :passengers_trapped
+      String :floor_location
+      String :door_status
+    end
+
+    DispatchMechanic do
+      role "Dispatcher"
+      goal "Send a mechanic immediately for an elevator emergency"
+      description "Dispatch the nearest available mechanic for entrapment or breakdown"
+      String :building_name
+      String :unit_number
+      String :call_type
+      reference_to(ElevatorUnit)
+      emits "MechanicDispatched"
+    end
+
+    ResolveEmergency do
+      role "Mechanic"
+      goal "Free trapped passengers and restore the elevator"
+      description "Release passengers safely and diagnose the cause"
+      reference_to(EmergencyCall)
+      String :resolution
+      emits "EmergencyResolved"
+    end
+
+    FileIncidentReport do
+      role "Mechanic"
+      goal "Document the emergency for regulatory and insurance records"
+      description "Complete the incident report with cause and resolution details"
+      reference_to(EmergencyCall)
+      String :incident_details
+      given("emergency must be resolved") { status == "resolved" }
+      emits "IncidentReportFiled"
+    end
+  end
+
+  policy "InspectOnRegistration" do
+    on "UnitRegistered"
+    trigger "ScheduleInspection"
+  end
+
+  policy "MaintenanceOnRegistration" do
+    on "UnitRegistered"
+    trigger "PerformMaintenance"
+  end
+
+  policy "OrderPartOnFinding" do
+    on "FindingReported"
+    trigger "OrderPart"
+  end
+
+  policy "InstallPartOnReceive" do
+    on "PartOrdered"
+    trigger "InstallPart"
+  end
+
+  policy "TestAfterInstall" do
+    on "PartInstalled"
+    trigger "TestAfterInstall"
+  end
+
+  policy "ReturnAfterPartInstall" do
+    on "PostInstallTestComplete"
+    trigger "ReturnToService"
+  end
+
+  policy "FileReportOnEmergency" do
+    on "EmergencyResolved"
+    trigger "FileIncidentReport"
+  end
+end

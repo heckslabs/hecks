@@ -1,0 +1,277 @@
+Hecks.bluebook "PowerGrid" do
+  vision "Manage substations, transmission lines, load balancing, outages, and maintenance for an electrical grid"
+
+  aggregate "Substation", "A facility that transforms voltage levels for transmission or distribution" do
+    String :substation_id
+    String :name
+    String :voltage_class
+    Float :capacity_mva
+    String :status
+
+    value_object "TransformerBank" do
+      Integer :transformer_count
+      Float :rating_mva
+      String :cooling_type
+    end
+
+    EnergizeSubstation do
+      description "Energize a new substation on the grid"
+      String :substation_id
+      String :name
+      String :voltage_class
+      Float :capacity_mva
+      emits "SubstationEnergized"
+      then_set :status, to: "energized"
+    end
+
+    DeenergizeSubstation do
+      description "Take a substation offline for switching or maintenance"
+      reference_to(Substation)
+      String :reason
+      given { status == "energized" }
+      emits "SubstationDeenergized"
+      then_set :status, to: "deenergized"
+    end
+
+    ReenergizeSubstation do
+      description "Bring a deenergized substation back online"
+      reference_to(Substation)
+      given { status == "deenergized" }
+      emits "SubstationReenergized"
+      then_set :status, to: "energized"
+    end
+  end
+
+  aggregate "TransmissionLine", "A high-voltage conductor connecting substations" do
+    String :line_id
+    String :conductor_type
+    Float :length_miles
+    Float :rating_mw
+    String :status
+    reference_to(Substation)
+
+    value_object "ConductorSpec" do
+      String :material
+      Float :diameter_inches
+      Integer :strands
+    end
+
+    EnergizeLine do
+      description "Put a transmission line into service"
+      String :line_id
+      String :conductor_type
+      Float :length_miles
+      Float :rating_mw
+      reference_to(Substation)
+      emits "LineEnergized"
+      then_set :status, to: "energized"
+    end
+
+    TripLine do
+      description "Automatically disconnect a line due to fault"
+      reference_to(TransmissionLine)
+      String :fault_type
+      given { status == "energized" }
+      emits "LineTripped"
+      then_set :status, to: "tripped"
+    end
+
+    InspectLine do
+      description "Perform visual or drone inspection of a tripped line"
+      reference_to(TransmissionLine)
+      given { status == "tripped" }
+      emits "LineInspected"
+      then_set :status, to: "inspected"
+    end
+
+    RestoreLine do
+      description "Re-close a line after fault clearance and inspection"
+      reference_to(TransmissionLine)
+      given { status == "inspected" }
+      emits "LineRestored"
+      then_set :status, to: "energized"
+    end
+  end
+
+  aggregate "LoadZone", "A geographic area with aggregated electrical demand" do
+    String :zone_id
+    String :region
+    Float :peak_demand_mw
+    Float :current_load_mw
+    String :status
+
+    specification "Overloaded" do
+      satisfied_by { current_load_mw > peak_demand_mw }
+    end
+
+    value_object "DemandForecast" do
+      Float :predicted_mw
+      String :forecast_hour
+    end
+
+    DefineZone do
+      description "Create a load zone for demand monitoring"
+      String :zone_id
+      String :region
+      Float :peak_demand_mw
+      emits "ZoneDefined"
+      then_set :status, to: "monitored"
+      then_set :current_load_mw, to: 0.0
+    end
+
+    UpdateLoad do
+      description "Record the current electrical load in a zone"
+      reference_to(LoadZone)
+      Float :current_load_mw
+      emits "LoadUpdated"
+    end
+
+    InitiateLoadShed do
+      description "Begin controlled load shedding to prevent overload"
+      reference_to(LoadZone)
+      given { status == "monitored" }
+      emits "LoadShedInitiated"
+      then_set :status, to: "shedding"
+    end
+
+    RestoreLoad do
+      description "End load shedding and return zone to normal"
+      reference_to(LoadZone)
+      given { status == "shedding" }
+      emits "LoadRestored"
+      then_set :status, to: "monitored"
+    end
+  end
+
+  aggregate "Outage", "An unplanned loss of power in a zone or on a line" do
+    String :outage_id
+    String :cause
+    Integer :affected_customers
+    String :status
+    String :reported_at
+    reference_to(TransmissionLine)
+
+    value_object "RestorationEstimate" do
+      String :estimated_restoration
+      String :crew_assigned
+    end
+
+    ReportOutage do
+      description "Log a power outage event"
+      String :cause
+      Integer :affected_customers
+      reference_to(TransmissionLine)
+      emits "OutageReported"
+      then_set :status, to: "active"
+    end
+
+    DispatchCrew do
+      description "Send a repair crew to investigate and fix the outage"
+      reference_to(Outage)
+      given { status == "active" }
+      emits "CrewDispatched"
+      then_set :status, to: "crew_en_route"
+    end
+
+    RestorePower do
+      description "Confirm power has been restored to all affected customers"
+      reference_to(Outage)
+      given { status == "crew_en_route" }
+      emits "PowerRestored"
+      then_set :status, to: "restored"
+    end
+  end
+
+  aggregate "MaintenanceOrder", "A scheduled work order for grid equipment" do
+    String :order_id
+    String :work_type
+    String :priority
+    String :status
+    reference_to(Substation)
+
+    value_object "CrewAssignment" do
+      String :crew_id
+      Integer :crew_size
+    end
+
+    CreateOrder do
+      description "Schedule a maintenance task for grid equipment"
+      String :work_type
+      String :priority
+      reference_to(Substation)
+      emits "OrderCreated"
+      then_set :status, to: "scheduled"
+    end
+
+    BeginWork do
+      description "Start executing the maintenance work order"
+      reference_to(MaintenanceOrder)
+      given { status == "scheduled" }
+      emits "WorkBegun"
+      then_set :status, to: "in_progress"
+    end
+
+    CompleteOrder do
+      description "Sign off on completed maintenance work"
+      reference_to(MaintenanceOrder)
+      given { status == "in_progress" }
+      emits "OrderCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "CreateOrderOnTrip" do
+    on "LineTripped"
+    trigger "CreateOrder"
+  end
+
+  policy "InspectOnTrip" do
+    on "LineTripped"
+    trigger "InspectLine"
+  end
+
+  policy "DeenergizeOnOutage" do
+    on "OutageReported"
+    trigger "DeenergizeSubstation"
+  end
+
+  policy "DispatchCrewOnOutage" do
+    on "OutageReported"
+    trigger "DispatchCrew"
+  end
+
+  policy "RestoreLineOnInspection" do
+    on "LineInspected"
+    trigger "RestoreLine"
+  end
+
+  policy "ReenergizeOnRestore" do
+    on "PowerRestored"
+    trigger "ReenergizeSubstation"
+  end
+
+  policy "RestoreLineOnCompletion" do
+    on "OrderCompleted"
+    trigger "RestoreLine"
+  end
+
+  policy "UpdateLoadOnSubstationEnergized" do
+    on "SubstationEnergized"
+    trigger "UpdateLoad"
+  end
+
+  policy "BeginWorkOnCrewDispatched" do
+    on "CrewDispatched"
+    trigger "BeginWork"
+  end
+
+  policy "RestorePowerOnLineRestored" do
+    on "LineRestored"
+    trigger "RestorePower"
+  end
+
+  policy "InitiateLoadShedOnLineTripped" do
+    on "LineTripped"
+    trigger "InitiateLoadShed"
+  end
+end

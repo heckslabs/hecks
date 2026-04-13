@@ -1,0 +1,152 @@
+Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
+  vision "Pet adoption platform — shelter animals meet ad campaigns and intelligent matching"
+  category "healthcare_community"
+
+  aggregate "Animal", "A shelter animal available for adoption" do
+    String :animal_id
+    String :name
+    String :species
+    String :breed
+    Integer :age_months
+    String :temperament
+    String :status
+    value_object "MedicalRecord" do
+      String :vaccination_status
+      String :spay_neuter
+      String :conditions
+    end
+    IntakeAnimal do
+      role "ShelterStaff"
+      description "Register a new animal into the shelter system"
+      String :animal_id
+      String :name
+      String :species
+      String :breed
+      Integer :age_months
+      String :temperament
+      emits "AnimalIntaked"
+      then_set :animal_id, to: :animal_id
+      then_set :name, to: :name
+      then_set :species, to: :species
+      then_set :breed, to: :breed
+      then_set :age_months, to: :age_months
+      then_set :temperament, to: :temperament
+      then_set :status, to: "available"
+    end
+    AdoptAnimal do
+      role "ShelterStaff"
+      description "Mark animal as adopted to a matched family"
+      reference_to(Animal)
+      given { status == "available" }
+      emits "AnimalAdopted"
+      then_set :status, to: "adopted"
+    end
+  end
+
+  aggregate "AdoptionCampaign", "A targeted ad campaign to promote shelter animals" do
+    String :campaign_id
+    String :target_audience
+    String :platform
+    Float :budget
+    Integer :impressions
+    String :status
+    LaunchCampaign do
+      role "Marketer"
+      description "Launch an adoption ad campaign on social media"
+      String :campaign_id
+      String :target_audience
+      String :platform
+      Float :budget
+      emits "CampaignLaunched"
+      then_set :campaign_id, to: :campaign_id
+      then_set :target_audience, to: :target_audience
+      then_set :platform, to: :platform
+      then_set :budget, to: :budget
+      then_set :status, to: "active"
+    end
+    TrackImpressions do
+      role "System"
+      description "Track ad impressions and engagement metrics"
+      reference_to(AdoptionCampaign)
+      Integer :impressions
+      emits "ImpressionsTracked"
+      then_set :impressions, to: :impressions
+    end
+  end
+
+  aggregate "AdopterProfile", "A prospective adopter profile with preferences" do
+    String :adopter_id
+    String :name
+    String :preferred_species
+    String :preferred_size
+    String :housing_type
+    String :status
+    list_of(Preference) :preferences
+    value_object "Preference" do
+      String :attribute
+      String :value
+    end
+    CreateAdopterProfile do
+      role "Adopter"
+      description "Create an adopter profile with housing and pet preferences"
+      String :adopter_id
+      String :name
+      String :preferred_species
+      String :housing_type
+      emits "AdopterProfileCreated"
+      then_set :adopter_id, to: :adopter_id
+      then_set :name, to: :name
+      then_set :preferred_species, to: :preferred_species
+      then_set :housing_type, to: :housing_type
+      then_set :status, to: "active"
+    end
+    MatchAdopter do
+      role "System"
+      description "Match an adopter to compatible shelter animals"
+      reference_to(AdopterProfile)
+      emits "AdopterMatched"
+    end
+  end
+
+  aggregate "FollowUp", "A post-adoption follow-up check on animal and adopter" do
+    String :followup_id
+    String :animal_id
+    String :adopter_id
+    String :scheduled_date
+    String :outcome
+    String :status
+    ScheduleFollowUp do
+      role "ShelterStaff"
+      description "Schedule a post-adoption follow-up check"
+      String :followup_id
+      String :animal_id
+      String :adopter_id
+      String :scheduled_date
+      emits "FollowUpScheduled"
+      then_set :followup_id, to: :followup_id
+      then_set :animal_id, to: :animal_id
+      then_set :adopter_id, to: :adopter_id
+      then_set :scheduled_date, to: :scheduled_date
+      then_set :status, to: "scheduled"
+    end
+    RecordOutcome do
+      role "ShelterStaff"
+      description "Record the outcome of the follow-up visit"
+      reference_to(FollowUp)
+      String :outcome
+      given { status == "scheduled" }
+      emits "OutcomeRecorded"
+      then_set :outcome, to: :outcome
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "MatchOnProfile" do
+    on "AdopterProfileCreated"
+    trigger "MatchAdopter"
+  end
+  policy "FollowUpOnAdopt" do
+    on "AnimalAdopted"
+    trigger "ScheduleFollowUp"
+  end
+end

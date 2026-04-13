@@ -1,0 +1,368 @@
+Hecks.bluebook "CraftBeverageLab", version: "2026.04.13.1" do
+  vision "Shared laboratory for brewers and roasters — fermentation and extraction as two sides of flavor science"
+  category "crossover_gen2"
+
+  # === Experiment ===
+
+  aggregate "Experiment", "A flavor science experiment — the container for fermentation or roasting trials" do
+    String :title
+    String :experiment_type
+    String :hypothesis
+    String :status
+    String :conclusion
+    reference_to(YeastCulture) :yeast
+    reference_to(RoastProfile) :roast
+
+    DesignExperiment do
+      role "Scientist"
+      description "Design a new flavor experiment with hypothesis and methodology"
+      String :title
+      String :experiment_type
+      String :hypothesis
+      emits "ExperimentDesigned"
+      then_set :title, to: :title
+      then_set :experiment_type, to: :experiment_type
+      then_set :hypothesis, to: :hypothesis
+      then_set :status, to: "designed"
+    end
+
+    StartExperiment do
+      role "Scientist"
+      description "Begin the experiment — fermentation or roasting trial starts"
+      reference_to(Experiment)
+      given { status == "designed" }
+      emits "ExperimentStarted"
+      then_set :status, to: "running"
+    end
+
+    ConcludeExperiment do
+      role "Scientist"
+      description "Record conclusion and results of the experiment"
+      reference_to(Experiment)
+      String :conclusion
+      given { status == "running" }
+      emits "ExperimentConcluded"
+      then_set :conclusion, to: :conclusion
+      then_set :status, to: "concluded"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "DesignExperiment" => "designed", from: "draft"
+      transition "StartExperiment" => "running", from: "designed"
+      transition "ConcludeExperiment" => "concluded", from: "running"
+    end
+  end
+
+  # === YeastCulture ===
+
+  aggregate "YeastCulture", "A living yeast culture — strain, viability, and fermentation potential" do
+    String :strain_name
+    String :species
+    Float :viability_percent
+    Float :optimal_temperature
+    String :status
+    list_of(FermentationLog) :logs
+
+    value_object "FermentationLog" do
+      String :timestamp
+      Float :gravity
+      Float :temperature
+      Float :ph
+      String :notes
+    end
+
+    CultivateYeast do
+      role "Brewer"
+      description "Start a new yeast culture from a strain"
+      String :strain_name
+      String :species
+      Float :optimal_temperature
+      emits "YeastCultivated"
+      then_set :strain_name, to: :strain_name
+      then_set :species, to: :species
+      then_set :optimal_temperature, to: :optimal_temperature
+      then_set :viability_percent, to: 100.0
+      then_set :status, to: "active"
+    end
+
+    PitchYeast do
+      role "Brewer"
+      description "Add yeast to wort — fermentation begins"
+      reference_to(YeastCulture)
+      given { status == "active" }
+      emits "YeastPitched"
+      then_set :status, to: "fermenting"
+    end
+
+    RecordFermentation do
+      role "Brewer"
+      description "Log gravity, temperature, and pH during fermentation"
+      reference_to(YeastCulture)
+      Float :gravity
+      Float :temperature
+      Float :ph
+      emits "FermentationRecorded"
+    end
+
+    CompleteFermentation do
+      role "Brewer"
+      description "Fermentation is done — yeast has consumed available sugars"
+      reference_to(YeastCulture)
+      given { status == "fermenting" }
+      emits "FermentationComplete"
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "dormant" do
+      transition "CultivateYeast" => "active", from: "dormant"
+      transition "PitchYeast" => "fermenting", from: "active"
+      transition "CompleteFermentation" => "complete", from: "fermenting"
+    end
+  end
+
+  # === RoastProfile ===
+
+  aggregate "RoastProfile", "A coffee or grain roast profile — time, temperature, and development curves" do
+    String :bean_origin
+    String :roast_level
+    Float :charge_temperature
+    Float :drop_temperature
+    Integer :total_time_seconds
+    String :status
+    list_of(RoastPhase) :phases
+
+    value_object "RoastPhase" do
+      String :phase_name
+      Integer :duration_seconds
+      Float :start_temperature
+      Float :end_temperature
+      String :notes
+    end
+
+    CreateProfile do
+      role "Roaster"
+      description "Define a new roast profile with charge and target parameters"
+      String :bean_origin
+      String :roast_level
+      Float :charge_temperature
+      emits "RoastProfileCreated"
+      then_set :bean_origin, to: :bean_origin
+      then_set :roast_level, to: :roast_level
+      then_set :charge_temperature, to: :charge_temperature
+      then_set :status, to: "created"
+    end
+
+    ExecuteRoast do
+      role "Roaster"
+      description "Run a roast following the defined profile"
+      reference_to(RoastProfile)
+      given { status == "created" }
+      emits "RoastExecuted"
+      then_set :status, to: "roasting"
+    end
+
+    CompleteRoast do
+      role "Roaster"
+      description "Drop the beans — roast is complete at target temperature"
+      reference_to(RoastProfile)
+      Float :drop_temperature
+      Integer :total_time_seconds
+      given { status == "roasting" }
+      emits "RoastProfiled"
+      then_set :drop_temperature, to: :drop_temperature
+      then_set :total_time_seconds, to: :total_time_seconds
+      then_set :status, to: "profiled"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateProfile" => "created", from: "draft"
+      transition "ExecuteRoast" => "roasting", from: "created"
+      transition "CompleteRoast" => "profiled", from: "roasting"
+    end
+  end
+
+  # === FlavorCompound ===
+
+  aggregate "FlavorCompound", "A chemical flavor compound — identified through analysis of fermented or roasted products" do
+    String :compound_name
+    String :chemical_family
+    Float :concentration_ppm
+    String :source
+    String :aroma_descriptor
+    reference_to(Experiment) :experiment
+
+    AnalyzeFlavorCompounds do
+      role "System"
+      description "Run chemical analysis to identify flavor compounds in a sample"
+      reference_to(Experiment) :experiment
+      String :compound_name
+      String :chemical_family
+      Float :concentration_ppm
+      String :source
+      String :aroma_descriptor
+      emits "FlavorCompoundsAnalyzed"
+      then_set :experiment, to: :experiment
+      then_set :compound_name, to: :compound_name
+      then_set :chemical_family, to: :chemical_family
+      then_set :concentration_ppm, to: :concentration_ppm
+      then_set :source, to: :source
+      then_set :aroma_descriptor, to: :aroma_descriptor
+    end
+
+    CompareCompounds do
+      role "Scientist"
+      description "Compare flavor compounds across fermentation and roasting experiments"
+      reference_to(FlavorCompound)
+      emits "CompoundsCompared"
+    end
+  end
+
+  # === SensoryPanel ===
+
+  aggregate "SensoryPanel", "A blind tasting panel — trained evaluators scoring aroma, flavor, body, finish" do
+    String :panel_name
+    Integer :panelist_count
+    reference_to(Experiment) :experiment
+    String :status
+    list_of(SensoryScore) :scores
+
+    value_object "SensoryScore" do
+      String :panelist_id
+      Float :aroma_score
+      Float :flavor_score
+      Float :body_score
+      Float :finish_score
+      String :notes
+    end
+
+    ConveneSensoryPanel do
+      role "Scientist"
+      description "Assemble a sensory panel for blind evaluation"
+      String :panel_name
+      Integer :panelist_count
+      reference_to(Experiment) :experiment
+      emits "SensoryPanelConvened"
+      then_set :panel_name, to: :panel_name
+      then_set :panelist_count, to: :panelist_count
+      then_set :experiment, to: :experiment
+      then_set :status, to: "convened"
+    end
+
+    CompareSensoryPanel do
+      role "System"
+      description "Aggregate and compare sensory scores across panelists"
+      reference_to(SensoryPanel)
+      given { status == "convened" }
+      emits "SensoryPanelCompared"
+      then_set :status, to: "compared"
+    end
+
+    PublishResults do
+      role "Scientist"
+      description "Publish final sensory evaluation results"
+      reference_to(SensoryPanel)
+      given { status == "compared" }
+      emits "SensoryResultsPublished"
+      then_set :status, to: "published"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ConveneSensoryPanel" => "convened", from: "pending"
+      transition "CompareSensoryPanel" => "compared", from: "convened"
+      transition "PublishResults" => "published", from: "compared"
+    end
+  end
+
+  # === LabEquipment ===
+
+  aggregate "LabEquipment", "Shared laboratory equipment — fermenters, roasters, analyzers, all scheduled" do
+    String :name
+    String :equipment_type
+    String :status
+    String :last_calibration
+    list_of(MaintenanceRecord) :maintenance_history
+
+    value_object "MaintenanceRecord" do
+      String :date
+      String :technician
+      String :description
+      String :result
+    end
+
+    RegisterEquipment do
+      role "LabManager"
+      description "Register a piece of shared lab equipment"
+      String :name
+      String :equipment_type
+      emits "EquipmentRegistered"
+      then_set :name, to: :name
+      then_set :equipment_type, to: :equipment_type
+      then_set :status, to: "available"
+    end
+
+    ReserveEquipment do
+      role "Scientist"
+      description "Reserve equipment for an experiment"
+      reference_to(LabEquipment)
+      given { status == "available" }
+      emits "EquipmentReserved"
+      then_set :status, to: "reserved"
+    end
+
+    ReleaseEquipment do
+      role "Scientist"
+      description "Return equipment to available pool after use"
+      reference_to(LabEquipment)
+      given { status == "reserved" }
+      emits "EquipmentReleased"
+      then_set :status, to: "available"
+    end
+
+    CalibrateEquipment do
+      role "LabManager"
+      description "Calibrate equipment for accurate measurements"
+      reference_to(LabEquipment)
+      String :last_calibration
+      emits "EquipmentCalibrated"
+      then_set :last_calibration, to: :last_calibration
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "RegisterEquipment" => "available", from: "pending"
+      transition "ReserveEquipment" => "reserved", from: "available"
+      transition "ReleaseEquipment" => "available", from: "reserved"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "AnalyzeOnFermentation" do
+    on "FermentationComplete"
+    trigger "AnalyzeFlavorCompounds"
+  end
+
+  policy "SensoryOnRoast" do
+    on "RoastProfiled"
+    trigger "CompareSensoryPanel"
+  end
+
+  policy "CompareOnAnalysis" do
+    on "FlavorCompoundsAnalyzed"
+    trigger "CompareCompounds"
+  end
+
+  policy "ReserveEquipmentOnStart" do
+    on "ExperimentStarted"
+    trigger "ReserveEquipment"
+  end
+
+  policy "ReleaseEquipmentOnConclude" do
+    on "ExperimentConcluded"
+    trigger "ReleaseEquipment"
+  end
+
+  policy "ConvenePanelOnRoast" do
+    on "RoastProfiled"
+    trigger "ConveneSensoryPanel"
+  end
+end

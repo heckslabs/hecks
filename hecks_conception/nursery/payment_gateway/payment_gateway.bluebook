@@ -1,0 +1,271 @@
+Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
+  vision "Processing payments — authorizing transactions, onboarding merchants, settling funds, managing chargebacks, and ensuring compliance"
+  category "technology"
+
+  aggregate "Transaction", "A payment attempt from a cardholder to a merchant" do
+    String :transaction_id
+    Float :amount
+    String :currency
+    String :card_last_four
+    String :auth_code
+    String :status
+    reference_to Merchant
+    list_of(StatusChange) :status_history
+
+    specification "HighRisk" do
+      satisfied_by { amount > 10000 }
+    end
+
+    value_object "StatusChange" do
+      String :from_status
+      String :to_status
+      String :reason
+      String :changed_at
+    end
+
+    AuthorizeTransaction do
+      role "PaymentProcessor"
+      description "Submit a payment for authorization with the card network"
+      String :transaction_id
+      Float :amount
+      String :currency
+      String :card_last_four
+      reference_to(Merchant)
+      emits "TransactionAuthorized"
+    end
+
+    CaptureTransaction do
+      description "Finalize an authorized payment for settlement"
+      reference_to(Transaction)
+      given("transaction is authorized") { status == "authorized" }
+      emits "TransactionCaptured"
+    end
+
+    VoidTransaction do
+      description "Cancel an authorized but uncaptured transaction"
+      reference_to(Transaction)
+      given("transaction is authorized") { status == "authorized" }
+      emits "TransactionVoided"
+    end
+  end
+
+  aggregate "Merchant", "A business that accepts payments through the gateway" do
+    String :merchant_id
+    String :business_name
+    String :mcc_code
+    String :contact_email
+    Float :processing_rate
+    String :status
+    list_of(BankAccount) :bank_accounts
+
+    value_object "BankAccount" do
+      String :account_number
+      String :routing_number
+      String :account_type
+    end
+
+    OnboardMerchant do
+      role "RelationshipManager"
+      description "Register a new merchant and configure their processing terms"
+      String :merchant_id
+      String :business_name
+      String :mcc_code
+      String :contact_email
+      Float :processing_rate
+      emits "MerchantOnboarded"
+    end
+
+    SuspendMerchant do
+      description "Freeze a merchant account due to risk concerns"
+      reference_to(Merchant)
+      emits "MerchantSuspended"
+    end
+
+    ReinstateMerchant do
+      description "Reactivate a suspended merchant after review"
+      reference_to(Merchant)
+      given("merchant is suspended") { status == "suspended" }
+      emits "MerchantReinstated"
+    end
+  end
+
+  aggregate "Settlement", "A batch payout of captured transactions to a merchant" do
+    String :settlement_id
+    Float :gross_amount
+    Float :fees
+    Float :net_amount
+    String :period
+    String :status
+    reference_to Merchant
+    list_of(SettlementLine) :lines
+
+    value_object "SettlementLine" do
+      String :transaction_id
+      Float :amount
+      Float :fee
+    end
+
+    CreateSettlement do
+      role "SettlementEngine"
+      description "Batch captured transactions into a settlement for payout"
+      String :settlement_id
+      Float :gross_amount
+      Float :fees
+      String :period
+      reference_to(Merchant)
+      emits "SettlementCreated"
+    end
+
+    DisburseSettlement do
+      description "Transfer the net settlement amount to the merchant bank"
+      reference_to(Settlement)
+      given("settlement is pending") { status == "pending" }
+      emits "SettlementDisbursed"
+    end
+
+    HoldSettlement do
+      description "Delay a settlement due to risk review"
+      reference_to(Settlement)
+      String :hold_reason
+      emits "SettlementHeld"
+    end
+  end
+
+  aggregate "Chargeback", "A disputed transaction initiated by a cardholder" do
+    String :chargeback_id
+    String :reason_code
+    Float :amount
+    String :evidence_due_date
+    String :status
+    reference_to Transaction
+
+    value_object "EvidencePacket" do
+      String :document_type
+      String :document_url
+      String :submitted_at
+    end
+
+    FileChargeback do
+      role "DisputeTeam"
+      description "Open a chargeback case against a captured transaction"
+      String :chargeback_id
+      String :reason_code
+      Float :amount
+      String :evidence_due_date
+      reference_to(Transaction)
+      emits "ChargebackFiled"
+    end
+
+    SubmitEvidence do
+      description "Provide supporting documents to contest a chargeback"
+      reference_to(Chargeback)
+      String :document_type
+      String :document_url
+      emits "EvidenceSubmitted"
+    end
+
+    ResolveChargeback do
+      description "Close a chargeback in favor of merchant or cardholder"
+      reference_to(Chargeback)
+      String :outcome
+      given("chargeback is open") { status == "open" }
+      emits "ChargebackResolved"
+    end
+  end
+
+  aggregate "ComplianceCheck", "A regulatory verification on merchant or transaction activity" do
+    String :check_id
+    String :check_type
+    String :scope
+    String :result
+    String :status
+    reference_to Merchant
+
+    value_object "CheckDetail" do
+      String :rule_name
+      String :outcome
+      String :note
+    end
+
+    RunComplianceCheck do
+      role "ComplianceOfficer"
+      description "Execute a regulatory check against a merchant"
+      String :check_id
+      String :check_type
+      String :scope
+      reference_to(Merchant)
+      emits "ComplianceCheckRun"
+    end
+
+    PassCheck do
+      description "Mark a compliance check as passed"
+      reference_to(ComplianceCheck)
+      emits "CheckPassed"
+    end
+
+    FailCheck do
+      description "Flag a compliance check failure requiring remediation"
+      reference_to(ComplianceCheck)
+      String :failure_reason
+      given("check is pending") { status == "pending" }
+      emits "CheckFailed"
+    end
+  end
+
+  lifecycle "TransactionSettlement" do
+    state "received"
+    state "authorized"
+    state "captured"
+    state "settled"
+    state "disbursed"
+    state "chargebacked"
+    state "voided"
+
+    transition from: "received", to: "authorized", on: "TransactionAuthorized"
+    transition from: "authorized", to: "captured", on: "TransactionCaptured"
+    transition from: "captured", to: "settled", on: "SettlementCreated"
+    transition from: "settled", to: "disbursed", on: "SettlementDisbursed"
+    transition from: "disbursed", to: "chargebacked", on: "ChargebackFiled"
+    transition from: "authorized", to: "voided", on: "TransactionVoided"
+  end
+
+  policy "TransactionAuthorizedCapture" do
+    on "TransactionAuthorized"
+    trigger "CaptureTransaction"
+  end
+
+  policy "TransactionCapturedRunCompliance" do
+    on "TransactionCaptured"
+    trigger "RunComplianceCheck"
+  end
+
+  policy "CheckPassedCreateSettlement" do
+    on "CheckPassed"
+    trigger "CreateSettlement"
+  end
+
+  policy "SettlementCreatedDisburse" do
+    on "SettlementCreated"
+    trigger "DisburseSettlement"
+  end
+
+  policy "ChargebackFiledHoldSettlement" do
+    on "ChargebackFiled"
+    trigger "HoldSettlement"
+  end
+
+  policy "CheckFailedSuspendMerchant" do
+    on "CheckFailed"
+    trigger "SuspendMerchant"
+  end
+
+  policy "SubmitEvidenceOnChargeback" do
+    on "ChargebackFiled"
+    trigger "SubmitEvidence"
+  end
+
+  policy "RunComplianceOnOnboard" do
+    on "MerchantOnboarded"
+    trigger "RunComplianceCheck"
+  end
+end

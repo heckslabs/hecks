@@ -1,0 +1,141 @@
+Hecks.bluebook "MentorEvents", version: "2026.04.13.1" do
+  vision "Mentor events — youth mentoring matches meet group events, attendance, and impact tracking"
+  category "healthcare_community"
+
+  aggregate "MentorMatch", "A mentoring relationship between a mentor and mentee" do
+    String :match_id
+    String :mentor_name
+    String :mentee_name
+    String :focus_area
+    String :start_date
+    String :status
+    CreateMatch do
+      role "Coordinator"
+      description "Create a mentor-mentee match based on interests"
+      String :match_id
+      String :mentor_name
+      String :mentee_name
+      String :focus_area
+      String :start_date
+      emits "MatchCreated"
+      then_set :match_id, to: :match_id
+      then_set :mentor_name, to: :mentor_name
+      then_set :mentee_name, to: :mentee_name
+      then_set :focus_area, to: :focus_area
+      then_set :start_date, to: :start_date
+      then_set :status, to: "active"
+    end
+    CloseMatch do
+      role "Coordinator"
+      description "Close a mentoring match at end of program"
+      reference_to(MentorMatch)
+      given { status == "active" }
+      emits "MatchClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "GroupEvent", "A group mentoring event with multiple pairs" do
+    String :event_id
+    String :event_name
+    String :venue
+    String :date
+    Integer :capacity
+    String :status
+    list_of(EventActivity) :activities
+    value_object "EventActivity" do
+      String :activity_name
+      Float :duration_minutes
+      String :facilitator
+    end
+    PlanEvent do
+      role "Coordinator"
+      description "Plan a group mentoring event with venue and activities"
+      String :event_id
+      String :event_name
+      String :venue
+      String :date
+      Integer :capacity
+      emits "EventPlanned"
+      then_set :event_id, to: :event_id
+      then_set :event_name, to: :event_name
+      then_set :venue, to: :venue
+      then_set :date, to: :date
+      then_set :capacity, to: :capacity
+      then_set :status, to: "planned"
+    end
+    CancelEvent do
+      role "Coordinator"
+      description "Cancel a planned event"
+      reference_to(GroupEvent)
+      given { status == "planned" }
+      emits "EventCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "AttendanceRecord", "An attendance record for a mentoring event" do
+    String :attendance_id
+    String :event_id
+    String :participant_name
+    String :role_type
+    String :check_in_time
+    RecordAttendance do
+      role "Coordinator"
+      description "Record attendance of a participant at a mentoring event"
+      String :attendance_id
+      String :event_id
+      String :participant_name
+      String :role_type
+      String :check_in_time
+      emits "AttendanceRecorded"
+      then_set :attendance_id, to: :attendance_id
+      then_set :event_id, to: :event_id
+      then_set :participant_name, to: :participant_name
+      then_set :role_type, to: :role_type
+      then_set :check_in_time, to: :check_in_time
+    end
+  end
+
+  aggregate "ImpactReport", "A measured impact report on mentoring outcomes" do
+    String :report_id
+    String :match_id
+    Float :academic_improvement
+    Float :confidence_score
+    String :period
+    String :status
+    MeasureImpact do
+      role "Evaluator"
+      description "Measure the impact of a mentoring relationship"
+      String :report_id
+      String :match_id
+      Float :academic_improvement
+      Float :confidence_score
+      String :period
+      emits "ImpactMeasured"
+      then_set :report_id, to: :report_id
+      then_set :match_id, to: :match_id
+      then_set :academic_improvement, to: :academic_improvement
+      then_set :confidence_score, to: :confidence_score
+      then_set :period, to: :period
+      then_set :status, to: "measured"
+    end
+    PublishImpact do
+      role "Director"
+      description "Publish the impact report for stakeholders"
+      reference_to(ImpactReport)
+      given { status == "measured" }
+      emits "ImpactPublished"
+      then_set :status, to: "published"
+    end
+  end
+
+  policy "AttendOnPlan" do
+    on "EventPlanned"
+    trigger "RecordAttendance"
+  end
+  policy "MeasureOnClose" do
+    on "MatchClosed"
+    trigger "MeasureImpact"
+  end
+end

@@ -1,0 +1,256 @@
+Hecks.bluebook "Dermatology" do
+  vision "Skin health and disease — patients, conditions, treatments, biopsies, and prescription management"
+
+  aggregate "Patient", "A person receiving dermatologic care" do
+    String :name
+    String :date_of_birth
+    String :skin_type
+    String :insurance_id
+    String :status
+
+    RegisterPatient do
+      role "Receptionist"
+      description "Add a new patient to the dermatology practice"
+      String :name
+      String :date_of_birth
+      String :skin_type
+      String :insurance_id
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :skin_type, to: :skin_type
+      then_set :insurance_id, to: :insurance_id
+      then_set :status, to: "active"
+    end
+
+    ScheduleScreening do
+      role "Receptionist"
+      description "Book an annual skin cancer screening for the patient"
+      reference_to(Patient)
+      emits "ScreeningScheduled"
+    end
+  end
+
+  aggregate "SkinCondition", "A diagnosed dermatologic condition" do
+    String :patient_name
+    String :condition_name
+    String :body_location
+    String :morphology
+    String :severity
+    String :status
+    list_of(ProgressPhoto) :photos
+    reference_to Patient
+
+    value_object "ProgressPhoto" do
+      String :photo_date
+      String :description
+      String :file_reference
+    end
+
+    DiagnoseCondition do
+      role "Dermatologist"
+      description "Document a skin condition diagnosis with clinical findings"
+      reference_to(Patient)
+      String :patient_name
+      String :condition_name
+      String :body_location
+      String :morphology
+      String :severity
+      emits "ConditionDiagnosed"
+      then_set :patient_name, to: :patient_name
+      then_set :condition_name, to: :condition_name
+      then_set :body_location, to: :body_location
+      then_set :morphology, to: :morphology
+      then_set :severity, to: :severity
+      then_set :status, to: "active"
+    end
+
+    TrackCondition do
+      role "Dermatologist"
+      description "Update condition status with progress photographs"
+      reference_to(SkinCondition)
+      String :severity
+      emits "ConditionTracked"
+      then_set :severity, to: :severity
+    end
+
+    ResolveCondition do
+      role "Dermatologist"
+      description "Mark the condition as cleared or resolved"
+      reference_to(SkinCondition)
+      given("must be active") { status == "active" }
+      emits "ConditionResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  aggregate "DermatologyTreatment", "A therapeutic intervention for a skin condition" do
+    String :patient_name
+    String :treatment_type
+    String :description
+    Integer :sessions_planned
+    Integer :sessions_completed
+    String :status
+    reference_to Patient
+    reference_to SkinCondition
+
+    PrescribeTreatment do
+      role "Dermatologist"
+      description "Order a treatment plan for the diagnosed skin condition"
+      reference_to(Patient)
+      reference_to(SkinCondition)
+      String :patient_name
+      String :treatment_type
+      String :description
+      Integer :sessions_planned
+      emits "TreatmentPrescribed"
+      then_set :patient_name, to: :patient_name
+      then_set :treatment_type, to: :treatment_type
+      then_set :description, to: :description
+      then_set :sessions_planned, to: :sessions_planned
+      then_set :sessions_completed, to: 0
+      then_set :status, to: "active"
+    end
+
+    PerformTreatmentSession do
+      role "Dermatologist"
+      description "Conduct a treatment session and record outcome"
+      reference_to(DermatologyTreatment)
+      given("treatment must be active") { status == "active" }
+      emits "TreatmentSessionPerformed"
+    end
+
+    CompleteTreatment do
+      role "Dermatologist"
+      description "Mark the treatment course as finished"
+      reference_to(DermatologyTreatment)
+      emits "TreatmentCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Biopsy", "A tissue sample taken for pathological examination" do
+    String :patient_name
+    String :biopsy_type
+    String :body_site
+    String :biopsy_date
+    String :pathology_result
+    String :status
+    reference_to Patient
+    reference_to SkinCondition
+
+    value_object "SpecimenDetail" do
+      String :size
+      String :depth
+      String :fixative
+    end
+
+    PerformBiopsy do
+      role "Dermatologist"
+      description "Collect a tissue sample for laboratory analysis"
+      reference_to(Patient)
+      reference_to(SkinCondition)
+      String :patient_name
+      String :biopsy_type
+      String :body_site
+      String :biopsy_date
+      emits "BiopsyPerformed"
+      then_set :patient_name, to: :patient_name
+      then_set :biopsy_type, to: :biopsy_type
+      then_set :body_site, to: :body_site
+      then_set :biopsy_date, to: :biopsy_date
+      then_set :status, to: "pending"
+    end
+
+    ReceivePathologyResult do
+      role "Dermatologist"
+      description "Record the pathology report findings for the biopsy"
+      reference_to(Biopsy)
+      String :pathology_result
+      given("must be pending") { status == "pending" }
+      emits "PathologyResultReceived"
+      then_set :pathology_result, to: :pathology_result
+      then_set :status, to: "resulted"
+    end
+  end
+
+  aggregate "SkinPrescription", "A topical or systemic medication for a skin condition" do
+    String :patient_name
+    String :medication_name
+    String :formulation
+    String :dosage
+    String :frequency
+    String :duration
+    String :status
+    reference_to Patient
+
+    WritePrescription do
+      role "Dermatologist"
+      description "Prescribe a dermatologic medication for the patient"
+      reference_to(Patient)
+      String :patient_name
+      String :medication_name
+      String :formulation
+      String :dosage
+      String :frequency
+      String :duration
+      emits "PrescriptionWritten"
+      then_set :patient_name, to: :patient_name
+      then_set :medication_name, to: :medication_name
+      then_set :formulation, to: :formulation
+      then_set :dosage, to: :dosage
+      then_set :frequency, to: :frequency
+      then_set :duration, to: :duration
+      then_set :status, to: "active"
+    end
+
+    RefillPrescription do
+      role "Dermatologist"
+      description "Authorize a medication refill for ongoing treatment"
+      reference_to(SkinPrescription)
+      given("must be active") { status == "active" }
+      emits "PrescriptionRefilled"
+    end
+  end
+
+  # Workflow: Register → Screen → Diagnose → Biopsy → PathResult → PrescribeTreatment → WritePrescription → PerformSession → TrackCondition → CompleteTreatment → ResolveCondition
+  policy "ScreenOnRegistration" do
+    on "PatientRegistered"
+    trigger "ScheduleScreening"
+  end
+
+  policy "PrescribeTreatmentOnDiagnosis" do
+    on "ConditionDiagnosed"
+    trigger "PrescribeTreatment"
+  end
+
+  policy "WritePrescriptionOnDiagnosis" do
+    on "ConditionDiagnosed"
+    trigger "WritePrescription"
+  end
+
+  policy "BiopsyOnDiagnosis" do
+    on "ConditionDiagnosed"
+    trigger "PerformBiopsy"
+  end
+
+  policy "TrackConditionOnResult" do
+    on "PathologyResultReceived"
+    trigger "TrackCondition"
+  end
+
+  policy "CompleteTreatmentOnTrack" do
+    on "TreatmentSessionPerformed"
+    trigger "TrackCondition"
+  end
+
+  policy "ResolveOnTreatmentComplete" do
+    on "TreatmentCompleted"
+    trigger "ResolveCondition"
+  end
+
+  policy "RefillOnTreatmentSession" do
+    on "TreatmentSessionPerformed"
+    trigger "RefillPrescription"
+  end
+end

@@ -1,0 +1,236 @@
+Hecks.bluebook "CoffeeShop", version: "2026.04.13.1" do
+  vision "Running a coffee shop — crafting drinks, managing the menu, scheduling baristas, sourcing beans, and maintaining equipment"
+  category "hospitality"
+
+  aggregate "MenuItem", "A beverage or food item available to order" do
+    String :item_id
+    String :name
+    String :category
+    Float :price
+    String :available
+    list_of(Ingredient) :ingredients
+
+    value_object "Ingredient" do
+      String :name
+      Float :quantity
+      String :unit
+      String :allergen
+    end
+
+    AddMenuItem do
+      role "Manager"
+      description "Put a new drink or food item on the menu"
+      String :item_id
+      String :name
+      String :category
+      Float :price
+      emits "MenuItemAdded"
+      then_set :item_id, to: :item_id
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :price, to: :price
+      then_set :available, to: "true"
+    end
+
+    RemoveMenuItem do
+      role "Manager"
+      description "Take an item off the active menu"
+      reference_to(MenuItem)
+      emits "MenuItemRemoved"
+      then_set :available, to: "false"
+    end
+  end
+
+  aggregate "Barista", "A team member who prepares drinks and serves customers" do
+    String :employee_id
+    String :name
+    String :skill_level
+    list_of(Certification) :certifications
+
+    value_object "Certification" do
+      String :skill_name
+      String :earned_date
+      String :level
+    end
+
+    HireBarista do
+      role "Manager"
+      description "Bring a new barista onto the team"
+      String :employee_id
+      String :name
+      String :skill_level
+      emits "BaristaHired"
+      then_set :employee_id, to: :employee_id
+      then_set :name, to: :name
+      then_set :skill_level, to: :skill_level
+    end
+
+    CertifyBarista do
+      role "Manager"
+      description "Record a barista passing a skill certification"
+      reference_to(Barista)
+      String :skill_name
+      emits "BaristaCertified"
+    end
+  end
+
+  aggregate "DrinkOrder", "A customer's request for one or more beverages" do
+    String :order_id
+    String :customer_name
+    list_of(OrderedDrink) :drinks
+    Float :total
+    String :status
+
+    value_object "OrderedDrink" do
+      String :item_name
+      String :size
+      String :modifications
+      Float :price
+    end
+
+    PlaceOrder do
+      role "Customer"
+      description "Submit a drink order at the counter or mobile app"
+      String :order_id
+      String :customer_name
+      emits "OrderPlaced"
+      then_set :order_id, to: :order_id
+      then_set :customer_name, to: :customer_name
+      then_set :status, to: "placed"
+    end
+
+    PrepareDrink do
+      role "Barista"
+      description "Craft the ordered beverage to specification"
+      reference_to(DrinkOrder)
+      given { status == "placed" }
+      emits "DrinkPrepared"
+      then_set :status, to: "ready"
+    end
+
+    ServeDrink do
+      role "Barista"
+      description "Hand off the completed order to the customer"
+      reference_to(DrinkOrder)
+      given { status == "ready" }
+      emits "DrinkServed"
+      then_set :status, to: "served"
+    end
+  end
+
+  aggregate "BeanSupply", "A coffee bean origin and roast profile sourced for the shop" do
+    String :batch_id
+    String :origin
+    String :roast_level
+    String :roaster
+    Float :weight_kg
+    String :roast_date
+
+    ReceiveBeans do
+      role "Manager"
+      description "Accept a delivery of roasted coffee beans"
+      String :batch_id
+      String :origin
+      String :roast_level
+      String :roaster
+      Float :weight_kg
+      String :roast_date
+      emits "BeansReceived"
+      then_set :batch_id, to: :batch_id
+      then_set :origin, to: :origin
+      then_set :roast_level, to: :roast_level
+      then_set :roaster, to: :roaster
+      then_set :weight_kg, to: :weight_kg
+      then_set :roast_date, to: :roast_date
+    end
+
+    DepleteBeans do
+      role "Barista"
+      description "Record beans used up during daily operations"
+      reference_to(BeanSupply)
+      Float :amount_used
+      given { amount_used > 0 }
+      emits "BeansDepleted"
+    end
+  end
+
+  aggregate "Equipment", "A machine or tool used in beverage preparation" do
+    String :equipment_id
+    String :name
+    String :make
+    String :model
+    String :status
+
+    specification "OutOfService" do
+      satisfied_by { status == "out_of_service" }
+    end
+
+    InstallEquipment do
+      role "Manager"
+      description "Set up a new piece of equipment in the shop"
+      String :equipment_id
+      String :name
+      String :make
+      String :model
+      emits "EquipmentInstalled"
+      then_set :equipment_id, to: :equipment_id
+      then_set :name, to: :name
+      then_set :make, to: :make
+      then_set :model, to: :model
+      then_set :status, to: "operational"
+    end
+
+    ServiceEquipment do
+      role "Technician"
+      description "Perform scheduled maintenance on the equipment"
+      reference_to(Equipment)
+      emits "EquipmentServiced"
+    end
+
+    ReportMalfunction do
+      role "Barista"
+      description "Flag a piece of equipment as broken or degraded"
+      reference_to(Equipment)
+      emits "MalfunctionReported"
+      then_set :status, to: "out_of_service"
+    end
+  end
+
+  # Lifecycle: ordered → preparing → ready → served
+  # Workflow: Place order → Deplete beans → Prepare drink → Serve drink → Record bean usage → Reorder beans
+
+  policy "DepleteBeanOnOrder" do
+    on "OrderPlaced"
+    trigger "DepleteBeans"
+  end
+
+  policy "PrepareOnDeplete" do
+    on "BeansDepleted"
+    trigger "PrepareDrink"
+  end
+
+  policy "ServeOnPrepare" do
+    on "DrinkPrepared"
+    trigger "ServeDrink"
+  end
+
+  policy "ReceiveBeansOnDeplete" do
+    on "BeansDepleted"
+    trigger "ReceiveBeans"
+  end
+
+  policy "ServiceOnMalfunction" do
+    on "MalfunctionReported"
+    trigger "ServiceEquipment"
+  end
+
+  policy "CertifyOnHire" do
+    on "BaristaHired"
+    trigger "CertifyBarista"
+  end
+
+  policy "ServiceOnDrinkServed" do
+    on "DrinkServed"
+    trigger "ServiceEquipment"
+  end
+end

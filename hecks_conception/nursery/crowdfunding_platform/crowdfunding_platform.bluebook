@@ -1,0 +1,265 @@
+Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
+  vision "Running a crowdfunding platform — launching campaigns, accepting pledges, fulfilling rewards, tracking milestones, and managing backers"
+  category "technology"
+
+  aggregate "Campaign", "A fundraising project seeking backer support" do
+    String :campaign_title
+    String :creator_name
+    String :description
+    Float :funding_goal
+    Float :amount_raised
+    String :deadline
+    String :status
+    list_of(RewardTier) :reward_tiers
+
+    specification "FullyFunded" do
+      satisfied_by { amount_raised >= funding_goal }
+    end
+
+    value_object "RewardTier" do
+      String :tier_name
+      Float :minimum_pledge
+      String :description
+      Integer :backer_limit
+    end
+
+    LaunchCampaign do
+      role "Creator"
+      description "Start a new crowdfunding campaign with goals and rewards"
+      String :campaign_title
+      String :creator_name
+      String :description
+      Float :funding_goal
+      String :deadline
+      emits "CampaignLaunched"
+    end
+
+    FundCampaign do
+      description "Mark a campaign as successfully funded"
+      reference_to(Campaign)
+      given("goal reached") { amount_raised >= funding_goal }
+      emits "CampaignFunded"
+    end
+
+    CancelCampaign do
+      description "Abandon a campaign and trigger refunds"
+      reference_to(Campaign)
+      emits "CampaignCanceled"
+    end
+  end
+
+  aggregate "Backer", "A person who pledges money to a campaign" do
+    String :backer_id
+    String :name
+    String :email
+    String :payment_method
+    Float :total_pledged
+    String :status
+    list_of(PledgeRecord) :pledge_history
+
+    value_object "PledgeRecord" do
+      String :campaign_title
+      Float :amount
+      String :pledged_at
+    end
+
+    RegisterBacker do
+      role "Backer"
+      description "Create a backer account on the platform"
+      String :backer_id
+      String :name
+      String :email
+      String :payment_method
+      emits "BackerRegistered"
+    end
+
+    UpdatePaymentMethod do
+      description "Change the backer's default payment method"
+      reference_to(Backer)
+      String :payment_method
+      emits "PaymentMethodUpdated"
+    end
+
+    DeactivateBacker do
+      description "Disable a backer account"
+      reference_to(Backer)
+      given("backer is active") { status == "active" }
+      emits "BackerDeactivated"
+    end
+  end
+
+  aggregate "Pledge", "A monetary commitment from a backer to a campaign" do
+    String :pledge_id
+    Float :amount
+    String :reward_tier
+    String :status
+    reference_to Campaign
+    reference_to Backer
+
+    value_object "PledgeAdjustment" do
+      Float :previous_amount
+      Float :new_amount
+      String :adjusted_at
+    end
+
+    MakePledge do
+      role "Backer"
+      description "Commit funds to a campaign at a chosen reward tier"
+      String :pledge_id
+      Float :amount
+      String :reward_tier
+      reference_to(Campaign)
+      reference_to(Backer)
+      emits "PledgeMade"
+    end
+
+    IncreasePledge do
+      description "Add more funds to an existing pledge"
+      reference_to(Pledge)
+      Float :additional_amount
+      given("pledge is active") { status == "active" }
+      emits "PledgeIncreased"
+    end
+
+    WithdrawPledge do
+      description "Retract a pledge before the campaign deadline"
+      reference_to(Pledge)
+      emits "PledgeWithdrawn"
+    end
+  end
+
+  aggregate "Reward", "A tangible or digital perk fulfilled to backers" do
+    String :reward_id
+    String :tier_name
+    String :description
+    String :fulfillment_status
+    String :shipping_address
+    String :status
+    reference_to Pledge
+
+    value_object "ShippingInfo" do
+      String :carrier
+      String :tracking_number
+      String :shipped_at
+    end
+
+    FulfillReward do
+      role "Creator"
+      description "Ship or deliver a reward to a backer"
+      String :reward_id
+      String :tier_name
+      String :description
+      String :shipping_address
+      reference_to(Pledge)
+      emits "RewardFulfilled"
+    end
+
+    MarkShipped do
+      description "Record tracking details when a reward ships"
+      reference_to(Reward)
+      String :carrier
+      String :tracking_number
+      emits "RewardShipped"
+    end
+
+    ReportDamaged do
+      description "Flag a reward as damaged during delivery"
+      reference_to(Reward)
+      given("reward is shipped") { fulfillment_status == "shipped" }
+      emits "RewardDamaged"
+    end
+  end
+
+  aggregate "Milestone", "A progress marker in a campaign's development" do
+    String :milestone_id
+    String :title
+    String :description
+    String :target_date
+    String :status
+    reference_to Campaign
+
+    value_object "MilestoneUpdate" do
+      String :note
+      String :author
+      String :posted_at
+    end
+
+    SetMilestone do
+      role "Creator"
+      description "Define a project milestone with a target date"
+      String :milestone_id
+      String :title
+      String :description
+      String :target_date
+      reference_to(Campaign)
+      emits "MilestoneSet"
+    end
+
+    CompleteMilestone do
+      description "Mark a milestone as achieved"
+      reference_to(Milestone)
+      given("milestone is pending") { status == "pending" }
+      emits "MilestoneCompleted"
+    end
+
+    DelayMilestone do
+      description "Push back a milestone target date"
+      reference_to(Milestone)
+      String :new_target_date
+      String :delay_reason
+      emits "MilestoneDelayed"
+    end
+  end
+
+  lifecycle "CampaignFunding" do
+    state "draft"
+    state "launched"
+    state "pledging"
+    state "funded"
+    state "fulfilling"
+    state "completed"
+    state "canceled"
+
+    transition from: "draft", to: "launched", on: "CampaignLaunched"
+    transition from: "launched", to: "pledging", on: "PledgeMade"
+    transition from: "pledging", to: "funded", on: "CampaignFunded"
+    transition from: "funded", to: "fulfilling", on: "RewardFulfilled"
+    transition from: "fulfilling", to: "completed", on: "MilestoneCompleted"
+    transition from: "launched", to: "canceled", on: "CampaignCanceled"
+  end
+
+  policy "CampaignLaunchedSetMilestone" do
+    on "CampaignLaunched"
+    trigger "SetMilestone"
+  end
+
+  policy "PledgeMadeFundCheck" do
+    on "PledgeMade"
+    trigger "FundCampaign"
+  end
+
+  policy "CampaignFundedFulfillReward" do
+    on "CampaignFunded"
+    trigger "FulfillReward"
+  end
+
+  policy "RewardFulfilledMarkShipped" do
+    on "RewardFulfilled"
+    trigger "MarkShipped"
+  end
+
+  policy "ShippedCompleteMilestone" do
+    on "RewardShipped"
+    trigger "CompleteMilestone"
+  end
+
+  policy "CampaignCanceledWithdrawPledge" do
+    on "CampaignCanceled"
+    trigger "WithdrawPledge"
+  end
+
+  policy "DelayMilestoneOnDamage" do
+    on "RewardDamaged"
+    trigger "DelayMilestone"
+  end
+end

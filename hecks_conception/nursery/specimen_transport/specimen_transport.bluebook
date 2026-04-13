@@ -1,0 +1,164 @@
+Hecks.bluebook "SpecimenTransport", version: "2026.04.13.1" do
+  vision "Specimen transport — pathology samples meet cold air shipping and chain of custody"
+  category "healthcare_technology"
+
+  aggregate "LabSpecimen", "A pathology specimen requiring transport to a reference lab" do
+    String :specimen_id
+    String :patient_id
+    String :specimen_type
+    Float :required_temp_c
+    String :priority
+    String :status
+    PrepareSpecimen do
+      role "LabTech"
+      description "Prepare a specimen for shipment to reference lab"
+      String :specimen_id
+      String :patient_id
+      String :specimen_type
+      Float :required_temp_c
+      String :priority
+      emits "SpecimenPrepared"
+      then_set :specimen_id, to: :specimen_id
+      then_set :patient_id, to: :patient_id
+      then_set :specimen_type, to: :specimen_type
+      then_set :required_temp_c, to: :required_temp_c
+      then_set :priority, to: :priority
+      then_set :status, to: "prepared"
+    end
+    ReleaseSpecimen do
+      role "LabTech"
+      description "Release specimen to the shipping carrier"
+      reference_to(LabSpecimen)
+      given { status == "prepared" }
+      emits "SpecimenReleased"
+      then_set :status, to: "released"
+    end
+  end
+
+  aggregate "ColdShipment", "A temperature-controlled air cargo shipment" do
+    String :shipment_id
+    String :carrier
+    String :origin_lab
+    String :dest_lab
+    Float :target_temp_c
+    String :status
+    list_of(TempLog) :temp_logs
+    value_object "TempLog" do
+      String :timestamp
+      Float :temp_c
+      String :within_range
+    end
+    CreateShipment do
+      role "ShippingCoordinator"
+      description "Create a cold chain shipment for specimens"
+      String :shipment_id
+      String :carrier
+      String :origin_lab
+      String :dest_lab
+      Float :target_temp_c
+      emits "ShipmentCreated"
+      then_set :shipment_id, to: :shipment_id
+      then_set :carrier, to: :carrier
+      then_set :origin_lab, to: :origin_lab
+      then_set :dest_lab, to: :dest_lab
+      then_set :target_temp_c, to: :target_temp_c
+      then_set :status, to: "created"
+    end
+    PickUpShipment do
+      role "Carrier"
+      description "Pick up shipment from origin lab"
+      reference_to(ColdShipment)
+      given { status == "created" }
+      emits "ShipmentPickedUp"
+      then_set :status, to: "in_transit"
+    end
+    DeliverShipment do
+      role "Carrier"
+      description "Deliver shipment to destination lab"
+      reference_to(ColdShipment)
+      given { status == "in_transit" }
+      emits "ShipmentDelivered"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "CustodyRecord", "A chain of custody record for specimen handling" do
+    String :record_id
+    String :specimen_id
+    list_of(HandlerEntry) :handlers
+    String :status
+    value_object "HandlerEntry" do
+      String :handler_name
+      String :role_type
+      String :timestamp
+      String :action_taken
+    end
+    StartCustody do
+      role "LabTech"
+      description "Start chain of custody when specimen leaves the lab"
+      String :record_id
+      String :specimen_id
+      emits "CustodyStarted"
+      then_set :record_id, to: :record_id
+      then_set :specimen_id, to: :specimen_id
+      then_set :status, to: "active"
+    end
+    TransferCustody do
+      role "Handler"
+      description "Record custody transfer between handlers"
+      reference_to(CustodyRecord)
+      given { status == "active" }
+      emits "CustodyTransferred"
+    end
+    CloseCustody do
+      role "LabTech"
+      description "Close custody chain when specimen arrives at destination"
+      reference_to(CustodyRecord)
+      given { status == "active" }
+      emits "CustodyClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "QualityAudit", "An audit of specimen transport quality and compliance" do
+    String :audit_id
+    String :shipment_id
+    String :auditor
+    Float :compliance_score
+    String :findings
+    String :status
+    RunAudit do
+      role "QualityManager"
+      description "Run a quality audit on a specimen shipment"
+      String :audit_id
+      String :shipment_id
+      String :auditor
+      emits "AuditRun"
+      then_set :audit_id, to: :audit_id
+      then_set :shipment_id, to: :shipment_id
+      then_set :auditor, to: :auditor
+      then_set :status, to: "in_progress"
+    end
+    FinalizeAudit do
+      role "QualityManager"
+      description "Finalize the audit with compliance score and findings"
+      reference_to(QualityAudit)
+      Float :compliance_score
+      String :findings
+      given { status == "in_progress" }
+      emits "AuditFinalized"
+      then_set :compliance_score, to: :compliance_score
+      then_set :findings, to: :findings
+      then_set :status, to: "finalized"
+    end
+  end
+
+  policy "ShipOnRelease" do
+    on "SpecimenReleased"
+    trigger "CreateShipment"
+  end
+  policy "CustodyOnRelease" do
+    on "SpecimenReleased"
+    trigger "StartCustody"
+  end
+end

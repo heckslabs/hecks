@@ -1,0 +1,303 @@
+Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
+  vision "Anyone reentering society gets education, housing, employment, legal support as one workflow"
+  category "crossover_gen3"
+
+  # === ReentryCase ===
+
+  aggregate "ReentryCase", "A person reentering society — single case file linking all support services" do
+    String :case_id
+    String :participant_name
+    String :reentry_date
+    String :background_type
+    String :risk_level
+    String :status
+    list_of(ServiceNeed) :identified_needs
+    value_object "ServiceNeed" do
+      String :category
+      String :urgency
+      String :notes
+    end
+    OpenCase do
+      role "CaseManager"
+      description "Open a reentry case for a person returning to society"
+      String :case_id
+      String :participant_name
+      String :reentry_date
+      String :background_type
+      String :risk_level
+      emits "CaseOpened"
+      then_set :case_id, to: :case_id
+      then_set :participant_name, to: :participant_name
+      then_set :reentry_date, to: :reentry_date
+      then_set :background_type, to: :background_type
+      then_set :risk_level, to: :risk_level
+      then_set :status, to: "active"
+    end
+    EscalateCase do
+      role "CaseManager"
+      description "Escalate when participant misses milestones or faces crisis"
+      reference_to(ReentryCase)
+      String :risk_level
+      given { status == "active" }
+      emits "CaseEscalated"
+      then_set :risk_level, to: :risk_level
+    end
+    CloseCase do
+      role "CaseManager"
+      description "Close case when participant achieves stable independence"
+      reference_to(ReentryCase)
+      given { status == "active" }
+      emits "CaseClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  # === EducationTrack ===
+
+  aggregate "EducationTrack", "An education pathway — GED, vocational, or college track with progress" do
+    String :track_id
+    reference_to(ReentryCase) :case
+    String :track_type
+    String :institution
+    String :status
+    list_of(CourseModule) :modules
+    value_object "CourseModule" do
+      String :module_name
+      String :completion_status
+      String :grade
+      Integer :hours_completed
+    end
+    EnrollInTrack do
+      role "EducationCoordinator"
+      description "Enroll participant in an education track"
+      String :track_id
+      reference_to(ReentryCase) :case
+      String :track_type
+      String :institution
+      emits "TrackEnrolled"
+      then_set :track_id, to: :track_id
+      then_set :case, to: :case
+      then_set :track_type, to: :track_type
+      then_set :institution, to: :institution
+      then_set :status, to: "enrolled"
+    end
+    CompleteModule do
+      role "Instructor"
+      description "Mark a course module as completed with grade"
+      reference_to(EducationTrack)
+      given { status == "enrolled" }
+      emits "ModuleCompleted"
+    end
+    GraduateTrack do
+      role "EducationCoordinator"
+      description "Graduate participant from education track"
+      reference_to(EducationTrack)
+      given { status == "enrolled" }
+      emits "TrackGraduated"
+      then_set :status, to: "graduated"
+    end
+  end
+
+  # === HousingMatch ===
+
+  aggregate "HousingMatch", "A housing placement — transitional to permanent, with stability scoring" do
+    String :match_id
+    reference_to(ReentryCase) :case
+    String :housing_type
+    String :address
+    String :landlord_name
+    String :status
+    list_of(StabilityCheck) :stability_checks
+    value_object "StabilityCheck" do
+      String :check_date
+      String :status
+      String :notes
+      String :checked_by
+    end
+    PlaceInHousing do
+      role "HousingNavigator"
+      description "Place participant in transitional or permanent housing"
+      String :match_id
+      reference_to(ReentryCase) :case
+      String :housing_type
+      String :address
+      String :landlord_name
+      emits "HousingPlaced"
+      then_set :match_id, to: :match_id
+      then_set :case, to: :case
+      then_set :housing_type, to: :housing_type
+      then_set :address, to: :address
+      then_set :landlord_name, to: :landlord_name
+      then_set :status, to: "placed"
+    end
+    RecordStabilityCheck do
+      role "HousingNavigator"
+      description "Record a housing stability check visit"
+      reference_to(HousingMatch)
+      given { status == "placed" }
+      emits "StabilityChecked"
+    end
+    UpgradeHousing do
+      role "HousingNavigator"
+      description "Upgrade from transitional to permanent housing"
+      reference_to(HousingMatch)
+      String :housing_type
+      String :address
+      given { status == "placed" }
+      emits "HousingUpgraded"
+      then_set :housing_type, to: :housing_type
+      then_set :address, to: :address
+    end
+  end
+
+  # === EmploymentBridge ===
+
+  aggregate "EmploymentBridge", "Employment placement and support — from interview prep to sustained employment" do
+    String :bridge_id
+    reference_to(ReentryCase) :case
+    String :employer_name
+    String :job_title
+    String :start_date
+    String :status
+    list_of(RetentionCheckIn) :check_ins
+    value_object "RetentionCheckIn" do
+      String :check_date
+      String :employment_status
+      String :supervisor_feedback
+    end
+    PlaceInJob do
+      role "EmploymentCoach"
+      description "Place participant in a job with a partner employer"
+      String :bridge_id
+      reference_to(ReentryCase) :case
+      String :employer_name
+      String :job_title
+      String :start_date
+      emits "JobPlaced"
+      then_set :bridge_id, to: :bridge_id
+      then_set :case, to: :case
+      then_set :employer_name, to: :employer_name
+      then_set :job_title, to: :job_title
+      then_set :start_date, to: :start_date
+      then_set :status, to: "employed"
+    end
+    RecordRetention do
+      role "EmploymentCoach"
+      description "Record employment retention check-in"
+      reference_to(EmploymentBridge)
+      given { status == "employed" }
+      emits "RetentionRecorded"
+    end
+  end
+
+  # === LegalSupport ===
+
+  aggregate "LegalSupport", "Legal aid — record expungement, license restoration, compliance tracking" do
+    String :support_id
+    reference_to(ReentryCase) :case
+    String :legal_need
+    String :attorney_name
+    String :status
+    list_of(CourtDate) :court_dates
+    value_object "CourtDate" do
+      String :date
+      String :court_name
+      String :purpose
+      String :outcome
+    end
+    AssignAttorney do
+      role "LegalCoordinator"
+      description "Assign legal aid attorney to a reentry case"
+      String :support_id
+      reference_to(ReentryCase) :case
+      String :legal_need
+      String :attorney_name
+      emits "AttorneyAssigned"
+      then_set :support_id, to: :support_id
+      then_set :case, to: :case
+      then_set :legal_need, to: :legal_need
+      then_set :attorney_name, to: :attorney_name
+      then_set :status, to: "active"
+    end
+    FileExpungement do
+      role "Attorney"
+      description "File for record expungement on behalf of participant"
+      reference_to(LegalSupport)
+      given { status == "active" }
+      emits "ExpungementFiled"
+    end
+    ResolveLegalMatter do
+      role "Attorney"
+      description "Close legal matter with outcome"
+      reference_to(LegalSupport)
+      given { status == "active" }
+      emits "LegalMatterResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+
+  # === MilestoneTracker ===
+
+  aggregate "MilestoneTracker", "Cross-service milestone tracking — housing, education, employment, legal milestones in one view" do
+    reference_to(ReentryCase) :case
+    String :overall_progress
+    list_of(Milestone) :milestones
+    value_object "Milestone" do
+      String :category
+      String :description
+      String :achieved_date
+      String :verified_by
+    end
+    InitializeTracker do
+      role "System"
+      description "Create milestone tracker when case opens"
+      reference_to(ReentryCase) :case
+      emits "TrackerInitialized"
+      then_set :case, to: :case
+      then_set :overall_progress, to: "beginning"
+    end
+    RecordMilestone do
+      role "CaseManager"
+      description "Record achievement of a cross-service milestone"
+      reference_to(MilestoneTracker)
+      String :overall_progress
+      emits "MilestoneRecorded"
+      then_set :overall_progress, to: :overall_progress
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "InitializeTrackerOnOpen" do
+    on "CaseOpened"
+    trigger "InitializeTracker"
+  end
+  policy "EnrollOnOpen" do
+    on "CaseOpened"
+    trigger "EnrollInTrack"
+  end
+  policy "HouseOnOpen" do
+    on "CaseOpened"
+    trigger "PlaceInHousing"
+  end
+  policy "AssignLegalOnOpen" do
+    on "CaseOpened"
+    trigger "AssignAttorney"
+  end
+  policy "EmployOnGraduation" do
+    on "TrackGraduated"
+    trigger "PlaceInJob"
+  end
+  policy "MilestoneOnGraduation" do
+    on "TrackGraduated"
+    trigger "RecordMilestone"
+  end
+  policy "MilestoneOnHousing" do
+    on "HousingUpgraded"
+    trigger "RecordMilestone"
+  end
+  policy "MilestoneOnLegal" do
+    on "LegalMatterResolved"
+    trigger "RecordMilestone"
+  end
+end

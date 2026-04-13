@@ -1,0 +1,145 @@
+Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
+  vision "Therapy music — physical therapy exercises meet curated playlists and tempo matching"
+  category "healthcare_technology"
+
+  aggregate "RehabExercise", "A physical therapy exercise with tempo and intensity targets" do
+    String :exercise_id
+    String :patient_name
+    String :exercise_name
+    Integer :target_bpm
+    Integer :duration_seconds
+    String :status
+    PrescribeExercise do
+      role "Therapist"
+      description "Prescribe a rehab exercise with target tempo"
+      String :exercise_id
+      String :patient_name
+      String :exercise_name
+      Integer :target_bpm
+      Integer :duration_seconds
+      emits "ExercisePrescribed"
+      then_set :exercise_id, to: :exercise_id
+      then_set :patient_name, to: :patient_name
+      then_set :exercise_name, to: :exercise_name
+      then_set :target_bpm, to: :target_bpm
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :status, to: "prescribed"
+    end
+    CompleteExercise do
+      role "Patient"
+      description "Mark the exercise session as completed"
+      reference_to(RehabExercise)
+      given { status == "prescribed" }
+      emits "ExerciseCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "Playlist", "A curated music playlist matched to exercise tempo" do
+    String :playlist_id
+    String :name
+    Integer :target_bpm
+    String :genre
+    list_of(Track) :tracks
+    String :status
+    value_object "Track" do
+      String :title
+      String :artist
+      Integer :bpm
+      Integer :duration_seconds
+    end
+    CuratePlaylist do
+      role "MusicTherapist"
+      description "Curate a playlist matched to a target exercise tempo"
+      String :playlist_id
+      String :name
+      Integer :target_bpm
+      String :genre
+      emits "PlaylistCurated"
+      then_set :playlist_id, to: :playlist_id
+      then_set :name, to: :name
+      then_set :target_bpm, to: :target_bpm
+      then_set :genre, to: :genre
+      then_set :status, to: "active"
+    end
+    AddTrack do
+      role "MusicTherapist"
+      description "Add a track to the playlist"
+      reference_to(Playlist)
+      String :title
+      String :artist
+      Integer :bpm
+      emits "TrackAdded"
+    end
+  end
+
+  aggregate "TempoMatch", "A tempo match between an exercise and a playlist" do
+    String :match_id
+    String :exercise_id
+    String :playlist_id
+    Float :bpm_deviation
+    String :status
+    MatchTempo do
+      role "System"
+      description "Match an exercise to the best tempo-aligned playlist"
+      String :match_id
+      String :exercise_id
+      String :playlist_id
+      Float :bpm_deviation
+      emits "TempoMatched"
+      then_set :match_id, to: :match_id
+      then_set :exercise_id, to: :exercise_id
+      then_set :playlist_id, to: :playlist_id
+      then_set :bpm_deviation, to: :bpm_deviation
+      then_set :status, to: "matched"
+    end
+    RateMatch do
+      role "Patient"
+      description "Rate the music-exercise match quality"
+      reference_to(TempoMatch)
+      Float :rating
+      emits "MatchRated"
+    end
+  end
+
+  aggregate "SessionLog", "A log of exercise sessions with music playback" do
+    String :log_id
+    String :patient_name
+    String :exercise_id
+    String :playlist_id
+    Float :adherence_pct
+    String :mood_after
+    LogSession do
+      role "System"
+      description "Log an exercise session with music playback metrics"
+      String :log_id
+      String :patient_name
+      String :exercise_id
+      String :playlist_id
+      Float :adherence_pct
+      emits "SessionLogged"
+      then_set :log_id, to: :log_id
+      then_set :patient_name, to: :patient_name
+      then_set :exercise_id, to: :exercise_id
+      then_set :playlist_id, to: :playlist_id
+      then_set :adherence_pct, to: :adherence_pct
+    end
+    RecordMood do
+      role "Patient"
+      description "Record mood after exercise with music"
+      reference_to(SessionLog)
+      String :mood_after
+      emits "MoodRecorded"
+      then_set :mood_after, to: :mood_after
+    end
+  end
+
+  policy "MatchOnPrescribe" do
+    on "ExercisePrescribed"
+    trigger "MatchTempo"
+  end
+  policy "LogOnComplete" do
+    on "ExerciseCompleted"
+    trigger "LogSession"
+  end
+end

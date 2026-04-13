@@ -1,0 +1,203 @@
+Hecks.bluebook "RecordLabel" do
+  aggregate "RecordingArtist", "A signed musical artist or band on the label roster" do
+    String :name
+    String :genre
+    String :contract_status
+    Integer :album_count
+
+    SignArtist do
+      description "Sign a new artist to the record label"
+      String :name
+      String :genre
+      emits "ArtistSigned"
+      then_set :contract_status, to: "active"
+    end
+
+    RenewContract do
+      description "Extend an artist contract for another term"
+      reference_to(RecordingArtist)
+      Integer :term_years
+      given { contract_status == "active" }
+      emits "ContractRenewed"
+    end
+
+    DropArtist do
+      description "Release an artist from their label contract"
+      reference_to(RecordingArtist)
+      emits "ArtistDropped"
+      then_set :contract_status, to: "dropped"
+    end
+  end
+
+  aggregate "Album", "A collection of tracks produced and released under the label" do
+    String :title
+    String :status, default: "pre_production"
+    String :release_date
+    Integer :track_count
+    reference_to(RecordingArtist)
+
+    value_object "AlbumCredits" do
+      String :producer
+      String :mixing_engineer
+      String :mastering_engineer
+      String :studio_name
+    end
+
+    GreenLightAlbum do
+      description "Greenlight a new album project for an artist"
+      reference_to(RecordingArtist)
+      String :title
+      String :producer
+      emits "AlbumCommissioned"
+      then_set :status, to: "recording"
+    end
+
+    MasterAlbum do
+      description "Finalize the master recording for manufacturing"
+      reference_to(Album)
+      String :mastering_engineer
+      given { status == "recording" }
+      emits "AlbumMastered"
+      then_set :status, to: "mastered"
+    end
+
+    ReleaseAlbum do
+      description "Publish the album to streaming platforms and stores"
+      reference_to(Album)
+      String :release_date
+      given { status == "mastered" }
+      emits "AlbumReleased"
+      then_set :status, to: "released"
+      then_set :release_date, to: :release_date
+    end
+  end
+
+  aggregate "Track", "A single audio track on an album with duration and credits" do
+    String :title
+    Integer :duration_seconds
+    Integer :track_number
+    String :status, default: "demo"
+    reference_to(Album)
+
+    RecordTrack do
+      description "Lay down a recording session for a track"
+      reference_to(Album)
+      String :title
+      Integer :track_number
+      emits "TrackRecorded"
+      then_set :status, to: "recorded"
+    end
+
+    MixTrack do
+      description "Apply mixing and effects to a recorded track"
+      reference_to(Track)
+      given { status == "recorded" }
+      emits "TrackMixed"
+      then_set :status, to: "mixed"
+    end
+  end
+
+  aggregate "RoyaltyStatement", "Periodic royalty calculation and payout for an artist" do
+    String :period
+    Float :gross_revenue
+    Float :artist_share
+    Float :label_share
+    String :status, default: "draft"
+    reference_to(RecordingArtist)
+
+    CalculateRoyalties do
+      description "Compute royalty splits for a given accounting period"
+      reference_to(RecordingArtist)
+      String :period
+      Float :gross_revenue
+      Float :split_percentage
+      emits "RoyaltiesCalculated"
+    end
+
+    ApproveStatement do
+      description "Approve the royalty statement for payout"
+      reference_to(RoyaltyStatement)
+      given { status == "draft" }
+      emits "StatementApproved"
+      then_set :status, to: "approved"
+    end
+
+    DisbursePayment do
+      description "Send royalty payment to the artist"
+      reference_to(RoyaltyStatement)
+      given { status == "approved" }
+      emits "PaymentDisbursed"
+      then_set :status, to: "paid"
+    end
+  end
+
+  aggregate "Distribution", "Channel and format configuration for album distribution" do
+    String :channel
+    String :format
+    String :territory
+    String :status, default: "pending"
+    reference_to(Album)
+
+    SubmitForDistribution do
+      description "Send album to a distribution channel for a territory"
+      reference_to(Album)
+      String :channel
+      String :format
+      String :territory
+      emits "DistributionSubmitted"
+    end
+
+    ConfirmDistribution do
+      description "Mark distribution as live on the channel"
+      reference_to(Distribution)
+      given { status == "pending" }
+      emits "DistributionConfirmed"
+      then_set :status, to: "live"
+    end
+  end
+
+  policy "CommissionAlbumOnSigning" do
+    on "ArtistSigned"
+    trigger "GreenLightAlbum"
+  end
+
+  policy "RecordAfterGreenLight" do
+    on "AlbumCommissioned"
+    trigger "RecordTrack"
+  end
+
+  policy "MixAfterRecording" do
+    on "TrackRecorded"
+    trigger "MixTrack"
+  end
+
+  policy "MasterAfterMixing" do
+    on "TrackMixed"
+    trigger "MasterAlbum"
+  end
+
+  policy "ReleaseAfterMaster" do
+    on "AlbumMastered"
+    trigger "ReleaseAlbum"
+  end
+
+  policy "DistributeOnRelease" do
+    on "AlbumReleased"
+    trigger "SubmitForDistribution"
+  end
+
+  policy "CalculateRoyaltiesOnDistribution" do
+    on "DistributionConfirmed"
+    trigger "CalculateRoyalties"
+  end
+
+  policy "ApproveStatementOnCalculation" do
+    on "RoyaltiesCalculated"
+    trigger "ApproveStatement"
+  end
+
+  policy "DisburseOnApproval" do
+    on "StatementApproved"
+    trigger "DisbursePayment"
+  end
+end

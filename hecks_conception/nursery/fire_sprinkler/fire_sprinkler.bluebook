@@ -1,0 +1,224 @@
+Hecks.bluebook "FireSprinkler" do
+  vision "Manage fire sprinkler system design, installation, inspection, and code compliance for commercial and residential buildings"
+  core
+
+  aggregate "SprinklerSystem" do
+    description "A fire sprinkler system covering a building with pipe type, water supply, and system classification"
+    String :building_name
+    String :address
+    String :system_type
+    String :pipe_material
+    Float :design_density_gpm
+    String :status
+
+    value_object "HydraulicCalc" do
+      Float :flow_gpm
+      Float :pressure_psi
+      Float :residual_pressure
+    end
+
+    DesignSystem do
+      role "Fire Protection Engineer"
+      goal "Design the sprinkler system per NFPA 13 requirements"
+      description "Calculate hydraulic demand, pipe sizes, and head placement"
+      String :building_name
+      String :address
+      String :system_type
+      String :pipe_material
+      Float :design_density_gpm
+      emits "SystemDesigned"
+    end
+
+    ActivateSystem do
+      role "Foreman"
+      goal "Activate the sprinkler system after installation and testing"
+      description "Open the main valve and verify all zones are operational"
+      reference_to(SprinklerSystem)
+      given("must pass hydrostatic test") { status == "tested" }
+      emits "SystemActivated"
+    end
+
+    ShutDownSystem do
+      role "Building Manager"
+      goal "Temporarily shut down the system for maintenance"
+      description "Close the main valve and notify the fire department and alarm company"
+      reference_to(SprinklerSystem)
+      String :reason
+      emits "SystemTakenOutOfService"
+    end
+  end
+
+  aggregate "Zone" do
+    description "A fire sprinkler zone covering a floor or area with its own control valve and flow switch"
+    String :zone_name
+    String :floor
+    Integer :head_count
+    String :occupancy_type
+    reference_to(SprinklerSystem)
+
+    value_object "ZoneCoverage" do
+      Float :area_sqft
+      String :hazard_class
+    end
+
+    DefineZone do
+      role "Fire Protection Engineer"
+      goal "Establish a sprinkler zone with coverage area and head count"
+      description "Delineate the zone boundaries and calculate required heads"
+      String :zone_name
+      String :floor
+      Integer :head_count
+      String :occupancy_type
+      reference_to(SprinklerSystem)
+      emits "ZoneDefined"
+    end
+
+    AdjustHeadCount do
+      role "Fire Protection Engineer"
+      goal "Modify the number of heads in a zone after plan review"
+      description "Add or remove heads based on occupancy changes or AHJ comments"
+      reference_to(Zone)
+      Integer :new_head_count
+      emits "HeadCountAdjusted"
+    end
+  end
+
+  aggregate "SprinklerHead" do
+    description "An individual sprinkler head with temperature rating, K-factor, and orientation"
+    String :head_type
+    Float :k_factor
+    Integer :temp_rating_f
+    String :orientation
+    String :coverage_area
+    reference_to(Zone)
+
+    value_object "HeadSpec" do
+      String :response_type
+      String :finish
+      Float :deflector_to_ceiling
+    end
+
+    InstallHead do
+      role "Fitter"
+      goal "Install a sprinkler head at the specified location"
+      description "Thread and tighten the head with proper orientation and clearance"
+      String :head_type
+      Float :k_factor
+      Integer :temp_rating_f
+      String :orientation
+      reference_to(Zone)
+      emits "HeadInstalled"
+    end
+
+    ReplaceHead do
+      role "Service Tech"
+      goal "Swap a damaged, painted, or recalled sprinkler head"
+      description "Remove the old head and install a matching replacement"
+      reference_to(SprinklerHead)
+      String :replacement_reason
+      emits "HeadReplaced"
+    end
+  end
+
+  aggregate "SprinklerInspection" do
+    description "A periodic inspection per NFPA 25 — visual, functional, or full flow test"
+    String :inspection_type
+    String :inspector_name
+    String :result
+    String :deficiencies
+    String :inspection_date
+    reference_to(SprinklerSystem)
+
+    PerformInspection do
+      role "Inspector"
+      goal "Conduct the scheduled inspection per NFPA 25"
+      description "Inspect valves, heads, piping, and alarms according to the inspection type"
+      String :inspection_type
+      String :inspector_name
+      String :inspection_date
+      reference_to(SprinklerSystem)
+      emits "InspectionPerformed"
+    end
+
+    RecordDeficiency do
+      role "Inspector"
+      goal "Document a code violation or deficiency found during inspection"
+      description "Log the deficiency with location and required corrective action"
+      reference_to(SprinklerInspection)
+      String :deficiencies
+      emits "DeficiencyRecorded"
+    end
+
+    IssueComplianceCert do
+      role "Inspector"
+      goal "Issue a compliance certificate after a passing inspection"
+      description "Generate the certificate for the building owner and fire marshal"
+      reference_to(SprinklerInspection)
+      given("must pass inspection") { result == "pass" }
+      emits "ComplianceCertIssued"
+    end
+  end
+
+  aggregate "ComplianceRecord" do
+    description "A compliance tracking record linking inspections to AHJ requirements and deadlines"
+    String :ahj_name
+    String :requirement
+    String :due_date
+    String :status
+    reference_to(SprinklerSystem)
+
+    TrackRequirement do
+      role "Compliance Officer"
+      goal "Record a compliance obligation from the authority having jurisdiction"
+      description "Log the requirement and deadline for inspection or testing"
+      String :ahj_name
+      String :requirement
+      String :due_date
+      reference_to(SprinklerSystem)
+      emits "RequirementTracked"
+    end
+
+    MarkCompliant do
+      role "Compliance Officer"
+      goal "Record that a compliance requirement has been satisfied"
+      description "Update the status after the inspection certificate is received"
+      reference_to(ComplianceRecord)
+      emits "MarkedCompliant"
+    end
+  end
+
+  policy "TrackOnDesign" do
+    on "SystemDesigned"
+    trigger "TrackRequirement"
+  end
+
+  policy "DefineZonesOnDesign" do
+    on "SystemDesigned"
+    trigger "DefineZone"
+  end
+
+  policy "InstallHeadsOnZone" do
+    on "ZoneDefined"
+    trigger "InstallHead"
+  end
+
+  policy "ActivateAfterInstall" do
+    on "HeadInstalled"
+    trigger "ActivateSystem"
+  end
+
+  policy "InspectOnCommission" do
+    on "SystemActivated"
+    trigger "PerformInspection"
+  end
+
+  policy "CertifyOnPass" do
+    on "InspectionPerformed"
+    trigger "IssueComplianceCert"
+  end
+
+  policy "MarkCompliantOnCert" do
+    on "ComplianceCertIssued"
+    trigger "MarkCompliant"
+  end
+end

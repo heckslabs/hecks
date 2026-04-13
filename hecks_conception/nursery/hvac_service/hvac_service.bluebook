@@ -1,0 +1,203 @@
+Hecks.bluebook "HVACService" do
+  vision "Manage HVAC installation, repair, and maintenance including unit tracking, refrigerant logs, and service contracts"
+  core
+
+  aggregate "Unit" do
+    description "An HVAC unit — furnace, air conditioner, heat pump, or mini-split with model and tonnage"
+    String :unit_type
+    String :brand
+    String :model
+    Float :tonnage
+    Float :seer_rating
+    String :location
+    reference_to(ServiceTicket)
+
+    value_object "UnitCapacity" do
+      Float :btu_output
+      Float :tonnage
+      Float :seer
+    end
+
+    RegisterUnit do
+      role "Technician"
+      goal "Add an HVAC unit to the customer's equipment profile"
+      description "Record make, model, tonnage, and location of the installed unit"
+      String :unit_type
+      String :brand
+      String :model
+      Float :tonnage
+      Float :seer_rating
+      String :location
+      emits "UnitRegistered"
+    end
+
+    RetireUnit do
+      role "Technician"
+      goal "Remove an old unit from active service"
+      description "Mark a unit as retired and record disposal method"
+      reference_to(Unit)
+      String :disposal_method
+      emits "UnitDecommissioned"
+    end
+
+    RecordAge do
+      role "Technician"
+      goal "Log the manufacture date and expected lifespan"
+      description "Track unit age for replacement planning"
+      reference_to(Unit)
+      String :manufacture_date
+      Integer :expected_lifespan_years
+      emits "AgeRecorded"
+    end
+  end
+
+  aggregate "ServiceTicket" do
+    description "A service call for HVAC repair, maintenance, or emergency breakdown"
+    String :customer_name
+    String :address
+    String :complaint
+    String :diagnosis
+    String :status
+
+    value_object "Priority" do
+      String :level
+      Integer :max_response_hours
+    end
+
+    OpenTicket do
+      role "Dispatcher"
+      goal "Create a service ticket for a customer HVAC issue"
+      description "Log the complaint and assign priority based on severity"
+      String :customer_name
+      String :address
+      String :complaint
+      emits "TicketOpened"
+    end
+
+    DiagnoseSystem do
+      role "Technician"
+      goal "Identify the root cause of the HVAC malfunction"
+      description "Run diagnostics and record findings"
+      reference_to(ServiceTicket)
+      String :diagnosis
+      given("ticket must be open") { status == "open" }
+      emits "SystemDiagnosed"
+    end
+
+    ResolveTicket do
+      role "Technician"
+      goal "Complete the repair and close the ticket"
+      description "Fix the issue and verify system operation"
+      reference_to(ServiceTicket)
+      String :resolution
+      emits "TicketResolved"
+    end
+  end
+
+  aggregate "RefrigerantLog" do
+    description "An EPA-required log of refrigerant added or recovered from HVAC systems"
+    String :refrigerant_type
+    Float :pounds_added
+    Float :pounds_recovered
+    String :technician_epa_cert
+    reference_to(Unit)
+
+    LogRefrigerantCharge do
+      role "Technician"
+      goal "Record refrigerant added to a system per EPA Section 608"
+      description "Log type, amount, and technician certification"
+      String :refrigerant_type
+      Float :pounds_added
+      String :technician_epa_cert
+      reference_to(Unit)
+      emits "RefrigerantCharged"
+    end
+
+    LogRecovery do
+      role "Technician"
+      goal "Record refrigerant recovered during service or decommission"
+      description "Document recovered pounds for EPA compliance"
+      reference_to(Unit)
+      Float :pounds_recovered
+      String :refrigerant_type
+      emits "RefrigerantRecovered"
+    end
+  end
+
+  aggregate "MaintenancePlan" do
+    description "A preventive maintenance contract covering scheduled tune-ups and priority service"
+    String :plan_name
+    String :customer_name
+    Integer :visits_per_year
+    Float :annual_price
+    String :status
+    reference_to(Unit)
+
+    value_object "PlanBenefits" do
+      Integer :discount_pct
+      Integer :priority_hours
+      String :parts_coverage
+    end
+
+    EnrollPlan do
+      role "Sales Rep"
+      goal "Sign a customer up for a preventive maintenance plan"
+      description "Create a maintenance agreement with visit schedule and pricing"
+      String :plan_name
+      String :customer_name
+      Integer :visits_per_year
+      Float :annual_price
+      reference_to(Unit)
+      emits "PlanEnrolled"
+    end
+
+    ScheduleTuneUp do
+      role "Dispatcher"
+      goal "Book the next scheduled maintenance visit"
+      description "Set the date for the next preventive maintenance appointment"
+      reference_to(MaintenancePlan)
+      String :scheduled_date
+      emits "TuneUpScheduled"
+    end
+
+    RenewPlan do
+      role "Sales Rep"
+      goal "Renew an expiring maintenance plan for another year"
+      description "Extend the plan with updated pricing"
+      reference_to(MaintenancePlan)
+      Float :new_annual_price
+      given("plan must be active") { status == "active" }
+      emits "PlanRenewed"
+    end
+  end
+
+  policy "DiagnoseOnOpen" do
+    on "TicketOpened"
+    trigger "DiagnoseSystem"
+  end
+
+  policy "LogRefrigerantOnDiagnosis" do
+    on "SystemDiagnosed"
+    trigger "LogRefrigerantCharge"
+  end
+
+  policy "ResolveAfterDiagnosis" do
+    on "SystemDiagnosed"
+    trigger "ResolveTicket"
+  end
+
+  policy "RegisterUnitOnResolve" do
+    on "TicketResolved"
+    trigger "RegisterUnit"
+  end
+
+  policy "ScheduleMaintenanceOnEnroll" do
+    on "PlanEnrolled"
+    trigger "ScheduleTuneUp"
+  end
+
+  policy "RecoverRefrigerantOnRetire" do
+    on "UnitDecommissioned"
+    trigger "LogRecovery"
+  end
+end

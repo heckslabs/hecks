@@ -1,0 +1,215 @@
+Hecks.bluebook "CakeDecorating" do
+  aggregate "CakeOrder", "A custom cake order with design, flavor, and delivery specs" do
+    String :client_name
+    String :occasion
+    String :status, default: "inquiry"
+    Integer :tier_count
+    Integer :servings
+    String :delivery_date
+
+    value_object "CakeDesign" do
+      String :theme
+      String :color_palette
+      String :topper_description
+      String :decoration_style
+    end
+
+    PlaceOrder do
+      description "Book a custom cake order for an occasion"
+      String :client_name
+      String :occasion
+      Integer :tier_count
+      Integer :servings
+      String :delivery_date
+      emits "OrderPlaced"
+    end
+
+    ConfirmOrder do
+      description "Lock in the order after tasting and design approval"
+      reference_to(CakeOrder)
+      given { status == "inquiry" }
+      emits "OrderConfirmed"
+      then_set :status, to: "confirmed"
+    end
+
+    StartBaking do
+      description "Begin baking the cake layers and components"
+      reference_to(CakeOrder)
+      given { status == "confirmed" }
+      emits "BakingStarted"
+      then_set :status, to: "baking"
+    end
+
+    CompleteOrder do
+      description "Mark the cake as finished and ready for pickup or delivery"
+      reference_to(CakeOrder)
+      given { status == "baking" }
+      emits "OrderCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "FlavorProfile", "A cake flavor combination with layers and fillings" do
+    String :cake_flavor
+    String :filling
+    String :frosting
+    String :status, default: "proposed"
+    reference_to(CakeOrder)
+
+    value_object "LayerSpec" do
+      String :flavor
+      Float :height_inches
+      String :moistening_syrup
+    end
+
+    ProposeFlav do
+      description "Suggest a flavor combination for client tasting"
+      reference_to(CakeOrder)
+      String :cake_flavor
+      String :filling
+      String :frosting
+      emits "FlavorProposed"
+    end
+
+    ApproveFlavor do
+      description "Client selects the final flavor profile"
+      reference_to(FlavorProfile)
+      given { status == "proposed" }
+      emits "FlavorApproved"
+      then_set :status, to: "approved"
+    end
+  end
+
+  aggregate "Tasting", "A tasting session where clients sample cake flavors" do
+    String :date
+    String :client_name
+    Integer :sample_count
+    String :status, default: "scheduled"
+    reference_to(CakeOrder)
+
+    ScheduleTasting do
+      description "Book a tasting appointment with the client"
+      reference_to(CakeOrder)
+      String :date
+      String :client_name
+      Integer :sample_count
+      emits "TastingScheduled"
+    end
+
+    ConductTasting do
+      description "Run the tasting session and record preferences"
+      reference_to(Tasting)
+      String :preferred_flavor
+      given { status == "scheduled" }
+      emits "TastingConducted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "IngredientStock", "Pantry inventory of baking ingredients" do
+    String :ingredient_name
+    String :category
+    Float :quantity_on_hand
+    String :unit
+    Float :reorder_threshold
+
+    StockIngredient do
+      description "Add or restock an ingredient in the pantry"
+      String :ingredient_name
+      String :category
+      Float :quantity
+      String :unit
+      emits "IngredientStocked"
+    end
+
+    ConsumeIngredient do
+      description "Deduct ingredient used for a bake"
+      reference_to(IngredientStock)
+      Float :quantity_used
+      emits "IngredientConsumed"
+    end
+
+    FlagLowStock do
+      description "Alert when ingredient drops below reorder threshold"
+      reference_to(IngredientStock)
+      emits "LowStockFlagged"
+    end
+  end
+
+  aggregate "CakeDelivery", "Delivery logistics for a finished cake" do
+    String :address
+    String :delivery_date
+    String :time_window
+    String :status, default: "scheduled"
+    String :handler_name
+    reference_to(CakeOrder)
+
+    ScheduleCakeDelivery do
+      description "Book delivery for a completed cake order"
+      reference_to(CakeOrder)
+      String :address
+      String :delivery_date
+      String :time_window
+      String :handler_name
+      emits "CakeDeliveryScheduled"
+    end
+
+    CompleteCakeDelivery do
+      description "Confirm the cake was delivered safely"
+      reference_to(CakeDelivery)
+      given { status == "scheduled" }
+      emits "CakeDeliveryCompleted"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  policy "ScheduleTastingOnOrder" do
+    on "OrderPlaced"
+    trigger "ScheduleTasting"
+  end
+
+  policy "ProposeFlavorOnTasting" do
+    on "TastingScheduled"
+    trigger "ProposeFlav"
+  end
+
+  policy "ConductTastingOnProposal" do
+    on "FlavorProposed"
+    trigger "ConductTasting"
+  end
+
+  policy "ApproveFlavorOnTasting" do
+    on "TastingConducted"
+    trigger "ApproveFlavor"
+  end
+
+  policy "ConfirmOrderOnFlavor" do
+    on "FlavorApproved"
+    trigger "ConfirmOrder"
+  end
+
+  policy "StartBakingOnConfirm" do
+    on "OrderConfirmed"
+    trigger "StartBaking"
+  end
+
+  policy "ConsumeIngredientsOnBake" do
+    on "BakingStarted"
+    trigger "ConsumeIngredient"
+  end
+
+  policy "CompleteOnBake" do
+    on "IngredientConsumed"
+    trigger "CompleteOrder"
+  end
+
+  policy "DeliverOnCompletion" do
+    on "OrderCompleted"
+    trigger "ScheduleCakeDelivery"
+  end
+
+  policy "ConfirmDeliveryOnSchedule" do
+    on "CakeDeliveryScheduled"
+    trigger "CompleteCakeDelivery"
+  end
+end

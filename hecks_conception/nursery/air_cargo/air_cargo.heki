@@ -1,0 +1,247 @@
+Hecks.bluebook "AirCargo" do
+  aggregate "CargoFlight" do
+    String :flight_id
+    String :flight_number
+    String :aircraft_type
+    String :origin_airport
+    String :destination_airport
+    Float :payload_capacity_kg
+    String :status
+
+    ScheduleFlight do
+      description "Schedule cargo flight with aircraft assignment and capacity"
+      String :flight_number
+      String :origin_airport
+      String :destination_airport
+      reference_to "CargoFlight"
+      emits "FlightScheduled"
+    end
+
+    DepartFlight do
+      description "Record actual departure with final load and fuel figures"
+      Float :actual_payload_kg
+      String :departure_time
+      reference_to "CargoFlight"
+      emits "FlightDeparted"
+    end
+
+    ArriveFlight do
+      description "Record flight arrival and begin cargo offload operations"
+      String :arrival_time
+      reference_to "CargoFlight"
+      emits "FlightArrived"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "ScheduleFlight" => "scheduled", from: "planned"
+      transition "DepartFlight" => "in_transit", from: "scheduled"
+      transition "ArriveFlight" => "arrived", from: "in_transit"
+    end
+
+    policy "Payload must not exceed aircraft maximum takeoff weight limits"
+    policy "Dangerous goods must be loaded per IATA segregation rules"
+
+    given "A 747 freighter departs LAX for Shanghai" do
+      String :flight_number, "CX-2847"
+      String :aircraft_type, "747-400F"
+      Float :payload_capacity_kg, 112000.0
+    end
+  end
+
+  aggregate "ULDPallet" do
+    String :pallet_id
+    String :uld_type
+    Float :tare_weight_kg
+    Float :gross_weight_kg
+    Float :max_weight_kg
+    String :status
+    list_of "CargoShipment"
+
+    value_object "ULDPosition" do
+      String :deck
+      String :position_code
+      Float :contour_limit_kg
+    end
+
+    BuildPallet do
+      description "Stack and net cargo shipments onto ULD pallet for loading"
+      String :uld_type
+      reference_to "ULDPallet"
+      emits "PalletBuilt"
+    end
+
+    WeighPallet do
+      description "Weigh completed pallet and verify within contour limits"
+      Float :gross_weight_kg
+      reference_to "ULDPallet"
+      emits "PalletWeighed"
+    end
+
+    LoadOntoAircraft do
+      description "Load weighed pallet into aircraft cargo hold position"
+      String :hold_position
+      reference_to "CargoFlight"
+      emits "PalletLoaded"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "BuildPallet" => "built", from: "empty"
+      transition "WeighPallet" => "weighed", from: "built"
+      transition "LoadOntoAircraft" => "loaded", from: "weighed"
+    end
+
+    policy "Pallet weight must not exceed position contour limit"
+  end
+
+  aggregate "CargoShipment" do
+    String :awb_number
+    String :shipper_name
+    String :consignee_name
+    Integer :piece_count
+    Float :chargeable_weight_kg
+    String :commodity
+    String :status
+
+    BookShipment do
+      description "Accept cargo booking with shipper details and commodity info"
+      String :shipper_name
+      String :consignee_name
+      String :commodity
+      reference_to "CargoShipment"
+      emits "ShipmentBooked"
+    end
+
+    ReceiveCargo do
+      description "Accept physical cargo at warehouse and verify against booking"
+      Integer :piece_count
+      Float :actual_weight_kg
+      reference_to "CargoShipment"
+      emits "CargoReceived"
+    end
+
+    DeliverCargo do
+      description "Release cargo to consignee after customs clearance"
+      String :consignee_signature
+      reference_to "CargoShipment"
+      emits "CargoDelivered"
+    end
+
+    lifecycle :status, default: "booked" do
+      transition "BookShipment" => "booked"
+      transition "ReceiveCargo" => "received", from: "booked"
+      transition "DeliverCargo" => "delivered", from: "received"
+    end
+
+    policy "Actual weight variance over 5 percent requires rebooking"
+  end
+
+  aggregate "CustomsEntry" do
+    String :entry_id
+    String :awb_number
+    String :entry_type
+    String :broker_name
+    String :hs_code
+    String :status
+
+    value_object "TariffLine" do
+      String :hs_code
+      Float :declared_value
+      Float :duty_rate
+      Float :duty_amount
+    end
+
+    FileEntry do
+      description "Submit customs entry for import clearance with broker"
+      String :entry_type
+      String :broker_name
+      reference_to "CargoShipment"
+      emits "EntryFiled"
+    end
+
+    ClearEntry do
+      description "Record customs clearance allowing cargo release to consignee"
+      String :clearance_number
+      reference_to "CustomsEntry"
+      emits "EntryCleared"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "FileEntry" => "filed", from: "pending"
+      transition "ClearEntry" => "cleared", from: "filed"
+    end
+
+    policy "Cargo cannot be released without customs clearance"
+  end
+
+  aggregate "WarehouseLocation" do
+    String :location_id
+    String :zone
+    String :rack_position
+    Float :capacity_cubic_m
+    String :temperature_zone
+    String :status
+
+    StowCargo do
+      description "Place received cargo into assigned warehouse storage location"
+      String :awb_number
+      String :zone
+      reference_to "CargoShipment"
+      emits "CargoStowed"
+    end
+
+    RetrieveCargo do
+      description "Pull cargo from storage for pallet buildup or customer pickup"
+      String :awb_number
+      String :purpose
+      reference_to "WarehouseLocation"
+      emits "CargoRetrieved"
+    end
+
+    lifecycle :status, default: "empty" do
+      transition "StowCargo" => "occupied", from: "empty"
+      transition "RetrieveCargo" => "empty", from: "occupied"
+    end
+
+    policy "Temperature-sensitive cargo must be stored in correct zone"
+  end
+
+  policy "ReceiveCargoOnShipmentBooked" do
+    on "ShipmentBooked"
+    trigger "ReceiveCargo"
+  end
+
+  policy "StowCargoOnCargoReceived" do
+    on "CargoReceived"
+    trigger "StowCargo"
+  end
+
+  policy "BuildPalletOnCargoStowed" do
+    on "CargoStowed"
+    trigger "BuildPallet"
+  end
+
+  policy "WeighPalletOnPalletBuilt" do
+    on "PalletBuilt"
+    trigger "WeighPallet"
+  end
+
+  policy "LoadOntoAircraftOnPalletWeighed" do
+    on "PalletWeighed"
+    trigger "LoadOntoAircraft"
+  end
+
+  policy "DepartFlightOnPalletLoaded" do
+    on "PalletLoaded"
+    trigger "DepartFlight"
+  end
+
+  policy "FileEntryOnFlightArrived" do
+    on "FlightArrived"
+    trigger "FileEntry"
+  end
+
+  policy "DeliverCargoOnEntryCleared" do
+    on "EntryCleared"
+    trigger "DeliverCargo"
+  end
+end

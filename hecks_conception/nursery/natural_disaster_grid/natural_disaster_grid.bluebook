@@ -1,0 +1,401 @@
+Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
+  vision "When disaster strikes, infrastructure cascades — grid reroutes power, airports switch to backup, emergency services activate"
+  category "crossover_gen2"
+
+  # === DisasterEvent ===
+
+  aggregate "DisasterEvent", "A natural disaster — the trigger that cascades through all infrastructure systems" do
+    String :event_type
+    String :location
+    String :severity
+    String :status
+    String :declared_at
+    list_of(ImpactAssessment) :impacts
+
+    value_object "ImpactAssessment" do
+      String :infrastructure_type
+      String :impact_level
+      Integer :affected_population
+      String :assessed_at
+    end
+
+    DeclareDisaster do
+      role "EmergencyManager"
+      description "Officially declare a natural disaster event — triggers all cascade protocols"
+      String :event_type
+      String :location
+      String :severity
+      String :declared_at
+      emits "DisasterDeclared"
+      then_set :event_type, to: :event_type
+      then_set :location, to: :location
+      then_set :severity, to: :severity
+      then_set :declared_at, to: :declared_at
+      then_set :status, to: "active"
+    end
+
+    AssessImpact do
+      role "EmergencyManager"
+      description "Assess the impact on specific infrastructure systems"
+      reference_to(DisasterEvent)
+      String :infrastructure_type
+      String :impact_level
+      emits "ImpactAssessed"
+    end
+
+    EscalateSeverity do
+      role "EmergencyManager"
+      description "Upgrade disaster severity as situation worsens"
+      reference_to(DisasterEvent)
+      String :severity
+      given { status == "active" }
+      emits "SeverityEscalated"
+      then_set :severity, to: :severity
+    end
+
+    ResolveDisaster do
+      role "EmergencyManager"
+      description "Disaster event resolved — begin recovery phase"
+      reference_to(DisasterEvent)
+      given { status == "active" }
+      emits "DisasterResolved"
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "monitoring" do
+      transition "DeclareDisaster" => "active", from: "monitoring"
+      transition "ResolveDisaster" => "resolved", from: "active"
+    end
+  end
+
+  # === GridSegment ===
+
+  aggregate "GridSegment", "A section of the power grid — load, generation, and switching capability" do
+    String :segment_id
+    String :region
+    Float :capacity_mw
+    Float :current_load_mw
+    String :status
+    list_of(Generator) :generators
+
+    value_object "Generator" do
+      String :generator_id
+      String :fuel_type
+      Float :capacity_mw
+      String :status
+    end
+
+    RegisterSegment do
+      role "GridOperator"
+      description "Register a power grid segment with its generators and capacity"
+      String :segment_id
+      String :region
+      Float :capacity_mw
+      emits "SegmentRegistered"
+      then_set :segment_id, to: :segment_id
+      then_set :region, to: :region
+      then_set :capacity_mw, to: :capacity_mw
+      then_set :current_load_mw, to: 0.0
+      then_set :status, to: "online"
+    end
+
+    RerouteGrid do
+      role "System"
+      description "Reroute power away from damaged segment to backup paths"
+      reference_to(GridSegment)
+      given { status == "online" }
+      emits "GridRerouted"
+      then_set :status, to: "rerouted"
+    end
+
+    FailSegment do
+      role "System"
+      description "Grid segment has failed — total power loss in this area"
+      reference_to(GridSegment)
+      emits "GridFailed"
+      then_set :status, to: "failed"
+    end
+
+    RestoreSegment do
+      role "GridOperator"
+      description "Restore power to a failed or rerouted segment"
+      reference_to(GridSegment)
+      emits "SegmentRestored"
+      then_set :status, to: "online"
+    end
+
+    lifecycle :status, default: "offline" do
+      transition "RegisterSegment" => "online", from: "offline"
+      transition "RerouteGrid" => "rerouted", from: "online"
+      transition "FailSegment" => "failed", from: "online"
+      transition "RestoreSegment" => "online", from: "rerouted"
+    end
+  end
+
+  # === AirspaceZone ===
+
+  aggregate "AirspaceZone", "A controlled airspace zone — volcanic ash, debris, or weather can force closure" do
+    String :zone_id
+    String :region
+    String :status
+    String :closure_reason
+    Integer :affected_flights
+    list_of(AshReading) :ash_readings
+
+    value_object "AshReading" do
+      Float :concentration_mg_m3
+      Float :altitude_ft
+      String :timestamp
+      String :source_volcano
+    end
+
+    DefineAirspace do
+      role "AirTrafficControl"
+      description "Define a controlled airspace zone"
+      String :zone_id
+      String :region
+      emits "AirspaceDefined"
+      then_set :zone_id, to: :zone_id
+      then_set :region, to: :region
+      then_set :affected_flights, to: 0
+      then_set :status, to: "open"
+    end
+
+    DetectAsh do
+      role "System"
+      description "Volcanic ash detected in airspace — aviation hazard"
+      reference_to(AirspaceZone)
+      Float :concentration_mg_m3
+      emits "AshDetected"
+    end
+
+    CloseAirspace do
+      role "System"
+      description "Close airspace zone — ash, debris, or disaster makes it unsafe"
+      reference_to(AirspaceZone)
+      String :closure_reason
+      Integer :affected_flights
+      given { status == "open" }
+      emits "AirspaceClosed"
+      then_set :closure_reason, to: :closure_reason
+      then_set :affected_flights, to: :affected_flights
+      then_set :status, to: "closed"
+    end
+
+    ReopenAirspace do
+      role "AirTrafficControl"
+      description "Reopen airspace after hazard has cleared"
+      reference_to(AirspaceZone)
+      given { status == "closed" }
+      emits "AirspaceReopened"
+      then_set :status, to: "open"
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DefineAirspace" => "open", from: "undefined"
+      transition "CloseAirspace" => "closed", from: "open"
+      transition "ReopenAirspace" => "open", from: "closed"
+    end
+  end
+
+  # === EmergencyProtocol ===
+
+  aggregate "EmergencyProtocol", "A pre-defined emergency response protocol — activated by disaster cascade" do
+    String :protocol_name
+    String :protocol_type
+    String :trigger_condition
+    String :status
+    reference_to(DisasterEvent) :disaster
+    list_of(ProtocolStep) :steps
+
+    value_object "ProtocolStep" do
+      Integer :step_number
+      String :action
+      String :responsible_party
+      String :status
+      String :completed_at
+    end
+
+    ActivateEmergencyProtocol do
+      role "System"
+      description "Activate an emergency protocol in response to infrastructure failure"
+      String :protocol_name
+      String :protocol_type
+      String :trigger_condition
+      reference_to(DisasterEvent) :disaster
+      emits "ProtocolActivated"
+      then_set :protocol_name, to: :protocol_name
+      then_set :protocol_type, to: :protocol_type
+      then_set :trigger_condition, to: :trigger_condition
+      then_set :disaster, to: :disaster
+      then_set :status, to: "active"
+    end
+
+    ExecuteStep do
+      role "EmergencyManager"
+      description "Execute the next step in the emergency protocol"
+      reference_to(EmergencyProtocol)
+      given { status == "active" }
+      emits "ProtocolStepExecuted"
+    end
+
+    CompleteProtocol do
+      role "EmergencyManager"
+      description "All protocol steps completed — emergency response fulfilled"
+      reference_to(EmergencyProtocol)
+      given { status == "active" }
+      emits "ProtocolCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "standby" do
+      transition "ActivateEmergencyProtocol" => "active", from: "standby"
+      transition "CompleteProtocol" => "completed", from: "active"
+    end
+  end
+
+  # === CascadeChain ===
+
+  aggregate "CascadeChain", "A chain of infrastructure failures — one failure triggers the next in sequence" do
+    reference_to(DisasterEvent) :disaster
+    String :chain_name
+    Integer :cascade_depth
+    String :status
+    list_of(CascadeLink) :links
+
+    value_object "CascadeLink" do
+      String :source_system
+      String :target_system
+      String :failure_type
+      String :triggered_at
+    end
+
+    StartCascade do
+      role "System"
+      description "Initialize a cascade chain when disaster impacts first infrastructure"
+      reference_to(DisasterEvent) :disaster
+      String :chain_name
+      emits "CascadeStarted"
+      then_set :disaster, to: :disaster
+      then_set :chain_name, to: :chain_name
+      then_set :cascade_depth, to: 1
+      then_set :status, to: "cascading"
+    end
+
+    PropagateFailure do
+      role "System"
+      description "A failure in one system triggers failure in a dependent system"
+      reference_to(CascadeChain)
+      String :source_system
+      String :target_system
+      given { status == "cascading" }
+      emits "FailurePropagated"
+    end
+
+    ContainCascade do
+      role "EmergencyManager"
+      description "Break the cascade chain — isolate remaining systems"
+      reference_to(CascadeChain)
+      given { status == "cascading" }
+      emits "CascadeContained"
+      then_set :status, to: "contained"
+    end
+
+    lifecycle :status, default: "dormant" do
+      transition "StartCascade" => "cascading", from: "dormant"
+      transition "ContainCascade" => "contained", from: "cascading"
+    end
+  end
+
+  # === RecoveryPlan ===
+
+  aggregate "RecoveryPlan", "A structured recovery plan — prioritized restoration of infrastructure after disaster" do
+    reference_to(DisasterEvent) :disaster
+    String :plan_name
+    String :status
+    Integer :priority_level
+    list_of(RecoveryTask) :tasks
+
+    value_object "RecoveryTask" do
+      String :task_name
+      String :infrastructure_type
+      String :assigned_team
+      String :status
+      Integer :estimated_hours
+    end
+
+    CreateRecoveryPlan do
+      role "EmergencyManager"
+      description "Create a prioritized recovery plan after disaster is resolved"
+      reference_to(DisasterEvent) :disaster
+      String :plan_name
+      Integer :priority_level
+      emits "RecoveryPlanCreated"
+      then_set :disaster, to: :disaster
+      then_set :plan_name, to: :plan_name
+      then_set :priority_level, to: :priority_level
+      then_set :status, to: "created"
+    end
+
+    ExecuteRecovery do
+      role "EmergencyManager"
+      description "Begin executing the recovery plan"
+      reference_to(RecoveryPlan)
+      given { status == "created" }
+      emits "RecoveryStarted"
+      then_set :status, to: "executing"
+    end
+
+    CompleteRecovery do
+      role "EmergencyManager"
+      description "All recovery tasks complete — infrastructure fully restored"
+      reference_to(RecoveryPlan)
+      given { status == "executing" }
+      emits "RecoveryCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CreateRecoveryPlan" => "created", from: "pending"
+      transition "ExecuteRecovery" => "executing", from: "created"
+      transition "CompleteRecovery" => "completed", from: "executing"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "RerouteGridOnDisaster" do
+    on "DisasterDeclared"
+    trigger "RerouteGrid"
+  end
+
+  policy "CloseAirspaceOnAsh" do
+    on "AshDetected"
+    trigger "CloseAirspace"
+  end
+
+  policy "ActivateProtocolOnGridFail" do
+    on "GridFailed"
+    trigger "ActivateEmergencyProtocol"
+  end
+
+  policy "StartCascadeOnDisaster" do
+    on "DisasterDeclared"
+    trigger "StartCascade"
+  end
+
+  policy "PropagateOnGridFail" do
+    on "GridFailed"
+    trigger "PropagateFailure"
+  end
+
+  policy "RecoveryOnResolution" do
+    on "DisasterResolved"
+    trigger "CreateRecoveryPlan"
+  end
+
+  policy "RestoreOnRecovery" do
+    on "RecoveryCompleted"
+    trigger "RestoreSegment"
+  end
+end

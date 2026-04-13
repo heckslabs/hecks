@@ -1,0 +1,275 @@
+Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
+  vision "Thermodynamics meets HVAC service — heat transfer, zone control, equipment efficiency, and occupant comfort"
+  category "crossover"
+
+  aggregate "ThermalZone", "A building thermal zone — volume, insulation, heat load, setpoint" do
+    String :zone_name
+    Float :volume_m3
+    Float :insulation_r_value
+    Float :heat_load_watts
+    Float :setpoint_temp_c
+    Float :current_temp_c
+    String :status
+
+    value_object "HeatTransferPath" do
+      String :path_type
+      Float :area_m2
+      Float :u_value_w_m2k
+      Float :heat_flow_watts
+    end
+
+    DefineZone do
+      role "Engineer"
+      description "Define a thermal zone with volume, insulation, and design heat load"
+      String :zone_name
+      Float :volume_m3
+      Float :insulation_r_value
+      Float :heat_load_watts
+      Float :setpoint_temp_c
+      emits "ZoneDefined"
+      then_set :zone_name, to: :zone_name
+      then_set :volume_m3, to: :volume_m3
+      then_set :insulation_r_value, to: :insulation_r_value
+      then_set :heat_load_watts, to: :heat_load_watts
+      then_set :setpoint_temp_c, to: :setpoint_temp_c
+      then_set :status, to: "defined"
+    end
+
+    MeasureTemperature do
+      role "Sensor"
+      description "Record current zone temperature from sensors"
+      reference_to(ThermalZone)
+      Float :current_temp_c
+      given { status == "defined" }
+      emits "TemperatureMeasured"
+      then_set :current_temp_c, to: :current_temp_c
+    end
+
+    CalculateHeatLoss do
+      role "System"
+      description "Calculate steady-state heat loss through building envelope"
+      reference_to(ThermalZone)
+      Float :heat_load_watts
+      given { status == "defined" }
+      emits "HeatLossCalculated"
+      then_set :heat_load_watts, to: :heat_load_watts
+    end
+
+    lifecycle :status, default: "undefined" do
+      transition "DefineZone" => "defined", from: "undefined"
+    end
+  end
+
+  aggregate "HVACEquipment", "HVAC equipment — type, capacity, efficiency rating, runtime" do
+    String :equipment_id
+    String :equipment_type
+    Float :capacity_kw
+    Float :efficiency_rating
+    Float :runtime_hours
+    String :serving_zone
+    String :status
+
+    value_object "PerformanceCurve" do
+      Float :outdoor_temp_c
+      Float :capacity_pct
+      Float :efficiency_pct
+    end
+
+    InstallEquipment do
+      role "Technician"
+      description "Install HVAC equipment serving a thermal zone"
+      String :equipment_id
+      String :equipment_type
+      Float :capacity_kw
+      Float :efficiency_rating
+      String :serving_zone
+      emits "EquipmentInstalled"
+      then_set :equipment_id, to: :equipment_id
+      then_set :equipment_type, to: :equipment_type
+      then_set :capacity_kw, to: :capacity_kw
+      then_set :efficiency_rating, to: :efficiency_rating
+      then_set :runtime_hours, to: 0.0
+      then_set :serving_zone, to: :serving_zone
+      then_set :status, to: "installed"
+    end
+
+    ActivateEquipment do
+      role "System"
+      description "Start equipment to condition the zone"
+      reference_to(HVACEquipment)
+      given { status == "installed" }
+      emits "EquipmentActivated"
+      then_set :status, to: "running"
+    end
+
+    ServiceEquipment do
+      role "Technician"
+      description "Perform maintenance service on equipment"
+      reference_to(HVACEquipment)
+      given { status == "running" }
+      emits "EquipmentServiced"
+      then_set :status, to: "installed"
+    end
+
+    lifecycle :status, default: "uninstalled" do
+      transition "InstallEquipment" => "installed", from: "uninstalled"
+      transition "ActivateEquipment" => "running", from: "installed"
+      transition "ServiceEquipment" => "installed", from: "running"
+    end
+  end
+
+  aggregate "ComfortAssessment", "Occupant thermal comfort — PMV, PPD, metabolic rate, clothing" do
+    String :zone_name
+    Float :air_temp_c
+    Float :mean_radiant_temp_c
+    Float :relative_humidity_pct
+    Float :air_velocity_ms
+    Float :pmv_index
+    Float :ppd_pct
+    String :status
+
+    value_object "OccupantFactors" do
+      Float :metabolic_rate_met
+      Float :clothing_insulation_clo
+      String :activity_level
+    end
+
+    AssessComfort do
+      role "System"
+      description "Calculate PMV/PPD comfort indices from environmental and occupant factors"
+      String :zone_name
+      Float :air_temp_c
+      Float :mean_radiant_temp_c
+      Float :relative_humidity_pct
+      Float :air_velocity_ms
+      emits "ComfortAssessed"
+      then_set :zone_name, to: :zone_name
+      then_set :air_temp_c, to: :air_temp_c
+      then_set :mean_radiant_temp_c, to: :mean_radiant_temp_c
+      then_set :relative_humidity_pct, to: :relative_humidity_pct
+      then_set :air_velocity_ms, to: :air_velocity_ms
+      then_set :status, to: "assessed"
+    end
+
+    CalculatePMV do
+      role "System"
+      description "Calculate Predicted Mean Vote index from Fanger's model"
+      reference_to(ComfortAssessment)
+      Float :pmv_index
+      Float :ppd_pct
+      given { status == "assessed" }
+      emits "PMVCalculated"
+      then_set :pmv_index, to: :pmv_index
+      then_set :ppd_pct, to: :ppd_pct
+      then_set :status, to: "calculated"
+    end
+
+    FlagDiscomfort do
+      role "System"
+      description "Flag when PPD exceeds acceptable threshold"
+      reference_to(ComfortAssessment)
+      given { status == "calculated" }
+      emits "DiscomfortFlagged"
+      then_set :status, to: "flagged"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AssessComfort" => "assessed", from: "pending"
+      transition "CalculatePMV" => "calculated", from: "assessed"
+      transition "FlagDiscomfort" => "flagged", from: "calculated"
+    end
+  end
+
+  aggregate "EnergyAudit", "Energy efficiency audit — consumption, waste identification, recommendations" do
+    String :building_name
+    Float :total_consumption_kwh
+    Float :hvac_consumption_kwh
+    Float :efficiency_pct
+    String :audit_date
+    String :status
+
+    value_object "WasteSource" do
+      String :source
+      Float :waste_kwh
+      String :recommendation
+    end
+
+    list_of "Recommendation" do
+      String :action
+      Float :savings_kwh
+      Float :cost
+      Float :payback_years
+    end
+
+    ConductEnergyAudit do
+      role "Auditor"
+      description "Conduct energy audit measuring consumption and waste"
+      String :building_name
+      Float :total_consumption_kwh
+      Float :hvac_consumption_kwh
+      String :audit_date
+      emits "EnergyAuditConducted"
+      then_set :building_name, to: :building_name
+      then_set :total_consumption_kwh, to: :total_consumption_kwh
+      then_set :hvac_consumption_kwh, to: :hvac_consumption_kwh
+      then_set :audit_date, to: :audit_date
+      then_set :status, to: "conducted"
+    end
+
+    CalculateEfficiency do
+      role "System"
+      description "Calculate HVAC efficiency as ratio of useful output to consumption"
+      reference_to(EnergyAudit)
+      Float :efficiency_pct
+      given { status == "conducted" }
+      emits "EfficiencyCalculated"
+      then_set :efficiency_pct, to: :efficiency_pct
+      then_set :status, to: "calculated"
+    end
+
+    GenerateRecommendations do
+      role "Auditor"
+      description "Generate energy saving recommendations with payback analysis"
+      reference_to(EnergyAudit)
+      given { status == "calculated" }
+      emits "RecommendationsGenerated"
+      then_set :status, to: "reported"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ConductEnergyAudit" => "conducted", from: "pending"
+      transition "CalculateEfficiency" => "calculated", from: "conducted"
+      transition "GenerateRecommendations" => "reported", from: "calculated"
+    end
+  end
+
+  policy "CalculateHeatOnMeasure" do
+    on "TemperatureMeasured"
+    trigger "CalculateHeatLoss"
+  end
+
+  policy "AssessComfortOnMeasure" do
+    on "TemperatureMeasured"
+    trigger "AssessComfort"
+  end
+
+  policy "CalculatePMVOnAssess" do
+    on "ComfortAssessed"
+    trigger "CalculatePMV"
+  end
+
+  policy "FlagOnPMV" do
+    on "PMVCalculated"
+    trigger "FlagDiscomfort"
+  end
+
+  policy "ActivateOnDiscomfort" do
+    on "DiscomfortFlagged"
+    trigger "ActivateEquipment"
+  end
+
+  policy "EfficiencyOnAudit" do
+    on "EnergyAuditConducted"
+    trigger "CalculateEfficiency"
+  end
+end

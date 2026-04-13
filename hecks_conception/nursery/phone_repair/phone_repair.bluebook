@@ -1,0 +1,197 @@
+Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
+  vision "Running a phone repair shop — diagnosing devices, managing repair tickets, sourcing parts, and honoring warranties"
+  category "retail"
+
+  aggregate "Device", "A mobile device brought in for service" do
+    String :device_id
+    String :make
+    String :model
+    String :serial_number
+    String :owner_name
+    String :condition
+    list_of(KnownIssue) :known_issues
+
+    value_object "KnownIssue" do
+      String :description
+      String :severity
+      String :component_affected
+    end
+
+    RegisterDevice do
+      role "Technician"
+      description "Log a customer's device into the system at intake"
+      String :device_id
+      String :make
+      String :model
+      String :serial_number
+      String :owner_name
+      emits "DeviceRegistered"
+      then_set :device_id, to: :device_id
+      then_set :make, to: :make
+      then_set :model, to: :model
+      then_set :serial_number, to: :serial_number
+      then_set :owner_name, to: :owner_name
+      then_set :condition, to: "intake"
+    end
+
+    DiagnoseDevice do
+      role "Technician"
+      description "Run diagnostics and identify all issues with the device"
+      reference_to(Device)
+      emits "DeviceDiagnosed"
+      then_set :condition, to: "diagnosed"
+    end
+  end
+
+  aggregate "RepairTicket", "A work order for fixing a specific device" do
+    String :ticket_id
+    String :device_id
+    String :issue_description
+    Float :estimated_cost
+    String :priority
+    String :status
+
+    OpenTicket do
+      role "Technician"
+      description "Create a repair work order after diagnosis"
+      String :ticket_id
+      String :device_id
+      String :issue_description
+      Float :estimated_cost
+      String :priority
+      emits "TicketOpened"
+      then_set :ticket_id, to: :ticket_id
+      then_set :device_id, to: :device_id
+      then_set :issue_description, to: :issue_description
+      then_set :estimated_cost, to: :estimated_cost
+      then_set :priority, to: :priority
+      then_set :status, to: "open"
+    end
+
+    BeginRepair do
+      role "Technician"
+      description "Start working on the repair"
+      reference_to(RepairTicket)
+      given { status == "open" }
+      emits "RepairStarted"
+      then_set :status, to: "in_progress"
+    end
+
+    CloseTicket do
+      role "Technician"
+      description "Mark the repair as complete and ready for pickup"
+      reference_to(RepairTicket)
+      given { status == "in_progress" }
+      emits "TicketClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Part", "A replacement component used in repairs" do
+    String :part_number
+    String :name
+    String :compatible_models
+    Float :cost
+    Integer :quantity_in_stock
+
+    OrderPart do
+      role "Manager"
+      description "Purchase replacement parts from a supplier"
+      String :part_number
+      String :name
+      String :compatible_models
+      Float :cost
+      Integer :quantity_in_stock
+      emits "PartOrdered"
+      then_set :part_number, to: :part_number
+      then_set :name, to: :name
+      then_set :compatible_models, to: :compatible_models
+      then_set :cost, to: :cost
+      then_set :quantity_in_stock, to: :quantity_in_stock
+    end
+
+    UsePart do
+      role "Technician"
+      description "Consume a part during a repair"
+      reference_to(Part)
+      Integer :quantity_used
+      given { quantity_used > 0 }
+      emits "PartUsed"
+    end
+  end
+
+  aggregate "RepairWarranty", "A guarantee on completed repair work" do
+    String :warranty_id
+    String :ticket_id
+    Integer :duration_days
+    String :expiration_date
+    String :status
+
+    IssueWarranty do
+      role "Manager"
+      description "Provide a warranty on completed repair work"
+      String :warranty_id
+      String :ticket_id
+      Integer :duration_days
+      String :expiration_date
+      emits "WarrantyIssued"
+      then_set :warranty_id, to: :warranty_id
+      then_set :ticket_id, to: :ticket_id
+      then_set :duration_days, to: :duration_days
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "active"
+    end
+
+    ClaimWarranty do
+      role "Customer"
+      description "Request warranty service for a recurring issue"
+      reference_to(RepairWarranty)
+      given { status == "active" }
+      emits "WarrantyClaimed"
+      then_set :status, to: "claimed"
+    end
+  end
+
+  # Lifecycle: registered → diagnosed → ticket opened → parts ordered → repair started → closed → warranted
+  # Workflow: Register device → Diagnose → Open ticket → Order parts → Begin repair → Close ticket → Issue warranty → Handle claims
+
+  policy "DiagnoseOnRegister" do
+    on "DeviceRegistered"
+    trigger "DiagnoseDevice"
+  end
+
+  policy "OpenTicketOnDiagnose" do
+    on "DeviceDiagnosed"
+    trigger "OpenTicket"
+  end
+
+  policy "OrderPartsOnTicket" do
+    on "TicketOpened"
+    trigger "OrderPart"
+  end
+
+  policy "BeginOnPartOrder" do
+    on "PartOrdered"
+    trigger "BeginRepair"
+  end
+
+  policy "CloseOnRepairStart" do
+    on "RepairStarted"
+    trigger "CloseTicket"
+  end
+
+  policy "WarrantyOnClose" do
+    on "TicketClosed"
+    trigger "IssueWarranty"
+  end
+
+  policy "UsePartOnRepairStart" do
+    on "RepairStarted"
+    trigger "UsePart"
+  end
+
+  policy "ReopenTicketOnClaim" do
+    on "WarrantyClaimed"
+    trigger "OpenTicket"
+  end
+end

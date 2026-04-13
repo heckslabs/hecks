@@ -1,0 +1,197 @@
+Hecks.bluebook "FrozenScience" do
+  vision "Cross-wire ice cream parlor artistry with physics for thermodynamically optimized frozen desserts"
+  core
+
+  aggregate "BaseIngredient" do
+    description "An ingredient with thermodynamic properties"
+    attribute :name
+    attribute :category
+    attribute :properties, list_of(PhysicalProperty)
+    attribute :status, default: "cataloged"
+
+    value_object "PhysicalProperty" do
+      attribute :property_name
+      attribute :value, Float
+      attribute :unit
+      invariant "value must be positive" do
+        value > 0
+      end
+    end
+
+    command "CatalogIngredient" do
+      role "FoodScientist"
+      goal "Catalog an ingredient with physical properties"
+      attribute :name
+      attribute :category
+    end
+
+    command "MeasureProperty" do
+      role "Physicist"
+      goal "Measure a physical property of the ingredient"
+      reference_to BaseIngredient
+      attribute :property_name
+      attribute :value, Float
+      attribute :unit
+      given("max 20 properties") { properties.size < 20 }
+      then_set :properties, append: { property_name: :property_name, value: :value, unit: :unit }
+    end
+  end
+
+  aggregate "FlavorFormula" do
+    description "An ice cream flavor formula with physics-optimized ratios"
+    attribute :flavor_name
+    attribute :components, list_of(FormulaComponent)
+    attribute :target_temp_c, Float
+    attribute :status, default: "experimental"
+
+    value_object "FormulaComponent" do
+      attribute :ingredient_name
+      attribute :ratio_pct, Float
+      attribute :phase
+      invariant "ratio between 0 and 100" do
+        ratio_pct >= 0 && ratio_pct <= 100
+      end
+    end
+
+    command "CreateFormula" do
+      role "FlavorChemist"
+      goal "Create a new flavor formula"
+      attribute :flavor_name
+      attribute :target_temp_c, Float
+    end
+
+    command "AddComponent" do
+      role "FlavorChemist"
+      goal "Add a component to the formula"
+      reference_to FlavorFormula
+      attribute :ingredient_name
+      attribute :ratio_pct, Float
+      attribute :phase
+      given("max 15 components") { components.size < 15 }
+      then_set :components, append: { ingredient_name: :ingredient_name, ratio_pct: :ratio_pct, phase: :phase }
+    end
+
+    command "ApproveFormula" do
+      role "HeadScientist"
+      goal "Approve the formula for production"
+      reference_to FlavorFormula
+      given("must have components") { components.size > 0 }
+    end
+  end
+
+  aggregate "FreezingCycle" do
+    description "A controlled freezing cycle with thermodynamic monitoring"
+    reference_to FlavorFormula
+    attribute :batch_id
+    attribute :measurements, list_of(ThermoMeasurement)
+    attribute :status, default: "mixing"
+
+    value_object "ThermoMeasurement" do
+      attribute :time_seconds, Integer
+      attribute :temperature_c, Float
+      attribute :viscosity, Float
+      attribute :overrun_pct, Float
+      invariant "time must be positive" do
+        time_seconds > 0
+      end
+    end
+
+    command "StartCycle" do
+      role "ProductionOperator"
+      goal "Start a freezing cycle"
+      reference_to FlavorFormula
+      attribute :batch_id
+    end
+
+    command "RecordMeasurement" do
+      role "Physicist"
+      goal "Record a thermodynamic measurement"
+      reference_to FreezingCycle
+      attribute :time_seconds, Integer
+      attribute :temperature_c, Float
+      attribute :viscosity, Float
+      attribute :overrun_pct, Float
+      given("max 100 measurements") { measurements.size < 100 }
+      then_set :measurements, append: { time_seconds: :time_seconds, temperature_c: :temperature_c, viscosity: :viscosity, overrun_pct: :overrun_pct }
+    end
+
+    command "CompleteCycle" do
+      role "ProductionOperator"
+      goal "Complete the freezing cycle"
+      reference_to FreezingCycle
+    end
+  end
+
+  aggregate "ParlorMenu" do
+    description "The ice cream parlor menu with available flavors"
+    attribute :menu_name
+    attribute :season
+    attribute :offerings, list_of(MenuOffering)
+    attribute :status, default: "draft"
+
+    value_object "MenuOffering" do
+      attribute :flavor_name
+      attribute :price_cents, Integer
+      attribute :serving_temp_c, Float
+      invariant "price must be positive" do
+        price_cents > 0
+      end
+    end
+
+    command "CreateMenu" do
+      role "ParlorManager"
+      goal "Create a new seasonal menu"
+      attribute :menu_name
+      attribute :season
+    end
+
+    command "AddOffering" do
+      role "ParlorManager"
+      goal "Add a flavor to the menu"
+      reference_to ParlorMenu
+      attribute :flavor_name
+      attribute :price_cents, Integer
+      attribute :serving_temp_c, Float
+      given("max 30 offerings") { offerings.size < 30 }
+      then_set :offerings, append: { flavor_name: :flavor_name, price_cents: :price_cents, serving_temp_c: :serving_temp_c }
+    end
+
+    command "LaunchMenu" do
+      role "ParlorManager"
+      goal "Launch the menu"
+      reference_to ParlorMenu
+      given("must have offerings") { offerings.size > 0 }
+    end
+  end
+
+  policy "PropertyMeasuredTriggersFormula" do
+    on "PropertyMeasured"
+    trigger "CreateFormula"
+    map flavor_name: :ingredient_name
+  end
+
+  policy "FormulaApprovedTriggersCycle" do
+    on "FormulaApproved"
+    trigger "StartCycle"
+    map flavor_formula_id: :formula_id
+  end
+
+  policy "CycleCompletedTriggersOffering" do
+    on "CycleCompleted"
+    trigger "AddOffering"
+    map parlor_menu_id: :menu_id, flavor_name: :flavor_name
+  end
+
+  policy "MeasurementRecordedTriggersComponent" do
+    on "MeasurementRecorded"
+    trigger "AddComponent"
+    map flavor_formula_id: :formula_id
+    condition { |event| event.viscosity > event.target_viscosity }
+  end
+
+  policy "MenuLaunchedTriggersCatalog" do
+    on "MenuLaunched"
+    trigger "CatalogIngredient"
+    map name: :trending_ingredient
+  end
+end

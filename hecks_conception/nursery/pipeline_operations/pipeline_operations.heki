@@ -1,0 +1,258 @@
+Hecks.bluebook "PipelineOperations" do
+  aggregate "PipelineSegment" do
+    String :segment_id
+    String :segment_name
+    Float :length_miles
+    Float :diameter_inches
+    String :material
+    Integer :year_installed
+    String :status
+
+    value_object "SegmentSpec" do
+      Float :wall_thickness_inches
+      Float :max_operating_pressure_psi
+      String :coating_type
+      String :cathodic_protection
+    end
+
+    ActivateSegment do
+      description "Bring new pipeline segment into active service after testing"
+      String :segment_name
+      Float :length_miles
+      reference_to "PipelineSegment"
+      emits "SegmentActivated"
+    end
+
+    PressureTestSegment do
+      description "Perform hydrostatic pressure test to verify segment integrity"
+      Float :test_pressure_psi
+      Float :hold_duration_hours
+      reference_to "PipelineSegment"
+      emits "PressureTestPassed"
+    end
+
+    DeactivateSegment do
+      description "Take pipeline segment out of service for maintenance or retirement"
+      String :reason
+      reference_to "PipelineSegment"
+      emits "SegmentDeactivated"
+    end
+
+    lifecycle :status, default: "constructed" do
+      transition "PressureTestSegment" => "tested", from: "constructed"
+      transition "ActivateSegment" => "active", from: "tested"
+      transition "DeactivateSegment" => "inactive", from: "active"
+    end
+
+    policy "Segments must pass hydrostatic test before commissioning"
+    policy "Deactivated segments must be purged and isolated"
+  end
+
+  aggregate "PumpStation" do
+    String :station_id
+    String :station_name
+    Integer :pump_count
+    Float :max_throughput_bph
+    String :status
+
+    StartPumps do
+      description "Activate pumps at station to maintain pipeline flow rate"
+      Integer :pumps_to_start
+      Float :target_flow_bph
+      reference_to "PumpStation"
+      emits "PumpsStarted"
+    end
+
+    MonitorPressure do
+      description "Record suction and discharge pressure at pump station"
+      Float :suction_psi
+      Float :discharge_psi
+      reference_to "PumpStation"
+      emits "PressureMonitored"
+    end
+
+    ShutdownStation do
+      description "Emergency or planned shutdown of pump station operations"
+      String :shutdown_reason
+      String :initiated_by
+      reference_to "PumpStation"
+      emits "StationShutdown"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "StartPumps" => "running", from: "idle"
+      transition "MonitorPressure" => "monitored", from: "running"
+      transition "ShutdownStation" => "shutdown", from: "running"
+    end
+
+    policy "Minimum one backup pump must remain available"
+
+    given "Station Alpha runs at 80 percent capacity" do
+      String :station_name, "Alpha Pump Station"
+      Integer :pump_count, 4
+      Float :max_throughput_bph, 50000.0
+    end
+  end
+
+  aggregate "InlineInspection" do
+    String :inspection_id
+    String :segment_id
+    String :pig_type
+    String :run_date
+    Integer :anomaly_count
+    String :status
+    list_of "PipelineSegment"
+
+    LaunchPig do
+      description "Launch inline inspection pig through pipeline segment"
+      String :pig_type
+      String :segment_id
+      reference_to "PipelineSegment"
+      emits "PigLaunched"
+    end
+
+    ReceivePig do
+      description "Receive inspection pig at downstream trap after run completion"
+      String :receiver_location
+      reference_to "InlineInspection"
+      emits "PigReceived"
+    end
+
+    AnalyzeResults do
+      description "Process pig run data and identify wall loss or dent anomalies"
+      Integer :anomaly_count
+      String :worst_feature
+      reference_to "InlineInspection"
+      emits "ResultsAnalyzed"
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "LaunchPig" => "running", from: "planned"
+      transition "ReceivePig" => "received", from: "running"
+      transition "AnalyzeResults" => "analyzed", from: "received"
+    end
+
+    policy "Segments with critical anomalies require immediate pressure reduction"
+  end
+
+  aggregate "FlowMeasurement" do
+    String :measurement_id
+    String :meter_station
+    Float :volume_barrels
+    Float :temperature_f
+    Float :pressure_psi
+    String :measurement_date
+
+    value_object "MeterReading" do
+      Float :volume_barrels
+      Float :flow_rate_bph
+      Float :density
+      Float :bsw_percent
+    end
+
+    RecordMeasurement do
+      description "Capture custody transfer measurement at meter station"
+      String :meter_station
+      Float :volume_barrels
+      reference_to "FlowMeasurement"
+      emits "MeasurementRecorded"
+    end
+
+    CalibrateMeters do
+      description "Perform scheduled calibration of flow measurement equipment"
+      String :technician
+      Float :correction_factor
+      reference_to "FlowMeasurement"
+      emits "MetersCalibrated"
+    end
+
+    policy "Meters must be calibrated monthly for custody transfer accuracy"
+  end
+
+  aggregate "LeakDetection" do
+    String :alert_id
+    String :segment_id
+    String :detection_method
+    Float :estimated_volume_barrels
+    String :severity
+    String :status
+
+    RaiseLeakAlert do
+      description "Trigger leak alert based on computational pipeline monitoring"
+      String :detection_method
+      String :segment_id
+      Float :estimated_volume_barrels
+      reference_to "PipelineSegment"
+      emits "LeakAlertRaised"
+    end
+
+    ConfirmLeak do
+      description "Dispatch field crew and confirm or dismiss leak alert"
+      String :field_finding
+      String :confirmed_by
+      reference_to "LeakDetection"
+      emits "LeakConfirmed"
+    end
+
+    IsolateSegment do
+      description "Close valves to isolate leaking segment from pipeline"
+      String :upstream_valve
+      String :downstream_valve
+      reference_to "LeakDetection"
+      emits "SegmentIsolated"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "RaiseLeakAlert" => "alert", from: "clear"
+      transition "ConfirmLeak" => "confirmed", from: "alert"
+      transition "IsolateSegment" => "isolated", from: "confirmed"
+    end
+
+    policy "Confirmed leaks require immediate segment isolation"
+  end
+
+  policy "StartPumpsOnSegmentActivated" do
+    on "SegmentActivated"
+    trigger "StartPumps"
+  end
+
+  policy "RecordMeasurementOnPumpsStarted" do
+    on "PumpsStarted"
+    trigger "RecordMeasurement"
+  end
+
+  policy "LaunchPigOnPressureMonitored" do
+    on "PressureMonitored"
+    trigger "LaunchPig"
+  end
+
+  policy "AnalyzeResultsOnPigReceived" do
+    on "PigReceived"
+    trigger "AnalyzeResults"
+  end
+
+  policy "ConfirmLeakOnLeakAlertRaised" do
+    on "LeakAlertRaised"
+    trigger "ConfirmLeak"
+  end
+
+  policy "IsolateSegmentOnLeakConfirmed" do
+    on "LeakConfirmed"
+    trigger "IsolateSegment"
+  end
+
+  policy "DeactivateSegmentOnSegmentIsolated" do
+    on "SegmentIsolated"
+    trigger "DeactivateSegment"
+  end
+
+  policy "MonitorPressureOnPumpsStarted" do
+    on "PumpsStarted"
+    trigger "MonitorPressure"
+  end
+
+  policy "CalibrateMetersOnResultsAnalyzed" do
+    on "ResultsAnalyzed"
+    trigger "CalibrateMeters"
+  end
+end

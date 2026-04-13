@@ -1,0 +1,265 @@
+Hecks.bluebook "DaycareCenter" do
+  vision "Manage enrolled children, guardians, daily schedules, meal plans, and incident reports"
+  category "childcare"
+
+  aggregate "Child", "An enrolled child with age, allergies, and guardian relationship" do
+    String :first_name
+    String :last_name
+    String :date_of_birth
+    String :allergies
+    String :classroom
+    String :status
+    reference_to(Guardian)
+
+    value_object "DevelopmentMilestone" do
+      String :milestone_name
+      String :achieved_date
+      String :notes
+    end
+
+    EnrollChild do
+      role "Director"
+      description "Register a child for enrollment with their medical and allergy info"
+      String :first_name
+      String :last_name
+      String :date_of_birth
+      String :allergies
+      String :classroom
+      emits "ChildEnrolled"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :allergies, to: :allergies
+      then_set :classroom, to: :classroom
+      then_set :status, to: "active"
+    end
+
+    TransferClassroom do
+      role "Director"
+      description "Move a child to a different classroom based on age or development"
+      reference_to(Child)
+      String :new_classroom
+      given { status == "active" }
+      emits "ChildTransferred"
+      then_set :classroom, to: :new_classroom
+    end
+
+    WithdrawChild do
+      role "Director"
+      description "Remove a child from enrollment when they leave the program"
+      reference_to(Child)
+      given { status == "active" }
+      emits "ChildWithdrawn"
+      then_set :status, to: "withdrawn"
+    end
+  end
+
+  aggregate "Guardian", "A parent or authorized caretaker with pickup authorization" do
+    String :first_name
+    String :last_name
+    String :phone
+    String :email
+    String :relationship
+    String :pickup_authorized
+
+    value_object "PickupAuthorization" do
+      String :authorized_name
+      String :relationship
+      String :photo_id_on_file
+    end
+
+    RegisterGuardian do
+      role "Director"
+      description "Add a guardian with contact info and pickup authorization status"
+      String :first_name
+      String :last_name
+      String :phone
+      String :email
+      String :relationship
+      emits "GuardianRegistered"
+      then_set :first_name, to: :first_name
+      then_set :last_name, to: :last_name
+      then_set :phone, to: :phone
+      then_set :email, to: :email
+      then_set :relationship, to: :relationship
+      then_set :pickup_authorized, to: "yes"
+    end
+
+    RevokePickupAuth do
+      role "Director"
+      description "Remove a guardian's authorization to pick up the child"
+      reference_to(Guardian)
+      given { pickup_authorized == "yes" }
+      emits "PickupAuthRevoked"
+      then_set :pickup_authorized, to: "no"
+    end
+  end
+
+  aggregate "DailyAttendance", "A daily check-in/check-out record for a child" do
+    String :attendance_date
+    String :check_in_time
+    String :check_out_time
+    String :checked_in_by
+    String :checked_out_by
+    String :status
+    reference_to(Child)
+
+    CheckInChild do
+      role "Teacher"
+      description "Record the child's arrival time and who dropped them off"
+      reference_to(Child)
+      String :attendance_date
+      String :check_in_time
+      String :checked_in_by
+      emits "ChildCheckedIn"
+      then_set :attendance_date, to: :attendance_date
+      then_set :check_in_time, to: :check_in_time
+      then_set :checked_in_by, to: :checked_in_by
+      then_set :status, to: "present"
+    end
+
+    CheckOutChild do
+      role "Teacher"
+      description "Record the child's departure time and who picked them up"
+      reference_to(DailyAttendance)
+      String :check_out_time
+      String :checked_out_by
+      given { status == "present" }
+      emits "ChildCheckedOut"
+      then_set :check_out_time, to: :check_out_time
+      then_set :checked_out_by, to: :checked_out_by
+      then_set :status, to: "departed"
+    end
+
+    MarkAbsent do
+      role "Teacher"
+      description "Record that a child did not attend on this date"
+      reference_to(Child)
+      String :attendance_date
+      String :reason
+      emits "ChildAbsent"
+      then_set :attendance_date, to: :attendance_date
+      then_set :status, to: "absent"
+    end
+  end
+
+  aggregate "MealPlan", "A daily meal schedule with dietary accommodations for a classroom" do
+    String :meal_date
+    String :breakfast
+    String :lunch
+    String :snack
+    String :classroom
+    String :dietary_notes
+
+    value_object "NutritionInfo" do
+      Integer :calories
+      Float :protein_grams
+      String :allergens_present
+    end
+
+    PlanMeals do
+      role "NutritionCoordinator"
+      description "Set the day's breakfast, lunch, and snack for a classroom"
+      String :meal_date
+      String :classroom
+      String :breakfast
+      String :lunch
+      String :snack
+      emits "MealsPlanned"
+      then_set :meal_date, to: :meal_date
+      then_set :classroom, to: :classroom
+      then_set :breakfast, to: :breakfast
+      then_set :lunch, to: :lunch
+      then_set :snack, to: :snack
+    end
+
+    SubstituteMeal do
+      role "NutritionCoordinator"
+      description "Replace a meal item due to allergy or supply shortage"
+      reference_to(MealPlan)
+      String :meal_type
+      String :replacement
+      String :dietary_notes
+      emits "MealSubstituted"
+      then_set :dietary_notes, to: :dietary_notes
+    end
+  end
+
+  aggregate "IncidentReport", "A documented safety incident involving a child" do
+    String :incident_date
+    String :incident_time
+    String :description
+    String :severity
+    String :action_taken
+    String :guardian_notified
+    String :status
+    reference_to(Child)
+
+    FileIncident do
+      role "Teacher"
+      description "Document an injury, behavioral incident, or safety concern"
+      reference_to(Child)
+      String :incident_date
+      String :incident_time
+      String :description
+      String :severity
+      String :action_taken
+      emits "IncidentFiled"
+      then_set :incident_date, to: :incident_date
+      then_set :incident_time, to: :incident_time
+      then_set :description, to: :description
+      then_set :severity, to: :severity
+      then_set :action_taken, to: :action_taken
+      then_set :status, to: "filed"
+      then_set :guardian_notified, to: "no"
+    end
+
+    NotifyGuardian do
+      role "Director"
+      description "Contact the guardian about the incident"
+      reference_to(IncidentReport)
+      given { guardian_notified == "no" }
+      emits "GuardianNotified"
+      then_set :guardian_notified, to: "yes"
+    end
+
+    CloseIncident do
+      role "Director"
+      description "Close the incident report after review and follow-up"
+      reference_to(IncidentReport)
+      given { status == "filed" }
+      emits "IncidentClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  policy "PlanMealsOnEnrollment" do
+    on "ChildEnrolled"
+    trigger "PlanMeals"
+  end
+
+  policy "AttendanceOnEnrollment" do
+    on "ChildEnrolled"
+    trigger "CheckInChild"
+  end
+
+  policy "NotifyOnIncident" do
+    on "IncidentFiled"
+    trigger "NotifyGuardian"
+  end
+
+  policy "CloseIncidentAfterNotify" do
+    on "GuardianNotified"
+    trigger "CloseIncident"
+  end
+
+  policy "SubstituteMealOnAllergy" do
+    on "MealsPlanned"
+    trigger "SubstituteMeal"
+  end
+
+  policy "CheckOutOnDeparture" do
+    on "ChildCheckedIn"
+    trigger "CheckOutChild"
+  end
+end

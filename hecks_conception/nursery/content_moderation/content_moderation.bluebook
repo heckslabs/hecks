@@ -1,0 +1,264 @@
+Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
+  vision "Moderating user content — ingesting posts, handling reports, reviewing flagged items, taking enforcement actions, and processing appeals"
+  category "technology"
+
+  aggregate "Post", "A piece of user-generated content subject to moderation" do
+    String :post_id
+    String :author_id
+    String :content_type
+    String :body
+    String :language
+    String :status
+    list_of(ContentTag) :tags
+
+    value_object "ContentTag" do
+      String :label
+      Float :confidence
+      String :source
+    end
+
+    IngestPost do
+      role "ContentPipeline"
+      description "Receive new user content for moderation screening"
+      String :post_id
+      String :author_id
+      String :content_type
+      String :body
+      String :language
+      emits "PostIngested"
+    end
+
+    AutoFlagPost do
+      description "Automatically flag content that triggers policy filters"
+      reference_to(Post)
+      String :flag_reason
+      emits "PostAutoFlagged"
+    end
+
+    PublishPost do
+      description "Approve content for public visibility"
+      reference_to(Post)
+      given("post is pending") { status == "pending" }
+      emits "PostPublished"
+    end
+  end
+
+  aggregate "Report", "A user-submitted complaint about objectionable content" do
+    String :report_id
+    String :reporter_id
+    String :reason_category
+    String :description
+    String :status
+    reference_to Post
+
+    value_object "ReportEvidence" do
+      String :screenshot_url
+      String :timestamp
+      String :additional_context
+    end
+
+    SubmitReport do
+      role "User"
+      description "File a complaint about a piece of content"
+      String :report_id
+      String :reporter_id
+      String :reason_category
+      String :description
+      reference_to(Post)
+      emits "ReportSubmitted"
+    end
+
+    PrioritizeReport do
+      description "Elevate a report for urgent review"
+      reference_to(Report)
+      String :priority
+      emits "ReportPrioritized"
+    end
+
+    DismissReport do
+      description "Close a report as unfounded"
+      reference_to(Report)
+      given("report is open") { status == "open" }
+      emits "ReportDismissed"
+    end
+  end
+
+  aggregate "ModerationReview", "A human evaluation of flagged or reported content" do
+    String :review_id
+    String :reviewer_id
+    String :queue_name
+    String :verdict
+    String :status
+    reference_to Post
+    list_of(ReviewNote) :notes
+
+    value_object "ReviewNote" do
+      String :note
+      String :policy_reference
+      String :recorded_at
+    end
+
+    AssignReview do
+      role "ModerationLead"
+      description "Route flagged content to a moderator for evaluation"
+      String :review_id
+      String :reviewer_id
+      String :queue_name
+      reference_to(Post)
+      emits "ReviewAssigned"
+    end
+
+    RenderVerdict do
+      description "Record the moderator's decision on flagged content"
+      reference_to(ModerationReview)
+      String :verdict
+      given("review is in progress") { status == "in_progress" }
+      emits "VerdictRendered"
+    end
+
+    EscalateReview do
+      description "Send a difficult case to senior moderators"
+      reference_to(ModerationReview)
+      String :escalation_reason
+      emits "ReviewEscalated"
+    end
+  end
+
+  aggregate "EnforcementAction", "A penalty applied to content or a user account" do
+    String :action_id
+    String :action_type
+    String :target_id
+    String :reason
+    Integer :duration_days
+    String :status
+    reference_to ModerationReview
+
+    value_object "ActionDetail" do
+      String :scope
+      String :applied_at
+      String :expires_at
+    end
+
+    EnforceAction do
+      role "TrustAndSafety"
+      description "Apply an enforcement action based on a review verdict"
+      String :action_id
+      String :action_type
+      String :target_id
+      String :reason
+      Integer :duration_days
+      reference_to(ModerationReview)
+      emits "ActionEnforced"
+    end
+
+    LiftAction do
+      description "Remove an enforcement action early"
+      reference_to(EnforcementAction)
+      given("action is active") { status == "active" }
+      emits "ActionLifted"
+    end
+
+    ExtendAction do
+      description "Increase the duration of an active enforcement"
+      reference_to(EnforcementAction)
+      Integer :additional_days
+      emits "ActionExtended"
+    end
+  end
+
+  aggregate "Appeal", "A user's challenge to an enforcement action" do
+    String :appeal_id
+    String :appellant_id
+    String :grounds
+    String :status
+    reference_to EnforcementAction
+
+    value_object "AppealEvidence" do
+      String :document_url
+      String :description
+      String :submitted_at
+    end
+
+    FileAppeal do
+      role "User"
+      description "Submit an appeal against an enforcement decision"
+      String :appeal_id
+      String :appellant_id
+      String :grounds
+      reference_to(EnforcementAction)
+      emits "AppealFiled"
+    end
+
+    GrantAppeal do
+      description "Uphold the appeal and reverse the enforcement"
+      reference_to(Appeal)
+      given("appeal is under review") { status == "under_review" }
+      emits "AppealGranted"
+    end
+
+    DenyAppeal do
+      description "Reject the appeal and maintain enforcement"
+      reference_to(Appeal)
+      String :denial_reason
+      emits "AppealDenied"
+    end
+  end
+
+  lifecycle "ModerationPipeline" do
+    state "ingested"
+    state "screened"
+    state "flagged"
+    state "under_review"
+    state "enforced"
+    state "appealed"
+    state "resolved"
+
+    transition from: "ingested", to: "screened", on: "PostIngested"
+    transition from: "screened", to: "flagged", on: "PostAutoFlagged"
+    transition from: "flagged", to: "under_review", on: "ReviewAssigned"
+    transition from: "under_review", to: "enforced", on: "ActionEnforced"
+    transition from: "enforced", to: "appealed", on: "AppealFiled"
+    transition from: "appealed", to: "resolved", on: "AppealGranted"
+    transition from: "appealed", to: "resolved", on: "AppealDenied"
+  end
+
+  policy "IngestedAutoFlag" do
+    on "PostIngested"
+    trigger "AutoFlagPost"
+  end
+
+  policy "FlaggedAssignReview" do
+    on "PostAutoFlagged"
+    trigger "AssignReview"
+  end
+
+  policy "ReportSubmittedPrioritize" do
+    on "ReportSubmitted"
+    trigger "PrioritizeReport"
+  end
+
+  policy "VerdictRenderedEnforce" do
+    on "VerdictRendered"
+    trigger "EnforceAction"
+  end
+
+  policy "ActionEnforcedNotifyAppeal" do
+    on "ActionEnforced"
+    trigger "FileAppeal"
+  end
+
+  policy "AppealGrantedLiftAction" do
+    on "AppealGranted"
+    trigger "LiftAction"
+  end
+
+  policy "PublishOnReviewDismiss" do
+    on "ReportDismissed"
+    trigger "PublishPost"
+  end
+
+  policy "AssignReviewOnReport" do
+    on "ReportPrioritized"
+    trigger "AssignReview"
+  end
+end

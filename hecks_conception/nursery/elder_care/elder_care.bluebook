@@ -1,0 +1,273 @@
+Hecks.bluebook "ElderCare" do
+  vision "In-home elder support services — clients, caregivers, scheduling, medication management, and wellness assessments"
+
+  aggregate "Client", "An elderly person receiving home-based care services" do
+    String :name
+    String :date_of_birth
+    String :address
+    String :primary_need
+    String :emergency_contact
+    String :status
+
+    EnrollClient do
+      role "CaseManager"
+      description "Register an elderly client for home care services"
+      String :name
+      String :date_of_birth
+      String :address
+      String :primary_need
+      String :emergency_contact
+      emits "ClientEnrolled"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :address, to: :address
+      then_set :primary_need, to: :primary_need
+      then_set :emergency_contact, to: :emergency_contact
+      then_set :status, to: "active"
+    end
+
+    SuspendServices do
+      role "CaseManager"
+      description "Temporarily pause services for hospitalization or travel"
+      reference_to(Client)
+      given("must be active") { status == "active" }
+      emits "ServicesSuspended"
+      then_set :status, to: "suspended"
+    end
+
+    ResumeServices do
+      role "CaseManager"
+      description "Restart services after suspension period ends"
+      reference_to(Client)
+      emits "ServicesResumed"
+      then_set :status, to: "active"
+    end
+
+    DischargeClient do
+      role "CaseManager"
+      description "End care services when client no longer needs support"
+      reference_to(Client)
+      given("must be active") { status == "active" }
+      emits "ClientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "Caregiver", "A trained professional providing in-home elder care" do
+    String :name
+    String :certification
+    String :phone
+    Integer :years_experience
+    String :specialty
+    String :status
+
+    HireCaregiver do
+      role "HRManager"
+      description "Onboard a new caregiver to the elder care team"
+      String :name
+      String :certification
+      String :phone
+      Integer :years_experience
+      String :specialty
+      emits "CaregiverHired"
+      then_set :name, to: :name
+      then_set :certification, to: :certification
+      then_set :phone, to: :phone
+      then_set :years_experience, to: :years_experience
+      then_set :specialty, to: :specialty
+      then_set :status, to: "active"
+    end
+
+    AssignToClient do
+      role "CaseManager"
+      description "Pair a caregiver with a client based on needs and availability"
+      reference_to(Caregiver)
+      given("must be active") { status == "active" }
+      emits "CaregiverAssigned"
+    end
+  end
+
+  aggregate "CareSchedule", "A weekly schedule of caregiver visits to a client" do
+    String :client_name
+    String :caregiver_name
+    String :week_starting
+    list_of(ScheduledVisit) :visits
+    String :status
+    reference_to Client
+    reference_to Caregiver
+
+    value_object "ScheduledVisit" do
+      String :day_of_week
+      String :start_time
+      String :end_time
+      String :visit_type
+    end
+
+    CreateSchedule do
+      role "Scheduler"
+      description "Build a weekly care schedule for a client"
+      reference_to(Client)
+      reference_to(Caregiver)
+      String :client_name
+      String :caregiver_name
+      String :week_starting
+      emits "ScheduleCreated"
+      then_set :client_name, to: :client_name
+      then_set :caregiver_name, to: :caregiver_name
+      then_set :week_starting, to: :week_starting
+      then_set :status, to: "active"
+    end
+
+    AddVisitToSchedule do
+      role "Scheduler"
+      description "Add a specific visit to the weekly schedule"
+      reference_to(CareSchedule)
+      String :day_of_week
+      String :start_time
+      String :end_time
+      String :visit_type
+      emits "VisitAddedToSchedule"
+    end
+
+    CancelSchedule do
+      role "Scheduler"
+      description "Cancel an entire week's care schedule"
+      reference_to(CareSchedule)
+      given("must be active") { status == "active" }
+      emits "ScheduleCancelled"
+      then_set :status, to: "cancelled"
+    end
+  end
+
+  aggregate "ElderMedication", "A medication managed by the care team for the client" do
+    String :client_name
+    String :medication_name
+    String :dosage
+    String :frequency
+    String :prescriber
+    String :status
+    list_of(AdministrationLog) :log
+    reference_to Client
+
+    value_object "AdministrationLog" do
+      String :administered_date
+      String :administered_by
+      String :notes
+    end
+
+    AddMedication do
+      role "CaseManager"
+      description "Add a medication to the client's care profile"
+      reference_to(Client)
+      String :client_name
+      String :medication_name
+      String :dosage
+      String :frequency
+      String :prescriber
+      emits "MedicationAdded"
+      then_set :client_name, to: :client_name
+      then_set :medication_name, to: :medication_name
+      then_set :dosage, to: :dosage
+      then_set :frequency, to: :frequency
+      then_set :prescriber, to: :prescriber
+      then_set :status, to: "active"
+    end
+
+    AdministerMedication do
+      role "Caregiver"
+      description "Record the administration of a medication during a visit"
+      reference_to(ElderMedication)
+      given("must be active") { status == "active" }
+      emits "MedicationAdministered"
+    end
+
+    DiscontinueMedication do
+      role "CaseManager"
+      description "Stop a medication per physician order"
+      reference_to(ElderMedication)
+      emits "MedicationDiscontinued"
+      then_set :status, to: "discontinued"
+    end
+  end
+
+  aggregate "WellnessAssessment", "A periodic evaluation of the client's physical and cognitive health" do
+    String :client_name
+    String :assessment_date
+    Integer :mobility_score
+    Integer :cognitive_score
+    Integer :nutrition_score
+    String :risk_flags
+    String :assessor_name
+    reference_to Client
+
+    ConductAssessment do
+      role "CaseManager"
+      description "Perform a comprehensive wellness assessment of the client"
+      reference_to(Client)
+      String :client_name
+      String :assessment_date
+      Integer :mobility_score
+      Integer :cognitive_score
+      Integer :nutrition_score
+      String :assessor_name
+      emits "AssessmentConducted"
+      then_set :client_name, to: :client_name
+      then_set :assessment_date, to: :assessment_date
+      then_set :mobility_score, to: :mobility_score
+      then_set :cognitive_score, to: :cognitive_score
+      then_set :nutrition_score, to: :nutrition_score
+      then_set :assessor_name, to: :assessor_name
+      then_set :risk_flags, to: "none"
+    end
+
+    FlagRisks do
+      role "System"
+      description "Identify risk factors from assessment scores"
+      reference_to(WellnessAssessment)
+      String :risk_flags
+      emits "RisksFlagged"
+      then_set :risk_flags, to: :risk_flags
+    end
+  end
+
+  # Workflow: Enroll → AssignCaregiver → CreateSchedule → AddMedication → ConductAssessment → FlagRisks → AdministerMedication → Discharge
+  policy "AssignCaregiverOnEnroll" do
+    on "ClientEnrolled"
+    trigger "AssignToClient"
+  end
+
+  policy "CreateScheduleOnAssignment" do
+    on "CaregiverAssigned"
+    trigger "CreateSchedule"
+  end
+
+  policy "AddMedicationOnSchedule" do
+    on "ScheduleCreated"
+    trigger "AddMedication"
+  end
+
+  policy "AssessOnMedicationAdded" do
+    on "MedicationAdded"
+    trigger "ConductAssessment"
+  end
+
+  policy "FlagRisksOnAssessment" do
+    on "AssessmentConducted"
+    trigger "FlagRisks"
+  end
+
+  policy "AdministerOnVisit" do
+    on "VisitAddedToSchedule"
+    trigger "AdministerMedication"
+  end
+
+  policy "ReassessOnRisks" do
+    on "RisksFlagged"
+    trigger "ConductAssessment"
+  end
+
+  policy "SuspendOnRisks" do
+    on "RisksFlagged"
+    trigger "SuspendServices"
+  end
+end

@@ -1,0 +1,204 @@
+Hecks.bluebook "FloralDesign" do
+  aggregate "Arrangement", "A floral arrangement composed for an event or retail" do
+    String :name
+    String :style
+    String :vessel_type
+    String :status, default: "designed"
+    Integer :stem_count
+
+    value_object "ColorScheme" do
+      String :primary_bloom
+      String :secondary_bloom
+      String :filler
+      String :greenery
+    end
+
+    DesignArrangement do
+      description "Create a new floral arrangement design"
+      String :name
+      String :style
+      String :vessel_type
+      Integer :stem_count
+      emits "ArrangementDesigned"
+    end
+
+    AssembleArrangement do
+      description "Build the arrangement from prepped flowers"
+      reference_to(Arrangement)
+      given { status == "designed" }
+      emits "ArrangementAssembled"
+      then_set :status, to: "assembled"
+    end
+
+    ConditionArrangement do
+      description "Hydrate and condition the arrangement for longevity"
+      reference_to(Arrangement)
+      given { status == "assembled" }
+      emits "ArrangementConditioned"
+      then_set :status, to: "conditioned"
+    end
+  end
+
+  aggregate "FlowerStock", "Inventory of fresh flowers and foliage from wholesalers" do
+    String :variety
+    String :color
+    Integer :stem_quantity
+    String :freshness, default: "fresh"
+    Integer :vase_life_days
+
+    value_object "WholesaleSource" do
+      String :farm_name
+      String :region
+      String :season
+      Float :price_per_stem
+    end
+
+    ReceiveShipment do
+      description "Check in a flower shipment from the wholesaler"
+      String :variety
+      String :color
+      Integer :stem_quantity
+      Integer :vase_life_days
+      emits "ShipmentReceived"
+    end
+
+    MarkWilted do
+      description "Flag stock past its vase life for disposal"
+      reference_to(FlowerStock)
+      given { freshness == "fresh" }
+      emits "StockMarkedWilted"
+      then_set :freshness, to: "wilted"
+    end
+  end
+
+  aggregate "FloralEvent", "An event booking requiring floral installations" do
+    String :event_name
+    String :venue
+    String :date
+    String :status, default: "consulted"
+    Integer :arrangement_count
+    reference_to(Arrangement)
+
+    BookEvent do
+      description "Book a floral event with venue and arrangement count"
+      String :event_name
+      String :venue
+      String :date
+      Integer :arrangement_count
+      emits "EventBooked"
+    end
+
+    FinalizeProposal do
+      description "Lock in the floral proposal and pricing"
+      reference_to(FloralEvent)
+      given { status == "consulted" }
+      emits "ProposalFinalized"
+      then_set :status, to: "confirmed"
+    end
+  end
+
+  aggregate "Delivery", "A scheduled delivery of arrangements to a venue or client" do
+    String :address
+    String :delivery_date
+    String :time_window
+    String :status, default: "scheduled"
+    String :driver_name
+    reference_to(Arrangement)
+
+    ScheduleDelivery do
+      description "Book a delivery run for assembled arrangements"
+      reference_to(Arrangement)
+      String :address
+      String :delivery_date
+      String :time_window
+      String :driver_name
+      emits "DeliveryScheduled"
+    end
+
+    ConfirmDelivery do
+      description "Mark the delivery as completed at the destination"
+      reference_to(Delivery)
+      given { status == "scheduled" }
+      emits "DeliveryConfirmed"
+      then_set :status, to: "delivered"
+    end
+  end
+
+  aggregate "FloralInstallation", "A large-scale floral installation at a venue" do
+    String :location
+    String :design_theme
+    Integer :crew_size
+    String :status, default: "planned"
+    reference_to(FloralEvent)
+
+    PlanInstallation do
+      description "Design and plan a large-scale floral installation"
+      reference_to(FloralEvent)
+      String :location
+      String :design_theme
+      Integer :crew_size
+      emits "InstallationPlanned"
+    end
+
+    ExecuteInstallation do
+      description "Build the installation on-site at the venue"
+      reference_to(FloralInstallation)
+      given { status == "planned" }
+      emits "InstallationExecuted"
+      then_set :status, to: "installed"
+    end
+
+    StrikeInstallation do
+      description "Tear down the installation after the event"
+      reference_to(FloralInstallation)
+      given { status == "installed" }
+      emits "InstallationStruck"
+      then_set :status, to: "struck"
+    end
+  end
+
+  policy "FinalizeProposalOnBooking" do
+    on "EventBooked"
+    trigger "FinalizeProposal"
+  end
+
+  policy "DesignOnProposal" do
+    on "ProposalFinalized"
+    trigger "DesignArrangement"
+  end
+
+  policy "AssembleOnDesign" do
+    on "ArrangementDesigned"
+    trigger "AssembleArrangement"
+  end
+
+  policy "ConditionOnAssembly" do
+    on "ArrangementAssembled"
+    trigger "ConditionArrangement"
+  end
+
+  policy "DeliverOnCondition" do
+    on "ArrangementConditioned"
+    trigger "ScheduleDelivery"
+  end
+
+  policy "ConfirmOnDelivery" do
+    on "DeliveryScheduled"
+    trigger "ConfirmDelivery"
+  end
+
+  policy "PlanInstallOnConfirm" do
+    on "DeliveryConfirmed"
+    trigger "PlanInstallation"
+  end
+
+  policy "ExecuteOnPlan" do
+    on "InstallationPlanned"
+    trigger "ExecuteInstallation"
+  end
+
+  policy "StrikeAfterEvent" do
+    on "InstallationExecuted"
+    trigger "StrikeInstallation"
+  end
+end

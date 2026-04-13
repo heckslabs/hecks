@@ -1,0 +1,274 @@
+Hecks.bluebook "FoodBank" do
+  vision "Community food assistance — donations, inventory, distribution events, volunteer coordination, and recipient services"
+
+  aggregate "Donation", "A food contribution received from a donor" do
+    String :donor_name
+    String :donation_date
+    String :food_category
+    Float :weight_pounds
+    String :expiration_date
+    String :status
+    list_of(DonatedItem) :items
+
+    value_object "DonatedItem" do
+      String :item_name
+      Integer :quantity
+      String :unit
+      String :perishable
+    end
+
+    AcceptDonation do
+      role "Volunteer"
+      description "Receive and log a food donation from a community donor"
+      String :donor_name
+      String :donation_date
+      String :food_category
+      Float :weight_pounds
+      String :expiration_date
+      emits "DonationAccepted"
+      then_set :donor_name, to: :donor_name
+      then_set :donation_date, to: :donation_date
+      then_set :food_category, to: :food_category
+      then_set :weight_pounds, to: :weight_pounds
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "received"
+    end
+
+    SortDonation do
+      role "Volunteer"
+      description "Sort and categorize donated food items for shelving"
+      reference_to(Donation)
+      given("must be received") { status == "received" }
+      emits "DonationSorted"
+      then_set :status, to: "sorted"
+    end
+
+    DiscardExpired do
+      role "Coordinator"
+      description "Remove expired items from the donation"
+      reference_to(Donation)
+      emits "ExpiredItemsDiscarded"
+      then_set :status, to: "discarded"
+    end
+  end
+
+  aggregate "Inventory", "The current stock of food items available for distribution" do
+    String :item_name
+    String :category
+    Integer :quantity
+    String :storage_location
+    String :expiration_date
+    String :status
+
+    StockItem do
+      role "Volunteer"
+      description "Add sorted food items to the pantry inventory"
+      String :item_name
+      String :category
+      Integer :quantity
+      String :storage_location
+      String :expiration_date
+      emits "ItemStocked"
+      then_set :item_name, to: :item_name
+      then_set :category, to: :category
+      then_set :quantity, to: :quantity
+      then_set :storage_location, to: :storage_location
+      then_set :expiration_date, to: :expiration_date
+      then_set :status, to: "available"
+    end
+
+    AllocateItem do
+      role "Coordinator"
+      description "Reserve inventory items for a scheduled distribution event"
+      reference_to(Inventory)
+      Integer :quantity
+      given("must be available") { status == "available" }
+      emits "ItemAllocated"
+      then_set :status, to: "allocated"
+    end
+
+    DepletItem do
+      role "Coordinator"
+      description "Reduce inventory when items are distributed"
+      reference_to(Inventory)
+      Integer :quantity
+      given("must be allocated") { status == "allocated" }
+      emits "ItemDepleted"
+      then_set :status, to: "depleted"
+    end
+
+    FlagLowStock do
+      role "System"
+      description "Alert when inventory for an item falls below minimum threshold"
+      reference_to(Inventory)
+      emits "LowStockFlagged"
+      then_set :status, to: "low"
+    end
+  end
+
+  aggregate "Distribution", "A food distribution event serving community members" do
+    String :event_date
+    String :location
+    Integer :households_served
+    Float :total_weight_distributed
+    String :status
+    list_of(DistributionLine) :lines
+
+    value_object "DistributionLine" do
+      String :item_name
+      Integer :quantity
+      String :unit
+    end
+
+    ScheduleDistribution do
+      role "Coordinator"
+      description "Plan a food distribution event for the community"
+      String :event_date
+      String :location
+      emits "DistributionScheduled"
+      then_set :event_date, to: :event_date
+      then_set :location, to: :location
+      then_set :status, to: "scheduled"
+    end
+
+    ConductDistribution do
+      role "Coordinator"
+      description "Execute the distribution event and record metrics"
+      reference_to(Distribution)
+      Integer :households_served
+      Float :total_weight_distributed
+      given("must be scheduled") { status == "scheduled" }
+      emits "DistributionConducted"
+      then_set :households_served, to: :households_served
+      then_set :total_weight_distributed, to: :total_weight_distributed
+      then_set :status, to: "completed"
+    end
+
+    ReportDistribution do
+      role "Coordinator"
+      description "Generate a summary report of the distribution for funders"
+      reference_to(Distribution)
+      given("must be completed") { status == "completed" }
+      emits "DistributionReported"
+      then_set :status, to: "reported"
+    end
+  end
+
+  aggregate "FoodBankVolunteer", "A community member who donates time to food bank operations" do
+    String :name
+    String :phone
+    String :availability
+    Integer :hours_served
+    String :status
+    list_of(Shift) :shifts
+
+    value_object "Shift" do
+      String :shift_date
+      String :start_time
+      String :end_time
+      String :role_assigned
+    end
+
+    RegisterVolunteer do
+      role "Coordinator"
+      description "Sign up a new volunteer for food bank service"
+      String :name
+      String :phone
+      String :availability
+      emits "VolunteerRegistered"
+      then_set :name, to: :name
+      then_set :phone, to: :phone
+      then_set :availability, to: :availability
+      then_set :hours_served, to: 0
+      then_set :status, to: "active"
+    end
+
+    LogVolunteerHours do
+      role "Coordinator"
+      description "Record hours worked by a volunteer"
+      reference_to(FoodBankVolunteer)
+      Integer :hours_served
+      emits "HoursLogged"
+      then_set :hours_served, to: :hours_served
+    end
+  end
+
+  aggregate "FoodBankRecipient", "A household receiving food assistance from the food bank" do
+    String :household_name
+    Integer :household_size
+    String :address
+    String :dietary_restrictions
+    String :enrollment_date
+    String :status
+
+    EnrollRecipient do
+      role "CaseWorker"
+      description "Register a household for food bank services"
+      String :household_name
+      Integer :household_size
+      String :address
+      String :dietary_restrictions
+      String :enrollment_date
+      emits "RecipientEnrolled"
+      then_set :household_name, to: :household_name
+      then_set :household_size, to: :household_size
+      then_set :address, to: :address
+      then_set :dietary_restrictions, to: :dietary_restrictions
+      then_set :enrollment_date, to: :enrollment_date
+      then_set :status, to: "active"
+    end
+
+    RecordPickup do
+      role "Volunteer"
+      description "Document that the household received their food allocation"
+      reference_to(FoodBankRecipient)
+      emits "PickupRecorded"
+    end
+  end
+
+  # Workflow: Receive → Sort → Stock → Allocate → Distribute → Deplete → Report → FlagLowStock
+  policy "SortOnReceive" do
+    on "DonationAccepted"
+    trigger "SortDonation"
+  end
+
+  policy "StockOnSort" do
+    on "DonationSorted"
+    trigger "StockItem"
+  end
+
+  policy "AllocateOnSchedule" do
+    on "DistributionScheduled"
+    trigger "AllocateItem"
+  end
+
+  policy "DepleteOnDistribution" do
+    on "DistributionConducted"
+    trigger "DepletItem"
+  end
+
+  policy "ReportOnDistribution" do
+    on "DistributionConducted"
+    trigger "ReportDistribution"
+  end
+
+  policy "FlagLowOnDepletion" do
+    on "ItemDepleted"
+    trigger "FlagLowStock"
+  end
+
+  policy "RecordPickupOnDistribution" do
+    on "DistributionConducted"
+    trigger "RecordPickup"
+  end
+
+  policy "LogHoursOnDistribution" do
+    on "DistributionConducted"
+    trigger "LogVolunteerHours"
+  end
+
+  policy "ScheduleDistributionOnStock" do
+    on "ItemStocked"
+    trigger "ScheduleDistribution"
+  end
+end

@@ -1,0 +1,255 @@
+Hecks.bluebook "OccupationalTherapy" do
+  vision "Functional independence through purposeful activity — clients, daily living tasks, adaptations, goals, and progress tracking"
+
+  aggregate "Client", "A person seeking to improve functional independence through occupational therapy" do
+    String :name
+    String :date_of_birth
+    String :condition
+    String :functional_level
+    String :status
+
+    ReferClient do
+      role "Physician"
+      description "Refer a patient for occupational therapy evaluation"
+      String :name
+      String :date_of_birth
+      String :condition
+      String :functional_level
+      emits "ClientReferred"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :condition, to: :condition
+      then_set :functional_level, to: :functional_level
+      then_set :status, to: "referred"
+    end
+
+    ActivateClient do
+      role "Therapist"
+      description "Begin active treatment after completing evaluation"
+      reference_to(Client)
+      given("must be referred") { status == "referred" }
+      emits "ClientActivated"
+      then_set :status, to: "active"
+    end
+
+    DischargeClient do
+      role "Therapist"
+      description "Complete the client's occupational therapy program"
+      reference_to(Client)
+      given("must be active") { status == "active" }
+      emits "ClientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+
+  aggregate "DailyLivingActivity", "A functional task the client works to perform independently" do
+    String :name
+    String :category
+    String :complexity
+    String :instructions
+    list_of(StepBreakdown) :steps
+
+    value_object "StepBreakdown" do
+      Integer :step_number
+      String :description
+      String :assistance_level
+    end
+
+    DefineActivity do
+      role "Therapist"
+      description "Create a new daily living activity in the therapy catalog"
+      String :name
+      String :category
+      String :complexity
+      String :instructions
+      emits "ActivityDefined"
+      then_set :name, to: :name
+      then_set :category, to: :category
+      then_set :complexity, to: :complexity
+      then_set :instructions, to: :instructions
+    end
+
+    GradeActivity do
+      role "Therapist"
+      description "Adjust activity complexity to match client ability"
+      reference_to(DailyLivingActivity)
+      String :complexity
+      emits "ActivityGraded"
+      then_set :complexity, to: :complexity
+    end
+  end
+
+  aggregate "Adaptation", "An environmental or equipment modification to support independence" do
+    String :client_name
+    String :adaptation_type
+    String :description
+    String :location
+    String :status
+    reference_to Client
+
+    value_object "EquipmentSpec" do
+      String :device_name
+      String :manufacturer
+      String :size
+    end
+
+    RecommendAdaptation do
+      role "Therapist"
+      description "Prescribe an environmental or equipment adaptation"
+      reference_to(Client)
+      String :client_name
+      String :adaptation_type
+      String :description
+      String :location
+      emits "AdaptationRecommended"
+      then_set :client_name, to: :client_name
+      then_set :adaptation_type, to: :adaptation_type
+      then_set :description, to: :description
+      then_set :location, to: :location
+      then_set :status, to: "recommended"
+    end
+
+    ImplementAdaptation do
+      role "Therapist"
+      description "Install or deploy the recommended adaptation"
+      reference_to(Adaptation)
+      given("must be recommended") { status == "recommended" }
+      emits "AdaptationImplemented"
+      then_set :status, to: "implemented"
+    end
+
+    EvaluateEffectiveness do
+      role "Therapist"
+      description "Assess whether the adaptation improved client function"
+      reference_to(Adaptation)
+      emits "EffectivenessEvaluated"
+    end
+  end
+
+  aggregate "FunctionalGoal", "A measurable objective for regaining daily living independence" do
+    String :client_name
+    String :goal_description
+    String :functional_area
+    Integer :independence_score
+    Integer :target_score
+    String :status
+    reference_to Client
+
+    EstablishGoal do
+      role "Therapist"
+      description "Set a functional independence goal for the client"
+      reference_to(Client)
+      String :client_name
+      String :goal_description
+      String :functional_area
+      Integer :independence_score
+      Integer :target_score
+      emits "GoalEstablished"
+      then_set :client_name, to: :client_name
+      then_set :goal_description, to: :goal_description
+      then_set :functional_area, to: :functional_area
+      then_set :independence_score, to: :independence_score
+      then_set :target_score, to: :target_score
+      then_set :status, to: "active"
+    end
+
+    MeasureProgress do
+      role "Therapist"
+      description "Reassess the client's independence score"
+      reference_to(FunctionalGoal)
+      Integer :independence_score
+      emits "ProgressMeasured"
+      then_set :independence_score, to: :independence_score
+    end
+
+    CompleteGoal do
+      role "Therapist"
+      description "Mark goal as achieved when target score is reached"
+      reference_to(FunctionalGoal)
+      given("must be active") { status == "active" }
+      emits "GoalCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "ProgressNote", "A clinical record documenting treatment progress over time" do
+    String :client_name
+    String :note_date
+    String :session_summary
+    String :client_response
+    String :plan_for_next
+    reference_to Client
+
+    WriteProgressNote do
+      role "Therapist"
+      description "Document the client's response to treatment in a clinical note"
+      reference_to(Client)
+      String :client_name
+      String :note_date
+      String :session_summary
+      String :client_response
+      String :plan_for_next
+      emits "ProgressNoteWritten"
+      then_set :client_name, to: :client_name
+      then_set :note_date, to: :note_date
+      then_set :session_summary, to: :session_summary
+      then_set :client_response, to: :client_response
+      then_set :plan_for_next, to: :plan_for_next
+    end
+
+    AmendNote do
+      role "Therapist"
+      description "Add corrections or additional information to a progress note"
+      reference_to(ProgressNote)
+      String :client_response
+      emits "NoteAmended"
+      then_set :client_response, to: :client_response
+    end
+  end
+
+  # Workflow: Refer → Activate → EstablishGoal → RecommendAdaptation → ImplementAdaptation → EvaluateEffectiveness → WriteProgressNote → MeasureProgress → CompleteGoal → Discharge
+  policy "ActivateOnReferral" do
+    on "ClientReferred"
+    trigger "ActivateClient"
+  end
+
+  policy "EstablishGoalOnActivation" do
+    on "ClientActivated"
+    trigger "EstablishGoal"
+  end
+
+  policy "RecommendAdaptationOnGoal" do
+    on "GoalEstablished"
+    trigger "RecommendAdaptation"
+  end
+
+  policy "ImplementOnRecommendation" do
+    on "AdaptationRecommended"
+    trigger "ImplementAdaptation"
+  end
+
+  policy "EvaluateAdaptationOnImplement" do
+    on "AdaptationImplemented"
+    trigger "EvaluateEffectiveness"
+  end
+
+  policy "WriteNoteOnEvaluation" do
+    on "EffectivenessEvaluated"
+    trigger "WriteProgressNote"
+  end
+
+  policy "MeasureProgressOnNote" do
+    on "ProgressNoteWritten"
+    trigger "MeasureProgress"
+  end
+
+  policy "DischargeOnGoalComplete" do
+    on "GoalCompleted"
+    trigger "DischargeClient"
+  end
+
+  policy "GradeActivityOnProgress" do
+    on "ProgressMeasured"
+    trigger "GradeActivity"
+  end
+end

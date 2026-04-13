@@ -1,0 +1,144 @@
+Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
+  vision "Speech media — speech therapy exercises meet recorded sessions and progress audio"
+  category "healthcare_technology"
+
+  aggregate "TherapyExercise", "A speech therapy exercise prescribed to a client" do
+    String :exercise_id
+    String :client_name
+    String :exercise_type
+    String :target_sound
+    Integer :repetitions
+    String :status
+    PrescribeExercise do
+      role "SpeechPathologist"
+      description "Prescribe a speech therapy exercise targeting specific sounds"
+      String :exercise_id
+      String :client_name
+      String :exercise_type
+      String :target_sound
+      Integer :repetitions
+      emits "ExercisePrescribed"
+      then_set :exercise_id, to: :exercise_id
+      then_set :client_name, to: :client_name
+      then_set :exercise_type, to: :exercise_type
+      then_set :target_sound, to: :target_sound
+      then_set :repetitions, to: :repetitions
+      then_set :status, to: "prescribed"
+    end
+    CompleteExercise do
+      role "Client"
+      description "Mark the exercise as completed after practice"
+      reference_to(TherapyExercise)
+      given { status == "prescribed" }
+      emits "ExerciseCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "RecordedSession", "An audio recording of a speech therapy session" do
+    String :recording_id
+    String :client_name
+    String :session_date
+    Float :duration_minutes
+    String :file_path
+    String :status
+    RecordSession do
+      role "SpeechPathologist"
+      description "Record a speech therapy session for review"
+      String :recording_id
+      String :client_name
+      String :session_date
+      Float :duration_minutes
+      String :file_path
+      emits "SessionRecorded"
+      then_set :recording_id, to: :recording_id
+      then_set :client_name, to: :client_name
+      then_set :session_date, to: :session_date
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :file_path, to: :file_path
+      then_set :status, to: "recorded"
+    end
+    AnalyzeRecording do
+      role "System"
+      description "Run speech analysis on the recorded session audio"
+      reference_to(RecordedSession)
+      given { status == "recorded" }
+      emits "RecordingAnalyzed"
+      then_set :status, to: "analyzed"
+    end
+  end
+
+  aggregate "ProgressAudio", "A curated audio clip demonstrating client speech progress" do
+    String :clip_id
+    String :client_name
+    String :milestone
+    String :before_path
+    String :after_path
+    CreateProgressClip do
+      role "SpeechPathologist"
+      description "Create a before-and-after audio clip showing speech progress"
+      String :clip_id
+      String :client_name
+      String :milestone
+      String :before_path
+      String :after_path
+      emits "ProgressClipCreated"
+      then_set :clip_id, to: :clip_id
+      then_set :client_name, to: :client_name
+      then_set :milestone, to: :milestone
+      then_set :before_path, to: :before_path
+      then_set :after_path, to: :after_path
+    end
+    ShareClip do
+      role "SpeechPathologist"
+      description "Share the progress clip with client family"
+      reference_to(ProgressAudio)
+      emits "ClipShared"
+    end
+  end
+
+  aggregate "PodcastEpisode", "An educational podcast episode on speech therapy topics" do
+    String :episode_id
+    String :title
+    String :topic
+    Float :duration_minutes
+    String :status
+    list_of(Segment) :segments
+    value_object "Segment" do
+      String :segment_type
+      Float :start_time
+      Float :end_time
+    end
+    ProduceEpisode do
+      role "Producer"
+      description "Produce a podcast episode on speech therapy techniques"
+      String :episode_id
+      String :title
+      String :topic
+      Float :duration_minutes
+      emits "EpisodeProduced"
+      then_set :episode_id, to: :episode_id
+      then_set :title, to: :title
+      then_set :topic, to: :topic
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :status, to: "produced"
+    end
+    PublishEpisode do
+      role "Producer"
+      description "Publish the podcast episode to streaming platforms"
+      reference_to(PodcastEpisode)
+      given { status == "produced" }
+      emits "EpisodePublished"
+      then_set :status, to: "published"
+    end
+  end
+
+  policy "AnalyzeOnRecord" do
+    on "SessionRecorded"
+    trigger "AnalyzeRecording"
+  end
+  policy "ClipOnComplete" do
+    on "ExerciseCompleted"
+    trigger "CreateProgressClip"
+  end
+end

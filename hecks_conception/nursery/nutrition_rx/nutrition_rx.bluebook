@@ -1,0 +1,288 @@
+Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
+  vision "Food as medicine — prescriptions generate grocery lists, deficiencies trigger meal plans, pharmacist and nutritionist share a patient"
+  category "crossover_gen2"
+
+  # === Patient ===
+
+  aggregate "Patient", "A patient at the intersection of pharmacy and nutrition — medical and dietary needs unified" do
+    String :name
+    String :date_of_birth
+    list_of(Condition) :conditions
+    String :dietary_restriction
+    String :status
+
+    value_object "Condition" do
+      String :name
+      String :severity
+      String :diagnosed_date
+      String :managing_provider
+    end
+
+    RegisterPatient do
+      role "Clinician"
+      description "Register a patient into the nutrition-pharmacy system"
+      String :name
+      String :date_of_birth
+      String :dietary_restriction
+      emits "PatientRegistered"
+      then_set :name, to: :name
+      then_set :date_of_birth, to: :date_of_birth
+      then_set :dietary_restriction, to: :dietary_restriction
+      then_set :status, to: "active"
+    end
+
+    AddCondition do
+      role "Clinician"
+      description "Record a medical condition that affects nutritional needs"
+      reference_to(Patient)
+      String :condition_name
+      String :severity
+      emits "ConditionAdded"
+    end
+
+    FlagDeficiency do
+      role "Nutritionist"
+      description "Identify a nutrient deficiency from bloodwork or dietary analysis"
+      reference_to(Patient)
+      String :nutrient
+      String :severity
+      emits "DeficiencyDetected"
+    end
+  end
+
+  # === Prescription ===
+
+  aggregate "Prescription", "A medication order that may interact with food — the pharmacy side of the equation" do
+    reference_to(Patient) :patient
+    String :medication
+    String :dosage
+    String :frequency
+    String :status
+    list_of(FoodInteraction) :food_interactions
+
+    value_object "FoodInteraction" do
+      String :food_item
+      String :interaction_type
+      String :severity
+      String :guidance
+    end
+
+    WritePrescription do
+      role "Physician"
+      description "Prescribe a medication with dosage and frequency"
+      reference_to(Patient) :patient
+      String :medication
+      String :dosage
+      String :frequency
+      emits "PrescriptionWritten"
+      then_set :patient, to: :patient
+      then_set :medication, to: :medication
+      then_set :dosage, to: :dosage
+      then_set :frequency, to: :frequency
+      then_set :status, to: "written"
+    end
+
+    FillPrescription do
+      role "Pharmacist"
+      description "Dispense medication and check for food interactions"
+      reference_to(Prescription)
+      given { status == "written" }
+      emits "PrescriptionFilled"
+      then_set :status, to: "filled"
+    end
+
+    FlagInteraction do
+      role "Pharmacist"
+      description "Flag a food-drug interaction requiring dietary adjustment"
+      reference_to(Prescription)
+      String :food_item
+      String :interaction_type
+      emits "FoodInteractionFlagged"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "WritePrescription" => "written", from: "pending"
+      transition "FillPrescription" => "filled", from: "written"
+    end
+  end
+
+  # === MealPlan ===
+
+  aggregate "MealPlan", "A therapeutic meal plan — designed to address deficiencies and respect drug interactions" do
+    reference_to(Patient) :patient
+    String :goal
+    Integer :daily_calories
+    String :status
+    list_of(Meal) :meals
+
+    value_object "Meal" do
+      String :meal_type
+      String :description
+      Integer :calories
+      String :nutrients_targeted
+    end
+
+    GenerateMealPlan do
+      role "System"
+      description "Auto-generate a meal plan from deficiency data and drug interactions"
+      reference_to(Patient) :patient
+      String :goal
+      Integer :daily_calories
+      emits "MealPlanGenerated"
+      then_set :patient, to: :patient
+      then_set :goal, to: :goal
+      then_set :daily_calories, to: :daily_calories
+      then_set :status, to: "draft"
+    end
+
+    ApproveMealPlan do
+      role "Nutritionist"
+      description "Nutritionist reviews and approves the generated meal plan"
+      reference_to(MealPlan)
+      given { status == "draft" }
+      emits "MealPlanApproved"
+      then_set :status, to: "approved"
+    end
+
+    AdjustForInteraction do
+      role "System"
+      description "Modify meal plan when a new food-drug interaction is discovered"
+      reference_to(MealPlan)
+      String :food_item
+      String :replacement
+      emits "MealPlanAdjusted"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "GenerateMealPlan" => "draft", from: "pending"
+      transition "ApproveMealPlan" => "approved", from: "draft"
+    end
+  end
+
+  # === GroceryList ===
+
+  aggregate "GroceryList", "An auto-generated grocery list — derived from the meal plan, respecting budget and availability" do
+    reference_to(Patient) :patient
+    reference_to(MealPlan) :meal_plan
+    String :status
+    Float :estimated_cost
+    list_of(GroceryItem) :items
+
+    value_object "GroceryItem" do
+      String :name
+      Float :quantity
+      String :unit
+      String :category
+      String :substitution_allowed
+    end
+
+    GenerateGroceryList do
+      role "System"
+      description "Build a grocery list from an approved meal plan"
+      reference_to(Patient) :patient
+      reference_to(MealPlan) :meal_plan
+      emits "GroceryListGenerated"
+      then_set :patient, to: :patient
+      then_set :meal_plan, to: :meal_plan
+      then_set :status, to: "generated"
+    end
+
+    UpdateGroceryList do
+      role "System"
+      description "Update the grocery list when prescriptions change"
+      reference_to(GroceryList)
+      emits "GroceryListUpdated"
+      then_set :status, to: "updated"
+    end
+
+    FulfillGroceryList do
+      role "Patient"
+      description "Mark grocery list as purchased and fulfilled"
+      reference_to(GroceryList)
+      given { status == "generated" }
+      emits "GroceryListFulfilled"
+      then_set :status, to: "fulfilled"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "GenerateGroceryList" => "generated", from: "pending"
+      transition "UpdateGroceryList" => "updated", from: "generated"
+      transition "FulfillGroceryList" => "fulfilled", from: "generated"
+    end
+  end
+
+  # === NutrientTarget ===
+
+  aggregate "NutrientTarget", "A specific nutrient goal for a patient — tracks intake against recommended levels" do
+    reference_to(Patient) :patient
+    String :nutrient
+    Float :target_amount
+    String :unit
+    Float :current_intake
+    String :status
+
+    SetTarget do
+      role "Nutritionist"
+      description "Set a daily nutrient target for a specific deficiency"
+      reference_to(Patient) :patient
+      String :nutrient
+      Float :target_amount
+      String :unit
+      emits "NutrientTargetSet"
+      then_set :patient, to: :patient
+      then_set :nutrient, to: :nutrient
+      then_set :target_amount, to: :target_amount
+      then_set :unit, to: :unit
+      then_set :status, to: "tracking"
+    end
+
+    RecordIntake do
+      role "Patient"
+      description "Log actual nutrient intake from meals consumed"
+      reference_to(NutrientTarget)
+      Float :amount
+      emits "IntakeRecorded"
+      then_set :current_intake, to: :amount
+    end
+
+    AchieveTarget do
+      role "System"
+      description "Patient has met the nutrient target — deficiency resolved"
+      reference_to(NutrientTarget)
+      emits "TargetAchieved"
+      then_set :status, to: "achieved"
+    end
+  end
+
+  # === Cross-wire policies ===
+
+  policy "MealPlanOnDeficiency" do
+    on "DeficiencyDetected"
+    trigger "GenerateMealPlan"
+  end
+
+  policy "GroceryListOnPrescription" do
+    on "PrescriptionFilled"
+    trigger "UpdateGroceryList"
+  end
+
+  policy "AdjustMealOnInteraction" do
+    on "FoodInteractionFlagged"
+    trigger "AdjustForInteraction"
+  end
+
+  policy "GroceryListOnMealPlan" do
+    on "MealPlanApproved"
+    trigger "GenerateGroceryList"
+  end
+
+  policy "SetTargetOnDeficiency" do
+    on "DeficiencyDetected"
+    trigger "SetTarget"
+  end
+
+  policy "AchieveOnIntake" do
+    on "IntakeRecorded"
+    trigger "AchieveTarget"
+  end
+end

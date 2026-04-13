@@ -1,0 +1,203 @@
+Hecks.bluebook "PaintingContractor" do
+  vision "Manage painting projects from estimate through surface preparation, color selection, coating application, and final walkthrough"
+  core
+
+  aggregate "PaintEstimate" do
+    description "A painting estimate with surface area, prep requirements, coats, and pricing"
+    String :customer_name
+    String :address
+    Float :total_sqft
+    String :surface_type
+    Integer :coats
+    Float :total_price
+    String :status
+
+    value_object "SurfaceCondition" do
+      String :existing_coating
+      String :condition_rating
+      String :prep_required
+    end
+
+    EstimateJob do
+      role "Estimator"
+      goal "Walk the property and calculate surface area and prep needs"
+      description "Measure all surfaces, assess condition, and price the job"
+      String :customer_name
+      String :address
+      Float :total_sqft
+      String :surface_type
+      Integer :coats
+      emits "JobEstimated"
+    end
+
+    AcceptEstimate do
+      role "Customer"
+      goal "Approve the painting estimate and authorize work"
+      description "Customer signs the estimate to begin scheduling"
+      reference_to(PaintEstimate)
+      given("must be presented") { status == "presented" }
+      emits "EstimateAccepted"
+    end
+
+    AdjustScope do
+      role "Estimator"
+      goal "Modify the estimate scope after additional discovery"
+      description "Update square footage or prep requirements found during work"
+      reference_to(PaintEstimate)
+      Float :revised_sqft
+      Float :revised_price
+      emits "ScopeAdjusted"
+    end
+  end
+
+  aggregate "SurfacePrep" do
+    description "The preparation work before painting — washing, scraping, sanding, priming, and caulking"
+    String :prep_type
+    String :surface
+    String :status
+    reference_to(PaintEstimate)
+
+    PrepSurface do
+      role "Crew Lead"
+      goal "Prepare the surface for paint adhesion"
+      description "Wash, scrape, sand, and prime as needed for the surface condition"
+      String :prep_type
+      String :surface
+      reference_to(PaintEstimate)
+      emits "SurfacePrepped"
+    end
+
+    ApplyPrimer do
+      role "Painter"
+      goal "Apply primer to bare or problem surfaces"
+      description "Prime stains, bare wood, or previously glossy surfaces"
+      reference_to(SurfacePrep)
+      String :primer_type
+      emits "PrimerApplied"
+    end
+  end
+
+  aggregate "ColorSelection" do
+    description "A paint color chosen for specific surfaces with brand, sheen, and formula"
+    String :color_name
+    String :brand
+    String :sheen
+    String :formula_code
+    String :surface_application
+    reference_to(PaintEstimate)
+
+    value_object "ColorSpec" do
+      String :hex_code
+      String :lrv
+    end
+
+    SelectColor do
+      role "Customer"
+      goal "Choose the paint color for each surface area"
+      description "Pick colors from samples or custom match"
+      String :color_name
+      String :brand
+      String :sheen
+      String :surface_application
+      reference_to(PaintEstimate)
+      emits "ColorSelected"
+    end
+
+    OrderPaint do
+      role "Crew Lead"
+      goal "Order the correct quantity of paint in the selected color"
+      description "Calculate gallons needed and order from the paint store"
+      reference_to(ColorSelection)
+      Float :gallons_needed
+      emits "PaintOrdered"
+    end
+  end
+
+  aggregate "CoatApplication" do
+    description "A single coat of paint applied to a surface with application method and drying conditions"
+    Integer :coat_number
+    String :application_method
+    Float :mil_thickness
+    String :status
+    reference_to(ColorSelection)
+
+    ApplyCoat do
+      role "Painter"
+      goal "Apply a coat of paint to the prepared surface"
+      description "Roll, brush, or spray the coat at the specified thickness"
+      Integer :coat_number
+      String :application_method
+      reference_to(ColorSelection)
+      emits "CoatApplied"
+    end
+
+    InspectCoat do
+      role "Crew Lead"
+      goal "Check the coat for coverage, drips, and uniformity"
+      description "Inspect the applied coat before proceeding to the next"
+      reference_to(CoatApplication)
+      String :inspection_notes
+      emits "CoatInspected"
+    end
+  end
+
+  aggregate "FinalWalkthrough" do
+    description "A walkthrough with the customer to approve the finished paint job"
+    String :customer_feedback
+    String :punch_list_items
+    String :approval_status
+    reference_to(PaintEstimate)
+
+    ConductWalkthrough do
+      role "Crew Lead"
+      goal "Walk the property with the customer to review the paint job"
+      description "Point out completed work and note any touch-ups needed"
+      reference_to(PaintEstimate)
+      emits "WalkthroughConducted"
+    end
+
+    RecordPunchList do
+      role "Crew Lead"
+      goal "Document any touch-ups or corrections needed"
+      description "List items the customer wants addressed before final payment"
+      reference_to(FinalWalkthrough)
+      String :punch_list_items
+      emits "PunchListRecorded"
+    end
+  end
+
+  policy "SelectColorOnEstimate" do
+    on "JobEstimated"
+    trigger "SelectColor"
+  end
+
+  policy "PrepOnAcceptance" do
+    on "EstimateAccepted"
+    trigger "PrepSurface"
+  end
+
+  policy "PrimeOnPrep" do
+    on "SurfacePrepped"
+    trigger "ApplyPrimer"
+  end
+
+  policy "OrderPaintOnColor" do
+    on "ColorSelected"
+    trigger "OrderPaint"
+  end
+
+  policy "ApplyAfterPrep" do
+    on "PrimerApplied"
+    trigger "ApplyCoat"
+  end
+
+  policy "InspectAfterCoat" do
+    on "CoatApplied"
+    trigger "InspectCoat"
+  end
+
+  policy "WalkthroughAfterFinalCoat" do
+    on "CoatInspected"
+    trigger "ConductWalkthrough"
+  end
+end

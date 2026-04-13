@@ -1,0 +1,236 @@
+Hecks.bluebook "AutoRepairShop" do
+  vision "Manage vehicle intake, work orders, parts inventory, technician assignments, and repair estimates"
+  category "automotive"
+
+  aggregate "Vehicle", "A customer's vehicle with VIN, mileage, and service history" do
+    String :vin
+    String :make
+    String :model
+    Integer :year
+    Integer :mileage
+    String :license_plate
+    String :owner_name
+    String :owner_phone
+
+    value_object "EngineSpec" do
+      String :engine_type
+      Float :displacement
+      Integer :cylinders
+      String :fuel_type
+    end
+
+    IntakeVehicle do
+      role "ServiceAdvisor"
+      description "Register a vehicle when it arrives at the shop for service"
+      String :vin
+      String :make
+      String :model
+      Integer :year
+      Integer :mileage
+      String :owner_name
+      String :owner_phone
+      emits "VehicleIntaked"
+      then_set :vin, to: :vin
+      then_set :make, to: :make
+      then_set :model, to: :model
+      then_set :year, to: :year
+      then_set :mileage, to: :mileage
+      then_set :owner_name, to: :owner_name
+    end
+
+    UpdateMileage do
+      role "Technician"
+      description "Record the current odometer reading during service"
+      reference_to(Vehicle)
+      Integer :mileage
+      emits "MileageUpdated"
+      then_set :mileage, to: :mileage
+    end
+  end
+
+  aggregate "WorkOrder", "A repair job tracking diagnosis, labor, parts, and completion status" do
+    String :complaint
+    String :diagnosis
+    String :status
+    Float :labor_hours
+    Float :total_cost
+    reference_to(Vehicle)
+
+    value_object "LaborEntry" do
+      String :task_description
+      Float :hours
+      Float :rate
+    end
+
+    OpenWorkOrder do
+      role "ServiceAdvisor"
+      description "Create a new work order from the customer's complaint"
+      reference_to(Vehicle)
+      String :complaint
+      emits "WorkOrderOpened"
+      then_set :complaint, to: :complaint
+      then_set :status, to: "open"
+    end
+
+    DiagnoseIssue do
+      role "Technician"
+      description "Record the root cause after inspecting the vehicle"
+      reference_to(WorkOrder)
+      String :diagnosis
+      given { status == "open" }
+      emits "IssueDiagnosed"
+      then_set :diagnosis, to: :diagnosis
+      then_set :status, to: "diagnosed"
+    end
+
+    CompleteRepair do
+      role "Technician"
+      description "Mark the work order as finished after all repairs are done"
+      reference_to(WorkOrder)
+      Float :labor_hours
+      given { status == "in_progress" }
+      emits "RepairCompleted"
+      then_set :labor_hours, to: :labor_hours
+      then_set :status, to: "completed"
+    end
+
+    CloseWorkOrder do
+      role "ServiceAdvisor"
+      description "Close the work order after customer pickup and payment"
+      reference_to(WorkOrder)
+      given { status == "completed" }
+      emits "WorkOrderClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Part", "An auto part in inventory with stock levels and pricing" do
+    String :part_number
+    String :name
+    String :manufacturer
+    Integer :quantity_on_hand
+    Float :unit_cost
+    Integer :reorder_point
+
+    value_object "PartSpecification" do
+      String :oem_number
+      String :compatibility
+      String :category
+    end
+
+    StockPart do
+      role "PartsManager"
+      description "Add a new part to the inventory with pricing and stock levels"
+      String :part_number
+      String :name
+      String :manufacturer
+      Integer :quantity_on_hand
+      Float :unit_cost
+      Integer :reorder_point
+      emits "PartStocked"
+      then_set :part_number, to: :part_number
+      then_set :name, to: :name
+      then_set :quantity_on_hand, to: :quantity_on_hand
+      then_set :unit_cost, to: :unit_cost
+      then_set :reorder_point, to: :reorder_point
+    end
+
+    IssuePart do
+      role "Technician"
+      description "Pull a part from inventory for use on a work order"
+      reference_to(Part)
+      Integer :quantity
+      given { quantity_on_hand > 0 }
+      emits "PartIssued"
+    end
+
+    ReorderPart do
+      role "PartsManager"
+      description "Place a purchase order when stock falls below reorder point"
+      reference_to(Part)
+      Integer :order_quantity
+      emits "PartReordered"
+    end
+  end
+
+  aggregate "Estimate", "A cost estimate presented to the customer before authorizing repairs" do
+    Float :parts_total
+    Float :labor_total
+    Float :tax
+    Float :grand_total
+    String :status
+    reference_to(WorkOrder)
+
+    PrepareEstimate do
+      role "ServiceAdvisor"
+      description "Calculate and prepare a cost estimate for the customer"
+      reference_to(WorkOrder)
+      Float :parts_total
+      Float :labor_total
+      Float :tax
+      emits "EstimatePrepared"
+      then_set :parts_total, to: :parts_total
+      then_set :labor_total, to: :labor_total
+      then_set :tax, to: :tax
+      then_set :status, to: "pending"
+    end
+
+    ApproveEstimate do
+      role "Customer"
+      description "Customer authorizes the repair work at the quoted price"
+      reference_to(Estimate)
+      given { status == "pending" }
+      emits "EstimateApproved"
+      then_set :status, to: "approved"
+    end
+
+    DeclineEstimate do
+      role "Customer"
+      description "Customer declines the repair and picks up the vehicle"
+      reference_to(Estimate)
+      given { status == "pending" }
+      emits "EstimateDeclined"
+      then_set :status, to: "declined"
+    end
+  end
+
+  policy "CreateEstimateOnDiagnosis" do
+    on "IssueDiagnosed"
+    trigger "PrepareEstimate"
+  end
+
+  policy "OrderPartsOnApproval" do
+    on "EstimateApproved"
+    trigger "IssuePart"
+  end
+
+  policy "BeginRepairOnParts" do
+    on "PartIssued"
+    trigger "DiagnoseIssue"
+  end
+
+  policy "QualityCheckOnCompletion" do
+    on "RepairCompleted"
+    trigger "UpdateMileage"
+  end
+
+  policy "NotifyOnQualityPass" do
+    on "MileageUpdated"
+    trigger "CloseWorkOrder"
+  end
+
+  policy "ReorderOnLowStock" do
+    on "PartIssued"
+    trigger "ReorderPart"
+  end
+
+  policy "OpenWorkOrderOnVehicleIntaked" do
+    on "VehicleIntaked"
+    trigger "OpenWorkOrder"
+  end
+
+  policy "DiagnoseOnWorkOrderOpened" do
+    on "WorkOrderOpened"
+    trigger "DiagnoseIssue"
+  end
+end

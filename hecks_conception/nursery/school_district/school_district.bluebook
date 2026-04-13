@@ -1,0 +1,275 @@
+Hecks.bluebook "SchoolDistrict" do
+  vision "Manage schools, students, teachers, courses, and grades across a district"
+
+  aggregate "School", "A campus within the district with capacity and grade levels" do
+    String :school_code
+    String :name
+    String :level
+    Integer :capacity
+    Integer :enrollment
+    String :status
+
+    value_object "Address" do
+      String :street
+      String :city
+      String :state
+      String :zip_code
+    end
+
+    OpenSchool do
+      description "Establish a new school in the district"
+      String :school_code
+      String :name
+      String :level
+      Integer :capacity
+      emits "SchoolOpened"
+      then_set :status, to: "active"
+      then_set :enrollment, to: 0
+    end
+
+    AccreditSchool do
+      description "Mark a school as accredited after review"
+      reference_to(School)
+      given { status == "active" }
+      emits "SchoolAccredited"
+      then_set :status, to: "accredited"
+    end
+
+    CloseSchool do
+      description "Permanently close a school due to consolidation"
+      reference_to(School)
+      given { status == "accredited" }
+      emits "SchoolClosed"
+      then_set :status, to: "closed"
+    end
+  end
+
+  aggregate "Student", "A learner enrolled in a district school" do
+    String :student_id
+    String :name
+    String :grade_level
+    String :status
+    reference_to(School)
+
+    value_object "Guardian" do
+      String :name
+      String :phone
+      String :relationship
+    end
+
+    RegisterStudent do
+      description "Register a prospective student with the district"
+      String :name
+      String :grade_level
+      emits "StudentRegistered"
+      then_set :status, to: "registered"
+    end
+
+    EnrollStudent do
+      description "Assign a registered student to a school"
+      reference_to(Student)
+      reference_to(School)
+      given { status == "registered" }
+      emits "StudentEnrolled"
+      then_set :status, to: "enrolled"
+    end
+
+    PromoteStudent do
+      description "Advance a student to the next grade level"
+      reference_to(Student)
+      String :new_grade_level
+      given { status == "enrolled" }
+      emits "StudentPromoted"
+    end
+
+    TransferStudent do
+      description "Move a student from one school to another"
+      reference_to(Student)
+      reference_to(School)
+      given { status == "enrolled" }
+      emits "StudentTransferred"
+    end
+
+    GraduateStudent do
+      description "Mark a student as having completed their program"
+      reference_to(Student)
+      given { status == "enrolled" }
+      emits "StudentGraduated"
+      then_set :status, to: "graduated"
+    end
+
+    WithdrawStudent do
+      description "Remove a student from enrollment"
+      reference_to(Student)
+      String :reason
+      given { status == "enrolled" }
+      emits "StudentWithdrawn"
+      then_set :status, to: "withdrawn"
+    end
+  end
+
+  aggregate "Teacher", "An educator certified to teach in the district" do
+    String :employee_id
+    String :name
+    String :certification_area
+    String :status
+    reference_to(School)
+
+    value_object "Credential" do
+      String :cert_type
+      String :expiry_date
+      String :state_issued
+    end
+
+    HireTeacher do
+      description "Onboard a new teacher and assign to a school"
+      String :name
+      String :certification_area
+      reference_to(School)
+      emits "TeacherHired"
+      then_set :status, to: "active"
+    end
+
+    AssignTeacher do
+      description "Assign a teacher to a specific course section"
+      reference_to(Teacher)
+      reference_to(Course)
+      emits "TeacherAssigned"
+    end
+
+    PlaceOnLeave do
+      description "Put a teacher on leave of absence"
+      reference_to(Teacher)
+      String :reason
+      given { status == "active" }
+      emits "TeacherOnLeave"
+      then_set :status, to: "on_leave"
+    end
+  end
+
+  aggregate "Course", "An academic course offered at a school" do
+    String :course_code
+    String :title
+    String :subject
+    Integer :max_enrollment
+    Integer :current_enrollment
+    String :status
+    reference_to(School)
+
+    value_object "Syllabus" do
+      String :description
+      Integer :credit_hours
+    end
+
+    CreateCourse do
+      description "Add a new course to the school catalog"
+      String :course_code
+      String :title
+      String :subject
+      Integer :max_enrollment
+      reference_to(School)
+      emits "CourseCreated"
+      then_set :status, to: "active"
+      then_set :current_enrollment, to: 0
+    end
+
+    EnrollInCourse do
+      description "Register a student for a course section"
+      reference_to(Course)
+      reference_to(Student)
+      given { current_enrollment < max_enrollment }
+      emits "StudentEnrolledInCourse"
+    end
+
+    CompleteCourse do
+      description "Close a course section at end of semester"
+      reference_to(Course)
+      given { status == "active" }
+      emits "CourseCompleted"
+      then_set :status, to: "completed"
+    end
+  end
+
+  aggregate "GradeRecord", "A grade entry for a student in a course" do
+    String :record_id
+    String :letter_grade
+    Float :numeric_score
+    String :semester
+    String :status
+    reference_to(Student)
+    reference_to(Course)
+
+    value_object "GradeWeight" do
+      String :category
+      Float :weight_percent
+    end
+
+    RecordGrade do
+      description "Enter a grade for a student in a course"
+      reference_to(Student)
+      reference_to(Course)
+      String :letter_grade
+      Float :numeric_score
+      String :semester
+      emits "GradeRecorded"
+      then_set :status, to: "posted"
+    end
+
+    AppealGrade do
+      description "Submit a grade appeal for review"
+      reference_to(GradeRecord)
+      String :reason
+      given { status == "posted" }
+      emits "GradeAppealed"
+      then_set :status, to: "under_review"
+    end
+
+    FinalizeGrade do
+      description "Confirm grade as final after review period"
+      reference_to(GradeRecord)
+      given { status == "posted" }
+      emits "GradeFinalized"
+      then_set :status, to: "finalized"
+    end
+  end
+
+  policy "EnrollOnRegistration" do
+    on "StudentRegistered"
+    trigger "EnrollStudent"
+  end
+
+  policy "AssignTeacherOnCourseCreated" do
+    on "CourseCreated"
+    trigger "AssignTeacher"
+  end
+
+  policy "EnrollInCourseOnEnrollment" do
+    on "StudentEnrolled"
+    trigger "EnrollInCourse"
+  end
+
+  policy "RecordGradeOnCourseComplete" do
+    on "CourseCompleted"
+    trigger "RecordGrade"
+  end
+
+  policy "FinalizeGradeOnRecord" do
+    on "GradeRecorded"
+    trigger "FinalizeGrade"
+  end
+
+  policy "TransferOnSchoolClosed" do
+    on "SchoolClosed"
+    trigger "TransferStudent"
+  end
+
+  policy "EnrollOnStudentRegistered" do
+    on "StudentRegistered"
+    trigger "EnrollStudent"
+  end
+
+  policy "PromoteOnGradeFinalized" do
+    on "GradeFinalized"
+    trigger "PromoteStudent"
+  end
+end

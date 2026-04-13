@@ -1,0 +1,150 @@
+Hecks.bluebook "SmartOT", version: "2026.04.13.1" do
+  vision "Smart OT — occupational therapy activities meet IoT smart home and adaptive devices"
+  category "healthcare_technology"
+
+  aggregate "TherapyGoal", "An occupational therapy goal for a client" do
+    String :goal_id
+    String :client_name
+    String :goal_area
+    String :target_outcome
+    Float :progress_pct
+    String :status
+    SetGoal do
+      role "Therapist"
+      description "Set an occupational therapy goal for a client"
+      String :goal_id
+      String :client_name
+      String :goal_area
+      String :target_outcome
+      emits "GoalSet"
+      then_set :goal_id, to: :goal_id
+      then_set :client_name, to: :client_name
+      then_set :goal_area, to: :goal_area
+      then_set :target_outcome, to: :target_outcome
+      then_set :progress_pct, to: 0.0
+      then_set :status, to: "active"
+    end
+    UpdateProgress do
+      role "Therapist"
+      description "Update progress toward the therapy goal"
+      reference_to(TherapyGoal)
+      Float :progress_pct
+      emits "ProgressUpdated"
+      then_set :progress_pct, to: :progress_pct
+    end
+    AchieveGoal do
+      role "Therapist"
+      description "Mark the therapy goal as achieved"
+      reference_to(TherapyGoal)
+      given { progress_pct >= 100.0 }
+      emits "GoalAchieved"
+      then_set :status, to: "achieved"
+    end
+  end
+
+  aggregate "SmartDevice", "An IoT smart home device supporting occupational independence" do
+    String :device_id
+    String :device_type
+    String :location_room
+    String :client_name
+    String :status
+    value_object "DeviceSetting" do
+      String :setting_name
+      String :value
+      String :unit
+    end
+    PairDevice do
+      role "Technician"
+      description "Pair a smart home device to a client environment"
+      String :device_id
+      String :device_type
+      String :location_room
+      String :client_name
+      emits "DevicePaired"
+      then_set :device_id, to: :device_id
+      then_set :device_type, to: :device_type
+      then_set :location_room, to: :location_room
+      then_set :client_name, to: :client_name
+      then_set :status, to: "paired"
+    end
+    AdjustDevice do
+      role "Therapist"
+      description "Adjust device settings to match client ability level"
+      reference_to(SmartDevice)
+      emits "DeviceAdjusted"
+    end
+  end
+
+  aggregate "ActivityLog", "A log of daily living activities performed with smart device support" do
+    String :log_id
+    String :client_name
+    String :activity
+    String :device_id
+    Float :duration_minutes
+    String :independence_level
+    list_of(Assist) :assists
+    value_object "Assist" do
+      String :assist_type
+      String :device_used
+      String :outcome
+    end
+    LogActivity do
+      role "System"
+      description "Log a daily living activity and device assistance used"
+      String :log_id
+      String :client_name
+      String :activity
+      String :device_id
+      Float :duration_minutes
+      String :independence_level
+      emits "ActivityLogged"
+      then_set :log_id, to: :log_id
+      then_set :client_name, to: :client_name
+      then_set :activity, to: :activity
+      then_set :device_id, to: :device_id
+      then_set :duration_minutes, to: :duration_minutes
+      then_set :independence_level, to: :independence_level
+    end
+  end
+
+  aggregate "AdaptiveAssessment", "An assessment of adaptive device effectiveness" do
+    String :assessment_id
+    String :client_name
+    String :device_id
+    Float :before_score
+    Float :after_score
+    String :recommendation
+    RunAssessment do
+      role "Therapist"
+      description "Assess the effectiveness of a smart device for the client"
+      String :assessment_id
+      String :client_name
+      String :device_id
+      Float :before_score
+      Float :after_score
+      emits "AssessmentRun"
+      then_set :assessment_id, to: :assessment_id
+      then_set :client_name, to: :client_name
+      then_set :device_id, to: :device_id
+      then_set :before_score, to: :before_score
+      then_set :after_score, to: :after_score
+    end
+    WriteRecommendation do
+      role "Therapist"
+      description "Write a recommendation based on the assessment results"
+      reference_to(AdaptiveAssessment)
+      String :recommendation
+      emits "RecommendationWritten"
+      then_set :recommendation, to: :recommendation
+    end
+  end
+
+  policy "LogOnPair" do
+    on "DevicePaired"
+    trigger "LogActivity"
+  end
+  policy "AssessOnProgress" do
+    on "ProgressUpdated"
+    trigger "RunAssessment"
+  end
+end

@@ -1,0 +1,309 @@
+Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
+  vision "Entomology meets pest control — species ID, life cycles, treatment resistance, and integrated pest management"
+  category "crossover"
+
+  aggregate "PestSpecies", "An identified pest species — taxonomy, life cycle, behavior, vulnerabilities" do
+    String :scientific_name
+    String :common_name
+    String :order
+    String :family
+    Integer :life_cycle_days
+    String :habitat_preference
+    String :status
+
+    value_object "LifeCycleStage" do
+      String :stage_name
+      Integer :duration_days
+      String :vulnerability
+    end
+
+    IdentifySpecies do
+      role "Entomologist"
+      description "Identify a pest species from specimens or evidence"
+      String :scientific_name
+      String :common_name
+      String :order
+      String :family
+      Integer :life_cycle_days
+      String :habitat_preference
+      emits "PestSpeciesIdentified"
+      then_set :scientific_name, to: :scientific_name
+      then_set :common_name, to: :common_name
+      then_set :order, to: :order
+      then_set :family, to: :family
+      then_set :life_cycle_days, to: :life_cycle_days
+      then_set :habitat_preference, to: :habitat_preference
+      then_set :status, to: "identified"
+    end
+
+    DocumentLifeCycle do
+      role "Entomologist"
+      description "Document the complete life cycle and vulnerable stages"
+      reference_to(PestSpecies)
+      given { status == "identified" }
+      emits "LifeCycleDocumented"
+      then_set :status, to: "documented"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "IdentifySpecies" => "identified", from: "unknown"
+      transition "DocumentLifeCycle" => "documented", from: "identified"
+    end
+  end
+
+  aggregate "Infestation", "An active pest infestation — location, severity, population estimate" do
+    String :site_address
+    String :pest_species
+    String :severity
+    Integer :estimated_population
+    String :affected_area
+    String :status
+
+    value_object "InfestationMetrics" do
+      Float :damage_rating
+      Float :spread_rate_per_week
+      Integer :traps_set
+    end
+
+    list_of "InfestationSign" do
+      String :sign_type
+      String :location
+      String :description
+    end
+
+    ReportInfestation do
+      role "Inspector"
+      description "Report a pest infestation at a site"
+      String :site_address
+      String :pest_species
+      String :severity
+      Integer :estimated_population
+      String :affected_area
+      emits "InfestationReported"
+      then_set :site_address, to: :site_address
+      then_set :pest_species, to: :pest_species
+      then_set :severity, to: :severity
+      then_set :estimated_population, to: :estimated_population
+      then_set :affected_area, to: :affected_area
+      then_set :status, to: "reported"
+    end
+
+    AssessInfestation do
+      role "Entomologist"
+      description "Assess infestation scope and determine treatment approach"
+      reference_to(Infestation)
+      given { status == "reported" }
+      emits "InfestationAssessed"
+      then_set :status, to: "assessed"
+    end
+
+    ResolveInfestation do
+      role "Technician"
+      description "Confirm infestation resolved after treatment"
+      reference_to(Infestation)
+      given { status == "assessed" }
+      emits "InfestationResolved"
+      then_set :status, to: "resolved"
+    end
+
+    lifecycle :status, default: "clear" do
+      transition "ReportInfestation" => "reported", from: "clear"
+      transition "AssessInfestation" => "assessed", from: "reported"
+      transition "ResolveInfestation" => "resolved", from: "assessed"
+    end
+  end
+
+  aggregate "Treatment", "A pest treatment — method, chemicals, application, effectiveness" do
+    String :treatment_name
+    String :method
+    String :active_ingredient
+    Float :concentration_pct
+    String :target_life_stage
+    Float :effectiveness_pct
+    String :status
+
+    value_object "ApplicationParams" do
+      Float :rate_per_sq_m
+      String :method
+      Float :reentry_hours
+    end
+
+    PrescribeTreatment do
+      role "Entomologist"
+      description "Prescribe a treatment targeting the pest's vulnerable life stage"
+      String :treatment_name
+      String :method
+      String :active_ingredient
+      Float :concentration_pct
+      String :target_life_stage
+      emits "TreatmentPrescribed"
+      then_set :treatment_name, to: :treatment_name
+      then_set :method, to: :method
+      then_set :active_ingredient, to: :active_ingredient
+      then_set :concentration_pct, to: :concentration_pct
+      then_set :target_life_stage, to: :target_life_stage
+      then_set :status, to: "prescribed"
+    end
+
+    ApplyTreatment do
+      role "Technician"
+      description "Apply the prescribed treatment at the site"
+      reference_to(Treatment)
+      given { status == "prescribed" }
+      emits "TreatmentApplied"
+      then_set :status, to: "applied"
+    end
+
+    EvaluateEffectiveness do
+      role "Inspector"
+      description "Evaluate treatment effectiveness after application period"
+      reference_to(Treatment)
+      Float :effectiveness_pct
+      given { status == "applied" }
+      emits "EffectivenessEvaluated"
+      then_set :effectiveness_pct, to: :effectiveness_pct
+      then_set :status, to: "evaluated"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "PrescribeTreatment" => "prescribed", from: "pending"
+      transition "ApplyTreatment" => "applied", from: "prescribed"
+      transition "EvaluateEffectiveness" => "evaluated", from: "applied"
+    end
+  end
+
+  aggregate "ResistanceProfile", "Pest resistance to treatments — mechanism, level, cross-resistance" do
+    String :pest_species
+    String :active_ingredient
+    String :resistance_mechanism
+    Float :resistance_level_pct
+    String :first_detected
+    String :status
+
+    value_object "CrossResistance" do
+      String :related_ingredient
+      Float :cross_resistance_pct
+      String :mechanism
+    end
+
+    RecordResistance do
+      role "Entomologist"
+      description "Record pest resistance to a treatment active ingredient"
+      String :pest_species
+      String :active_ingredient
+      String :resistance_mechanism
+      Float :resistance_level_pct
+      String :first_detected
+      emits "ResistanceRecorded"
+      then_set :pest_species, to: :pest_species
+      then_set :active_ingredient, to: :active_ingredient
+      then_set :resistance_mechanism, to: :resistance_mechanism
+      then_set :resistance_level_pct, to: :resistance_level_pct
+      then_set :first_detected, to: :first_detected
+      then_set :status, to: "recorded"
+    end
+
+    RecommendRotation do
+      role "Entomologist"
+      description "Recommend treatment rotation to prevent resistance buildup"
+      reference_to(ResistanceProfile)
+      given { status == "recorded" }
+      emits "RotationRecommended"
+      then_set :status, to: "rotation_advised"
+    end
+
+    lifecycle :status, default: "unknown" do
+      transition "RecordResistance" => "recorded", from: "unknown"
+      transition "RecommendRotation" => "rotation_advised", from: "recorded"
+    end
+  end
+
+  aggregate "IPMPlan", "An integrated pest management plan — prevention, monitoring, intervention tiers" do
+    String :site_address
+    String :target_pest
+    String :prevention_measures
+    String :monitoring_method
+    String :intervention_tier
+    String :status
+
+    value_object "MonitoringThreshold" do
+      String :metric
+      Float :action_threshold
+      Float :current_level
+    end
+
+    list_of "PreventionAction" do
+      String :action
+      String :frequency
+      String :responsible_party
+    end
+
+    CreateIPMPlan do
+      role "Entomologist"
+      description "Create an integrated pest management plan with prevention and monitoring"
+      String :site_address
+      String :target_pest
+      String :prevention_measures
+      String :monitoring_method
+      emits "IPMPlanCreated"
+      then_set :site_address, to: :site_address
+      then_set :target_pest, to: :target_pest
+      then_set :prevention_measures, to: :prevention_measures
+      then_set :monitoring_method, to: :monitoring_method
+      then_set :intervention_tier, to: "prevention"
+      then_set :status, to: "active"
+    end
+
+    EscalateTier do
+      role "Entomologist"
+      description "Escalate to next intervention tier when thresholds exceeded"
+      reference_to(IPMPlan)
+      String :intervention_tier
+      given { status == "active" }
+      emits "TierEscalated"
+      then_set :intervention_tier, to: :intervention_tier
+    end
+
+    ReviewIPMPlan do
+      role "Manager"
+      description "Periodic review of IPM plan effectiveness"
+      reference_to(IPMPlan)
+      given { status == "active" }
+      emits "IPMPlanReviewed"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "CreateIPMPlan" => "active", from: "draft"
+    end
+  end
+
+  policy "DocumentOnIdentify" do
+    on "PestSpeciesIdentified"
+    trigger "DocumentLifeCycle"
+  end
+
+  policy "AssessOnReport" do
+    on "InfestationReported"
+    trigger "AssessInfestation"
+  end
+
+  policy "PrescribeOnAssess" do
+    on "InfestationAssessed"
+    trigger "PrescribeTreatment"
+  end
+
+  policy "ApplyOnPrescribe" do
+    on "TreatmentPrescribed"
+    trigger "ApplyTreatment"
+  end
+
+  policy "EvaluateOnApply" do
+    on "TreatmentApplied"
+    trigger "EvaluateEffectiveness"
+  end
+
+  policy "RotateOnResistance" do
+    on "ResistanceRecorded"
+    trigger "RecommendRotation"
+  end
+end

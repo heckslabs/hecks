@@ -1,0 +1,228 @@
+Hecks.bluebook "EmergencyRoom" do
+  vision "Manage patients, beds, triage, procedures, and discharges for a hospital emergency department"
+
+  aggregate "Patient", "A person presenting at the ER for emergency medical care" do
+    String :patient_id
+    String :name
+    String :date_of_birth
+    String :chief_complaint
+    String :status
+    String :arrival_time
+    reference_to(Bed)
+
+    value_object "Insurance" do
+      String :provider
+      String :policy_number
+      String :group_number
+    end
+
+    RegisterPatient do
+      description "Check in a patient at the ER front desk"
+      String :name
+      String :date_of_birth
+      String :chief_complaint
+      emits "PatientRegistered"
+      then_set :status, to: "waiting"
+    end
+
+    AdmitPatient do
+      description "Move a triaged patient to a bed for treatment"
+      reference_to(Patient)
+      reference_to(Bed)
+      given { status == "triaged" }
+      emits "PatientAdmitted"
+      then_set :status, to: "admitted"
+    end
+
+    BeginTreatment do
+      description "Start active medical treatment on an admitted patient"
+      reference_to(Patient)
+      given { status == "admitted" }
+      emits "TreatmentBegun"
+      then_set :status, to: "treating"
+    end
+
+    StabilizePatient do
+      description "Record that the patient's condition has been stabilized"
+      reference_to(Patient)
+      given { status == "treating" }
+      emits "PatientStabilized"
+      then_set :status, to: "stabilized"
+    end
+
+    DischargePatient do
+      description "Release a patient from the ER after treatment"
+      reference_to(Patient)
+      String :discharge_instructions
+      given { status == "stabilized" }
+      emits "PatientDischarged"
+      then_set :status, to: "discharged"
+    end
+
+    TransferToInpatient do
+      description "Transfer a stabilized patient to an inpatient ward"
+      reference_to(Patient)
+      String :ward
+      given { status == "stabilized" }
+      emits "PatientTransferred"
+      then_set :status, to: "transferred"
+    end
+  end
+
+  aggregate "Bed", "A physical treatment space in the emergency department" do
+    String :bed_id
+    String :zone
+    String :status
+    String :equipment_level
+
+    value_object "BedEquipment" do
+      String :has_monitor
+      String :has_oxygen
+      String :has_suction
+    end
+
+    PrepareBed do
+      description "Ready a bed for the next patient"
+      String :bed_id
+      String :zone
+      String :equipment_level
+      emits "BedPrepared"
+      then_set :status, to: "available"
+    end
+
+    OccupyBed do
+      description "Mark a bed as in use by a patient"
+      reference_to(Bed)
+      given { status == "available" }
+      emits "BedOccupied"
+      then_set :status, to: "occupied"
+    end
+
+    CleanBed do
+      description "Sanitize a bed after patient discharge"
+      reference_to(Bed)
+      given { status == "occupied" }
+      emits "BedCleaned"
+      then_set :status, to: "available"
+    end
+  end
+
+  aggregate "TriageAssessment", "An initial evaluation assigning acuity level to a patient" do
+    String :assessment_id
+    Integer :acuity_level
+    String :vital_signs_summary
+    String :status
+    reference_to(Patient)
+
+    specification "Critical" do
+      satisfied_by { acuity_level <= 2 }
+    end
+
+    value_object "VitalSigns" do
+      Integer :heart_rate
+      Integer :blood_pressure_systolic
+      Integer :blood_pressure_diastolic
+      Float :temperature_f
+      Integer :respiratory_rate
+    end
+
+    PerformTriage do
+      description "Assess a waiting patient and assign acuity level"
+      reference_to(Patient)
+      Integer :acuity_level
+      String :vital_signs_summary
+      emits "TriageCompleted"
+      then_set :status, to: "completed"
+    end
+
+    EscalateTriage do
+      description "Upgrade acuity level if patient condition worsens"
+      reference_to(TriageAssessment)
+      Integer :new_acuity_level
+      given { status == "completed" }
+      emits "TriageEscalated"
+    end
+  end
+
+  aggregate "Procedure", "A medical intervention performed on an ER patient" do
+    String :procedure_id
+    String :procedure_name
+    String :physician
+    String :status
+    String :notes
+    reference_to(Patient)
+
+    value_object "Supplies" do
+      String :item_name
+      Integer :quantity
+    end
+
+    OrderProcedure do
+      description "Prescribe a procedure for a patient"
+      String :procedure_name
+      String :physician
+      reference_to(Patient)
+      emits "ProcedureOrdered"
+      then_set :status, to: "ordered"
+    end
+
+    PerformProcedure do
+      description "Execute the ordered procedure"
+      reference_to(Procedure)
+      String :notes
+      given { status == "ordered" }
+      emits "ProcedurePerformed"
+      then_set :status, to: "completed"
+    end
+  end
+
+  policy "TriageOnRegister" do
+    on "PatientRegistered"
+    trigger "PerformTriage"
+  end
+
+  policy "AdmitOnTriage" do
+    on "TriageCompleted"
+    trigger "AdmitPatient"
+  end
+
+  policy "OccupyBedOnAdmit" do
+    on "PatientAdmitted"
+    trigger "OccupyBed"
+  end
+
+  policy "BeginTreatmentOnAdmit" do
+    on "PatientAdmitted"
+    trigger "BeginTreatment"
+  end
+
+  policy "OrderProcedureOnTreatment" do
+    on "TreatmentBegun"
+    trigger "OrderProcedure"
+  end
+
+  policy "StabilizeOnProcedure" do
+    on "ProcedurePerformed"
+    trigger "StabilizePatient"
+  end
+
+  policy "CleanBedOnDischarge" do
+    on "PatientDischarged"
+    trigger "CleanBed"
+  end
+
+  policy "DischargeOnStabilized" do
+    on "PatientStabilized"
+    trigger "DischargePatient"
+  end
+
+  policy "TransferOnStabilized" do
+    on "PatientStabilized"
+    trigger "TransferToInpatient"
+  end
+
+  policy "PrepareBedOnBedCleaned" do
+    on "BedCleaned"
+    trigger "PrepareBed"
+  end
+end
