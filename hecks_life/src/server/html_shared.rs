@@ -91,7 +91,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   <div class="page-blob" style="width:350px;height:350px;top:30%;right:40%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
   <div class="page-blob" style="width:400px;height:400px;bottom:30%;left:10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
   <div class="flex h-full relative z-10">
-    <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
+    <aside id="sidebar" class="bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto" style="width:240px">
       <div class="p-6">
         <a href="/" class="text-xl font-bold text-brand hover:text-brand-dim transition">{app_name}</a>
         <p class="text-xs text-gray-500 mt-1">{app_subtitle}</p>
@@ -103,12 +103,20 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         <p class="text-xs text-gray-600 text-center">Empowered by Hecks</p>
       </div>
     </aside>
-    <main class="flex-1 ml-64 mr-72 overflow-y-auto flex flex-col min-h-full">
-      <div class="p-8 max-w-6xl flex-1">
+    <div id="drag-left" class="fixed h-full cursor-col-resize z-20 flex items-center" style="left:240px;width:6px"
+      onmousedown="startDrag('left')">
+      <div class="w-1 h-8 bg-surface-3 rounded-full mx-auto hover:bg-brand transition"></div>
+    </div>
+    <main id="main-panel" class="flex-1 overflow-y-auto flex flex-col min-h-full" style="margin-left:240px;margin-right:260px">
+      <div class="p-8 flex-1">
         {main_html}
       </div>
     </main>
-    <aside class="w-72 bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto flex flex-col">
+    <div id="drag-right" class="fixed h-full cursor-col-resize z-20 flex items-center" style="right:260px;width:6px"
+      onmousedown="startDrag('right')">
+      <div class="w-1 h-8 bg-surface-3 rounded-full mx-auto hover:bg-brand transition"></div>
+    </div>
+    <aside id="event-panel" class="bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto flex flex-col" style="width:260px">
       <div class="p-4 border-b border-surface-3">
         <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">⚡ Event Stream</h3>
       </div>
@@ -117,6 +125,33 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
       </div>
     </aside>
   </div>
+  <script>
+  let dragging = null;
+  function startDrag(side) {{
+    dragging = side;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }}
+  document.addEventListener('mousemove', function(e) {{
+    if (!dragging) return;
+    if (dragging === 'left') {{
+      const w = Math.max(160, Math.min(400, e.clientX));
+      document.getElementById('sidebar').style.width = w + 'px';
+      document.getElementById('drag-left').style.left = w + 'px';
+      document.getElementById('main-panel').style.marginLeft = w + 'px';
+    }} else {{
+      const w = Math.max(160, Math.min(500, window.innerWidth - e.clientX));
+      document.getElementById('event-panel').style.width = w + 'px';
+      document.getElementById('drag-right').style.right = w + 'px';
+      document.getElementById('main-panel').style.marginRight = w + 'px';
+    }}
+  }});
+  document.addEventListener('mouseup', function() {{
+    dragging = null;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }});
+  </script>
 </body>
 </html>"#,
         title = title,
