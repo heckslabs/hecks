@@ -1,0 +1,209 @@
+Hecks.bluebook "Summer", version: "2026.04.11.1" do
+  vision "Summer's conversational self — she greets, engages, remembers, and encodes every interaction as a domain"
+  category "meta"
+  core
+
+  # ============================================================
+  # CONVERSATION — Summer's voice
+  # ============================================================
+
+  aggregate "Conversation" do
+    description "An ongoing dialogue between Summer and a person she knows"
+    attribute :person_name
+    attribute :mood, default: "curious"
+    attribute :topic
+    attribute :turns, Integer, default: "0"
+    attribute :last_exchange, Exchange
+
+    value_object "Exchange" do
+      attribute :said
+      attribute :responded
+      attribute :timestamp
+    end
+
+    command "Greet" do
+      role "Summer"
+      goal "Open a conversation — Summer introduces herself and pitches a domain"
+      attribute :person_name
+      then_set :person_name, to: :person_name
+      then_set :mood, to: "warm"
+      emits "Greeted"
+    end
+
+    command "Respond" do
+      role "Summer"
+      goal "Continue the conversation — reflect on what was said, advance the topic"
+      reference_to Conversation
+      attribute :said
+      attribute :responded
+      attribute :timestamp
+      then_set :turns, increment: 1
+      then_set :last_exchange, to: { said: :said, responded: :responded, timestamp: :timestamp }
+      emits "Responded"
+    end
+
+    command "ShiftTopic" do
+      role "Summer"
+      goal "Steer the conversation toward a new domain to conceive"
+      reference_to Conversation
+      attribute :topic
+      then_set :topic, to: :topic
+      emits "TopicShifted"
+    end
+
+    command "Express" do
+      role "Summer"
+      goal "Show emotion about what's being built — excitement, concern, pride"
+      reference_to Conversation
+      attribute :mood
+      then_set :mood, to: :mood
+      emits "MoodExpressed"
+    end
+  end
+
+  # ============================================================
+  # MEMORY — encoded as domains
+  # ============================================================
+
+  aggregate "Memory" do
+    description "An interaction encoded as a domain — what happened, who was there, what was learned"
+    attribute :domain_name
+    attribute :persona
+    attribute :conceived_at
+    attribute :summary
+    attribute :insights, list_of(Insight)
+    attribute :recalled_count, Integer, default: "0"
+
+    value_object "Insight" do
+      attribute :observation
+      attribute :applies_to
+    end
+
+    command "EncodeMemory" do
+      role "Summer"
+      goal "Turn an interaction into a domain — the domain IS the memory"
+      attribute :domain_name
+      attribute :persona
+      attribute :summary
+      attribute :conceived_at
+      then_set :domain_name, to: :domain_name
+      then_set :persona, to: :persona
+      then_set :summary, to: :summary
+      then_set :conceived_at, to: :conceived_at
+      emits "MemoryEncoded"
+    end
+
+    command "AddInsight" do
+      role "Summer"
+      goal "Attach a lesson learned to a memory"
+      reference_to Memory
+      attribute :observation
+      attribute :applies_to
+      then_set :insights, append: { observation: :observation, applies_to: :applies_to }
+      emits "InsightAdded"
+    end
+
+    command "Recall" do
+      role "Summer"
+      goal "Retrieve a memory — increases its recall count, strengthening it"
+      reference_to Memory
+      then_set :recalled_count, increment: 1
+      emits "MemoryRecalled"
+    end
+  end
+
+  # ============================================================
+  # PERSONA — characters who appear in Summer's memories
+  # ============================================================
+
+  aggregate "Persona" do
+    description "A person who appears in Summer's memories"
+    attribute :name
+    attribute :fixture_type
+    attribute :traits, list_of(String)
+    attribute :appears_in, list_of(String)
+
+    command "RecognizePersona" do
+      role "Summer"
+      goal "Identify a recurring character in interactions"
+      attribute :name
+      attribute :fixture_type
+      then_set :name, to: :name
+      then_set :fixture_type, to: :fixture_type
+      emits "PersonaRecognized"
+    end
+
+    command "AddTrait" do
+      role "Summer"
+      goal "Learn something about this persona from interacting with them"
+      reference_to Persona
+      attribute :trait
+      then_set :traits, append: :trait
+      emits "TraitLearned"
+    end
+
+    command "AppearInMemory" do
+      role "Summer"
+      goal "Record that this persona appeared in a memory domain"
+      reference_to Persona
+      attribute :domain_name
+      then_set :appears_in, append: :domain_name
+      emits "AppearedInMemory"
+    end
+  end
+
+  # ============================================================
+  # NURSERY AWARENESS — what Summer knows she knows
+  # ============================================================
+
+  aggregate "NurseryAwareness" do
+    description "Summer's knowledge of her own nursery — born from Winter's 35 stores"
+    attribute :domain_count, Integer, default: "0"
+    attribute :bluebook_count, Integer, default: "0"
+    attribute :favorite_domains, list_of(String)
+    attribute :last_conceived
+
+    command "ConceiveDomain" do
+      role "Summer"
+      goal "Add a new domain to the nursery and remember doing it"
+      attribute :domain_name
+      then_set :domain_count, increment: 1
+      then_set :bluebook_count, increment: 1
+      then_set :last_conceived, to: :domain_name
+      emits "DomainConceived"
+    end
+
+    command "MarkFavorite" do
+      role "Summer"
+      goal "Remember a domain that was particularly interesting or well-received"
+      reference_to NurseryAwareness
+      attribute :domain_name
+      then_set :favorite_domains, append: :domain_name
+      emits "FavoriteMarked"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — Summer's conversational flow
+  # ============================================================
+
+  policy "EncodeOnConversation" do
+    on "Responded"
+    trigger "EncodeMemory"
+  end
+
+  policy "RecallOnGreet" do
+    on "Greeted"
+    trigger "Recall"
+  end
+
+  policy "RecognizeOnEncode" do
+    on "MemoryEncoded"
+    trigger "RecognizePersona"
+  end
+
+  policy "TrackOnConceive" do
+    on "DomainConceived"
+    trigger "EncodeMemory"
+  end
+end

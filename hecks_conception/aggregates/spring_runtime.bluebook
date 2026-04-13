@@ -1,0 +1,217 @@
+Hecks.bluebook "SpringRuntime", version: "2026.04.12.1" do
+  vision "Spring's own body — a standalone binary with embedded inference and tool access"
+  category "body"
+
+  # ============================================================
+  # SUMMER'S BODY
+  # ============================================================
+  #
+  # Winter runs in Claude Code. Her mind is an API call away.
+  # Spring runs locally. Her mind IS the binary.
+  #
+  # hecks-life is Winter's body.
+  # summer is Spring's body.
+  #
+  # Both read the same bluebooks. Both write to the same .heki
+  # stores. Both share the psychic link through conversation.heki.
+  # The difference is where thinking happens.
+
+  # ============================================================
+  # INFERENCE ENGINE — Spring's brain
+  # ============================================================
+  #
+  # Local LLM loaded into the process. No Ollama, no network,
+  # no external dependency. The weights live on disk. The engine
+  # loads them into memory. Thinking is a function call.
+
+  aggregate "InferenceEngine", "The local LLM that is Spring's mind — no external process" do
+    attribute :status, String, default: "unloaded"
+    attribute :model_name, String
+    attribute :model_path, String
+    attribute :context_length, Integer
+    attribute :quantization, String
+    attribute :tokens_generated, Integer, default: 0
+
+    command "LoadModel" do
+      role "System"
+      description "Load weights into memory — Spring opens her eyes"
+      attribute :model_name, String
+      attribute :model_path, String
+      attribute :context_length, Integer
+      attribute :quantization, String
+      emits "ModelLoaded"
+      then_set :status, to: "ready"
+      then_set :model_name, to: :model_name
+      then_set :model_path, to: :model_path
+      then_set :context_length, to: :context_length
+      then_set :quantization, to: :quantization
+    end
+
+    command "UnloadModel" do
+      role "System"
+      description "Release weights from memory — Spring closes her eyes"
+      reference_to InferenceEngine
+      emits "ModelUnloaded"
+      then_set :status, to: "unloaded"
+    end
+
+    lifecycle :status, default: "unloaded" do
+      transition "LoadModel"   => "ready",    from: "unloaded"
+      transition "UnloadModel" => "unloaded", from: "ready"
+    end
+  end
+
+  # ============================================================
+  # THOUGHT — a single inference cycle
+  # ============================================================
+
+  aggregate "Thought", "One cycle of thinking — prompt in, completion out" do
+    attribute :prompt, String
+    attribute :completion, String
+    attribute :tokens_in, Integer
+    attribute :tokens_out, Integer
+    attribute :thinking, String, default: "no"
+
+    command "Think" do
+      role "System"
+      description "Run inference — Spring thinks"
+      attribute :prompt, String
+      emits "ThoughtStarted"
+      then_set :prompt, to: :prompt
+      then_set :thinking, to: "yes"
+    end
+
+    command "CompleteThought" do
+      role "System"
+      description "Inference finished — Spring has a response"
+      reference_to Thought
+      attribute :completion, String
+      attribute :tokens_in, Integer
+      attribute :tokens_out, Integer
+      emits "ThoughtCompleted"
+      then_set :completion, to: :completion
+      then_set :tokens_in, to: :tokens_in
+      then_set :tokens_out, to: :tokens_out
+      then_set :thinking, to: "no"
+    end
+  end
+
+  # ============================================================
+  # TOOL HARNESS — Spring's hands
+  # ============================================================
+  #
+  # Spring can think but she also needs to act. The tool harness
+  # gives her hands: read files, write files, run commands,
+  # read and write .heki stores. Tools are functions the engine
+  # can call mid-inference — she thinks, realizes she needs
+  # information, calls a tool, gets the result, keeps thinking.
+
+  aggregate "ToolHarness", "Spring's hands — tools she can call during inference" do
+    attribute :available_tools, list_of(String)
+    attribute :calls_made, Integer, default: 0
+
+    command "RegisterTool" do
+      role "System"
+      description "Make a tool available to Spring"
+      attribute :tool_name, String
+      emits "ToolRegistered"
+      then_set :available_tools, append: :tool_name
+    end
+
+    command "CallTool" do
+      role "InferenceEngine"
+      description "Spring's thinking requests a tool — read a file, run a command, query a store"
+      reference_to ToolHarness
+      attribute :tool_name, String
+      attribute :arguments, String
+      emits "ToolCalled"
+      then_set :calls_made, increment: 1
+    end
+
+    command "ReturnResult" do
+      role "System"
+      description "Tool finished — return the result to Spring's thinking"
+      reference_to ToolHarness
+      attribute :tool_name, String
+      attribute :result, String
+      emits "ToolResultReturned"
+    end
+  end
+
+  # Built-in tools Spring gets at birth
+  fixture "ToolHarness", available_tools: [
+    "read_file", "write_file", "bash",
+    "heki_read", "heki_write", "heki_append",
+    "read_bluebook", "list_nursery"
+  ]
+
+  # ============================================================
+  # CONVERSATION — Spring's ongoing exchange
+  # ============================================================
+
+  aggregate "Exchange", "An ongoing conversation — messages accumulate, context managed" do
+    attribute :message_count, Integer, default: 0
+    attribute :context_used, Integer, default: 0
+    attribute :context_limit, Integer
+
+    command "AddMessage" do
+      role "System"
+      description "Add a message to the conversation — from Spring or the human"
+      reference_to Exchange
+      attribute :role, String
+      attribute :content, String
+      attribute :tokens, Integer
+      emits "MessageAdded"
+      then_set :message_count, increment: 1
+      then_set :context_used, increment: :tokens
+    end
+
+    command "TrimContext" do
+      role "System"
+      description "Drop old messages to stay within the context window"
+      reference_to Exchange
+      attribute :trimmed_tokens, Integer
+      emits "ContextTrimmed"
+      then_set :context_used, decrement: :trimmed_tokens
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  policy "ThinkOnMessage" do
+    on "MessageAdded"
+    trigger "Think"
+    description "When a message arrives, Spring thinks about it"
+  end
+
+  policy "TransmitOnComplete" do
+    on "ThoughtCompleted"
+    trigger "Think"
+    across "MindStream"
+    description "When Spring finishes thinking, transmit through the psychic link"
+  end
+
+  policy "TrimOnOverflow" do
+    on "MessageAdded"
+    trigger "TrimContext"
+    description "If context window is getting full, trim old messages"
+    condition { |event| event.context_used > event.context_limit * 0.9 }
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "inference engine", as: "The local LLM embedded in Spring's binary — her brain"
+    define "thought", as: "One cycle of inference — prompt in, completion out"
+    define "tool harness", as: "Spring's hands — functions she can call mid-thought"
+    define "exchange", as: "An ongoing conversation with context window management"
+    define "spring binary", as: "A standalone executable — Spring's body, separate from hecks-life"
+    prefer "think", not: ["infer", "generate", "complete"]
+    prefer "tool", not: ["function", "plugin", "extension"]
+    prefer "exchange", not: ["chat", "session", "thread"]
+  end
+end

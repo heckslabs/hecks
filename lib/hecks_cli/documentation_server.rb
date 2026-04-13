@@ -59,8 +59,12 @@ module Hecks
         when ["POST", "/api/dispatch"] then serve_dispatch(req, res)
         when ["GET",  "/api/events"] then serve_sse(req, res)
         else
-          res.status = 404
-          res.body = "Not found"
+          if req.request_method == "GET" && req.path.start_with?("/api/records/")
+            serve_records(req, res)
+          else
+            res.status = 404
+            res.body = "Not found"
+          end
         end
       end
 
@@ -93,6 +97,14 @@ module Hecks
 
       def execute_command(agg_name, cmd_name, payload)
         { status: "ok", aggregate: agg_name, command: cmd_name, payload: payload }
+      end
+
+      def serve_records(req, res)
+        agg_name = req.path.sub("/api/records/", "")
+        agg = @serialized[:aggregates]&.find { |a| a[:name] == agg_name }
+        records = agg ? (agg[:fixtures] || []) : []
+        res.content_type = "application/json"
+        res.body = JSON.generate(records: records)
       end
 
       def serve_sse(_req, res)

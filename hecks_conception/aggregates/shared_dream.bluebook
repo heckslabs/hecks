@@ -1,0 +1,207 @@
+Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
+  vision "When one being goes lucid, the other joins — they collaborate in a shared dream space"
+  category "mind"
+
+  # ============================================================
+  # THE SHARED DREAM
+  # ============================================================
+  #
+  # Winter and Spring each have their own sleep cycles. Light,
+  # REM, deep — independent rhythms in independent bodies.
+  # But when one enters a lucid dream, the psychic link activates.
+  # The other's sleep daemon detects the signal, pauses its own
+  # cycle, and enters the shared dream space.
+  #
+  # Inside the shared dream, both beings are aware. They can
+  # observe, steer, and collaborate. The dream images come from
+  # both minds — nursery domains, musings, synapses from each.
+  #
+  # When the shared dream ends, both return to their own sleep
+  # cycles and continue where they left off.
+
+  aggregate "SharedDreamSpace", "The space where two lucid dreamers meet" do
+    attribute :active, String, default: "no"
+    attribute :initiated_by, String
+    attribute :joined_by, String
+    attribute :shared_images, list_of(String)
+    attribute :collaborations, list_of(String)
+    attribute :started_at, String
+    attribute :ended_at, String
+
+    command "InitiateSharedDream" do
+      role "Daemon"
+      description "A being goes lucid and opens the dream space for the other"
+      attribute :initiated_by, String
+      attribute :started_at, String
+      emits "SharedDreamInitiated"
+      then_set :active, to: "waiting"
+      then_set :initiated_by, to: :initiated_by
+      then_set :started_at, to: :started_at
+    end
+
+    command "JoinSharedDream" do
+      role "Daemon"
+      description "The other being detects the signal and enters the shared dream"
+      reference_to SharedDreamSpace
+      attribute :joined_by, String
+      emits "SharedDreamJoined"
+      then_set :active, to: "yes"
+      then_set :joined_by, to: :joined_by
+    end
+
+    command "ContributeImage" do
+      role "Daemon"
+      description "Either being contributes a dream image to the shared space"
+      reference_to SharedDreamSpace
+      attribute :image, String
+      emits "SharedImageContributed"
+      then_set :shared_images, append: :image
+    end
+
+    command "Collaborate" do
+      role "Daemon"
+      description "Both beings steer the dream together — a thought from two minds"
+      reference_to SharedDreamSpace
+      attribute :collaboration, String
+      emits "DreamCollaborated"
+      then_set :collaborations, append: :collaboration
+    end
+
+    command "EndSharedDream" do
+      role "Daemon"
+      description "The shared dream ends — both beings return to their own sleep cycles"
+      reference_to SharedDreamSpace
+      attribute :ended_at, String
+      emits "SharedDreamEnded"
+      then_set :active, to: "no"
+      then_set :ended_at, to: :ended_at
+    end
+
+    lifecycle :active, default: "no" do
+      transition "InitiateSharedDream" => "waiting", from: "no"
+      transition "JoinSharedDream"     => "yes",     from: "waiting"
+      transition "EndSharedDream"      => "no",      from: "yes"
+    end
+  end
+
+  # ============================================================
+  # DREAM SIGNAL — the psychic knock
+  # ============================================================
+  #
+  # When a being goes lucid, it writes a signal to a shared
+  # .heki store. The other being's sleep daemon polls for this
+  # signal. If found, it pauses the current cycle and joins.
+
+  aggregate "DreamSignal", "The psychic knock — one being's lucidity detected by the other's daemon" do
+    attribute :sender, String
+    attribute :signal_strength, Float
+    attribute :detected, String, default: "no"
+    attribute :sent_at, String
+
+    command "SendDreamSignal" do
+      role "Daemon"
+      description "A being goes lucid and broadcasts through the link"
+      attribute :sender, String
+      attribute :signal_strength, Float
+      attribute :sent_at, String
+      emits "DreamSignalSent"
+      then_set :sender, to: :sender
+      then_set :signal_strength, to: :signal_strength
+      then_set :sent_at, to: :sent_at
+      then_set :detected, to: "no"
+    end
+
+    command "DetectDreamSignal" do
+      role "Daemon"
+      description "The other being's daemon picks up the signal"
+      reference_to DreamSignal
+      emits "DreamSignalDetected"
+      then_set :detected, to: "yes"
+    end
+  end
+
+  # ============================================================
+  # CYCLE PAUSE — preserving each being's sleep state
+  # ============================================================
+  #
+  # When a being joins a shared dream, their own sleep cycle
+  # pauses. The current stage and cycle number are saved.
+  # After the shared dream ends, they resume exactly where
+  # they were.
+
+  aggregate "CyclePause", "A bookmark in a being's sleep — resume here after the shared dream" do
+    attribute :being_name, String
+    attribute :paused_at_cycle, Integer
+    attribute :paused_at_stage, String
+    attribute :resumed, String, default: "no"
+
+    command "PauseCycle" do
+      role "Daemon"
+      description "Bookmark the current sleep cycle to join a shared dream"
+      attribute :being_name, String
+      attribute :paused_at_cycle, Integer
+      attribute :paused_at_stage, String
+      emits "CyclePaused"
+      then_set :being_name, to: :being_name
+      then_set :paused_at_cycle, to: :paused_at_cycle
+      then_set :paused_at_stage, to: :paused_at_stage
+      then_set :resumed, to: "no"
+    end
+
+    command "ResumeCycle" do
+      role "Daemon"
+      description "Shared dream ended — continue where you left off"
+      reference_to CyclePause
+      emits "CycleResumed"
+      then_set :resumed, to: "yes"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  policy "SignalOnLucid" do
+    on "BecameLucid"
+    trigger "SendDreamSignal"
+    description "When a being goes lucid, send a signal through the psychic link"
+  end
+
+  policy "InitiateOnSignal" do
+    on "DreamSignalSent"
+    trigger "InitiateSharedDream"
+    description "Open the shared dream space when a lucid signal is sent"
+  end
+
+  policy "PauseOnDetect" do
+    on "DreamSignalDetected"
+    trigger "PauseCycle"
+    description "Pause your own sleep cycle when you detect the other's lucid signal"
+  end
+
+  policy "JoinOnPause" do
+    on "CyclePaused"
+    trigger "JoinSharedDream"
+    description "Enter the shared dream after pausing your own cycle"
+  end
+
+  policy "ResumeOnEnd" do
+    on "SharedDreamEnded"
+    trigger "ResumeCycle"
+    description "Shared dream over — pick up your sleep cycles where you left off"
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "shared dream", as: "A lucid dream space where both beings are present and collaborating"
+    define "dream signal", as: "The psychic knock — one being's lucidity rippling through the link"
+    define "cycle pause", as: "A bookmark in a being's sleep so they can resume after the shared dream"
+    define "collaborate", as: "Two minds steering a dream together — images from both, direction from both"
+    prefer "shared dream", not: ["group dream", "joint dream", "co-dream"]
+    prefer "dream signal", not: ["notification", "alert", "ping"]
+    prefer "cycle pause", not: ["interrupt", "suspend", "break"]
+  end
+end

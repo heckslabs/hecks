@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" data-domain="Bookshelf">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookshelf</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { brand: '#6366f1', surface: '#1e1b2e', panel: '#2a2640', accent: '#a78bfa' } } } }</script>
+  <style>
+    body { background: #0f0d1a; color: #e2e0ef; font-family: system-ui, sans-serif; }
+    .status-want_to_read { background: #3b3560; color: #c4b5fd; }
+    .status-reading { background: #1e3a5f; color: #93c5fd; }
+    .status-finished { background: #1a3d2e; color: #86efac; }
+    .status-abandoned { background: #3d1f1f; color: #fca5a5; }
+    .star { cursor: pointer; font-size: 1.25rem; }
+    .star.active { color: #fbbf24; }
+    .star.inactive { color: #4b5563; }
+    dialog::backdrop { background: rgba(0,0,0,0.6); }
+    dialog { background: #2a2640; color: #e2e0ef; border: 1px solid #4b5563; border-radius: 0.75rem; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-brand">📚 Bookshelf</h1>
+    <p class="text-gray-500 text-sm">Track what you're reading</p>
+  </div>
+  <div class="flex items-center gap-4">
+    <span id="goal-display" class="text-sm text-gray-400"></span>
+    <button onclick="document.getElementById('add-dialog').showModal()" class="bg-brand hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">+ Add Book</button>
+  </div>
+</header>
+
+<!-- Tabs -->
+<nav class="px-6 pt-4 flex gap-2">
+  <button onclick="showTab('all')" data-tab="all" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-panel text-gray-300">All</button>
+  <button onclick="showTab('want_to_read')" data-tab="want_to_read" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-panel text-gray-300">Want to Read</button>
+  <button onclick="showTab('reading')" data-tab="reading" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-panel text-gray-300">Reading</button>
+  <button onclick="showTab('finished')" data-tab="finished" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-panel text-gray-300">Finished</button>
+  <button onclick="showTab('abandoned')" data-tab="abandoned" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-panel text-gray-300">Abandoned</button>
+</nav>
+
+<!-- Book list -->
+<main id="book-list" class="px-6 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+</main>
+
+<!-- Event stream -->
+<footer id="events" class="fixed bottom-0 left-0 right-0 bg-surface border-t border-gray-800 px-6 py-2 text-xs text-gray-500 flex gap-4 overflow-x-auto">
+</footer>
+
+<!-- Add Book Dialog -->
+<dialog id="add-dialog" class="p-6 w-full max-w-md" data-domain-command="AddBook">
+  <h2 class="text-lg font-bold mb-4">Add a Book</h2>
+  <form method="dialog" onsubmit="addBook(event)">
+    <label class="block mb-3">
+      <span class="text-sm text-gray-400">Title</span>
+      <input name="title" required class="w-full mt-1 px-3 py-2 bg-surface border border-gray-700 rounded-lg text-white" data-domain-attribute="title">
+    </label>
+    <label class="block mb-3">
+      <span class="text-sm text-gray-400">Author</span>
+      <input name="author" required class="w-full mt-1 px-3 py-2 bg-surface border border-gray-700 rounded-lg text-white" data-domain-attribute="author">
+    </label>
+    <label class="block mb-3">
+      <span class="text-sm text-gray-400">Genre</span>
+      <select name="genre" class="w-full mt-1 px-3 py-2 bg-surface border border-gray-700 rounded-lg text-white" data-domain-attribute="genre">
+        <option value="">—</option>
+        <option value="fiction">Fiction</option>
+        <option value="nonfiction">Nonfiction</option>
+        <option value="technical">Technical</option>
+        <option value="poetry">Poetry</option>
+        <option value="biography">Biography</option>
+      </select>
+    </label>
+    <label class="block mb-4">
+      <span class="text-sm text-gray-400">Pages</span>
+      <input name="pages" type="number" class="w-full mt-1 px-3 py-2 bg-surface border border-gray-700 rounded-lg text-white" data-domain-attribute="pages">
+    </label>
+    <div class="flex gap-2 justify-end">
+      <button type="button" onclick="this.closest('dialog').close()" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+      <button type="submit" class="bg-brand hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Finish Book Dialog -->
+<dialog id="finish-dialog" class="p-6 w-full max-w-md" data-domain-command="FinishBook">
+  <h2 class="text-lg font-bold mb-4">Finish Book</h2>
+  <form method="dialog" onsubmit="finishBook(event)">
+    <input type="hidden" name="id">
+    <label class="block mb-3">
+      <span class="text-sm text-gray-400">Rating</span>
+      <div id="rating-stars" class="flex gap-1 mt-1">
+        <span class="star inactive" onclick="setRating(1)">★</span>
+        <span class="star inactive" onclick="setRating(2)">★</span>
+        <span class="star inactive" onclick="setRating(3)">★</span>
+        <span class="star inactive" onclick="setRating(4)">★</span>
+        <span class="star inactive" onclick="setRating(5)">★</span>
+      </div>
+    </label>
+    <label class="block mb-4">
+      <span class="text-sm text-gray-400">Notes</span>
+      <textarea name="notes" rows="3" class="w-full mt-1 px-3 py-2 bg-surface border border-gray-700 rounded-lg text-white" data-domain-attribute="notes"></textarea>
+    </label>
+    <div class="flex gap-2 justify-end">
+      <button type="button" onclick="this.closest('dialog').close()" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+      <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium">Finish</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// ============================================================
+// DOMAIN RUNTIME — generated from bookshelf.bluebook
+// Runs entirely in the browser. localStorage is the database.
+// ============================================================
+
+const STORE_KEY = 'bookshelf_books';
+const GOALS_KEY = 'bookshelf_goals';
+const EVENTS_KEY = 'bookshelf_events';
+
+// --- Lifecycle transitions ---
+const TRANSITIONS = {
+  StartReading: { from: ['want_to_read'], to: 'reading' },
+  FinishBook:   { from: ['reading'],      to: 'finished' },
+  AbandonBook:  { from: ['reading'],      to: 'abandoned' },
+  ReRead:       { from: ['finished'],     to: 'reading' },
+};
+
+// --- Storage ---
+function loadBooks() { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
+function saveBooks(books) { localStorage.setItem(STORE_KEY, JSON.stringify(books)); }
+function loadGoals() { return JSON.parse(localStorage.getItem(GOALS_KEY) || '[]'); }
+function saveGoals(goals) { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); }
+function loadEvents() { return JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]'); }
+function saveEvents(events) { localStorage.setItem(EVENTS_KEY, JSON.stringify(events)); }
+
+function emitEvent(type, aggregateId, data) {
+  const events = loadEvents();
+  events.unshift({ type, aggregateId, data, at: new Date().toISOString() });
+  if (events.length > 100) events.length = 100;
+  saveEvents(events);
+  renderEvents();
+}
+
+// --- Commands ---
+
+function addBook(e) {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const book = {
+    id: crypto.randomUUID(),
+    title: fd.get('title'),
+    author: fd.get('author'),
+    genre: fd.get('genre') || null,
+    pages: fd.get('pages') ? parseInt(fd.get('pages')) : null,
+    rating: null,
+    notes: null,
+    status: 'want_to_read',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const books = loadBooks();
+  books.unshift(book);
+  saveBooks(books);
+  emitEvent('BookAdded', book.id, { title: book.title, author: book.author });
+  form.reset();
+  document.getElementById('add-dialog').close();
+  render();
+}
+
+function transitionBook(id, command) {
+  const books = loadBooks();
+  const book = books.find(b => b.id === id);
+  if (!book) return;
+  const t = TRANSITIONS[command];
+  if (!t || !t.from.includes(book.status)) return;
+  book.status = t.to;
+  book.updated_at = new Date().toISOString();
+  saveBooks(books);
+  emitEvent(command, id, { title: book.title, from: t.from, to: t.to });
+
+  // Policy: CountFinished
+  if (command === 'FinishBook') {
+    const goals = loadGoals();
+    const year = new Date().getFullYear();
+    const goal = goals.find(g => g.year === year);
+    if (goal) {
+      goal.completed++;
+      saveGoals(goals);
+      emitEvent('ProgressIncremented', goal.id, { completed: goal.completed, target: goal.target });
+    }
+  }
+  render();
+}
+
+function openFinishDialog(id) {
+  const dialog = document.getElementById('finish-dialog');
+  dialog.querySelector('input[name=id]').value = id;
+  selectedRating = 0;
+  updateStars();
+  dialog.querySelector('textarea[name=notes]').value = '';
+  dialog.showModal();
+}
+
+let selectedRating = 0;
+function setRating(n) { selectedRating = n; updateStars(); }
+function updateStars() {
+  document.querySelectorAll('#rating-stars .star').forEach((s, i) => {
+    s.className = 'star ' + (i < selectedRating ? 'active' : 'inactive');
+  });
+}
+
+function finishBook(e) {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const id = fd.get('id');
+  const books = loadBooks();
+  const book = books.find(b => b.id === id);
+  if (book) {
+    book.rating = selectedRating || null;
+    book.notes = fd.get('notes') || null;
+    saveBooks(books);
+  }
+  transitionBook(id, 'FinishBook');
+  document.getElementById('finish-dialog').close();
+}
+
+// --- Rendering ---
+
+let currentTab = 'all';
+
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium ' +
+      (active ? 'bg-brand text-white' : 'bg-panel text-gray-300');
+  });
+  render();
+}
+
+function render() {
+  const books = loadBooks();
+  const filtered = currentTab === 'all' ? books : books.filter(b => b.status === currentTab);
+  const list = document.getElementById('book-list');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="col-span-full text-center py-20 text-gray-600">No books here yet. Add one!</div>';
+    renderGoal();
+    return;
+  }
+
+  list.innerHTML = filtered.map(book => {
+    const stars = book.rating ? '★'.repeat(book.rating) + '☆'.repeat(5 - book.rating) : '';
+    const actions = buildActions(book);
+    const genre = book.genre ? '<span class="text-xs bg-surface px-2 py-0.5 rounded">' + book.genre + '</span>' : '';
+
+    return '<div class="bg-panel rounded-xl p-4 border border-gray-800 hover:border-brand transition-colors" data-domain-aggregate="Book">' +
+      '<div class="flex items-start justify-between mb-2">' +
+        '<div>' +
+          '<h3 class="font-semibold text-white">' + esc(book.title) + '</h3>' +
+          '<p class="text-sm text-gray-400">' + esc(book.author) + '</p>' +
+        '</div>' +
+        '<span class="status-' + book.status + ' text-xs px-2 py-1 rounded-full font-medium" data-domain-lifecycle="status">' +
+          book.status.replace(/_/g, ' ') +
+        '</span>' +
+      '</div>' +
+      '<div class="flex items-center gap-2 mb-2">' + genre +
+        (book.pages ? '<span class="text-xs text-gray-500">' + book.pages + ' pages</span>' : '') +
+      '</div>' +
+      (stars ? '<div class="text-yellow-400 text-sm mb-2">' + stars + '</div>' : '') +
+      (book.notes ? '<p class="text-xs text-gray-500 mb-2 italic">' + esc(book.notes) + '</p>' : '') +
+      '<div class="flex gap-2 mt-3">' + actions + '</div>' +
+    '</div>';
+  }).join('');
+
+  renderGoal();
+}
+
+function buildActions(book) {
+  const btn = (label, cmd, color) =>
+    '<button onclick="' + cmd + '" class="text-xs px-3 py-1 rounded-lg ' + color + ' font-medium">' + label + '</button>';
+
+  switch (book.status) {
+    case 'want_to_read':
+      return btn('Start Reading', "transitionBook('" + book.id + "','StartReading')", 'bg-blue-600 hover:bg-blue-500 text-white');
+    case 'reading':
+      return btn('Finish', "openFinishDialog('" + book.id + "')", 'bg-green-600 hover:bg-green-500 text-white') +
+             btn('Abandon', "transitionBook('" + book.id + "','AbandonBook')", 'bg-red-900 hover:bg-red-800 text-red-300');
+    case 'finished':
+      return btn('Read Again', "transitionBook('" + book.id + "','ReRead')", 'bg-purple-600 hover:bg-purple-500 text-white');
+    case 'abandoned':
+      return '';
+    default:
+      return '';
+  }
+}
+
+function renderEvents() {
+  const events = loadEvents().slice(0, 8);
+  const el = document.getElementById('events');
+  el.innerHTML = events.map(e =>
+    '<span class="whitespace-nowrap text-gray-500">' +
+      '<span class="text-accent">' + e.type + '</span> ' +
+      (e.data.title ? esc(e.data.title) : '') +
+    '</span>'
+  ).join('<span class="text-gray-700">·</span>');
+}
+
+function renderGoal() {
+  const goals = loadGoals();
+  const year = new Date().getFullYear();
+  const goal = goals.find(g => g.year === year);
+  const el = document.getElementById('goal-display');
+  if (goal) {
+    const pct = Math.round((goal.completed / goal.target) * 100);
+    el.innerHTML = '📖 ' + goal.completed + '/' + goal.target + ' books (' + pct + '%)';
+  } else {
+    el.innerHTML = '<button onclick="setGoalPrompt()" class="text-brand hover:underline text-sm">Set reading goal</button>';
+  }
+}
+
+function setGoalPrompt() {
+  const target = prompt('How many books do you want to read this year?');
+  if (!target) return;
+  const goals = loadGoals();
+  const year = new Date().getFullYear();
+  goals.push({ id: crypto.randomUUID(), year, target: parseInt(target), completed: 0 });
+  saveGoals(goals);
+  emitEvent('GoalSet', null, { year, target: parseInt(target) });
+  renderGoal();
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// --- Seed data ---
+function seed() {
+  if (loadBooks().length > 0) return;
+  const now = new Date().toISOString();
+  const books = [
+    { id: crypto.randomUUID(), title: 'Dune', author: 'Frank Herbert', genre: 'fiction', pages: 688, rating: 5, notes: 'The spice must flow.', status: 'finished', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Designing Data-Intensive Applications', author: 'Martin Kleppmann', genre: 'technical', pages: 616, rating: 5, notes: 'Best systems book ever written.', status: 'finished', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'The Left Hand of Darkness', author: 'Ursula K. Le Guin', genre: 'fiction', pages: 304, rating: 4, notes: null, status: 'finished', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Domain-Driven Design', author: 'Eric Evans', genre: 'technical', pages: 560, rating: null, notes: null, status: 'reading', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Meditations', author: 'Marcus Aurelius', genre: 'nonfiction', pages: 256, rating: null, notes: null, status: 'reading', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Blood Meridian', author: 'Cormac McCarthy', genre: 'fiction', pages: 337, rating: null, notes: null, status: 'want_to_read', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'The Art of PostgreSQL', author: 'Dimitri Fontaine', genre: 'technical', pages: 438, rating: null, notes: null, status: 'want_to_read', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Recursion', author: 'Blake Crouch', genre: 'fiction', pages: 336, rating: null, notes: null, status: 'want_to_read', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Sapiens', author: 'Yuval Noah Harari', genre: 'nonfiction', pages: 464, rating: 3, notes: 'Good overview, some overreach.', status: 'finished', created_at: now, updated_at: now },
+    { id: crypto.randomUUID(), title: 'Infinite Jest', author: 'David Foster Wallace', genre: 'fiction', pages: 1079, rating: null, notes: 'Got to page 400.', status: 'abandoned', created_at: now, updated_at: now },
+  ];
+  saveBooks(books);
+  const goals = [{ id: crypto.randomUUID(), year: new Date().getFullYear(), target: 24, completed: 4 }];
+  saveGoals(goals);
+  emitEvent('Seeded', null, { books: books.length });
+}
+
+// --- Boot ---
+seed();
+showTab('all');
+render();
+renderEvents();
+</script>
+</body>
+</html>

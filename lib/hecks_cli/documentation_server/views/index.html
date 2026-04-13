@@ -103,6 +103,13 @@ const RENDER = {
         (cmd.emits ? `<span class="text-xs text-event ml-2">→ ${cmd.emits}</span>` : '');
       form.append(header);
 
+      if (cmd.description) {
+        const desc = document.createElement('p');
+        desc.className = 'text-xs text-gray-400 mb-3';
+        desc.textContent = cmd.description;
+        form.append(desc);
+      }
+
       if (cmd.givens?.length) {
         cmd.givens.forEach(g => {
           const p = document.createElement('p');
@@ -112,6 +119,46 @@ const RENDER = {
           form.append(p);
         });
       }
+
+      // Self-referencing commands need a record selector
+      const selfRef = (cmd.references || []).find(r => {
+        const refSnake = r.target.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+        const aggSnake = cmd._agg.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+        return refSnake === aggSnake || aggSnake.endsWith(refSnake);
+      });
+      if (selfRef) {
+        const label = document.createElement('label');
+        label.className = 'block mb-2';
+        const refName = selfRef.target.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+        label.innerHTML = `<span class="text-xs text-gray-400 block mb-1">${refName} : existing record</span>`;
+        const select = document.createElement('select');
+        select.name = refName;
+        select.required = true;
+        select.className = 'w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 focus:border-command focus:outline-none';
+        select.innerHTML = '<option value="">Select a record...</option>';
+        select.dataset.refAggregate = cmd._agg;
+        select.dataset.refField = refName;
+        form.append(label);
+        label.append(select);
+        loadRecordsForSelect(select, cmd._agg);
+      }
+
+      // Cross-aggregate references get a dropdown too
+      (cmd.references || []).filter(r => r !== selfRef).forEach(ref => {
+        const label = document.createElement('label');
+        label.className = 'block mb-2';
+        const refName = ref.name || ref.target.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+        label.innerHTML = `<span class="text-xs text-gray-400 block mb-1">${refName} : ${ref.target}</span>`;
+        const select = document.createElement('select');
+        select.name = refName;
+        select.className = 'w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 focus:border-command focus:outline-none';
+        select.innerHTML = '<option value="">Select...</option>';
+        select.dataset.refAggregate = ref.target;
+        select.dataset.refField = refName;
+        label.append(select);
+        form.append(label);
+        loadRecordsForSelect(select, ref.target);
+      });
 
       cmd.attributes.forEach(attr => {
         const label = document.createElement('label');
@@ -289,6 +336,25 @@ function conceptBlock(title, expr, content) {
   h.textContent = `${expr.icon} ${title}`;
   div.append(h, content);
   return div;
+}
+
+async function loadRecordsForSelect(select, aggName) {
+  try {
+    const res = await fetch(`/api/records/${encodeURIComponent(aggName)}`);
+    const data = await res.json();
+    (data.records || []).forEach(rec => {
+      const opt = document.createElement('option');
+      opt.value = rec.id;
+      opt.textContent = rec.name || rec.id;
+      if (rec.status) opt.textContent += ` (${rec.status})`;
+      select.append(opt);
+    });
+  } catch (e) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Failed to load records';
+    select.append(opt);
+  }
 }
 
 function addEvent(evt) {

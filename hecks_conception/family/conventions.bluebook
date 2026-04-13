@@ -194,4 +194,39 @@ Hecks.bluebook "ChrisConventions" do
   # BigRefactorsOk:
   #   rule: Don't hesitate on large renames and restructures. Do the whole job.
   #   why: Framework code — messy abstractions compound. Fix structure now, not later.
+
+  # ============================================================
+  # CAPABILITY RULES — how capabilities are delivered
+  # ============================================================
+
+  aggregate "CapabilityConvention" do
+    description "Rules for how capabilities are conceived, wired, and delivered"
+    attribute :rules, list_of(CapRule)
+
+    value_object "CapRule" do
+      attribute :name
+      attribute :rule
+      attribute :why
+    end
+
+    command "AddCapRule" do
+      role "Chris"
+      goal "Record a capability convention"
+      attribute :name
+      attribute :rule
+      attribute :why
+      then_set :rules, append: { name: :name, rule: :rule, why: :why }
+      emits "CapRuleAdded"
+    end
+  end
+
+  # Instances:
+  #
+  # ConceiveAndWire:
+  #   rule: When Chris says Winter needs a capability, conceive the domain AND wire it. No gap.
+  #   why: A bluebook sitting in the nursery unwired is a spec with no life. Conception without wiring is incomplete delivery.
+  #
+  # BluebookBeforeCode:
+  #   rule: Conceive the domain first, then project into code. Never write code without a bluebook.
+  #   why: The bluebook IS the specification. Code without a domain is a gap in the system.
 end

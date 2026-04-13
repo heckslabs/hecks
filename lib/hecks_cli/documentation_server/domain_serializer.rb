@@ -38,7 +38,8 @@ module Hecks
             events: serialize_events(agg),
             value_objects: serialize_value_objects(agg),
             references: serialize_references(agg),
-            lifecycle: serialize_lifecycle(agg)
+            lifecycle: serialize_lifecycle(agg),
+            fixtures: serialize_fixtures(agg)
           }
         end
 
@@ -56,11 +57,14 @@ module Hecks
         def serialize_command(cmd)
           actor = cmd.respond_to?(:actors) && !cmd.actors.empty? ? cmd.actors.first : nil
           role = actor.respond_to?(:name) ? actor.name : actor.to_s if actor
+          refs = cmd.respond_to?(:references) ? Array(cmd.references) : []
           {
             name: cmd.name,
             role: role,
+            description: cmd.respond_to?(:description) ? cmd.description : nil,
             emits: cmd.respond_to?(:emits) ? cmd.emits : nil,
             attributes: cmd.attributes.map { |a| { name: a.name, type: a.type.to_s } },
+            references: refs.map { |r| { name: r.name.to_s, target: (r.respond_to?(:type) ? r.type : r.target).to_s } },
             givens: cmd.givens.map { |g| { message: g.message } },
             mutations: cmd.mutations.map { |m| serialize_mutation(m) }
           }
@@ -100,6 +104,15 @@ module Hecks
               { command: cmd, target: t.target, from: t.from }
             end
           }
+        end
+
+        def serialize_fixtures(agg)
+          return [] unless @domain.respond_to?(:fixtures)
+          Array(@domain.fixtures).select { |f| f[:aggregate] == agg.name }.map do |f|
+            attrs = f.reject { |k, _| k == :aggregate }
+            id = attrs[:id] || attrs[:name] || "#{agg.name}-#{attrs.hash.abs}"
+            attrs.merge(id: id.to_s)
+          end
         end
 
         def serialize_policy(p)

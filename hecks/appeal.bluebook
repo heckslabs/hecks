@@ -1,6 +1,5 @@
 Hecks.bluebook "Appeal", version: "2026.04.11.1" do
   vision "Browser-based IDE for domain modeling"
-  category "framework"
 
   aggregate "Project" do
   description "A domain project workspace. Loads, creates, and manages domain directories."

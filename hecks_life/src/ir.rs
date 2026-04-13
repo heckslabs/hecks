@@ -9,9 +9,17 @@ use std::fmt;
 pub struct Domain {
     pub name: String,
     pub category: Option<String>,
+    pub vision: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
+    pub vows: Vec<Vow>,
+}
+
+#[derive(Debug)]
+pub struct Vow {
+    pub name: String,
+    pub text: String,
 }
 
 #[derive(Debug)]
@@ -25,7 +33,7 @@ pub struct Aggregate {
     pub lifecycle: Option<Lifecycle>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Attribute {
     pub name: String,
     pub attr_type: String,
@@ -129,6 +137,24 @@ impl fmt::Display for Domain {
                     write!(f, " → {}", emits)?;
                 }
                 writeln!(f)?;
+            }
+        }
+        if !self.policies.is_empty() {
+            writeln!(f)?;
+            writeln!(f, "Policies:")?;
+            for pol in &self.policies {
+                if let Some(ref target) = pol.target_domain {
+                    writeln!(f, "  {} → {}:{}", pol.on_event, target, pol.trigger_command)?;
+                } else {
+                    writeln!(f, "  {} → {}", pol.on_event, pol.trigger_command)?;
+                }
+            }
+        }
+        if !self.vows.is_empty() {
+            writeln!(f)?;
+            writeln!(f, "Vows:")?;
+            for vow in &self.vows {
+                writeln!(f, "  {} — {}", vow.name, vow.text)?;
             }
         }
         Ok(())

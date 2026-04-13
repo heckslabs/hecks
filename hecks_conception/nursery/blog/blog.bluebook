@@ -1,0 +1,213 @@
+Hecks.bluebook "Blog", version: "2026.04.11.1" do
+  vision "A place to write, publish, and discuss — drafts become posts, readers become commenters"
+  category "content"
+
+  aggregate "Post", "A written piece that moves from draft to published to archived" do
+    attribute :title, String
+    attribute :slug, String
+    attribute :body, String
+    attribute :excerpt, String
+    attribute :author_name, String
+    attribute :tags, list_of(String)
+    attribute :published_at, String
+    attribute :status, String
+
+    command "DraftPost" do
+      role "Author"
+      description "Start writing a new post — it begins as a draft"
+      attribute :title, String
+      attribute :body, String
+      attribute :author_name, String
+      attribute :tags, list_of(String)
+      emits "PostDrafted"
+      then_set :title, to: :title
+      then_set :body, to: :body
+      then_set :author_name, to: :author_name
+      then_set :tags, to: :tags
+      then_set :status, to: "draft"
+    end
+
+    command "EditPost" do
+      role "Author"
+      description "Revise the title, body, or tags while still in draft"
+      reference_to Post
+      attribute :title, String
+      attribute :body, String
+      attribute :tags, list_of(String)
+      given { status == "draft" }
+      emits "PostEdited"
+      then_set :title, to: :title
+      then_set :body, to: :body
+      then_set :tags, to: :tags
+    end
+
+    command "PublishPost" do
+      role "Editor"
+      description "Make the post visible to readers"
+      reference_to Post
+      given { status == "draft" }
+      emits "PostPublished"
+      then_set :status, to: "published"
+    end
+
+    command "UnpublishPost" do
+      role "Editor"
+      description "Pull a published post back to draft for corrections"
+      reference_to Post
+      given { status == "published" }
+      emits "PostUnpublished"
+      then_set :status, to: "draft"
+    end
+
+    command "ArchivePost" do
+      role "Editor"
+      description "Remove from active listing — still readable by direct link"
+      reference_to Post
+      given { status == "published" }
+      emits "PostArchived"
+      then_set :status, to: "archived"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "DraftPost" => "draft"
+      transition "PublishPost" => "published", from: "draft"
+      transition "UnpublishPost" => "draft", from: "published"
+      transition "ArchivePost" => "archived", from: "published"
+    end
+  end
+
+  aggregate "Comment", "A reader's response to a published post" do
+    attribute :post_slug, String
+    attribute :author_name, String
+    attribute :body, String
+    attribute :posted_at, String
+    attribute :status, String
+
+    command "LeaveComment" do
+      role "Reader"
+      description "Add a comment to a published post"
+      attribute :post_slug, String
+      attribute :author_name, String
+      attribute :body, String
+      emits "CommentLeft"
+      then_set :post_slug, to: :post_slug
+      then_set :author_name, to: :author_name
+      then_set :body, to: :body
+      then_set :status, to: "visible"
+    end
+
+    command "HideComment" do
+      role "Moderator"
+      description "Hide a comment that violates community guidelines"
+      reference_to Comment
+      given { status == "visible" }
+      emits "CommentHidden"
+      then_set :status, to: "hidden"
+    end
+
+    command "RestoreComment" do
+      role "Moderator"
+      description "Make a hidden comment visible again"
+      reference_to Comment
+      given { status == "hidden" }
+      emits "CommentRestored"
+      then_set :status, to: "visible"
+    end
+
+    lifecycle :status, default: "visible" do
+      transition "LeaveComment" => "visible"
+      transition "HideComment" => "hidden", from: "visible"
+      transition "RestoreComment" => "visible", from: "hidden"
+    end
+  end
+
+  aggregate "Author", "Someone who writes posts" do
+    attribute :name, String
+    attribute :bio, String
+    attribute :avatar_url, String
+    attribute :post_count, Integer
+    attribute :status, String
+
+    command "RegisterAuthor" do
+      role "Admin"
+      description "Add a new author to the blog"
+      attribute :name, String
+      attribute :bio, String
+      emits "AuthorRegistered"
+      then_set :name, to: :name
+      then_set :bio, to: :bio
+      then_set :post_count, to: 0
+      then_set :status, to: "active"
+    end
+
+    command "DeactivateAuthor" do
+      role "Admin"
+      description "Prevent an author from publishing new posts"
+      reference_to Author
+      given { status == "active" }
+      emits "AuthorDeactivated"
+      then_set :status, to: "inactive"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "RegisterAuthor" => "active"
+      transition "DeactivateAuthor" => "inactive", from: "active"
+    end
+  end
+
+  aggregate "Tag", "A label that groups related posts" do
+    attribute :name, String
+    attribute :slug, String
+    attribute :post_count, Integer
+
+    command "CreateTag" do
+      role "Editor"
+      description "Define a new tag for categorizing posts"
+      attribute :name, String
+      emits "TagCreated"
+      then_set :name, to: :name
+      then_set :post_count, to: 0
+    end
+  end
+
+  # --- Policies ---
+
+  policy "IncrementAuthorPostCount" do
+    on "PostPublished"
+    trigger "IncrementCount"
+  end
+
+  # --- Actors ---
+
+  actor "Author", description: "Writes and edits their own posts"
+  actor "Editor", description: "Publishes, unpublishes, and archives any post"
+  actor "Reader", description: "Reads posts and leaves comments"
+  actor "Moderator", description: "Hides or restores comments"
+  actor "Admin", description: "Manages authors and site settings"
+
+  # --- Glossary ---
+
+  glossary do
+    prefer "post", not: ["article", "entry", "blog post"]
+    prefer "draft", not: ["unpublished", "work in progress"]
+    prefer "comment", not: ["reply", "response"]
+    define "slug", as: "URL-friendly version of the title — lowercase, hyphens, no spaces"
+    define "excerpt", as: "Short preview of the post body shown in listings"
+  end
+
+  # --- Fixtures ---
+
+  fixture "Author", name: "Alan", bio: "Engine additive entrepreneur and tribology enthusiast", status: "active"
+  fixture "Author", name: "Chris", bio: "Domain-driven design practitioner", status: "active"
+
+  fixture "Tag", name: "Tribology", post_count: 3
+  fixture "Tag", name: "Business", post_count: 2
+  fixture "Tag", name: "Engineering", post_count: 1
+
+  fixture "Post", title: "Why ZDDP Still Matters", slug: "why-zddp-still-matters", author_name: "Alan", status: "published", tags: "Tribology,Engineering", excerpt: "Zinc dialkyl dithiophosphate has been the workhorse anti-wear additive since the 1940s."
+  fixture "Post", title: "Three Brands One Mission", slug: "three-brands-one-mission", author_name: "Alan", status: "published", tags: "Business", excerpt: "DuraLube, MotorKote, and Slick 50 each own a different word in the customer's mind."
+  fixture "Post", title: "The Four-Ball Wear Test Explained", slug: "four-ball-wear-test", author_name: "Alan", status: "draft", tags: "Tribology", excerpt: "ASTM D4172 is the gold standard for measuring anti-wear performance."
+
+  fixture "Comment", post_slug: "why-zddp-still-matters", author_name: "Mike from Fleet Service", body: "We switched to ZDDP-heavy formulas last year. 30% less engine wear across our fleet.", status: "visible"
+  fixture "Comment", post_slug: "three-brands-one-mission", author_name: "Performance Junkie Dave", body: "MotorKote's dyno results sold me. Anti-friction is the real deal.", status: "visible"
+end

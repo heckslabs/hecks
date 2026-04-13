@@ -101,6 +101,10 @@ module Hecks
         @vision = text
       end
 
+      def category(text)
+        @category = text
+      end
+
       # Declare a subject matter expert for this domain.
       # The SME joins the product executor room as a domain-specific advisor.
       #

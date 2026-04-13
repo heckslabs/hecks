@@ -1,0 +1,232 @@
+Hecks.domain "ProductManagement" do
+  description "Plan, track, and ship — a full product management tool"
+
+  aggregate "Issue" do
+    description "A unit of work — bug, feature, task, or improvement"
+    attribute :identifier, String
+    attribute :title, String
+    attribute :description, String
+    attribute :type, String, enum: ["feature", "bug", "task", "improvement"]
+    attribute :priority, String, enum: ["none", "low", "medium", "high", "urgent"]
+    attribute :estimate, Integer
+    attribute :assignee_id, String
+    attribute :project_id, String
+    attribute :cycle_id, String
+    attribute :labels, list_of(String)
+    attribute :parent_id, String
+    attribute :created_by, String
+    attribute :sort_order, Float
+
+    attribute :status, String, default: "backlog" do
+      transition "MoveToTodo"       => "todo",        from: ["backlog"]
+      transition "StartWork"        => "in_progress",  from: ["backlog", "todo"]
+      transition "SubmitForReview"  => "in_review",    from: ["in_progress"]
+      transition "MarkDone"         => "done",         from: ["in_progress", "in_review"]
+      transition "Cancel"           => "cancelled",    from: ["backlog", "todo", "in_progress", "in_review"]
+      transition "Reopen"           => "todo",         from: ["done", "cancelled"]
+    end
+
+    validation :title, presence: true
+
+    command "CreateIssue" do
+      description "Create a new issue"
+      attribute :title, String
+      attribute :description, String
+      attribute :type, String
+      attribute :priority, String
+      attribute :assignee_id, String
+      attribute :project_id, String
+      attribute :labels, list_of(String)
+    end
+
+    command "UpdateIssue" do
+      description "Edit an issue's details"
+      reference_to "Issue", validate: :exists
+      attribute :title, String
+      attribute :description, String
+      attribute :type, String
+      attribute :priority, String
+      attribute :estimate, Integer
+      attribute :assignee_id, String
+      attribute :project_id, String
+      attribute :cycle_id, String
+      attribute :labels, list_of(String)
+    end
+
+    command "MoveToTodo" do
+      description "Move from backlog to todo"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "StartWork" do
+      description "Begin working on this issue"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "SubmitForReview" do
+      description "Submit work for review"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "MarkDone" do
+      description "Mark as complete"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "Cancel" do
+      description "Cancel this issue"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "Reopen" do
+      description "Reopen a done or cancelled issue"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "DeleteIssue" do
+      description "Permanently remove an issue"
+      reference_to "Issue", validate: :exists
+    end
+
+    command "AssignIssue" do
+      description "Assign to a team member"
+      reference_to "Issue", validate: :exists
+      attribute :assignee_id, String
+    end
+
+    command "SetPriority" do
+      description "Change priority"
+      reference_to "Issue", validate: :exists
+      attribute :priority, String
+    end
+
+    command "AddToProject" do
+      description "Add issue to a project"
+      reference_to "Issue", validate: :exists
+      attribute :project_id, String
+    end
+
+    command "AddToCycle" do
+      description "Add issue to a cycle"
+      reference_to "Issue", validate: :exists
+      attribute :cycle_id, String
+    end
+  end
+
+  aggregate "Project" do
+    description "A collection of related issues toward a goal"
+    attribute :name, String
+    attribute :description, String
+    attribute :color, String
+    attribute :lead_id, String
+    attribute :target_date, String
+
+    attribute :status, String, default: "active" do
+      transition "PauseProject"   => "paused",    from: "active"
+      transition "CompleteProject" => "completed", from: "active"
+      transition "ResumeProject"  => "active",    from: "paused"
+    end
+
+    validation :name, presence: true
+
+    command "CreateProject" do
+      description "Start a new project"
+      attribute :name, String
+      attribute :description, String
+      attribute :color, String
+      attribute :lead_id, String
+      attribute :target_date, String
+    end
+
+    command "UpdateProject" do
+      description "Edit project details"
+      reference_to "Project", validate: :exists
+      attribute :name, String
+      attribute :description, String
+      attribute :target_date, String
+    end
+
+    command "CompleteProject" do
+      description "Mark project as completed"
+      reference_to "Project", validate: :exists
+    end
+
+    command "PauseProject" do
+      description "Pause a project"
+      reference_to "Project", validate: :exists
+    end
+
+    command "ResumeProject" do
+      description "Resume a paused project"
+      reference_to "Project", validate: :exists
+    end
+  end
+
+  aggregate "Cycle" do
+    description "A time-boxed iteration — like a sprint"
+    attribute :name, String
+    attribute :start_date, String
+    attribute :end_date, String
+    attribute :number, Integer
+
+    attribute :status, String, default: "upcoming" do
+      transition "StartCycle"    => "active",    from: "upcoming"
+      transition "CompleteCycle" => "completed", from: "active"
+    end
+
+    command "CreateCycle" do
+      description "Plan a new cycle"
+      attribute :name, String
+      attribute :start_date, String
+      attribute :end_date, String
+      attribute :number, Integer
+    end
+
+    command "StartCycle" do
+      description "Begin the cycle"
+      reference_to "Cycle", validate: :exists
+    end
+
+    command "CompleteCycle" do
+      description "End the cycle"
+      reference_to "Cycle", validate: :exists
+    end
+  end
+
+  aggregate "Label" do
+    description "A tag for categorizing issues"
+    attribute :name, String
+    attribute :color, String
+
+    command "CreateLabel" do
+      description "Create a new label"
+      attribute :name, String
+      attribute :color, String
+    end
+  end
+
+  aggregate "Member" do
+    description "A team member who can be assigned issues"
+    attribute :name, String
+    attribute :avatar, String
+    attribute :role, String, enum: ["admin", "member", "viewer"]
+
+    command "AddMember" do
+      description "Add a team member"
+      attribute :name, String
+      attribute :role, String
+    end
+  end
+
+  actor "Admin"
+  actor "Member"
+  actor "Viewer"
+
+  glossary do
+    prefer "issue", not: ["ticket", "card", "item", "task"]
+    prefer "cycle", not: ["sprint", "iteration"]
+    prefer "project", not: ["epic", "initiative"]
+    prefer "done", not: ["closed", "resolved", "completed"]
+    define "backlog", as: "Issues not yet prioritized for work"
+  end
+end

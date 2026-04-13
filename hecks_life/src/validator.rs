@@ -44,24 +44,84 @@ fn aggregates_have_commands(domain: &Domain) -> Vec<String> {
         .collect()
 }
 
-/// Verb list compiled from Ruby + WordNet (source of truth: verbs.txt)
-const VERBS_RAW: &str = include_str!("../../verbs.txt");
+/// Command names must start with a verb — detected by morphological patterns.
+/// Flipped logic: a command is imperative by definition. We only reject if
+/// the first word is provably NOT a verb (noun/adjective suffixes).
+/// Everything else passes — commands are verbs until proven otherwise.
 
-fn load_verbs() -> Vec<&'static str> {
-    VERBS_RAW.lines().filter(|l| !l.is_empty()).collect()
+/// Suffixes that prove a word is a noun — not a verb.
+const NOUN_SUFFIXES: &[&str] = &[
+    "tion", "sion", "ment", "ness", "ity", "ence", "ance",
+    "ology", "ism", "ist", "dom", "ship",
+];
+
+/// Suffixes that prove a word is an adjective — not a verb.
+const ADJ_SUFFIXES: &[&str] = &[
+    "able", "ible", "ous", "ful", "less", "ive", "ical", "ular",
+];
+
+/// Words that look like they could be verbs but are actually nouns
+/// when used as command first-words. Very short list — only add
+/// proven false positives.
+const FALSE_POSITIVES: &[&str] = &[
+    "The", "A", "An", "My", "Our", "New", "Old",
+];
+
+/// Extract the first word from a PascalCase name.
+fn first_word(name: &str) -> String {
+    let mut word = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if i > 0 && c.is_uppercase() { break; }
+        word.push(c);
+    }
+    word
 }
 
-/// Command names must start with a verb.
+/// A command first-word is NOT a verb if it matches noun/adjective patterns.
+/// Everything else is assumed to be a verb — commands are imperative.
+fn is_not_verb(word: &str) -> bool {
+    let lower = word.to_lowercase();
+
+    // Too short to classify — single char is fine (commands like "X" are weird but not invalid)
+    if lower.len() < 2 { return false; }
+
+    // Known false positives — articles, possessives, adjectives used as names
+    if FALSE_POSITIVES.iter().any(|fp| *fp == word) { return true; }
+
+    // Verb suffixes — if these match, the word is a verb even if it
+    // also matches a noun/adjective suffix (verb wins)
+    let verb_suffixes = ["ive", "ence", "ance", "ise", "ize", "ate", "ify",
+        "uce", "ude", "ose", "ure", "ect", "mit", "ish", "rge", "ve"];
+    let has_verb_suffix = verb_suffixes.iter().any(|s| lower.ends_with(s));
+
+    // Noun suffixes — if it ends like a noun AND doesn't have a verb suffix, reject
+    for suffix in NOUN_SUFFIXES {
+        if lower.ends_with(suffix) && lower.len() > suffix.len() + 1 && !has_verb_suffix {
+            return true;
+        }
+    }
+
+    // Adjective suffixes — same logic
+    for suffix in ADJ_SUFFIXES {
+        if lower.ends_with(suffix) && lower.len() > suffix.len() + 1 && !has_verb_suffix {
+            return true;
+        }
+    }
+
+    // Everything else is a verb. Commands are imperative by definition.
+    false
+}
+
 fn command_naming(domain: &Domain) -> Vec<String> {
-    let verbs = load_verbs();
     let mut errors = vec![];
     for agg in &domain.aggregates {
         for cmd in &agg.commands {
-            let starts_with_verb = verbs.iter().any(|v| cmd.name.starts_with(v));
-            if !starts_with_verb {
+            let word = first_word(&cmd.name);
+            if is_not_verb(&word) {
                 errors.push(format!(
-                    "Command {} in {} doesn't start with a verb",
-                    cmd.name, agg.name
+                    "Command {} in {} starts with '{}' which looks like a {} — commands should start with a verb",
+                    cmd.name, agg.name, word,
+                    if NOUN_SUFFIXES.iter().any(|s| word.to_lowercase().ends_with(s)) { "noun" } else { "adjective" }
                 ));
             }
         }

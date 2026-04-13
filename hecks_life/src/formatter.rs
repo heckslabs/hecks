@@ -25,7 +25,19 @@ pub fn inspect(domain: &Domain) {
     if !domain.policies.is_empty() {
         println!("Domain Policies:");
         for pol in &domain.policies {
-            println!("  {}: {} -> {}", pol.name, pol.on_event, pol.trigger_command);
+            if let Some(ref target) = pol.target_domain {
+                println!("  {}: {} -> {}:{}", pol.name, pol.on_event, target, pol.trigger_command);
+            } else {
+                println!("  {}: {} -> {}", pol.name, pol.on_event, pol.trigger_command);
+            }
+        }
+        println!();
+    }
+
+    if !domain.vows.is_empty() {
+        println!("Vows:");
+        for vow in &domain.vows {
+            println!("  {} — {}", vow.name, vow.text);
         }
         println!();
     }

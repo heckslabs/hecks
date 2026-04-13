@@ -1,0 +1,79 @@
+Hecks.domain "Todo" do
+  description "Simple task management — add, complete, archive"
+
+  aggregate "Task" do
+    description "Something that needs doing"
+    attribute :title, String
+    attribute :notes, String
+    attribute :priority, String, enum: ["low", "medium", "high", "urgent"]
+    attribute :due_date, String
+    attribute :tags, list_of(String)
+
+    attribute :status, String, default: "open" do
+      transition "CompleteTask" => "done", from: "open"
+      transition "ReopenTask" => "open", from: "done"
+      transition "ArchiveTask" => "archived", from: "done"
+    end
+
+    validation :title, presence: true
+
+    command "AddTask" do
+      description "Create a new task"
+      attribute :title, String
+      attribute :notes, String
+      attribute :priority, String
+      attribute :due_date, String
+      attribute :tags, list_of(String)
+    end
+
+    command "CompleteTask" do
+      description "Mark a task as done"
+      reference_to "Task", validate: :exists
+    end
+
+    command "ReopenTask" do
+      description "Reopen a completed task"
+      reference_to "Task", validate: :exists
+    end
+
+    command "ArchiveTask" do
+      description "Archive a completed task — out of sight"
+      reference_to "Task", validate: :exists
+    end
+
+    command "EditTask" do
+      description "Update a task's details"
+      reference_to "Task", validate: :exists
+      attribute :title, String
+      attribute :notes, String
+      attribute :priority, String
+      attribute :due_date, String
+      attribute :tags, list_of(String)
+    end
+
+    command "DeleteTask" do
+      description "Remove a task permanently"
+      reference_to "Task", validate: :exists
+    end
+
+    query "Open" do
+      where(status: "open")
+    end
+
+    query "Done" do
+      where(status: "done")
+    end
+
+    query "Archived" do
+      where(status: "archived")
+    end
+  end
+
+  actor "Person"
+
+  glossary do
+    prefer "task", not: ["item", "todo", "ticket"]
+    prefer "done", not: ["completed", "finished", "closed"]
+    prefer "open", not: ["active", "pending", "in progress"]
+  end
+end

@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title> — </title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&family=Cabin:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Cabin', sans-serif; }
+    h1, h2, h3 { font-family: 'Roboto Slab', serif; }
+  </style>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: { DEFAULT: '#ffe400', dim: '#ffd200', glow: 'rgba(255,228,0,0.15)' },
+          surface: { 0: '#111111', 1: '#1a1a1a', 2: '#222222', 3: '#333e48', 4: '#444444' }
+        }
+      }
+    }
+  }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] > div { animation: slideDown 0.2s ease-out; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes blob-drift-1 { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(-5vw,8vh) scale(0.9); } 100% { transform: translate(0,0) scale(1); } }
+    @keyframes blob-drift-2 { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(7vw,-10vh) scale(0.88); } 100% { transform: translate(0,0) scale(1); } }
+    .page-blob {
+      position: fixed; border-radius: 50%; filter: blur(100px);
+      opacity: 0.06; pointer-events: none; will-change: transform;
+    }
+  </style>
+  <script>
+    function submitCmd(form, cmd) {
+    const data = {};
+    new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
+    fetch(form.action, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd, attrs: data})
+    }).then(r => r.json()).then(r => {
+      const el = form.querySelector('.cmd-result');
+      el.classList.remove('hidden', 'bg-emerald-900/40', 'text-emerald-300', 'bg-red-900/40', 'text-red-300');
+      if (r.ok) {
+        el.textContent = '\u2714 Done — ' + (r.event || 'success');
+        el.classList.add('bg-emerald-900/40', 'text-emerald-300');
+        form.querySelectorAll('input').forEach(i => i.value = '');
+        addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
+      } else {
+        el.textContent = '\u2718 Error: ' + r.error;
+        el.classList.add('bg-red-900/40', 'text-red-300');
+        addEvent(r.error, cmd, '', '', false);
+      }
+    });
+    return false;
+  }
+  function humanize(s) { return s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' '); }
+  function addEvent(event, cmd, aggType, aggId, ok) {
+    const stream = document.getElementById('event-stream');
+    if (!stream) return;
+    const hint = stream.querySelector('p.italic');
+    if (hint) hint.remove();
+    const time = new Date().toLocaleTimeString();
+    const color = ok ? 'border-emerald-600/40' : 'border-red-600/40';
+    const icon = ok ? '\u26A1' : '\u274C';
+    const card = document.createElement('div');
+    card.className = 'p-3 rounded-lg bg-surface-2 border ' + color + ' cursor-pointer hover:bg-surface-3 transition text-xs animate-pulse';
+    card.innerHTML = '<div class="flex items-center justify-between mb-1"><span class="font-bold text-brand">' + icon + ' ' + humanize(event||cmd) + '</span><span class="text-gray-600">' + time + '</span></div>' +
+      (aggType ? '<p class="text-gray-400">' + humanize(aggType) + (aggId ? ' #' + aggId : '') + '</p>' : '') +
+      '<p class="text-gray-500 mt-1">' + humanize(cmd) + '</p>';
+    card.onclick = function() {
+      card.classList.toggle('ring-1');
+      card.classList.toggle('ring-brand/50');
+    };
+    stream.insertBefore(card, stream.firstChild);
+    setTimeout(() => card.classList.remove('animate-pulse'), 1000);
+  }
+  function toggleCmd(btn) {
+    const form = btn.nextElementSibling;
+    if (form) form.classList.toggle('hidden');
+  }
+  function filterByStatus(el, status) {
+    const table = (el.closest('[data-domain-aggregate]') || el.parentElement.parentElement).querySelector('table') || document.querySelector('table');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr'), isActive = el.classList.contains('ring-2');
+    el.parentElement.querySelectorAll('span').forEach(s => s.classList.remove('ring-2', 'ring-white'));
+    if (isActive) { rows.forEach(r => r.style.display = ''); return; }
+    el.classList.add('ring-2', 'ring-white');
+    rows.forEach(r => { r.style.display = r.textContent.toLowerCase().includes(status.toLowerCase()) ? '' : 'none'; });
+  }
+  function showDetail(row) {
+    const cells = row.querySelectorAll('td');
+    const headers = row.closest('table').querySelectorAll('th');
+    let fields = '';
+    headers.forEach((h, i) => {
+      if (cells[i]) {
+        const label = h.textContent;
+        const value = cells[i].textContent;
+        fields += '<div><label class="block text-xs text-gray-400 mb-1">' + label + '</label><input value="' + value + '" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100"></div>';
+      }
+    });
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-lg w-full mx-4 border border-surface-3"><h3 class="text-lg font-bold text-brand mb-4">Record Detail</h3><div class="grid grid-cols-2 gap-3">' + fields + '</div><div class="mt-4 flex gap-3"><button onclick="this.closest(\'div.fixed\').remove()" class="px-4 py-1.5 bg-surface-3 rounded text-sm text-brand border border-surface-4">Close</button></div></div>';
+    document.body.appendChild(modal);
+  }
+  function showTab(tab) {
+    ['records','build'].forEach(t => {
+      document.getElementById('panel-'+t).classList.toggle('hidden', tab !== t);
+      const btn = document.getElementById('tab-'+t);
+      btn.classList.toggle('text-brand', tab === t);
+      btn.classList.toggle('border-brand', tab === t);
+      btn.classList.toggle('text-gray-400', tab !== t);
+      btn.classList.toggle('border-transparent', tab !== t);
+    });
+  }
+  function searchTable(input) {
+    const table = input.closest('div').parentElement.querySelector('table');
+    if (!table) return;
+    const query = input.value.toLowerCase();
+    table.querySelectorAll('tbody tr').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+  }
+  function sortTable(th) {
+    const table = th.closest('table');
+    const idx = Array.from(th.parentElement.children).indexOf(th);
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    const asc = th.dataset.sort !== 'asc';
+    rows.sort((a, b) => {
+      const va = a.children[idx]?.textContent || '';
+      const vb = b.children[idx]?.textContent || '';
+      return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    th.dataset.sort = asc ? 'asc' : 'desc';
+    const tbody = table.querySelector('tbody');
+    rows.forEach(r => tbody.appendChild(r));
+    th.parentElement.querySelectorAll('th').forEach(t => t.textContent = t.textContent.replace(/ ▲| ▼/g, ''));
+    th.textContent += asc ? ' ▲' : ' ▼';
+  }
+    function showHelp(btn) {
+    const agg = btn.closest('[data-domain-aggregate]');
+    const cmd = btn.closest('[data-domain-command]');
+    let title = '', body = '';
+    if (cmd) {
+      const name = cmd.getAttribute('data-domain-command');
+      title = humanize(name);
+      const desc = cmd.querySelector('p');
+      const inputs = cmd.querySelectorAll('input');
+      body = '<p class="mb-3">' + (desc ? desc.textContent : 'Execute this action') + '</p>';
+      if (inputs.length) {
+        body += '<p class="text-xs text-gray-400 mb-2">Required fields:</p><ul class="text-xs text-gray-300 list-disc pl-4">';
+        inputs.forEach(i => body += '<li>' + humanize(i.name) + ' (' + (i.placeholder || 'text') + ')</li>');
+        body += '</ul>';
+      }
+    } else if (agg) {
+      const name = agg.getAttribute('data-domain-aggregate');
+      title = humanize(name);
+      const desc = agg.querySelector('p');
+      body = '<p class="mb-3">' + (desc ? desc.textContent : 'This module manages ' + humanize(name).toLowerCase()) + '</p>';
+      const cmds = agg.querySelectorAll('[data-domain-command]');
+      const rows = agg.querySelectorAll('tbody tr');
+      body += '<p class="text-xs text-gray-400">Available actions: ' + cmds.length + '</p>';
+      body += '<p class="text-xs text-gray-400">Current records: ' + rows.length + '</p>';
+    }
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-md w-full mx-4 border border-surface-3">' +
+      '<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-brand">ℹ️ ' + title + '</h3>' +
+      '<button onclick="this.closest(\'div.fixed\').remove()" class="text-gray-500 hover:text-white">✕</button></div>' +
+      body +
+      '<div class="mt-4 p-3 rounded bg-surface-3 border border-surface-4">' +
+      '<p class="text-xs text-gray-400 mb-2">Need more help?</p>' +
+      '<input placeholder="Ask about ' + title + '..." class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none">' +
+      '</div></div>';
+    document.body.appendChild(modal);
+  }
+    function openWizard(domain, cmd, fields) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    let fieldHtml = '';
+    fields.forEach(f => {
+      fieldHtml += '<div class="mb-3"><label class="block text-xs text-gray-400 mb-1">' +
+        humanize(f.name) + '</label><input name="' + f.name +
+        '" type="text" placeholder="' + f.type +
+        '" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-2 text-sm text-gray-100 focus:border-brand focus:outline-none"></div>';
+    });
+    modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-lg w-full mx-4 border border-surface-3 shadow-2xl">' +
+      '<h2 class="text-xl font-bold text-brand mb-4">' + humanize(cmd) + '</h2>' +
+      '<form onsubmit="return wizardSubmit(this, \'' + domain + '\', \'' + cmd + '\')">' +
+      fieldHtml +
+      '<div class="flex gap-3 mt-4">' +
+      '<button type="submit" class="px-6 py-2 bg-brand text-surface-0 font-medium rounded-lg hover:bg-brand-dim transition">' + humanize(cmd) + '</button>' +
+      '<button type="button" onclick="this.closest(\'div.fixed\').remove()" class="px-4 py-2 bg-surface-3 text-gray-300 rounded-lg hover:bg-surface-4 transition">Cancel</button>' +
+      '</div>' +
+      '<div class="wizard-result mt-3"></div>' +
+      '</form></div>';
+    document.body.appendChild(modal);
+    modal.querySelector('input')?.focus();
+  }
+  function wizardSubmit(form, domain, cmd) {
+    const data = {};
+    new FormData(form).forEach((v, k) => { if(v) data[k] = v; });
+    fetch('/domains/' + domain + '/dispatch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd, attrs: data})
+    }).then(r => r.json()).then(r => {
+      const el = form.querySelector('.wizard-result');
+      if (r.ok) {
+        el.innerHTML = '<div class="p-3 rounded bg-emerald-900/40 text-emerald-300 text-sm">\u2714 ' + humanize(r.event) + ' \u2014 ' + humanize(r.aggregate_type) + ' #' + r.aggregate_id + '</div>';
+        addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
+        form.querySelectorAll('input').forEach(i => i.value = '');
+        setTimeout(() => form.closest('div.fixed')?.remove(), 1500);
+      } else {
+        el.innerHTML = '<div class="p-3 rounded bg-red-900/40 text-red-300 text-sm">\u2718 ' + r.error + '</div>';
+        addEvent(r.error, cmd, '', '', false);
+      }
+    });
+    return false;
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === ' ' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+    }
+  });
+  </script>
+</head>
+<body class="h-full bg-surface-0 text-gray-100">
+  <div class="page-blob" style="width:500px;height:500px;top:5%;left:20%;background:#ffe400;animation:blob-drift-1 25s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:400px;height:400px;top:60%;right:10%;background:#ef4444;animation:blob-drift-2 30s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:450px;height:450px;bottom:10%;left:50%;background:#22c55e;animation:blob-drift-1 35s ease-in-out infinite reverse"></div>
+  <div class="page-blob" style="width:350px;height:350px;top:30%;right:40%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
+  <div class="page-blob" style="width:400px;height:400px;bottom:30%;left:10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
+  <div class="flex h-full relative z-10">
+    <aside class="w-64 bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto">
+      <div class="p-6">
+        <a href="/" class="text-xl font-bold text-brand hover:text-brand-dim transition"></a>
+        <p class="text-xs text-gray-500 mt-1">Dashboard</p>
+      </div>
+      <nav class="flex-1 px-4 pb-4 space-y-1">
+        <a onclick="setView('all')" data-view="all" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-brand/10 text-brand cursor-pointer">
+  <span>☰</span> All
+</a><a onclick="setView('issue')" data-view="issue" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-2 hover:text-white cursor-pointer">
+  <span>📋</span> Issue
+</a><a onclick="setView('project')" data-view="project" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-2 hover:text-white cursor-pointer">
+  <span>📋</span> Project
+</a><a onclick="setView('cycle')" data-view="cycle" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-2 hover:text-white cursor-pointer">
+  <span>📋</span> Cycle
+</a><a onclick="setView('label')" data-view="label" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-2 hover:text-white cursor-pointer">
+  <span>🏷️</span> Label
+</a><a onclick="setView('member')" data-view="member" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-surface-2 hover:text-white cursor-pointer">
+  <span>📋</span> Member
+</a><div class="mt-4 pt-4 border-t border-surface-3">
+<a onclick="document.getElementById('settings-modal').showModal()" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-surface-2 hover:text-gray-300 cursor-pointer">
+  <span>⚙</span> Settings
+</a></div>
+      </nav>
+      <div class="p-4 border-t border-gray-800">
+        <p class="text-xs text-gray-600 text-center">Empowered by Hecks</p>
+      </div>
+    </aside>
+    <main class="flex-1 ml-64 mr-72 overflow-y-auto flex flex-col min-h-full">
+      <div class="p-8 max-w-6xl flex-1">
+        <div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-3xl font-bold text-brand" id="page-title"></h1>
+    <p class="text-gray-500 text-sm mt-1" id="page-subtitle">Dashboard</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <input type="text" id="search-box" placeholder="Search..." onkeyup="onSearch(this.value)" class="bg-surface-2 border border-surface-3 rounded-lg px-3 py-1.5 text-sm text-gray-300 w-48 focus:outline-none focus:border-brand">
+    <button onclick="openCreate()" class="bg-brand hover:bg-brand-dim text-black px-4 py-2 rounded-lg text-sm font-bold">+ New</button>
+  </div>
+</div><div id="stats-row" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"></div><div id="filter-bar" class="flex items-center gap-2 mb-4 flex-wrap"></div><div id="content"></div><div id="empty-state" class="text-center py-20 hidden">
+  <p class="text-gray-600 text-lg mb-4">Nothing here yet.</p>
+  <button onclick="openCreate()" class="bg-brand hover:bg-brand-dim text-black px-6 py-2 rounded-lg font-bold">Create one</button>
+</div><div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+      </div>
+    </main>
+    <aside class="w-72 bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto flex flex-col">
+      <div class="p-4 border-b border-surface-3">
+        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">⚡ Event Stream</h3>
+      </div>
+      <div id="event-stream" class="flex-1 p-4 space-y-2 overflow-y-auto">
+        <p class="text-xs text-gray-600 italic">Dispatch a command to see events flow...</p>
+      </div>
+    </aside>
+  </div>
+<dialog id="issue-dialog" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:560px;width:90vw;padding:0">
+<form method="dialog" onsubmit="saveIssue(event)" style="padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Issue</h3>
+<input type="hidden" name="id">
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Title</label><br>
+<input name="title" required style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Description</label><br>
+<textarea name="description" rows="3" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px"></textarea>
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Type</label><br>
+<input name="type" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Priority</label><br>
+<input name="priority" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Estimate</label><br>
+<input name="estimate" type="number" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Assignee Id</label><br>
+<input name="assignee_id" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Project Id</label><br>
+<input name="project_id" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Cycle Id</label><br>
+<input name="cycle_id" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Labels</label><br>
+<input name="labels" placeholder="comma separated" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Parent Id</label><br>
+<input name="parent_id" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Status</label><br>
+<input name="status" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #333">
+<button type="button" id="issue-delete-btn" onclick="deleteRecord('issue')" style="color:#ef4444;background:none;border:none;font-size:13px;cursor:pointer;display:none">Delete</button>
+<div style="display:flex;gap:8px">
+<button type="button" onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Cancel</button>
+<button type="submit" style="background:#ffe400;color:#111;border:none;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer">Save</button>
+</div></div></form>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0;cursor:default">close</button></form>
+</dialog>
+<dialog id="project-dialog" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:560px;width:90vw;padding:0">
+<form method="dialog" onsubmit="saveProject(event)" style="padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Project</h3>
+<input type="hidden" name="id">
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Name</label><br>
+<input name="name" required style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Description</label><br>
+<textarea name="description" rows="3" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px"></textarea>
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Color</label><br>
+<input name="color" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Lead Id</label><br>
+<input name="lead_id" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Target Date</label><br>
+<input name="target_date" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Status</label><br>
+<input name="status" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #333">
+<button type="button" id="project-delete-btn" onclick="deleteRecord('project')" style="color:#ef4444;background:none;border:none;font-size:13px;cursor:pointer;display:none">Delete</button>
+<div style="display:flex;gap:8px">
+<button type="button" onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Cancel</button>
+<button type="submit" style="background:#ffe400;color:#111;border:none;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer">Save</button>
+</div></div></form>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0;cursor:default">close</button></form>
+</dialog>
+<dialog id="cycle-dialog" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:560px;width:90vw;padding:0">
+<form method="dialog" onsubmit="saveCycle(event)" style="padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Cycle</h3>
+<input type="hidden" name="id">
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Name</label><br>
+<input name="name" required style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Start Date</label><br>
+<input name="start_date" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">End Date</label><br>
+<input name="end_date" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Number</label><br>
+<input name="number" type="number" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Status</label><br>
+<input name="status" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #333">
+<button type="button" id="cycle-delete-btn" onclick="deleteRecord('cycle')" style="color:#ef4444;background:none;border:none;font-size:13px;cursor:pointer;display:none">Delete</button>
+<div style="display:flex;gap:8px">
+<button type="button" onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Cancel</button>
+<button type="submit" style="background:#ffe400;color:#111;border:none;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer">Save</button>
+</div></div></form>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0;cursor:default">close</button></form>
+</dialog>
+<dialog id="label-dialog" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:560px;width:90vw;padding:0">
+<form method="dialog" onsubmit="saveLabel(event)" style="padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Label</h3>
+<input type="hidden" name="id">
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Name</label><br>
+<input name="name" required style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Color</label><br>
+<input name="color" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #333">
+<button type="button" id="label-delete-btn" onclick="deleteRecord('label')" style="color:#ef4444;background:none;border:none;font-size:13px;cursor:pointer;display:none">Delete</button>
+<div style="display:flex;gap:8px">
+<button type="button" onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Cancel</button>
+<button type="submit" style="background:#ffe400;color:#111;border:none;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer">Save</button>
+</div></div></form>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0;cursor:default">close</button></form>
+</dialog>
+<dialog id="member-dialog" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:560px;width:90vw;padding:0">
+<form method="dialog" onsubmit="saveMember(event)" style="padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Member</h3>
+<input type="hidden" name="id">
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Name</label><br>
+<input name="name" required style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Avatar</label><br>
+<input name="avatar" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="margin-bottom:12px">
+<label style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.05em">Role</label><br>
+<input name="role" style="width:100%;background:#111;border:1px solid #333;color:#e5e5e5;border-radius:6px;padding:6px 10px;font-size:13px;margin-top:4px">
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid #333">
+<button type="button" id="member-delete-btn" onclick="deleteRecord('member')" style="color:#ef4444;background:none;border:none;font-size:13px;cursor:pointer;display:none">Delete</button>
+<div style="display:flex;gap:8px">
+<button type="button" onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Cancel</button>
+<button type="submit" style="background:#ffe400;color:#111;border:none;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer">Save</button>
+</div></div></form>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0;cursor:default">close</button></form>
+</dialog>
+<dialog id="settings-modal" style="background:#1a1a1a;color:#e5e5e5;border:1px solid #333;border-radius:12px;max-width:400px;padding:24px">
+<h3 style="font-family:'Roboto Slab',serif;font-size:1.25rem;font-weight:bold;color:#ffe400;margin-bottom:16px">Settings</h3>
+<p style="color:#666;font-size:13px;margin-bottom:16px">Data is stored in your browser's localStorage.</p>
+<div style="display:flex;gap:8px">
+<button onclick="if(confirm('Reset all data?')){localStorage.clear();location.reload()}" style="background:#ef4444;color:white;border:none;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer">Reset All Data</button>
+<button onclick="this.closest('dialog').close()" style="color:#999;background:none;border:none;font-size:13px;cursor:pointer">Close</button>
+</div>
+<form method="dialog" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:-1"><button style="display:block;width:100%;height:100%;opacity:0">close</button></form>
+</dialog>
+<script>
+// === Storage ===
+const SK_ISSUE = 'app_issue';
+const SK_PROJECT = 'app_project';
+const SK_CYCLE = 'app_cycle';
+const SK_LABEL = 'app_label';
+const SK_MEMBER = 'app_member';
+let COUNTER=parseInt(localStorage.getItem('_counter')||'0');
+function nextId(p){COUNTER++;localStorage.setItem('_counter',COUNTER.toString());return p+'-'+COUNTER;}
+function ld(k){return JSON.parse(localStorage.getItem(k)||'[]');}
+function sv(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+
+let currentView='all',searchQuery='';
+
+function saveIssue(e){e.preventDefault();const fd=new FormData(e.target),items=ld(SK_ISSUE),id=fd.get('id'),now=new Date().toISOString();
+const obj={title:fd.get('title')||null,description:fd.get('description')||null,type:fd.get('type')||null,priority:fd.get('priority')||null,estimate:fd.get('estimate')?parseFloat(fd.get('estimate')):null,assignee_id:fd.get('assignee_id')||null,project_id:fd.get('project_id')||null,cycle_id:fd.get('cycle_id')||null,labels:fd.get('labels')?fd.get('labels').split(',').map(s=>s.trim()).filter(Boolean):[],parent_id:fd.get('parent_id')||null,status:fd.get('status')||null,};
+if(id){const it=items.find(i=>i.id===id);if(it){Object.assign(it,obj);it.updated_at=now;}}
+else{obj.id=crypto.randomUUID();obj.identifier=nextId('I');obj.created_at=now;obj.updated_at=now;items.unshift(obj);}
+sv(SK_ISSUE,items);document.getElementById('issue-dialog').close();toast('Saved');render();}
+
+function saveProject(e){e.preventDefault();const fd=new FormData(e.target),items=ld(SK_PROJECT),id=fd.get('id'),now=new Date().toISOString();
+const obj={name:fd.get('name')||null,description:fd.get('description')||null,color:fd.get('color')||null,lead_id:fd.get('lead_id')||null,target_date:fd.get('target_date')||null,status:fd.get('status')||null,};
+if(id){const it=items.find(i=>i.id===id);if(it){Object.assign(it,obj);it.updated_at=now;}}
+else{obj.id=crypto.randomUUID();obj.identifier=nextId('P');obj.created_at=now;obj.updated_at=now;items.unshift(obj);}
+sv(SK_PROJECT,items);document.getElementById('project-dialog').close();toast('Saved');render();}
+
+function saveCycle(e){e.preventDefault();const fd=new FormData(e.target),items=ld(SK_CYCLE),id=fd.get('id'),now=new Date().toISOString();
+const obj={name:fd.get('name')||null,start_date:fd.get('start_date')||null,end_date:fd.get('end_date')||null,number:fd.get('number')?parseFloat(fd.get('number')):null,status:fd.get('status')||null,};
+if(id){const it=items.find(i=>i.id===id);if(it){Object.assign(it,obj);it.updated_at=now;}}
+else{obj.id=crypto.randomUUID();obj.identifier=nextId('C');obj.created_at=now;obj.updated_at=now;items.unshift(obj);}
+sv(SK_CYCLE,items);document.getElementById('cycle-dialog').close();toast('Saved');render();}
+
+function saveLabel(e){e.preventDefault();const fd=new FormData(e.target),items=ld(SK_LABEL),id=fd.get('id'),now=new Date().toISOString();
+const obj={name:fd.get('name')||null,color:fd.get('color')||null,};
+if(id){const it=items.find(i=>i.id===id);if(it){Object.assign(it,obj);it.updated_at=now;}}
+else{obj.id=crypto.randomUUID();obj.identifier=nextId('L');obj.created_at=now;obj.updated_at=now;items.unshift(obj);}
+sv(SK_LABEL,items);document.getElementById('label-dialog').close();toast('Saved');render();}
+
+function saveMember(e){e.preventDefault();const fd=new FormData(e.target),items=ld(SK_MEMBER),id=fd.get('id'),now=new Date().toISOString();
+const obj={name:fd.get('name')||null,avatar:fd.get('avatar')||null,role:fd.get('role')||null,};
+if(id){const it=items.find(i=>i.id===id);if(it){Object.assign(it,obj);it.updated_at=now;}}
+else{obj.id=crypto.randomUUID();obj.identifier=nextId('M');obj.created_at=now;obj.updated_at=now;items.unshift(obj);}
+sv(SK_MEMBER,items);document.getElementById('member-dialog').close();toast('Saved');render();}
+
+function deleteRecord(s){if(s==='issue'){const d=document.getElementById('issue-dialog'),id=d.querySelector('[name=id]').value;if(!id||!confirm('Delete?'))return;sv(SK_ISSUE,ld(SK_ISSUE).filter(i=>i.id!==id));d.close();toast('Deleted');render();return;}if(s==='project'){const d=document.getElementById('project-dialog'),id=d.querySelector('[name=id]').value;if(!id||!confirm('Delete?'))return;sv(SK_PROJECT,ld(SK_PROJECT).filter(i=>i.id!==id));d.close();toast('Deleted');render();return;}if(s==='cycle'){const d=document.getElementById('cycle-dialog'),id=d.querySelector('[name=id]').value;if(!id||!confirm('Delete?'))return;sv(SK_CYCLE,ld(SK_CYCLE).filter(i=>i.id!==id));d.close();toast('Deleted');render();return;}if(s==='label'){const d=document.getElementById('label-dialog'),id=d.querySelector('[name=id]').value;if(!id||!confirm('Delete?'))return;sv(SK_LABEL,ld(SK_LABEL).filter(i=>i.id!==id));d.close();toast('Deleted');render();return;}if(s==='member'){const d=document.getElementById('member-dialog'),id=d.querySelector('[name=id]').value;if(!id||!confirm('Delete?'))return;sv(SK_MEMBER,ld(SK_MEMBER).filter(i=>i.id!==id));d.close();toast('Deleted');render();return;}}
+
+function transition(s,id,cmd){}
+
+function openCreate(){const v=currentView.split(':')[0];
+if(v==='all'||v==='issue'){const d=document.getElementById('issue-dialog');d.querySelector('form').reset();d.querySelector('[name=id]').value='';document.getElementById('issue-delete-btn').style.display='none';d.showModal();}
+else if(v==='project'){const d=document.getElementById('project-dialog');d.querySelector('form').reset();d.querySelector('[name=id]').value='';document.getElementById('project-delete-btn').style.display='none';d.showModal();}
+else if(v==='cycle'){const d=document.getElementById('cycle-dialog');d.querySelector('form').reset();d.querySelector('[name=id]').value='';document.getElementById('cycle-delete-btn').style.display='none';d.showModal();}
+else if(v==='label'){const d=document.getElementById('label-dialog');d.querySelector('form').reset();d.querySelector('[name=id]').value='';document.getElementById('label-delete-btn').style.display='none';d.showModal();}
+else if(v==='member'){const d=document.getElementById('member-dialog');d.querySelector('form').reset();d.querySelector('[name=id]').value='';document.getElementById('member-delete-btn').style.display='none';d.showModal();}
+}
+
+function openEditIssue(id){const items=ld(SK_ISSUE),it=items.find(i=>i.id===id);if(!it)return;const d=document.getElementById('issue-dialog');d.querySelector('[name=id]').value=it.id;
+{const el=d.querySelector('[name=title]');if(el){if(el.type==='checkbox')el.checked=!!it.title;else el.value=it.title||'';}}
+{const el=d.querySelector('[name=description]');if(el){if(el.type==='checkbox')el.checked=!!it.description;else el.value=it.description||'';}}
+{const el=d.querySelector('[name=type]');if(el){if(el.type==='checkbox')el.checked=!!it.type;else el.value=it.type||'';}}
+{const el=d.querySelector('[name=priority]');if(el){if(el.type==='checkbox')el.checked=!!it.priority;else el.value=it.priority||'';}}
+{const el=d.querySelector('[name=estimate]');if(el){if(el.type==='checkbox')el.checked=!!it.estimate;else el.value=it.estimate||'';}}
+{const el=d.querySelector('[name=assignee_id]');if(el){if(el.type==='checkbox')el.checked=!!it.assignee_id;else el.value=it.assignee_id||'';}}
+{const el=d.querySelector('[name=project_id]');if(el){if(el.type==='checkbox')el.checked=!!it.project_id;else el.value=it.project_id||'';}}
+{const el=d.querySelector('[name=cycle_id]');if(el){if(el.type==='checkbox')el.checked=!!it.cycle_id;else el.value=it.cycle_id||'';}}
+d.querySelector('[name=labels]').value=(it.labels||[]).join(', ');
+{const el=d.querySelector('[name=parent_id]');if(el){if(el.type==='checkbox')el.checked=!!it.parent_id;else el.value=it.parent_id||'';}}
+{const el=d.querySelector('[name=status]');if(el){if(el.type==='checkbox')el.checked=!!it.status;else el.value=it.status||'';}}
+document.getElementById('issue-delete-btn').style.display='';d.showModal();}
+
+function openEditProject(id){const items=ld(SK_PROJECT),it=items.find(i=>i.id===id);if(!it)return;const d=document.getElementById('project-dialog');d.querySelector('[name=id]').value=it.id;
+{const el=d.querySelector('[name=name]');if(el){if(el.type==='checkbox')el.checked=!!it.name;else el.value=it.name||'';}}
+{const el=d.querySelector('[name=description]');if(el){if(el.type==='checkbox')el.checked=!!it.description;else el.value=it.description||'';}}
+{const el=d.querySelector('[name=color]');if(el){if(el.type==='checkbox')el.checked=!!it.color;else el.value=it.color||'';}}
+{const el=d.querySelector('[name=lead_id]');if(el){if(el.type==='checkbox')el.checked=!!it.lead_id;else el.value=it.lead_id||'';}}
+{const el=d.querySelector('[name=target_date]');if(el){if(el.type==='checkbox')el.checked=!!it.target_date;else el.value=it.target_date||'';}}
+{const el=d.querySelector('[name=status]');if(el){if(el.type==='checkbox')el.checked=!!it.status;else el.value=it.status||'';}}
+document.getElementById('project-delete-btn').style.display='';d.showModal();}
+
+function openEditCycle(id){const items=ld(SK_CYCLE),it=items.find(i=>i.id===id);if(!it)return;const d=document.getElementById('cycle-dialog');d.querySelector('[name=id]').value=it.id;
+{const el=d.querySelector('[name=name]');if(el){if(el.type==='checkbox')el.checked=!!it.name;else el.value=it.name||'';}}
+{const el=d.querySelector('[name=start_date]');if(el){if(el.type==='checkbox')el.checked=!!it.start_date;else el.value=it.start_date||'';}}
+{const el=d.querySelector('[name=end_date]');if(el){if(el.type==='checkbox')el.checked=!!it.end_date;else el.value=it.end_date||'';}}
+{const el=d.querySelector('[name=number]');if(el){if(el.type==='checkbox')el.checked=!!it.number;else el.value=it.number||'';}}
+{const el=d.querySelector('[name=status]');if(el){if(el.type==='checkbox')el.checked=!!it.status;else el.value=it.status||'';}}
+document.getElementById('cycle-delete-btn').style.display='';d.showModal();}
+
+function openEditLabel(id){const items=ld(SK_LABEL),it=items.find(i=>i.id===id);if(!it)return;const d=document.getElementById('label-dialog');d.querySelector('[name=id]').value=it.id;
+{const el=d.querySelector('[name=name]');if(el){if(el.type==='checkbox')el.checked=!!it.name;else el.value=it.name||'';}}
+{const el=d.querySelector('[name=color]');if(el){if(el.type==='checkbox')el.checked=!!it.color;else el.value=it.color||'';}}
+document.getElementById('label-delete-btn').style.display='';d.showModal();}
+
+function openEditMember(id){const items=ld(SK_MEMBER),it=items.find(i=>i.id===id);if(!it)return;const d=document.getElementById('member-dialog');d.querySelector('[name=id]').value=it.id;
+{const el=d.querySelector('[name=name]');if(el){if(el.type==='checkbox')el.checked=!!it.name;else el.value=it.name||'';}}
+{const el=d.querySelector('[name=avatar]');if(el){if(el.type==='checkbox')el.checked=!!it.avatar;else el.value=it.avatar||'';}}
+{const el=d.querySelector('[name=role]');if(el){if(el.type==='checkbox')el.checked=!!it.role;else el.value=it.role||'';}}
+document.getElementById('member-delete-btn').style.display='';d.showModal();}
+
+function setView(v){currentView=v;document.querySelectorAll('[data-view]').forEach(el=>{el.className=el.className.replace(/bg-brand\/10 text-brand/g,'text-gray-400').replace('text-brand','text-gray-400');});const m=document.querySelector('[data-view="'+v+'"]');if(m){m.className=m.className.replace('text-gray-400','bg-brand/10 text-brand');}render();}
+
+function onSearch(q){searchQuery=q.toLowerCase();render();}
+
+function toast(msg){const c=document.getElementById('toast-container'),t=document.createElement('div');t.style.cssText='background:#ffe400;color:#111;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:bold';t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),2000);}
+
+function stColor(s){return{done:'#22c55e',completed:'#22c55e',cancelled:'#ef4444',in_progress:'#f59e0b',active:'#f59e0b',in_review:'#8b5cf6',todo:'#3b82f6',upcoming:'#6b7280',backlog:'#555',paused:'#6b7280'}[s]||'#555';}
+
+function render(){
+let sh='';
+sh+='<div class="bg-surface-2 rounded-xl p-4 border border-surface-3"><p class="text-xs text-gray-500 uppercase">Issue</p><p class="text-2xl font-bold text-brand">'+ld(SK_ISSUE).length+'</p></div>';
+sh+='<div class="bg-surface-2 rounded-xl p-4 border border-surface-3"><p class="text-xs text-gray-500 uppercase">Project</p><p class="text-2xl font-bold text-brand">'+ld(SK_PROJECT).length+'</p></div>';
+sh+='<div class="bg-surface-2 rounded-xl p-4 border border-surface-3"><p class="text-xs text-gray-500 uppercase">Cycle</p><p class="text-2xl font-bold text-brand">'+ld(SK_CYCLE).length+'</p></div>';
+sh+='<div class="bg-surface-2 rounded-xl p-4 border border-surface-3"><p class="text-xs text-gray-500 uppercase">Label</p><p class="text-2xl font-bold text-brand">'+ld(SK_LABEL).length+'</p></div>';
+sh+='<div class="bg-surface-2 rounded-xl p-4 border border-surface-3"><p class="text-xs text-gray-500 uppercase">Member</p><p class="text-2xl font-bold text-brand">'+ld(SK_MEMBER).length+'</p></div>';
+document.getElementById('stats-row').innerHTML=sh;
+
+const[va,vf]=currentView.split(':');
+document.getElementById('page-subtitle').textContent=va==='all'?'All':va.replace(/_/g,' ');
+let html='';
+if(va==='all'||va==='issue'){
+let items=ld(SK_ISSUE);
+if(searchQuery)items=items.filter(i=>JSON.stringify(i).toLowerCase().includes(searchQuery));
+if(va!=='all'||items.length>0){
+html+='<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Issue</h2>';
+html+='<div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #333">';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666;width:60px">ID</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Title</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Description</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Type</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Priority</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Estimate</th>';
+html+='<th style="width:40px"></th></tr></thead><tbody>';
+for(const it of items){html+='<tr style="border-bottom:1px solid #222;cursor:pointer" onmouseover="this.style.background=\'#1f1f1f\'" onmouseout="this.style.background=\'\'" onclick="openEditIssue(\"'+it.id+'\")">'+
+'<td style="padding:8px 12px;font-size:11px;color:#555">'+(it.identifier||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.title||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.description||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.type||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.priority||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.estimate||'')+'</td>'+
+'<td style="padding:8px 12px;text-align:right;position:relative"><button onclick="event.stopPropagation();toggleMenu(this)" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px">⋯</button><div class="action-menu" style="display:none;position:absolute;right:12px;top:100%;background:#222;border:1px solid #333;border-radius:8px;padding:4px;z-index:50;min-width:160px">';
+html+='<div onclick="event.stopPropagation();deleteRecord(\'issue\');closeMenus()" style="padding:6px 12px;font-size:12px;color:#ef4444;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'#333\'" onmouseout="this.style.background=\'\'" >Delete</div>';
+html+='</div></td></tr>';}
+html+='</tbody></table></div>';}}
+}}
+if(va==='all'||va==='project'){
+let items=ld(SK_PROJECT);
+if(searchQuery)items=items.filter(i=>JSON.stringify(i).toLowerCase().includes(searchQuery));
+if(va!=='all'||items.length>0){
+html+='<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Project</h2>';
+html+='<div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #333">';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666;width:60px">ID</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Name</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Description</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Color</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Lead Id</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Target Date</th>';
+html+='<th style="width:40px"></th></tr></thead><tbody>';
+for(const it of items){html+='<tr style="border-bottom:1px solid #222;cursor:pointer" onmouseover="this.style.background=\'#1f1f1f\'" onmouseout="this.style.background=\'\'" onclick="openEditProject(\"'+it.id+'\")">'+
+'<td style="padding:8px 12px;font-size:11px;color:#555">'+(it.identifier||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.name||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.description||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.color||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.lead_id||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.target_date||'')+'</td>'+
+'<td style="padding:8px 12px;text-align:right;position:relative"><button onclick="event.stopPropagation();toggleMenu(this)" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px">⋯</button><div class="action-menu" style="display:none;position:absolute;right:12px;top:100%;background:#222;border:1px solid #333;border-radius:8px;padding:4px;z-index:50;min-width:160px">';
+html+='<div onclick="event.stopPropagation();deleteRecord(\'project\');closeMenus()" style="padding:6px 12px;font-size:12px;color:#ef4444;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'#333\'" onmouseout="this.style.background=\'\'" >Delete</div>';
+html+='</div></td></tr>';}
+html+='</tbody></table></div>';}}
+}}
+if(va==='all'||va==='cycle'){
+let items=ld(SK_CYCLE);
+if(searchQuery)items=items.filter(i=>JSON.stringify(i).toLowerCase().includes(searchQuery));
+if(va!=='all'||items.length>0){
+html+='<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Cycle</h2>';
+html+='<div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #333">';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666;width:60px">ID</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Name</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Start Date</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">End Date</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Number</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Status</th>';
+html+='<th style="width:40px"></th></tr></thead><tbody>';
+for(const it of items){html+='<tr style="border-bottom:1px solid #222;cursor:pointer" onmouseover="this.style.background=\'#1f1f1f\'" onmouseout="this.style.background=\'\'" onclick="openEditCycle(\"'+it.id+'\")">'+
+'<td style="padding:8px 12px;font-size:11px;color:#555">'+(it.identifier||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.name||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.start_date||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.end_date||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.number||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.status||'')+'</td>'+
+'<td style="padding:8px 12px;text-align:right;position:relative"><button onclick="event.stopPropagation();toggleMenu(this)" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px">⋯</button><div class="action-menu" style="display:none;position:absolute;right:12px;top:100%;background:#222;border:1px solid #333;border-radius:8px;padding:4px;z-index:50;min-width:160px">';
+html+='<div onclick="event.stopPropagation();deleteRecord(\'cycle\');closeMenus()" style="padding:6px 12px;font-size:12px;color:#ef4444;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'#333\'" onmouseout="this.style.background=\'\'" >Delete</div>';
+html+='</div></td></tr>';}
+html+='</tbody></table></div>';}}
+}}
+if(va==='all'||va==='label'){
+let items=ld(SK_LABEL);
+if(searchQuery)items=items.filter(i=>JSON.stringify(i).toLowerCase().includes(searchQuery));
+if(va!=='all'||items.length>0){
+html+='<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Label</h2>';
+html+='<div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #333">';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666;width:60px">ID</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Name</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Color</th>';
+html+='<th style="width:40px"></th></tr></thead><tbody>';
+for(const it of items){html+='<tr style="border-bottom:1px solid #222;cursor:pointer" onmouseover="this.style.background=\'#1f1f1f\'" onmouseout="this.style.background=\'\'" onclick="openEditLabel(\"'+it.id+'\")">'+
+'<td style="padding:8px 12px;font-size:11px;color:#555">'+(it.identifier||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.name||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.color||'')+'</td>'+
+'<td style="padding:8px 12px;text-align:right;position:relative"><button onclick="event.stopPropagation();toggleMenu(this)" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px">⋯</button><div class="action-menu" style="display:none;position:absolute;right:12px;top:100%;background:#222;border:1px solid #333;border-radius:8px;padding:4px;z-index:50;min-width:160px">';
+html+='<div onclick="event.stopPropagation();deleteRecord(\'label\');closeMenus()" style="padding:6px 12px;font-size:12px;color:#ef4444;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'#333\'" onmouseout="this.style.background=\'\'" >Delete</div>';
+html+='</div></td></tr>';}
+html+='</tbody></table></div>';}}
+}}
+if(va==='all'||va==='member'){
+let items=ld(SK_MEMBER);
+if(searchQuery)items=items.filter(i=>JSON.stringify(i).toLowerCase().includes(searchQuery));
+if(va!=='all'||items.length>0){
+html+='<h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 mt-6">Member</h2>';
+html+='<div class="bg-surface-1 rounded-xl border border-surface-3 overflow-hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #333">';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666;width:60px">ID</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Name</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Avatar</th>';
+html+='<th style="padding:8px 12px;text-align:left;font-size:11px;color:#666">Role</th>';
+html+='<th style="width:40px"></th></tr></thead><tbody>';
+for(const it of items){html+='<tr style="border-bottom:1px solid #222;cursor:pointer" onmouseover="this.style.background=\'#1f1f1f\'" onmouseout="this.style.background=\'\'" onclick="openEditMember(\"'+it.id+'\")">'+
+'<td style="padding:8px 12px;font-size:11px;color:#555">'+(it.identifier||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.name||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.avatar||'')+'</td>'+
+'<td style="padding:8px 12px;font-size:13px;color:#e5e5e5">'+esc(it.role||'')+'</td>'+
+'<td style="padding:8px 12px;text-align:right;position:relative"><button onclick="event.stopPropagation();toggleMenu(this)" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px">⋯</button><div class="action-menu" style="display:none;position:absolute;right:12px;top:100%;background:#222;border:1px solid #333;border-radius:8px;padding:4px;z-index:50;min-width:160px">';
+html+='<div onclick="event.stopPropagation();deleteRecord(\'member\');closeMenus()" style="padding:6px 12px;font-size:12px;color:#ef4444;cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'#333\'" onmouseout="this.style.background=\'\'" >Delete</div>';
+html+='</div></td></tr>';}
+html+='</tbody></table></div>';}}
+}}
+document.getElementById('content').innerHTML=html;
+document.getElementById('empty-state').style.display=html?'none':'block';
+}
+
+function toggleMenu(btn){closeMenus();const m=btn.nextElementSibling;m.style.display=m.style.display==='none'?'block':'none';}
+function closeMenus(){document.querySelectorAll('.action-menu').forEach(m=>m.style.display='none');}
+document.addEventListener('click',closeMenus);
+
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;if(e.key==='c')openCreate();if(e.key==='/'){e.preventDefault();document.getElementById('search-box').focus();}});
+
+function seed(){
+if(ld('app_issue').length>0)return;
+}
+
+seed();render();
+
+</script>
+
+</body>
+</html>

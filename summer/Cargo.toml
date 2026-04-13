@@ -1,0 +1,10 @@
+[package]
+name = "summer"
+version = "0.2.0"
+edition = "2021"
+description = "Spring — the universal domain command line"
+
+[dependencies]
+hecks-life = { path = "../hecks_life" }
+serde_json = "1"
+libc = "0.2"

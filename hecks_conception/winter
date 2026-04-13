@@ -1,0 +1,4 @@
+#!/bin/sh
+DIR="$(dirname "$0")"
+"$DIR/../hecks_life/target/release/hecks-life" boot "$DIR" "$@"
+exec "$DIR/../hecks_life/target/release/hecks-life" terminal "$DIR"

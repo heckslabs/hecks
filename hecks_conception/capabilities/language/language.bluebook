@@ -1,0 +1,222 @@
+Hecks.bluebook "Language", version: "2026.04.12.1" do
+  vision "Grammar as a domain — determine if a word is a verb, noun, adjective without a static list"
+  category "capability"
+
+  # ============================================================
+  # LANGUAGE
+  # ============================================================
+  #
+  # No verbs.txt. No static lists. The domain understands language
+  # by structure, not by lookup.
+  #
+  # A command name is a verb phrase if:
+  #   - It starts with an action word (morphological rules)
+  #   - English verbs follow patterns: Create, Add, Start, Remove...
+  #   - Verb suffixes: -ate, -ify, -ize, -ise, -mit, -ect, -ude
+  #   - Verb prefixes: Re-, Un-, De-, Over-, Out-, Pre-, Post-
+  #   - Imperative mood: the command form IS the verb
+  #
+  # A word is NOT a verb if:
+  #   - It ends in -tion, -ment, -ness, -ity (nominalization)
+  #   - It ends in -able, -ible, -ous, -ive (adjective)
+  #   - It ends in -er, -or, -ist (agent noun)
+  #
+  # This replaces verbs.txt entirely.
+
+  aggregate "WordClassifier", "Determines if a word is a verb, noun, adjective, or other" do
+    attribute :word, String
+    attribute :classification, String, enum: ["verb", "noun", "adjective", "adverb", "preposition", "unknown"]
+    attribute :confidence, Float
+    attribute :reason, String
+
+    command "ClassifyWord" do
+      role "System"
+      description "Determine word class from morphological patterns"
+      attribute :word, String
+      emits "WordClassified"
+      then_set :word, to: :word
+    end
+  end
+
+  # === Morphological Rules ===
+
+  aggregate "VerbPattern", "A pattern that identifies verbs by structure" do
+    attribute :pattern_type, String, enum: ["suffix", "prefix", "exact", "compound"]
+    attribute :pattern, String
+    attribute :confidence, Float
+    attribute :examples, list_of(String)
+
+    command "RegisterPattern" do
+      role "System"
+      description "Add a morphological pattern for verb detection"
+      attribute :pattern_type, String
+      attribute :pattern, String
+      attribute :confidence, Float
+      emits "PatternRegistered"
+    end
+  end
+
+  # Verb suffixes — high confidence
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ate",  confidence: 0.9, examples: ["Create", "Validate", "Generate", "Consolidate", "Activate", "Accumulate"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ify",  confidence: 0.9, examples: ["Classify", "Notify", "Verify", "Modify", "Identify"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ize",  confidence: 0.9, examples: ["Recognize", "Authorize", "Initialize", "Organize", "Synchronize"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ise",  confidence: 0.9, examples: ["Advise", "Supervise", "Exercise", "Comprise"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "mit",  confidence: 0.85, examples: ["Submit", "Commit", "Transmit", "Admit", "Permit"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ect",  confidence: 0.8, examples: ["Select", "Reject", "Connect", "Collect", "Direct"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ude",  confidence: 0.8, examples: ["Include", "Exclude", "Conclude"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ose",  confidence: 0.75, examples: ["Close", "Compose", "Expose", "Dispose"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ive",  confidence: 0.3, examples: ["Give", "Drive", "Forgive"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "uce",  confidence: 0.8, examples: ["Produce", "Reduce", "Introduce"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ure",  confidence: 0.6, examples: ["Configure", "Capture", "Measure", "Ensure"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "end",  confidence: 0.7, examples: ["Send", "Extend", "Blend", "Attend", "Suspend"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ert",  confidence: 0.7, examples: ["Alert", "Convert", "Insert", "Assert"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ign",  confidence: 0.8, examples: ["Assign", "Design", "Align", "Sign"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ish",  confidence: 0.7, examples: ["Finish", "Publish", "Establish", "Abolish"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ock",  confidence: 0.7, examples: ["Lock", "Block", "Stock", "Knock"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "nce",  confidence: 0.4, examples: ["Announce", "Balance", "Advance", "Bounce"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "rge",  confidence: 0.8, examples: ["Merge", "Charge", "Forge", "Purge"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "rn",   confidence: 0.7, examples: ["Return", "Learn", "Turn", "Burn", "Earn"]
+  fixture "VerbPattern", pattern_type: "suffix", pattern: "ve",   confidence: 0.5, examples: ["Move", "Remove", "Approve", "Resolve", "Observe"]
+
+  # Verb prefixes — boost confidence when combined with other signals
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Re",   confidence: 0.7, examples: ["Rebuild", "Reopen", "Recall", "Recognize", "Remove"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Un",   confidence: 0.8, examples: ["Unload", "Unlock", "Undo", "Unlink"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "De",   confidence: 0.6, examples: ["Delete", "Deploy", "Deliver", "Deactivate"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Over", confidence: 0.7, examples: ["Override", "Overwrite", "Overlap"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Out",  confidence: 0.6, examples: ["Output", "Outline", "Outperform"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Pre",  confidence: 0.5, examples: ["Prepare", "Prevent", "Preview"]
+  fixture "VerbPattern", pattern_type: "prefix", pattern: "Dis",  confidence: 0.7, examples: ["Dispatch", "Disconnect", "Disable", "Discard"]
+
+  # Common short verbs — exact match, high confidence
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Add",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Get",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Set",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Put",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Run",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Cut",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Let",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Try",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Ask",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Use",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Log",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Map",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Tag",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Ban",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Pin",     confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Link",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Load",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Save",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Read",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Show",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Hide",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Find",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Sort",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Edit",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Mark",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Pick",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Drop",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Grab",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Scan",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Seed",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Sync",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Halt",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Kill",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Wake",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Beat",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Muse",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Shed",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Steer",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Think",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Sense",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Feel",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Graft",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Sever",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Start",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Stop",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Open",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Shut",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Move",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Send",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Emit",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Wire",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Boot",    confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Drain",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Prune",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Dream",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Sleep",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Greet",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Place",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Pause",   confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Cancel",  confidence: 1.0, examples: []
+  fixture "VerbPattern", pattern_type: "exact", pattern: "Silence", confidence: 1.0, examples: []
+
+  # Compound verb patterns — PascalCase splits
+  fixture "VerbPattern", pattern_type: "compound", pattern: "Become", confidence: 0.9, examples: ["BecomeLucid", "BecomeAttentive"]
+  fixture "VerbPattern", pattern_type: "compound", pattern: "Forget", confidence: 0.9, examples: ["ForgetMemory"]
+  fixture "VerbPattern", pattern_type: "compound", pattern: "Highlight", confidence: 0.9, examples: ["HighlightDomain"]
+
+  # === Non-verb patterns — things that look like verbs but aren't ===
+
+  aggregate "NonVerbPattern", "Patterns that indicate a word is NOT a verb" do
+    attribute :pattern_type, String, enum: ["suffix", "prefix"]
+    attribute :pattern, String
+    attribute :indicates, String
+
+    command "RegisterNonVerb" do
+      role "System"
+      description "Add a pattern that rules out verb classification"
+      attribute :pattern_type, String
+      attribute :pattern, String
+      attribute :indicates, String
+      emits "NonVerbRegistered"
+    end
+  end
+
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "tion",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "sion",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ment",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ness",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ity",   indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ence",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ance",  indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "able",  indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ible",  indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ous",   indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ful",   indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "less",  indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ing",   indicates: "adjective"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "er",    indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "or",    indicates: "noun"
+  fixture "NonVerbPattern", pattern_type: "suffix", pattern: "ist",   indicates: "noun"
+
+  # === Command name validation ===
+
+  aggregate "CommandValidator", "Validates that a command name starts with a verb" do
+    attribute :command_name, String
+    attribute :is_verb, String
+    attribute :confidence, Float
+    attribute :first_word, String
+
+    command "ValidateCommandName" do
+      role "System"
+      description "Check if a command name starts with a verb — using patterns, not a list"
+      attribute :command_name, String
+      emits "CommandNameValidated"
+      then_set :command_name, to: :command_name
+    end
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "morphological pattern", as: "A suffix, prefix, or structure that indicates word class"
+    define "verb pattern", as: "A pattern that identifies a word as a verb — -ate, -ify, Re-, etc."
+    define "non-verb pattern", as: "A pattern that rules out verb classification — -tion, -ment, -ness"
+    define "confidence", as: "How likely the classification is correct, 0.0 to 1.0"
+    define "compound verb", as: "A PascalCase command name where the first word is the verb"
+    prefer "classify", not: ["detect", "parse", "analyze"]
+    prefer "pattern", not: ["rule", "regex", "heuristic"]
+  end
+end

@@ -11,6 +11,10 @@ Hecks.hecksagon "Winter" do
   capabilities :project_management
   capabilities :voice_corpus_query
   capabilities :dlm_state
+  capabilities :self_checkin
+  capabilities :cloudflare_deploy
+  capabilities :web_components
+  capabilities :language
 
   persistence :information, dir: File.join(__dir__, "information")
 end

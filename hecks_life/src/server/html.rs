@@ -53,7 +53,7 @@ pub fn generate_index(runtimes: &HashMap<String, RefCell<Runtime>>) -> String {
 }
 
 fn metric_cards(
-    _domains: usize, _modules: usize, _commands: usize, records: usize,
+    domains: usize, modules: usize, commands: usize, records: usize,
 ) -> String {
     let card = |label: &str, value: &str, color: &str, hint: &str| -> String {
         format!(
@@ -65,12 +65,11 @@ fn metric_cards(
         )
     };
     format!(
-        "{}{}{}{}{}",
-        card("Active Brands", "3", "text-brand", "DuraLube · MotorKote · Slick 50"),
-        card("Bottles in Stock", "13,100", "text-emerald-400", "Across Dallas Distribution Center"),
-        card("Orders in Production", "2", "text-amber-400", "PetroBlend Industries"),
-        card("Compliance Score", "94%", "text-emerald-400", "Audit-ready across all jurisdictions"),
-        card("Pipeline Value", "$2.4M", "text-purple-400", &format!("{} formulas in development", records)),
+        "{}{}{}{}",
+        card("Domains", &domains.to_string(), "text-brand", "Bounded contexts"),
+        card("Modules", &modules.to_string(), "text-emerald-400", "Across all domains"),
+        card("Actions", &commands.to_string(), "text-amber-400", "Available commands"),
+        card("Records", &records.to_string(), "text-purple-400", "Seeded data"),
     )
 }
 

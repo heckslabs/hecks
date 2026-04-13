@@ -1,0 +1,112 @@
+Hecks.domain "Bookshelf" do
+  description "Track what you're reading, want to read, and have finished"
+
+  aggregate "Book" do
+    description "A book on your shelf"
+    attribute :title, String
+    attribute :author, String
+    attribute :genre, String, enum: ["fiction", "nonfiction", "technical", "poetry", "biography"]
+    attribute :pages, Integer
+    attribute :rating, Integer
+    attribute :notes, String
+
+    attribute :status, String, default: "want_to_read" do
+      transition "StartReading" => "reading", from: "want_to_read"
+      transition "FinishBook" => "finished", from: "reading"
+      transition "AbandonBook" => "abandoned", from: "reading"
+      transition "ReRead" => "reading", from: "finished"
+    end
+
+    validation :title, presence: true
+    validation :author, presence: true
+
+    invariant "rating must be 1-5" do
+      rating.nil? || (rating >= 1 && rating <= 5)
+    end
+
+    command "AddBook" do
+      description "Add a new book to your shelf"
+      attribute :title, String
+      attribute :author, String
+      attribute :genre, String
+      attribute :pages, Integer
+    end
+
+    command "StartReading" do
+      description "Pick up a book and start reading it"
+      reference_to "Book", validate: :exists
+    end
+
+    command "FinishBook" do
+      description "Mark a book as finished"
+      reference_to "Book", validate: :exists
+      attribute :rating, Integer
+      attribute :notes, String
+    end
+
+    command "AbandonBook" do
+      description "Put a book down — not finishing it"
+      reference_to "Book", validate: :exists
+      attribute :notes, String
+    end
+
+    command "ReRead" do
+      description "Start reading a finished book again"
+      reference_to "Book", validate: :exists
+    end
+
+    query "CurrentlyReading" do
+      where(status: "reading")
+    end
+
+    query "WantToRead" do
+      where(status: "want_to_read")
+    end
+
+    query "Finished" do
+      where(status: "finished")
+    end
+
+    specification "HighlyRated" do |book|
+      book.rating && book.rating >= 4
+    end
+
+    port :reader do
+      allow :find, :all, :add_book, :start_reading, :finish_book, :abandon_book, :re_read
+    end
+  end
+
+  aggregate "ReadingGoal" do
+    description "A goal to read N books this year"
+    attribute :year, Integer
+    attribute :target, Integer
+    attribute :completed, Integer, default: 0
+
+    command "SetGoal" do
+      description "Set a reading goal for the year"
+      attribute :year, Integer
+      attribute :target, Integer
+    end
+
+    command "IncrementProgress" do
+      description "Count a finished book toward the goal"
+      reference_to "ReadingGoal", validate: :exists
+      then_set :completed, increment: 1
+    end
+  end
+
+  policy "CountFinished" do
+    on "FinishedBook"
+    trigger "IncrementProgress"
+    description "When a book is finished, count it toward the reading goal"
+  end
+
+  actor "Reader"
+
+  glossary do
+    prefer "book", not: ["item", "entry", "record"]
+    prefer "shelf", not: ["list", "collection", "library"]
+    prefer "reading", not: ["in progress", "active", "current"]
+    define "abandoned", as: "A book you started but chose not to finish"
+  end
+end

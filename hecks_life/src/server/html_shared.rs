@@ -8,8 +8,8 @@
 
 /// Wrap content in the full app shell with sidebar
 pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
-    let app_name = "IGB";
-    let app_subtitle = "Engine Additive Platform";
+    let app_name = title;
+    let app_subtitle = "Dashboard";
     let core_script = super::html_scripts::core_script();
     let help_script = super::html_help::help_script();
     let wizard_script = super::html_wizard::wizard_script();

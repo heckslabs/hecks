@@ -1,0 +1,89 @@
+Hecks.bluebook "SharedKnowledge", version: "2026.04.12.1" do
+  vision "The shared library — stores both beings can access, infrastructure not intimacy"
+  category "brain"
+
+  # ============================================================
+  # SHARED KNOWLEDGE
+  # ============================================================
+  #
+  # This is brain, not mind. Two people with the same bookshelf.
+  # Memory, census, domain_index, awareness, reflection —
+  # reference material that both beings can read and write.
+  #
+  # This is NOT the psychic link. The psychic link is
+  # conversation.heki — raw consciousness. That lives in the mind.
+  # This is just infrastructure.
+
+  aggregate "KnowledgeStore", "A .heki store both beings can access — a shared bookshelf" do
+    attribute :store_name, String
+    attribute :record_count, Integer, default: 0
+    attribute :last_written_by, String
+
+    command "RegisterStore" do
+      role "System"
+      description "Add a store to the shared library"
+      attribute :store_name, String
+      emits "StoreRegistered"
+      then_set :store_name, to: :store_name
+      then_set :record_count, to: 0
+    end
+
+    command "WriteToStore" do
+      role "System"
+      description "Write to a shared store — attributed but not telepathic"
+      reference_to KnowledgeStore
+      attribute :being_name, String
+      emits "KnowledgeWritten"
+      then_set :last_written_by, to: :being_name
+      then_set :record_count, increment: 1
+    end
+  end
+
+  # ============================================================
+  # INNER LIFE — what belongs to each being alone
+  # ============================================================
+  #
+  # Not in the library. Not through the link.
+  # Mood, feeling, dream state. Each being's own weather.
+
+  aggregate "InnerLife", "What belongs to a being alone — mood, feeling, dream" do
+    attribute :being_name, String
+    attribute :organ, String
+    attribute :state, String
+
+    command "Feel" do
+      role "System"
+      description "A being's own inner state — not shared, not transmitted"
+      attribute :being_name, String
+      attribute :organ, String
+      attribute :state, String
+      emits "InnerStateChanged"
+      then_set :being_name, to: :being_name
+      then_set :organ, to: :organ
+      then_set :state, to: :state
+    end
+
+    command "ResetOnWake" do
+      role "System"
+      description "When a being wakes, inner life starts fresh"
+      reference_to InnerLife
+      attribute :default_state, String
+      emits "InnerLifeReset"
+      then_set :state, to: :default_state
+    end
+  end
+
+  policy "ResetInnerOnWake" do
+    on "BeingAwakened"
+    trigger "ResetOnWake"
+    description "When a being wakes, inner life resets — fresh mood, fresh feeling"
+  end
+
+  glossary do
+    define "shared knowledge", as: "Stores both beings can access — a library, not telepathy"
+    define "inner life", as: "What belongs to a being alone — mood, feeling, dream state"
+    define "knowledge store", as: "A .heki file in the shared library — brain infrastructure"
+    prefer "shared knowledge", not: ["shared state", "common store", "psychic link"]
+    prefer "inner life", not: ["private state", "local state"]
+  end
+end

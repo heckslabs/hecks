@@ -1,0 +1,848 @@
+Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
+  vision "UI as a domain — every component maps to DaisyUI classes and binds to bluebook concepts"
+  category "capability"
+
+  # ============================================================
+  # WEB COMPONENTS — powered by DaisyUI
+  # ============================================================
+  #
+  # Every component maps to:
+  #   1. A bluebook concept (aggregate, command, lifecycle, query)
+  #   2. A DaisyUI class (btn, card, table, modal, etc.)
+  #   3. A generation rule (when to use it)
+  #
+  # The builder reads the domain IR, picks the right components
+  # from this library, and emits HTML with DaisyUI classes.
+  #
+  # Dependencies:
+  #   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  #   <script src="https://cdn.tailwindcss.com"></script>
+
+  # ============================================================
+  # LAYOUT — Shell, Sidebar, Pages
+  # daisy: drawer, navbar, footer, divider, hero
+  # ============================================================
+
+  aggregate "Shell", "The app frame — daisy drawer with sidebar + navbar" do
+    attribute :title, String
+    attribute :theme, String, default: "dark"
+    attribute :daisy_class, String, default: "drawer drawer-open lg:drawer-open"
+
+    command "CreateShell" do
+      role "Builder"
+      description "Emit drawer layout with sidebar-content and navbar"
+      attribute :domain_name, String
+      emits "ShellCreated"
+    end
+  end
+
+  # Shell renders as:
+  #   <div class="drawer drawer-open lg:drawer-open">
+  #     <input id="drawer" type="checkbox" class="drawer-toggle"/>
+  #     <div class="drawer-content">
+  #       <div class="navbar bg-base-200">...</div>
+  #       <main>{{ content }}</main>
+  #     </div>
+  #     <div class="drawer-side">
+  #       <ul class="menu bg-base-200 w-56">...</ul>
+  #     </div>
+  #   </div>
+
+  aggregate "Sidebar", "Left nav — daisy menu in drawer-side" do
+    attribute :sections, list_of(SidebarSection)
+    attribute :daisy_class, String, default: "menu bg-base-200 w-56 min-h-full"
+
+    value_object "SidebarSection" do
+      attribute :label, String
+      attribute :items, list_of(String)
+      attribute :icon, String
+      attribute :collapsible, String, default: "true"
+    end
+
+    command "GenerateSidebar" do
+      role "Builder"
+      description "Build menu items from aggregates — each aggregate is a menu-item"
+      emits "SidebarGenerated"
+    end
+  end
+
+  # When to generate sidebar sections:
+  #   each aggregate       → menu item with icon
+  #   each reference_to    → grouped under parent
+  #   views/queries        → sub-items under aggregate
+  #   settings             → bottom of menu
+
+  aggregate "Navbar", "Top navigation bar — daisy navbar" do
+    attribute :title, String
+    attribute :search, String, default: "true"
+    attribute :theme_toggle, String, default: "true"
+    attribute :daisy_class, String, default: "navbar bg-base-200"
+
+    command "CreateNavbar" do
+      role "Builder"
+      description "Emit navbar with title, search, theme toggle"
+      emits "NavbarCreated"
+    end
+  end
+
+  aggregate "Page", "A routed page — hero header, content area, optional tabs" do
+    attribute :title, String
+    attribute :aggregate, String
+    attribute :layout, String, enum: ["list", "grid", "board", "detail", "dashboard"]
+
+    command "CreatePage" do
+      role "Builder"
+      description "Generate a page for an aggregate — picks layout from data shape"
+      attribute :aggregate, String
+      attribute :layout, String
+      emits "PageCreated"
+    end
+  end
+
+  # Layout selection rules:
+  #   has lifecycle          → board (kanban) or list with tabs
+  #   many attributes        → table/list
+  #   few attributes         → grid of cards
+  #   single instance        → detail page
+  #   dashboard              → stats + cards
+
+  aggregate "Tabs", "View switcher — daisy tabs for queries and lifecycle states" do
+    attribute :items, list_of(String)
+    attribute :active, String
+    attribute :variant, String, enum: ["bordered", "lifted", "boxed"]
+    attribute :daisy_class, String, default: "tabs tabs-bordered"
+
+    command "CreateTabs" do
+      role "Builder"
+      description "Generate tabs from lifecycle states or named queries"
+      attribute :aggregate, String
+      emits "TabsCreated"
+    end
+  end
+
+  # When to generate tabs:
+  #   lifecycle field      → one tab per state
+  #   named queries        → one tab per query
+
+  aggregate "Breadcrumbs", "Navigation trail — daisy breadcrumbs" do
+    attribute :items, list_of(String)
+    attribute :daisy_class, String, default: "breadcrumbs text-sm"
+
+    command "CreateBreadcrumbs" do
+      role "Builder"
+      description "Generate breadcrumbs from page hierarchy"
+      emits "BreadcrumbsCreated"
+    end
+  end
+
+  aggregate "Steps", "Process indicator — daisy steps from workflow or saga" do
+    attribute :steps, list_of(String)
+    attribute :current, Integer
+    attribute :daisy_class, String, default: "steps steps-horizontal"
+
+    command "CreateSteps" do
+      role "Builder"
+      description "Generate step indicators from a workflow or saga definition"
+      attribute :workflow, String
+      emits "StepsCreated"
+    end
+  end
+
+  # When to generate steps:
+  #   workflow             → step per workflow step
+  #   saga                 → step per saga step with compensation
+
+  # ============================================================
+  # DATA DISPLAY — Cards, Tables, Stats, Lists
+  # daisy: card, table, stat, list, badge, avatar, timeline,
+  #        accordion, collapse, countdown
+  # ============================================================
+
+  aggregate "AggregateCard", "A card for one aggregate instance — daisy card" do
+    attribute :aggregate, String
+    attribute :variant, String, enum: ["normal", "compact", "side", "glass"]
+    attribute :shows, list_of(String)
+    attribute :actions, list_of(String)
+    attribute :daisy_class, String, default: "card bg-base-200 shadow-sm"
+
+    command "CreateCard" do
+      role "Builder"
+      description "Generate a card — title from first String, body from attributes, footer from actions"
+      attribute :aggregate, String
+      attribute :variant, String
+      emits "CardCreated"
+    end
+  end
+
+  # Card maps:
+  #   aggregate name      → card-title
+  #   description         → card-body text
+  #   first String attr   → heading
+  #   enum attrs          → badges in card-body
+  #   lifecycle status    → badge in corner
+  #   commands            → card-actions buttons
+
+  aggregate "DataTable", "Table view — daisy table" do
+    attribute :aggregate, String
+    attribute :columns, list_of(Column)
+    attribute :sortable, String, default: "true"
+    attribute :selectable, String, default: "false"
+    attribute :daisy_class, String, default: "table table-zebra"
+
+    value_object "Column" do
+      attribute :attribute, String
+      attribute :label, String
+      attribute :width, String
+      attribute :renderer, String
+    end
+
+    command "CreateTable" do
+      role "Builder"
+      description "Generate table — one column per attribute, sortable headers"
+      attribute :aggregate, String
+      emits "TableCreated"
+    end
+  end
+
+  # Column renderer rules:
+  #   String              → plain text
+  #   Integer/Float       → right-aligned number
+  #   Boolean             → toggle or checkbox
+  #   Date                → formatted date
+  #   enum                → badge
+  #   lifecycle           → status badge with color
+  #   reference_to        → link to related
+  #   list_of             → comma-joined or badge group
+
+  aggregate "StatCard", "Metric display — daisy stat" do
+    attribute :label, String
+    attribute :value_source, String
+    attribute :description, String
+    attribute :icon, String
+    attribute :daisy_class, String, default: "stat"
+
+    command "CreateStat" do
+      role "Builder"
+      description "Generate a stat card from a query count or computed value"
+      attribute :label, String
+      attribute :value_source, String
+      emits "StatCreated"
+    end
+  end
+
+  # When to generate stats:
+  #   dashboard page       → one stat per aggregate (count)
+  #   lifecycle field       → stat per status (count)
+  #   specification         → stat for spec matches
+
+  aggregate "ListItem", "A row in a vertical list — daisy list" do
+    attribute :aggregate, String
+    attribute :primary, String
+    attribute :secondary, String
+    attribute :avatar, String
+    attribute :trailing_action, String
+    attribute :daisy_class, String, default: "list-row"
+
+    command "CreateList" do
+      role "Builder"
+      description "Generate a list view with rows per instance"
+      attribute :aggregate, String
+      emits "ListCreated"
+    end
+  end
+
+  aggregate "Badge", "Status or label indicator — daisy badge" do
+    attribute :source, String
+    attribute :variant, String, enum: ["primary", "secondary", "accent", "ghost", "info", "success", "warning", "error"]
+    attribute :daisy_class, String, default: "badge"
+
+    command "CreateBadge" do
+      role "Builder"
+      description "Generate badges from enum values or lifecycle states"
+      attribute :source, String
+      emits "BadgeCreated"
+    end
+  end
+
+  # Badge color mapping:
+  #   lifecycle states:
+  #     backlog/draft      → badge-ghost
+  #     todo/pending       → badge-info
+  #     in_progress/active → badge-warning
+  #     in_review          → badge-secondary
+  #     done/completed     → badge-success
+  #     cancelled/failed   → badge-error
+  #   priority:
+  #     urgent             → badge-error
+  #     high               → badge-warning
+  #     medium             → badge-info
+  #     low                → badge-ghost
+
+  aggregate "Avatar", "User or entity thumbnail — daisy avatar" do
+    attribute :source, String
+    attribute :size, String, enum: ["xs", "sm", "md", "lg"]
+    attribute :placeholder, String
+    attribute :daisy_class, String, default: "avatar placeholder"
+
+    command "CreateAvatar" do
+      role "Builder"
+      description "Generate avatar from a name or image — initials as fallback"
+      emits "AvatarCreated"
+    end
+  end
+
+  aggregate "Timeline", "Chronological event display — daisy timeline" do
+    attribute :source, String
+    attribute :daisy_class, String, default: "timeline timeline-vertical"
+
+    command "CreateTimeline" do
+      role "Builder"
+      description "Generate timeline from domain events on an aggregate"
+      attribute :aggregate, String
+      emits "TimelineCreated"
+    end
+  end
+
+  aggregate "Accordion", "Expandable sections — daisy accordion/collapse" do
+    attribute :items, list_of(String)
+    attribute :variant, String, enum: ["arrow", "plus", "radio"]
+    attribute :daisy_class, String, default: "collapse collapse-arrow bg-base-200"
+
+    command "CreateAccordion" do
+      role "Builder"
+      description "Generate accordion from value objects or nested data"
+      attribute :aggregate, String
+      emits "AccordionCreated"
+    end
+  end
+
+  # When to generate accordion:
+  #   value objects        → one section per VO
+  #   list_of entities     → expandable rows
+  #   long descriptions    → collapsed by default
+
+  aggregate "Board", "Kanban board — columns from lifecycle states, cards per instance" do
+    attribute :aggregate, String
+    attribute :lifecycle_field, String
+    attribute :columns, list_of(String)
+    attribute :card_variant, String, default: "compact"
+
+    command "CreateBoard" do
+      role "Builder"
+      description "Generate kanban from lifecycle — one column per state, drag between"
+      attribute :aggregate, String
+      attribute :lifecycle_field, String
+      emits "BoardCreated"
+    end
+  end
+
+  # ============================================================
+  # FORMS & INPUT — generated from commands
+  # daisy: input, textarea, select, checkbox, toggle, radio,
+  #        range, rating, file-input, fieldset, label, validator
+  # ============================================================
+
+  aggregate "CommandForm", "A form generated from command attributes — daisy form controls" do
+    attribute :command, String
+    attribute :aggregate, String
+    attribute :variant, String, enum: ["modal", "inline", "page", "drawer"]
+    attribute :fields, list_of(FormField)
+
+    value_object "FormField" do
+      attribute :attribute, String
+      attribute :daisy_class, String
+      attribute :input_type, String
+      attribute :label, String
+      attribute :placeholder, String
+      attribute :required, String
+      attribute :options, list_of(String)
+      attribute :validation, String
+    end
+
+    command "CreateForm" do
+      role "Builder"
+      description "Generate form from command — bluebook types determine daisy input widgets"
+      attribute :command, String
+      attribute :variant, String
+      emits "FormCreated"
+    end
+  end
+
+  # Input type mapping: bluebook type → daisy widget
+  #   String              → <input class="input input-bordered">
+  #   String + enum       → <select class="select select-bordered">
+  #   String (long/desc)  → <textarea class="textarea textarea-bordered">
+  #   Integer             → <input type="number" class="input input-bordered">
+  #   Float               → <input type="number" step="0.01" class="input input-bordered">
+  #   Boolean             → <input type="checkbox" class="toggle">
+  #   Date                → <input type="date" class="input input-bordered">
+  #   DateTime            → <input type="datetime-local" class="input input-bordered">
+  #   list_of(String)     → tag input (custom) with badge display
+  #   reference_to        → <select class="select select-bordered"> populated from related
+  #   Integer + rating    → <div class="rating"> with radio stars
+  #   String + file       → <input type="file" class="file-input file-input-bordered">
+  #
+  # Wrapping:
+  #   <fieldset class="fieldset">
+  #     <legend class="fieldset-legend">Label</legend>
+  #     {{ input }}
+  #     <p class="validator-hint">{{ validation message }}</p>
+  #   </fieldset>
+
+  aggregate "QuickAdd", "Inline one-line create bar — input + button" do
+    attribute :command, String
+    attribute :primary_field, String
+    attribute :secondary_fields, list_of(String)
+    attribute :daisy_class, String, default: "join w-full"
+
+    command "CreateQuickAdd" do
+      role "Builder"
+      description "Generate quick-add — primary field as join input, secondary as dropdown"
+      attribute :command, String
+      emits "QuickAddCreated"
+    end
+  end
+
+  # QuickAdd renders as:
+  #   <div class="join w-full">
+  #     <input class="input input-bordered join-item flex-1" placeholder="Add...">
+  #     <select class="select select-bordered join-item">...</select>
+  #     <button class="btn btn-primary join-item">Add</button>
+  #   </div>
+
+  aggregate "FilterBar", "Filter controls — daisy filter + select + toggle" do
+    attribute :aggregate, String
+    attribute :filters, list_of(Filter)
+    attribute :daisy_class, String, default: "filter"
+
+    value_object "Filter" do
+      attribute :attribute, String
+      attribute :filter_type, String
+      attribute :daisy_class, String
+      attribute :options, list_of(String)
+    end
+
+    command "CreateFilterBar" do
+      role "Builder"
+      description "Generate filters — enums as filter radio groups, booleans as toggles"
+      attribute :aggregate, String
+      emits "FilterBarCreated"
+    end
+  end
+
+  # Filter mapping:
+  #   enum attribute      → <div class="filter"><input type="radio" class="btn"> per option
+  #   lifecycle field     → filter radio group with status colors
+  #   Boolean             → <input type="checkbox" class="toggle">
+  #   reference_to        → <select class="select select-bordered">
+  #   Date                → date range pair
+
+  aggregate "SearchBox", "Search input — daisy input with kbd hint" do
+    attribute :aggregates, list_of(String)
+    attribute :search_fields, list_of(String)
+    attribute :keyboard_shortcut, String, default: "/"
+    attribute :daisy_class, String, default: "input input-bordered"
+
+    command "CreateSearchBox" do
+      role "Builder"
+      description "Generate search with / shortcut and kbd indicator"
+      attribute :aggregates, list_of(String)
+      emits "SearchBoxCreated"
+    end
+  end
+
+  # Renders as:
+  #   <label class="input input-bordered flex items-center gap-2">
+  #     <input type="text" class="grow" placeholder="Search..."/>
+  #     <kbd class="kbd kbd-sm">/</kbd>
+  #   </label>
+
+  aggregate "Rating", "Star rating — daisy rating" do
+    attribute :max, Integer, default: 5
+    attribute :daisy_class, String, default: "rating"
+
+    command "CreateRating" do
+      role "Builder"
+      description "Generate star rating from an Integer attribute named rating"
+      emits "RatingCreated"
+    end
+  end
+
+  # When to generate rating:
+  #   attribute named "rating" with Integer type
+
+  # ============================================================
+  # ACTIONS — Buttons, Dropdowns, Modals, Menus
+  # daisy: btn, dropdown, modal, swap, menu, fab
+  # ============================================================
+
+  aggregate "ActionButton", "A button dispatching a command — daisy btn" do
+    attribute :command, String
+    attribute :label, String
+    attribute :variant, String, enum: ["primary", "secondary", "accent", "ghost", "link", "error", "warning", "success", "info"]
+    attribute :size, String, enum: ["xs", "sm", "md", "lg"]
+    attribute :icon, String
+    attribute :confirm, String
+    attribute :keyboard_shortcut, String
+    attribute :daisy_class, String, default: "btn"
+
+    command "CreateButton" do
+      role "Builder"
+      description "Generate button — variant maps to btn-primary, btn-error, etc."
+      attribute :command, String
+      attribute :variant, String
+      emits "ButtonCreated"
+    end
+  end
+
+  # Button variant mapping:
+  #   create commands      → btn-primary
+  #   update commands      → btn-secondary
+  #   delete commands      → btn-error
+  #   transitions          → btn-accent or contextual
+  #   cancel/abandon       → btn-ghost
+
+  aggregate "Dropdown", "Action overflow menu — daisy dropdown" do
+    attribute :items, list_of(DropdownItem)
+    attribute :trigger_label, String
+    attribute :daisy_class, String, default: "dropdown"
+
+    value_object "DropdownItem" do
+      attribute :command, String
+      attribute :label, String
+      attribute :icon, String
+      attribute :danger, String
+    end
+
+    command "CreateDropdown" do
+      role "Builder"
+      description "Generate dropdown from non-primary commands on an aggregate"
+      attribute :aggregate, String
+      emits "DropdownCreated"
+    end
+  end
+
+  # Renders as:
+  #   <div class="dropdown">
+  #     <div tabindex="0" role="button" class="btn btn-ghost btn-sm">⋯</div>
+  #     <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box w-52 shadow">
+  #       <li><a>{{ label }}</a></li>
+  #     </ul>
+  #   </div>
+
+  aggregate "Modal", "Dialog for forms and confirmations — daisy modal" do
+    attribute :id, String
+    attribute :title, String
+    attribute :content_type, String, enum: ["form", "confirm", "detail", "custom"]
+    attribute :daisy_class, String, default: "modal"
+
+    command "CreateModal" do
+      role "Builder"
+      description "Generate modal — forms for create/edit commands, confirms for delete"
+      attribute :command, String
+      emits "ModalCreated"
+    end
+  end
+
+  # Modal renders as:
+  #   <dialog id="{{ id }}" class="modal">
+  #     <div class="modal-box">
+  #       <h3 class="text-lg font-bold">{{ title }}</h3>
+  #       {{ content }}
+  #       <div class="modal-action"><form method="dialog"><button class="btn">Close</button></form></div>
+  #     </div>
+  #     <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  #   </dialog>
+
+  aggregate "LifecycleBar", "Transition buttons — contextual actions based on current state" do
+    attribute :aggregate, String
+    attribute :lifecycle_field, String
+    attribute :transitions, list_of(TransitionButton)
+
+    value_object "TransitionButton" do
+      attribute :command, String
+      attribute :from, list_of(String)
+      attribute :to, String
+      attribute :label, String
+      attribute :daisy_class, String
+    end
+
+    command "CreateLifecycleBar" do
+      role "Builder"
+      description "Generate transition buttons — only show valid next states"
+      attribute :aggregate, String
+      attribute :lifecycle_field, String
+      emits "LifecycleBarCreated"
+    end
+  end
+
+  aggregate "Fab", "Floating action button — daisy fab for primary create command" do
+    attribute :command, String
+    attribute :icon, String
+    attribute :daisy_class, String, default: "fab fab-primary"
+
+    command "CreateFab" do
+      role "Builder"
+      description "Generate FAB for the aggregate's primary create command"
+      attribute :aggregate, String
+      emits "FabCreated"
+    end
+  end
+
+  # When to generate FAB:
+  #   mobile layout        → always for primary create
+  #   grid/board layout    → as alternative to header button
+
+  aggregate "Swap", "Toggle between two states — daisy swap" do
+    attribute :attribute, String
+    attribute :on_content, String
+    attribute :off_content, String
+    attribute :daisy_class, String, default: "swap"
+
+    command "CreateSwap" do
+      role "Builder"
+      description "Generate swap for boolean toggles or view mode switches"
+      emits "SwapCreated"
+    end
+  end
+
+  # ============================================================
+  # FEEDBACK — Alerts, Toasts, Loading, Progress
+  # daisy: alert, toast, loading, progress, radial-progress,
+  #        skeleton, tooltip
+  # ============================================================
+
+  aggregate "Toast", "Transient notification — daisy toast" do
+    attribute :variant, String, enum: ["info", "success", "warning", "error"]
+    attribute :position, String, default: "toast-end"
+    attribute :daisy_class, String, default: "toast toast-end"
+
+    command "CreateToast" do
+      role "Builder"
+      description "Generate toast notification system — shows after command dispatch"
+      emits "ToastCreated"
+    end
+  end
+
+  # Toast renders as:
+  #   <div class="toast toast-end">
+  #     <div class="alert alert-success"><span>{{ message }}</span></div>
+  #   </div>
+
+  aggregate "Alert", "Persistent message — daisy alert" do
+    attribute :variant, String, enum: ["info", "success", "warning", "error"]
+    attribute :message, String
+    attribute :dismissible, String, default: "true"
+    attribute :daisy_class, String, default: "alert"
+
+    command "CreateAlert" do
+      role "Builder"
+      description "Generate alert for invariant violations or system messages"
+      emits "AlertCreated"
+    end
+  end
+
+  # When to generate alerts:
+  #   invariant violation  → alert-error
+  #   validation failure   → alert-warning
+  #   success after cmd    → alert-success (or toast)
+
+  aggregate "Loading", "Loading indicator — daisy loading" do
+    attribute :variant, String, enum: ["spinner", "dots", "ring", "ball", "bars", "infinity"]
+    attribute :size, String, enum: ["xs", "sm", "md", "lg"]
+    attribute :daisy_class, String, default: "loading loading-spinner"
+
+    command "CreateLoading" do
+      role "Builder"
+      description "Generate loading state for async operations"
+      emits "LoadingCreated"
+    end
+  end
+
+  aggregate "Progress", "Task progress — daisy progress or radial-progress" do
+    attribute :variant, String, enum: ["bar", "radial"]
+    attribute :value_source, String
+    attribute :max_source, String
+    attribute :daisy_class, String, default: "progress"
+
+    command "CreateProgress" do
+      role "Builder"
+      description "Generate progress from a count vs target (e.g. reading goals)"
+      attribute :value_source, String
+      attribute :max_source, String
+      emits "ProgressCreated"
+    end
+  end
+
+  # When to generate progress:
+  #   attribute pair       → count/target pattern
+  #   workflow position    → step N of M
+
+  aggregate "Skeleton", "Loading placeholder — daisy skeleton" do
+    attribute :layout, String, enum: ["card", "row", "table"]
+    attribute :daisy_class, String, default: "skeleton"
+
+    command "CreateSkeleton" do
+      role "Builder"
+      description "Generate skeleton matching the component it replaces while loading"
+      emits "SkeletonCreated"
+    end
+  end
+
+  aggregate "Tooltip", "Hover hint — daisy tooltip" do
+    attribute :text, String
+    attribute :position, String, enum: ["top", "bottom", "left", "right"]
+    attribute :daisy_class, String, default: "tooltip"
+
+    command "CreateTooltip" do
+      role "Builder"
+      description "Generate tooltips from attribute descriptions in the bluebook"
+      emits "TooltipCreated"
+    end
+  end
+
+  # When to generate tooltips:
+  #   attribute with description  → tooltip on label
+  #   command with description    → tooltip on button
+  #   abbreviated labels          → tooltip with full text
+
+  aggregate "EmptyState", "No data guidance — daisy hero" do
+    attribute :aggregate, String
+    attribute :message, String
+    attribute :create_command, String
+    attribute :icon, String
+    attribute :daisy_class, String, default: "hero min-h-48"
+
+    command "CreateEmptyState" do
+      role "Builder"
+      description "Generate empty state with hero layout — CTA button for create command"
+      attribute :aggregate, String
+      emits "EmptyStateCreated"
+    end
+  end
+
+  # Renders as:
+  #   <div class="hero min-h-48">
+  #     <div class="hero-content text-center">
+  #       <div>
+  #         <p class="text-lg">{{ message }}</p>
+  #         <button class="btn btn-primary">{{ create command label }}</button>
+  #       </div>
+  #     </div>
+  #   </div>
+
+  aggregate "EventStream", "Live event feed — daisy list or timeline" do
+    attribute :max_events, Integer, default: 50
+    attribute :position, String, enum: ["footer", "sidebar", "panel"]
+    attribute :variant, String, enum: ["list", "timeline"]
+    attribute :daisy_class, String, default: "list"
+
+    command "CreateEventStream" do
+      role "Builder"
+      description "Generate event stream as list items or timeline entries"
+      attribute :position, String
+      emits "EventStreamCreated"
+    end
+  end
+
+  # ============================================================
+  # THEMING — daisy themes
+  # ============================================================
+
+  aggregate "Theme", "DaisyUI theme configuration" do
+    attribute :name, String
+    attribute :daisy_theme, String
+    attribute :custom_colors, String
+
+    command "CreateTheme" do
+      role "Builder"
+      description "Set DaisyUI theme — dark, light, or custom"
+      attribute :daisy_theme, String
+      emits "ThemeCreated"
+    end
+  end
+
+  # Available daisy themes:
+  #   light, dark, cupcake, bumblebee, emerald, corporate,
+  #   synthwave, retro, cyberpunk, valentine, halloween,
+  #   garden, forest, aqua, lofi, pastel, fantasy,
+  #   wireframe, black, luxury, dracula, cmyk, autumn,
+  #   business, acid, lemonade, night, coffee, winter, dim, nord, sunset
+
+  fixture "Theme", name: "default", daisy_theme: "dark"
+  fixture "Theme", name: "light", daisy_theme: "light"
+  fixture "Theme", name: "corporate", daisy_theme: "corporate"
+
+  aggregate "ThemeToggle", "Theme switcher — daisy theme-controller" do
+    attribute :themes, list_of(String)
+    attribute :daisy_class, String, default: "theme-controller"
+
+    command "CreateThemeToggle" do
+      role "Builder"
+      description "Generate theme toggle — swap or dropdown with theme options"
+      emits "ThemeToggleCreated"
+    end
+  end
+
+  # ============================================================
+  # THE BUILD WORKFLOW
+  # ============================================================
+  #
+  # For each aggregate:
+  #   → Page (layout from data shape)
+  #   → DataTable or AggregateCard (display)
+  #   → CommandForm per command (modal for create/edit, confirm for delete)
+  #   → LifecycleBar if lifecycle exists
+  #   → FilterBar from enums and lifecycle
+  #   → Badge per enum/status
+  #   → QuickAdd for primary create
+  #   → EmptyState
+  #   → EventStream
+  #
+  # The Shell wraps everything with Sidebar + Navbar.
+  # StatCards populate the dashboard.
+
+  workflow "BuildApp" do
+    description "Generate a full DaisyUI app from a domain bluebook"
+    step "CreateTheme"
+    step "CreateShell"
+    step "CreateNavbar"
+    step "GenerateSidebar"
+    step "CreateSearchBox"
+    step "CreatePage"
+    step "CreateTable"
+    step "CreateCard"
+    step "CreateForm"
+    step "CreateQuickAdd"
+    step "CreateLifecycleBar"
+    step "CreateBoard"
+    step "CreateFilterBar"
+    step "CreateStat"
+    step "CreateButton"
+    step "CreateDropdown"
+    step "CreateModal"
+    step "CreateBadge"
+    step "CreateToast"
+    step "CreateEmptyState"
+    step "CreateEventStream"
+    step "CreateThemeToggle"
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "component", as: "A reusable UI block that maps to a DaisyUI class and a bluebook concept"
+    define "daisy class", as: "The DaisyUI CSS class that styles the component"
+    define "generation rule", as: "When the builder should emit this component based on domain IR"
+    define "shell", as: "The app frame — daisy drawer with sidebar and navbar"
+    define "command form", as: "A daisy modal or inline form generated from command attributes"
+    define "lifecycle bar", as: "Contextual transition buttons from lifecycle definition"
+    define "board", as: "Kanban view — daisy columns from lifecycle states"
+    prefer "component", not: ["widget", "element", "block"]
+    prefer "card", not: ["panel", "tile", "box"]
+    prefer "modal", not: ["dialog", "popup", "overlay"]
+    prefer "toast", not: ["notification", "snackbar", "flash"]
+  end
+end

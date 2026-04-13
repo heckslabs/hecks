@@ -296,32 +296,33 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
     end
   end
 
-  # === Anti-AI-Look ===
+  # === Rendering Rules ===
+  # Each rule is checkable: scope says WHAT to check, check says HOW, violation says WHAT FAILED.
+  # A validator walks the generated HTML and applies every rule. No interpretation needed.
 
-  aggregate "DesignPrinciple", "Rules that prevent the app from looking AI-generated" do
+  aggregate "RenderingRule", "A deterministic check the generator must pass — not guidance, a gate" do
     attribute :name, String
-    attribute :principle, String
-    attribute :enforced, String
+    attribute :scope, String
+    attribute :check, String
+    attribute :violation, String
+    attribute :origin, String
 
-    command "AddPrinciple" do
-      role "Designer"
-      description "Add a design rule — asymmetry, personality, imperfection, craft"
+    command "AddRule" do
+      role "System"
+      description "Register a rendering rule that the generator must satisfy"
       attribute :name, String
-      attribute :principle, String
-      emits "PrincipleAdded"
+      attribute :scope, String
+      attribute :check, String
+      attribute :violation, String
+      attribute :origin, String
+      emits "RuleAdded"
       then_set :name, to: :name
-      then_set :principle, to: :principle
-      then_set :enforced, to: "true"
+      then_set :scope, to: :scope
+      then_set :check, to: :check
+      then_set :violation, to: :violation
+      then_set :origin, to: :origin
     end
   end
-
-  fixture "DesignPrinciple", name: "No Perfect Symmetry", principle: "Break the grid occasionally — perfect symmetry looks algorithmic", enforced: "true"
-  fixture "DesignPrinciple", name: "Personality in Microcopy", principle: "Labels and empty states have voice — not 'No items found' but language that fits the brand", enforced: "true"
-  fixture "DesignPrinciple", name: "Intentional Whitespace", principle: "Generous spacing signals craft — cramped layouts signal automation", enforced: "true"
-  fixture "DesignPrinciple", name: "Custom Illustrations", principle: "No stock icons — every visual element is chosen for THIS domain", enforced: "true"
-  fixture "DesignPrinciple", name: "Subtle Animation", principle: "Transitions feel physical — weight, momentum, easing. Not CSS defaults.", enforced: "true"
-  fixture "DesignPrinciple", name: "Typography Hierarchy", principle: "Three levels of visual hierarchy minimum — size, weight, and color all vary", enforced: "true"
-  fixture "DesignPrinciple", name: "Domain Language Everywhere", principle: "Labels use the ubiquitous language from the bluebook — never generic CRUD terms", enforced: "true"
 
   # === Policies ===
 
@@ -340,76 +341,85 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
     trigger "ReportCompliance"
   end
 
-  # === UI Preferences (learned from building Alan's app) ===
+  # ============================================================
+  # RENDERING RULES
+  # scope:     what element or pattern to check
+  # check:     the deterministic assertion
+  # violation: what to report when it fails
+  # origin:    who contributed this rule
+  # ============================================================
 
-  fixture "DesignPrinciple", name: "Tailwind Only", principle: "Always use Tailwind CDN for CSS — never custom CSS files", enforced: "true"
-  fixture "DesignPrinciple", name: "Dark Industrial Theme", principle: "bg-surface-0 (#111) body, surface-1 sidebar, surface-2 cards — lift brand colors from the client's existing websites", enforced: "true"
-  fixture "DesignPrinciple", name: "Brand Typography", principle: "Roboto Slab for headings, Cabin for body — match the client's brand fonts via Google Fonts", enforced: "true"
-  fixture "DesignPrinciple", name: "Gold Accent From Brand", principle: "Extract primary brand color from client website — use as accent for headers, active states, buttons", enforced: "true"
-  fixture "DesignPrinciple", name: "Build Tab First", principle: "Build tab is primary (module panels with commands), Records tab is secondary (data tables)", enforced: "true"
-  fixture "DesignPrinciple", name: "Collapsible Panels", principle: "Each module is a collapsible details element — first open, rest collapsed", enforced: "true"
-  fixture "DesignPrinciple", name: "Module-Specific Icons", principle: "Each module gets a unique icon by keyword — not the same domain icon on every panel", enforced: "true"
-  fixture "DesignPrinciple", name: "Grouped Sidebar", principle: "Sidebar links grouped under category headers: Operations, Products, Sales, Compliance", enforced: "true"
-  fixture "DesignPrinciple", name: "No Counts In Sidebar", principle: "Don't show aggregate counts or module counts in sidebar or page headers — clean navigation", enforced: "true"
-  fixture "DesignPrinciple", name: "Workflow Pipeline", principle: "Lifecycle aggregates render as visual step pipelines — steps flow left to right, current step gold, commands grouped under their target step", enforced: "true"
-  fixture "DesignPrinciple", name: "Per-Module Tables", principle: "Each module shows its own records table inside the panel, not one big table for the whole domain", enforced: "true"
-  fixture "DesignPrinciple", name: "Invariant Gating", principle: "Commands with givens show requirements — steps not yet valid are dimmed with precondition warnings", enforced: "true"
-  fixture "DesignPrinciple", name: "Sortable Searchable Tables", principle: "Click column headers to sort, search box filters rows, fixed height with scroll and sticky headers", enforced: "true"
-  fixture "DesignPrinciple", name: "Detail Modal On Row Click", principle: "Clicking a table row pops up a detail modal with editable fields and cross-module links", enforced: "true"
-  fixture "DesignPrinciple", name: "Smooth Scroll Module Nav", principle: "Module navbar pills on Build tab — clicking scrolls to and opens that panel", enforced: "true"
-  fixture "DesignPrinciple", name: "Slide Open Animation", principle: "Panels animate with slideDown on open — opacity and translateY transition", enforced: "true"
-  fixture "DesignPrinciple", name: "Background Glow", principle: "Subtle radial gradient glow in brand color at very low opacity — adds life without distraction", enforced: "true"
-  fixture "DesignPrinciple", name: "No Double Arrows", principle: "Hide browser default details marker — use custom chevrons only", enforced: "true"
-  fixture "DesignPrinciple", name: "Selectable Text", principle: "Never use select-none on content panels — users must be able to copy text", enforced: "true"
-  fixture "DesignPrinciple", name: "Footer Sidebar Only", principle: "Empowered by Hecks only in sidebar footer — not in main content", enforced: "true"
-  fixture "DesignPrinciple", name: "No Blue Buttons", principle: "Never use default blue — buttons use surface-3 with brand text, complementary to dark background", enforced: "true"
-  fixture "DesignPrinciple", name: "One Port One Process", principle: "Server generates HTML and serves API from one port — no separate frontend build", enforced: "true"
-  fixture "DesignPrinciple", name: "Modules Not Aggregates", principle: "UI says modules — never say aggregates, bluebook, or domain to the end user", enforced: "true"
-  fixture "DesignPrinciple", name: "Records Not Seed Data", principle: "Tables say Records — never mention seeds, fixtures, or test data", enforced: "true"
-  fixture "DesignPrinciple", name: "Client Branding", principle: "Sidebar shows client company name, not Hecks — pull name from hecksagon or world config", enforced: "true"
-  fixture "DesignPrinciple", name: "Domain-Rich Rendering", principle: "Use domain concepts to make the UI rich — recipes show ingredients, journeys show funnels, tests show pass/fail with ASTM labels", enforced: "true"
+  # --- CSS & Framework ---
+  fixture "RenderingRule", name: "tailwind_only", scope: "document", check: "no <link rel=stylesheet> except tailwind CDN", violation: "custom CSS file detected", origin: "winter"
+  fixture "RenderingRule", name: "single_process", scope: "server", check: "HTML and API served from one port", violation: "separate frontend process detected", origin: "winter"
 
-  # === UX Research Principles (SaaS Dashboard Best Practices 2026) ===
+  # --- Color System ---
+  fixture "RenderingRule", name: "dark_surface_bg", scope: "body", check: "background-color in surface-0 range (#0d-#14)", violation: "body background too light", origin: "winter"
+  fixture "RenderingRule", name: "brand_color_from_client", scope: "tailwind.config", check: "brand.DEFAULT sourced from client website or world.hec", violation: "hardcoded brand color", origin: "alan"
+  fixture "RenderingRule", name: "no_default_blue_buttons", scope: "button", check: "no bg-blue-500 or bg-blue-600 classes", violation: "default blue button found", origin: "alan"
+  fixture "RenderingRule", name: "status_traffic_light", scope: "[data-domain-lifecycle]", check: "green=active/pass amber=pending/warning red=error/fail", violation: "status color does not match semantic", origin: "winter"
 
-  fixture "DesignPrinciple", name: "F-Pattern Layout", principle: "Most critical metric goes top-left. Primary KPIs across top row. Secondary metrics down left column. Users scan in F-pattern.", enforced: "true"
-  fixture "DesignPrinciple", name: "Traffic Light Status", principle: "Green=working, Amber=warning, Red=critical. Use color ONLY for status and urgency. Red triggers immediate action.", enforced: "true"
-  fixture "DesignPrinciple", name: "Progressive Disclosure", principle: "Show summary first, reveal details on demand. Collapsed panels, tabs, expandable sections. Never show all data at once.", enforced: "true"
-  fixture "DesignPrinciple", name: "Right-Align Numbers", principle: "Numbers right-aligned to stack decimal points vertically. Text left-aligned. Dates left-aligned.", enforced: "true"
-  fixture "DesignPrinciple", name: "Zebra Striping", principle: "Alternating row backgrounds on tables for readability. Subtle — surface-2/surface-1 alternation.", enforced: "true"
-  fixture "DesignPrinciple", name: "Empty States Guide Action", principle: "Empty tables show helpful message: 'No records yet — use the Build tab to create one.' Never blank.", enforced: "true"
-  fixture "DesignPrinciple", name: "Bar Charts Over Pie Charts", principle: "Humans compare lengths 3-4x faster than angles. Use horizontal bars for comparisons. Never pie charts with 5+ slices.", enforced: "true"
-  fixture "DesignPrinciple", name: "Row Count Above Table", principle: "Show 'N records' count above every table. User knows scope before reading data.", enforced: "true"
-  fixture "DesignPrinciple", name: "Default Sort Obvious", principle: "First column sorted ascending by default. Show ▲ indicator on the sorted column. User knows the sort order.", enforced: "true"
-  fixture "DesignPrinciple", name: "Large Touch Targets", principle: "Minimum 44x44 pixels for clickable elements. Command buttons have generous padding. No tiny links.", enforced: "true"
-  fixture "DesignPrinciple", name: "Success Feedback Prominent", principle: "After successful action, show green banner — not tiny text. Clear the form. User knows it worked.", enforced: "true"
-  fixture "DesignPrinciple", name: "Command Button Shows Action", principle: "Button says 'Create Formula' not 'Execute'. User knows what will happen before clicking.", enforced: "true"
-  fixture "DesignPrinciple", name: "Workflow Step Counts", principle: "Each workflow step shows how many records are at that stage as a count badge. User sees pipeline health at a glance.", enforced: "true"
-  fixture "DesignPrinciple", name: "Sticky Table Headers", principle: "Table headers stay visible while scrolling. Fixed height container with overflow-y-auto. Sticky top-0 on thead.", enforced: "true"
-  fixture "DesignPrinciple", name: "Hover Title On Sidebar", principle: "Sidebar links have title attribute with domain description. User sees context on hover without clicking.", enforced: "true"
-  fixture "DesignPrinciple", name: "No Data Vomit", principle: "Never display all data simultaneously. Every dashboard serves one purpose. Operational dashboards show status. Analytical dashboards show trends.", enforced: "true"
+  # --- Typography ---
+  fixture "RenderingRule", name: "heading_font_distinct", scope: "h1,h2,h3", check: "font-family differs from body font-family", violation: "headings use same font as body", origin: "winter"
+  fixture "RenderingRule", name: "three_level_hierarchy", scope: "page", check: "at least 3 distinct font-size values used", violation: "fewer than 3 type sizes", origin: "winter"
 
-  # === Interaction Patterns (learned from Alan's demo session) ===
+  # --- Layout ---
+  fixture "RenderingRule", name: "sidebar_client_name", scope: "#sidebar h1", check: "text content matches client name from hecksagon.hec", violation: "sidebar shows Hecks instead of client name", origin: "alan"
+  fixture "RenderingRule", name: "sidebar_grouped", scope: "#sidebar nav", check: "links nested under category heading elements", violation: "flat sidebar without grouping", origin: "alan"
+  fixture "RenderingRule", name: "sidebar_no_counts", scope: "#sidebar a", check: "no numeric badge or count suffix", violation: "count shown in sidebar link", origin: "alan"
+  fixture "RenderingRule", name: "footer_sidebar_only", scope: "footer", check: "Hecks attribution only inside #sidebar", violation: "Hecks branding in main content area", origin: "alan"
+  fixture "RenderingRule", name: "kpi_row_per_domain", scope: "[data-domain-page]", check: "first child is grid with 3-4 metric cards", violation: "domain page missing KPI header row", origin: "alan"
+  fixture "RenderingRule", name: "f_pattern_kpi", scope: ".kpi-grid", check: "primary metric is first child (top-left)", violation: "primary KPI not in top-left position", origin: "winter"
 
-  fixture "DesignPrinciple", name: "Creation Wizard", principle: "Creating a lifecycle entity uses a popup wizard — multi-step, guided, validates each step. Steps derive from lifecycle transitions. Never separate disconnected forms.", enforced: "true"
-  fixture "DesignPrinciple", name: "Row Action Buttons", principle: "Commands with reference_to become action buttons on table rows — Revise, Retire, Add Ingredient. Actions live where the data lives.", enforced: "true"
-  fixture "DesignPrinciple", name: "Create vs Update Pattern", principle: "Commands WITHOUT reference_to = create (wizard popup). Commands WITH reference_to = update (row action or inline). Detect from IR automatically.", enforced: "true"
-  fixture "DesignPrinciple", name: "Guided Workflow Flow", principle: "On command success, collapse current panel, open next step, reference the created record. Each step flows into the next with context.", enforced: "true"
-  fixture "DesignPrinciple", name: "Humanize Code Expressions", principle: "Given expressions like status==\"draft\" display as 'Requires status to be draft'. Never show raw code to users.", enforced: "true"
-  fixture "DesignPrinciple", name: "Clean Snake Case Values", principle: "Table values like engine_treatment display as Engine Treatment. Clean snake_case in fixture data automatically.", enforced: "true"
-  fixture "DesignPrinciple", name: "Event Stream Sidebar", principle: "Right sidebar shows live event stream — events flow through as commands are dispatched. Real-time domain activity feed.", enforced: "true"
-  fixture "DesignPrinciple", name: "Multicolor Background Blobs", principle: "Floating blobs in yellow, red, green, blue, white — spread across whole page, very subtle opacity, drifting animation. Adds life.", enforced: "true"
-  fixture "DesignPrinciple", name: "KPI Headers Per Domain", principle: "Every domain page shows 3-4 key metrics at top — record counts, status distribution, domain-specific indicators.", enforced: "true"
-  fixture "DesignPrinciple", name: "Contextual Help Everywhere", principle: "Every element gets a ? icon. Click it → jumps to auto-generated docs for that exact concept. Docs page has a chat pre-loaded with context from where they clicked.", enforced: "true"
-  fixture "DesignPrinciple", name: "Docs From Domain", principle: "Documentation auto-generates from the bluebook — aggregate descriptions become module docs, command descriptions become action docs, lifecycle becomes workflow docs. Never hand-written.", enforced: "true"
-  fixture "DesignPrinciple", name: "Events In English", principle: "Event names display as human English — FormulaCreated shows as 'Formula Created', not class names. Apply display_name to all events.", enforced: "true"
-  fixture "DesignPrinciple", name: "Console Event Colors", principle: "Server console: system events in one color, domain events in another. User can distinguish infrastructure from business activity.", enforced: "true"
-  fixture "DesignPrinciple", name: "Dropdowns For Enums", principle: "Any field with known values (brand names, status, product_type, channel) renders as a dropdown select, not a text input. Infer from fixtures and lifecycle states.", enforced: "true"
-  fixture "DesignPrinciple", name: "Data Persists On Refresh", principle: "Dispatched data persists to heki storage. Refresh loads saved state, not just fixtures. The app is stateful.", enforced: "true"
-  fixture "DesignPrinciple", name: "Dropdowns For References", principle: "reference_to fields render as dropdown selects populated from existing records. Never free-text for foreign keys.", enforced: "true"
-  fixture "DesignPrinciple", name: "Lift Brand From Website", principle: "Extract primary colors, fonts, and feel from the client's existing website using WebFetch. Apply automatically to the generated app.", enforced: "true"
-  fixture "DesignPrinciple", name: "Space Bar Safety", principle: "Space bar must not submit forms. Prevent default on space when not in an input or textarea.", enforced: "true"
-  fixture "DesignPrinciple", name: "Zero Hecks Terminology", principle: "NEVER show aggregate, command, domain, bluebook, fixture, policy, lifecycle to end users. Use business terms: modules, actions, areas, records, rules, workflow.", enforced: "true"
-  fixture "DesignPrinciple", name: "Auto-Close Wizard On Success", principle: "Creation wizard auto-closes 1.5s after success. Shows green confirmation with the created record. Event fires to sidebar.", enforced: "true"
-  fixture "DesignPrinciple", name: "Dictation Compatible", principle: "App works with macOS Dictation (double Fn) and Almond. Forms accept dictated text. No keyboard shortcuts that conflict.", enforced: "true"
-  fixture "DesignPrinciple", name: "Full Screen Pop Out", principle: "Tables and panels have a full-screen icon. Click to expand to full viewport. Back button or Escape returns.", enforced: "true"
+  # --- Tables ---
+  fixture "RenderingRule", name: "per_module_tables", scope: "[data-domain-aggregate]", check: "table is child of its aggregate panel, not shared", violation: "records table outside its module panel", origin: "alan"
+  fixture "RenderingRule", name: "row_count_above", scope: "table", check: "preceding sibling contains record count text", violation: "table has no row count header", origin: "winter"
+  fixture "RenderingRule", name: "sticky_thead", scope: "thead", check: "has class sticky and top-0", violation: "table header not sticky", origin: "winter"
+  fixture "RenderingRule", name: "numbers_right_aligned", scope: "td[data-type=number]", check: "has class text-right", violation: "numeric cell not right-aligned", origin: "winter"
+  fixture "RenderingRule", name: "zebra_rows", scope: "tbody tr", check: "alternating background via even: or odd: class", violation: "no zebra striping on table rows", origin: "winter"
+  fixture "RenderingRule", name: "sortable_headers", scope: "th", check: "click handler or data-sort attribute present", violation: "column header not sortable", origin: "winter"
+  fixture "RenderingRule", name: "empty_state_message", scope: "tbody:empty", check: "sibling or child shows guidance text", violation: "empty table with no message", origin: "winter"
+
+  # --- Commands ---
+  fixture "RenderingRule", name: "create_renders_wizard", scope: "command[no reference_to]", check: "opens modal wizard, not inline form", violation: "create command rendered as inline form", origin: "alan"
+  fixture "RenderingRule", name: "update_renders_row_action", scope: "command[has reference_to]", check: "rendered as button on aggregate row", violation: "update command rendered as standalone form", origin: "alan"
+  fixture "RenderingRule", name: "wizard_auto_close", scope: ".wizard-overlay", check: "closes 1500ms after success", violation: "wizard stays open after success", origin: "alan"
+  fixture "RenderingRule", name: "button_shows_verb", scope: "button[data-domain-command]", check: "text content starts with command verb, not 'Submit' or 'Execute'", violation: "button label is generic", origin: "winter"
+  fixture "RenderingRule", name: "space_bar_safe", scope: "document", check: "space keydown prevented when focus not in input/textarea/select", violation: "space bar submits outside input", origin: "alan"
+  fixture "RenderingRule", name: "given_renders_precondition", scope: "command[has given]", check: "displays human-readable precondition text", violation: "given expression shown as raw code", origin: "alan"
+  fixture "RenderingRule", name: "dimmed_when_invalid", scope: "command[given not met]", check: "button has opacity < 1 or disabled attribute", violation: "invalid command button fully active", origin: "alan"
+
+  # --- Fields ---
+  fixture "RenderingRule", name: "enum_renders_select", scope: "attribute[values known]", check: "rendered as <select> not <input type=text>", violation: "enum field rendered as text input", origin: "alan"
+  fixture "RenderingRule", name: "reference_renders_select", scope: "attribute[reference_to]", check: "rendered as <select> populated from existing records", violation: "reference field rendered as text input", origin: "alan"
+  fixture "RenderingRule", name: "snake_case_cleaned", scope: "td,option", check: "underscores replaced with spaces, words capitalized", violation: "raw snake_case shown to user", origin: "alan"
+
+  # --- Lifecycle ---
+  fixture "RenderingRule", name: "lifecycle_renders_pipeline", scope: "aggregate[has lifecycle]", check: "steps rendered left-to-right with current step highlighted", violation: "lifecycle not rendered as visual pipeline", origin: "alan"
+  fixture "RenderingRule", name: "step_counts_shown", scope: ".workflow-step", check: "badge shows count of records at this stage", violation: "workflow step missing count badge", origin: "winter"
+
+  # --- Events ---
+  fixture "RenderingRule", name: "event_name_humanized", scope: "[data-domain-emit]", check: "PascalCase split into space-separated words", violation: "event name shown as PascalCase", origin: "winter"
+  fixture "RenderingRule", name: "success_banner_on_dispatch", scope: "dispatch result[ok]", check: "green banner visible for >= 1500ms", violation: "no visible success feedback", origin: "winter"
+
+  # --- Terminology ---
+  fixture "RenderingRule", name: "no_hecks_terminology", scope: "visible text", check: "none of: aggregate, command, domain, bluebook, fixture, policy, lifecycle", violation: "internal terminology exposed to user", origin: "alan"
+  fixture "RenderingRule", name: "modules_not_aggregates", scope: "heading,label,nav", check: "says 'modules' not 'aggregates'", violation: "word 'aggregate' shown to user", origin: "alan"
+  fixture "RenderingRule", name: "records_not_fixtures", scope: "heading,label,tab", check: "says 'records' not 'fixtures' or 'seed data'", violation: "word 'fixture' shown to user", origin: "alan"
+
+  # --- Panels ---
+  fixture "RenderingRule", name: "collapsible_panels", scope: "[data-domain-aggregate]", check: "wrapped in <details> element", violation: "module panel not collapsible", origin: "winter"
+  fixture "RenderingRule", name: "first_panel_open", scope: "[data-domain-aggregate]:first-child", check: "has open attribute", violation: "first module panel starts collapsed", origin: "winter"
+  fixture "RenderingRule", name: "panel_slide_animation", scope: "details[open] > div", check: "has CSS animation on opacity and transform", violation: "panel opens without animation", origin: "winter"
+  fixture "RenderingRule", name: "module_icon_unique", scope: "[data-domain-aggregate] summary svg", check: "icon differs per module, selected by keyword", violation: "same icon used for multiple modules", origin: "winter"
+  fixture "RenderingRule", name: "details_marker_hidden", scope: "details > summary", check: "list-style:none and ::-webkit-details-marker hidden", violation: "browser default arrow shown", origin: "winter"
+  fixture "RenderingRule", name: "text_selectable", scope: "[data-domain-aggregate]", check: "no select-none class on content", violation: "text not selectable in panel", origin: "winter"
+
+  # --- Touch & Accessibility ---
+  fixture "RenderingRule", name: "touch_target_44px", scope: "button,a[href]", check: "min-width >= 44px and min-height >= 44px", violation: "click target smaller than 44px", origin: "winter"
+  fixture "RenderingRule", name: "sidebar_link_title", scope: "#sidebar a", check: "has title attribute with description", violation: "sidebar link missing title", origin: "winter"
+
+  # --- Data ---
+  fixture "RenderingRule", name: "data_persists", scope: "server", check: "dispatched state saved to .heki, survives refresh", violation: "data lost on page reload", origin: "winter"
+  fixture "RenderingRule", name: "heki_named_per_client", scope: "data/*.heki", check: "filename derived from hecksagon name, not hardcoded", violation: "hardcoded heki filename", origin: "winter"
 end

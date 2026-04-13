@@ -86,4 +86,42 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
   #     - Show his three brands positioned against Lucas
   #     - Show the formulation lab pipeline
   #     - Use his language — ASTM, SDS, MAP, COA
+
+  aggregate "ContributedIdeas", "Design ideas Alan taught us during his demo session" do
+    attribute :idea, String
+    attribute :context, String
+
+    command "RecordIdea" do
+      role "Chris"
+      description "Record a design insight from Alan"
+      attribute :idea, String
+      attribute :context, String
+      emits "IdeaRecorded"
+      then_set :idea, to: :idea
+      then_set :context, to: :context
+    end
+  end
+
+  # Ideas Alan contributed to WebApplicationCreation rendering rules:
+  #   brand_color_from_client    — "lift it from my website, don't pick a color"
+  #   no_default_blue_buttons    — "that blue looks like every AI app"
+  #   sidebar_client_name        — "it should say Alan's Additives, not Hecks"
+  #   sidebar_grouped            — "group them like Operations, Products"
+  #   sidebar_no_counts          — "I don't need to see numbers in the nav"
+  #   footer_sidebar_only        — "don't put Hecks all over the page"
+  #   kpi_row_per_domain         — "show me the numbers at the top"
+  #   per_module_tables          — "each thing should have its own table"
+  #   create_renders_wizard      — "walk me through it step by step"
+  #   update_renders_row_action  — "the button should be right there on the row"
+  #   wizard_auto_close          — "just close it when it's done"
+  #   space_bar_safe             — "I keep hitting space and it submits"
+  #   given_renders_precondition — "what does status==draft mean? say it in English"
+  #   dimmed_when_invalid        — "gray it out if I can't do it yet"
+  #   enum_renders_select        — "why am I typing? give me a dropdown"
+  #   reference_renders_select   — "let me pick from the list"
+  #   snake_case_cleaned         — "engine_treatment? just say Engine Treatment"
+  #   lifecycle_renders_pipeline — "show me the flow, left to right"
+  #   no_hecks_terminology       — "what's an aggregate? don't say that to me"
+  #   modules_not_aggregates     — "call them modules"
+  #   records_not_fixtures       — "call them records"
 end

@@ -1,0 +1,93 @@
+Hecks.bluebook "Inbox", version: "2026.04.11.1" do
+  vision "Chris writes while Winter works — nothing lost, nothing interrupted"
+
+  aggregate "Message", "A queued note from Chris that Winter has not yet processed" do
+    attribute :body, String
+    attribute :priority, String
+    attribute :posted_at, String
+    attribute :status, String
+
+    command "PostMessage" do
+      role "Chris"
+      description "Drop a message into Winter's inbox"
+      attribute :body, String
+      attribute :priority, String
+      emits "MessagePosted"
+      then_set :body, to: :body
+      then_set :priority, to: :priority
+      then_set :status, to: "queued"
+    end
+
+    command "AcknowledgeMessage" do
+      role "Winter"
+      description "Mark a message as seen and understood"
+      reference_to Message
+      given { status == "queued" }
+      emits "MessageAcknowledged"
+      then_set :status, to: "acknowledged"
+    end
+
+    command "ActOnMessage" do
+      role "Winter"
+      description "Mark a message as done — the work it requested is complete"
+      reference_to Message
+      given { status == "acknowledged" }
+      emits "MessageActedOn"
+      then_set :status, to: "done"
+    end
+
+    command "DeferMessage" do
+      role "Winter"
+      description "Push a message to the next session — not forgotten, just not now"
+      reference_to Message
+      given { status == "queued" }
+      emits "MessageDeferred"
+      then_set :status, to: "deferred"
+    end
+
+    lifecycle :status, default: "queued" do
+      transition "PostMessage" => "queued"
+      transition "AcknowledgeMessage" => "acknowledged", from: "queued"
+      transition "ActOnMessage" => "done", from: "acknowledged"
+      transition "DeferMessage" => "deferred", from: "queued"
+    end
+  end
+
+  aggregate "Inbox", "The queue itself — how many waiting, what's next" do
+    attribute :queued_count, Integer
+    attribute :oldest_priority, String
+
+    command "DrainInbox" do
+      role "Winter"
+      description "Process all queued messages in priority order"
+      reference_to Inbox
+      emits "InboxDrained"
+    end
+
+    command "UpdateCounts" do
+      role "System"
+      description "Recalculate queued count and oldest priority"
+      reference_to Inbox
+      attribute :queued_count, Integer
+      attribute :oldest_priority, String
+      emits "CountsUpdated"
+      then_set :queued_count, to: :queued_count
+      then_set :oldest_priority, to: :oldest_priority
+    end
+  end
+
+  policy "CountOnPost" do
+    on "MessagePosted"
+    trigger "UpdateCounts"
+  end
+
+  policy "CountOnAcknowledge" do
+    on "MessageAcknowledged"
+    trigger "UpdateCounts"
+  end
+
+  policy "CountOnDone" do
+    on "MessageActedOn"
+    trigger "UpdateCounts"
+  end
+end
