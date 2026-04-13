@@ -1,0 +1,93 @@
+Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
+  vision "Breed new domains from existing ones — take aggregates from two parents, cross-wire policies, validate the child"
+  category "capability"
+
+  aggregate "ParentPair", "Two domains selected for crossover based on vector compatibility" do
+    String :parent_a
+    String :parent_b
+    Float :similarity
+    Float :complementarity
+    list_of(String) :shared_concepts
+
+    SelectPair do
+      description "Find two domains whose vectors are similar enough to combine but different enough to be interesting"
+      Float :min_similarity
+      Float :max_similarity
+      given "similarity must be between 0.3 and 0.8 — too close is a clone, too far is nonsense"
+      emits "PairSelected"
+    end
+  end
+
+  aggregate "Offspring", "A new domain bred from two parents — inherits aggregates and policies from both" do
+    String :name
+    String :vision
+    String :parent_a
+    String :parent_b
+    list_of(String) :aggregates_from_a
+    list_of(String) :aggregates_from_b
+    list_of(String) :cross_policies
+    Boolean :valid
+
+    BreedDomain do
+      description "Combine aggregates from two parents and wire cross-domain policies between them"
+      reference_to(ParentPair)
+      String :name
+      String :vision
+      Integer :aggregates_from_each
+      emits "DomainBred"
+    end
+
+    ValidateOffspring do
+      description "Parse and validate the bred domain — does it boot?"
+      reference_to(Offspring)
+      emits "OffspringValidated"
+    end
+
+    EnrichOffspring do
+      description "Add givens, references, and value objects the crossover missed"
+      reference_to(Offspring)
+      given "offspring must be valid before enrichment"
+      emits "OffspringEnriched"
+    end
+  end
+
+  aggregate "Generation", "One batch of crossover breeding — track yield rate and quality" do
+    Integer :generation_number
+    Integer :pairs_attempted
+    Integer :offspring_valid
+    Integer :offspring_strong
+    Float :yield_rate
+
+    RunGeneration do
+      description "Select N parent pairs, breed each one, validate and assess"
+      Integer :pair_count
+      emits "GenerationComplete"
+    end
+
+    AssessGeneration do
+      description "Compare this generation's quality to the previous one"
+      reference_to(Generation)
+      emits "GenerationAssessed"
+    end
+  end
+
+  policy "BreedOnSelect" do
+    on "PairSelected"
+    trigger "BreedDomain"
+  end
+
+  policy "ValidateOnBreed" do
+    on "DomainBred"
+    trigger "ValidateOffspring"
+  end
+
+  policy "EnrichOnValidate" do
+    on "OffspringValidated"
+    trigger "EnrichOffspring"
+  end
+
+  policy "AssessOnGeneration" do
+    on "GenerationComplete"
+    trigger "AssessGeneration"
+  end
+end
