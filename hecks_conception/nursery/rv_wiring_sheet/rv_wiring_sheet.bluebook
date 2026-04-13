@@ -1,0 +1,86 @@
+Hecks.bluebook "RVWiringSheet" do
+  vision "The master electrical reference — every circuit, wire, fuse, and load compiled into one printable sheet"
+  core
+
+  aggregate "WiringSheet" do
+    description "The complete electrical sheet for an RV — the document you tape inside the panel door"
+    attribute :name
+    attribute :total_ac_amps, Float
+    attribute :total_dc_amps, Float
+    attribute :total_watts, Float
+    attribute :circuit_count, Integer
+
+    command "GenerateSheet" do
+      role "Owner"
+      goal "Compile all circuits into a single electrical reference sheet"
+      description "Sum all loads, verify no overloads, produce the master wiring document"
+      attribute :name
+      emits "SheetGenerated"
+    end
+
+    command "CalculateTotals" do
+      role "Electrician"
+      goal "Sum all circuit loads and verify against available power sources"
+      description "Total AC amps vs shore capacity. Total DC amps vs battery runtime."
+      reference_to WiringSheet
+      emits "TotalsCalculated"
+    end
+
+    command "CheckOverloads" do
+      role "Electrician"
+      goal "Verify no circuit exceeds its wire gauge or fuse rating"
+      description "Flag any circuit where load > ampacity or fuse undersized"
+      reference_to WiringSheet
+      emits "OverloadsChecked"
+    end
+
+    command "PrintSheet" do
+      role "Owner"
+      goal "Output the complete electrical sheet for reference"
+      description "Formatted table — every circuit, wire, fuse, and load"
+      reference_to WiringSheet
+      emits "SheetPrinted"
+    end
+  end
+
+  aggregate "SheetEntry" do
+    description "One row on the wiring sheet — a single circuit's complete specification"
+    attribute :circuit_name
+    attribute :load_name
+    attribute :watts, Float
+    attribute :voltage, Float
+    attribute :amps, Float
+    attribute :power_type
+    attribute :wire_gauge
+    attribute :run_length_feet, Float
+    attribute :fuse_amps, Float
+    attribute :voltage_drop_pct, Float
+
+    command "AddEntry" do
+      role "Electrician"
+      goal "Add a circuit's details to the wiring sheet"
+      description "One row — circuit name, load, watts, amps, gauge, fuse, drop"
+      attribute :circuit_name
+      attribute :load_name
+      attribute :watts, Float
+      attribute :voltage, Float
+      attribute :amps, Float
+      attribute :power_type
+      attribute :wire_gauge
+      attribute :run_length_feet, Float
+      attribute :fuse_amps, Float
+      attribute :voltage_drop_pct, Float
+      emits "EntryAdded"
+    end
+  end
+
+  policy "RecalcOnEntry" do
+    on "EntryAdded"
+    trigger "CalculateTotals"
+  end
+
+  policy "CheckOnEntry" do
+    on "EntryAdded"
+    trigger "CheckOverloads"
+  end
+end

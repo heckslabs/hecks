@@ -1,0 +1,146 @@
+Hecks.bluebook "RVPower" do
+  vision "RV power sources — shore power, battery banks, solar, and generator management"
+  core
+
+  aggregate "ShorePower" do
+    description "The connection between the RV and external AC power — pedestal, adapter, transfer switch"
+    attribute :amperage, Float
+    attribute :voltage, Float
+    attribute :adapter
+    attribute :connected, default: false
+
+    command "ConnectShore" do
+      role "Owner"
+      goal "Plug into shore power at a campground pedestal"
+      description "Establish AC power from external source — 30A or 50A"
+      attribute :amperage, Float
+      attribute :voltage, Float
+      attribute :adapter
+      emits "ShoreConnected"
+    end
+
+    command "DisconnectShore" do
+      role "Owner"
+      goal "Unplug from shore power before departure"
+      description "Remove external AC power — system falls back to battery/inverter"
+      reference_to ShorePower
+      emits "ShoreDisconnected"
+    end
+
+    fixture "30A Campground" do
+      amperage 30.0
+      voltage 120.0
+      adapter "none"
+      connected true
+    end
+
+    fixture "50A to 30A Adapter" do
+      amperage 30.0
+      voltage 120.0
+      adapter "50A-to-30A dogbone"
+      connected true
+    end
+
+    fixture "15A Household" do
+      amperage 15.0
+      voltage 120.0
+      adapter "30A-to-15A adapter"
+      connected true
+    end
+  end
+
+  aggregate "BatteryBank" do
+    description "The house battery system — one or more batteries providing 12V DC power"
+    attribute :name
+    attribute :batteries, Integer
+    attribute :voltage, Float
+    attribute :total_ah, Float
+    attribute :chemistry
+    attribute :usable_pct, Float
+    attribute :state_of_charge, Float
+
+    command "ConfigureBank" do
+      role "Owner"
+      goal "Set up the house battery bank — count, chemistry, capacity"
+      description "Total Ah = single battery Ah × count for parallel; voltage × count for series"
+      attribute :name
+      attribute :batteries, Integer
+      attribute :voltage, Float
+      attribute :ah_per_battery, Float
+      attribute :chemistry
+      attribute :usable_pct, Float
+      emits "BankConfigured"
+    end
+
+    command "EstimateRuntime" do
+      role "Owner"
+      goal "Estimate how long the battery bank can power the current DC loads"
+      description "Hours = usable Ah / total DC amps"
+      reference_to BatteryBank
+      attribute :total_dc_amps, Float
+      emits "RuntimeEstimated"
+    end
+
+    fixture "200Ah Lithium" do
+      name "House Bank"
+      batteries 1
+      voltage 12.8
+      total_ah 200.0
+      chemistry "LiFePO4"
+      usable_pct 1.0
+      state_of_charge 0.85
+    end
+
+    fixture "2x6V Golf Cart" do
+      name "Lead Acid Bank"
+      batteries 2
+      voltage 12.0
+      total_ah 225.0
+      chemistry "flooded lead-acid"
+      usable_pct 0.5
+      state_of_charge 0.72
+    end
+  end
+
+  aggregate "SolarArray" do
+    description "Rooftop solar panels and charge controller — harvesting DC power from sunlight"
+    attribute :panel_watts, Float
+    attribute :panel_count, Integer
+    attribute :controller_type
+    attribute :controller_amps, Float
+
+    command "ConfigureSolar" do
+      role "Owner"
+      goal "Set up the solar array and charge controller"
+      description "Total watts = panel watts × count. MPPT controllers are 20-30% more efficient than PWM."
+      attribute :panel_watts, Float
+      attribute :panel_count, Integer
+      attribute :controller_type
+      attribute :controller_amps, Float
+      emits "SolarConfigured"
+    end
+
+    command "CalculateDailyHarvest" do
+      role "Owner"
+      goal "Estimate daily amp-hours from solar based on sun hours"
+      description "Daily Ah = (total watts × sun hours × efficiency) / battery voltage"
+      reference_to SolarArray
+      attribute :sun_hours, Float
+      emits "DailyHarvestCalculated"
+    end
+
+    fixture "400W Rooftop" do
+      panel_watts 200.0
+      panel_count 2
+      controller_type "MPPT"
+      controller_amps 30.0
+    end
+
+    fixture "Portable 100W" do
+      panel_watts 100.0
+      panel_count 1
+      controller_type "PWM"
+      controller_amps 10.0
+    end
+  end
+end

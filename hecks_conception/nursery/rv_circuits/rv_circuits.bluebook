@@ -1,0 +1,145 @@
+Hecks.bluebook "RVCircuits" do
+  vision "RV circuit planning — every wire run, fuse, and load mapped for safe installation"
+  core
+
+  aggregate "Circuit" do
+    description "A single electrical circuit — wire run from panel to device with protection"
+    attribute :name
+    attribute :load_name
+    attribute :watts, Float
+    attribute :voltage, Float
+    attribute :amps, Float
+    attribute :power_type
+    attribute :wire_gauge
+    attribute :run_length_feet, Float
+    attribute :fuse_amps, Float
+    attribute :voltage_drop_pct, Float
+
+    command "AddCircuit" do
+      role "Electrician"
+      goal "Add a new circuit to the RV electrical system"
+      description "Define the load, calculate amps, select wire gauge, size fuse"
+      attribute :name
+      attribute :load_name
+      attribute :watts, Float
+      attribute :voltage, Float
+      attribute :power_type
+      attribute :run_length_feet, Float
+      emits "CircuitAdded"
+    end
+
+    command "CalculateCircuit" do
+      role "Electrician"
+      goal "Calculate amps, wire gauge, fuse size, and voltage drop for a circuit"
+      description "Amps = W/V. Gauge from NEC tables. Fuse = amps × 1.25. Drop under 3%."
+      reference_to Circuit
+      emits "CircuitCalculated"
+    end
+
+    command "FlagOverload" do
+      role "System"
+      goal "Flag a circuit where load exceeds wire or fuse rating"
+      description "Danger — load amps exceed wire ampacity or fuse rating"
+      reference_to Circuit
+      attribute :actual_amps, Float
+      attribute :rated_amps, Float
+      emits "OverloadFlagged"
+    end
+
+    fixture "Fridge" do
+      name "Kitchen - Refrigerator"
+      load_name "Residential Refrigerator"
+      watts 150.0
+      voltage 120.0
+      amps 1.25
+      power_type "AC"
+      wire_gauge "14 AWG"
+      run_length_feet 18.0
+      fuse_amps 15.0
+      voltage_drop_pct 0.4
+    end
+
+    fixture "Water Pump" do
+      name "Plumbing - Water Pump"
+      load_name "Fresh Water Pump"
+      watts 60.0
+      voltage 12.0
+      amps 5.0
+      power_type "DC"
+      wire_gauge "10 AWG"
+      run_length_feet 12.0
+      fuse_amps 7.5
+      voltage_drop_pct 1.1
+    end
+
+    fixture "AC Unit" do
+      name "HVAC - Air Conditioner"
+      load_name "Rooftop AC"
+      watts 1500.0
+      voltage 120.0
+      amps 12.5
+      power_type "AC"
+      wire_gauge "10 AWG"
+      run_length_feet 22.0
+      fuse_amps 20.0
+      voltage_drop_pct 1.9
+    end
+
+    fixture "LED Lights" do
+      name "Interior - LED Lights"
+      load_name "LED Light Strips"
+      watts 36.0
+      voltage 12.0
+      amps 3.0
+      power_type "DC"
+      wire_gauge "14 AWG"
+      run_length_feet 25.0
+      fuse_amps 5.0
+      voltage_drop_pct 1.6
+    end
+
+    fixture "USB Outlets" do
+      name "Bedroom - USB Outlets"
+      load_name "USB Charging Ports"
+      watts 24.0
+      voltage 12.0
+      amps 2.0
+      power_type "DC"
+      wire_gauge "14 AWG"
+      run_length_feet 20.0
+      fuse_amps 3.0
+      voltage_drop_pct 0.9
+    end
+
+    fixture "Microwave" do
+      name "Kitchen - Microwave"
+      load_name "Microwave Oven"
+      watts 1000.0
+      voltage 120.0
+      amps 8.3
+      power_type "AC"
+      wire_gauge "12 AWG"
+      run_length_feet 15.0
+      fuse_amps 15.0
+      voltage_drop_pct 1.1
+    end
+
+    fixture "Inverter Feed" do
+      name "Battery - Inverter Feed"
+      load_name "Victron 3000W Inverter"
+      watts 3000.0
+      voltage 12.0
+      amps 250.0
+      power_type "DC"
+      wire_gauge "2/0 AWG"
+      run_length_feet 4.0
+      fuse_amps 300.0
+      voltage_drop_pct 0.8
+    end
+  end
+
+  policy "AutoCalculate" do
+    on "CircuitAdded"
+    trigger "CalculateCircuit"
+  end
+end

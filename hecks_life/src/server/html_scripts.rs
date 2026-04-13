@@ -82,15 +82,35 @@ pub fn core_script() -> &'static str {
     modal.innerHTML = '<div class="bg-surface-2 rounded-xl p-6 max-w-lg w-full mx-4 border border-surface-3"><h3 class="text-lg font-bold text-brand mb-4">Record Detail</h3><div class="grid grid-cols-2 gap-3">' + fields + '</div><div class="mt-4 flex gap-3"><button onclick="this.closest(\'div.fixed\').remove()" class="px-4 py-1.5 bg-surface-3 rounded text-sm text-brand border border-surface-4">Close</button></div></div>';
     document.body.appendChild(modal);
   }
+  let currentTab = 'build';
   function showTab(tab) {
+    if (tab === currentTab) return;
+    const leaving = document.getElementById('panel-'+currentTab);
+    const entering = document.getElementById('panel-'+tab);
+    // Slide out
+    leaving.style.opacity = '0';
+    leaving.style.transform = tab === 'records' ? 'translateX(-20px)' : 'translateX(20px)';
+    setTimeout(() => {
+      leaving.classList.add('hidden');
+      leaving.style.transform = '';
+      // Slide in
+      entering.classList.remove('hidden');
+      entering.style.opacity = '0';
+      entering.style.transform = tab === 'records' ? 'translateX(20px)' : 'translateX(-20px)';
+      requestAnimationFrame(() => {
+        entering.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        entering.style.opacity = '1';
+        entering.style.transform = 'translateX(0)';
+      });
+    }, 250);
     ['records','build'].forEach(t => {
-      document.getElementById('panel-'+t).classList.toggle('hidden', tab !== t);
       const btn = document.getElementById('tab-'+t);
       btn.classList.toggle('text-brand', tab === t);
       btn.classList.toggle('border-brand', tab === t);
       btn.classList.toggle('text-gray-400', tab !== t);
       btn.classList.toggle('border-transparent', tab !== t);
     });
+    currentTab = tab;
   }
   function searchTable(input) {
     const table = input.closest('div').parentElement.querySelector('table');

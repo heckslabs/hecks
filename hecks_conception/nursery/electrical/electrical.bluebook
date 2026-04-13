@@ -1,0 +1,358 @@
+Hecks.bluebook "Electrical" do
+  vision "The language of electrical power — DC and AC circuits, conversion, wire sizing, protection, and load calculation"
+  core
+
+  aggregate "DCSource" do
+    description "A direct current power source — battery, solar panel, or DC power supply"
+    attribute :name
+    attribute :voltage, Float
+    attribute :amp_hours, Float
+    attribute :chemistry
+    attribute :state_of_charge, Float, default: 1.0
+
+    command "CreateBattery" do
+      role "Electrician"
+      goal "Register a DC battery with voltage and capacity"
+      description "Register a DC battery with voltage and capacity"
+      attribute :name
+      attribute :voltage, Float
+      attribute :amp_hours, Float
+      attribute :chemistry
+      emits "BatteryCreated"
+    end
+
+    command "Discharge" do
+      role "System"
+      goal "Draw current from the battery over time"
+      description "Draw current from the battery over time"
+      reference_to DCSource
+      attribute :amps, Float
+      attribute :hours, Float
+      emits "BatteryDischarged"
+    end
+
+    command "Charge" do
+      role "System"
+      goal "Replenish the battery from a charging source"
+      description "Replenish the battery from a charging source"
+      reference_to DCSource
+      attribute :amps, Float
+      attribute :hours, Float
+      emits "BatteryCharged"
+    end
+
+    command "MeasureStateOfCharge" do
+      role "Electrician"
+      goal "Read the current state of charge as a percentage"
+      description "Read the current state of charge as a percentage"
+      reference_to DCSource
+      emits "StateOfChargeMeasured"
+    end
+
+    fixture "House Battery" do
+      name "House Battery Bank"
+      voltage 12.8
+      amp_hours 200.0
+      chemistry "LiFePO4"
+    end
+
+    fixture "Chassis Battery" do
+      name "Chassis Starter Battery"
+      voltage 12.6
+      amp_hours 75.0
+      chemistry "AGM"
+    end
+  end
+
+  aggregate "ACSource" do
+    description "An alternating current power source — shore power, generator, or inverter output"
+    attribute :name
+    attribute :voltage, Float
+    attribute :frequency, Float
+    attribute :max_amps, Float
+    attribute :phase
+
+    command "CreateACSource" do
+      role "Electrician"
+      goal "Register an AC power source with voltage and amperage"
+      description "Register an AC power source with voltage and amperage"
+      attribute :name
+      attribute :voltage, Float
+      attribute :frequency, Float
+      attribute :max_amps, Float
+      attribute :phase
+      emits "ACSourceCreated"
+    end
+
+    command "CalculateAvailablePower" do
+      role "Electrician"
+      goal "Calculate total watts available from this AC source"
+      description "Watts = Volts × Amps for single phase"
+      reference_to ACSource
+      emits "AvailablePowerCalculated"
+    end
+
+    fixture "30A Shore" do
+      name "30A Shore Power"
+      voltage 120.0
+      frequency 60.0
+      max_amps 30.0
+      phase "single"
+    end
+
+    fixture "50A Shore" do
+      name "50A Shore Power"
+      voltage 120.0
+      frequency 60.0
+      max_amps 50.0
+      phase "split"
+    end
+
+    fixture "Generator" do
+      name "Onan 4000W Generator"
+      voltage 120.0
+      frequency 60.0
+      max_amps 33.3
+      phase "single"
+    end
+  end
+
+  aggregate "Converter" do
+    description "A device that transforms between AC and DC — rectifiers, inverters, transformers"
+    attribute :name
+    attribute :conversion_type
+    attribute :input_voltage, Float
+    attribute :output_voltage, Float
+    attribute :max_watts, Float
+    attribute :efficiency, Float
+
+    command "CreateConverter" do
+      role "Electrician"
+      goal "Register a power conversion device"
+      description "Register a power conversion device — inverter, converter, or transformer"
+      attribute :name
+      attribute :conversion_type
+      attribute :input_voltage, Float
+      attribute :output_voltage, Float
+      attribute :max_watts, Float
+      attribute :efficiency, Float
+      emits "ConverterCreated"
+    end
+
+    command "CalculateDCDraw" do
+      role "Electrician"
+      goal "Calculate the DC amps drawn when running an AC load through the inverter"
+      description "DC amps = AC watts / (DC voltage × efficiency)"
+      reference_to Converter
+      attribute :ac_watts, Float
+      emits "DCDrawCalculated"
+    end
+
+    command "CalculateRuntime" do
+      role "Electrician"
+      goal "Calculate how long a battery bank can sustain an AC load through this inverter"
+      description "Runtime hours = battery Ah / DC amps drawn"
+      reference_to Converter
+      attribute :ac_watts, Float
+      attribute :battery_ah, Float
+      attribute :battery_voltage, Float
+      emits "RuntimeCalculated"
+    end
+
+    fixture "Main Inverter" do
+      name "Victron 3000W Inverter/Charger"
+      conversion_type "DC-to-AC"
+      input_voltage 12.0
+      output_voltage 120.0
+      max_watts 3000.0
+      efficiency 0.90
+    end
+
+    fixture "Converter Charger" do
+      name "Progressive Dynamics 60A Converter"
+      conversion_type "AC-to-DC"
+      input_voltage 120.0
+      output_voltage 13.6
+      max_watts 816.0
+      efficiency 0.85
+    end
+  end
+
+  aggregate "Wire" do
+    description "An electrical conductor — sized by amperage, length, and acceptable voltage drop"
+    attribute :gauge
+    attribute :length_feet, Float
+    attribute :ampacity, Float
+    attribute :voltage_drop_pct, Float
+    attribute :conductor
+
+    command "SelectGauge" do
+      role "Electrician"
+      goal "Determine the correct wire gauge for a given amperage and run length"
+      description "Uses the 3% voltage drop rule: gauge must carry the amps with less than 3% drop over the run length"
+      attribute :amps, Float
+      attribute :length_feet, Float
+      attribute :voltage, Float
+      attribute :max_drop_pct, Float, default: 3.0
+      emits "GaugeSelected"
+    end
+
+    command "CalculateVoltageDrop" do
+      role "Electrician"
+      goal "Calculate the actual voltage drop for a specific wire gauge and run"
+      description "V_drop = (2 × length × amps × resistance_per_foot) / 1000"
+      attribute :gauge
+      attribute :amps, Float
+      attribute :length_feet, Float
+      attribute :voltage, Float
+      emits "VoltageDropCalculated"
+    end
+
+    command "CalculateAmpacity" do
+      role "Electrician"
+      goal "Look up the maximum safe amperage for a given wire gauge"
+      description "Ampacity from NEC table 310.16 for copper conductors"
+      attribute :gauge
+      emits "AmpacityCalculated"
+    end
+
+    fixture "12V 20A 15ft" do
+      gauge "10 AWG"
+      length_feet 15.0
+      ampacity 30.0
+      voltage_drop_pct 2.1
+      conductor "copper"
+    end
+
+    fixture "12V 40A 8ft" do
+      gauge "6 AWG"
+      length_feet 8.0
+      ampacity 55.0
+      voltage_drop_pct 1.4
+      conductor "copper"
+    end
+
+    fixture "120V 20A 25ft" do
+      gauge "12 AWG"
+      length_feet 25.0
+      ampacity 20.0
+      voltage_drop_pct 1.8
+      conductor "copper"
+    end
+  end
+
+  aggregate "Load" do
+    description "An electrical device that consumes power — rated in watts or amps"
+    attribute :name
+    attribute :watts, Float
+    attribute :voltage, Float
+    attribute :amps, Float
+    attribute :power_type
+    attribute :duty_cycle, Float
+
+    command "DefineLoad" do
+      role "Electrician"
+      goal "Register a device with its power consumption"
+      description "Amps = Watts / Voltage"
+      attribute :name
+      attribute :watts, Float
+      attribute :voltage, Float
+      attribute :power_type
+      attribute :duty_cycle, Float, default: 1.0
+      emits "LoadDefined"
+    end
+
+    command "CalculateAmpDraw" do
+      role "Electrician"
+      goal "Calculate the amp draw from watts and voltage"
+      description "Amps = Watts / Voltage, adjusted for duty cycle"
+      reference_to Load
+      emits "AmpDrawCalculated"
+    end
+
+    fixture "Residential Fridge" do
+      name "Residential Refrigerator"
+      watts 150.0
+      voltage 120.0
+      amps 1.25
+      power_type "AC"
+      duty_cycle 0.33
+    end
+
+    fixture "Water Pump" do
+      name "Fresh Water Pump"
+      watts 60.0
+      voltage 12.0
+      amps 5.0
+      power_type "DC"
+      duty_cycle 0.1
+    end
+
+    fixture "Air Conditioner" do
+      name "Rooftop Air Conditioner"
+      watts 1500.0
+      voltage 120.0
+      amps 12.5
+      power_type "AC"
+      duty_cycle 0.5
+    end
+  end
+
+  aggregate "Fuse" do
+    description "An overcurrent protection device — fuse or circuit breaker"
+    attribute :rating_amps, Float
+    attribute :voltage, Float
+    attribute :type
+    attribute :status
+
+    command "SizeFuse" do
+      role "Electrician"
+      goal "Select the correct fuse rating — 125% of continuous load per NEC"
+      description "Fuse amps = load amps × 1.25, rounded up to next standard size"
+      attribute :load_amps, Float
+      attribute :voltage, Float
+      emits "FuseSized"
+    end
+
+    command "Trip" do
+      role "System"
+      goal "Open the circuit due to overcurrent"
+      description "Breaker trips or fuse blows when current exceeds rating"
+      reference_to Fuse
+      attribute :actual_amps, Float
+      emits "FuseTripped"
+    end
+
+    command "Reset" do
+      role "Electrician"
+      goal "Reset a tripped breaker or replace a blown fuse"
+      description "Restore the circuit to operational status"
+      reference_to Fuse
+      emits "FuseReset"
+    end
+
+    fixture "15A AC Breaker" do
+      rating_amps 15.0
+      voltage 120.0
+      type "breaker"
+      status "closed"
+    end
+
+    fixture "30A DC Fuse" do
+      rating_amps 30.0
+      voltage 12.0
+      type "ANL fuse"
+      status "closed"
+    end
+  end
+
+  policy "AutoSizeFuse" do
+    on "LoadDefined"
+    trigger "SizeFuse"
+  end
+
+  policy "AutoSelectGauge" do
+    on "LoadDefined"
+    trigger "SelectGauge"
+  end
+end

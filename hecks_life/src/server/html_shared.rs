@@ -24,8 +24,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&family=Cabin:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {{ font-family: 'Cabin', sans-serif; }}
-    h1, h2, h3 {{ font-family: 'Roboto Slab', serif; }}
+    body, h1, h2, h3 {{ font-family: 'Cabin', sans-serif; }}
   </style>
   <script>
   tailwind.config = {{
@@ -43,8 +42,35 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     html {{ scroll-behavior: smooth; }}
     details > summary {{ list-style: none; }}
     details > summary::-webkit-details-marker {{ display: none; }}
-    details[open] > div {{ animation: slideDown 0.2s ease-out; }}
-    @keyframes slideDown {{ from {{ opacity: 0; transform: translateY(-8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+    details[open] > div {{ animation: slideDown 0.3s ease-out; }}
+    @keyframes slideDown {{ from {{ opacity: 0; max-height: 0; transform: translateY(-12px); }} to {{ opacity: 1; max-height: 5000px; transform: translateY(0); }} }}
+
+    /* Slideable panels and tabs */
+    .tab-panel {{ transition: opacity 0.3s ease, transform 0.3s ease; }}
+    .tab-panel.entering {{ opacity: 0; transform: translateX(20px); }}
+
+    /* Module cards slide + lift */
+    details.bg-surface-2 {{ transition: transform 0.2s ease, box-shadow 0.2s ease; }}
+    details.bg-surface-2:hover {{ transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }}
+
+    /* Command forms slide open */
+    details[data-domain-command] > div {{ transition: max-height 0.3s ease, opacity 0.25s ease; overflow: hidden; }}
+
+    /* Sidebar items slide in staggered */
+    nav a {{ opacity: 0; animation: sidebarSlide 0.3s ease forwards; }}
+    @keyframes sidebarSlide {{ from {{ opacity: 0; transform: translateX(-12px); }} to {{ opacity: 1; transform: translateX(0); }} }}
+    nav a:nth-child(1) {{ animation-delay: 0.05s; }}
+    nav a:nth-child(2) {{ animation-delay: 0.1s; }}
+    nav a:nth-child(3) {{ animation-delay: 0.15s; }}
+    nav a:nth-child(4) {{ animation-delay: 0.2s; }}
+    nav a:nth-child(5) {{ animation-delay: 0.25s; }}
+    nav a:nth-child(6) {{ animation-delay: 0.3s; }}
+    nav a:nth-child(7) {{ animation-delay: 0.35s; }}
+    nav a:nth-child(8) {{ animation-delay: 0.4s; }}
+
+    /* Event cards slide in from right */
+    #event-stream > div {{ animation: eventSlide 0.3s ease-out; }}
+    @keyframes eventSlide {{ from {{ opacity: 0; transform: translateX(20px); }} to {{ opacity: 1; transform: translateX(0); }} }}
     @keyframes blob-drift-1 {{ 0% {{ transform: translate(0,0) scale(1); }} 50% {{ transform: translate(-5vw,8vh) scale(0.9); }} 100% {{ transform: translate(0,0) scale(1); }} }}
     @keyframes blob-drift-2 {{ 0% {{ transform: translate(0,0) scale(1); }} 50% {{ transform: translate(7vw,-10vh) scale(0.88); }} 100% {{ transform: translate(0,0) scale(1); }} }}
     .page-blob {{
@@ -119,15 +145,65 @@ pub fn module_icon(name: &str) -> &'static str {
     super::html_icons::module_icon(name)
 }
 
-/// Convert snake_case or PascalCase to Title Case display name
+/// Convert snake_case or PascalCase to Title Case display name.
+/// Infers acronyms from consecutive uppercase runs: DCSource → DC Source,
+/// USBOutlets → USB Outlets, HTMLPage → HTML Page.
 pub fn display_name(name: &str) -> String {
-    let (mut words, mut cur) = (Vec::new(), String::new());
-    for ch in name.chars() {
-        if ch == '_' { if !cur.is_empty() { words.push(cur.clone()); cur.clear(); } }
-        else if ch.is_uppercase() && !cur.is_empty() {
-            words.push(cur.clone()); cur.clear(); cur.push(ch);
-        } else if cur.is_empty() { cur.push(ch.to_uppercase().next().unwrap()); }
-        else { cur.push(ch); }
+    let chars: Vec<char> = name.chars().collect();
+    let mut words: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let ch = chars[i];
+
+        if ch == '_' {
+            if !cur.is_empty() { words.push(cur.clone()); cur.clear(); }
+            i += 1;
+            continue;
+        }
+
+        if ch.is_uppercase() {
+            // Count how many uppercase chars in a row
+            let start = i;
+            while i < chars.len() && chars[i].is_uppercase() { i += 1; }
+            let run_len = i - start;
+
+            if run_len == 1 {
+                // Single uppercase = new word boundary (e.g. the C in "Create")
+                if !cur.is_empty() { words.push(cur.clone()); cur.clear(); }
+                cur.push(chars[start]);
+                // Consume the lowercase tail: reate
+                while i < chars.len() && chars[i].is_lowercase() {
+                    cur.push(chars[i]);
+                    i += 1;
+                }
+            } else {
+                // Multiple uppercase = acronym
+                if !cur.is_empty() { words.push(cur.clone()); cur.clear(); }
+                if i < chars.len() && chars[i].is_lowercase() {
+                    // Last uppercase belongs to next word: HTMLPage → HTML + Page
+                    let acronym: String = chars[start..i-1].iter().collect();
+                    words.push(acronym);
+                    cur.push(chars[i-1]);
+                    i += 0; // don't advance — outer loop will consume lowercase
+                    // Consume the lowercase tail
+                    while i < chars.len() && chars[i].is_lowercase() {
+                        cur.push(chars[i]);
+                        i += 1;
+                    }
+                } else {
+                    // All uppercase at end: parseJSON → JSON
+                    let acronym: String = chars[start..i].iter().collect();
+                    words.push(acronym);
+                }
+            }
+        } else {
+            // Lowercase at start of string
+            if cur.is_empty() { cur.push(ch.to_uppercase().next().unwrap()); }
+            else { cur.push(ch); }
+            i += 1;
+        }
     }
     if !cur.is_empty() { words.push(cur); }
     words.join(" ")

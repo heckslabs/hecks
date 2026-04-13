@@ -19,6 +19,7 @@ pub mod html_scripts;
 pub mod html_shared;
 pub mod html_sidebar;
 pub mod html_wizard;
+pub mod html_usage;
 pub mod html_workflow;
 
 pub use routes::route;

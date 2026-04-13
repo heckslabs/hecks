@@ -14,6 +14,7 @@ use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, es
 use super::html_workflow::workflow_pipeline;
 use super::html_fixtures::{module_fixtures, fixtures_section};
 use super::html_kpi::kpi_cards;
+use super::html_usage::usage_section;
 
 /// Generate the detail page for one domain
 pub fn generate_domain_page(
@@ -38,6 +39,9 @@ pub fn generate_domain_page(
 "#,
         label = esc(&display_name(name)),
     ));
+
+    // Usage / workflow section — leads with "how to use this"
+    main.push_str(&usage_section(&rt.domain));
 
     // KPI cards
     main.push_str(&kpi_cards(&rt));
@@ -111,9 +115,18 @@ fn module_card(
         s.push_str(&workflow_pipeline(lc, &agg.commands));
     }
 
-    // Command buttons and forms
+    // Command buttons and forms — create commands first, then actions
+    let creates: Vec<_> = agg.commands.iter().filter(|c| c.references.is_empty()).collect();
+    let actions: Vec<_> = agg.commands.iter().filter(|c| !c.references.is_empty()).collect();
+
     s.push_str(r#"<div class="space-y-3">"#);
-    for cmd in &agg.commands {
+    for cmd in &creates {
+        s.push_str(&command_section(domain, cmd));
+    }
+    if !creates.is_empty() && !actions.is_empty() {
+        s.push_str(r#"<div class="flex items-center gap-3 my-4"><hr class="flex-1 border-surface-3"><span class="text-xs text-gray-500 uppercase tracking-wider">on existing</span><hr class="flex-1 border-surface-3"></div>"#);
+    }
+    for cmd in &actions {
         s.push_str(&command_section(domain, cmd));
     }
     s.push_str("</div>");
@@ -150,14 +163,26 @@ fn wizard_button(domain: &str, cmd: &crate::ir::Command) -> String {
 fn inline_form(domain: &str, cmd: &crate::ir::Command) -> String {
     let mut fields = String::new();
     for attr in &cmd.attributes {
+        let input_type = match attr.attr_type.to_lowercase().as_str() {
+            "float" | "integer" | "int" => "number",
+            _ => "text",
+        };
+        let step = if attr.attr_type.to_lowercase() == "float" { r#" step="any""# } else { "" };
+        let placeholder = match attr.attr_type.to_lowercase().as_str() {
+            "float" => "0.0",
+            "integer" | "int" => "0",
+            _ => &attr.attr_type,
+        };
         fields.push_str(&format!(
             r#"<div>
   <label class="block text-xs text-gray-400 mb-1">{label} <span class="text-brand">*</span></label>
-  <input name="{name}" type="text" placeholder="{atype}" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none">
+  <input name="{name}" type="{input_type}"{step} placeholder="{placeholder}" class="w-full bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none">
 </div>"#,
             label = esc(&display_name(&attr.name)),
             name = esc(&attr.name),
-            atype = esc(&attr.attr_type),
+            input_type = input_type,
+            step = step,
+            placeholder = placeholder,
         ));
     }
     let desc = cmd.description.as_deref().unwrap_or("");
@@ -167,7 +192,7 @@ fn inline_form(domain: &str, cmd: &crate::ir::Command) -> String {
   <summary class="cursor-pointer px-4 py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-sm font-medium transition list-none [&::-webkit-details-marker]:hidden">{label}{role} <button onclick="event.stopPropagation();showHelp(this)" class="ml-1 text-xs text-gray-500 hover:text-brand opacity-30 hover:opacity-100 transition">?</button></summary>
   <div class="mt-2 p-4 bg-surface-1 rounded-lg border border-surface-3">
     <p class="text-xs text-gray-500 mb-3">{desc}</p>
-    <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 gap-3"
+    <form method="POST" action="/domains/{domain}/dispatch" class="grid grid-cols-2 md:grid-cols-3 gap-3"
           onsubmit="return submitCmd(this, '{cmd_name}')">
       {fields}
       <div class="col-span-2">

@@ -81,6 +81,17 @@ pub fn run(project_dir: &str, being: &str) {
         // Recompile lexicon each moment — picks up new bluebooks live
         lex = lexicon::Lexicon::compile(project_dir);
 
+        // Footer — pulse, mood, heartbeats
+        let stores = heki::read_dir(&ctx.info_dir).unwrap_or_default();
+        let pulse_rec = stores.get("pulse").and_then(|s| heki::latest(s));
+        let pulse_str = pulse_rec.map(|r| heki::field_str(r, "state")).unwrap_or("—");
+        let mood_rec = stores.get("mood").and_then(|s| heki::latest(s));
+        let mood_now = mood_rec.map(|r| heki::field_str(r, "current_state")).unwrap_or("—");
+        let hb_rec = stores.get("heartbeat").and_then(|s| heki::latest(s));
+        let beats_now = hb_rec.and_then(|r| r.get("beats").and_then(|v| v.as_i64())).unwrap_or(0);
+        print!("\x1b[2m  pulse: {}  ·  mood: {}  ·  beats: {}\x1b[0m\r\n", pulse_str, mood_now, beats_now);
+        io::stdout().flush().unwrap();
+
         match read_line_with_complete(icon, &lex) {
             Some(line) => {
                 let raw_input = line.trim();
@@ -459,13 +470,22 @@ fn think_then_speak(
     // Try lexicon match first — instant, no LLM
     if let Some(m) = lex.match_input(input) {
         let path: Vec<String> = m.path.iter()
-            .map(|r| format!("{}::{}", r.domain, r.command))
+            .map(|r| format!("[{}] {}::{}::{}", r.location, r.domain, r.aggregate, r.command))
             .collect();
         let strat = match m.strategy {
             lexicon::Strategy::Exact => "exact".to_string(),
             lexicon::Strategy::Fuzzy => format!("fuzzy {:.0}%", m.confidence * 100.0),
         };
-        return Some(format!("  [{}] {} → {}", strat, m.matched_phrase, path.join(" → ")));
+        let mut result = format!("  ⚡ [{}] {} → {}", strat, m.matched_phrase, path.join(" → "));
+        for r in &m.path {
+            if !r.command_goal.is_empty() {
+                result.push_str(&format!("\n  goal: {}", r.command_goal));
+            }
+            if !r.aggregate_desc.is_empty() {
+                result.push_str(&format!("\n  on: {} — {}", r.aggregate, r.aggregate_desc));
+            }
+        }
+        return Some(result);
     }
 
     // Fall back to LLM with spinner

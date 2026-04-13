@@ -78,10 +78,21 @@ fn main() {
             match lex.match_input(input) {
                 Some(m) => {
                     let path: Vec<String> = m.path.iter()
-                        .map(|r| format!("{}::{}::{}", r.domain, r.aggregate, r.command))
+                        .map(|r| format!("[{}] {}::{}::{}", r.location, r.domain, r.aggregate, r.command))
                         .collect();
                     println!("  {:?} match ({:.0}%): {}", m.strategy, m.confidence * 100.0, m.matched_phrase);
                     println!("  → {}", path.join(" → "));
+                    for r in &m.path {
+                        if !r.domain_vision.is_empty() {
+                            println!("  vision: {}", r.domain_vision);
+                        }
+                        if !r.aggregate_desc.is_empty() {
+                            println!("  aggregate: {} — {}", r.aggregate, r.aggregate_desc);
+                        }
+                        if !r.command_goal.is_empty() {
+                            println!("  goal: {}", r.command_goal);
+                        }
+                    }
                 }
                 None => println!("  no match"),
             }

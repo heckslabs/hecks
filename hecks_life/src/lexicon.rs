@@ -21,8 +21,12 @@ use std::path::Path;
 pub struct Sentence {
     pub phrase: String,
     pub domain: String,
+    pub domain_vision: String,
     pub aggregate: String,
+    pub aggregate_desc: String,
     pub command: String,
+    pub command_goal: String,
+    pub location: String,
     pub actor: Option<String>,
     pub parameters: Vec<String>,
     pub translations: Vec<String>,
@@ -42,8 +46,12 @@ pub struct Composition {
 #[derive(Debug, Clone)]
 pub struct CommandRef {
     pub domain: String,
+    pub domain_vision: String,
     pub aggregate: String,
+    pub aggregate_desc: String,
     pub command: String,
+    pub command_goal: String,
+    pub location: String,
 }
 
 /// A match result from the lexicon.
@@ -86,21 +94,21 @@ impl Lexicon {
         let mut compositions = Vec::new();
         let project = Path::new(project_dir);
 
-        // Parse all bluebooks from all directories
-        let mut domains: Vec<(String, ir::Domain)> = Vec::new();
+        // Parse all bluebooks from all directories — track location (subdir name)
+        let mut domains: Vec<(String, String, ir::Domain)> = Vec::new();
         for subdir in subdirs {
             let dir = project.join(subdir);
             if !dir.is_dir() { continue; }
             for entry in walk_bluebooks(&dir) {
                 if let Ok(source) = fs::read_to_string(&entry) {
                     let domain = parser::parse(&source);
-                    domains.push((entry.display().to_string(), domain));
+                    domains.push((subdir.to_string(), entry.display().to_string(), domain));
                 }
             }
         }
 
         // Extract sentences from every command in every domain
-        for (_path, domain) in &domains {
+        for (location, _path, domain) in &domains {
             for agg in &domain.aggregates {
                 for cmd in &agg.commands {
                     let phrase = command_to_phrase(&cmd.name, &agg.name);
@@ -110,8 +118,12 @@ impl Lexicon {
                     sentences.push(Sentence {
                         phrase,
                         domain: domain.name.clone(),
+                        domain_vision: domain.vision.clone().unwrap_or_default(),
                         aggregate: agg.name.clone(),
+                        aggregate_desc: agg.description.clone().unwrap_or_default(),
                         command: cmd.name.clone(),
+                        command_goal: cmd.description.clone().unwrap_or_default(),
+                        location: location.clone(),
                         actor: cmd.role.clone(),
                         parameters: params,
                         translations: Vec::new(),
@@ -121,13 +133,13 @@ impl Lexicon {
         }
 
         // Find valid compositions — commands whose output type matches another's input
-        for (_pa, da) in &domains {
+        for (loc_a, _pa, da) in &domains {
             for agg_a in &da.aggregates {
                 for cmd_a in &agg_a.commands {
                     // This command produces an aggregate of type agg_a.name
                     let output_type = &agg_a.name;
 
-                    for (_pb, db) in &domains {
+                    for (loc_b, _pb, db) in &domains {
                         for agg_b in &db.aggregates {
                             for cmd_b in &agg_b.commands {
                                 // Does cmd_b accept output_type as input?
@@ -148,13 +160,21 @@ impl Lexicon {
                                     steps: vec![
                                         CommandRef {
                                             domain: da.name.clone(),
+                                            domain_vision: da.vision.clone().unwrap_or_default(),
                                             aggregate: agg_a.name.clone(),
+                                            aggregate_desc: agg_a.description.clone().unwrap_or_default(),
                                             command: cmd_a.name.clone(),
+                                            command_goal: cmd_a.description.clone().unwrap_or_default(),
+                                            location: loc_a.clone(),
                                         },
                                         CommandRef {
                                             domain: db.name.clone(),
+                                            domain_vision: db.vision.clone().unwrap_or_default(),
                                             aggregate: agg_b.name.clone(),
+                                            aggregate_desc: agg_b.description.clone().unwrap_or_default(),
                                             command: cmd_b.name.clone(),
+                                            command_goal: cmd_b.description.clone().unwrap_or_default(),
+                                            location: loc_b.clone(),
                                         },
                                     ],
                                     bridge_type: output_type.clone(),
@@ -176,8 +196,12 @@ impl Lexicon {
             let norm = normalize(&s.phrase);
             let refs = vec![CommandRef {
                 domain: s.domain.clone(),
+                domain_vision: s.domain_vision.clone(),
                 aggregate: s.aggregate.clone(),
+                aggregate_desc: s.aggregate_desc.clone(),
                 command: s.command.clone(),
+                command_goal: s.command_goal.clone(),
+                location: s.location.clone(),
             }];
             exact.insert(norm.clone(), refs.clone());
             phrases.push((norm, refs));
@@ -187,8 +211,12 @@ impl Lexicon {
                 let nt = normalize(t);
                 exact.insert(nt.clone(), vec![CommandRef {
                     domain: s.domain.clone(),
+                    domain_vision: s.domain_vision.clone(),
                     aggregate: s.aggregate.clone(),
+                    aggregate_desc: s.aggregate_desc.clone(),
                     command: s.command.clone(),
+                    command_goal: s.command_goal.clone(),
+                    location: s.location.clone(),
                 }]);
             }
         }
@@ -284,7 +312,7 @@ impl Lexicon {
         println!();
         for (phrase, refs) in &self.phrases {
             let path: Vec<String> = refs.iter()
-                .map(|r| format!("{}::{}::{}", r.domain, r.aggregate, r.command))
+                .map(|r| format!("[{}] {}::{}::{}", r.location, r.domain, r.aggregate, r.command))
                 .collect();
             println!("  {:50} → {}", phrase, path.join(" → "));
         }
@@ -310,12 +338,14 @@ fn command_to_phrase(command: &str, _aggregate: &str) -> String {
     words.join(" ")
 }
 
-/// Normalize a phrase for matching: lowercase, strip punctuation, collapse whitespace.
+/// Normalize a phrase for matching: lowercase, strip punctuation, drop articles, collapse whitespace.
 fn normalize(input: &str) -> String {
+    let stop_words: &[&str] = &["a", "an", "the", "my", "some", "this", "that"];
     input.chars()
         .map(|c| if c.is_alphanumeric() || c == ' ' { c.to_ascii_lowercase() } else { ' ' })
         .collect::<String>()
         .split_whitespace()
+        .filter(|w| !stop_words.contains(w))
         .collect::<Vec<&str>>()
         .join(" ")
 }
