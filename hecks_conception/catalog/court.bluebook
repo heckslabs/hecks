@@ -1,0 +1,190 @@
+Hecks.bluebook "Court", version: "2026.04.14.1" do
+  vision "Judge specific actions against the Law book — every tool use, commit, conception, and deployment is a case that receives a ruling"
+  category "meta"
+
+  aggregate "Case", "A specific action submitted for judgment — what happened, who did it, what evidence exists" do
+    String :action_type
+    String :actor
+    String :target
+    String :detail
+    String :occurred_at
+    String :status
+    Integer :laws_applicable
+    Integer :laws_passed
+    Integer :laws_violated
+    String :ruling
+
+    File do
+      role "Enforcer"
+      description "File a case — submit an action for review against applicable laws"
+      String :action_type
+      String :actor
+      String :target
+      String :detail
+      String :occurred_at
+      emits "CaseFiled"
+      then_set :action_type, to: :action_type
+      then_set :actor, to: :actor
+      then_set :target, to: :target
+      then_set :detail, to: :detail
+      then_set :occurred_at, to: :occurred_at
+      then_set :status, to: "filed"
+      then_set :laws_applicable, to: 0
+      then_set :laws_passed, to: 0
+      then_set :laws_violated, to: 0
+    end
+
+    Hear do
+      role "Judge"
+      description "Begin hearing the case — identify which laws apply to this action type"
+      reference_to(Case)
+      Integer :laws_applicable
+      emits "CaseHeard"
+      given { status == "filed" }
+      then_set :laws_applicable, to: :laws_applicable
+      then_set :status, to: "hearing"
+    end
+
+    CheckLaw do
+      role "Judge"
+      description "Check one applicable law against the action — pass or violate"
+      reference_to(Case)
+      Boolean :passed
+      emits "LawCheckedInCase"
+    end
+
+    RuleInnocent do
+      role "Judge"
+      description "All applicable laws passed — the action was lawful"
+      reference_to(Case)
+      emits "RuledInnocent"
+      given("no violations") { laws_violated == 0 }
+      then_set :ruling, to: "innocent"
+      then_set :status, to: "closed"
+    end
+
+    RuleGuilty do
+      role "Judge"
+      description "One or more laws were violated — the action was unlawful"
+      reference_to(Case)
+      emits "RuledGuilty"
+      then_set :ruling, to: "guilty"
+      then_set :status, to: "closed"
+    end
+
+    Appeal do
+      role "Architect"
+      description "Reopen a closed case for re-examination — new evidence or amended law"
+      reference_to(Case)
+      emits "CaseAppealed"
+      then_set :status, to: "appealed"
+    end
+
+    lifecycle :status, default: "unfiled" do
+      transition "File" => "filed"
+      transition "Hear" => "hearing", from: "filed"
+      transition "RuleInnocent" => "closed", from: "hearing"
+      transition "RuleGuilty" => "closed", from: "hearing"
+      transition "Appeal" => "appealed", from: "closed"
+      transition "Hear" => "hearing", from: "appealed"
+    end
+  end
+
+  aggregate "Finding", "One law checked against one action — the atomic unit of judgment" do
+    String :case_id
+    String :law_name
+    String :check_expression
+    String :evidence
+    Boolean :passed
+    String :explanation
+
+    RecordFinding do
+      role "Judge"
+      description "Record whether a specific law was satisfied or violated for this action"
+      String :case_id
+      String :law_name
+      String :check_expression
+      String :evidence
+      Boolean :passed
+      String :explanation
+      emits "FindingRecorded"
+      then_set :case_id, to: :case_id
+      then_set :law_name, to: :law_name
+      then_set :check_expression, to: :check_expression
+      then_set :evidence, to: :evidence
+      then_set :passed, to: :passed
+      then_set :explanation, to: :explanation
+    end
+  end
+
+  aggregate "Precedent", "A ruling that informs future judgments — when a case establishes a pattern" do
+    String :law_name
+    String :action_type
+    String :ruling
+    String :reasoning
+    String :established_at
+
+    Establish do
+      role "Judge"
+      description "Record a precedent — this ruling should apply to similar future actions"
+      String :law_name
+      String :action_type
+      String :ruling
+      String :reasoning
+      String :established_at
+      emits "PrecedentEstablished"
+      then_set :law_name, to: :law_name
+      then_set :action_type, to: :action_type
+      then_set :ruling, to: :ruling
+      then_set :reasoning, to: :reasoning
+      then_set :established_at, to: :established_at
+    end
+
+    Overturn do
+      role "Architect"
+      description "A precedent no longer applies — the law was amended or the reasoning was wrong"
+      reference_to(Precedent)
+      String :reasoning
+      emits "PrecedentOverturned"
+      then_set :ruling, to: "overturned"
+      then_set :reasoning, to: :reasoning
+    end
+  end
+
+  # Court flow
+  policy "HearOnFiling" do
+    on "CaseFiled"
+    trigger "Hear"
+  end
+
+  policy "FindingUpdatesCase" do
+    on "FindingRecorded"
+    trigger "CheckLaw"
+  end
+
+  policy "ViolationToLaw" do
+    on "RuledGuilty"
+    trigger "RecordViolation"
+  end
+
+  # === Case fixtures — real actions judged ===
+
+  # Winter edits a file — was it lawful?
+  fixture "Case", action_type: "edit", actor: "Winter", target: "lib/hecks/runtime/command_bus.rb", detail: "Added 30 lines to command_bus.rb", occurred_at: "2026-04-12", status: "closed", laws_applicable: 3, laws_passed: 2, laws_violated: 1, ruling: "guilty"
+  fixture "Finding", case_id: "case_command_bus_edit", law_name: "FileSizeLimit", check_expression: "wc -l < 200", evidence: "247 lines after edit", passed: false, explanation: "File exceeded 200 line limit — 247 lines of code"
+  fixture "Finding", case_id: "case_command_bus_edit", law_name: "DocHeaders", check_expression: "first line is comment", evidence: "# CommandBus — routes commands to handlers", passed: true, explanation: "Doc header present"
+  fixture "Finding", case_id: "case_command_bus_edit", law_name: "TestSpeed", check_expression: "test duration < 1s", evidence: "suite completed in 0.4s", passed: true, explanation: "Tests still fast"
+
+  # Summer conceives a domain — was it lawful?
+  fixture "Case", action_type: "conception", actor: "Summer", target: "nursery/ambulance_dispatch", detail: "Conceived domain with 3 aggregates, 7 commands, 0 fixtures", occurred_at: "2026-04-10", status: "closed", laws_applicable: 3, laws_passed: 2, laws_violated: 1, ruling: "guilty"
+  fixture "Finding", case_id: "case_ambulance_conception", law_name: "FixturesRequired", check_expression: "fixture_count > 0", evidence: "0 fixtures across 3 aggregates", passed: false, explanation: "Domain conceived without any test fixtures — cannot self-verify"
+  fixture "Finding", case_id: "case_ambulance_conception", law_name: "CommandsRequired", check_expression: "command_count > 0", evidence: "7 commands across 3 aggregates", passed: true, explanation: "All aggregates have commands"
+  fixture "Finding", case_id: "case_ambulance_conception", law_name: "VisionRequired", check_expression: "vision present", evidence: "vision: Emergency dispatch coordination", passed: true, explanation: "Vision statement present"
+
+  # Winter conceives DomainCompression — lawful
+  fixture "Case", action_type: "conception", actor: "Winter", target: "nursery/domain_compression", detail: "Conceived domain with 6 aggregates, 15 commands, 12 fixtures", occurred_at: "2026-04-14", status: "closed", laws_applicable: 3, laws_passed: 3, laws_violated: 0, ruling: "innocent"
+
+  # Precedent examples
+  fixture "Precedent", law_name: "FixturesRequired", action_type: "conception", ruling: "guilty", reasoning: "A domain without fixtures cannot self-verify and produces no training signal — conception is incomplete", established_at: "2026-04-14"
+  fixture "Precedent", law_name: "FileSizeLimit", action_type: "edit", ruling: "guilty", reasoning: "Extract by concern into smaller files rather than growing a single file past 200 lines", established_at: "2026-04-12"
+end

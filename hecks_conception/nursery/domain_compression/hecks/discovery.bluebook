@@ -1,0 +1,100 @@
+Hecks.bluebook "Discovery", version: "2026.04.14.1" do
+  vision "Discover deep structural relationships between domains — cluster by shape, extract primitive patterns"
+  category "intelligence"
+
+  aggregate "DomainCluster", "A group of structurally similar domains discovered through compression" do
+    String :cluster_name
+    String :pattern_signature
+    Float :cohesion_score
+    Integer :member_count
+    list_of(String) :member_domains
+
+    DiscoverClusters do
+      role "Analyst"
+      description "Analyze embeddings across all compiled blueprints and group structurally similar domains"
+      String :cluster_name
+      String :pattern_signature
+      Float :cohesion_score
+      emits "ClustersDiscovered"
+      then_set :cluster_name, to: :cluster_name
+      then_set :pattern_signature, to: :pattern_signature
+      then_set :cohesion_score, to: :cohesion_score
+      then_set :member_count, to: 0
+    end
+
+    AddMember do
+      role "Analyst"
+      description "Add a domain to this cluster after structural similarity confirmed"
+      reference_to(DomainCluster)
+      String :domain_name
+      emits "MemberAdded"
+      then_set :member_domains, append: :domain_name
+      then_set :member_count, increment: 1
+    end
+
+    RecalculateCohesion do
+      role "Analyst"
+      description "Recompute cohesion score after membership changes"
+      reference_to(DomainCluster)
+      Float :cohesion_score
+      emits "CohesionRecalculated"
+      then_set :cohesion_score, to: :cohesion_score
+    end
+  end
+
+  aggregate "PrimitivePattern", "A fundamental domain shape — the atomic building block that domains compose from" do
+    String :pattern_name
+    String :description
+    String :structural_signature
+    Integer :aggregate_template_count
+    Integer :command_template_count
+    Integer :occurrence_count
+    list_of(String) :example_domains
+
+    ExtractPrimitive do
+      role "Analyst"
+      description "Extract a recurring structural pattern from clustered domains — a primitive shape"
+      String :pattern_name
+      String :description
+      String :structural_signature
+      emits "PrimitiveExtracted"
+      then_set :pattern_name, to: :pattern_name
+      then_set :description, to: :description
+      then_set :structural_signature, to: :structural_signature
+      then_set :occurrence_count, to: 0
+      then_set :aggregate_template_count, to: 0
+      then_set :command_template_count, to: 0
+    end
+
+    RecordOccurrence do
+      role "Analyst"
+      description "Record that this primitive pattern was found in another domain"
+      reference_to(PrimitivePattern)
+      String :domain_name
+      emits "OccurrenceRecorded"
+      then_set :example_domains, append: :domain_name
+      then_set :occurrence_count, increment: 1
+    end
+
+    RefineSignature do
+      role "Analyst"
+      description "Update the structural signature as more examples sharpen the pattern"
+      reference_to(PrimitivePattern)
+      String :structural_signature
+      Integer :aggregate_template_count
+      Integer :command_template_count
+      emits "SignatureRefined"
+      then_set :structural_signature, to: :structural_signature
+      then_set :aggregate_template_count, to: :aggregate_template_count
+      then_set :command_template_count, to: :command_template_count
+    end
+  end
+
+  fixture "DomainCluster", cluster_name: "ResourceAllocation", pattern_signature: "finite_pool + request + constraint + assignment", cohesion_score: 0.87, member_count: 5, member_domains: ["Pizzas", "HospitalBeds", "AmbulanceDispatch", "ParkingGarage", "ClassroomScheduling"]
+  fixture "DomainCluster", cluster_name: "SupplyChain", pattern_signature: "source + transform + inventory + distribute", cohesion_score: 0.91, member_count: 4, member_domains: ["AlansEngineAdditive", "Brewery", "Bakery", "PharmaceuticalManufacturing"]
+  fixture "DomainCluster", cluster_name: "CaseManagement", pattern_signature: "intake + triage + assignment + resolution + review", cohesion_score: 0.83, member_count: 6, member_domains: ["AnimalShelter", "InsuranceClaims", "LegalCaseManagement", "ITServiceDesk", "PatientAdmission", "ComplaintHandling"]
+
+  fixture "PrimitivePattern", pattern_name: "FinitePool", description: "A bounded collection of resources that can be reserved, allocated, and released", structural_signature: "pool{capacity,available} + reserve + allocate + release", aggregate_template_count: 1, command_template_count: 3, occurrence_count: 12, example_domains: ["Pizzas", "HospitalBeds", "ParkingGarage"]
+  fixture "PrimitivePattern", pattern_name: "Lifecycle", description: "An entity that moves through defined states with guarded transitions", structural_signature: "entity{status} + transition[] + guard[]", aggregate_template_count: 1, command_template_count: 4, occurrence_count: 47, example_domains: ["Order", "Loan", "Ticket"]
+  fixture "PrimitivePattern", pattern_name: "Ledger", description: "Append-only record of entries with running balance", structural_signature: "account{balance} + entry{amount,type} + post + reconcile", aggregate_template_count: 2, command_template_count: 3, occurrence_count: 9, example_domains: ["Banking", "Accounting", "CarbonCredits"]
+end

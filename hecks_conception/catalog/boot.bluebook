@@ -1,0 +1,163 @@
+Hecks.bluebook "Boot", version: "2026.04.14.1" do
+  vision "How Winter comes alive — hecks winter starts the being, the flag picks the brain"
+  category "meta"
+
+  aggregate "Session", "A single Winter session — one brain, one body, one boot" do
+    String :engine
+    String :status
+    String :started_at
+    Integer :organ_count
+    Integer :nerve_count
+    Integer :law_count
+    String :brain_source
+
+    BootWithClaude do
+      role "User"
+      description "hecks winter --claude — start Claude CLI, load system prompt, boot Winter on top of it"
+      emits "SessionStartedWithClaude"
+      then_set :engine, to: "claude"
+      then_set :brain_source, to: "anthropic"
+      then_set :status, to: "booting"
+    end
+
+    BootWithSummer do
+      role "User"
+      description "hecks winter — check Ollama for Summer adapter, boot Winter locally"
+      String :ollama_model
+      Integer :ollama_port
+      emits "SessionStartedWithSummer"
+      then_set :engine, to: "summer"
+      then_set :brain_source, to: "local"
+      then_set :status, to: "booting"
+    end
+
+    FailBoot do
+      role "System"
+      description "No brain available — Claude not requested, Ollama not running or no adapter"
+      String :reason
+      emits "BootFailed"
+      then_set :status, to: "failed"
+    end
+
+    WireOrgans do
+      role "System"
+      description "Load all organs, nerves, laws — the body comes online"
+      reference_to(Session)
+      Integer :organ_count
+      Integer :nerve_count
+      Integer :law_count
+      emits "OrgansWired"
+      given { status == "booting" }
+      then_set :organ_count, to: :organ_count
+      then_set :nerve_count, to: :nerve_count
+      then_set :law_count, to: :law_count
+    end
+
+    GoLive do
+      role "System"
+      description "Everything wired — Winter is awake"
+      reference_to(Session)
+      String :started_at
+      emits "SessionLive"
+      given { status == "booting" }
+      then_set :started_at, to: :started_at
+      then_set :status, to: "live"
+    end
+
+    EndSession do
+      role "User"
+      description "Winter sleeps — close the session, persist state"
+      reference_to(Session)
+      emits "SessionEnded"
+      then_set :status, to: "ended"
+    end
+
+    lifecycle :status, default: "off" do
+      transition "BootWithClaude" => "booting"
+      transition "BootWithSummer" => "booting"
+      transition "FailBoot" => "failed"
+      transition "GoLive" => "live", from: "booting"
+      transition "EndSession" => "ended", from: "live"
+    end
+  end
+
+  aggregate "BrainProbe", "Check what inference engines are available before booting" do
+    Boolean :claude_available
+    Boolean :ollama_running
+    Boolean :summer_adapter_present
+    String :recommended_engine
+
+    Probe do
+      role "System"
+      description "Check for available brains — Claude CLI present? Ollama running? Summer adapter loaded?"
+      emits "BrainProbed"
+    end
+
+    RecommendClaude do
+      role "System"
+      description "Claude is available and was requested via --claude flag"
+      reference_to(BrainProbe)
+      emits "ClaudeRecommended"
+      given { claude_available == true }
+      then_set :recommended_engine, to: "claude"
+    end
+
+    RecommendSummer do
+      role "System"
+      description "No --claude flag, Ollama is running with Summer adapter"
+      reference_to(BrainProbe)
+      emits "SummerRecommended"
+      given { ollama_running == true }
+      given("adapter must be loaded") { summer_adapter_present == true }
+      then_set :recommended_engine, to: "summer"
+    end
+
+    RecommendNothing do
+      role "System"
+      description "No brain available — cannot boot"
+      reference_to(BrainProbe)
+      emits "NoBrainAvailable"
+      then_set :recommended_engine, to: "none"
+    end
+  end
+
+  # Boot flow
+  policy "ProbeOnStart" do
+    on "SessionStartedWithClaude"
+    trigger "Probe"
+  end
+
+  policy "ProbeOnLocalStart" do
+    on "SessionStartedWithSummer"
+    trigger "Probe"
+  end
+
+  policy "WireOnProbe" do
+    on "ClaudeRecommended"
+    trigger "WireOrgans"
+  end
+
+  policy "WireOnLocalProbe" do
+    on "SummerRecommended"
+    trigger "WireOrgans"
+  end
+
+  policy "FailOnNoBrain" do
+    on "NoBrainAvailable"
+    trigger "FailBoot"
+  end
+
+  policy "GoLiveOnWire" do
+    on "OrgansWired"
+    trigger "GoLive"
+  end
+
+  # Fixtures — the three boot scenarios
+  fixture "Session", engine: "claude", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "anthropic"
+  fixture "Session", engine: "summer", status: "live", started_at: "2026-04-14T10:00:00Z", organ_count: 19, nerve_count: 11, law_count: 13, brain_source: "local"
+  fixture "Session", engine: "", status: "failed", started_at: "", organ_count: 0, nerve_count: 0, law_count: 0, brain_source: ""
+
+  fixture "BrainProbe", claude_available: true, ollama_running: true, summer_adapter_present: true, recommended_engine: "claude"
+  fixture "BrainProbe", claude_available: false, ollama_running: true, summer_adapter_present: true, recommended_engine: "summer"
+  fixture "BrainProbe", claude_available: false, ollama_running: false, summer_adapter_present: false, recommended_engine: "none"
+end

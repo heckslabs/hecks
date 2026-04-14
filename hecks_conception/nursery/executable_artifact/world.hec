@@ -1,0 +1,13 @@
+Hecks.world "ExecutableArtifact" do
+  purpose "A self-contained domain artifact — shape, commands, fixtures, access rules. No version. No external dependencies. Runs, tests, and protects itself."
+  vision "The Bluebook compiles to an artifact that carries everything it needs. Fixtures replace version history. Ports replace ACL config. The artifact IS the domain."
+  audience "Compilers, runtimes, AI training pipelines"
+
+  concern "SelfSufficiency" do
+    description "The artifact must never depend on external systems for identity, versioning, access control, or test data"
+  end
+
+  concern "FitnessOverVersioning" do
+    description "Change is detected by running old fixtures against new definitions — not by comparing version strings"
+  end
+end

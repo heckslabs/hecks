@@ -1,0 +1,13 @@
+Hecks.world "DomainCompression" do
+  purpose "Compile Bluebook domains into compressed executable artifacts with test fixtures for self-verifying regression"
+  vision "Domains as mathematical objects — compress, cluster, discover the primitive shapes all domains are built from"
+  audience "Domain modelers, AI training pipelines, compiler authors"
+
+  concern "TrainingIntegrity" do
+    description "Compressed artifacts and fixtures must produce verified input/output pairs for AI training"
+  end
+
+  concern "RegressionSafety" do
+    description "Any change to compiler or runtime must pass all domain fixture suites before deployment"
+  end
+end

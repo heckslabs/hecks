@@ -1,0 +1,4 @@
+Hecks.hecksagon "DomainConception" do
+  concerns :webapp
+  domain "conception"
+end

@@ -1,0 +1,117 @@
+Hecks.bluebook "Compilation", version: "2026.04.14.1" do
+  vision "Compile Bluebook domains into compressed executable artifacts with embedded test fixtures"
+  category "infrastructure"
+
+  aggregate "ExecutableBlueprint", "A compiled domain — the compressed executable representation of a Bluebook" do
+    String :domain_name
+    String :source_bluebook_path
+    String :compilation_status
+    String :embedding
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :event_count
+    Integer :fixture_count
+
+    CompileBlueprint do
+      role "Compiler"
+      description "Compile a Bluebook domain into a compressed executable artifact"
+      String :domain_name
+      String :source_bluebook_path
+      emits "BlueprintCompiled"
+      then_set :domain_name, to: :domain_name
+      then_set :source_bluebook_path, to: :source_bluebook_path
+      then_set :compilation_status, to: "compiled"
+    end
+
+    AttachFixtures do
+      role "Compiler"
+      description "Attach test fixtures to a compiled blueprint for regression"
+      reference_to(ExecutableBlueprint)
+      Integer :fixture_count
+      emits "FixturesAttached"
+      then_set :fixture_count, to: :fixture_count
+    end
+
+    ValidateFixtures do
+      role "Compiler"
+      description "Run all attached fixtures against the executable and verify outputs"
+      reference_to(ExecutableBlueprint)
+      emits "FixturesValidated"
+      given { compilation_status == "compiled" }
+      given("must have fixtures") { fixture_count > 0 }
+    end
+
+    MarkFailed do
+      role "Compiler"
+      description "Mark a blueprint as failed when compilation or validation fails"
+      reference_to(ExecutableBlueprint)
+      String :failure_reason
+      emits "BlueprintFailed"
+      then_set :compilation_status, to: "failed"
+    end
+
+    lifecycle :compilation_status, default: "pending" do
+      transition "CompileBlueprint" => "compiled"
+      transition "ValidateFixtures" => "validated", from: "compiled"
+      transition "MarkFailed" => "failed"
+    end
+  end
+
+  aggregate "CompressionRun", "A single compilation pass across one or more domains" do
+    String :run_id
+    String :status
+    Integer :domain_count
+    Integer :compiled_count
+    Integer :failed_count
+    String :started_at
+    String :completed_at
+
+    StartRun do
+      role "Compiler"
+      description "Begin a new compression run across a set of domains"
+      String :run_id
+      Integer :domain_count
+      emits "RunStarted"
+      then_set :run_id, to: :run_id
+      then_set :domain_count, to: :domain_count
+      then_set :compiled_count, to: 0
+      then_set :failed_count, to: 0
+      then_set :status, to: "running"
+    end
+
+    RecordCompilation do
+      role "Compiler"
+      description "Record that a domain in this run compiled successfully"
+      reference_to(CompressionRun)
+      emits "CompilationRecorded"
+      then_set :compiled_count, increment: 1
+    end
+
+    RecordFailure do
+      role "Compiler"
+      description "Record that a domain in this run failed to compile"
+      reference_to(CompressionRun)
+      emits "FailureRecorded"
+      then_set :failed_count, increment: 1
+    end
+
+    CompleteRun do
+      role "Compiler"
+      description "Mark the compression run as complete"
+      reference_to(CompressionRun)
+      emits "RunCompleted"
+      then_set :status, to: "completed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "StartRun" => "running"
+      transition "CompleteRun" => "completed", from: "running"
+    end
+  end
+
+  fixture "ExecutableBlueprint", domain_name: "Pizzas", source_bluebook_path: "nursery/pizzas/hecks/pizzas.bluebook", compilation_status: "validated", embedding: "vec_pizzas_0x3fa2", aggregate_count: 2, command_count: 5, event_count: 5, fixture_count: 8
+  fixture "ExecutableBlueprint", domain_name: "Catalog", source_bluebook_path: "nursery/alans_engine_additive_business/hecks/catalog.bluebook", compilation_status: "validated", embedding: "vec_catalog_0x7cb1", aggregate_count: 2, command_count: 4, event_count: 4, fixture_count: 9
+  fixture "ExecutableBlueprint", domain_name: "AmbulanceDispatch", source_bluebook_path: "nursery/ambulance_dispatch/hecks/dispatch.bluebook", compilation_status: "compiled", embedding: "vec_dispatch_0x1de4", aggregate_count: 3, command_count: 7, event_count: 7, fixture_count: 0
+
+  fixture "CompressionRun", run_id: "run_2026_04_14_001", status: "completed", domain_count: 3, compiled_count: 3, failed_count: 0, started_at: "2026-04-14T08:00:00Z", completed_at: "2026-04-14T08:02:31Z"
+end

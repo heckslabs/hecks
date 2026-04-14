@@ -1,0 +1,163 @@
+Hecks.bluebook "Actions", version: "2026.04.14.1" do
+  vision "Winter's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
+  category "capability"
+
+  aggregate "ActionPlan", "A structural change Winter intends to make — encoded as Bluebook before execution" do
+    String :name
+    String :description
+    String :rationale
+    String :action_bluebook_path
+    String :status
+    Integer :steps_total
+    Integer :steps_completed
+
+    Conceive do
+      role "Winter"
+      description "Conceive an action — write the action Bluebook with fixtures for before/after state"
+      String :name
+      String :description
+      String :rationale
+      String :action_bluebook_path
+      Integer :steps_total
+      emits "ActionConceived"
+      then_set :name, to: :name
+      then_set :description, to: :description
+      then_set :rationale, to: :rationale
+      then_set :action_bluebook_path, to: :action_bluebook_path
+      then_set :steps_total, to: :steps_total
+      then_set :steps_completed, to: 0
+      then_set :status, to: "conceived"
+    end
+
+    ReviewWithCourt do
+      role "Winter"
+      description "Submit the planned action to Court — check it against active laws before executing"
+      reference_to(ActionPlan)
+      given { status == "conceived" }
+      emits "ActionSubmittedToCourt"
+      then_set :status, to: "reviewed"
+    end
+
+    Execute do
+      role "Winter"
+      description "Perform the action — the Bluebook is the script, the fixtures are the checkpoints"
+      reference_to(ActionPlan)
+      given { status == "reviewed" }
+      emits "ActionExecuted"
+      then_set :status, to: "executed"
+    end
+
+    CompleteStep do
+      role "Winter"
+      description "Mark one step of the action as done"
+      reference_to(ActionPlan)
+      emits "StepCompleted"
+      then_set :steps_completed, increment: 1
+    end
+
+    TestReverse do
+      role "Winter"
+      description "Reverse the action to prove it's reversible — restore before-state, confirm it works"
+      reference_to(ActionPlan)
+      given { status == "executed" }
+      emits "ReverseTestPassed"
+      then_set :status, to: "reverse_tested"
+    end
+
+    ReExecute do
+      role "Winter"
+      description "After successful reverse test, re-execute the action for real"
+      reference_to(ActionPlan)
+      given { status == "reverse_tested" }
+      emits "ActionReExecuted"
+      then_set :status, to: "confirmed"
+    end
+
+    Verify do
+      role "Winter"
+      description "Confirm the action was clean — boot works, no dangling references, laws still pass"
+      reference_to(ActionPlan)
+      given { status == "confirmed" }
+      emits "ActionVerified"
+      then_set :status, to: "verified"
+    end
+
+    Reverse do
+      role "Winter"
+      description "Undo the action for real — restore before-state from the action Bluebook's fixtures"
+      reference_to(ActionPlan)
+      emits "ActionReversed"
+      then_set :status, to: "reversed"
+      then_set :steps_completed, to: 0
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Conceive" => "conceived"
+      transition "ReviewWithCourt" => "reviewed", from: "conceived"
+      transition "Execute" => "executed", from: "reviewed"
+      transition "TestReverse" => "reverse_tested", from: "executed"
+      transition "ReExecute" => "confirmed", from: "reverse_tested"
+      transition "Verify" => "verified", from: "confirmed"
+      transition "Reverse" => "reversed", from: ["confirmed", "verified"]
+      transition "Conceive" => "conceived", from: "reversed"
+    end
+  end
+
+  aggregate "ActionLog", "Permanent record of actions taken — the history of structural decisions" do
+    String :action_name
+    String :executed_at
+    String :engine_used
+    String :ruling
+    Integer :files_changed
+    String :outcome
+
+    Log do
+      role "System"
+      description "Record that an action was executed — who, when, with what brain, what Court ruled"
+      String :action_name
+      String :executed_at
+      String :engine_used
+      String :ruling
+      Integer :files_changed
+      String :outcome
+      emits "ActionLogged"
+      then_set :action_name, to: :action_name
+      then_set :executed_at, to: :executed_at
+      then_set :engine_used, to: :engine_used
+      then_set :ruling, to: :ruling
+      then_set :files_changed, to: :files_changed
+      then_set :outcome, to: :outcome
+    end
+  end
+
+  # Wiring — actions go through Court before execution
+  policy "CourtReviewOnConceive" do
+    on "ActionConceived"
+    trigger "ReviewWithCourt"
+  end
+
+  policy "LogOnExecute" do
+    on "ActionExecuted"
+    trigger "Log"
+  end
+
+  policy "LogOnReverse" do
+    on "ActionReversed"
+    trigger "Log"
+  end
+
+  # Connect to Conscience — actions are felt
+  policy "SenseActionOnExecute" do
+    on "ActionExecuted"
+    trigger "ReviewAction"
+  end
+
+  policy "SenseOnReverse" do
+    on "ActionReversed"
+    trigger "Sense"
+    map source: "action_reversal", valence: 0.0
+  end
+
+  fixture "ActionPlan", name: "CompostSeasonalBeings", description: "Remove Spring, Summer-as-being, and Autumn", rationale: "One being with swappable brain — seasonal beings absorbed", action_bluebook_path: "actions/compost_seasonal_beings.bluebook", status: "conceived", steps_total: 3, steps_completed: 0
+  fixture "ActionLog", action_name: "CompostSeasonalBeings", executed_at: "", engine_used: "claude", ruling: "pending", files_changed: 8, outcome: "pending"
+end

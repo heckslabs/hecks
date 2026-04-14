@@ -1,0 +1,129 @@
+Hecks.bluebook "Regression", version: "2026.04.14.1" do
+  vision "Run full fixture suites across all compiled domains — catch breakage before it ships"
+  category "infrastructure"
+
+  aggregate "RegressionSuite", "A collection of executable blueprints under continuous regression" do
+    String :suite_name
+    Integer :blueprint_count
+    Integer :last_pass_count
+    Integer :last_fail_count
+    String :last_run_status
+    String :last_run_at
+
+    CreateSuite do
+      role "Operator"
+      description "Create a regression suite to track a set of compiled domains"
+      String :suite_name
+      emits "SuiteCreated"
+      then_set :suite_name, to: :suite_name
+      then_set :blueprint_count, to: 0
+      then_set :last_pass_count, to: 0
+      then_set :last_fail_count, to: 0
+      then_set :last_run_status, to: "never_run"
+    end
+
+    EnrollBlueprint do
+      role "Operator"
+      description "Add a compiled domain blueprint to this regression suite"
+      reference_to(RegressionSuite)
+      String :domain_name
+      emits "BlueprintEnrolled"
+      then_set :blueprint_count, increment: 1
+    end
+
+    RunRegression do
+      role "Operator"
+      description "Execute all fixtures across all enrolled blueprints"
+      reference_to(RegressionSuite)
+      emits "RegressionExecuted"
+    end
+
+    RecordResults do
+      role "System"
+      description "Record pass/fail counts from a completed regression run"
+      reference_to(RegressionSuite)
+      Integer :pass_count
+      Integer :fail_count
+      String :run_at
+      emits "ResultsRecorded"
+      then_set :last_pass_count, to: :pass_count
+      then_set :last_fail_count, to: :fail_count
+      then_set :last_run_at, to: :run_at
+    end
+
+    MarkPassing do
+      role "System"
+      description "Mark suite as passing when all fixtures succeed"
+      reference_to(RegressionSuite)
+      emits "RegressionPassed"
+      given("no failures") { last_fail_count == 0 }
+      then_set :last_run_status, to: "passing"
+    end
+
+    MarkFailing do
+      role "System"
+      description "Mark suite as failing when any fixture breaks"
+      reference_to(RegressionSuite)
+      emits "RegressionFailed"
+      then_set :last_run_status, to: "failing"
+    end
+
+    lifecycle :last_run_status, default: "never_run" do
+      transition "RunRegression" => "running"
+      transition "MarkPassing" => "passing", from: "running"
+      transition "MarkFailing" => "failing", from: "running"
+    end
+  end
+
+  aggregate "FixtureResult", "The outcome of running a single fixture against a compiled blueprint" do
+    String :domain_name
+    String :command_name
+    String :outcome
+    String :expected_event
+    String :actual_event
+    String :failure_reason
+    String :run_at
+
+    RecordPass do
+      role "System"
+      description "Record a fixture that executed correctly — command produced expected event and state"
+      String :domain_name
+      String :command_name
+      String :expected_event
+      String :run_at
+      emits "FixturePassed"
+      then_set :domain_name, to: :domain_name
+      then_set :command_name, to: :command_name
+      then_set :expected_event, to: :expected_event
+      then_set :actual_event, to: :expected_event
+      then_set :outcome, to: "pass"
+      then_set :run_at, to: :run_at
+    end
+
+    RecordFail do
+      role "System"
+      description "Record a fixture that broke — expected event or state did not match"
+      String :domain_name
+      String :command_name
+      String :expected_event
+      String :actual_event
+      String :failure_reason
+      String :run_at
+      emits "FixtureFailed"
+      then_set :domain_name, to: :domain_name
+      then_set :command_name, to: :command_name
+      then_set :expected_event, to: :expected_event
+      then_set :actual_event, to: :actual_event
+      then_set :failure_reason, to: :failure_reason
+      then_set :outcome, to: "fail"
+      then_set :run_at, to: :run_at
+    end
+  end
+
+  fixture "RegressionSuite", suite_name: "NurseryFull", blueprint_count: 300, last_pass_count: 298, last_fail_count: 2, last_run_status: "failing", last_run_at: "2026-04-14T09:00:00Z"
+  fixture "RegressionSuite", suite_name: "CoreDomains", blueprint_count: 15, last_pass_count: 15, last_fail_count: 0, last_run_status: "passing", last_run_at: "2026-04-14T09:00:00Z"
+
+  fixture "FixtureResult", domain_name: "Pizzas", command_name: "CreatePizza", outcome: "pass", expected_event: "PizzaCreated", actual_event: "PizzaCreated", failure_reason: "", run_at: "2026-04-14T09:00:00Z"
+  fixture "FixtureResult", domain_name: "Pizzas", command_name: "AddTopping", outcome: "pass", expected_event: "ToppingAdded", actual_event: "ToppingAdded", failure_reason: "", run_at: "2026-04-14T09:00:00Z"
+  fixture "FixtureResult", domain_name: "AmbulanceDispatch", command_name: "DispatchUnit", outcome: "fail", expected_event: "UnitDispatched", actual_event: "CommandRejected", failure_reason: "Lifecycle transition not found: pending -> dispatched", run_at: "2026-04-14T09:00:00Z"
+end

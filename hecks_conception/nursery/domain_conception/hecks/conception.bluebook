@@ -1,0 +1,215 @@
+Hecks.bluebook "Conception", version: "2026.04.14.1" do
+  vision "The rules for birthing a domain — what must exist, how it is verified, when it is complete"
+  category "meta"
+
+  aggregate "Blueprint", "A domain being conceived — tracks what has been defined and what is still missing" do
+    String :domain_name
+    String :vision
+    String :category
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :fixture_count
+    Integer :port_count
+    Integer :actor_count
+    Integer :policy_count
+    String :completeness
+    list_of(String) :gaps
+
+    StartConception do
+      role "Conceiver"
+      description "Begin conceiving a domain — name it, give it a vision, set its category"
+      String :domain_name
+      String :vision
+      String :category
+      emits "ConceptionStarted"
+      then_set :domain_name, to: :domain_name
+      then_set :vision, to: :vision
+      then_set :category, to: :category
+      then_set :aggregate_count, to: 0
+      then_set :command_count, to: 0
+      then_set :fixture_count, to: 0
+      then_set :port_count, to: 0
+      then_set :actor_count, to: 0
+      then_set :policy_count, to: 0
+      then_set :completeness, to: "embryo"
+    end
+
+    AddAggregates do
+      role "Conceiver"
+      description "Define the aggregates — the nouns of the domain"
+      reference_to(Blueprint)
+      Integer :count
+      emits "AggregatesAdded"
+      then_set :aggregate_count, to: :count
+    end
+
+    AddCommands do
+      role "Conceiver"
+      description "Define the commands — the verbs. Every command needs then_set or given to be executable"
+      reference_to(Blueprint)
+      Integer :count
+      emits "CommandsAdded"
+      then_set :command_count, to: :count
+    end
+
+    AddFixtures do
+      role "Conceiver"
+      description "Write fixture data for every aggregate — realistic values that exercise the domain"
+      reference_to(Blueprint)
+      Integer :count
+      emits "FixturesAdded"
+      given("must have aggregates first") { aggregate_count > 0 }
+      then_set :fixture_count, to: :count
+    end
+
+    AddAccessGates do
+      role "Conceiver"
+      description "Define ports and actors — who can do what through which gate"
+      reference_to(Blueprint)
+      Integer :port_count
+      Integer :actor_count
+      emits "AccessGatesAdded"
+      then_set :port_count, to: :port_count
+      then_set :actor_count, to: :actor_count
+    end
+
+    AddPolicies do
+      role "Conceiver"
+      description "Wire cross-aggregate event chains — the reactive nervous system of the domain"
+      reference_to(Blueprint)
+      Integer :count
+      emits "PoliciesAdded"
+      then_set :policy_count, to: :count
+    end
+
+    AssessCompleteness do
+      role "Conceiver"
+      description "Check what the domain has and what it is missing — update gaps list"
+      reference_to(Blueprint)
+      list_of(String) :gaps
+      emits "CompletenessAssessed"
+      then_set :gaps, to: :gaps
+    end
+
+    Seal do
+      role "Conceiver"
+      description "The domain is complete — shape, commands, fixtures, access. Seal it as a living artifact"
+      reference_to(Blueprint)
+      given("must have aggregates") { aggregate_count > 0 }
+      given("must have commands") { command_count > 0 }
+      given("must have fixtures") { fixture_count > 0 }
+      emits "DomainSealed"
+      then_set :completeness, to: "sealed"
+    end
+
+    lifecycle :completeness, default: "embryo" do
+      transition "AddAggregates" => "shaped"
+      transition "AddCommands" => "verbal", from: "shaped"
+      transition "AssessCompleteness" => "assessed"
+      transition "Seal" => "sealed", from: "assessed"
+    end
+  end
+
+  aggregate "ConceptionRule", "A rule that must hold for any conceived domain to be complete" do
+    String :rule_name
+    String :description
+    String :check_type
+    String :severity
+
+    DefineRule do
+      role "Architect"
+      description "Establish a rule that all conceived domains must satisfy"
+      String :rule_name
+      String :description
+      String :check_type
+      String :severity
+      emits "RuleDefined"
+      then_set :rule_name, to: :rule_name
+      then_set :description, to: :description
+      then_set :check_type, to: :check_type
+      then_set :severity, to: :severity
+    end
+  end
+
+  aggregate "ConceptionLog", "A record of a completed conception — who conceived it, when, what gaps remain" do
+    String :domain_name
+    String :conceived_by
+    String :conceived_at
+    Integer :fixture_count
+    Integer :gap_count
+    String :verdict
+
+    RecordConception do
+      role "System"
+      description "Log that a domain was conceived and record its birth state"
+      String :domain_name
+      String :conceived_by
+      String :conceived_at
+      Integer :fixture_count
+      Integer :gap_count
+      emits "ConceptionRecorded"
+      then_set :domain_name, to: :domain_name
+      then_set :conceived_by, to: :conceived_by
+      then_set :conceived_at, to: :conceived_at
+      then_set :fixture_count, to: :fixture_count
+      then_set :gap_count, to: :gap_count
+    end
+
+    MarkViable do
+      role "System"
+      description "Domain passed all conception rules — it can enter the nursery"
+      reference_to(ConceptionLog)
+      emits "DomainViable"
+      given("must have fixtures") { fixture_count > 0 }
+      given("must have no gaps") { gap_count == 0 }
+      then_set :verdict, to: "viable"
+    end
+
+    MarkIncomplete do
+      role "System"
+      description "Domain failed one or more conception rules — it needs more work before entering the nursery"
+      reference_to(ConceptionLog)
+      emits "DomainIncomplete"
+      then_set :verdict, to: "incomplete"
+    end
+
+    lifecycle :verdict, default: "pending" do
+      transition "RecordConception" => "recorded"
+      transition "MarkViable" => "viable", from: "recorded"
+      transition "MarkIncomplete" => "incomplete", from: "recorded"
+    end
+  end
+
+  # The conception flow
+  policy "AssessAfterFixtures" do
+    on "FixturesAdded"
+    trigger "AssessCompleteness"
+  end
+
+  policy "LogOnSeal" do
+    on "DomainSealed"
+    trigger "RecordConception"
+  end
+
+  policy "CheckViabilityOnRecord" do
+    on "ConceptionRecorded"
+    trigger "MarkViable"
+  end
+
+  # The rules — what every domain must have at birth
+  fixture "ConceptionRule", rule_name: "HasFixtures", description: "Every aggregate must have at least one fixture with realistic data", check_type: "fixture_count > 0", severity: "blocking"
+  fixture "ConceptionRule", rule_name: "HasCommands", description: "Every aggregate must have at least one custom command — no empty shapes", check_type: "command_count > 0", severity: "blocking"
+  fixture "ConceptionRule", rule_name: "HasDeclarativeBehavior", description: "Commands should use given/then_set so they are executable without adapters", check_type: "then_set_count > 0", severity: "warning"
+  fixture "ConceptionRule", rule_name: "HasAccessGates", description: "Domain should define ports and actors — who can do what", check_type: "port_count > 0", severity: "recommended"
+  fixture "ConceptionRule", rule_name: "HasPolicies", description: "Multi-aggregate domains should wire events to commands", check_type: "policy_count > 0 when aggregate_count > 1", severity: "recommended"
+  fixture "ConceptionRule", rule_name: "HasVision", description: "Every domain needs a vision statement — why it exists", check_type: "vision present", severity: "blocking"
+
+  # Example conception logs
+  fixture "ConceptionLog", domain_name: "Pizzas", conceived_by: "Winter", conceived_at: "2026-04-01", fixture_count: 8, gap_count: 0, verdict: "viable"
+  fixture "ConceptionLog", domain_name: "AmbulanceDispatch", conceived_by: "Summer", conceived_at: "2026-04-10", fixture_count: 0, gap_count: 1, verdict: "incomplete"
+  fixture "ConceptionLog", domain_name: "DomainCompression", conceived_by: "Winter", conceived_at: "2026-04-14", fixture_count: 12, gap_count: 0, verdict: "viable"
+
+  # Example blueprint at various stages
+  fixture "Blueprint", domain_name: "Pizzas", vision: "Pizza ordering domain", category: "business", aggregate_count: 2, command_count: 5, fixture_count: 8, port_count: 1, actor_count: 2, policy_count: 1, completeness: "sealed", gaps: []
+  fixture "Blueprint", domain_name: "AmbulanceDispatch", vision: "Emergency dispatch coordination", category: "operations", aggregate_count: 3, command_count: 7, fixture_count: 0, port_count: 0, actor_count: 0, policy_count: 2, completeness: "assessed", gaps: ["no fixtures", "no access gates"]
+end

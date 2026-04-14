@@ -15,6 +15,7 @@ Hecks.hecksagon "Winter" do
   capabilities :cloudflare_deploy
   capabilities :web_components
   capabilities :language
+  capabilities :actions
 
   persistence :information, dir: File.join(__dir__, "information")
 end

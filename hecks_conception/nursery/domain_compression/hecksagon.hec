@@ -1,0 +1,10 @@
+Hecks.hecksagon "DomainCompression" do
+  concerns :webapp
+  domain "compilation"
+  domain "regression" do
+    listens_to "compilation"
+  end
+  domain "discovery" do
+    listens_to "compilation"
+  end
+end

@@ -1,0 +1,4 @@
+Hecks.hecksagon "ExecutableArtifact" do
+  concerns :webapp
+  domain "artifact"
+end

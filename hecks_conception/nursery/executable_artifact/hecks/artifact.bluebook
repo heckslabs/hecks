@@ -1,0 +1,171 @@
+Hecks.bluebook "Artifact", version: "2026.04.14.1" do
+  vision "A self-contained executable domain — shape, behavior, fixtures, access. Everything needed to run, test, and protect itself."
+  category "infrastructure"
+
+  aggregate "Artifact", "A complete self-contained domain artifact — no version, no external deps" do
+    String :domain_name
+    String :shape_hash
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :fixture_count
+    Integer :port_count
+    String :status
+
+    Seal do
+      role "Compiler"
+      description "Seal a domain into a self-contained artifact — shape, commands, fixtures, access rules"
+      String :domain_name
+      String :shape_hash
+      Integer :aggregate_count
+      Integer :command_count
+      Integer :fixture_count
+      Integer :port_count
+      emits "ArtifactSealed"
+      then_set :domain_name, to: :domain_name
+      then_set :shape_hash, to: :shape_hash
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+      then_set :port_count, to: :port_count
+      then_set :status, to: "sealed"
+    end
+
+    TestSelf do
+      role "Runtime"
+      description "Run all embedded fixtures — the artifact tests itself"
+      reference_to(Artifact)
+      emits "SelfTestPassed"
+      given { status == "sealed" }
+      given("must have fixtures") { fixture_count > 0 }
+    end
+
+    FailSelfTest do
+      role "Runtime"
+      description "Record that the artifact's self-test found a failure"
+      reference_to(Artifact)
+      String :failed_command
+      String :failure_reason
+      emits "SelfTestFailed"
+      then_set :status, to: "broken"
+    end
+
+    Evolve do
+      role "Compiler"
+      description "Apply a new definition to this artifact — old fixtures become the regression suite"
+      reference_to(Artifact)
+      String :shape_hash
+      Integer :aggregate_count
+      Integer :command_count
+      Integer :fixture_count
+      Integer :port_count
+      emits "ArtifactEvolved"
+      then_set :shape_hash, to: :shape_hash
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+      then_set :port_count, to: :port_count
+    end
+
+    lifecycle :status, default: "unsealed" do
+      transition "Seal" => "sealed"
+      transition "TestSelf" => "verified", from: "sealed"
+      transition "FailSelfTest" => "broken", from: "sealed"
+      transition "Evolve" => "sealed", from: ["verified", "broken"]
+    end
+  end
+
+  aggregate "FixtureSet", "The embedded test data — replaces version history" do
+    String :domain_name
+    String :shape_hash_at_creation
+    Integer :fixture_count
+    Integer :pass_count
+    Integer :fail_count
+    String :verdict
+
+    Embed do
+      role "Compiler"
+      description "Embed a set of fixtures into the artifact at seal time"
+      String :domain_name
+      String :shape_hash_at_creation
+      Integer :fixture_count
+      emits "FixtureSetEmbedded"
+      then_set :domain_name, to: :domain_name
+      then_set :shape_hash_at_creation, to: :shape_hash_at_creation
+      then_set :fixture_count, to: :fixture_count
+      then_set :pass_count, to: 0
+      then_set :fail_count, to: 0
+      then_set :verdict, to: "untested"
+    end
+
+    RecordVerdict do
+      role "Runtime"
+      description "Record pass/fail after running this fixture set against the current shape"
+      reference_to(FixtureSet)
+      Integer :pass_count
+      Integer :fail_count
+      emits "VerdictRecorded"
+      then_set :pass_count, to: :pass_count
+      then_set :fail_count, to: :fail_count
+    end
+
+    MarkClean do
+      role "Runtime"
+      description "All fixtures passed — shape is backward compatible"
+      reference_to(FixtureSet)
+      emits "FixtureSetClean"
+      given("no failures") { fail_count == 0 }
+      then_set :verdict, to: "clean"
+    end
+
+    MarkDrift do
+      role "Runtime"
+      description "Some fixtures failed — shape has drifted from when these fixtures were created"
+      reference_to(FixtureSet)
+      emits "DriftDetected"
+      then_set :verdict, to: "drift"
+    end
+
+    lifecycle :verdict, default: "untested" do
+      transition "RecordVerdict" => "tested"
+      transition "MarkClean" => "clean", from: "tested"
+      transition "MarkDrift" => "drift", from: "tested"
+    end
+  end
+
+  aggregate "AccessGate", "Baked-in access rules — the artifact knows who can do what" do
+    String :domain_name
+    String :actor_name
+    String :port_name
+    list_of(String) :allowed_commands
+
+    DefineGate do
+      role "Compiler"
+      description "Bake an access rule into the artifact — actor, port, allowed commands"
+      String :domain_name
+      String :actor_name
+      String :port_name
+      emits "GateDefined"
+      then_set :domain_name, to: :domain_name
+      then_set :actor_name, to: :actor_name
+      then_set :port_name, to: :port_name
+    end
+
+    GrantCommand do
+      role "Compiler"
+      description "Allow a specific command through this gate"
+      reference_to(AccessGate)
+      String :command_name
+      emits "CommandGranted"
+      then_set :allowed_commands, append: :command_name
+    end
+  end
+
+  fixture "Artifact", domain_name: "Pizzas", shape_hash: "sha256:a3f8c1", aggregate_count: 2, command_count: 5, fixture_count: 8, port_count: 1, status: "verified"
+  fixture "Artifact", domain_name: "Catalog", shape_hash: "sha256:7cb1e2", aggregate_count: 2, command_count: 4, fixture_count: 9, port_count: 2, status: "verified"
+
+  fixture "FixtureSet", domain_name: "Pizzas", shape_hash_at_creation: "sha256:a3f8c1", fixture_count: 8, pass_count: 8, fail_count: 0, verdict: "clean"
+  fixture "FixtureSet", domain_name: "Pizzas", shape_hash_at_creation: "sha256:9e2b04", fixture_count: 6, pass_count: 5, fail_count: 1, verdict: "drift"
+
+  fixture "AccessGate", domain_name: "Pizzas", actor_name: "Admin", port_name: "admin", allowed_commands: ["CreatePizza", "AddTopping", "RemoveTopping"]
+  fixture "AccessGate", domain_name: "Pizzas", actor_name: "Customer", port_name: "ordering", allowed_commands: ["PlaceOrder", "CancelOrder"]
+end
