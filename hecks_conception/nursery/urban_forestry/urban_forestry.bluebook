@@ -75,6 +75,9 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       transition "FlagForRemoval" => "removal_pending", from: "healthy"
       transition "RemoveTree" => "removed", from: "removal_pending"
     end
+
+    fixture "Tree", species: "Quercus alba", common_name: "White Oak", dbh_cm: 72.4, height_m: 25.9, canopy_spread_m: 18.0, health_rating: "good", status: "healthy"
+    fixture "Tree", species: "Acer saccharum", common_name: "Sugar Maple", dbh_cm: 81.3, height_m: 28.9, canopy_spread_m: 20.0, health_rating: "fair", status: "removal_pending"
   end
 
   aggregate "PlantingPlan", "A planting plan — species selection, spacing, site prep, timeline" do
@@ -135,6 +138,9 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       transition "ApprovePlan" => "approved", from: "drafted"
       transition "ExecutePlanting" => "planted", from: "approved"
     end
+
+    fixture "PlantingPlan", name: "Downtown Greenway", site_address: "Main Street Corridor", tree_count: 45, primary_species: "Serviceberry", spacing_m: 8.0, season: "spring", status: "drafted"
+    fixture "PlantingPlan", name: "Park Restoration", site_address: "Central Park West", tree_count: 80, primary_species: "Red Oak", spacing_m: 10.0, season: "fall", status: "planted"
   end
 
   aggregate "MaintenanceSchedule", "Scheduled tree maintenance — pruning, watering, pest treatment" do
@@ -192,6 +198,9 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       transition "ScheduleMaintenance" => "scheduled", from: "unscheduled"
       transition "CompleteMaintenance" => "completed", from: "scheduled"
     end
+
+    fixture "MaintenanceSchedule", tree_species: "Red Oak", maintenance_type: "pruning", frequency: "annual", next_due_date: "2026-06-15", assigned_crew: "Team A", status: "scheduled"
+    fixture "MaintenanceSchedule", tree_species: "Serviceberry", maintenance_type: "watering", frequency: "bi-weekly", next_due_date: "2026-05-10", assigned_crew: "Team B", status: "completed"
   end
 
   aggregate "TreePermit", "A permit for tree work — removal, pruning of protected species, planting in ROW" do

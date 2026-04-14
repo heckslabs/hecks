@@ -71,6 +71,9 @@ Hecks.bluebook "TrainScheduling" do
       emits "TrainWithdrawn"
       then_set :status, to: "withdrawn"
     end
+
+    fixture "Train", train_number: "MT-100", service_type: "express", car_count: 8, seat_capacity: 640, status: "running"
+    fixture "Train", train_number: "MT-101", service_type: "local", car_count: 6, seat_capacity: 480, status: "at_station"
   end
 
   aggregate "Route", "A fixed path between origin and destination with intermediate stops" do
@@ -103,6 +106,9 @@ Hecks.bluebook "TrainScheduling" do
       reference_to(Train)
       emits "TrainAssignedToRoute"
     end
+
+    fixture "Route", route_code: "R-001", origin_station: "Grand Central", destination_station: "Penn Station", stop_count: 3, distance_km: 15.5
+    fixture "Route", route_code: "R-002", origin_station: "Penn Station", destination_station: "Union Station", stop_count: 5, distance_km: 225.0
   end
 
   aggregate "Platform", "A physical platform at a station where trains board passengers" do
@@ -141,6 +147,9 @@ Hecks.bluebook "TrainScheduling" do
       emits "PlatformReleased"
       then_set :status, to: "available"
     end
+
+    fixture "Platform", station_name: "Grand Central", platform_number: 5, length_meters: 420.0, status: "occupied"
+    fixture "Platform", station_name: "Penn Station", platform_number: 12, length_meters: 380.0, status: "available"
   end
 
   aggregate "Delay", "A disruption to scheduled service with cause and impact" do
@@ -171,6 +180,9 @@ Hecks.bluebook "TrainScheduling" do
       emits "DelayResolved"
       then_set :status, to: "resolved"
     end
+
+    fixture "Delay", delay_id: "DLY-2026-001", cause: "signal failure", delay_minutes: 22, status: "active"
+    fixture "Delay", delay_id: "DLY-2026-002", cause: "track maintenance", delay_minutes: 45, status: "resolved"
   end
 
   policy "AssignRouteOnActivation" do

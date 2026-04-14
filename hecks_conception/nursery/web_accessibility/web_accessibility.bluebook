@@ -18,6 +18,9 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :scanned_at
     end
 
+    fixture "Blog Audit 2026", audit_id: "AUDIT-001", site_url: "https://example-blog.com", wcag_level: "AA", auditor: "Alice Chen", pages_scanned: 45, status: "running"
+    fixture "Government Site", audit_id: "AUDIT-002", site_url: "https://gov-agency.gov", wcag_level: "AAA", auditor: "Bob Smith", pages_scanned: 120, status: "completed"
+
     LaunchAudit do
       role "AccessibilityLead"
       description "Start an accessibility audit of a website"
@@ -56,6 +59,9 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :charset
       String :viewport
     end
+
+    fixture "Homepage", page_url: "https://example.com", title: "Home", content_type: "text/html", dom_elements: 342, status: "crawled"
+    fixture "Contact Page", page_url: "https://example.com/contact", title: "Contact Us", content_type: "text/html", dom_elements: 198, status: "reviewed"
 
     CrawlPage do
       role "Scanner"
@@ -96,6 +102,9 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :level
       String :technique
     end
+
+    fixture "Missing Alt Text", violation_id: "VIO-001", rule_id: "img-alt", severity: "critical", element_selector: "img.hero", description: "Image missing alt text", status: "reported"
+    fixture "Low Contrast Link", violation_id: "VIO-002", rule_id: "color-contrast", severity: "serious", element_selector: "a.secondary", description: "Link color contrast below WCAG AA", status: "confirmed"
 
     ReportViolation do
       role "Scanner"
@@ -138,6 +147,9 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       String :after_snippet
     end
 
+    fixture "Alt Text Fix", remediation_id: "REM-001", fix_description: "Add descriptive alt text to hero image", assigned_to: "dev-team", priority: "high", status: "assigned"
+    fixture "Contrast Adjustment", remediation_id: "REM-002", fix_description: "Increase link color contrast to AA standard", assigned_to: "designer", priority: "medium", status: "in_progress"
+
     AssignRemediation do
       role "AccessibilityLead"
       description "Create a remediation task for a confirmed violation"
@@ -177,6 +189,9 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
       Integer :pages_covered
       String :standard_version
     end
+
+    fixture "Commerce Site Cert", certificate_id: "CERT-001", wcag_level: "AA", issued_by: "Accessibility Board", valid_until: "2027-04-14", status: "valid"
+    fixture "Education Portal Cert", certificate_id: "CERT-002", wcag_level: "AAA", issued_by: "Standards Office", valid_until: "2026-12-31", status: "valid"
 
     IssueCertificate do
       role "ComplianceOfficer"

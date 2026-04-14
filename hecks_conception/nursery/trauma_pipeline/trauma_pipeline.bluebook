@@ -69,6 +69,9 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       transition "ArriveAtBay" => "arrived", from: "dispatched"
       transition "CloseCall" => "closed", from: "arrived"
     end
+
+    fixture "TraumaCall", incident_type: "MVA", location: "Highway 101 Mile 42", severity: "critical", blood_type_needed: "O-", status: "dispatched", estimated_arrival_minutes: 8
+    fixture "TraumaCall", incident_type: "GSW", location: "Downtown District", severity: "critical", blood_type_needed: "A+", status: "arrived", estimated_arrival_minutes: 5
   end
 
   # === BloodUnit ===
@@ -129,6 +132,9 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       transition "ReleaseUnit" => "available", from: "reserved"
       transition "TransfuseUnit" => "transfused", from: "reserved"
     end
+
+    fixture "BloodUnit", blood_type: "O-", product_type: "PRBC", donation_id: "DNR-2026-4521", status: "available", temperature: 2.5, expiration_date: "2026-05-14"
+    fixture "BloodUnit", blood_type: "A+", product_type: "Fresh Frozen Plasma", donation_id: "DNR-2026-4522", status: "reserved", temperature: -25.0, expiration_date: "2027-04-14"
   end
 
   # === ColdTransport ===
@@ -194,6 +200,9 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       transition "FlagTempBreach" => "breached", from: "in_transit"
       transition "DeliverBlood" => "delivered", from: "in_transit"
     end
+
+    fixture "ColdTransport", courier_id: "CSR-001", temperature: 2.3, origin: "Blood Bank Downtown", destination: "Trauma Center ER", status: "in_transit"
+    fixture "ColdTransport", courier_id: "CSR-002", temperature: 3.1, origin: "Blood Bank Satellite", destination: "Regional Hospital", status: "delivered"
   end
 
   # === TraumaBay ===
@@ -240,6 +249,9 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       transition "AssignCall" => "assigned", from: "prepared"
       transition "ReleaseBay" => "available", from: "assigned"
     end
+
+    fixture "TraumaBay", bay_number: "TR-01", status: "prepared", trauma_level: "Level 1"
+    fixture "TraumaBay", bay_number: "TR-02", status: "assigned", trauma_level: "Level 1"
   end
 
   # === CrossMatch ===
@@ -292,6 +304,9 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
       transition "ApproveMatch" => "approved", from: "tested"
       transition "RejectMatch" => "rejected", from: "tested"
     end
+
+    fixture "CrossMatch", patient_blood_type: "O-", donor_blood_type: "O-", result: "compatible", status: "approved"
+    fixture "CrossMatch", patient_blood_type: "A+", donor_blood_type: "B+", result: "incompatible", status: "rejected"
   end
 
   # === Cross-wire policies ===

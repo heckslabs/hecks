@@ -27,26 +27,8 @@ Hecks.bluebook "RVPower" do
       emits "ShoreDisconnected"
     end
 
-    fixture "30A Campground" do
-      amperage 30.0
-      voltage 120.0
-      adapter "none"
-      connected true
-    end
-
-    fixture "50A to 30A Adapter" do
-      amperage 30.0
-      voltage 120.0
-      adapter "50A-to-30A dogbone"
-      connected true
-    end
-
-    fixture "15A Household" do
-      amperage 15.0
-      voltage 120.0
-      adapter "30A-to-15A adapter"
-      connected true
-    end
+    fixture "ShorePower", amperage: 30.0, voltage: 120.0, adapter: "none", connected: true
+    fixture "ShorePower", amperage: 50.0, voltage: 240.0, adapter: "none", connected: false
   end
 
   aggregate "BatteryBank" do
@@ -81,25 +63,9 @@ Hecks.bluebook "RVPower" do
       emits "RuntimeEstimated"
     end
 
-    fixture "200Ah Lithium" do
-      name "House Bank"
-      batteries 1
-      voltage 12.8
-      total_ah 200.0
-      chemistry "LiFePO4"
-      usable_pct 1.0
-      state_of_charge 0.85
-    end
-
-    fixture "2x6V Golf Cart" do
-      name "Lead Acid Bank"
-      batteries 2
-      voltage 12.0
-      total_ah 225.0
-      chemistry "flooded lead-acid"
-      usable_pct 0.5
-      state_of_charge 0.72
-    end
+    fixture "BatteryBank", name: "House Bank", batteries: 1, voltage: 12.8, total_ah: 200.0, chemistry: "LiFePO4", usable_pct: 1.0, state_of_charge: 0.85
+    fixture "BatteryBank", name: "Lead Acid Bank", batteries: 2, voltage: 12.0, total_ah: 225.0, chemistry: "flooded lead-acid", usable_pct: 0.5, state_of_charge: 0.72
+    fixture "BatteryBank", name: "Auxiliary Bank", batteries: 4, voltage: 12.0, total_ah: 480.0, chemistry: "AGM", usable_pct: 0.95, state_of_charge: 0.88
   end
 
   aggregate "SolarArray" do
@@ -129,19 +95,9 @@ Hecks.bluebook "RVPower" do
       emits "DailyHarvestCalculated"
     end
 
-    fixture "400W Rooftop" do
-      panel_watts 200.0
-      panel_count 2
-      controller_type "MPPT"
-      controller_amps 30.0
-    end
-
-    fixture "Portable 100W" do
-      panel_watts 100.0
-      panel_count 1
-      controller_type "PWM"
-      controller_amps 10.0
-    end
+    fixture "SolarArray", panel_watts: 200.0, panel_count: 2, controller_type: "MPPT", controller_amps: 30.0
+    fixture "SolarArray", panel_watts: 100.0, panel_count: 1, controller_type: "PWM", controller_amps: 10.0
+    fixture "SolarArray", panel_watts: 300.0, panel_count: 2, controller_type: "MPPT", controller_amps: 50.0
   end
 
   policy "EstimateOnShore" do

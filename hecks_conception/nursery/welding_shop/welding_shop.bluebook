@@ -17,6 +17,9 @@ Hecks.bluebook "WeldingShop" do
       Float :amperage_range_high
     end
 
+    fixture "Structural Frame Assembly", client_name: "BuildCorp Industries", job_description: "Welded frame for industrial machinery", weld_process: "GMAW (Flux Core)", base_metal: "ASTM A36 Steel", status: "accepted"
+    fixture "Pressure Vessel", client_name: "Fluid Systems Inc", job_description: "ASME Section VIII pressure vessel", weld_process: "GTAW (TIG)", base_metal: "Stainless 316L", status: "accepted"
+
     AcceptJob do
       role "Shop Manager"
       goal "Take on a new fabrication job from a client"
@@ -61,6 +64,9 @@ Hecks.bluebook "WeldingShop" do
       Float :tensile_strength
     end
 
+    fixture "A36 Plate Stock", material_type: "Plate", grade: "ASTM A36", thickness: 0.5, quantity_lbs: 15000.0, heat_number: "HN-2026-0542"
+    fixture "316L Stainless Pipe", material_type: "Pipe", grade: "Stainless 316L", thickness: 0.083, quantity_lbs: 8500.0, heat_number: "HN-2026-0891"
+
     ReceiveMaterial do
       role "Warehouse"
       goal "Check in new material with mill certification"
@@ -92,6 +98,9 @@ Hecks.bluebook "WeldingShop" do
     String :position
     String :expiration_date
 
+    fixture "Mike Johnson GMAW", welder_name: "Mike Johnson", cert_number: "CERT-2024-0127", process: "GMAW (MIG)", position: "All", expiration_date: "2027-06-15"
+    fixture "Sarah Lee TIG", welder_name: "Sarah Lee", cert_number: "CERT-2023-0089", process: "GTAW (TIG)", position: "All", expiration_date: "2026-11-20"
+
     CertifyWelder do
       role "Quality Manager"
       goal "Record a welder's certification after passing qualification test"
@@ -122,6 +131,9 @@ Hecks.bluebook "WeldingShop" do
     String :notes
     reference_to(FabricationJob)
 
+    fixture "Visual Inspection Pass", inspection_type: "Visual Inspection", result: "Pass", inspector_name: "Tom Brooks", notes: "Appearance and dimensions compliant"
+    fixture "Radiographic Exam", inspection_type: "Radiographic (X-Ray)", result: "Pass", inspector_name: "James Chen", notes: "No significant porosity detected"
+
     PerformInspection do
       role "Quality Inspector"
       goal "Inspect welds using the specified NDT method"
@@ -150,6 +162,9 @@ Hecks.bluebook "WeldingShop" do
     Float :hold_hours
     Float :ramp_rate
     reference_to(FabricationJob)
+
+    fixture "Stress Relief Cycle", treatment_type: "Stress Relief", target_temp_f: 1100.0, hold_hours: 1.5, ramp_rate: 200.0
+    fixture "Hardening Cycle", treatment_type: "Hardening & Temper", target_temp_f: 1450.0, hold_hours: 0.75, ramp_rate: 300.0
 
     PerformHeatTreat do
       role "Heat Treat Operator"

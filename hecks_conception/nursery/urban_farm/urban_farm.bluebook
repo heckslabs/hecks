@@ -35,6 +35,9 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       emits "PlotReclaimed"
       then_set :status, to: "available"
     end
+
+    fixture "FarmPlot", plot_id: "P-001", assigned_to: "Community Garden Group", area_sqft: 400.0, soil_type: "loamy", status: "active"
+    fixture "FarmPlot", plot_id: "P-002", assigned_to: "Santos Family", area_sqft: 250.0, soil_type: "clay loam", status: "available"
   end
 
   aggregate "CropCycle", "A planting-to-harvest cycle for a specific crop" do
@@ -71,6 +74,9 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :yield_lbs, to: :yield_lbs
       then_set :status, to: "harvested"
     end
+
+    fixture "CropCycle", cycle_id: "CC-2026-001", plot_id: "P-001", crop_name: "tomatoes", planted_date: "2026-04-01", expected_harvest: "2026-07-15", yield_lbs: 0.0, status: "growing"
+    fixture "CropCycle", cycle_id: "CC-2026-002", plot_id: "P-002", crop_name: "lettuce", planted_date: "2026-03-15", expected_harvest: "2026-05-15", yield_lbs: 85.5, status: "harvested"
   end
 
   aggregate "IrrigationSystem", "An irrigation system serving farm plots" do
@@ -103,6 +109,9 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       given { status == "active" }
       emits "IrrigationRun"
     end
+
+    fixture "IrrigationSystem", system_id: "IRR-001", zone_name: "North Beds", irrigation_type: "drip", flow_rate_gpm: 2.5, schedule: "daily at 6am", status: "active"
+    fixture "IrrigationSystem", system_id: "IRR-002", zone_name: "South Beds", irrigation_type: "overhead sprinkler", flow_rate_gpm: 5.0, schedule: "every 2 days at dawn", status: "active"
   end
 
   aggregate "HarvestDistribution", "Distribution of harvested produce to community" do
@@ -132,6 +141,9 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       then_set :recipient, to: :recipient
       then_set :date, to: :date
     end
+
+    fixture "HarvestDistribution", distribution_id: "DIST-2026-001", cycle_id: "CC-2026-002", distributed_lbs: 85.5, recipient: "City Food Bank", date: "2026-05-16"
+    fixture "HarvestDistribution", distribution_id: "DIST-2026-002", cycle_id: "CC-2026-001", distributed_lbs: 120.0, recipient: "Community Center", date: "2026-07-20"
   end
 
   aggregate "EducationWorkshop", "A farming education workshop for community members" do
@@ -165,6 +177,9 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
       emits "WorkshopConducted"
       then_set :status, to: "conducted"
     end
+
+    fixture "EducationWorkshop", workshop_id: "WS-2026-001", topic: "Soil health and composting", instructor: "Dr. Maria Garcia", date: "2026-05-20", max_participants: 30, status: "scheduled"
+    fixture "EducationWorkshop", workshop_id: "WS-2026-002", topic: "Pest management for urban gardens", instructor: "James Park", date: "2026-04-18", max_participants: 25, status: "conducted"
   end
 
   policy "IrrigateOnPlant" do

@@ -48,6 +48,7 @@ Hecks.bluebook "RestaurantReservations" do
 
     fixture "DiningTable", table_number: "1", seat_capacity: 2, section: "window", status: "available"
     fixture "DiningTable", table_number: "12", seat_capacity: 6, section: "patio", status: "available"
+    fixture "DiningTable", table_number: "7", seat_capacity: 4, section: "center", status: "available"
   end
 
   aggregate "Reservation", "A confirmed booking for a party at a specific date and time" do
@@ -104,6 +105,7 @@ Hecks.bluebook "RestaurantReservations" do
 
     fixture "Reservation", guest_name: "Sarah Johnson", phone_number: "555-0147", reservation_date: "2024-04-15", time_slot: "19:00", party_size: 4, special_requests: "window table", status: "confirmed"
     fixture "Reservation", guest_name: "Marcus Liu", phone_number: "555-0258", reservation_date: "2024-04-16", time_slot: "20:00", party_size: 2, special_requests: "quiet corner", status: "confirmed"
+    fixture "Reservation", guest_name: "Elena Vasquez", phone_number: "555-0369", reservation_date: "2024-04-17", time_slot: "18:30", party_size: 6, special_requests: "birthday celebration", status: "confirmed"
   end
 
   aggregate "Waitlist", "Queue of walk-in parties waiting for available tables" do
@@ -150,6 +152,7 @@ Hecks.bluebook "RestaurantReservations" do
 
     fixture "Waitlist", party_name: "Rodriguez Party", party_size: 5, quoted_wait_time: "45 minutes", status: "waiting", position: 1
     fixture "Waitlist", party_name: "Chen Family", party_size: 3, quoted_wait_time: "30 minutes", status: "waiting", position: 2
+    fixture "Waitlist", party_name: "Thompson Couple", party_size: 2, quoted_wait_time: "20 minutes", status: "waiting", position: 3
   end
 
   aggregate "Seating", "The act of assigning a party to a table and tracking their dining session" do
@@ -183,6 +186,7 @@ Hecks.bluebook "RestaurantReservations" do
 
     fixture "Seating", server_name: "Alex Thompson", seated_at: "2024-04-15T19:15", status: "seated", covers: 4
     fixture "Seating", server_name: "Priya Patel", seated_at: "2024-04-15T20:30", status: "seated", covers: 2
+    fixture "Seating", server_name: "David Kim", seated_at: "2024-04-16T18:45", status: "seated", covers: 6
   end
 
   policy "SeatOnNotification" do

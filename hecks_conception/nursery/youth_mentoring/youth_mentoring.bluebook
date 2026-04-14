@@ -9,6 +9,9 @@ Hecks.bluebook "YouthMentoring" do
     String :availability
     String :status
 
+    fixture "Dr. Patricia Wong", name: "Dr. Patricia Wong", occupation: "Software Engineer", skills: "coding, problem-solving, leadership", background_check_status: "cleared", availability: "weekends"
+    fixture "Marcus Green", name: "Marcus Green", occupation: "High School Teacher", skills: "math, writing, mentoring", background_check_status: "cleared", availability: "weekday evenings"
+
     RegisterMentor do
       role "ProgramCoordinator"
       description "Enroll a new mentor after background screening"
@@ -52,6 +55,9 @@ Hecks.bluebook "YouthMentoring" do
     String :guardian_name
     String :status
 
+    fixture "Alex Chen", name: "Alex Chen", age: "14", school: "Lincoln High School", interests: "coding, robotics, math", guardian_name: "Susan Chen", status: "active"
+    fixture "Jordan Martinez", name: "Jordan Martinez", age: "16", school: "Central Academy", interests: "writing, science, debate", guardian_name: "Carlos Martinez", status: "active"
+
     EnrollMentee do
       role "ProgramCoordinator"
       description "Register a young person in the mentoring program with guardian consent"
@@ -94,6 +100,9 @@ Hecks.bluebook "YouthMentoring" do
       String :notes
     end
 
+    fixture "Wong & Alex", mentor_name: "Dr. Patricia Wong", mentee_name: "Alex Chen", match_date: "2026-03-01", match_rationale: "Shared interest in coding and technology", status: "active"
+    fixture "Marcus & Jordan", mentor_name: "Marcus Green", mentee_name: "Jordan Martinez", match_date: "2026-02-15", match_rationale: "Both interested in writing and communication", status: "active"
+
     CreateMatch do
       role "ProgramCoordinator"
       description "Pair a mentor with a mentee based on shared interests and goals"
@@ -130,6 +139,9 @@ Hecks.bluebook "YouthMentoring" do
     String :notes
     String :status
     reference_to MentorMatch
+
+    fixture "Coffee Shop Session", mentor_name: "Dr. Patricia Wong", mentee_name: "Alex Chen", meeting_date: "2026-04-15 16:00", location: "Downtown Coffee", activity: "Discuss Python project", status: "scheduled"
+    fixture "Library Session", mentor_name: "Marcus Green", mentee_name: "Jordan Martinez", meeting_date: "2026-04-16 17:30", location: "Public Library", activity: "Essay workshop", status: "completed"
 
     ScheduleMeeting do
       role "Mentor"

@@ -46,6 +46,10 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       reference_to(Donation)
       emits "TaxReceiptIssued"
     end
+
+    fixture "Donation", donation_id: "DON-2024-001", donor_name: "Margaret Smith", received_date: "2024-04-15", item_count: 8, status: "received"
+    fixture "Donation", donation_id: "DON-2024-002", donor_name: "James Wilson", received_date: "2024-04-16", item_count: 12, status: "received"
+    fixture "Donation", donation_id: "DON-2024-003", donor_name: "Patricia Johnson", received_date: "2024-04-17", item_count: 5, status: "received"
   end
 
   aggregate "PricedItem", "A donated item that has been evaluated and priced for sale" do
@@ -91,6 +95,10 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       emits "ItemSold"
       then_set :status, to: "sold"
     end
+
+    fixture "PricedItem", item_id: "ITM-2024-001", description: "Wooden Bookshelf", category: "furniture", condition: "good", price: 45.00, status: "priced"
+    fixture "PricedItem", item_id: "ITM-2024-002", description: "Vintage Table Lamp", category: "home_decor", condition: "excellent", price: 12.50, status: "priced"
+    fixture "PricedItem", item_id: "ITM-2024-003", description: "Kitchen Mixer", category: "appliances", condition: "fair", price: 15.00, status: "priced"
   end
 
   aggregate "StoreDisplay", "A themed arrangement of items on the sales floor" do
@@ -118,6 +126,10 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       reference_to(StoreDisplay)
       emits "DisplayRotated"
     end
+
+    fixture "StoreDisplay", display_id: "DISP-001", theme: "Vintage Home Furniture", location: "Front Window", status: "active"
+    fixture "StoreDisplay", display_id: "DISP-002", theme: "Spring Fashion", location: "Center Aisle", status: "active"
+    fixture "StoreDisplay", display_id: "DISP-003", theme: "Kitchen Collectibles", location: "Back Wall", status: "active"
   end
 
   aggregate "Volunteer", "A community member who donates their time to the store" do
@@ -155,6 +167,10 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       Float :hours
       emits "ShiftLogged"
     end
+
+    fixture "Volunteer", volunteer_id: "VOL-001", name: "Susan Martinez", phone: "555-0401", availability: "Tuesdays and Thursdays"
+    fixture "Volunteer", volunteer_id: "VOL-002", name: "David Lee", phone: "555-0512", availability: "Weekends"
+    fixture "Volunteer", volunteer_id: "VOL-003", name: "Patricia Brown", phone: "555-0623", availability: "Weekday mornings"
   end
 
   aggregate "SaleEvent", "A storewide or category sale event" do
@@ -193,6 +209,10 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
       emits "SaleEnded"
       then_set :status, to: "ended"
     end
+
+    fixture "SaleEvent", sale_id: "SALE-001", name: "Spring Cleaning Sale", discount_type: "percentage", discount_amount: 25.0, start_date: "2024-04-15", end_date: "2024-04-22", status: "active"
+    fixture "SaleEvent", sale_id: "SALE-002", name: "Furniture Extravaganza", discount_type: "percentage", discount_amount: 30.0, start_date: "2024-04-20", end_date: "2024-04-30", status: "active"
+    fixture "SaleEvent", sale_id: "SALE-003", name: "Fill a Bag for Five", discount_type: "fixed", discount_amount: 5.0, start_date: "2024-05-01", end_date: "2024-05-07", status: "active"
   end
 
   # Lifecycle: donated → sorted → priced → displayed → sold → reported

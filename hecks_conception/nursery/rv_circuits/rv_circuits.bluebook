@@ -136,6 +136,19 @@ Hecks.bluebook "RVCircuits" do
       fuse_amps 300.0
       voltage_drop_pct 0.8
     end
+
+    fixture "Fresh Water Tank" do
+      name "Tank - Fresh Water Heater"
+      load_name "On-Demand Water Heater"
+      watts 4000.0
+      voltage 120.0
+      amps 33.3
+      power_type "AC"
+      wire_gauge "8 AWG"
+      run_length_feet 30.0
+      fuse_amps 50.0
+      voltage_drop_pct 2.5
+    end
   end
 
   policy "AutoCalculate" do

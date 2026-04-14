@@ -145,4 +145,16 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
     on "OrderFulfilled"
     trigger "SubmitClaim"
   end
+
+  fixture "EyeExam", exam_id: "EX-2026-0541", patient_name: "David Kumar", optometrist: "Dr. Sarah Williams", exam_date: "2026-04-10", status: "prescribed"
+  fixture "EyeExam", exam_id: "EX-2026-0542", patient_name: "Jennifer Lee", optometrist: "Dr. Mark Robinson", exam_date: "2026-04-11", status: "completed"
+
+  fixture "LensOrder", order_id: "LO-2026-1847", exam_id: "EX-2026-0541", lens_type: "Progressive Bifocals", vendor: "Essilor", price: 450.00, status: "fulfilled"
+  fixture "LensOrder", order_id: "LO-2026-1848", exam_id: "EX-2026-0542", lens_type: "Single Vision", vendor: "Zeiss", price: 300.00, status: "ordered"
+
+  fixture "InsuranceClaim", claim_id: "CLM-2026-5521", patient_name: "David Kumar", provider_name: "Vision Care Center", amount: 350.00, status: "adjudicated"
+  fixture "InsuranceClaim", claim_id: "CLM-2026-5522", patient_name: "Jennifer Lee", provider_name: "Vision Care Center", amount: 250.00, status: "submitted"
+
+  fixture "APIClient", client_id: "API-Client-847", client_name: "EHR Systems Inc", api_key: "sk_live_abc123def456", rate_limit: 1000, status: "active"
+  fixture "APIClient", client_id: "API-Client-848", client_name: "Optical Retail Corp", api_key: "sk_live_xyz789uvw123", rate_limit: 5000, status: "active"
 end

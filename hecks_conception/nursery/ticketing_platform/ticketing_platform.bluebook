@@ -42,6 +42,9 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       reference_to(Event)
       emits "EventCanceled"
     end
+
+    fixture "Event", event_name: "Spring Music Festival", event_type: "concert", date: "2026-05-15", organizer: "LiveEvents Inc", capacity: 5000, status: "published"
+    fixture "Event", event_name: "Tech Conference 2026", event_type: "conference", date: "2026-06-20", organizer: "TechCorp", capacity: 2000, status: "on_sale"
   end
 
   aggregate "Venue", "A physical location where events are held" do
@@ -81,6 +84,9 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       given("venue is active") { status == "active" }
       emits "VenueClosed"
     end
+
+    fixture "Venue", venue_name: "Central Park Amphitheater", address: "500 Central Park, NY 10024", total_capacity: 8000, venue_type: "outdoor", status: "active"
+    fixture "Venue", venue_name: "Convention Center East", address: "100 Convention Way, LA 90012", total_capacity: 3500, venue_type: "indoor", status: "active"
   end
 
   aggregate "Ticket", "A single admission pass for an event" do
@@ -124,6 +130,9 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       given("ticket is valid") { status == "valid" }
       emits "TicketCheckedIn"
     end
+
+    fixture "Ticket", ticket_id: "TKT-2026-001", tier_name: "VIP", holder_name: "Jane Smith", holder_email: "jane.smith@email.com", price_paid: 250.00, status: "valid"
+    fixture "Ticket", ticket_id: "TKT-2026-002", tier_name: "General Admission", holder_name: "John Doe", holder_email: "john.doe@email.com", price_paid: 75.00, status: "checked_in"
   end
 
   aggregate "SalesReport", "A summary of ticket sales for an event period" do
@@ -162,6 +171,9 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       reference_to(SalesReport)
       emits "ReportArchived"
     end
+
+    fixture "SalesReport", report_id: "RPT-2026-001", period: "Q1 2026", tickets_sold: 450, gross_revenue: 22500.00, platform_fees: 1125.00, status: "generated"
+    fixture "SalesReport", report_id: "RPT-2026-002", period: "Q2 2026", tickets_sold: 320, gross_revenue: 16000.00, platform_fees: 800.00, status: "published"
   end
 
   aggregate "Refund", "A ticket return and money-back transaction" do
@@ -202,6 +214,9 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
       String :denial_reason
       emits "RefundDenied"
     end
+
+    fixture "Refund", refund_id: "RFD-2026-001", refund_amount: 75.00, reason: "cannot attend", refund_method: "original_card", status: "approved"
+    fixture "Refund", refund_id: "RFD-2026-002", refund_amount: 250.00, reason: "event cancelled", refund_method: "bank_transfer", status: "processed"
   end
 
   lifecycle "EventLifecycle" do

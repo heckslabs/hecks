@@ -46,6 +46,7 @@ Hecks.bluebook "RepatriationFlights" do
 
     fixture "ResettlementCase", case_number: "RC-2024-001", origin_country: "Syria", destination_country: "Canada", status: "registered"
     fixture "ResettlementCase", case_number: "RC-2024-002", origin_country: "Afghanistan", destination_country: "USA", status: "registered"
+    fixture "ResettlementCase", case_number: "RC-2024-003", origin_country: "Myanmar", destination_country: "Germany", status: "registered"
   end
 
   aggregate "CargoManifest" do
@@ -92,6 +93,7 @@ Hecks.bluebook "RepatriationFlights" do
 
     fixture "CargoManifest", manifest_number: "CM-2024-001", aircraft_id: "AC-747-01", total_weight_kg: 8500.0, status: "loading"
     fixture "CargoManifest", manifest_number: "CM-2024-002", aircraft_id: "AC-777-02", total_weight_kg: 12000.0, status: "loading"
+    fixture "CargoManifest", manifest_number: "CM-2024-003", aircraft_id: "AC-787-03", total_weight_kg: 15000.0, status: "loading"
   end
 
   aggregate "FlightPlan" do
@@ -140,6 +142,7 @@ Hecks.bluebook "RepatriationFlights" do
 
     fixture "FlightPlan", flight_number: "RF-2024-001", departure_date: "2024-04-15", status: "planned"
     fixture "FlightPlan", flight_number: "RF-2024-002", departure_date: "2024-04-22", status: "planned"
+    fixture "FlightPlan", flight_number: "RF-2024-003", departure_date: "2024-05-01", status: "planned"
   end
 
   aggregate "ReceptionCenter" do
@@ -176,6 +179,7 @@ Hecks.bluebook "RepatriationFlights" do
 
     fixture "ReceptionCenter", center_name: "Toronto Welcome Center", location: "Toronto, ON", capacity: 500, status: "operational"
     fixture "ReceptionCenter", center_name: "Buffalo Reception Hub", location: "Buffalo, NY", capacity: 400, status: "operational"
+    fixture "ReceptionCenter", center_name: "Berlin Integration Center", location: "Berlin, Germany", capacity: 350, status: "operational"
   end
 
   policy "CaseApprovedTriggersFlight" do

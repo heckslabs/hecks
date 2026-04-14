@@ -14,6 +14,9 @@ Hecks.bluebook "Woodworking" do
       Integer :quantity
     end
 
+    fixture "Cherry Dining Table", name: "Dining Table - Cherry", project_type: "Table", wood_species: "Black Cherry", status: "designed", estimated_hours: 120.0
+    fixture "Walnut Bookcase", name: "Wall Bookcase - Walnut", project_type: "Shelving", wood_species: "Black Walnut", status: "designed", estimated_hours: 80.0
+
     PlanProject do
       description "Design a new woodworking project with cut list and joinery"
       String :name
@@ -56,6 +59,9 @@ Hecks.bluebook "Woodworking" do
     Float :thickness_quarters
     String :drying_method
 
+    fixture "Rough Black Walnut", species: "Black Walnut", grade: "FAS", board_feet: 500.0, thickness_quarters: 4.0, drying_method: "air-dried"
+    fixture "Surfaced Maple", species: "Hard Maple", grade: "Select", board_feet: 250.0, thickness_quarters: 4.0, drying_method: "kiln-dried"
+
     value_object "MoistureReading" do
       Float :percentage
       String :date_measured
@@ -86,6 +92,9 @@ Hecks.bluebook "Woodworking" do
     String :part_b
     String :status, default: "laid_out"
     reference_to(WoodProject)
+
+    fixture "Mortise & Tenon Leg", joint_type: "Mortise & Tenon", part_a: "Table Leg", part_b: "Apron Rail", status: "laid_out"
+    fixture "Dovetail Drawer", joint_type: "Dovetail", part_a: "Drawer Front", part_b: "Drawer Side", status: "laid_out"
 
     LayOutJoint do
       description "Mark and lay out a joint on the workpieces"
@@ -126,6 +135,9 @@ Hecks.bluebook "Woodworking" do
       Float :wet_mil_thickness
     end
 
+    fixture "Oil Finish", finish_name: "Tung Oil", finish_type: "Oil", coats_required: 3, cure_hours: 48, sheen: "satin"
+    fixture "Poly Gloss", finish_name: "Polyurethane Gloss", finish_type: "Polyurethane", coats_required: 2, cure_hours: 24, sheen: "gloss"
+
     MixFinish do
       description "Prepare the finish mixture with correct ratios"
       String :finish_name
@@ -150,6 +162,9 @@ Hecks.bluebook "Woodworking" do
     String :status, default: "quoted"
     String :deadline
     reference_to(WoodProject)
+
+    fixture "Mahogany Desk", client_name: "Business Interiors LLC", description: "Executive desk with leather inlay", quoted_price: 2800.0, status: "quoted", deadline: "2026-07-15"
+    fixture "Cherry Bedroom Set", client_name: "Designer Homes", description: "Queen bed frame and nightstands", quoted_price: 5500.0, status: "in_progress", deadline: "2026-08-30"
 
     QuoteCommission do
       description "Provide a price estimate for custom woodwork"

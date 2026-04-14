@@ -39,6 +39,10 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :road_count, to: :road_count
     end
 
+    fixture "MapRegion", name: "Downtown Denver", area_sq_km: 125.5, road_count: 287, avg_elevation_m: 1609.0, status: "defined"
+    fixture "MapRegion", name: "Brooklyn Delivery Zone", area_sq_km: 182.3, road_count: 456, avg_elevation_m: 15.0, status: "defined"
+    fixture "MapRegion", name: "Silicon Valley Tech Hub", area_sq_km: 210.0, road_count: 512, avg_elevation_m: 85.0, status: "defined"
+
     lifecycle :status, default: "undefined" do
       transition "DefineRegion" => "defined", from: "undefined"
     end
@@ -93,6 +97,10 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       then_set :status, to: "delivered"
     end
 
+    fixture "Parcel", tracking_id: "PKG-2024-001", weight_kg: 2.5, destination_address: "1847 Market St, Denver CO", priority: "standard", delivery_window: "09:00-17:00", status: "registered"
+    fixture "Parcel", tracking_id: "PKG-2024-002", weight_kg: 0.8, destination_address: "523 Park Ave, Brooklyn NY", priority: "express", delivery_window: "08:00-12:00", status: "registered"
+    fixture "Parcel", tracking_id: "PKG-2024-003", weight_kg: 1.2, destination_address: "445 Palo Alto Blvd, Palo Alto CA", priority: "standard", delivery_window: "10:00-18:00", status: "registered"
+
     lifecycle :status, default: "pending" do
       transition "RegisterParcel" => "registered", from: "pending"
       transition "AssignToRoute" => "assigned", from: "registered"
@@ -137,6 +145,10 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       emits "CongestionDetected"
       then_set :status, to: "congested"
     end
+
+    fixture "TrafficCondition", road_segment: "I-25 North @ Speer Blvd", avg_speed_kmh: 25.0, congestion_level: 0.85, incident_type: "accident", timestamp: "2024-04-15T08:45:00", status: "current"
+    fixture "TrafficCondition", road_segment: "Brooklyn Bridge Approach", avg_speed_kmh: 15.0, congestion_level: 0.92, incident_type: "rush_hour", timestamp: "2024-04-15T17:30:00", status: "current"
+    fixture "TrafficCondition", road_segment: "101 South @ Page Mill Road", avg_speed_kmh: 35.0, congestion_level: 0.72, incident_type: "construction", timestamp: "2024-04-15T09:15:00", status: "current"
 
     lifecycle :status, default: "unknown" do
       transition "ReportTraffic" => "current", from: "unknown"
@@ -207,6 +219,10 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
       emits "RouteCompleted"
       then_set :status, to: "completed"
     end
+
+    fixture "DeliveryRoute", name: "RT-001-North", courier_name: "Michael Torres", stop_count: 18, total_distance_km: 42.3, estimated_hours: 4.5, status: "optimized"
+    fixture "DeliveryRoute", name: "RT-002-South", courier_name: "Amara Okonkwo", stop_count: 22, total_distance_km: 56.8, estimated_hours: 6.0, status: "optimized"
+    fixture "DeliveryRoute", name: "RT-003-East", courier_name: "Priya Sharma", stop_count: 20, total_distance_km: 48.5, estimated_hours: 5.2, status: "optimized"
 
     lifecycle :status, default: "pending" do
       transition "OptimizeRoute" => "optimized", from: "pending"

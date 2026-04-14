@@ -91,6 +91,10 @@ Hecks.bluebook "RVWiringSheet" do
       reference_to(WiringSheet)
       emits "SheetPrinted"
     end
+
+    fixture "WiringSheet", name: "Class B RV Master Panel", total_ac_amps: 30.0, total_dc_amps: 45.0, total_watts: 3600.0, circuit_count: 12
+    fixture "WiringSheet", name: "Class A Motorhome Panel", total_ac_amps: 50.0, total_dc_amps: 80.0, total_watts: 6000.0, circuit_count: 18
+    fixture "WiringSheet", name: "Trailer Electrical System", total_ac_amps: 20.0, total_dc_amps: 35.0, total_watts: 2400.0, circuit_count: 8
   end
 
   policy "RecalcOnEntry" do

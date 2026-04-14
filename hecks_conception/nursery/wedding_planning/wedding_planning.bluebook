@@ -18,6 +18,9 @@ Hecks.bluebook "WeddingPlanning" do
       String :music_selection
     end
 
+    fixture "Summer Garden Wedding", couple_names: "Sarah & Michael", wedding_date: "2026-06-20", venue_name: "Riverside Gardens", theme: "Rustic Romance", expected_guests: 150, total_budget: 35000.0, status: "planning"
+    fixture "Winter Formal", couple_names: "Emma & David", wedding_date: "2026-12-10", venue_name: "Grand Ballroom Hotel", theme: "Elegant Black & Gold", expected_guests: 200, total_budget: 55000.0, status: "finalized"
+
     PlanWedding do
       role "WeddingPlanner"
       description "Create a new wedding event with couple names, date, and budget"
@@ -69,6 +72,9 @@ Hecks.bluebook "WeddingPlanning" do
       String :final_due_date
     end
 
+    fixture "Premier Catering", vendor_name: "Premier Catering Co", service_type: "Catering", contract_amount: 8500.0, deposit_paid: 4250.0, delivery_date: "2026-06-20", status: "booked"
+    fixture "Golden Hour Photography", vendor_name: "Golden Hour Photography", service_type: "Photography", contract_amount: 3200.0, deposit_paid: 1600.0, delivery_date: "2026-06-20", status: "booked"
+
     BookVendor do
       role "WeddingPlanner"
       description "Sign a contract with a vendor for a specific service"
@@ -110,6 +116,9 @@ Hecks.bluebook "WeddingPlanning" do
     Float :spent_amount
     String :notes
     reference_to(Wedding)
+
+    fixture "Catering & Bar", category: "Catering", allocated_amount: 10000.0, spent_amount: 8500.0, notes: "Includes cocktail hour and dinner"
+    fixture "Photography & Video", category: "Photography", allocated_amount: 4500.0, spent_amount: 3200.0, notes: "8-hour coverage with drone footage"
 
     AllocateBudget do
       role "WeddingPlanner"
@@ -156,6 +165,9 @@ Hecks.bluebook "WeddingPlanning" do
       String :severity
       String :notes
     end
+
+    fixture "James Wilson", guest_name: "James Wilson", email: "james@example.com", party_size: 2, rsvp_status: "accepted", meal_preference: "beef", table_assignment: "Table 5"
+    fixture "Lisa Martinez", guest_name: "Lisa Martinez", email: "lisa@example.com", party_size: 1, rsvp_status: "pending", meal_preference: "", table_assignment: ""
 
     InviteGuest do
       role "Couple"

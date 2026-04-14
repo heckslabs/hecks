@@ -45,6 +45,9 @@ Hecks.bluebook "TreeService" do
       given("risk must be high or extreme") { risk_level != "low" }
       emits "HazardFlagged"
     end
+
+    fixture "TreeAssessment", species: "White Oak", dbh_inches: 28.5, height_feet: 85.0, health_rating: "fair", risk_level: "medium", address: "512 Elm Street"
+    fixture "TreeAssessment", species: "Sugar Maple", dbh_inches: 32.0, height_feet: 95.0, health_rating: "poor", risk_level: "high", address: "1200 Park Avenue"
   end
 
   aggregate "RemovalJob" do
@@ -73,6 +76,9 @@ Hecks.bluebook "TreeService" do
       String :disposal_method
       emits "RemovalExecuted"
     end
+
+    fixture "RemovalJob", rigging_method: "crane lift", disposal_method: "wood chip on-site", status: "scheduled", crew_size: 4
+    fixture "RemovalJob", rigging_method: "hand dismantle", disposal_method: "haul away", status: "executed", crew_size: 3
   end
 
   aggregate "PruningJob" do
@@ -99,6 +105,9 @@ Hecks.bluebook "TreeService" do
       reference_to(PruningJob)
       emits "PruningCompleted"
     end
+
+    fixture "PruningJob", prune_type: "crown reduction", canopy_reduction_pct: 25.0, status: "scheduled"
+    fixture "PruningJob", prune_type: "deadwooding", canopy_reduction_pct: 0.0, status: "completed"
   end
 
   aggregate "StumpGrinding" do
@@ -127,6 +136,9 @@ Hecks.bluebook "TreeService" do
       String :backfill_type
       emits "GrindingCompleted"
     end
+
+    fixture "StumpGrinding", stump_diameter_inches: 28.0, grind_depth_inches: 12.0, backfill_type: "wood chips", status: "scheduled"
+    fixture "StumpGrinding", stump_diameter_inches: 18.5, grind_depth_inches: 10.0, backfill_type: "topsoil and seed", status: "completed"
   end
 
   aggregate "TreePermit" do
@@ -156,6 +168,9 @@ Hecks.bluebook "TreeService" do
       given("must be pending") { status == "pending" }
       emits "PermitReceived"
     end
+
+    fixture "TreePermit", permit_number: "PERM-2026-001", municipality: "Springfield", tree_species: "White Oak", status: "approved"
+    fixture "TreePermit", permit_number: "PERM-2026-002", municipality: "Shelbyville", tree_species: "Sugar Maple", status: "pending"
   end
 
   policy "RecommendOnAssess" do

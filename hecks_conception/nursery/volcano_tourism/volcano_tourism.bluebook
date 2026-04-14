@@ -235,4 +235,19 @@ Hecks.bluebook "VolcanoTourism" do
     trigger "CloseHotel"
     map hotel_property_id: :hotel_id
   end
+
+  fixture "Volcano", name: "Mount Stromboli", elevation_m: 924.0, alert_level: "green", status: "monitored"
+  fixture "Volcano", name: "Mount Etna", elevation_m: 3357.0, alert_level: "yellow", status: "monitored"
+
+  fixture "HotelProperty", name: "Crater View Resort", distance_km: 12.5, status: "open"
+  fixture "HotelProperty", name: "Lava Mountain Lodge", distance_km: 18.0, status: "open"
+
+  fixture "TourPackage", package_name: "Summit Explorer", price_cents: 89999, status: "draft"
+  fixture "TourPackage", package_name: "Seismic Adventure", price_cents: 64999, status: "draft"
+
+  fixture "Booking", guest_name: "Anna Bergstrom", party_size: 4, status: "confirmed"
+  fixture "Booking", guest_name: "Paolo Rossi", party_size: 2, status: "confirmed"
+
+  fixture "EvacuationPlan", plan_name: "Hotel Alpha Evacuation", status: "prepared"
+  fixture "EvacuationPlan", plan_name: "Hotel Beta Evacuation", status: "prepared"
 end

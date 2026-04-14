@@ -24,6 +24,9 @@ Hecks.bluebook "Upholstery" do
       then_set :quoted_price, to: :quoted_price
     end
 
+    fixture "UpholsteryProject", piece_description: "Victorian Sofa", furniture_type: "sofa", status: "approved", client_name: "Margaret Powell", quoted_price: 2500.00
+    fixture "UpholsteryProject", piece_description: "Wingback Armchair", furniture_type: "chair", status: "in_progress", client_name: "Robert Chen", quoted_price: 1200.00
+
     BeginWork do
       description "Start the teardown and reupholstery process"
       reference_to(UpholsteryProject)
@@ -83,6 +86,9 @@ Hecks.bluebook "Upholstery" do
       emits "FabricReceived"
       then_set :status, to: "received"
     end
+
+    fixture "FabricSelection", fabric_name: "Brussels Weave", material: "wool blend", color: "charcoal", yards_needed: 8.5, price_per_yard: 35.00, status: "received"
+    fixture "FabricSelection", fabric_name: "Damask Silk", material: "silk", color: "champagne", yards_needed: 6.0, price_per_yard: 48.00, status: "ordered"
   end
 
   aggregate "FrameWork", "The furniture frame — repair, refinish, or rebuild" do
@@ -116,6 +122,9 @@ Hecks.bluebook "Upholstery" do
       String :finish_type
       emits "FrameRefinished"
     end
+
+    fixture "FrameWork", frame_material: "solid hardwood", condition: "structurally sound", status: "repaired", repair_notes: "loose joints glued and clamped"
+    fixture "FrameWork", frame_material: "mahogany", condition: "refinished", status: "repaired", repair_notes: "legs reinforced with corner blocks"
   end
 
   aggregate "Estimate", "A detailed cost estimate for an upholstery job" do
@@ -147,6 +156,9 @@ Hecks.bluebook "Upholstery" do
       emits "EstimateSent"
       then_set :status, to: "sent"
     end
+
+    fixture "Estimate", labor_cost: 1200.00, material_cost: 400.00, total: 1600.00, status: "sent"
+    fixture "Estimate", labor_cost: 800.00, material_cost: 350.00, total: 1150.00, status: "draft"
   end
 
   aggregate "UpholsteryDelivery", "Delivery or pickup of finished upholstered furniture" do
@@ -172,6 +184,9 @@ Hecks.bluebook "Upholstery" do
       emits "DeliveryCompleted"
       then_set :status, to: "delivered"
     end
+
+    fixture "UpholsteryDelivery", delivery_type: "client_pickup", address: "512 Oak Street, Apt 4B", date: "2026-05-10", status: "delivered"
+    fixture "UpholsteryDelivery", delivery_type: "white_glove_delivery", address: "1850 Park Avenue", date: "2026-05-15", status: "scheduled"
   end
 
   policy "DraftEstimateOnAssess" do

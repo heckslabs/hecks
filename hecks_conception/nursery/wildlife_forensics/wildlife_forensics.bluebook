@@ -17,6 +17,9 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       String :location
     end
 
+    fixture "Tiger Fur Sample", evidence_id: "EV-2026-0001", evidence_type: "Hair/Fur", location_found: "Sambhar reserve, India", collected_by: "Officer Rajesh Patel", timestamp: "2026-03-15 14:30", status: "collected"
+    fixture "Poaching Tool", evidence_id: "EV-2026-0002", evidence_type: "Snare/Trap", location_found: "Northern forest boundary", collected_by: "Officer Maria Garcia", timestamp: "2026-04-02 09:15", status: "in_lab"
+
     CollectEvidence do
       role "FieldOfficer"
       description "Collect physical evidence from a wildlife crime scene"
@@ -79,6 +82,9 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       Float :similarity_pct
     end
 
+    fixture "Bengal Tiger ID", sample_id: "SAMP-2026-0001", identified_species: "Panthera tigris tigris", common_name: "Bengal Tiger", conservation_status: "Endangered", confidence_pct: 99.8, status: "identified"
+    fixture "African Elephant ID", sample_id: "SAMP-2026-0002", identified_species: "Loxodonta africana", common_name: "African Elephant", conservation_status: "Vulnerable", confidence_pct: 98.5, status: "confirmed"
+
     IdentifySpecies do
       role "ForensicScientist"
       description "Identify species from physical and morphological evidence"
@@ -124,6 +130,9 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       String :description
       String :last_known_location
     end
+
+    fixture "Tiger Poaching 2026", case_number: "CASE-2026-0547", location: "Sambhar Tiger Reserve, India", species_involved: "Bengal Tiger", method_used: "Snare trap", lead_investigator: "Inspector Rajesh Patel", status: "open"
+    fixture "Rhino Horn Trafficking", case_number: "CASE-2026-0548", location: "Kruger National Park, South Africa", species_involved: "White Rhinoceros", method_used: "Poaching syndicate", lead_investigator: "Detective Maria van Der Merwe", status: "referred"
 
     OpenCase do
       role "Investigator"
@@ -188,6 +197,9 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       Integer :base_pairs
       Float :quality_score
     end
+
+    fixture "Tiger DNA Extraction", analysis_id: "DNA-2026-0001", evidence_id: "EV-2026-0001", extraction_method: "Tissue digestion & precipitation", sequence_region: "COI (Cytochrome Oxidase I)", match_confidence_pct: 0.0, status: "extracted"
+    fixture "Elephant DNA Sequencing", analysis_id: "DNA-2026-0002", evidence_id: "EV-2026-0003", extraction_method: "Bone marrow extraction", sequence_region: "12S rRNA", match_confidence_pct: 0.0, status: "sequenced"
 
     ExtractDNA do
       role "GeneticAnalyst"

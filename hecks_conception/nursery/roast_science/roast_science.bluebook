@@ -40,6 +40,7 @@ Hecks.bluebook "RoastScience" do
 
     fixture "GreenBean", origin: "Ethiopia Yirgacheffe", variety: "Heirloom", altitude_m: 1950.0, status: "sourced"
     fixture "GreenBean", origin: "Colombia Geisha", variety: "Bourbon", altitude_m: 1600.0, status: "sourced"
+    fixture "GreenBean", origin: "Kenya AA", variety: "SL28", altitude_m: 1800.0, status: "sourced"
   end
 
   aggregate "RoastProfile" do
@@ -87,6 +88,7 @@ Hecks.bluebook "RoastScience" do
 
     fixture "RoastProfile", profile_name: "Light City", roast_level: "light", status: "designing"
     fixture "RoastProfile", profile_name: "Full French", roast_level: "dark", status: "designing"
+    fixture "RoastProfile", profile_name: "Cinnamon Medium", roast_level: "medium", status: "designing"
   end
 
   aggregate "RoastBatch" do
@@ -133,6 +135,7 @@ Hecks.bluebook "RoastScience" do
 
     fixture "RoastBatch", batch_number: "RB-2024-001", weight_kg: 20.0, status: "roasting"
     fixture "RoastBatch", batch_number: "RB-2024-002", weight_kg: 25.0, status: "roasting"
+    fixture "RoastBatch", batch_number: "RB-2024-003", weight_kg: 18.0, status: "roasting"
   end
 
   aggregate "BrewRecipe" do
@@ -177,6 +180,7 @@ Hecks.bluebook "RoastScience" do
 
     fixture "BrewRecipe", recipe_name: "Pour Over Bright", brew_method: "Chemex", status: "testing"
     fixture "BrewRecipe", recipe_name: "Espresso Rich", brew_method: "portafilter", status: "testing"
+    fixture "BrewRecipe", recipe_name: "French Press Bold", brew_method: "immersion", status: "testing"
   end
 
   policy "CompoundAnalyzedTriggersProfile" do

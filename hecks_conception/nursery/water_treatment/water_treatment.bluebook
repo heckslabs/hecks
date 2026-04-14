@@ -13,6 +13,9 @@ Hecks.bluebook "WaterTreatment" do
       Float :longitude
     end
 
+    fixture "North Facility", plant_id: "PLANT-001", name: "North Water Treatment Plant", capacity_mgd: 50.0, status: "operational", current_flow_mgd: 38.5
+    fixture "South Facility", plant_id: "PLANT-002", name: "South Water Treatment Plant", capacity_mgd: 35.0, status: "operational", current_flow_mgd: 28.2
+
     ActivatePlant do
       description "Bring a new treatment plant online"
       String :plant_id
@@ -60,6 +63,9 @@ Hecks.bluebook "WaterTreatment" do
       Float :retention_time_hours
       Float :flow_rate_gpm
     end
+
+    fixture "Primary Coagulation", process_id: "PROC-001", stage_name: "Coagulation", technology: "PAC (Powdered Activated Carbon)", status: "active", efficiency_percent: 85.2
+    fixture "Sand Filtration", process_id: "PROC-002", stage_name: "Filtration", technology: "Multi-Media Sand Filter", status: "active", efficiency_percent: 92.1
 
     ConfigureProcess do
       description "Set up a treatment stage with its technology and parameters"
@@ -117,6 +123,9 @@ Hecks.bluebook "WaterTreatment" do
       Float :coliform_count
     end
 
+    fixture "Raw Water Inlet", sample_id: "SAMPLE-001", sample_point: "Raw Water Intake", collected_at: "2026-04-14 08:00", status: "analyzed"
+    fixture "Post-Filtration Point", sample_id: "SAMPLE-002", sample_point: "Post-Sand Filter", collected_at: "2026-04-14 10:30", status: "approved"
+
     CollectSample do
       description "Take a water sample at a designated point"
       String :sample_point
@@ -161,6 +170,9 @@ Hecks.bluebook "WaterTreatment" do
       String :cas_number
       Float :concentration_percent
     end
+
+    fixture "Alum Dosing", chemical_name: "Aluminum Sulfate", dose_rate_ppm: 15.0, inventory_gallons: 5000.0, status: "dosing"
+    fixture "Chlorine Feed", chemical_name: "Sodium Hypochlorite", dose_rate_ppm: 2.5, inventory_gallons: 2000.0, status: "dosing"
 
     StartDosing do
       description "Begin feeding a chemical into the treatment process"
@@ -218,6 +230,9 @@ Hecks.bluebook "WaterTreatment" do
       Float :measured_value
       emits "ViolationFlagged"
     end
+
+    fixture "Q1 2026 EPA", report_id: "RPT-2026-Q1-001", reporting_period: "2026-01-01 to 2026-03-31", regulatory_body: "EPA", status: "submitted"
+    fixture "Q2 2026 State", report_id: "RPT-2026-Q2-001", reporting_period: "2026-04-01 to 2026-06-30", regulatory_body: "State DWR", status: "pending"
   end
 
   policy "ActivateProcessOnConfig" do
