@@ -255,4 +255,16 @@ Hecks.bluebook "Planetarium", version: "2026.04.13.1" do
     on "ShowScheduled"
     trigger "ActivateProjector"
   end
+
+  fixture "CelestialBody", name: "Sirius", body_type: "star", right_ascension_hr: 6.75, declination_deg: -16.73, apparent_magnitude: -1.46, constellation: "Canis Major", status: "cataloged"
+  fixture "CelestialBody", name: "Jupiter", body_type: "planet", right_ascension_hr: 2.35, declination_deg: 15.82, apparent_magnitude: -2.1, constellation: "Cetus", status: "cataloged"
+
+  fixture "Projector", projector_id: "DOME-01", projector_type: "fulldome_digistar", resolution_pixels: 4096, dome_coverage_pct: 100.0, brightness_lumens: 15000, status: "active"
+  fixture "Projector", projector_id: "DOME-02", projector_type: "fulldome_zeiss", resolution_pixels: 2048, dome_coverage_pct: 95.0, brightness_lumens: 12000, status: "calibrated"
+
+  fixture "Show", title: "Journey to Mars", theme: "space_exploration", duration_minutes: 45, target_audience: "families", narration_type: "professional", status: "published"
+  fixture "Show", title: "Dark Skies: Fighting Light Pollution", theme: "environmental_education", duration_minutes: 55, target_audience: "adults", narration_type: "documentary", status: "published"
+
+  fixture "ShowSchedule", show_title: "Journey to Mars", show_date: "2026-05-15", show_time: "19:00", capacity: 150, tickets_sold: 89, status: "scheduled"
+  fixture "ShowSchedule", show_title: "Dark Skies: Fighting Light Pollution", show_date: "2026-05-16", show_time: "20:00", capacity: 150, tickets_sold: 120, status: "scheduled"
 end

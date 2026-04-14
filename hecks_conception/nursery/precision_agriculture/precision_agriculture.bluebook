@@ -221,4 +221,19 @@ Hecks.bluebook "PrecisionAgriculture" do
     trigger "SampleSoil"
     map crop_field_id: :field_id
   end
+
+  fixture "WeatherStation", station_id: "WS-001", latitude: 40.7128, longitude: -74.0060, readings: [], status: "active"
+  fixture "WeatherStation", station_id: "WS-002", latitude: 41.8781, longitude: -87.6298, readings: [], status: "active"
+
+  fixture "Forecast", forecast_date: "2026-04-15", predictions: [], confidence: 0.85, status: "generating"
+  fixture "Forecast", forecast_date: "2026-04-16", predictions: [], confidence: 0.92, status: "published"
+
+  fixture "CropField", field_name: "North 40", crop: "soybeans", acres: 40.0, soil_samples: [], status: "planted"
+  fixture "CropField", field_name: "South Plot", crop: "corn", acres: 25.5, soil_samples: [], status: "fallow"
+
+  fixture "IrrigationPlan", water_gallons: 5000.0, schedule_days: 7, zones: [], status: "draft"
+  fixture "IrrigationPlan", water_gallons: 8500.0, schedule_days: 5, zones: [], status: "active"
+
+  fixture "HarvestSchedule", target_date: "2026-10-15", crew_size: 12, status: "planned"
+  fixture "HarvestSchedule", target_date: "2026-10-22", crew_size: 8, status: "executing"
 end

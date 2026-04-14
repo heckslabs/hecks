@@ -272,4 +272,19 @@ Hecks.bluebook "PrintShop" do
     on "SubstrateConsumed"
     trigger "ReorderSubstrate"
   end
+
+  fixture "PrintJob", job_name: "Acme Brochures", customer_name: "Acme Corp", quantity: 5000, print_method: "offset", color_profile: "CMYK", due_date: "2026-04-20", status: "submitted"
+  fixture "PrintJob", job_name: "TechStart Cards", customer_name: "TechStart Inc", quantity: 10000, print_method: "digital", color_profile: "RGB", due_date: "2026-04-18", status: "in_production"
+
+  fixture "Substrate", material_name: "Glossy Premium 250gsm", material_type: "paper", weight_gsm: 250.0, width_inches: 11.0, sheets_on_hand: 5000, reorder_level: 1000, status: "in_stock"
+  fixture "Substrate", material_name: "Matte Cardstock 300gsm", material_type: "paper", weight_gsm: 300.0, width_inches: 8.5, sheets_on_hand: 2500, reorder_level: 500, status: "in_stock"
+
+  fixture "PressSchedule", press_name: "HP Indigo 5", scheduled_date: "2026-04-16", start_time: "09:00", end_time: "17:00", status: "scheduled"
+  fixture "PressSchedule", press_name: "Heidelberg SM 102", scheduled_date: "2026-04-17", start_time: "08:00", end_time: "16:00", status: "running"
+
+  fixture "ProofCycle", revision_number: 1, proof_file: "Acme_Brochures_v1.pdf", customer_feedback: "", status: "awaiting_approval"
+  fixture "ProofCycle", revision_number: 2, proof_file: "TechStart_Cards_v2.pdf", customer_feedback: "Change logo color to navy", status: "revision_needed"
+
+  fixture "DeliveryOrder", delivery_address: "123 Main St, Springfield, IL 62701", delivery_date: "2026-04-21", box_count: 25, carrier: "FedEx", tracking_number: "", status: "scheduled"
+  fixture "DeliveryOrder", delivery_address: "456 Tech Blvd, Austin, TX 78701", delivery_date: "2026-04-19", box_count: 50, carrier: "UPS", tracking_number: "1Z999AA10123456784", status: "shipped"
 end

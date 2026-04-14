@@ -274,4 +274,19 @@ Hecks.bluebook "PowerGrid" do
     on "LineTripped"
     trigger "InitiateLoadShed"
   end
+
+  fixture "Substation", substation_id: "SS-001", name: "Downtown 69kV", voltage_class: "69", capacity_mva: 150.0, status: "energized"
+  fixture "Substation", substation_id: "SS-002", name: "North County 230kV", voltage_class: "230", capacity_mva: 500.0, status: "energized"
+
+  fixture "TransmissionLine", line_id: "TL-45", conductor_type: "ACSR 477 MCM", length_miles: 85.5, rating_mw: 450.0, status: "energized"
+  fixture "TransmissionLine", line_id: "TL-46", conductor_type: "ACSR 556 MCM", length_miles: 120.0, rating_mw: 550.0, status: "energized"
+
+  fixture "LoadZone", zone_id: "Z-01", region: "Downtown District", peak_demand_mw: 280.0, current_load_mw: 215.0, status: "monitored"
+  fixture "LoadZone", zone_id: "Z-02", region: "Suburban Ring", peak_demand_mw: 420.0, current_load_mw: 380.0, status: "monitored"
+
+  fixture "Outage", outage_id: "OUT-2026-0245", cause: "lightning strike", affected_customers: 3400, status: "active", reported_at: "2026-04-14T14:32:00Z"
+  fixture "Outage", outage_id: "OUT-2026-0246", cause: "vegetation contact", affected_customers: 1200, status: "crew_en_route", reported_at: "2026-04-14T15:01:00Z"
+
+  fixture "MaintenanceOrder", order_id: "MO-001", work_type: "transformer replacement", priority: "high", status: "scheduled"
+  fixture "MaintenanceOrder", order_id: "MO-002", work_type: "insulator cleaning", priority: "medium", status: "scheduled"
 end

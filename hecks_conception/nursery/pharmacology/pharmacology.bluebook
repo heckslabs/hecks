@@ -163,4 +163,16 @@ Hecks.bluebook "Pharmacology" do
     on "TrialInitiated"
     trigger "EnrollSubject"
   end
+
+  fixture "Compound", compound_id: "CMP-2026-001", name: "Aspirin", molecular_formula: "C9H8O4", molecular_weight: 180.16, mechanism_of_action: "COX inhibitor"
+  fixture "Compound", compound_id: "CMP-2026-002", name: "Metformin", molecular_formula: "C4H11N5", molecular_weight: 129.16, mechanism_of_action: "AMPK activator"
+
+  fixture "ClinicalTrial", trial_id: "TRIAL-001", phase: "Phase II", enrollment_target: 50, enrolled_count: 35, start_date: "2026-03-01", reference_to: "CMP-2026-001"
+  fixture "ClinicalTrial", trial_id: "TRIAL-002", phase: "Phase III", enrollment_target: 200, enrolled_count: 150, start_date: "2026-02-15", reference_to: "CMP-2026-002"
+
+  fixture "AdverseEvent", event_id: "AE-001", description: "Mild headache reported by subject 7", severity: "mild", causality_assessment: "possibly_related", reference_to: "TRIAL-001"
+  fixture "AdverseEvent", event_id: "AE-002", description: "Nausea and dizziness onset day 14", severity: "moderate", causality_assessment: "probably_related", reference_to: "TRIAL-002"
+
+  fixture "RegulatorySubmission", submission_id: "REG-001", agency: "FDA", submission_type: "NDA", status: "pending_review", reference_to: "CMP-2026-001"
+  fixture "RegulatorySubmission", submission_id: "REG-002", agency: "EMA", submission_type: "MAA", status: "accepted", reference_to: "CMP-2026-002"
 end
