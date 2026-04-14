@@ -143,4 +143,16 @@ Hecks.bluebook "RefugeeIdentity", version: "2026.04.13.1" do
     on "DigitalIDIssued"
     trigger "MakeReferral"
   end
+
+  fixture "ResettlementCase", case_id: "REF-2025-001", family_name: "Al-Hassan", country_of_origin: "Syria", family_size: 4, caseworker: "Emma Williamson", status: "open"
+  fixture "ResettlementCase", case_id: "REF-2025-002", family_name: "Okonkwo", country_of_origin: "Nigeria", family_size: 3, caseworker: "Charles Thompson", status: "open"
+
+  fixture "DigitalID", identity_id: "DID-2025-001", case_id: "REF-2025-001", full_name: "Ahmad Al-Hassan", date_of_birth: "1985-06-22", biometric_hash: "a1b2c3d4e5f6", status: "active"
+  fixture "DigitalID", identity_id: "DID-2025-002", case_id: "REF-2025-002", full_name: "Chioma Okonkwo", date_of_birth: "1992-11-15", biometric_hash: "f6e5d4c3b2a1", status: "active"
+
+  fixture "DocumentRecord", document_id: "DOC-2025-001", identity_id: "DID-2025-001", document_type: "passport", issuing_country: "Syria", verified_status: "verified", expiry_date: "2027-08-10"
+  fixture "DocumentRecord", document_id: "DOC-2025-002", identity_id: "DID-2025-002", document_type: "travel certificate", issuing_country: "Nigeria", verified_status: "flagged", expiry_date: "2026-03-25"
+
+  fixture "ServiceReferral", referral_id: "REF-SVC-001", case_id: "REF-2025-001", service_type: "housing", provider_name: "Community Housing Alliance", status: "pending"
+  fixture "ServiceReferral", referral_id: "REF-SVC-002", case_id: "REF-2025-002", service_type: "employment training", provider_name: "Skills Forward Program", status: "fulfilled"
 end

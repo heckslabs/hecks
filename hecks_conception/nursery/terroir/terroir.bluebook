@@ -194,4 +194,16 @@ Hecks.bluebook "Terroir" do
     trigger "AddVineRow"
     map vineyard_id: :vineyard_id, rootstock: :mineral_content
   end
+
+  fixture "GeologicalSurvey", survey_id: "gs001", location: "North Vineyard Ridge", status: "completed"
+  fixture "GeologicalSurvey", survey_id: "gs002", location: "South Valley Slope", status: "completed"
+
+  fixture "Vineyard", block_name: "Block A Pinot", grape_variety: "Pinot Noir", acres: 12.5, status: "planted"
+  fixture "Vineyard", block_name: "Block B Chardonnay", grape_variety: "Chardonnay", acres: 15.0, status: "planted"
+
+  fixture "Harvest", harvest_date: "2025-09-15", brix: 23.5, tons: 18.5, status: "picking"
+  fixture "Harvest", harvest_date: "2025-09-20", brix: 24.1, tons: 22.3, status: "picking"
+
+  fixture "Fermentation", vessel_type: "oak_barrel", yeast_strain: "BM4x", status: "active"
+  fixture "Fermentation", vessel_type: "concrete_egg", yeast_strain: "EC1118", status: "active"
 end

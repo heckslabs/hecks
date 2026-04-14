@@ -37,6 +37,9 @@ Hecks.bluebook "RoastScience" do
       given("max 50 compounds") { compounds.size < 50 }
       then_set :compounds, append: { compound_name: :compound_name, concentration_ppm: :concentration_ppm, flavor_impact: :flavor_impact }
     end
+
+    fixture "GreenBean", origin: "Ethiopia Yirgacheffe", variety: "Heirloom", altitude_m: 1950.0, status: "sourced"
+    fixture "GreenBean", origin: "Colombia Geisha", variety: "Bourbon", altitude_m: 1600.0, status: "sourced"
   end
 
   aggregate "RoastProfile" do
@@ -81,6 +84,9 @@ Hecks.bluebook "RoastScience" do
       reference_to RoastProfile
       given("must have curve points") { curve_points.size > 0 }
     end
+
+    fixture "RoastProfile", profile_name: "Light City", roast_level: "light", status: "designing"
+    fixture "RoastProfile", profile_name: "Full French", roast_level: "dark", status: "designing"
   end
 
   aggregate "RoastBatch" do
@@ -124,6 +130,9 @@ Hecks.bluebook "RoastScience" do
       goal "Complete the roast batch"
       reference_to RoastBatch
     end
+
+    fixture "RoastBatch", batch_number: "RB-2024-001", weight_kg: 20.0, status: "roasting"
+    fixture "RoastBatch", batch_number: "RB-2024-002", weight_kg: 25.0, status: "roasting"
   end
 
   aggregate "BrewRecipe" do
@@ -165,6 +174,9 @@ Hecks.bluebook "RoastScience" do
       reference_to BrewRecipe
       given("must have parameters") { parameters.size > 0 }
     end
+
+    fixture "BrewRecipe", recipe_name: "Pour Over Bright", brew_method: "Chemex", status: "testing"
+    fixture "BrewRecipe", recipe_name: "Espresso Rich", brew_method: "portafilter", status: "testing"
   end
 
   policy "CompoundAnalyzedTriggersProfile" do

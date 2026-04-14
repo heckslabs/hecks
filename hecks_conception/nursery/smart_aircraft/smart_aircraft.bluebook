@@ -184,4 +184,16 @@ Hecks.bluebook "SmartAircraft" do
     trigger "ScheduleFlight"
     map aircraft_id: :aircraft_id
   end
+
+  fixture "Aircraft", tail_number: "N12345", model: "Boeing 737-800", total_hours: 28500.0, status: "active"
+  fixture "Aircraft", tail_number: "N67890", model: "Airbus A320", total_hours: 15800.0, status: "active"
+
+  fixture "Flight", flight_number: "UA-456", origin: "SFO", destination: "LAX", passengers: 145, status: "scheduled"
+  fixture "Flight", flight_number: "UA-789", origin: "LAX", destination: "ORD", passengers: 168, status: "scheduled"
+
+  fixture "SensorStream", stream_id: "STR-001", status: "streaming"
+  fixture "SensorStream", stream_id: "STR-002", status: "streaming"
+
+  fixture "MaintenanceAlert", alert_type: "engine_temperature_high", severity: "critical", status: "open"
+  fixture "MaintenanceAlert", alert_type: "hydraulic_pressure_low", severity: "warning", status: "open"
 end

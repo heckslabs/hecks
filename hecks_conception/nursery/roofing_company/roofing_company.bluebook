@@ -46,6 +46,9 @@ Hecks.bluebook "RoofingCompany" do
       given("estimate must be quoted") { status == "quoted" }
       emits "QuoteAccepted"
     end
+
+    fixture "RoofEstimate", customer_name: "John Michaels", address: "542 Oak Street, Denver CO", square_footage: 2500.0, pitch: 6.5, total_cost: 18500.0, status: "quoted"
+    fixture "RoofEstimate", customer_name: "Elena Vasquez", address: "1847 Maple Ave, Austin TX", square_footage: 3200.0, pitch: 8.0, total_cost: 24800.0, status: "quoted"
   end
 
   aggregate "MaterialOrder" do
@@ -74,6 +77,9 @@ Hecks.bluebook "RoofingCompany" do
       reference_to(MaterialOrder)
       emits "DeliveryReceived"
     end
+
+    fixture "MaterialOrder", supplier: "Owens Corning", material_type: "architectural_shingles", quantity_bundles: 150, delivery_status: "scheduled"
+    fixture "MaterialOrder", supplier: "GAF Materials", material_type: "felt_underlayment", quantity_bundles: 45, delivery_status: "scheduled"
   end
 
   aggregate "Crew" do
@@ -104,6 +110,9 @@ Hecks.bluebook "RoofingCompany" do
       reference_to(RoofEstimate)
       emits "CrewAssignedToJob"
     end
+
+    fixture "Crew", foreman_name: "Thomas Rodriguez", crew_size: 4, availability: "available"
+    fixture "Crew", foreman_name: "Sarah Kowalski", crew_size: 6, availability: "available"
   end
 
   aggregate "WeatherHold" do
@@ -130,6 +139,9 @@ Hecks.bluebook "RoofingCompany" do
       given("hold must be active") { resume_date == nil }
       emits "HoldLifted"
     end
+
+    fixture "WeatherHold", reason: "heavy_rain", hold_date: "2024-04-15", resume_date: ""
+    fixture "WeatherHold", reason: "high_winds", hold_date: "2024-04-16", resume_date: ""
   end
 
   aggregate "RoofWarranty" do
@@ -158,6 +170,9 @@ Hecks.bluebook "RoofingCompany" do
       String :leak_location
       emits "LeakClaimFiled"
     end
+
+    fixture "RoofWarranty", warranty_type: "manufacturer_architectural", duration_years: 25, coverage_details: "full material and labor coverage"
+    fixture "RoofWarranty", warranty_type: "workmanship_lifetime", duration_years: 50, coverage_details: "labor only, excludes material degradation"
   end
 
   policy "QuoteAfterMeasure" do

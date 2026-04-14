@@ -281,4 +281,22 @@ Hecks.bluebook "RegenerativeCommons", version: "2026.04.13.1" do
     on "HealthAssessed"
     trigger "BeginRestoration"
   end
+
+  fixture "CommonLand", parcel_id: "COMMONS-001", name: "Riverside Commons", total_acres: 45, governance_model: "democratic cooperative", status: "active"
+  fixture "CommonLand", parcel_id: "COMMONS-002", name: "Hillside Sanctuary", total_acres: 62, governance_model: "community trust", status: "active"
+
+  fixture "FarmPlot", plot_id: "PLOT-001", steward_name: "Emma Green", current_crop: "tomatoes", soil_health_score: "excellent", status: "active", commons_id: "COMMONS-001"
+  fixture "FarmPlot", plot_id: "PLOT-002", steward_name: "Marcus Washington", current_crop: "corn rotation", soil_health_score: "good", status: "active", commons_id: "COMMONS-001"
+
+  fixture "ConservationZone", zone_id: "ZONE-001", ecosystem_type: "riparian forest", acres: 18, restoration_status: "completed", status: "active", commons_id: "COMMONS-002"
+  fixture "ConservationZone", zone_id: "ZONE-002", ecosystem_type: "native prairie", acres: 22, restoration_status: "in_progress", status: "active", commons_id: "COMMONS-002"
+
+  fixture "HarvestAllocation", allocation_id: "HARVEST-001", season: "summer", total_yield_lbs: 8500, status: "distributed", source_plot_id: "PLOT-001"
+  fixture "HarvestAllocation", allocation_id: "HARVEST-002", season: "fall", total_yield_lbs: 12300, status: "allocated", source_plot_id: "PLOT-002"
+
+  fixture "BiodiversitySurvey", survey_id: "SURVEY-001", survey_date: "2025-04-10", overall_health: "thriving", zone_id: "ZONE-001", adjacent_plot_id: "PLOT-001"
+  fixture "BiodiversitySurvey", survey_id: "SURVEY-002", survey_date: "2025-04-15", overall_health: "recovering", zone_id: "ZONE-002", adjacent_plot_id: "PLOT-002"
+
+  fixture "CommunityMember", member_id: "MEM-COMMONS-001", name: "David Foster", role_type: "steward", status: "active", commons_id: "COMMONS-001"
+  fixture "CommunityMember", member_id: "MEM-COMMONS-002", name: "Lisa Chen", role_type: "ecologist", status: "active", commons_id: "COMMONS-002"
 end

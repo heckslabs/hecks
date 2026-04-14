@@ -200,4 +200,19 @@ Hecks.bluebook "RecordLabel" do
     on "StatementApproved"
     trigger "DisbursePayment"
   end
+
+  fixture "RecordingArtist", name: "The Midnight Echoes", genre: "indie rock", contract_status: "active", album_count: 2
+  fixture "RecordingArtist", name: "Luna Rising", genre: "electronic", contract_status: "active", album_count: 3
+
+  fixture "Album", title: "Neon Horizons", status: "released", release_date: "2025-06-15", track_count: 12, recording_artist_id: "artist_1"
+  fixture "Album", title: "Digital Dreams", status: "mastered", release_date: "2025-11-20", track_count: 10, recording_artist_id: "artist_2"
+
+  fixture "Track", title: "Starlight", duration_seconds: 245, track_number: 1, status: "mixed", album_id: "album_1"
+  fixture "Track", title: "Echo Chamber", duration_seconds: 312, track_number: 5, status: "recorded", album_id: "album_1"
+
+  fixture "RoyaltyStatement", period: "2025-Q2", gross_revenue: 15000.50, artist_share: 4500.15, label_share: 10500.35, status: "paid", recording_artist_id: "artist_1"
+  fixture "RoyaltyStatement", period: "2025-Q3", gross_revenue: 22500.75, artist_share: 6750.23, label_share: 15750.52, status: "approved", recording_artist_id: "artist_2"
+
+  fixture "Distribution", channel: "Spotify", format: "streaming", territory: "US", status: "live", album_id: "album_1"
+  fixture "Distribution", channel: "Apple Music", format: "streaming", territory: "EU", status: "pending", album_id: "album_2"
 end

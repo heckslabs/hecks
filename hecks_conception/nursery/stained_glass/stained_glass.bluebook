@@ -193,4 +193,19 @@ Hecks.bluebook "StainedGlass" do
     on "InstallationScheduled"
     trigger "CompleteInstallation"
   end
+
+  fixture "Panel", title: "Rose Window", width_inches: 36.0, height_inches: 36.0, status: "cartooned", piece_count: 28, reference_to: "GlassDesign_1"
+  fixture "Panel", title: "Garden Gateway", width_inches: 24.0, height_inches: 48.0, status: "cartooned", piece_count: 45, reference_to: "GlassDesign_2"
+
+  fixture "GlassDesign", title: "Rose Window", style: "Victorian", client_name: "St. Catherine's Church", status: "sketched"
+  fixture "GlassDesign", title: "Garden Gateway", style: "Art Nouveau", client_name: "Margaret Cooper", status: "sketched"
+
+  fixture "GlassInventory", color: "Cranberry Red", texture: "Ripple", manufacturer: "Bullseye Glass", square_feet: 85.0, category: "Transparent"
+  fixture "GlassInventory", color: "Pale Amber", texture: "Smooth", manufacturer: "Oceanside Glasstile", square_feet: 120.0, category: "Translucent"
+
+  fixture "Leadwork", came_profile: "H-Channel", came_width_mm: 6.35, solder_type: "Lead-Free", status: "prepared", reference_to: "Panel_1"
+  fixture "Leadwork", came_profile: "Zinc Channel", came_width_mm: 7.0, solder_type: "Traditional", status: "prepared", reference_to: "Panel_2"
+
+  fixture "GlassInstallation", location: "Cathedral Window, North Transept", date: "2026-05-10", installer_name: "James Patterson", status: "scheduled", reference_to: "Panel_1"
+  fixture "GlassInstallation", location: "Residential Garden Room", date: "2026-05-18", installer_name: "Victoria Watts", status: "scheduled", reference_to: "Panel_2"
 end

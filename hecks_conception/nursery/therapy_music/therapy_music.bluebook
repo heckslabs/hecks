@@ -142,4 +142,16 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
     on "ExerciseCompleted"
     trigger "LogSession"
   end
+
+  fixture "RehabExercise", exercise_id: "ex001", patient_name: "David Kim", exercise_name: "Shoulder Flexion Series", target_bpm: 90, duration_seconds: 1800, status: "prescribed"
+  fixture "RehabExercise", exercise_id: "ex002", patient_name: "Rachel Foster", exercise_name: "Gait Training Protocol", target_bpm: 100, duration_seconds: 2400, status: "prescribed"
+
+  fixture "Playlist", playlist_id: "pl001", name: "Steady Cardio 90 BPM", target_bpm: 90, genre: "electronic_dance", status: "active"
+  fixture "Playlist", playlist_id: "pl002", name: "Motivational March 100 BPM", target_bpm: 100, genre: "pop_upbeat", status: "active"
+
+  fixture "TempoMatch", match_id: "tm001", exercise_id: "ex001", playlist_id: "pl001", bpm_deviation: 0.5, status: "matched"
+  fixture "TempoMatch", match_id: "tm002", exercise_id: "ex002", playlist_id: "pl002", bpm_deviation: 1.2, status: "matched"
+
+  fixture "SessionLog", log_id: "sl001", patient_name: "David Kim", exercise_id: "ex001", playlist_id: "pl001", adherence_pct: 0.92, mood_after: "energized"
+  fixture "SessionLog", log_id: "sl002", patient_name: "Rachel Foster", exercise_id: "ex002", playlist_id: "pl002", adherence_pct: 0.88, mood_after: "motivated"
 end

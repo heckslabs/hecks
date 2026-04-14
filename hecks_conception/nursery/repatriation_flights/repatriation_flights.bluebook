@@ -43,6 +43,9 @@ Hecks.bluebook "RepatriationFlights" do
       reference_to ResettlementCase
       given("must have family members") { family_members.size > 0 }
     end
+
+    fixture "ResettlementCase", case_number: "RC-2024-001", origin_country: "Syria", destination_country: "Canada", status: "registered"
+    fixture "ResettlementCase", case_number: "RC-2024-002", origin_country: "Afghanistan", destination_country: "USA", status: "registered"
   end
 
   aggregate "CargoManifest" do
@@ -86,6 +89,9 @@ Hecks.bluebook "RepatriationFlights" do
       reference_to CargoManifest
       given("must have items") { items.size > 0 }
     end
+
+    fixture "CargoManifest", manifest_number: "CM-2024-001", aircraft_id: "AC-747-01", total_weight_kg: 8500.0, status: "loading"
+    fixture "CargoManifest", manifest_number: "CM-2024-002", aircraft_id: "AC-777-02", total_weight_kg: 12000.0, status: "loading"
   end
 
   aggregate "FlightPlan" do
@@ -131,6 +137,9 @@ Hecks.bluebook "RepatriationFlights" do
       reference_to FlightPlan
       given("must have legs") { legs.size > 0 }
     end
+
+    fixture "FlightPlan", flight_number: "RF-2024-001", departure_date: "2024-04-15", status: "planned"
+    fixture "FlightPlan", flight_number: "RF-2024-002", departure_date: "2024-04-22", status: "planned"
   end
 
   aggregate "ReceptionCenter" do
@@ -164,6 +173,9 @@ Hecks.bluebook "RepatriationFlights" do
       given("max 20 services") { services.size < 20 }
       then_set :services, append: { service_type: :service_type, provider: :provider }
     end
+
+    fixture "ReceptionCenter", center_name: "Toronto Welcome Center", location: "Toronto, ON", capacity: 500, status: "operational"
+    fixture "ReceptionCenter", center_name: "Buffalo Reception Hub", location: "Buffalo, NY", capacity: 400, status: "operational"
   end
 
   policy "CaseApprovedTriggersFlight" do

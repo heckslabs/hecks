@@ -30,6 +30,9 @@ Hecks.bluebook "Robotics" do
       emits "RobotRetired"
       reference_to Robot
     end
+
+    fixture "Robot", robot_id: "ROB-001", name: "Atlas-5", platform_type: "humanoid", firmware_version: "2.3.1", battery_capacity_wh: 18000.0
+    fixture "Robot", robot_id: "ROB-002", name: "Spot-7", platform_type: "quadruped", firmware_version: "3.1.0", battery_capacity_wh: 12000.0
   end
 
   aggregate "Sensor" do
@@ -67,6 +70,9 @@ Hecks.bluebook "Robotics" do
       emits "SensorReplaced"
       reference_to Sensor
     end
+
+    fixture "Sensor", sensor_id: "SENS-001", sensor_type: "lidar", model: "Ouster OS0-64", sampling_rate_hz: 10.0, range_max: 120.0
+    fixture "Sensor", sensor_id: "SENS-002", sensor_type: "camera", model: "Intel D455", sampling_rate_hz: 30.0, range_max: 6.0
   end
 
   aggregate "Actuator" do
@@ -100,6 +106,9 @@ Hecks.bluebook "Robotics" do
       reference_to Actuator
       given "fault condition must be detected"
     end
+
+    fixture "Actuator", actuator_id: "ACT-001", actuator_type: "brushless_motor", max_torque_nm: 85.0, max_speed_rpm: 300.0
+    fixture "Actuator", actuator_id: "ACT-002", actuator_type: "servo_motor", max_torque_nm: 45.0, max_speed_rpm: 180.0
   end
 
   aggregate "Mission" do
@@ -139,6 +148,9 @@ Hecks.bluebook "Robotics" do
       reference_to Mission
       String :abort_reason
     end
+
+    fixture "Mission", mission_id: "MIS-001", objective: "perimeter_surveillance", start_time: "2024-04-15T08:00:00", end_time: "2024-04-15T09:30:00", status: "planned"
+    fixture "Mission", mission_id: "MIS-002", objective: "object_detection", start_time: "2024-04-15T10:00:00", end_time: "2024-04-15T11:00:00", status: "planned"
   end
 
   aggregate "TelemetryStream" do
@@ -169,6 +181,9 @@ Hecks.bluebook "Robotics" do
       reference_to TelemetryStream
       given "stream must have at least one minute of data"
     end
+
+    fixture "TelemetryStream", stream_id: "TEL-001", data_type: "imu_accelerometer", frequency_hz: 100.0, encoding: "protobuf"
+    fixture "TelemetryStream", stream_id: "TEL-002", data_type: "gps_position", frequency_hz: 10.0, encoding: "json"
   end
 
   aggregate "MissionReport" do
@@ -185,6 +200,9 @@ Hecks.bluebook "Robotics" do
       reference_to Mission
       String :summary
     end
+
+    fixture "MissionReport", report_id: "REP-001", summary: "Successfully completed perimeter scan, 3 anomalies detected", status: "completed", completion_date: "2024-04-15"
+    fixture "MissionReport", report_id: "REP-002", summary: "Object detection identified 12 targets, 98.5% confidence", status: "completed", completion_date: "2024-04-15"
   end
 
   lifecycle "MissionLifecycle" do

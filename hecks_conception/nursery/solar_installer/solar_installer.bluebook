@@ -212,4 +212,19 @@ Hecks.bluebook "SolarInstaller" do
     on "InstallationCompleted"
     trigger "ScheduleInspection"
   end
+
+  fixture "SiteSurvey", customer_name: "Lisa Wong", address: "456 Oak Avenue, Denver CO 80202", roof_sqft: 2400.0, roof_orientation: "South", annual_kwh_usage: 12000.0, shading_analysis: "Minimal shade, ideal conditions"
+  fixture "SiteSurvey", customer_name: "Tom Green", address: "789 Pine Road, Boulder CO 80301", roof_sqft: 1800.0, roof_orientation: "Southwest", annual_kwh_usage: 9500.0, shading_analysis: "Morning shade from adjacent oak tree"
+
+  fixture "PanelLayout", panel_count: 20, module_model: "Canadian Solar CS6K-300M", system_kw: 6.0, tilt_degrees: 35.0, string_config: "2 strings x 10", reference_to: "SiteSurvey_1"
+  fixture "PanelLayout", panel_count: 15, module_model: "Sunpower SPR-X21-345", system_kw: 5.175, tilt_degrees: 32.0, string_config: "3 strings x 5", reference_to: "SiteSurvey_2"
+
+  fixture "SolarPermit", permit_number: "PERMIT-2026-5432", jurisdiction: "Denver Building Department", status: "submitted", plan_set_version: "Rev 2", reference_to: "PanelLayout_1"
+  fixture "SolarPermit", permit_number: "PERMIT-2026-5433", jurisdiction: "Boulder County", status: "submitted", plan_set_version: "Rev 1", reference_to: "PanelLayout_2"
+
+  fixture "SolarInstallation", crew_lead: "Marcus Johnson", install_date: "2026-05-15", inverter_model: "SMA Sunny Boy 6.0-US", status: "scheduled", reference_to: "PanelLayout_1"
+  fixture "SolarInstallation", crew_lead: "Patricia Lee", install_date: "2026-05-22", inverter_model: "Fronius Primo 5.0-1", status: "scheduled", reference_to: "PanelLayout_2"
+
+  fixture "FinalInspection", inspector_name: "David Martinez", result: "Pending", notes: "", inspection_type: "Electrical Final", reference_to: "SolarInstallation_1"
+  fixture "FinalInspection", inspector_name: "Elena Vasquez", result: "Pending", notes: "", inspection_type: "Structural Final", reference_to: "SolarInstallation_2"
 end

@@ -259,4 +259,19 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
     on "PlanUpgraded"
     trigger "ToggleForTenant"
   end
+
+  fixture "Tenant", tenant_name: "Acme Corp", slug: "acme-corp", admin_email: "admin@acme.com", plan: "pro", status: "active"
+  fixture "Tenant", tenant_name: "Beta Startup", slug: "beta-startup", admin_email: "ceo@beta.com", plan: "starter", status: "active"
+
+  fixture "Subscription", subscription_id: "sub-001", plan_name: "pro", monthly_rate: 299.0, billing_cycle: "monthly", status: "active"
+  fixture "Subscription", subscription_id: "sub-002", plan_name: "starter", monthly_rate: 99.0, billing_cycle: "annual", status: "active"
+
+  fixture "FeatureFlag", flag_name: "dark_mode", description: "Enable dark theme UI", rollout_strategy: "gradual", rollout_percentage: 50, status: "active"
+  fixture "FeatureFlag", flag_name: "api_v2", description: "New API endpoint set", rollout_strategy: "canary", rollout_percentage: 10, status: "active"
+
+  fixture "UsageMeter", meter_name: "api_calls", unit: "requests", current_count: 45000, quota: 100000, period: "monthly"
+  fixture "UsageMeter", meter_name: "storage", unit: "gb", current_count: 450, quota: 1000, period: "monthly"
+
+  fixture "BillingEvent", event_id: "evt-001", event_type: "charge", amount: 99.0, description: "Monthly subscription", status: "settled"
+  fixture "BillingEvent", event_id: "evt-002", event_type: "credit", amount: 25.0, description: "Promo credit", status: "applied"
 end

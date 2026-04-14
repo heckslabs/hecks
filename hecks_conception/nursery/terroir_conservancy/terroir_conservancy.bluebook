@@ -292,4 +292,22 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     on "DiversityAssessed"
     trigger "AmendProtection"
   end
+
+  fixture "ProtectedTerroir", terroir_id: "t001", name: "Bourgogne Pinot Noir", region: "Burgundy, France", designation_type: "AOC", total_hectares: 1500, status: "protected"
+  fixture "ProtectedTerroir", terroir_id: "t002", name: "Asturian Cider Valley", region: "Asturias, Spain", designation_type: "DOP", total_hectares: 800, status: "protected"
+
+  fixture "SoilProfile", profile_id: "sp001", soil_type: "clay_limestone", ph_level: 6.8, mineral_composition: "chalk_calcite_iron_oxide", microbiome_diversity: "high"
+  fixture "SoilProfile", profile_id: "sp002", soil_type: "slate_schist", ph_level: 5.9, mineral_composition: "quartz_slate_feldspar", microbiome_diversity: "moderate"
+
+  fixture "CraftProducer", producer_id: "cp001", name: "Domaine de la Romanée", craft_type: "wine", certification_status: "certified", status: "active"
+  fixture "CraftProducer", producer_id: "cp002", name: "La Sidra del Rey", craft_type: "cider", certification_status: "certified", status: "active"
+
+  fixture "SpeciesSurvey", survey_id: "ss001", survey_date: "2026-04-10", season: "spring", overall_diversity: "high"
+  fixture "SpeciesSurvey", survey_id: "ss002", survey_date: "2026-04-08", season: "spring", overall_diversity: "moderate"
+
+  fixture "VisitorExperience", experience_id: "ve001", experience_type: "wine_tasting_walk", capacity: 12, status: "available"
+  fixture "VisitorExperience", experience_id: "ve002", experience_type: "foraging_ecology_tour", capacity: 8, status: "available"
+
+  fixture "FlavorProfile", profile_id: "fp001", vintage_season: "2023_autumn", overall_character: "complex_minerality"
+  fixture "FlavorProfile", profile_id: "fp002", vintage_season: "2024_summer", overall_character: "bright_apple_caramel"
 end

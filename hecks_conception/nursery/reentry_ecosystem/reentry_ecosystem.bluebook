@@ -300,4 +300,22 @@ Hecks.bluebook "ReentryEcosystem", version: "2026.04.13.1" do
     on "LegalMatterResolved"
     trigger "RecordMilestone"
   end
+
+  fixture "ReentryCase", case_id: "CASE-2025-001", participant_name: "Thomas Jackson", reentry_date: "2025-03-15", background_type: "incarceration", risk_level: "medium", status: "active"
+  fixture "ReentryCase", case_id: "CASE-2025-002", participant_name: "Angela Rodriguez", reentry_date: "2025-02-10", background_type: "incarceration", risk_level: "low", status: "active"
+
+  fixture "EducationTrack", track_id: "EDU-2025-001", status: "enrolled", track_type: "GED", institution: "Central Community College", case_id: "CASE-2025-001"
+  fixture "EducationTrack", track_id: "EDU-2025-002", status: "graduated", track_type: "vocational", institution: "Tech Institute", case_id: "CASE-2025-002"
+
+  fixture "HousingMatch", match_id: "HSG-2025-001", housing_type: "transitional", address: "1847 Hope Street, Apt 5B", landlord_name: "Mary Chen", status: "placed", case_id: "CASE-2025-001"
+  fixture "HousingMatch", match_id: "HSG-2025-002", housing_type: "permanent", address: "2401 New Life Ave", landlord_name: "Community Housing Corp", status: "placed", case_id: "CASE-2025-002"
+
+  fixture "EmploymentBridge", bridge_id: "EMP-2025-001", employer_name: "Urban Builders Inc", job_title: "Construction Laborer", start_date: "2025-04-01", status: "employed", case_id: "CASE-2025-001"
+  fixture "EmploymentBridge", bridge_id: "EMP-2025-002", employer_name: "Tech Apprentice Program", job_title: "IT Support Assistant", start_date: "2025-03-20", status: "employed", case_id: "CASE-2025-002"
+
+  fixture "LegalSupport", support_id: "LEG-2025-001", legal_need: "record expungement", attorney_name: "Sarah Goldstein", status: "active", case_id: "CASE-2025-001"
+  fixture "LegalSupport", support_id: "LEG-2025-002", legal_need: "license restoration", attorney_name: "James Morrison", status: "resolved", case_id: "CASE-2025-002"
+
+  fixture "MilestoneTracker", overall_progress: "advancing", case_id: "CASE-2025-001"
+  fixture "MilestoneTracker", overall_progress: "stable", case_id: "CASE-2025-002"
 end

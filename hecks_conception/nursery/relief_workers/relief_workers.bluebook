@@ -33,6 +33,9 @@ Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
       emits "IncidentClosed"
       then_set :status, to: "closed"
     end
+
+    fixture "Incident", disaster_type: "earthquake", location_name: "Port-au-Prince", severity: "critical", workers_needed: 25, status: "active"
+    fixture "Incident", disaster_type: "flood", location_name: "Lagos", severity: "high", workers_needed: 15, status: "active"
   end
 
   aggregate "Volunteer", "A registered relief volunteer with skills and availability" do
@@ -66,6 +69,9 @@ Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
       emits "VolunteerMatched"
       then_set :status, to: "matched"
     end
+
+    fixture "Volunteer", volunteer_id: "vol-001", name: "Maria Santos", availability: "full-time", status: "available"
+    fixture "Volunteer", volunteer_id: "vol-002", name: "James Chen", availability: "weekends", status: "available"
   end
 
   aggregate "Deployment", "A volunteer deployed to a disaster incident" do
@@ -99,6 +105,9 @@ Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
       emits "VolunteerRecalled"
       then_set :status, to: "recalled"
     end
+
+    fixture "Deployment", deployment_id: "dep-001", volunteer_id: "vol-001", incident_id: "inc-2024-001", role_assigned: "field_medic", start_date: "2024-03-15", status: "deployed"
+    fixture "Deployment", deployment_id: "dep-002", volunteer_id: "vol-002", incident_id: "inc-2024-001", role_assigned: "logistics", start_date: "2024-03-15", status: "deployed"
   end
 
   aggregate "FieldReport", "A field report submitted by a deployed relief worker" do
@@ -122,6 +131,9 @@ Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
       then_set :people_assisted, to: :people_assisted
       then_set :needs_summary, to: :needs_summary
     end
+
+    fixture "FieldReport", report_id: "rep-001", deployment_id: "dep-001", conditions: "contaminated water, limited shelter", people_assisted: 342, needs_summary: "urgent food and medical supplies"
+    fixture "FieldReport", report_id: "rep-002", deployment_id: "dep-002", conditions: "heavy rain, blocked roads", people_assisted: 156, needs_summary: "portable generators and tarps"
   end
 
   policy "MatchOnDeclare" do

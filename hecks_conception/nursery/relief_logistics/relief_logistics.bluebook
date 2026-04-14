@@ -155,4 +155,16 @@ Hecks.bluebook "ReliefLogistics", version: "2026.04.13.1" do
     on "ClearanceGranted"
     trigger "PlanDistribution"
   end
+
+  fixture "SupplyRequest", request_id: "REQ-2025-001", disaster_type: "hurricane", location_name: "Port City, Gulf Region", urgency: "critical", status: "approved"
+  fixture "SupplyRequest", request_id: "REQ-2025-002", disaster_type: "earthquake", location_name: "Mountain Valley Community", urgency: "high", status: "submitted"
+
+  fixture "ShippingContainer", container_id: "CONT-2025-001", request_id: "REQ-2025-001", origin_port: "New Orleans", dest_port: "Puerto Galera", weight_tons: 22.5, status: "received"
+  fixture "ShippingContainer", container_id: "CONT-2025-002", request_id: "REQ-2025-002", origin_port: "Los Angeles", dest_port: "Guayaquil", weight_tons: 18.0, status: "in_transit"
+
+  fixture "CustomsClearance", clearance_id: "CLEAR-2025-001", container_id: "CONT-2025-001", country: "Philippines", documentation_status: "complete", status: "cleared"
+  fixture "CustomsClearance", clearance_id: "CLEAR-2025-002", container_id: "CONT-2025-002", country: "Ecuador", documentation_status: "pending", status: "filed"
+
+  fixture "FieldDistribution", distribution_id: "DIST-2025-001", container_id: "CONT-2025-001", site_name: "Port City Emergency Shelter", beneficiaries: 450, status: "executed"
+  fixture "FieldDistribution", distribution_id: "DIST-2025-002", container_id: "CONT-2025-002", site_name: "Mountain Valley Relief Hub", beneficiaries: 0, status: "planned"
 end
