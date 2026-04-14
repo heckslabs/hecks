@@ -53,4 +53,13 @@ Hecks.bluebook "DeclarativeTraining", version: "2026.04.13.1" do
     on "PairExtracted"
     trigger "EmitTrainingSet"
   end
+
+  fixture "Corpus", source_path: "/nursery/daycare_center/daycare_center.bluebook", domain_count: 1, aggregate_count: 5, command_count: 13, policy_count: 7
+  fixture "Corpus", source_path: "/nursery/disaster_relief/disaster_relief.bluebook", domain_count: 1, aggregate_count: 6, command_count: 18, policy_count: 9
+
+  fixture "TrainingPair", domain_name: "DaycareCenter", vision: "Manage enrolled children, guardians, daily schedules, meal plans, and incident reports", category: "childcare", structure: "{aggregates: [Child, Guardian, DailyAttendance, MealPlan, IncidentReport]}", complexity: 5
+  fixture "TrainingPair", domain_name: "DisasterRelief", vision: "Emergency response coordination — incidents, shelters, volunteer deployment, supply logistics, and evacuations", category: "emergency", structure: "{aggregates: [Incident, Shelter, ReliefVolunteer, ReliefSupply, Evacuation]}", complexity: 6
+
+  fixture "TrainingSet", output_path: "/training/pairs_2026_04_14.jsonl", pair_count: 247, format: "jsonl"
+  fixture "TrainingSet", output_path: "/training/pairs_2026_04_13.jsonl", pair_count: 189, format: "jsonl"
 end

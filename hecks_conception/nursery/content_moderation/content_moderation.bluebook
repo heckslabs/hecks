@@ -261,4 +261,19 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
     on "ReportPrioritized"
     trigger "AssignReview"
   end
+
+  fixture "Post", post_id: "POST-2026-0847", author_id: "USR-402", content_type: "text", body: "Check out this amazing new recipe I found!", language: "en", status: "pending", tags: []
+  fixture "Post", post_id: "POST-2026-0851", author_id: "USR-518", content_type: "image", body: "Sunday hiking adventure at Crater Lake", language: "en", status: "pending", tags: [{ label: "nature", confidence: 0.95, source: "vision_model" }]
+
+  fixture "Report", report_id: "RPT-2026-1234", reporter_id: "USR-201", reason_category: "spam", description: "Repetitive commercial spam posts", status: "open"
+  fixture "Report", report_id: "RPT-2026-1235", reporter_id: "USR-305", reason_category: "harassment", description: "User targeted with abusive comments", status: "open"
+
+  fixture "ModerationReview", review_id: "REV-2026-5501", reviewer_id: "MOD-089", queue_name: "policy_violations", verdict: "", status: "in_progress", notes: []
+  fixture "ModerationReview", review_id: "REV-2026-5502", reviewer_id: "MOD-102", queue_name: "harmful_content", verdict: "", status: "in_progress", notes: [{ note: "Checking context and previous history", policy_reference: "H.1.2", recorded_at: "2026-04-14T09:30:00Z" }]
+
+  fixture "EnforcementAction", action_id: "ACT-2026-3345", action_type: "content_removal", target_id: "POST-2026-0847", reason: "Policy violation: Spam", duration_days: 0, status: "active"
+  fixture "EnforcementAction", action_id: "ACT-2026-3346", action_type: "account_suspension", target_id: "USR-518", reason: "Repeat harassment violations", duration_days: 30, status: "active"
+
+  fixture "Appeal", appeal_id: "APP-2026-0891", appellant_id: "USR-402", grounds: "Content was removed in error, no policy violation", status: "under_review"
+  fixture "Appeal", appeal_id: "APP-2026-0892", appellant_id: "USR-518", grounds: "Suspension too harsh, willing to complete education program", status: "under_review"
 end

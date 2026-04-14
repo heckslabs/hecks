@@ -130,4 +130,16 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
     on "LeadCaptured"
     trigger "ConvertLead"
   end
+
+  fixture "BloodInventory", center_id: "BC-Seattle", blood_type: "O-", units_available: 22, min_threshold: 15, status: "tracked"
+  fixture "BloodInventory", center_id: "BC-Portland", blood_type: "A+", units_available: 8, min_threshold: 12, status: "tracked"
+
+  fixture "RecruitmentCampaign", campaign_id: "CAMP-O-NEG-Q2", target_blood_type: "O-", platform: "google_ads", budget: 5000.0, target_donors: 85, status: "active"
+  fixture "RecruitmentCampaign", campaign_id: "CAMP-AB-PLUS-Q1", target_blood_type: "AB+", platform: "facebook_instagram", budget: 2500.0, target_donors: 45, status: "paused"
+
+  fixture "DonorLead", lead_id: "LEAD-4521", name: "Marcus Johnson", blood_type: "O-", source_campaign: "CAMP-O-NEG-Q2", status: "captured"
+  fixture "DonorLead", lead_id: "LEAD-4522", name: "Sarah Chen", blood_type: "A+", source_campaign: "CAMP-O-NEG-Q2", status: "converted"
+
+  fixture "DonorConversion", conversion_id: "CONV-891", lead_id: "LEAD-4522", campaign_id: "CAMP-O-NEG-Q2", donation_date: "2026-04-12", status: "completed"
+  fixture "DonorConversion", conversion_id: "CONV-892", lead_id: "LEAD-4521", campaign_id: "CAMP-AB-PLUS-Q1", donation_date: "2026-04-13", status: "completed"
 end

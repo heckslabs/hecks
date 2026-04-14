@@ -184,4 +184,16 @@ Hecks.bluebook "Acoustics" do
     on "MeasurementsCompared"
     trigger "EvaluateTreatment"
   end
+
+  fixture "Room", room_id: "rm_001", name: "Studio A", room_type: "recording_studio", length_m: 6.5, width_m: 4.2, height_m: 3.0, volume_m3: 81.9
+  fixture "Room", room_id: "rm_002", name: "Auditorium East", room_type: "performance_hall", length_m: 25.0, width_m: 18.5, height_m: 12.0, volume_m3: 5550.0
+
+  fixture "AcousticMeasurement", measurement_id: "m_001", measurement_type: "impulse_response", timestamp: "2026-04-14T10:30:00Z", spl_db: 82.5, rt60_seconds: 1.2, room_id: "rm_001"
+  fixture "AcousticMeasurement", measurement_id: "m_002", measurement_type: "spl_meter", timestamp: "2026-04-14T11:15:00Z", spl_db: 74.3, rt60_seconds: 0.8, room_id: "rm_002"
+
+  fixture "AcousticMaterial", name: "Acoustic Foam Panel", material_type: "polyurethane_foam", nrc_rating: 0.85, thickness_mm: 50.0
+  fixture "AcousticMaterial", name: "Rockwool Batt", material_type: "mineral_fiber", nrc_rating: 0.90, thickness_mm: 75.0
+
+  fixture "TreatmentPlan", plan_name: "Studio A Echo Reduction", objective: "reduce_flutter_echo", target_rt60: 0.6, room_id: "rm_001"
+  fixture "TreatmentPlan", plan_name: "Auditorium RT60 Optimization", objective: "optimize_speech_intelligibility", target_rt60: 1.5, room_id: "rm_002"
 end

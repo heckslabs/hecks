@@ -180,4 +180,16 @@ Hecks.bluebook "Astronomy" do
     on "BodyRegistered"
     trigger "ActivateTelescope"
   end
+
+  fixture "CelestialBody", designation: "M31", body_type: "galaxy", right_ascension: 0.713, declination: 41.27, apparent_magnitude: 3.4
+  fixture "CelestialBody", designation: "Betelgeuse", body_type: "star", right_ascension: 5.919, declination: 7.407, apparent_magnitude: 0.5
+
+  fixture "Observation", observer_name: "Dr. Alice Okonkwo", timestamp: "2026-04-12T22:30:00Z", seeing_conditions: "fair", measured_magnitude: 3.42
+  fixture "Observation", observer_name: "Dr. Michael Torres", timestamp: "2026-04-13T23:15:00Z", seeing_conditions: "excellent", measured_magnitude: 0.48
+
+  fixture "Telescope", name: "Dobsonian 12in", aperture_mm: 305.0, focal_length_mm: 1500.0, mount_type: "alt_azimuth"
+  fixture "Telescope", name: "Refractor 80mm", aperture_mm: 80.0, focal_length_mm: 900.0, mount_type: "equatorial"
+
+  fixture "Catalog", name: "Messier Catalog", authority: "Charles Messier", entry_count: 110
+  fixture "Catalog", name: "New General Catalog", authority: "J.L.E. Dreyer", entry_count: 7840
 end

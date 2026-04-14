@@ -230,4 +230,19 @@ Hecks.bluebook "ArtisanMetalworks" do
     map alloy_id: :alloy_id, volume_kg: :replacement_volume
     condition { |event| event.severity == "critical" }
   end
+
+  fixture "Alloy", name: "SculptureSteel-42", carbon_content: 0.42, hardness: 52.0, finish_quality: "mirror_polish"
+  fixture "Alloy", name: "ArtisanBronze-Cu88", carbon_content: 0.08, hardness: 48.5, finish_quality: "patina"
+
+  fixture "SmeltBatch", temperature: 1520.0, volume_kg: 250.0, status: "cooling", quality_grade: "premium"
+  fixture "SmeltBatch", temperature: 1450.0, volume_kg: 180.0, status: "poured", quality_grade: "standard"
+
+  fixture "JewelryDesign", title: "Constellation Pendant", style: "contemporary", status: "approved"
+  fixture "JewelryDesign", title: "Victorian Brooch Revival", style: "vintage", status: "sketch"
+
+  fixture "CastingOrder", quantity: 12, status: "completed"
+  fixture "CastingOrder", quantity: 8, status: "pending"
+
+  fixture "Showcase", name: "Spring Metalworks Collection 2026", venue: "Riverside Gallery", status: "open"
+  fixture "Showcase", name: "Sculptural Dimensions Exhibition", venue: "Modern Art Center", status: "planning"
 end

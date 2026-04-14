@@ -266,4 +266,20 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     on "AlertRaised"
     trigger "RollbackDeployment"
   end
+
+  # Fixtures
+  fixture "Instance", instance_id: "i-prod-001", region: "us-west-2", machine_type: "t3.large", vcpus: 2, memory_gb: 8, image_id: "ami-0123456789abcdef0", status: "running"
+  fixture "Instance", instance_id: "i-staging-001", region: "us-east-1", machine_type: "t3.medium", vcpus: 1, memory_gb: 4, image_id: "ami-0123456789abcdef0", status: "running"
+
+  fixture "Deployment", deploy_id: "deploy-v2.1.0", artifact_url: "s3://artifacts/app-v2.1.0.tar.gz", version_tag: "v2.1.0", strategy: "blue_green", status: "active"
+  fixture "Deployment", deploy_id: "deploy-v2.0.9", artifact_url: "s3://artifacts/app-v2.0.9.tar.gz", version_tag: "v2.0.9", strategy: "rolling", status: "finalized"
+
+  fixture "ScalingRule", rule_name: "cpu_scaling_prod", metric_name: "cpu_utilization", threshold: 75.0, min_instances: 2, max_instances: 10, cooldown_seconds: 300, status: "active"
+  fixture "ScalingRule", rule_name: "memory_scaling_staging", metric_name: "memory_utilization", threshold: 80.0, min_instances: 1, max_instances: 5, cooldown_seconds: 600, status: "active"
+
+  fixture "Tenant", tenant_name: "TechCorp Inc", billing_email: "billing@techcorp.com", plan_tier: "enterprise", balance: 5000.00, status: "active"
+  fixture "Tenant", tenant_name: "StartupXYZ", billing_email: "finance@startupxyz.io", plan_tier: "basic", balance: 250.00, status: "active"
+
+  fixture "Alert", alert_id: "alert-2026-001", severity: "high", message: "CPU utilization exceeded 90%", source_metric: "cpu_utilization", status: "acknowledged"
+  fixture "Alert", alert_id: "alert-2026-002", severity: "medium", message: "Disk space below 10%", source_metric: "disk_usage", status: "raised"
 end

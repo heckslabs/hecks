@@ -270,4 +270,20 @@ Hecks.bluebook "CommunityGarden" do
     on "HarvestLogged"
     trigger "ReturnTool"
   end
+
+  # Fixtures
+  fixture "Plot", plot_number: "A-01", size: "100_sqft", soil_type: "loamy", sun_exposure: "full_sun", status: "available"
+  fixture "Plot", plot_number: "B-05", size: "75_sqft", soil_type: "sandy_loam", sun_exposure: "partial_shade", status: "assigned"
+
+  fixture "Gardener", name: "Lisa Thompson", email: "lisa@example.com", phone: "555-0101", experience_level: "intermediate", membership_date: "2025-03-15", status: "active"
+  fixture "Gardener", name: "Miguel Gonzalez", email: "miguel@example.com", phone: "555-0102", experience_level: "beginner", membership_date: "2026-01-10", status: "active"
+
+  fixture "ToolInventory", tool_name: "Garden Spade", condition: "excellent", quantity: 3, storage_location: "shed_A", status: "available"
+  fixture "ToolInventory", tool_name: "Hand Trowel", condition: "good", quantity: 8, storage_location: "shed_B", status: "available"
+
+  fixture "Harvest", gardener_name: "Lisa Thompson", plot_number: "A-01", crop_name: "Tomatoes", weight_pounds: 12.5, harvest_date: "2026-04-10", destination: "home"
+  fixture "Harvest", gardener_name: "Miguel Gonzalez", plot_number: "B-05", crop_name: "Lettuce", weight_pounds: 3.2, harvest_date: "2026-04-12", destination: "food_bank"
+
+  fixture "GardenEvent", event_name: "Spring Planting Day", event_date: "2026-04-20", event_type: "planting_workshop", organizer: "Lisa Thompson", expected_attendees: 15, status: "planned"
+  fixture "GardenEvent", event_name: "Harvest Festival", event_date: "2026-08-15", event_type: "celebration", organizer: "Miguel Gonzalez", expected_attendees: 50, status: "planned"
 end

@@ -266,4 +266,19 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
     on "BookCataloged"
     trigger "ScheduleSigning"
   end
+
+  fixture "Book", isbn: "978-0-06-112008-4", title: "To Kill a Mockingbird", author_name: "Harper Lee", genre: "Classic Fiction", price: 18.99, quantity_on_hand: 12, status: "in_stock"
+  fixture "Book", isbn: "978-0-7432-7356-5", title: "1984", author_name: "George Orwell", genre: "Dystopian", price: 16.99, quantity_on_hand: 3, status: "in_stock"
+
+  fixture "Author", name: "Harper Lee", biography: "Pulitzer Prize winner known for To Kill a Mockingbird, published in 1960"
+  fixture "Author", name: "George Orwell", biography: "English author and political critic, best known for 1984 and Animal Farm"
+
+  fixture "Shelf", section: "Fiction", label: "Classic Literature", capacity: 50, current_count: 25
+  fixture "Shelf", section: "Science Fiction", label: "Dystopian Futures", capacity: 40, current_count: 38
+
+  fixture "Order", order_number: "ORD-2026-04-001", customer_name: "Robert Thompson", total: 45.97, status: "placed"
+  fixture "Order", order_number: "ORD-2026-04-002", customer_name: "Lisa Anderson", total: 58.50, status: "fulfilled"
+
+  fixture "Return", return_id: "RET-2026-04-001", order_number: "ORD-2026-04-001", isbn: "978-0-06-112008-4", reason: "damaged pages", condition: "poor"
+  fixture "Return", return_id: "RET-2026-04-002", order_number: "ORD-2026-04-002", isbn: "978-0-7432-7356-5", reason: "changed mind", condition: "like new"
 end

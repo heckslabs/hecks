@@ -228,4 +228,17 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
     on "CollectionClosedOut"
     trigger "RetireGarment"
   end
+
+  # Fixtures
+  fixture "Garment", style_number: "CB-2024-001", name: "Black Wool Coat", designer: "Bella Milano", fabric: "100% wool", retail_price: 299.99, season: "winter", status: "in_stock"
+  fixture "Garment", style_number: "CB-2024-002", name: "Linen Blouse", designer: "Coastal Threads", fabric: "100% linen", retail_price: 89.50, season: "summer", status: "in_stock"
+
+  fixture "Display", display_name: "Spring Pastels", theme: "soft_colors", location: "front_window", status: "active"
+  fixture "Display", display_name: "Denim Showcase", theme: "casual_wear", location: "center_floor", status: "active"
+
+  fixture "Alteration", ticket_number: "ALT-001", style_number: "CB-2024-001", customer_name: "Sarah Chen", alteration_type: "hem", due_date: "2026-04-20", charge: 25.00, status: "pending"
+  fixture "Alteration", ticket_number: "ALT-002", style_number: "CB-2024-002", customer_name: "Marcus Johnson", alteration_type: "taper", due_date: "2026-04-18", charge: 35.00, status: "completed"
+
+  fixture "SeasonalCollection", season_name: "Spring 2026", year: "2026", theme: "floral_revival", status: "planned"
+  fixture "SeasonalCollection", season_name: "Summer 2026", year: "2026", theme: "bright_minimalism", status: "active"
 end

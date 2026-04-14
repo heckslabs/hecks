@@ -193,4 +193,16 @@ Hecks.bluebook "FabricToRunway" do
     trigger "DyeFabric"
     map fabric_id: :hero_fabric_id, color: :trending_color
   end
+
+  fixture "Fabric", name: "Silk charmeuse", fiber_type: "silk", weight_gsm: 95.0, status: "weaving"
+  fixture "Fabric", name: "Wool twill", fiber_type: "wool blend", weight_gsm: 240.0, status: "approved"
+
+  fixture "Collection", name: "Spring Elegance", season: "spring", status: "concept"
+  fixture "Collection", name: "Autumn Traditions", season: "autumn", status: "runway"
+
+  fixture "Pattern", garment_name: "Silk evening gown", size_range: "XS-XXL", status: "drafting"
+  fixture "Pattern", garment_name: "Wool coat", size_range: "XS-XL", status: "finalized"
+
+  fixture "RunwayShow", venue: "Metropolitan Fashion Hall", show_date: "2026-05-15", status: "planning"
+  fixture "RunwayShow", venue: "Rooftop Gallery Downtown", show_date: "2026-09-22", status: "executed"
 end

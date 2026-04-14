@@ -258,4 +258,19 @@ Hecks.bluebook "Chiropractic" do
     on "InsuranceClaimSubmitted"
     trigger "RecordPayment"
   end
+
+  fixture "Patient", name: "Alice Rodriguez", date_of_birth: "1982-03-15", chief_complaint: "lower back pain", insurance_id: "INS-445821-A", status: "intake"
+  fixture "Patient", name: "Robert Williams", date_of_birth: "1975-08-22", chief_complaint: "neck pain and headaches", insurance_id: "INS-662734-B", status: "active"
+
+  fixture "Adjustment", patient_name: "Alice Rodriguez", adjustment_date: "2026-04-10", technique: "Diversified", pain_before: 8, pain_after: 5, notes: "good patient response, scheduled follow-up"
+  fixture "Adjustment", patient_name: "Robert Williams", adjustment_date: "2026-04-11", technique: "Gonstead", pain_before: 7, pain_after: 3, notes: "significant improvement, continue weekly visits"
+
+  fixture "ImagingStudy", patient_name: "Alice Rodriguez", imaging_type: "X-ray", body_region: "lumbar spine", order_date: "2026-04-09", findings: "L4-L5 disc bulge with mild stenosis", status: "interpreted"
+  fixture "ImagingStudy", patient_name: "Robert Williams", imaging_type: "MRI", body_region: "cervical spine", order_date: "2026-04-08", findings: "moderate facet joint osteoarthritis C5-C6", status: "ordered"
+
+  fixture "TreatmentPlan", patient_name: "Alice Rodriguez", diagnosis: "Lumbar disc bulge with radiculopathy", planned_visits: 12, completed_visits: 3, frequency: "2x per week", status: "active"
+  fixture "TreatmentPlan", patient_name: "Robert Williams", diagnosis: "Cervical spondylosis with headaches", planned_visits: 8, completed_visits: 2, frequency: "1x per week", status: "active"
+
+  fixture "Invoice", patient_name: "Alice Rodriguez", service_date: "2026-04-10", total_amount: 125.00, insurance_claim_status: "submitted", payment_status: "paid"
+  fixture "Invoice", patient_name: "Robert Williams", service_date: "2026-04-11", total_amount: 110.00, insurance_claim_status: "pending", payment_status: "unpaid"
 end

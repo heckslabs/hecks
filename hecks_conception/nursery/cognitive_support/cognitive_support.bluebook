@@ -270,4 +270,17 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
     on "BreakEnded"
     trigger "ReturnFromBreak"
   end
+
+  # Fixtures
+  fixture "Agent", name: "Rebecca Walsh", skill_level: "expert", cognitive_load_pct: 45.0, fatigue_score: 2.5, shift_start: "2026-04-14 09:00:00", calls_handled: 12, status: "available"
+  fixture "Agent", name: "Kumar Patel", skill_level: "intermediate", cognitive_load_pct: 72.0, fatigue_score: 6.8, shift_start: "2026-04-14 08:00:00", calls_handled: 18, status: "on_call"
+
+  fixture "WorkloadMetric", metric_name: "peak_morning", queue_depth: 23, avg_handle_time_sec: 285.5, avg_wait_time_sec: 120.0, service_level_pct: 78.5, timestamp: "2026-04-14 10:30:00", status: "recorded"
+  fixture "WorkloadMetric", metric_name: "afternoon_calm", queue_depth: 8, avg_handle_time_sec: 210.0, avg_wait_time_sec: 45.0, service_level_pct: 92.0, timestamp: "2026-04-14 14:00:00", status: "recorded"
+
+  fixture "FatigueAssessment", agent_name: "Rebecca Walsh", reaction_time_ms: 385.0, error_rate_pct: 2.1, alertness_score: 8.2, assessment_time: "2026-04-14 11:15:00", status: "assessed"
+  fixture "FatigueAssessment", agent_name: "Kumar Patel", reaction_time_ms: 520.0, error_rate_pct: 5.8, alertness_score: 5.1, assessment_time: "2026-04-14 11:20:00", status: "recommended"
+
+  fixture "BreakSchedule", agent_name: "Rebecca Walsh", break_type: "micro", duration_minutes: 5, scheduled_time: "2026-04-14 12:00:00", status: "scheduled"
+  fixture "BreakSchedule", agent_name: "Kumar Patel", break_type: "standard", duration_minutes: 15, scheduled_time: "2026-04-14 12:30:00", status: "completed"
 end

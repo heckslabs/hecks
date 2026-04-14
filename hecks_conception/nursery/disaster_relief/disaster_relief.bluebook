@@ -273,4 +273,19 @@ Hecks.bluebook "DisasterRelief" do
     on "IncidentDeclared"
     trigger "RegisterVolunteer"
   end
+
+  fixture "Incident", incident_name: "Downtown Flood 2026", incident_type: "flood", declared_date: "2026-04-14", affected_area: "Downtown District, 2.5 sq miles", severity_level: "critical", status: "active"
+  fixture "Incident", incident_name: "Spring Tornado", incident_type: "tornado", declared_date: "2026-04-10", affected_area: "North County, residential zone", severity_level: "severe", status: "closed"
+
+  fixture "Shelter", shelter_name: "Central High School Gymnasium", address: "450 Main St", capacity: 500, current_occupancy: 287, status: "open"
+  fixture "Shelter", shelter_name: "Community Center East", address: "1200 Park Ave", capacity: 300, current_occupancy: 142, status: "closed"
+
+  fixture "ReliefVolunteer", name: "Michael Torres", skills: "first aid, logistics, Spanish fluent", phone: "555-0201", deployment_status: "deployed", assigned_location: "Central High School Gymnasium"
+  fixture "ReliefVolunteer", name: "Patricia Johnson", skills: "nurse, medical coordinator", phone: "555-0202", deployment_status: "available", assigned_location: ""
+
+  fixture "ReliefSupply", supply_name: "bottled water", category: "water", quantity: 5000, warehouse_location: "District Warehouse A", status: "in_stock"
+  fixture "ReliefSupply", supply_name: "emergency blankets", category: "bedding", quantity: 2000, warehouse_location: "District Warehouse B", status: "in_stock"
+
+  fixture "Evacuation", evacuation_zone: "Zone A: Riverside District", order_date: "2026-04-14", transport_method: "school buses", destination: "Central High School Gymnasium", people_evacuated: 1250, status: "completed"
+  fixture "Evacuation", evacuation_zone: "Zone B: Industrial Park", order_date: "2026-04-14", transport_method: "commercial trucks and personal vehicles", destination: "Community Center East", people_evacuated: 0, status: "ordered"
 end

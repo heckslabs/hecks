@@ -245,4 +245,19 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
     on "RenewalCanceled"
     trigger "SuspendDomain"
   end
+
+  fixture "DomainName", domain: "example", tld: "com", registrant_email: "owner@example.com", registered_at: "2026-01-15", expires_at: "2027-01-15", status: "active"
+  fixture "DomainName", domain: "mycompany", tld: "org", registrant_email: "admin@mycompany.org", registered_at: "2025-06-20", expires_at: "2026-06-20", status: "active"
+
+  fixture "Renewal", renewal_id: "REN-001", years: 1, price: 12.99, renewed_at: "2026-03-10", status: "completed"
+  fixture "Renewal", renewal_id: "REN-002", years: 2, price: 24.99, renewed_at: "2026-04-01", status: "pending"
+
+  fixture "Transfer", transfer_id: "TRN-001", auth_code: "abc123xyz789", gaining_registrar: "NewRegistrar Inc", losing_registrar: "OldRegistrar LLC", status: "pending_approval"
+  fixture "Transfer", transfer_id: "TRN-002", auth_code: "def456uvw012", gaining_registrar: "FastDNS Pro", losing_registrar: "ClassicDomains", status: "approved"
+
+  fixture "DNSRecord", record_id: "DNS-001", record_type: "A", hostname: "example.com", value: "192.0.2.42", ttl: 3600, status: "active"
+  fixture "DNSRecord", record_id: "DNS-002", record_type: "CNAME", hostname: "www.example.com", value: "example.com", ttl: 1800, status: "active"
+
+  fixture "WHOISPrivacy", privacy_id: "PRIV-001", proxy_email: "privacy@example.com", proxy_name: "Privacy Proxy Service", enabled_at: "2026-02-01", status: "active"
+  fixture "WHOISPrivacy", privacy_id: "PRIV-002", proxy_email: "shield@mycompany.org", proxy_name: "WHOIS Guard", enabled_at: "2026-01-20", status: "inactive"
 end

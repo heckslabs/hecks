@@ -268,4 +268,21 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     on "MerchantOnboarded"
     trigger "RunComplianceCheck"
   end
+
+  # === Fixtures ===
+
+  fixture "Transaction", transaction_id: "txn_mer_20240414_001", amount: 5000.00, currency: "USD", card_last_four: "4242", auth_code: "AUTH123456", status: "settled"
+  fixture "Transaction", transaction_id: "txn_mer_20240414_002", amount: 15500.00, currency: "USD", card_last_four: "5555", auth_code: "AUTH789012", status: "settled"
+
+  fixture "Merchant", merchant_id: "mer_coffee_roastery", business_name: "Mountain Peak Coffee Roastery", mcc_code: "5963", contact_email: "admin@peakcoffee.com", processing_rate: 2.9, status: "active"
+  fixture "Merchant", merchant_id: "mer_tech_consulting", business_name: "TechVision Consulting LLC", mcc_code: "7373", contact_email: "billing@techvision.io", processing_rate: 3.5, status: "active"
+
+  fixture "Settlement", settlement_id: "settle_20240414_001", gross_amount: 25000.00, fees: 725.00, net_amount: 24275.00, period: "2024-04-08_to_2024-04-14", status: "disbursed"
+  fixture "Settlement", settlement_id: "settle_20240415_001", gross_amount: 18500.00, fees: 572.50, net_amount: 17927.50, period: "2024-04-09_to_2024-04-15", status: "disbursed"
+
+  fixture "Chargeback", chargeback_id: "chg_20240414_001", reason_code: "4855", amount: 250.00, evidence_due_date: "2024-04-21", status: "resolved"
+  fixture "Chargeback", chargeback_id: "chg_20240414_002", reason_code: "4863", amount: 89.99, evidence_due_date: "2024-04-22", status: "resolved"
+
+  fixture "ComplianceCheck", check_id: "comp_20240414_001", check_type: "kyc_verification", scope: "merchant_registration", result: "passed", status: "completed"
+  fixture "ComplianceCheck", check_id: "comp_20240414_002", check_type: "aml_screening", scope: "transaction_monitoring", result: "passed", status: "completed"
 end

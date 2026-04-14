@@ -258,4 +258,16 @@ Hecks.bluebook "AirlineOperations" do
     on "FlightDelayed"
     trigger "ReleaseGate"
   end
+
+  fixture "Flight", flight_number: "AA101", origin: "JFK", destination: "LAX", status: "in_flight", scheduled_departure: "2026-04-14T08:00:00Z", actual_departure: "2026-04-14T08:15:00Z", aircraft_id: "ac_001", crew_id: "crew_001"
+  fixture "Flight", flight_number: "UA234", origin: "SFO", destination: "ORD", status: "boarded", scheduled_departure: "2026-04-14T14:30:00Z", actual_departure: "", aircraft_id: "ac_002", crew_id: "crew_002"
+
+  fixture "Gate", gate_number: "A12", terminal: "Terminal 4", status: "occupied", flight_id: "flt_001"
+  fixture "Gate", gate_number: "B07", terminal: "Terminal 2", status: "available", flight_id: ""
+
+  fixture "Crew", crew_id: "crew_001", captain_name: "Captain James Wilson", member_count: 7, duty_hours: 2.5, status: "available"
+  fixture "Crew", crew_id: "crew_002", captain_name: "Captain Maria Chen", member_count: 8, duty_hours: 8.75, status: "available"
+
+  fixture "Aircraft", tail_number: "N12345", model: "Boeing 787", seat_count: 280, maintenance_status: "flight_ready", fuel_level: 95.5
+  fixture "Aircraft", tail_number: "N67890", model: "Airbus A350", seat_count: 325, maintenance_status: "serviceable", fuel_level: 72.0
 end

@@ -178,4 +178,13 @@ Hecks.bluebook "CustomWoodcraft" do
     trigger "CompleteStep"
     map work_order_id: :work_order_id, step_name: :first_step
   end
+
+  fixture "Lumber", species: "white-oak", grade: "select", board_feet: 150.5, moisture_pct: 8.2, cuts: [], status: "kiln-dried"
+  fixture "Lumber", species: "walnut", grade: "premium", board_feet: 85.75, moisture_pct: 7.9, cuts: [], status: "graded"
+  fixture "FurnitureDesign", name: "Craftsman Dining Table", style: "Arts & Crafts", materials: [], status: "concept"
+  fixture "FurnitureDesign", name: "Mid-Century Bookshelf", style: "Modern", materials: [], status: "finalized"
+  fixture "WorkOrder", lumber_id: "lumber-oak-001", furniture_design_id: "design-table-001", craftsman: "James Martinez", status: "in-progress", steps: []
+  fixture "WorkOrder", lumber_id: "lumber-walnut-001", furniture_design_id: "design-shelf-001", craftsman: "Sarah Chen", status: "queued", steps: []
+  fixture "ShowroomDisplay", furniture_design_id: "design-table-001", price_cents: 349900, location: "North Wall - Main Floor", status: "displayed"
+  fixture "ShowroomDisplay", furniture_design_id: "design-shelf-001", price_cents: 189500, location: "Center Island - Second Floor", status: "sold"
 end

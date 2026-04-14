@@ -224,4 +224,17 @@ Hecks.bluebook "CallCenter" do
     on "SlaBreached"
     trigger "EscalateTicket"
   end
+
+  # === Fixtures ===
+  fixture "Ticket", ticket_number: "TKT-2026-001", subject: "Cannot reset password", description: "User locked out of account", priority: "high", status: "open", channel: "email"
+  fixture "Ticket", ticket_number: "TKT-2026-002", subject: "Billing inquiry", description: "Question about last invoice", priority: "medium", status: "open", channel: "phone"
+
+  fixture "Agent", agent_id: "AG-2026-001", name: "Jennifer Lee", skill_level: "senior", active_tickets: 2, status: "available"
+  fixture "Agent", agent_id: "AG-2026-002", name: "Carlos Moreno", skill_level: "junior", active_tickets: 3, status: "available"
+
+  fixture "Queue", queue_name: "Technical Support", skill_group: "engineers", depth: 7, max_wait_seconds: 300, status: "active"
+  fixture "Queue", queue_name: "Billing Support", skill_group: "finance", depth: 3, max_wait_seconds: 600, status: "active"
+
+  fixture "SlaPolicy", policy_name: "Urgent Response SLA", priority: "urgent", response_minutes: 15, resolution_minutes: 60, status: "active"
+  fixture "SlaPolicy", policy_name: "Standard Response SLA", priority: "normal", response_minutes: 60, resolution_minutes: 1440, status: "active"
 end

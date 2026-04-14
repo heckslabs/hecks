@@ -147,4 +147,18 @@ Hecks.bluebook "SmartOT", version: "2026.04.13.1" do
     on "ProgressUpdated"
     trigger "RunAssessment"
   end
+
+  # === Fixtures ===
+
+  fixture "TherapyGoal", goal_id: "goal_2024_001", client_name: "David Chen", goal_area: "fine_motor_skills", target_outcome: "improved_dexterity_for_writing", progress_pct: 75.5, status: "active"
+  fixture "TherapyGoal", goal_id: "goal_2024_002", client_name: "Sarah Martinez", goal_area: "adl_independence", target_outcome: "self_dressing_without_assistance", progress_pct: 60.0, status: "active"
+
+  fixture "SmartDevice", device_id: "dev_iot_001", device_type: "smart_door_lock", location_room: "Main Bedroom", client_name: "David Chen", status: "paired"
+  fixture "SmartDevice", device_id: "dev_iot_002", device_type: "voice_assistant", location_room: "Living Room", client_name: "Sarah Martinez", status: "paired"
+
+  fixture "ActivityLog", log_id: "log_2024_001", client_name: "David Chen", activity: "morning_grooming", device_id: "dev_iot_001", duration_minutes: 22.5, independence_level: "moderate"
+  fixture "ActivityLog", log_id: "log_2024_002", client_name: "Sarah Martinez", activity: "meal_preparation", device_id: "dev_iot_002", duration_minutes: 35.0, independence_level: "high"
+
+  fixture "AdaptiveAssessment", assessment_id: "assess_2024_001", client_name: "David Chen", device_id: "dev_iot_001", before_score: 45.0, after_score: 72.0, recommendation: "continue_current_setup"
+  fixture "AdaptiveAssessment", assessment_id: "assess_2024_002", client_name: "Sarah Martinez", device_id: "dev_iot_002", before_score: 58.0, after_score: 81.5, recommendation: "increase_voice_command_complexity"
 end

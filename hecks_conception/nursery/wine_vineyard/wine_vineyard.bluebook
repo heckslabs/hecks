@@ -281,4 +281,19 @@ Hecks.bluebook "WineVineyard" do
     on "WineReleased"
     trigger "RecordTasting"
   end
+
+  fixture "Vineyard", block_name: "Pinot Block A", grape_variety: "Pinot Noir", rootstock: "SO4", acreage: 12.5, vine_count: 4200, planted_year: 2008, status: "growing"
+  fixture "Vineyard", block_name: "Chardonnay South", grape_variety: "Chardonnay", rootstock: "101-14", acreage: 8.75, vine_count: 2950, planted_year: 2012, status: "growing"
+
+  fixture "Vintage", year: 2023, grape_variety: "Pinot Noir", tons_harvested: 18.5, brix_at_harvest: 24.2, ph_at_harvest: 3.45, status: "harvested"
+  fixture "Vintage", year: 2022, grape_variety: "Chardonnay", tons_harvested: 14.2, brix_at_harvest: 23.8, ph_at_harvest: 3.38, status: "crushed"
+
+  fixture "Fermentation", vessel_type: "open_top_tank", vessel_id: "OT-07", volume_liters: 8500.0, temperature_celsius: 18.5, yeast_strain: "RC212", days_elapsed: 12, status: "fermenting"
+  fixture "Fermentation", vessel_type: "french_oak_barrel", vessel_id: "FO-42", volume_liters: 225.0, temperature_celsius: 16.2, yeast_strain: "BRL97", days_elapsed: 45, status: "aging"
+
+  fixture "BottlingRun", bottle_count: 3000, bottle_date: "2024-08-15", label_name: "Cellar Reserve 2022", alcohol_percent: 14.5, closure_type: "cork_with_capsule", status: "bottled"
+  fixture "BottlingRun", bottle_count: 2500, bottle_date: "2024-09-02", label_name: "Estate Chardonnay 2022", alcohol_percent: 13.8, closure_type: "synthetic_cork", status: "released"
+
+  fixture "TastingNote", taster_name: "James Sommelier", tasting_date: "2024-09-20", score: 91, appearance: "ruby_with_garnet_rim", nose: "black_cherry_mocha", palate: "smooth_tannins_dark_fruit", finish: "long_elegant"
+  fixture "TastingNote", taster_name: "Elena Critque", tasting_date: "2024-09-21", score: 88, appearance: "pale_gold_green_tint", nose: "citrus_stone_fruit_oak", palate: "crisp_mineral_white_peach", finish: "medium_persistent"
 end

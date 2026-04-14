@@ -256,4 +256,19 @@ Hecks.bluebook "DomesticViolenceShelter" do
     on "ExitPlanCreated"
     trigger "CompleteExitTask"
   end
+
+  fixture "Resident", alias_name: "River", intake_date: "2026-02-10", dependents_count: 2, risk_level: "high", status: "sheltered"
+  fixture "Resident", alias_name: "Hope", intake_date: "2026-03-05", dependents_count: 0, risk_level: "moderate", status: "transitioned"
+
+  fixture "SafetyPlan", resident_alias: "River", created_date: "2026-02-11", emergency_contacts: "911, Shelter Director, Sister Maria", escape_route: "Back door through garden to neighbors at 42 Oak St", status: "active"
+  fixture "SafetyPlan", resident_alias: "Hope", created_date: "2026-03-06", emergency_contacts: "911, Case Manager Jenny", escape_route: "Front entrance to street, meet friend at library", status: "active"
+
+  fixture "SupportService", service_name: "Legal Aid Clinic", service_type: "legal", provider_name: "State Bar Association", availability: "Tuesday and Thursday, 2-5pm", status: "active"
+  fixture "SupportService", service_name: "Trauma Counseling", service_type: "mental_health", provider_name: "Dr. Patricia Okonkwo", availability: "Monday-Friday, 9am-4pm", status: "active"
+
+  fixture "Advocate", name: "Maria Santos", role_type: "IntakeAdvocate", certification: "SANE, Crisis Intervention Specialist", active_cases: 5, status: "active"
+  fixture "Advocate", name: "James Lee", role_type: "CaseManager", certification: "MSW, Housing Specialist", active_cases: 3, status: "active"
+
+  fixture "ExitPlan", resident_alias: "River", target_exit_date: "2026-05-10", housing_arrangement: "Transitional apartment in safe neighborhood", employment_status: "seeking part-time", support_network: "Sister, church group, shelter connections", status: "in_progress"
+  fixture "ExitPlan", resident_alias: "Hope", target_exit_date: "2026-04-15", housing_arrangement: "Shared housing with trusted friend", employment_status: "employed full-time at tech firm", support_network: "Support group, counselor, advocate check-ins", status: "finalized"
 end
