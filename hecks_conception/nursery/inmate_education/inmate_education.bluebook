@@ -191,4 +191,16 @@ Hecks.bluebook "InmateEducation" do
     trigger "AwardMerit"
     map behavior_record_id: :behavior_record_id, merit_type: :assignment_name
   end
+
+  fixture "Inmate", inmate_id: "INM-0401", name: "James Rodriguez", facility: "Oakville Correctional", education_level: "high school", status: "enrolled"
+  fixture "Inmate", inmate_id: "INM-0402", name: "Michael Chen", facility: "Northside Penitentiary", education_level: "college", status: "enrolled"
+
+  fixture "Course", course_name: "Business Fundamentals", subject: "business", status: "published"
+  fixture "Course", course_name: "Digital Literacy", subject: "technology", status: "draft"
+
+  fixture "Enrollment", progress_pct: 65.5, status: "active"
+  fixture "Enrollment", progress_pct: 45.0, status: "active"
+
+  fixture "BehaviorRecord", status: "active"
+  fixture "BehaviorRecord", status: "active"
 end

@@ -257,4 +257,19 @@ Hecks.bluebook "MentalHealthClinic" do
     on "TherapySessionCompleted"
     trigger "ScheduleTherapySession"
   end
+
+  fixture "Client", name: "Sarah Mitchell", date_of_birth: "1985-03-15", referral_source: "PCP Dr. Chen", emergency_contact: "John Mitchell (555-0101)", status: "active"
+  fixture "Client", name: "Marcus Johnson", date_of_birth: "1992-07-22", referral_source: "Self-referral", emergency_contact: "Lisa Johnson (555-0102)", status: "active"
+
+  fixture "Therapist", name: "Dr. Emily Rodriguez", license_type: "LCSW", license_number: "CA123456", specialty: "Anxiety Disorders", caseload_limit: 20, active_clients: 15
+  fixture "Therapist", name: "Dr. James Park", license_type: "PhD", license_number: "CA789012", specialty: "Depression", caseload_limit: 15, active_clients: 12
+
+  fixture "Assessment", client_name: "Sarah Mitchell", instrument_name: "GAD-7", administered_date: "2026-04-01", total_score: 18, risk_level: "moderate", notes: "Generalized anxiety symptoms present"
+  fixture "Assessment", client_name: "Marcus Johnson", instrument_name: "PHQ-9", administered_date: "2026-04-05", total_score: 22, risk_level: "high", notes: "Depressive symptoms with sleep disturbance"
+
+  fixture "TreatmentPlan", client_name: "Sarah Mitchell", diagnosis: "Generalized Anxiety Disorder", start_date: "2026-04-08", status: "active"
+  fixture "TreatmentPlan", client_name: "Marcus Johnson", diagnosis: "Major Depressive Disorder", start_date: "2026-04-10", status: "active"
+
+  fixture "TherapySession", client_name: "Sarah Mitchell", therapist_name: "Dr. Emily Rodriguez", session_date: "2026-04-15", session_type: "Individual", notes: "Discussed breathing techniques", status: "completed"
+  fixture "TherapySession", client_name: "Marcus Johnson", therapist_name: "Dr. James Park", session_date: "2026-04-17", session_type: "Individual", notes: "Explored cognitive distortions", status: "scheduled"
 end

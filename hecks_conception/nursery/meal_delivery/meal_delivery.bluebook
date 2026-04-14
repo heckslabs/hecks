@@ -154,4 +154,18 @@ Hecks.bluebook "MealDelivery", version: "2026.04.13.1" do
     on "MealAssembled"
     trigger "PlanRun"
   end
+
+  # === Fixtures ===
+
+  fixture "FoodItem", item_id: "APPLE-001", name: "Gala Apples", category: "fruit", quantity: 240, expiry_date: "2026-04-28", dietary_tags: "vegan,gluten-free"
+  fixture "FoodItem", item_id: "RICE-002", name: "Brown Rice", category: "grain", quantity: 50, expiry_date: "2026-08-15", dietary_tags: "vegan,gluten-free,halal"
+
+  fixture "MealPackage", package_id: "PKG-2026-001", recipient_id: "RCP-0045", dietary_type: "vegetarian", status: "assembled"
+  fixture "MealPackage", package_id: "PKG-2026-002", recipient_id: "RCP-0078", dietary_type: "diabetic-friendly", status: "delivered"
+
+  fixture "DeliveryRun", run_id: "RUN-2026-04-14-A", courier_name: "David Martinez", date: "2026-04-14", total_miles: 34.5, status: "in_progress"
+  fixture "DeliveryRun", run_id: "RUN-2026-04-13-B", courier_name: "Jennifer Park", date: "2026-04-13", total_miles: 42.0, status: "finished"
+
+  fixture "Recipient", recipient_id: "RCP-0045", name: "Margaret Holmes", address: "412 Oak Street Apt 3B", dietary_restriction: "vegetarian", household_size: 2, status: "active"
+  fixture "Recipient", recipient_id: "RCP-0078", name: "Robert Johnson", address: "598 Maple Drive", dietary_restriction: "diabetic-friendly", household_size: 1, status: "active"
 end

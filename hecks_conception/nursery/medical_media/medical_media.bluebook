@@ -141,4 +141,19 @@ Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
     on "ConsentObtained"
     trigger "CreateProject"
   end
+
+  # === Fixtures ===
+
+  fixture "DermatologyCase", case_id: "CASE-2026-001", patient_code: "PT-8847", condition_name: "Psoriasis (Moderate Plaque)", severity: "moderate", treatment: "Topical steroid + phototherapy", status: "documented"
+  fixture "DermatologyCase", case_id: "CASE-2026-002", patient_code: "PT-8901", condition_name: "Melanoma (Early Stage)", severity: "high", treatment: "Surgical excision + adjuvant therapy", status: "cleared"
+
+  fixture "ConsentForm", consent_id: "CONSENT-001", case_id: "CASE-2026-001", patient_code: "PT-8847", scope: "Educational video only", expiry_date: "2027-04-14", status: "active"
+  fixture "ConsentForm", consent_id: "CONSENT-002", case_id: "CASE-2026-002", patient_code: "PT-8901", scope: "Educational video + conference presentations", expiry_date: "2028-04-14", status: "active"
+
+  fixture "VideoProject", project_id: "VID-2026-001", case_id: "CASE-2026-002", title: "Early Detection: Recognizing Melanoma Signs", target_audience: "medical students", duration_minutes: 12.5, status: "published"
+  fixture "VideoProject", project_id: "VID-2026-002", case_id: "CASE-2026-001", title: "Managing Psoriasis: Treatment Options", target_audience: "nurses", duration_minutes: 14.0, status: "pre_production"
+
+  fixture "ViewerFeedback", feedback_id: "FB-001", project_id: "VID-2026-001", viewer_role: "Medical Student", clarity_score: 8.5, usefulness_score: 9.0, comments: "Excellent visual documentation of clinical progression"
+  fixture "ViewerFeedback", feedback_id: "FB-002", project_id: "VID-2026-001", viewer_role: "Dermatologist", clarity_score: 9.0, usefulness_score: 8.5, comments: "Could benefit from more detail on differential diagnosis"
+end
 end

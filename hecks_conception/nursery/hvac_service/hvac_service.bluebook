@@ -200,4 +200,16 @@ Hecks.bluebook "HVACService" do
     on "UnitDecommissioned"
     trigger "LogRecovery"
   end
+
+  fixture "Unit", unit_type: "air_conditioner", brand: "Carrier", model: "25HNH548A001", tonnage: 3.5, seer_rating: 16.5, location: "Master Bedroom"
+  fixture "Unit", unit_type: "heat_pump", brand: "Lennox", model: "XP25", tonnage: 4.0, seer_rating: 18.0, location: "Main Floor"
+
+  fixture "ServiceTicket", customer_name: "Michael Chen", address: "1247 Oak Drive", complaint: "AC not cooling, strange noise from compressor", diagnosis: "Refrigerant leak detected", status: "open"
+  fixture "ServiceTicket", customer_name: "Sarah Williams", address: "892 Maple Lane", complaint: "Furnace won't ignite", diagnosis: "Faulty ignition control module", status: "open"
+
+  fixture "RefrigerantLog", refrigerant_type: "R-410A", pounds_added: 4.5, pounds_recovered: 0.0, technician_epa_cert: "EPA-608-12345"
+  fixture "RefrigerantLog", refrigerant_type: "R-410A", pounds_added: 0.0, pounds_recovered: 3.2, technician_epa_cert: "EPA-608-67890"
+
+  fixture "MaintenancePlan", plan_name: "Gold Annual Maintenance", customer_name: "Michael Chen", visits_per_year: 2, annual_price: 299.99, status: "active"
+  fixture "MaintenancePlan", plan_name: "Platinum Priority Plan", customer_name: "Sarah Williams", visits_per_year: 4, annual_price: 599.99, status: "active"
 end

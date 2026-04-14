@@ -178,4 +178,16 @@ Hecks.bluebook "LocksmithService" do
     on "ServiceCompleted"
     trigger "RekeyLock"
   end
+
+  fixture "ServiceCall", customer_name: "Amanda Peterson", address: "2847 Willowbrook Avenue", service_type: "lockout", status: "dispatched", urgency: "high"
+  fixture "ServiceCall", customer_name: "Robert Chen", address: "156 Elm Street", service_type: "rekey", status: "completed", urgency: "standard"
+
+  fixture "Lock", lock_type: "deadbolt", brand: "Schlage", grade: "commercial", location: "front door", status: "installed"
+  fixture "Lock", lock_type: "electronic keypad", brand: "Kaba Master Lock", grade: "residential", location: "garage entry", status: "installed"
+
+  fixture "KeyOrder", key_type: "standard", quantity: 4, blank_code: "SC1", status: "completed"
+  fixture "KeyOrder", key_type: "transponder", quantity: 2, blank_code: "TPK-2022", status: "completed"
+
+  fixture "AccessCode", code_name: "Manager Override", code_value: "8472", access_level: "full", valid_until: "2026-12-31"
+  fixture "AccessCode", code_name: "Employee Temporary", code_value: "5521", access_level: "restricted", valid_until: "2026-05-31"
 end
