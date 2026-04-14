@@ -16,6 +16,9 @@ Hecks.bluebook "ZooManagement" do
       String :genus
     end
 
+    fixture "Simba the Lion", animal_id: "ZOO-FELID-0042", common_name: "Lion", species: "Panthera leo", sex: "M", status: "on_exhibit", date_of_birth: "2018-03-15"
+    fixture "Nala the Zebra", animal_id: "ZOO-EQUID-0067", common_name: "Plains Zebra", species: "Equus quagga", sex: "F", status: "on_exhibit", date_of_birth: "2019-07-22"
+
     RegisterAnimal do
       description "Register a new animal into the zoo collection"
       String :common_name
@@ -77,6 +80,9 @@ Hecks.bluebook "ZooManagement" do
       String :lighting_cycle
     end
 
+    fixture "African Savanna", habitat_id: "HAB-AFRI-01", name: "African Savanna Exhibit", biome_type: "Savanna", area_sqft: 15000.0, max_capacity: 20, current_occupancy: 8, status: "active"
+    fixture "Tropical Rainforest", habitat_id: "HAB-TROP-02", name: "Amazon Rainforest Canopy", biome_type: "Tropical Rainforest", area_sqft: 8500.0, max_capacity: 35, current_occupancy: 28, status: "active"
+
     BuildHabitat do
       description "Construct a new animal habitat"
       String :name
@@ -136,6 +142,9 @@ Hecks.bluebook "ZooManagement" do
       String :frequency
     end
 
+    fixture "Lion Carnivore Diet", schedule_id: "FEED-FELID-001", diet_type: "Carnivore - Raw Meat", feeding_time: "09:00", portion_kg: 8.5, status: "active"
+    fixture "Zebra Herbivore Diet", schedule_id: "FEED-EQUID-001", diet_type: "Herbivore - Hay & Graze", feeding_time: "08:30", portion_kg: 12.0, status: "active"
+
     CreateFeedingSchedule do
       description "Set up a feeding plan for an animal"
       String :diet_type
@@ -176,6 +185,9 @@ Hecks.bluebook "ZooManagement" do
       String :result
     end
 
+    fixture "Simba Checkup", exam_id: "VET-2026-0015", exam_type: "Annual Physical", veterinarian: "Dr. Sarah Mitchell", findings: "Excellent health, no issues noted", status: "completed"
+    fixture "Nala Vaccination", exam_id: "VET-2026-0016", exam_type: "Vaccination Update", veterinarian: "Dr. James Wilson", findings: "Vaccines current, minor dietary adjustment recommended", status: "completed"
+
     ScheduleExam do
       description "Book a veterinary exam for an animal"
       String :exam_type
@@ -206,6 +218,9 @@ Hecks.bluebook "ZooManagement" do
       Float :inbreeding_coefficient
       String :studbook_number
     end
+
+    fixture "Lion Breeding SSP", program_id: "SSP-FELID-001", species: "Panthera leo", status: "active", target_offspring: 3
+    fixture "Zebra Breeding SSP", program_id: "SSP-EQUID-001", species: "Equus quagga", status: "active", target_offspring: 2
 
     InitiateBreeding do
       description "Start a breeding program for a species"

@@ -267,6 +267,9 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
       transition "ApprovePermit" => "approved", from: "reviewed"
       transition "DenyPermit" => "denied", from: "reviewed"
     end
+
+    fixture "TreePermit", permit_type: "removal", tree_species: "Sugar Maple", site_address: "Central Park, Plot 5", applicant: "Parks Department", justification: "disease progression", status: "approved"
+    fixture "TreePermit", permit_type: "pruning", tree_species: "White Oak", site_address: "Historic District Street", applicant: "City Arborist", justification: "crown restoration", status: "submitted"
   end
 
   # Workflow: Inventory -> assess health -> flag removal -> permit -> approve -> remove -> replant

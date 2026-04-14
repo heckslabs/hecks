@@ -40,6 +40,9 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       reference_to(Study)
       emits "StudyConcluded"
     end
+
+    fixture "Study", study_name: "Mobile App Usability", research_question: "How do users navigate the checkout flow?", methodology: "moderated usability testing", lead_researcher: "Sarah Kim", target_participants: 12, status: "planned"
+    fixture "Study", study_name: "Dashboard Redesign", research_question: "What information should be prioritized on the dashboard?", methodology: "card sorting and interviews", lead_researcher: "Michael Torres", target_participants: 20, status: "recruiting"
   end
 
   aggregate "Participant", "A person recruited to take part in research sessions" do
@@ -80,6 +83,9 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       reference_to(Participant)
       emits "ParticipantExcluded"
     end
+
+    fixture "Participant", participant_id: "P-001", name: "Alex Johnson", email: "alex.j@email.com", demographic_segment: "Ages 25-34", screening_status: "screened", status: "qualified"
+    fixture "Participant", participant_id: "P-002", name: "Emma Lee", email: "emma.lee@email.com", demographic_segment: "Ages 35-44", screening_status: "screened", status: "excluded"
   end
 
   aggregate "Session", "A scheduled research interaction with a participant" do
@@ -123,6 +129,9 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       String :cancellation_reason
       emits "SessionCanceled"
     end
+
+    fixture "Session", session_id: "S-001", session_type: "moderated usability test", scheduled_at: "2026-05-10 10:00 AM", duration_minutes: 60, facilitator: "David Chen", status: "scheduled"
+    fixture "Session", session_id: "S-002", session_type: "interview", scheduled_at: "2026-05-12 2:00 PM", duration_minutes: 45, facilitator: "Rebecca Martinez", status: "completed"
   end
 
   aggregate "Finding", "An insight synthesized from research session data" do
@@ -165,6 +174,9 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       given("finding is validated") { status == "validated" }
       emits "FindingArchived"
     end
+
+    fixture "Finding", finding_id: "F-001", title: "Users miss the filter button", description: "Many users scrolled past the filter control without noticing it", severity: "medium", evidence_type: "behavioral", status: "validated"
+    fixture "Finding", finding_id: "F-002", title: "Confusing currency selector", description: "Users expressed confusion about which currency was selected", severity: "high", evidence_type: "quote", status: "documented"
   end
 
   aggregate "Recommendation", "A design suggestion based on validated findings" do
@@ -206,6 +218,9 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
       given("recommendation is proposed") { status == "proposed" }
       emits "RecommendationDeferred"
     end
+
+    fixture "Recommendation", recommendation_id: "REC-001", title: "Make filter button more visible", rationale: "Users consistently miss it in current position", effort_estimate: "2 points", priority: "high", status: "proposed"
+    fixture "Recommendation", recommendation_id: "REC-002", title: "Add currency indicator in header", rationale: "Multiple users needed clarification on selected currency", effort_estimate: "1 point", priority: "medium", status: "accepted"
   end
 
   lifecycle "ResearchProcess" do

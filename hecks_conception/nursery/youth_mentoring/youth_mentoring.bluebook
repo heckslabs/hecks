@@ -188,6 +188,9 @@ Hecks.bluebook "YouthMentoring" do
       String :evidence
     end
 
+    fixture "Build a Web App", mentee_name: "Alex Chen", goal_area: "Technical Skills", description: "Complete a full-stack web application project", target_date: "2026-07-31", status: "active"
+    fixture "Win Debate Competition", mentee_name: "Jordan Martinez", goal_area: "Public Speaking", description: "Place in regional debate tournament", target_date: "2026-05-30", status: "active"
+
     SetDevelopmentGoal do
       role "Mentor"
       description "Establish a development goal for the mentee"

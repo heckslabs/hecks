@@ -54,6 +54,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       transition "AssessNeeds" => "assessed", from: "enrolled"
       transition "GraduateProgram" => "graduated", from: "assessed"
     end
+
+    fixture "Veteran", name: "Michael Thompson", service_branch: "Army", discharge_type: "Honorable", status: "enrolled"
+    fixture "Veteran", name: "Sophia Rodriguez", service_branch: "Navy", discharge_type: "Honorable", status: "assessed"
   end
 
   # === HousingApplication ===
@@ -122,6 +125,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       transition "ApproveApplication" => "approved", from: "submitted"
       transition "SignLease" => "leased", from: "approved"
     end
+
+    fixture "HousingApplication", housing_type: "one_bedroom_apt", location_preference: "downtown", budget: 1000.0, status: "matched"
+    fixture "HousingApplication", housing_type: "two_bedroom_house", location_preference: "suburban", budget: 1500.0, status: "leased"
   end
 
   # === BenefitsClaim ===
@@ -181,6 +187,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       transition "DenyClaim" => "denied", from: "filed"
       transition "AppealClaim" => "appealed", from: "denied"
     end
+
+    fixture "BenefitsClaim", benefit_type: "disability_compensation", description: "Service-related disability rating 50%", status: "approved", monthly_amount: 1200.00
+    fixture "BenefitsClaim", benefit_type: "education_benefits", description: "GI Bill for vocational training", status: "filed", monthly_amount: 0.0
   end
 
   # === FinancialPlan ===
@@ -229,6 +238,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       given { status == "active" }
       emits "FinancialProgressReviewed"
     end
+
+    fixture "FinancialPlan", monthly_income: 2800.00, monthly_expenses: 2000.00, savings_target: 500.00, status: "active"
+    fixture "FinancialPlan", monthly_income: 3200.00, monthly_expenses: 2200.00, savings_target: 800.00, status: "active"
   end
 
   # === LegalCase ===
@@ -278,6 +290,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       transition "ResolveCase" => "resolved", from: "open"
       transition "EscalateCase" => "escalated", from: "open"
     end
+
+    fixture "LegalCase", case_type: "discharge_upgrade", description: "General discharge upgrade to Honorable", status: "open", assigned_attorney: "James Sullivan, Esq"
+    fixture "LegalCase", case_type: "child_custody", description: "Family law matter - custody modification", status: "resolved", assigned_attorney: "Patricia Brown, Esq"
   end
 
   # === Milestone ===
@@ -312,6 +327,9 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
       emits "MilestoneAchieved"
       then_set :status, to: "achieved"
     end
+
+    fixture "Milestone", milestone_type: "housing", description: "Secure stable housing arrangement", target_date: "2026-06-30", status: "pending"
+    fixture "Milestone", milestone_type: "employment", description: "Obtain employment or training enrollment", target_date: "2026-07-31", status: "achieved"
   end
 
   # === Cross-wire policies ===

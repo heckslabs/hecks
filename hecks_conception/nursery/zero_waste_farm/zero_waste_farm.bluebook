@@ -20,6 +20,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       String :forecast
     end
 
+    fixture "North Field - Tomatoes", name: "North 40", crop_type: "Heirloom Tomatoes", acreage: 40.0, soil_type: "loamy", status: "planted"
+    fixture "South Field - Squash", name: "South 35", crop_type: "Butternut Squash", acreage: 35.0, soil_type: "clay-loam", status: "planted"
+
     RegisterField do
       role "Farmer"
       description "Register a field with its crop type and soil characteristics"
@@ -79,6 +82,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     String :destination
     String :status
 
+    fixture "Tomato Harvest A", crop_type: "Heirloom Tomatoes", weight_kg: 2500.0, grade: "Premium", destination: "market", status: "routed"
+    fixture "Squash Harvest B", crop_type: "Butternut Squash", weight_kg: 3200.0, grade: "Grade B", destination: "food_bank", status: "routed"
+
     RecordHarvest do
       role "Farmer"
       description "Weigh and grade the harvest from a field"
@@ -130,6 +136,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     String :trend
     String :status
 
+    fixture "Tomato Market", crop_type: "Heirloom Tomatoes", current_price: 1.85, threshold_price: 2.25, trend: "declining", status: "below_threshold"
+    fixture "Squash Market", crop_type: "Butternut Squash", current_price: 0.42, threshold_price: 0.65, trend: "stable", status: "active"
+
     SetPrice do
       role "System"
       description "Update current market price for a crop commodity"
@@ -178,6 +187,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       Integer :families_served
       String :priority
     end
+
+    fixture "Downtown Food Pantry", food_bank_name: "Downtown Food Pantry", region: "Urban Core District", allocated_kg: 3200.0, status: "allocated"
+    fixture "Valley Community Bank", food_bank_name: "Valley Community Bank", region: "Agricultural Region", allocated_kg: 2800.0, status: "distributed"
 
     AllocateToFoodBank do
       role "System"
@@ -235,6 +247,9 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
       String :arrival_time
       Float :temperature_at_stop
     end
+
+    fixture "Route DV-001", driver_id: "DV-001", temperature: 4.5, status: "scheduled"
+    fixture "Route DV-002", driver_id: "DV-002", temperature: 3.8, status: "in_transit"
 
     ScheduleColdPickup do
       role "System"

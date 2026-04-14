@@ -36,6 +36,9 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       emits "VeteranGraduated"
       then_set :status, to: "graduated"
     end
+
+    fixture "VeteranProfile", veteran_id: "VET-2026-101", name: "James Patterson", branch: "Air Force", discharge_status: "Honorable", status: "enrolled"
+    fixture "VeteranProfile", veteran_id: "VET-2026-102", name: "Lisa Anderson", branch: "Marines", discharge_status: "Honorable", status: "graduated"
   end
 
   aggregate "Course", "An e-learning course available to veterans" do
@@ -69,6 +72,9 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       emits "CourseRetired"
       then_set :status, to: "retired"
     end
+
+    fixture "Course", course_id: "COURSE-101", title: "Web Development Fundamentals", skill_area: "software development", duration_hours: 40, difficulty: "beginner", status: "active"
+    fixture "Course", course_id: "COURSE-102", title: "Advanced SQL and Databases", skill_area: "data management", duration_hours: 30, difficulty: "intermediate", status: "active"
   end
 
   aggregate "Enrollment", "A veteran enrollment in a specific course" do
@@ -106,6 +112,9 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       emits "CourseCompleted"
       then_set :status, to: "completed"
     end
+
+    fixture "Enrollment", enrollment_id: "ENR-2026-001", veteran_id: "VET-2026-101", course_id: "COURSE-101", progress_pct: 75.0, status: "in_progress"
+    fixture "Enrollment", enrollment_id: "ENR-2026-002", veteran_id: "VET-2026-102", course_id: "COURSE-102", progress_pct: 100.0, status: "completed"
   end
 
   aggregate "JobPlacement", "A job placement opportunity matched to a graduated veteran" do
@@ -136,6 +145,9 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
       emits "HireConfirmed"
       then_set :status, to: "hired"
     end
+
+    fixture "JobPlacement", placement_id: "JOB-2026-001", veteran_id: "VET-2026-102", employer_name: "Tech Solutions Inc", job_title: "Junior Developer", status: "hired"
+    fixture "JobPlacement", placement_id: "JOB-2026-002", veteran_id: "VET-2026-101", employer_name: "Database Systems Corp", job_title: "Data Analyst", status: "placed"
   end
 
   policy "PlaceOnGraduate" do

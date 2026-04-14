@@ -38,6 +38,9 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       emits "ApplicationApproved"
       then_set :status, to: "approved"
     end
+
+    fixture "VeteranApplicant", veteran_id: "VET-2026-001", name: "Robert Williams", branch: "Army", disability_rating: "40%", income_level: "2500", status: "approved"
+    fixture "VeteranApplicant", veteran_id: "VET-2026-002", name: "Maria Gonzales", branch: "Navy", disability_rating: "60%", income_level: "2000", status: "applied"
   end
 
   aggregate "HousingUnit", "A managed housing unit available for veterans" do
@@ -76,6 +79,9 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       emits "UnitVacated"
       then_set :status, to: "available"
     end
+
+    fixture "HousingUnit", unit_id: "UNIT-001", address: "42 Oak Street Apt 2B", bedrooms: 1, monthly_rent: 800.00, status: "available"
+    fixture "HousingUnit", unit_id: "UNIT-002", address: "156 Maple Drive", bedrooms: 2, monthly_rent: 1200.00, status: "occupied"
   end
 
   aggregate "RentalSubsidy", "A rental subsidy covering part of a veteran's housing cost" do
@@ -109,6 +115,9 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       emits "SubsidyEnded"
       then_set :status, to: "ended"
     end
+
+    fixture "RentalSubsidy", subsidy_id: "SUB-2026-001", veteran_id: "VET-2026-001", unit_id: "UNIT-002", monthly_amount: 600.00, funding_source: "VA Benefits", status: "active"
+    fixture "RentalSubsidy", subsidy_id: "SUB-2026-002", veteran_id: "VET-2026-002", unit_id: "UNIT-001", monthly_amount: 500.00, funding_source: "Department of HUD", status: "active"
   end
 
   aggregate "MaintenanceTicket", "A maintenance request for a veteran housing unit" do
@@ -142,6 +151,9 @@ Hecks.bluebook "VetHousing", version: "2026.04.13.1" do
       emits "TicketResolved"
       then_set :status, to: "resolved"
     end
+
+    fixture "MaintenanceTicket", ticket_id: "TICK-2026-001", unit_id: "UNIT-001", issue_type: "plumbing", description_text: "Leaky kitchen faucet", priority: "low", status: "open"
+    fixture "MaintenanceTicket", ticket_id: "TICK-2026-002", unit_id: "UNIT-002", issue_type: "heating", description_text: "HVAC not responding to thermostat", priority: "high", status: "resolved"
   end
 
   policy "AssignOnApprove" do
