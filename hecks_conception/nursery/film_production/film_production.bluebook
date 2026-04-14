@@ -202,4 +202,19 @@ Hecks.bluebook "FilmProduction" do
     on "CrewHired"
     trigger "StartPrincipalPhotography"
   end
+
+  fixture "Production", title: "Desert Road", genre: "thriller", status: "development", total_budget: 2500000.0, start_date: "2026-06-01"
+  fixture "Production", title: "City Stories", genre: "drama", status: "shooting", total_budget: 5000000.0, start_date: "2026-05-15"
+
+  fixture "Scene", scene_number: 1, location: "desert highway", time_of_day: "sunrise", status: "scheduled", take_count: 0
+  fixture "Scene", scene_number: 45, location: "downtown loft", time_of_day: "evening", status: "finalized", take_count: 7
+
+  fixture "CrewMember", name: "Alice Johnson", role: "cinematographer", department: "camera", day_rate: 800.0
+  fixture "CrewMember", name: "Marcus Lee", role: "key grip", department: "grip", day_rate: 650.0
+
+  fixture "Equipment", name: "RED Komodo", category: "camera", serial_number: "RED-2025-001", status: "available"
+  fixture "Equipment", name: "HMI 2.5K", category: "lighting", serial_number: "HMI-LT-042", status: "in_use"
+
+  fixture "BudgetLine", department: "camera", category: "rentals", allocated: 450000.0, spent: 125000.0
+  fixture "BudgetLine", department: "catering", category: "meals", allocated: 180000.0, spent: 89500.0
 end

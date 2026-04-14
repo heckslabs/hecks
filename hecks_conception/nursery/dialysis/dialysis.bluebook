@@ -289,4 +289,19 @@ Hecks.bluebook "Dialysis" do
     on "PatientActivated"
     trigger "StartSession"
   end
+
+  fixture "Patient", name: "James Johnson", date_of_birth: "1965-03-15", blood_type: "O+", access_type: "AVF", nephrologist: "Dr. Sarah Chen", status: "active"
+  fixture "Patient", name: "Margaret Martinez", date_of_birth: "1958-07-22", blood_type: "A-", access_type: "Catheter", nephrologist: "Dr. Michael Abbas", status: "active"
+
+  fixture "DialysisSession", patient_name: "James Johnson", session_date: "2026-04-14", pre_weight: 82.5, post_weight: 80.1, fluid_removed: 2.4, duration_minutes: 240, nurse_name: "Nurse Patricia", status: "completed", reference_to: "Patient"
+  fixture "DialysisSession", patient_name: "Margaret Martinez", session_date: "2026-04-14", pre_weight: 68.3, post_weight: 66.8, fluid_removed: 1.5, duration_minutes: 240, nurse_name: "Nurse David", status: "completed", reference_to: "Patient"
+
+  fixture "DialysisMachine", machine_id: "HD-MAIN-01", model: "Fresenius 5008TS", location: "Treatment Bay A", last_disinfection_date: "2026-04-14", status: "available"
+  fixture "DialysisMachine", machine_id: "HD-MAIN-02", model: "Baxter Renibus", location: "Treatment Bay B", last_disinfection_date: "2026-04-13", status: "available"
+
+  fixture "DialysisSupply", supply_name: "Dialyzer Filters 4008H", category: "dialyzers", quantity_on_hand: 145, reorder_level: 50, supplier: "Fresenius Medical Care", status: "in_stock"
+  fixture "DialysisSupply", supply_name: "Heparin Injectable", category: "medications", quantity_on_hand: 28, reorder_level: 20, supplier: "Baxter Healthcare", status: "in_stock"
+
+  fixture "LabResult", patient_name: "James Johnson", test_name: "Potassium", result_value: "5.2", reference_range: "3.5-5.0", result_date: "2026-04-14", status: "pending_review", reference_to: "Patient"
+  fixture "LabResult", patient_name: "Margaret Martinez", test_name: "Phosphorus", result_value: "5.8", reference_range: "2.5-4.5", result_date: "2026-04-14", status: "reviewed", reference_to: "Patient"
 end

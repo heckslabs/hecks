@@ -254,4 +254,21 @@ Hecks.bluebook "FoodIsMedicine", version: "2026.04.13.1" do
     on "ImprovementFlagged"
     trigger "CompletePrescription"
   end
+
+  # === Fixtures ===
+
+  fixture "FoodPrescription", prescription_id: "FP001", patient_name: "Sarah Johnson", diagnosis: "Type 2 Diabetes", prescribing_clinician: "Dr. Lisa Park", status: "active", requirements: []
+  fixture "FoodPrescription", prescription_id: "FP002", patient_name: "Robert Martinez", diagnosis: "Hypertension", prescribing_clinician: "Dr. Michael Chen", status: "active", requirements: []
+
+  fixture "FarmAllocation", farm_name: "Green Valley Organic Farm", region: "Midwest", season: "Spring 2026", acres_committed: 15, status: "committed", target: nil, crops: []
+  fixture "FarmAllocation", farm_name: "Sunrise Berry Cooperative", region: "Northwest", season: "Summer 2026", acres_committed: 25, status: "harvested", target: nil, crops: []
+
+  fixture "NutrientTarget", region: "Midwest", period: "Q2 2026", status: "computed", demand_lines: []
+  fixture "NutrientTarget", region: "Northwest", period: "Q3 2026", status: "matched", demand_lines: []
+
+  fixture "DistributionRoute", route_id: "DR001", source_farm: nil, food_bank_name: "Springfield Community Food Bank", delivery_date: "2026-05-15", status: "planned", stops: []
+  fixture "DistributionRoute", route_id: "DR002", source_farm: nil, food_bank_name: "Metro Health Food Hub", delivery_date: "2026-05-20", status: "in_transit", stops: []
+
+  fixture "PatientOutcome", patient_name: "Sarah Johnson", prescription: nil, baseline_status: "elevated_glucose", current_status: "elevated_glucose", trend: "stable", checkpoints: []
+  fixture "PatientOutcome", patient_name: "Robert Martinez", prescription: nil, baseline_status: "high_blood_pressure", current_status: "moderate_pressure", trend: "improving", checkpoints: []
 end

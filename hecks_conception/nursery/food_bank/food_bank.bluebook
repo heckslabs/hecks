@@ -271,4 +271,21 @@ Hecks.bluebook "FoodBank" do
     on "ItemStocked"
     trigger "ScheduleDistribution"
   end
+
+  # === Fixtures ===
+
+  fixture "Donation", donor_name: "Riverside Grocers Market", donation_date: "2026-04-14", food_category: "fresh_produce", weight_pounds: 185.5, expiration_date: "2026-04-21", status: "received"
+  fixture "Donation", donor_name: "Golden Harvest Farms", donation_date: "2026-04-13", food_category: "grains_pasta", weight_pounds: 320.0, expiration_date: "2026-08-14", status: "sorted"
+
+  fixture "Inventory", item_name: "Brown Rice", category: "grains", quantity: 450, storage_location: "Shelf B-3", expiration_date: "2026-08-14", status: "available"
+  fixture "Inventory", item_name: "Canned Beans", category: "proteins", quantity: 820, storage_location: "Shelf A-1", expiration_date: "2026-10-12", status: "allocated"
+
+  fixture "Distribution", event_date: "2026-04-18", location: "Community Center, 425 Main St", households_served: 0, total_weight_distributed: 0.0, status: "scheduled"
+  fixture "Distribution", event_date: "2026-04-11", location: "Parks & Recreation Building", households_served: 127, total_weight_distributed: 2450.5, status: "completed"
+
+  fixture "FoodBankVolunteer", name: "Angela Thompson", phone: "555-0147", availability: "weekends", hours_served: 24, status: "active"
+  fixture "FoodBankVolunteer", name: "Michael Santos", phone: "555-0289", availability: "weekday evenings", hours_served: 18, status: "active"
+
+  fixture "FoodBankRecipient", household_name: "Johnson Family", household_size: 4, address: "742 Elm Street, Apt 3B", dietary_restrictions: "gluten-free", enrollment_date: "2026-02-15", status: "active"
+  fixture "FoodBankRecipient", household_name: "Patel Household", household_size: 3, address: "156 Oak Lane", dietary_restrictions: "no pork", enrollment_date: "2026-03-20", status: "active"
 end

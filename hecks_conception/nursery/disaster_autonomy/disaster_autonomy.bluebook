@@ -296,4 +296,24 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     on "GridResponseActivated"
     trigger "ReroutePower"
   end
+
+  # === Fixtures ===
+
+  fixture "DisasterEvent", event_id: "disaster-2026-0415-01", disaster_type: "earthquake", affected_region: "San Francisco Bay Area", severity: "critical", estimated_affected: 250000, status: "active"
+  fixture "DisasterEvent", event_id: "disaster-2026-0416-02", disaster_type: "hurricane", affected_region: "Miami-Dade County", severity: "severe", estimated_affected: 180000, status: "active"
+
+  fixture "SearchFleet", fleet_id: "fleet-srch-001", event: "disaster-2026-0415-01", drone_count: 12, deployment_zone: "Marina District", status: "deployed"
+  fixture "SearchFleet", fleet_id: "fleet-srch-002", event: "disaster-2026-0416-02", drone_count: 18, deployment_zone: "Biscayne Bay", status: "deployed"
+
+  fixture "SupplyDrop", drop_id: "drop-001", event: "disaster-2026-0415-01", supply_type: "medical", target_location: "40.776,-73.971", delivery_method: "drone", status: "delivered"
+  fixture "SupplyDrop", drop_id: "drop-002", event: "disaster-2026-0415-01", supply_type: "water", target_location: "40.782,-73.965", delivery_method: "ground_robot", status: "planned"
+
+  fixture "GridResponse", response_id: "grid-resp-001", event: "disaster-2026-0415-01", grid_sector: "SF-North-01", affected_substations: 4, status: "active"
+  fixture "GridResponse", response_id: "grid-resp-002", event: "disaster-2026-0416-02", grid_sector: "Miami-Central-02", affected_substations: 6, status: "restored"
+
+  fixture "AirspaceControl", control_id: "airspace-001", event: "disaster-2026-0415-01", restricted_zone: "40.776,-73.971,5km", status: "restricted"
+  fixture "AirspaceControl", control_id: "airspace-002", event: "disaster-2026-0416-02", restricted_zone: "25.761,-80.193,8km", status: "open"
+
+  fixture "SurvivorRegistry", registry_id: "registry-2026-0415-01", event: "disaster-2026-0415-01", total_found: 847, status: "active"
+  fixture "SurvivorRegistry", registry_id: "registry-2026-0416-02", event: "disaster-2026-0416-02", total_found: 612, status: "active"
 end

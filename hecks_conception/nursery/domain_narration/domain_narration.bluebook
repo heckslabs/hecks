@@ -95,4 +95,18 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
     on "EventTranslated"
     trigger "TraceChain"
   end
+
+  # === Fixtures ===
+
+  fixture "Workflow", domain_name: "OrderFulfillment", steps: []
+  fixture "Workflow", domain_name: "EventPlanning", steps: []
+
+  fixture "Narration", source_name: "OrderPlaced", english_text: "A customer has placed a new order with items and delivery information", narration_type: "event"
+  fixture "Narration", source_name: "PickOrder", english_text: "The warehouse staff member selects items from shelves to fulfill the order", narration_type: "command"
+
+  fixture "PolicyChain", origin_command: "PlaceOrder", depth: 3, links: []
+  fixture "PolicyChain", origin_command: "ConfirmPayment", depth: 2, links: []
+
+  fixture "Rule", command_name: "PlaceOrder", rule_text: "Order must have at least one item"
+  fixture "Rule", command_name: "ShipOrder", rule_text: "Order status must be packed before shipment"
 end

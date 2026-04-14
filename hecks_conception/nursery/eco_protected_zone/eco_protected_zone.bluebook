@@ -387,4 +387,22 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     on "SeismicActivityRecorded"
     trigger "RaiseAlert"
   end
+
+  fixture "ProtectedArea", name: "Serengeti National Park", protection_level: "strict", area_sq_km: 14750.0, status: "active"
+  fixture "ProtectedArea", name: "Amazon Rainforest Reserve", protection_level: "moderate", area_sq_km: 550000.0, status: "closed"
+
+  fixture "Visitor", name: "Alice Thompson", nationality: "United States", status: "registered"
+  fixture "Visitor", name: "Carlos Rodriguez", nationality: "Mexico", status: "checked_out"
+
+  fixture "WildlifeSpecies", common_name: "African Lion", scientific_name: "Panthera leo", conservation_status: "vulnerable", estimated_population: 23000, primary_habitat: "savanna"
+  fixture "WildlifeSpecies", common_name: "Bengal Tiger", scientific_name: "Panthera tigris tigris", conservation_status: "endangered", estimated_population: 3900, primary_habitat: "tropical_forest"
+
+  fixture "ForensicCase", case_number: "CASE-2026-001", evidence_type: "hide_sample", dna_sample_id: "DNA-LAB-2026-001", status: "open", suspect_description: "male, 40-50 years, armed with rifle"
+  fixture "ForensicCase", case_number: "CASE-2026-002", evidence_type: "ivory_poaching", dna_sample_id: "DNA-LAB-2026-002", status: "closed", suspect_description: "organized poaching ring, 5+ individuals"
+
+  fixture "HazardZone", zone_name: "Mount Kilimanjaro Summit", hazard_type: "volcanic", alert_level: "normal", status: "monitored"
+  fixture "HazardZone", zone_name: "Krafla Geothermal Field", hazard_type: "geothermal", alert_level: "elevated", status: "alert"
+
+  fixture "Permit", permit_type: "research", valid_from: "2026-04-01", valid_until: "2026-06-30", status: "active"
+  fixture "Permit", permit_type: "tourism", valid_from: "2026-02-15", valid_until: "2026-03-15", status: "expired"
 end

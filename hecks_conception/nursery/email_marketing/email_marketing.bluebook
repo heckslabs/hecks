@@ -249,6 +249,21 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
     trigger "AggregateOpens"
   end
 
+  fixture "SubscriberList", list_name: "Product Launch 2026", description: "Early adopters and beta testers for new product", subscriber_count: 3427, opt_in_method: "website_signup", status: "active"
+  fixture "SubscriberList", list_name: "Monthly Newsletter", description: "General audience newsletter subscribers", subscriber_count: 12854, opt_in_method: "double_optin", status: "active"
+
+  fixture "EmailCampaign", campaign_name: "Spring Sale Announcement", subject_line: "Exclusive Spring Savings — Up to 40% Off", from_address: "marketing@company.com", template_id: "tmpl_spring_2026", status: "draft"
+  fixture "EmailCampaign", campaign_name: "Product Feature Deep Dive", subject_line: "How to Maximize Your Workflow with Advanced Filters", from_address: "product@company.com", template_id: "tmpl_features_v2", status: "scheduled"
+
+  fixture "Send", send_id: "send_abc123def456", recipient_email: "alice.johnson@example.com", status: "delivered", sent_at: "2026-04-13T09:15:00Z", delivery_status: "success"
+  fixture "Send", send_id: "send_xyz789uvw012", recipient_email: "bob.smith@example.com", status: "failed", sent_at: "2026-04-13T09:16:00Z", delivery_status: "hard_bounce"
+
+  fixture "OpenEvent", event_id: "open_evt_001", recipient_email: "alice.johnson@example.com", user_agent: "Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36", opened_at: "2026-04-13T10:42:00Z", geo_region: "us_west"
+  fixture "OpenEvent", event_id: "open_evt_002", recipient_email: "carol.davis@example.com", user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4) AppleWebKit/605.1.15", opened_at: "2026-04-13T11:08:00Z", geo_region: "us_east"
+
+  fixture "Bounce", bounce_id: "bounce_hard_001", recipient_email: "invalid.address@nonexistent.com", bounce_type: "hard", smtp_code: "550", diagnostic: "user_unknown", status: "suppressed"
+  fixture "Bounce", bounce_id: "bounce_soft_001", recipient_email: "tempuser@company.com", bounce_type: "soft", smtp_code: "421", diagnostic: "service_unavailable", status: "pending"
+
   policy "RecordBounceOnFail" do
     on "SendFailed"
     trigger "RecordBounce"

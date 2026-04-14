@@ -196,4 +196,16 @@ Hecks.bluebook "FireRobotics" do
     trigger "AddFieldReport"
     map fire_incident_id: :incident_id, reporter: :robot_id, observation: :condition
   end
+
+  fixture "FireIncident", incident_id: "INC-2026-0414-001", location: "742 Elm Lane", fire_type: "structure", severity: "high", status: "reported"
+  fixture "FireIncident", incident_id: "INC-2026-0414-002", location: "Suite 200, Commerce Plaza", fire_type: "electrical", severity: "medium", status: "reported"
+
+  fixture "FireRobot", robot_id: "FR-Quad-01", robot_type: "structure", battery_pct: 87.5, status: "standby"
+  fixture "FireRobot", robot_id: "FR-Thermal-02", robot_type: "thermal_scout", battery_pct: 95.0, status: "standby"
+
+  fixture "Mission", mission_type: "reconnaissance", status: "planned", reference_to(FireIncident), reference_to(FireRobot)
+  fixture "Mission", mission_type: "extraction_support", status: "planned", reference_to(FireIncident), reference_to(FireRobot)
+
+  fixture "RescueOperation", victims_located: 0, status: "searching", reference_to(FireIncident), reference_to(FireRobot)
+  fixture "RescueOperation", victims_located: 2, status: "searching", reference_to(FireIncident), reference_to(FireRobot)
 end

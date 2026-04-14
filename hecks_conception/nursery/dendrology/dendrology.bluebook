@@ -176,4 +176,16 @@ Hecks.bluebook "Dendrology" do
     on "TreatmentPrescribed"
     trigger "ScheduleFollowup"
   end
+
+  fixture "TreeSpecimen", specimen_id: "TS-001-OAK", species: "Quercus alba", common_name: "White Oak", dbh_cm: 48.5, height_m: 22.3
+  fixture "TreeSpecimen", specimen_id: "TS-002-PINE", species: "Pinus strobus", common_name: "Eastern White Pine", dbh_cm: 32.1, height_m: 31.4
+
+  fixture "GrowthRingAnalysis", core_id: "CORE-001", ring_count: 147, estimated_age: 148, mean_ring_width_mm: 2.3
+  fixture "GrowthRingAnalysis", core_id: "CORE-002", ring_count: 89, estimated_age: 90, mean_ring_width_mm: 1.8
+
+  fixture "HealthAssessment", assessment_date: "2026-04-10", assessor: "Dr. Jane Smith", vigor_rating: "good", structural_defects: "none", pest_signs: "minor aphid activity"
+  fixture "HealthAssessment", assessment_date: "2026-04-08", assessor: "Dr. Robert Chen", vigor_rating: "fair", structural_defects: "branch cavity at 3m", pest_signs: "none"
+
+  fixture "ForestInventory", plot_id: "PLOT-A1", area_hectares: 2.5, tree_count: 47, inventory_date: "2026-04-05", forest_type: "mixed hardwood"
+  fixture "ForestInventory", plot_id: "PLOT-B2", area_hectares: 3.1, tree_count: 62, inventory_date: "2026-04-12", forest_type: "pine plantation"
 end

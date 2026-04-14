@@ -133,4 +133,16 @@ Hecks.bluebook "DentalSaaS", version: "2026.04.13.1" do
     on "SubscriptionCancelled"
     trigger "SuspendTenant"
   end
+
+  fixture "Tenant", tenant_id: "TEN-0001", practice_name: "Smile Care Dental", plan_tier: "professional", status: "active"
+  fixture "Tenant", tenant_id: "TEN-0002", practice_name: "Advanced Orthodontics", plan_tier: "enterprise", status: "active"
+
+  fixture "Appointment", appointment_id: "APT-001", patient_name: "Lisa Anderson", dentist_name: "Dr. Rodriguez", procedure_type: "root canal", date_time: "2026-04-15T10:00:00Z", status: "scheduled"
+  fixture "Appointment", appointment_id: "APT-002", patient_name: "James Wilson", dentist_name: "Dr. Patel", procedure_type: "cleaning", date_time: "2026-04-15T14:30:00Z", status: "scheduled"
+
+  fixture "Subscription", tenant_id: "TEN-0001", plan_name: "Professional Monthly", monthly_rate: 599.00, billing_cycle: "monthly", status: "active"
+  fixture "Subscription", tenant_id: "TEN-0002", plan_name: "Enterprise Annual", monthly_rate: 4999.00, billing_cycle: "annual", status: "active"
+
+  fixture "ClinicalNote", note_id: "NOTE-001", appointment_id: "APT-001", findings: "tooth 14 shows deep decay approaching pulp", treatment_plan: "root canal therapy recommended, schedule for next week", author: "Dr. Rodriguez"
+  fixture "ClinicalNote", note_id: "NOTE-002", appointment_id: "APT-002", findings: "minimal plaque buildup, no new cavities", treatment_plan: "continue fluoride rinse twice daily, recheck in 6 months", author: "Dr. Patel"
 end

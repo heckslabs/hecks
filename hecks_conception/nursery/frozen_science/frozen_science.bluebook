@@ -194,4 +194,17 @@ Hecks.bluebook "FrozenScience" do
     trigger "CatalogIngredient"
     map name: :trending_ingredient
   end
+
+  # Fixtures for testing and demonstration
+  fixture "BaseIngredient", name: "Vanilla Extract", category: "flavor", status: "cataloged"
+  fixture "BaseIngredient", name: "Heavy Cream", category: "dairy", status: "cataloged"
+
+  fixture "FlavorFormula", flavor_name: "Madagascar Vanilla", target_temp_c: -18.5, status: "experimental"
+  fixture "FlavorFormula", flavor_name: "Belgian Chocolate", target_temp_c: -20.0, status: "approved"
+
+  fixture "FreezingCycle", batch_id: "BATCH-2025-001", status: "mixing"
+  fixture "FreezingCycle", batch_id: "BATCH-2025-002", status: "freezing"
+
+  fixture "ParlorMenu", menu_name: "Spring Delights 2025", season: "spring", status: "draft"
+  fixture "ParlorMenu", menu_name: "Summer Classics 2024", season: "summer", status: "active"
 end
