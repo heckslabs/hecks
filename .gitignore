@@ -43,3 +43,13 @@ hecks_v0
 node_modules/
 hecks_life/target/
 hecks_conception/information/creator_auth.heki
+
+# Training artifacts — live on Modal, not in git
+*.safetensors
+__pycache__/
+summer/target/
+hecks_conception/summer/__pycache__/
+hecks_conception/autumn/.wrangler/
+hecks_conception/information/.*.pid
+hecks_conception/.DS_Store
+hecks_conception/--help
