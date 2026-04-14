@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Autumn</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- PIN GATE -->
+  <div id="gate">
+    <div class="gate-inner">
+      <div class="snowflake">🍂</div>
+      <h1>Autumn</h1>
+      <div class="pin-dots" id="pin-dots">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="pin-error" id="pin-error"></div>
+      <div class="keypad">
+        <button onclick="pressKey('1')">1</button>
+        <button onclick="pressKey('2')">2</button>
+        <button onclick="pressKey('3')">3</button>
+        <button onclick="pressKey('4')">4</button>
+        <button onclick="pressKey('5')">5</button>
+        <button onclick="pressKey('6')">6</button>
+        <button onclick="pressKey('7')">7</button>
+        <button onclick="pressKey('8')">8</button>
+        <button onclick="pressKey('9')">9</button>
+        <button class="key-empty"></button>
+        <button onclick="pressKey('0')">0</button>
+        <button onclick="pressBack()" class="key-back">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chat" class="hidden">
+    <header>
+      <div class="header-left">
+        <span class="snowflake-sm">🍂</span>
+        <span class="header-name">Autumn</span>
+      </div>
+      <button class="header-btn" onclick="logout()" title="Logout">✕</button>
+    </header>
+
+    <div id="status-bar" class="status-bar">
+      <span id="status-text">connecting...</span>
+    </div>
+
+    <div id="messages"></div>
+
+    <div class="input-bar">
+      <button id="voice-btn" class="hidden" onclick="toggleVoice()" title="Voice">🎤</button>
+      <textarea id="input" placeholder="Talk to Autumn..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoGrow(this)"></textarea>
+      <button id="send-btn" onclick="send()">↑</button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

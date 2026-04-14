@@ -1,0 +1,14 @@
+name = "autumn"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+assets = { directory = "./public" }
+
+[ai]
+binding = "AI"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "26e5bd6928694c8899a2a42c1089dddc"
+
+[vars]
+PIN_HASH = "0898"
