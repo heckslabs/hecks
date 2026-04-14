@@ -202,4 +202,19 @@ Hecks.bluebook "PavingCompany" do
     on "CureTimeRecorded"
     trigger "CloseProject"
   end
+
+  fixture "PavingProject", client_name: "Norton Office Park", location: "2456 Industrial Blvd, Sacramento CA", project_type: "parking lot", area_sqft: 18500.0, thickness_inches: 3.5, status: "estimated"
+  fixture "PavingProject", client_name: "Riverside Estates HOA", location: "4789 Oak Ridge Drive, Riverside CA", project_type: "residential driveway", area_sqft: 4200.0, thickness_inches: 2.5, status: "estimated"
+
+  fixture "AsphaltMix", mix_designation: "SP-12.5", binder_grade: "PG 64-10", target_temp_f: 325.0, compaction_density: 146.5, reference_to: "PavingProject"
+  fixture "AsphaltMix", mix_designation: "SP-9.5", binder_grade: "PG 70-22", target_temp_f: 340.0, compaction_density: 147.8, reference_to: "PavingProject"
+
+  fixture "PavingEquipment", equipment_type: "asphalt paver", make: "Vogele", model: "Super 1600-3", status: "mobilized"
+  fixture "PavingEquipment", equipment_type: "pneumatic roller", make: "Bomag", model: "BW 177D-5", status: "mobilized"
+
+  fixture "WeatherWindow", forecast_date: "2026-04-16", high_temp_f: 72.0, low_temp_f: 52.0, precipitation_chance: 15.0, paving_suitability: "excellent", reference_to: "PavingProject"
+  fixture "WeatherWindow", forecast_date: "2026-04-15", high_temp_f: 68.0, low_temp_f: 48.0, precipitation_chance: 60.0, paving_suitability: "poor", reference_to: "PavingProject"
+
+  fixture "CuringRecord", core_density: 147.2, air_voids_pct: 4.8, test_date: "2026-04-14", result: "within spec", reference_to: "PavingProject"
+  fixture "CuringRecord", core_density: 146.8, air_voids_pct: 5.1, test_date: "2026-04-13", result: "within spec", reference_to: "PavingProject"
 end

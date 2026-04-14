@@ -252,4 +252,19 @@ Hecks.bluebook "OccupationalTherapy" do
     on "ProgressMeasured"
     trigger "GradeActivity"
   end
+
+  fixture "Client", name: "Margaret Yates", date_of_birth: "1952-03-15", condition: "post-stroke hemiparesis", functional_level: "moderate", status: "referred"
+  fixture "Client", name: "Robert Chen", date_of_birth: "1965-07-22", condition: "rheumatoid arthritis", functional_level: "mild", status: "active"
+
+  fixture "DailyLivingActivity", name: "Dressing Independence", category: "self-care", complexity: "intermediate", instructions: "Practice fastening buttons and zippers without assistance", steps: []
+  fixture "DailyLivingActivity", name: "Kitchen Safety", category: "instrumental", complexity: "advanced", instructions: "Prepare simple meals while maintaining balance and coordination", steps: []
+
+  fixture "Adaptation", client_name: "Margaret Yates", adaptation_type: "grab bar", description: "Stainless steel grab bar for bathroom wall near toilet", location: "home bathroom", status: "recommended"
+  fixture "Adaptation", client_name: "Robert Chen", adaptation_type: "reaching aid", description: "Extended reacher with ergonomic grip for joint protection", location: "home kitchen", status: "implemented"
+
+  fixture "FunctionalGoal", client_name: "Margaret Yates", goal_description: "Walk independently to mailbox and back", functional_area: "mobility", independence_score: 3, target_score: 8, status: "active"
+  fixture "FunctionalGoal", client_name: "Robert Chen", goal_description: "Button a shirt without pain or dropping items", functional_area: "fine motor", independence_score: 5, target_score: 9, status: "completed"
+
+  fixture "ProgressNote", client_name: "Margaret Yates", note_date: "2026-04-10", session_summary: "Worked on standing balance using parallel bars for 20 minutes", client_response: "Showed good effort, fatigue noted after 15 minutes", plan_for_next: "Increase standing time to 25 minutes, reduce handholds"
+  fixture "ProgressNote", client_name: "Robert Chen", note_date: "2026-04-09", session_summary: "Practiced joint protection techniques during cooking simulation", client_response: "Reported 30% reduction in hand pain compared to last week", plan_for_next: "Introduce light resistance exercises with adaptive tools"
 end

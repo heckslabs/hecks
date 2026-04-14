@@ -264,4 +264,19 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
     on "DisputeEscalated"
     trigger "SuspendSeller"
   end
+
+  fixture "Lot", lot_number: "2026-04-001", title: "Vintage Rolex Submariner Watch", description: "1975 Rolex Submariner with original box and papers", category: "jewelry", starting_price: 2500.0, reserve_price: 3000.0, current_bid: 0.0, auction_end: "2026-04-20T18:00:00Z", status: "active", images: []
+  fixture "Lot", lot_number: "2026-04-002", title: "First Edition Harry Potter and the Sorcerer's Stone", description: "1998 US first edition in excellent condition with dust jacket", category: "books", starting_price: 150.0, reserve_price: 200.0, current_bid: 425.0, auction_end: "2026-04-18T20:00:00Z", status: "active", images: []
+
+  fixture "Bid", bid_id: "BID-2026-0401", amount: 425.0, bidder_name: "BookCollector42", bidder_email: "books@example.com", placed_at: "2026-04-12T14:22:15Z", status: "active"
+  fixture "Bid", bid_id: "BID-2026-0402", amount: 3150.0, bidder_name: "WatchLover88", bidder_email: "timepieces@example.com", placed_at: "2026-04-13T11:45:30Z", status: "active"
+
+  fixture "Seller", seller_id: "SELLER-001", name: "AntiquesPlus", email: "contact@antiquesplus.com", seller_rating: 4.8, total_sales: 256, status: "active", reviews: []
+  fixture "Seller", seller_id: "SELLER-002", name: "RareFinds Ltd", email: "info@rarefinds.co.uk", seller_rating: 4.9, total_sales: 1082, status: "active", reviews: []
+
+  fixture "AuctionSettlement", settlement_id: "SETTLE-2026-0401", hammer_price: 425.0, buyer_premium: 59.5, seller_commission: 25.5, net_to_seller: 399.5, status: "pending"
+  fixture "AuctionSettlement", settlement_id: "SETTLE-2026-0402", hammer_price: 3150.0, buyer_premium: 441.0, seller_commission: 189.0, net_to_seller: 2961.0, status: "pending"
+
+  fixture "Dispute", dispute_id: "DISPUTE-2026-0401", complainant: "BookCollector42", reason: "Item not as described", description: "Pages appear to have water damage not mentioned in listing", status: "open"
+  fixture "Dispute", dispute_id: "DISPUTE-2026-0402", complainant: "WatchLover88", reason: "Late delivery", description: "Package did not arrive within promised 5 business days", status: "open"
 end

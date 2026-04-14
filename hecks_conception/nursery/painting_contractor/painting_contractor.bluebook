@@ -200,4 +200,19 @@ Hecks.bluebook "PaintingContractor" do
     on "CoatInspected"
     trigger "ConductWalkthrough"
   end
+
+  fixture "PaintEstimate", customer_name: "Jonathan Blake", address: "1247 Oak Street, Portland OR 97201", total_sqft: 2500.0, surface_type: "exterior wood siding", coats: 2, total_price: 4200.00, status: "presented"
+  fixture "PaintEstimate", customer_name: "Lisa and Mark Chen", address: "892 Maple Ave, Seattle WA 98101", total_sqft: 1800.0, surface_type: "interior drywall", coats: 2, total_price: 2800.00, status: "presented"
+
+  fixture "SurfacePrep", prep_type: "pressure wash and scrape", surface: "exterior wood siding", status: "in_progress", reference_to: "PaintEstimate"
+  fixture "SurfacePrep", prep_type: "spackle and sand", surface: "interior drywall", status: "complete", reference_to: "PaintEstimate"
+
+  fixture "ColorSelection", color_name: "Coastal Sage", brand: "Sherwin-Williams", sheen: "satin", formula_code: "SW6200", surface_application: "exterior body", reference_to: "PaintEstimate"
+  fixture "ColorSelection", color_name: "Urbane Bronze", brand: "Sherwin-Williams", sheen: "eggshell", formula_code: "SW7048", surface_application: "interior accent wall", reference_to: "PaintEstimate"
+
+  fixture "CoatApplication", coat_number: 1, application_method: "roller", mil_thickness: 3.5, status: "applied", reference_to: "ColorSelection"
+  fixture "CoatApplication", coat_number: 2, application_method: "brush and roller", mil_thickness: 3.2, status: "inspected", reference_to: "ColorSelection"
+
+  fixture "FinalWalkthrough", customer_feedback: "excellent coverage and clean edges", punch_list_items: "touch up corner trim", approval_status: "conditional", reference_to: "PaintEstimate"
+  fixture "FinalWalkthrough", customer_feedback: "perfect color match and finish quality", punch_list_items: "none", approval_status: "approved", reference_to: "PaintEstimate"
 end

@@ -288,4 +288,19 @@ Hecks.bluebook "Pathology" do
     on "QualityControlFailed"
     trigger "RepeatTest"
   end
+
+  fixture "Specimen", accession_number: "ACC-2026-0847", patient_name: "Robert Sullivan", specimen_type: "blood culture", collection_date: "2026-04-13", collected_by: "Nurse Jennifer", status: "received"
+  fixture "Specimen", accession_number: "ACC-2026-0848", patient_name: "Angela Torres", specimen_type: "tissue biopsy", collection_date: "2026-04-12", collected_by: "Dr. Williams", status: "processed"
+
+  fixture "LabTest", test_name: "Complete Blood Count", test_code: "CBC", methodology: "automated analyzer", specimen_accession: "ACC-2026-0847", ordered_by: "Dr. Michael Park", status: "ordered"
+  fixture "LabTest", test_name: "Histopathology", test_code: "HPATH", methodology: "immunohistochemistry", specimen_accession: "ACC-2026-0848", ordered_by: "Dr. Laura Chen", status: "completed"
+
+  fixture "TestResult", test_name: "Complete Blood Count", result_value: "7.8", unit: "K/uL", reference_range: "4.5-11.0", interpretation: "normal", resulted_by: "Tech Marcus", result_date: "2026-04-14", status: "preliminary"
+  fixture "TestResult", test_name: "Histopathology", result_value: "Grade II invasive ductal carcinoma", unit: "N/A", reference_range: "benign", interpretation: "malignant neoplasm", resulted_by: "Tech Patricia", result_date: "2026-04-13", status: "verified"
+
+  fixture "QualityControl", instrument_name: "Sysmex XN-1000", control_material: "calibration fluid", expected_value: "7.5", observed_value: "7.52", run_date: "2026-04-14 08:00", status: "pending_review"
+  fixture "QualityControl", instrument_name: "Leica Biosystems Stainer", control_material: "staining control slide", expected_value: "uniform", observed_value: "uniform", run_date: "2026-04-13 09:30", status: "approved"
+
+  fixture "PathologyReport", patient_name: "Angela Torres", specimen_accession: "ACC-2026-0848", gross_description: "tan-white firm mass, 2.5cm", microscopic_findings: "infiltrating ductal cells with high grade", diagnosis: "Invasive ductal carcinoma, Grade II, ER+/PR+/HER2-", pathologist_name: "Dr. Susan Abbott", report_date: "2026-04-13", status: "draft"
+  fixture "PathologyReport", patient_name: "Robert Sullivan", specimen_accession: "ACC-2026-0847", gross_description: "blood culture specimen", microscopic_findings: "no organisms identified", diagnosis: "negative for bacterial growth", pathologist_name: "Dr. James Mitchell", report_date: "2026-04-14", status: "final"
 end

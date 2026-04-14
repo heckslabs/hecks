@@ -199,4 +199,19 @@ Hecks.bluebook "Neuroscience" do
     on "ProtocolDesigned"
     trigger "RandomizeTrials"
   end
+
+  fixture "Subject", subject_id: "S-001", age: 28, handedness: "right", consent_date: "2026-03-15", exclusion_criteria: "none"
+  fixture "Subject", subject_id: "S-002", age: 35, handedness: "left", consent_date: "2026-04-01", exclusion_criteria: "metal implants"
+
+  fixture "ImagingSession", session_id: "sess-001", modality: "fMRI", timestamp: "2026-04-10T10:30:00Z", duration_minutes: 45
+  fixture "ImagingSession", session_id: "sess-002", modality: "EEG", timestamp: "2026-04-11T14:15:00Z", duration_minutes: 60
+
+  fixture "NeuralSignal", signal_type: "BOLD", brain_region: "prefrontal-cortex", sampling_rate_hz: 2.0, channel_count: 1
+  fixture "NeuralSignal", signal_type: "power-spectrum", brain_region: "visual-cortex", sampling_rate_hz: 250.0, channel_count: 32
+
+  fixture "StimulusProtocol", protocol_name: "FacePerception", stimulus_type: "visual-faces", trial_count: 40, inter_stimulus_interval_ms: 2000.0
+  fixture "StimulusProtocol", protocol_name: "MotorImagery", stimulus_type: "kinesthetic-cues", trial_count: 30, inter_stimulus_interval_ms: 3000.0
+
+  fixture "ResearchPaper", paper_id: "paper-001", title: "Neural correlates of face recognition in healthy subjects", target_journal: "NeuroImage", status: "drafted"
+  fixture "ResearchPaper", paper_id: "paper-002", title: "Functional connectivity changes during motor imagery tasks", target_journal: "Cerebral Cortex", status: "drafted"
 end

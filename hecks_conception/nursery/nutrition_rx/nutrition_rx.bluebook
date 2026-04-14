@@ -285,4 +285,19 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     on "IntakeRecorded"
     trigger "AchieveTarget"
   end
+
+  fixture "Patient", name: "Carol Williams", date_of_birth: "1975-06-20", dietary_restriction: "gluten-free", status: "active"
+  fixture "Patient", name: "David Brown", date_of_birth: "1982-11-08", dietary_restriction: "vegan", status: "active"
+
+  fixture "Prescription", medication: "Metformin", dosage: "500mg", frequency: "twice daily", status: "written"
+  fixture "Prescription", medication: "Lisinopril", dosage: "10mg", frequency: "once daily", status: "filled"
+
+  fixture "MealPlan", goal: "diabetes-management", daily_calories: 2000, status: "draft"
+  fixture "MealPlan", goal: "cardiovascular-health", daily_calories: 1900, status: "approved"
+
+  fixture "GroceryList", status: "generated", estimated_cost: 85.50
+  fixture "GroceryList", status: "fulfilled", estimated_cost: 92.00
+
+  fixture "NutrientTarget", nutrient: "vitamin-D", target_amount: 1000.0, unit: "IU", current_intake: 0.0, status: "tracking"
+  fixture "NutrientTarget", nutrient: "sodium", target_amount: 2300.0, unit: "mg", current_intake: 0.0, status: "tracking"
 end

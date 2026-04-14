@@ -158,4 +158,16 @@ Hecks.bluebook "MobileDialysis", version: "2026.04.13.1" do
     on "RouteStarted"
     trigger "StartTreatment"
   end
+
+  fixture "DialysisPatient", patient_id: "pat-2847", name: "Margaret Johnson", blood_type: "O+", access_type: "fistula", treatments_per_week: 3, status: "enrolled"
+  fixture "DialysisPatient", patient_id: "pat-3091", name: "David Chen", blood_type: "B-", access_type: "catheter", treatments_per_week: 3, status: "enrolled"
+
+  fixture "MobileUnit", unit_id: "mu-north-1", license_plate: "MU47829", treatment_stations: 4, nurse_name: "Sarah Martinez", status: "available"
+  fixture "MobileUnit", unit_id: "mu-south-2", license_plate: "MU51204", treatment_stations: 6, nurse_name: "James Wilson", status: "dispatched"
+
+  fixture "TreatmentRoute", route_id: "rt-2026-04-14-n1", unit_id: "mu-north-1", date: "2026-04-14", total_miles: 28.5, status: "planned"
+  fixture "TreatmentRoute", route_id: "rt-2026-04-14-s2", unit_id: "mu-south-2", date: "2026-04-14", total_miles: 35.2, status: "in_progress"
+
+  fixture "TreatmentSession", session_id: "ts-2847-001", patient_id: "pat-2847", unit_id: "mu-north-1", duration_hours: 4.0, fluid_removed_liters: 2.5, status: "completed"
+  fixture "TreatmentSession", session_id: "ts-3091-001", patient_id: "pat-3091", unit_id: "mu-south-2", duration_hours: 4.5, fluid_removed_liters: 3.1, status: "in_progress"
 end

@@ -202,4 +202,16 @@ Hecks.bluebook "PerishableRescue" do
     trigger "RecordCheckpoint"
     map cold_chain_route_id: :return_route_id, location: :site_name
   end
+
+  fixture "FoodDonation", donor_name: "Riverside Organic Farm", donation_date: "2026-04-14", status: "received"
+  fixture "FoodDonation", donor_name: "Downtown Market District", donation_date: "2026-04-13", status: "approved"
+
+  fixture "ColdChainRoute", route_id: "RT-2026-001", vehicle_id: "VAN-42", status: "planned"
+  fixture "ColdChainRoute", route_id: "RT-2026-002", vehicle_id: "TRUCK-15", status: "in_transit"
+
+  fixture "Distribution", site_name: "Lincoln Park Community Center", distribution_date: "2026-04-15", status: "scheduled"
+  fixture "Distribution", site_name: "Eastside Food Hub", distribution_date: "2026-04-14", status: "executed"
+
+  fixture "TempAlert", alert_type: "temp_spike", temp_deviation_c: 4.5, status: "active"
+  fixture "TempAlert", alert_type: "temp_drop", temp_deviation_c: -5.2, status: "resolved"
 end

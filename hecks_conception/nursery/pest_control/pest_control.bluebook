@@ -262,4 +262,19 @@ Hecks.bluebook "PestControl" do
     on "TreatmentApplied"
     trigger "UseChemical"
   end
+
+  fixture "ServiceAccount", customer_name: "Sarah Martinez", phone: "555-0101", email: "sarah@example.com", service_address: "142 Oak Street", property_type: "residential", status: "active"
+  fixture "ServiceAccount", customer_name: "Chen's Restaurant", phone: "555-0102", email: "owner@chens.com", service_address: "88 Market Lane", property_type: "commercial", status: "active"
+
+  fixture "InspectionReport", inspection_date: "2026-04-10", pest_type: "termites", severity: "high", entry_points: "foundation cracks, wood siding", recommendations: "barrier treatment and monitoring", status: "completed"
+  fixture "InspectionReport", inspection_date: "2026-04-12", pest_type: "cockroaches", severity: "moderate", entry_points: "kitchen pipes", recommendations: "gel bait stations", status: "completed"
+
+  fixture "TreatmentApplication", treatment_type: "liquid barrier", target_pest: "termites", application_date: "2026-04-11", application_method: "soil injection", areas_treated: "foundation perimeter", status: "applied"
+  fixture "TreatmentApplication", treatment_type: "gel bait", target_pest: "cockroaches", application_date: "2026-04-13", application_method: "placement", areas_treated: "kitchen, pantry, restroom", status: "effective"
+
+  fixture "ChemicalInventory", product_name: "TerminatorX Pro", epa_registration: "EPA-123456", active_ingredient: "fipronil", quantity_on_hand: 24.5, unit: "liters", expiration_date: "2027-08-30"
+  fixture "ChemicalInventory", product_name: "BaitMax Gel", epa_registration: "EPA-234567", active_ingredient: "imidacloprid", quantity_on_hand: 15.0, unit: "units", expiration_date: "2026-12-15"
+
+  fixture "FollowUpVisit", visit_date: "2026-04-18", purpose: "verify termite treatment effectiveness", findings: "no active termite signs observed", status: "completed"
+  fixture "FollowUpVisit", visit_date: "2026-04-21", purpose: "inspect cockroach bait stations", findings: "good bait consumption, population reduced", status: "scheduled"
 end

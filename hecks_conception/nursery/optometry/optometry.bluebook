@@ -244,4 +244,19 @@ Hecks.bluebook "Optometry" do
     on "FollowUpCompleted"
     trigger "RenewPrescription"
   end
+
+  fixture "Patient", name: "Emily Rodriguez", date_of_birth: "1988-06-14", insurance_id: "VSP-4521-8843", medical_history: "myopia since childhood, seasonal allergies", status: "active"
+  fixture "Patient", name: "James Whitney", date_of_birth: "1956-11-28", insurance_id: "MEDICARE-A-0094", medical_history: "presbyopia, early-stage cataracts, controlled diabetes", status: "active"
+
+  fixture "EyeExam", patient_name: "Emily Rodriguez", exam_date: "2026-04-10", visual_acuity_right: "20/25", visual_acuity_left: "20/30", intraocular_pressure_right: 14.5, intraocular_pressure_left: 15.2, findings: [], status: "completed"
+  fixture "EyeExam", patient_name: "James Whitney", exam_date: "2026-04-08", visual_acuity_right: "20/60", visual_acuity_left: "20/70", intraocular_pressure_right: 16.8, intraocular_pressure_left: 17.1, findings: [], status: "completed"
+
+  fixture "LensPrescription", patient_name: "Emily Rodriguez", sphere_right: -2.5, sphere_left: -3.0, cylinder_right: -0.5, cylinder_left: -0.75, axis_right: 175, axis_left: 170, add_power: 0.0, prescription_date: "2026-04-10", expiration_date: "2027-04-10"
+  fixture "LensPrescription", patient_name: "James Whitney", sphere_right: 1.75, sphere_left: 2.0, cylinder_right: -0.5, cylinder_left: -0.75, axis_right: 180, axis_left: 175, add_power: 2.5, prescription_date: "2026-04-08", expiration_date: "2027-04-08"
+
+  fixture "LensOrder", patient_name: "Emily Rodriguez", lens_type: "glasses", frame_style: "cat-eye acetate", coating: "anti-reflective and blue-light filter", order_date: "2026-04-11", status: "ordered"
+  fixture "LensOrder", patient_name: "James Whitney", lens_type: "progressive bifocals", frame_style: "titanium browline", coating: "anti-scratch and UV protection", order_date: "2026-04-09", status: "dispensed"
+
+  fixture "FollowUp", patient_name: "Emily Rodriguez", reason: "monitor myopia progression and discuss contact lens options", scheduled_date: "2027-04-10", status: "scheduled", outcome_notes: ""
+  fixture "FollowUp", patient_name: "James Whitney", reason: "cataract monitoring and prescription reassessment", scheduled_date: "2026-10-08", status: "scheduled", outcome_notes: ""
 end

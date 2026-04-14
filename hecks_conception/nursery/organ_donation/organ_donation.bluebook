@@ -273,4 +273,19 @@ Hecks.bluebook "OrganDonation" do
     on "OutcomeRecorded"
     trigger "UpdateGraftStatus"
   end
+
+  fixture "Donor", name: "Robert Martinez", blood_type: "O+", tissue_type: "8/8", hospital: "Stanford Medical Center", cause_of_death: "Traumatic brain injury", consent_status: "confirmed"
+  fixture "Donor", name: "Sarah Chen", blood_type: "AB-", tissue_type: "6/8", hospital: "UCSF Medical Center", cause_of_death: "Intracranial hemorrhage", consent_status: "pending"
+
+  fixture "Recipient", name: "James Wilson", blood_type: "O+", tissue_type: "8/8", organ_needed: "kidney", urgency_level: "2", listing_date: "2026-01-15", status: "waiting"
+  fixture "Recipient", name: "Maria Rodriguez", blood_type: "AB-", tissue_type: "6/8", organ_needed: "heart", urgency_level: "1A", listing_date: "2026-03-01", status: "waiting"
+
+  fixture "OrganMatch", donor_name: "Robert Martinez", recipient_name: "James Wilson", organ_name: "right kidney", compatibility_score: "94.5", crossmatch_result: "negative", status: "pending_crossmatch"
+  fixture "OrganMatch", donor_name: "Sarah Chen", recipient_name: "Maria Rodriguez", organ_name: "heart", compatibility_score: "98.2", crossmatch_result: "negative", status: "accepted"
+
+  fixture "OrganTransport", organ_name: "right kidney", origin_hospital: "Stanford Medical Center", destination_hospital: "UCSF Medical Center", transport_method: "courier", departure_time: "2026-04-14 08:30", estimated_arrival: "2026-04-14 11:45", status: "in_transit"
+  fixture "OrganTransport", organ_name: "heart", origin_hospital: "UCSF Medical Center", destination_hospital: "Stanford Medical Center", transport_method: "helicopter", departure_time: "2026-04-13 14:00", estimated_arrival: "2026-04-13 14:45", status: "delivered"
+
+  fixture "TransplantOutcome", recipient_name: "James Wilson", organ_name: "right kidney", surgery_date: "2026-04-14", surgeon_name: "Dr. Patricia Liu", graft_function: "excellent", complications: "none", status: "initial"
+  fixture "TransplantOutcome", recipient_name: "Maria Rodriguez", organ_name: "heart", surgery_date: "2026-04-13", surgeon_name: "Dr. Michael Zhang", graft_function: "stable", complications: "minimal rejection", status: "initial"
 end
