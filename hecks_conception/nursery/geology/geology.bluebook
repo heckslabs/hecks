@@ -175,4 +175,16 @@ Hecks.bluebook "Geology" do
     on "FormationMapped"
     trigger "LogCore"
   end
+
+  fixture "RockSample", sample_id: "RS-2026-0401", rock_type: "basalt", collection_date: "2026-04-01", weight_kg: 2.4
+  fixture "RockSample", sample_id: "RS-2026-0402", rock_type: "limestone", collection_date: "2026-04-02", weight_kg: 1.8
+
+  fixture "Formation", name: "Mt. Shasta Volcanics", period: "Pleistocene", lithology: "andesite, basalt", thickness_m: 1200.0
+  fixture "Formation", name: "Klamath Lake Sediments", period: "Pliocene", lithology: "clay, silt, sand", thickness_m: 600.0
+
+  fixture "DrillCore", borehole_id: "BH-2026-MT-001", depth_from_m: 0.0, depth_to_m: 150.0, recovery_percent: "95%"
+  fixture "DrillCore", borehole_id: "BH-2026-MT-002", depth_from_m: 150.0, depth_to_m: 300.0, recovery_percent: "92%"
+
+  fixture "MineralAssay", method: "ICP-MS", element: "copper", concentration_ppm: 45.0
+  fixture "MineralAssay", method: "XRF", element: "zinc", concentration_ppm: 120.0
 end

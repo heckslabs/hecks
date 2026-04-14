@@ -221,4 +221,16 @@ Hecks.bluebook "GameStore", version: "2026.04.13.1" do
     on "TournamentConcluded"
     trigger "ClearanceGame"
   end
+
+  fixture "Game", sku: "BGM-CX-001", title: "Catan", platform: "board", genre: "strategy", price: 44.99, quantity: 15, age_rating: "10+"
+  fixture "Game", sku: "VDG-PS5-042", title: "Elden Ring", platform: "ps5", genre: "action_rpg", price: 59.99, quantity: 8, age_rating: "M"
+
+  fixture "Tournament", tournament_id: "TOR-2026-05", game_title: "Magic: The Gathering", format: "standard", max_players: 32, entry_fee: 25.0, date: "2026-05-15", status: "open"
+  fixture "Tournament", tournament_id: "TOR-2026-04", game_title: "Super Smash Bros Ultimate", format: "double_elimination", max_players: 16, entry_fee: 10.0, date: "2026-04-22", status: "concluded"
+
+  fixture "TradeIn", trade_id: "TRD-2026-103", customer_name: "Emma Diaz", game_title: "The Witcher 3", condition: "like_new", credit_offered: 28.50, status: "accepted"
+  fixture "TradeIn", trade_id: "TRD-2026-098", customer_name: "James Rodriguez", game_title: "Zelda Skyward Sword", condition: "fair", credit_offered: 12.00, status: "rejected"
+
+  fixture "Preorder", preorder_id: "PRE-2026-771", customer_name: "Lisa Park", game_title: "Final Fantasy VII Rebirth", release_date: "2026-06-14", deposit: 25.0, status: "reserved"
+  fixture "Preorder", preorder_id: "PRE-2026-634", customer_name: "David Bennett", game_title: "Metaphor: ReFantazio", release_date: "2026-10-11", deposit: 25.0, status: "fulfilled"
 end

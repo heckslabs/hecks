@@ -143,4 +143,16 @@ Hecks.bluebook "HealthLine", version: "2026.04.13.1" do
     on "AssessmentFinalized"
     trigger "EscalateCall"
   end
+
+  fixture "IncomingCall", call_id: "CALL-2026-0912", caller_name: "Patricia Stone", phone_number: "555-0147", chief_complaint: "chest pain and shortness of breath", status: "ended"
+  fixture "IncomingCall", call_id: "CALL-2026-0913", caller_name: "Michael Foster", phone_number: "555-0148", chief_complaint: "persistent cough for two weeks", status: "assigned"
+
+  fixture "TriageProtocol", protocol_id: "TP-CHEST-01", symptom_category: "chest_pain", severity_outcome: "may_require_emergency", status: "active"
+  fixture "TriageProtocol", protocol_id: "TP-COUGH-01", symptom_category: "respiratory_symptoms", severity_outcome: "may_require_physician", status: "active"
+
+  fixture "TriageAssessment", assessment_id: "TA-2026-0612", call_id: "CALL-2026-0912", protocol_id: "TP-CHEST-01", severity: "critical", recommendation: "recommend immediate ER visit", status: "finalized"
+  fixture "TriageAssessment", assessment_id: "TA-2026-0613", call_id: "CALL-2026-0913", protocol_id: "TP-COUGH-01", severity: "moderate", recommendation: "schedule physician appointment within 48 hours", status: "in_progress"
+
+  fixture "Escalation", escalation_id: "ESC-2026-0401", call_id: "CALL-2026-0912", target_service: "Emergency Department", reason: "acute chest pain with dyspnea, possible cardiac event", status: "resolved"
+  fixture "Escalation", escalation_id: "ESC-2026-0402", call_id: "CALL-2026-0913", target_service: "Primary Care Physician", reason: "persistent respiratory symptoms requiring evaluation", status: "escalated"
 end

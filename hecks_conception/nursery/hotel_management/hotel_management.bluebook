@@ -225,4 +225,16 @@ Hecks.bluebook "HotelManagement" do
     on "StayExtended"
     trigger "PostCharge"
   end
+
+  fixture "Room", room_number: "401", room_type: "Deluxe King", floor: 4, nightly_rate: 189.99, status: "available", max_occupancy: 2
+  fixture "Room", room_number: "512", room_type: "Standard Double", floor: 5, nightly_rate: 129.99, status: "available", max_occupancy: 2
+
+  fixture "GuestStay", guest_name: "Victoria Spencer", email: "v.spencer@example.com", check_in_date: "2026-04-14", check_out_date: "2026-04-17", nights: 3, status: "checked_in"
+  fixture "GuestStay", guest_name: "Marcus Thompson", email: "m.thompson@business.com", check_in_date: "2026-04-15", check_out_date: "2026-04-18", nights: 3, status: "checked_in"
+
+  fixture "HousekeepingTask", task_type: "turnover_cleaning", priority: "high", status: "assigned", assigned_to: "Rosa Mendez"
+  fixture "HousekeepingTask", task_type: "deep_clean", priority: "standard", status: "completed", assigned_to: "Miguel Santos"
+
+  fixture "Folio", running_total: 569.97, status: "open"
+  fixture "Folio", running_total: 389.97, status: "open"
 end
