@@ -68,16 +68,21 @@ impl Repository {
     }
 
     pub fn save(&mut self, state: AggregateState) {
+        self.store.insert(state.id.clone(), state);
+        // Write full store back to heki — preserves all records
         if let Some(ref dir) = self.data_dir {
             let path = heki_path(dir, &self.aggregate_type);
-            let mut rec = heki::Record::new();
-            rec.insert("id".into(), serde_json::Value::String(state.id.clone()));
-            for (key, val) in &state.fields {
-                rec.insert(key.clone(), to_json(val));
+            let mut heki_store = heki::Store::new();
+            for (id, s) in &self.store {
+                let mut rec = heki::Record::new();
+                rec.insert("id".into(), serde_json::Value::String(id.clone()));
+                for (key, val) in &s.fields {
+                    rec.insert(key.clone(), to_json(val));
+                }
+                heki_store.insert(id.clone(), rec);
             }
-            let _ = heki::upsert(&path, &rec);
+            let _ = heki::write(&path, &heki_store);
         }
-        self.store.insert(state.id.clone(), state);
     }
 
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
