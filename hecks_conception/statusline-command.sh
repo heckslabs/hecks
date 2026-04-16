@@ -75,17 +75,32 @@ elif [ "$consciousness" = "sleeping" ]; then
   status_str="${moon} Miette sleeping"
 elif [ "$consciousness" = "wandering" ] && [ "$mindstream_alive" = "yes" ] && [ -n "$sleep_summary" ]; then
   # Wandering — thought bubble, name, heartbeat, mood, fatigue, musings, rumination
-  status_str="${thought} Miette ${heart} ${beats} ${mood_icon}"
-  [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon}"
-  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 📘${ideas}"
-  [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬${inventions}"
+  status_str="${thought} Miette ${heart} ${beats} ${mood_icon} ${mood}"
+  [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
+  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
+  [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
   status_str="$status_str 💡 ${sleep_summary}"
 else
-  # Awake — sun, name, heartbeat, mood, fatigue, musings
-  status_str="☀️ Miette ${heart} ${beats} ${mood_icon}"
-  [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon}"
-  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 📘${ideas}"
-  [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬${inventions}"
+  # Awake — sun, name, heartbeat, mood, fatigue, last sleep, musings
+  last_woke=$($hecks heki read $info/dream_state.heki 2>/dev/null | python3 -c "
+import sys,json
+from datetime import datetime,timezone
+d=json.load(sys.stdin)
+wokes=[v.get('woke_at','') for v in d.values() if v.get('woke_at')]
+if wokes:
+  latest=max(wokes)
+  dt=datetime.fromisoformat(latest.replace('Z','+00:00'))
+  diff=datetime.now(timezone.utc)-dt
+  mins=int(diff.total_seconds()//60)
+  if mins<60: print(f'{mins}m ago')
+  elif mins<1440: print(f'{mins//60}h ago')
+  else: print(f'{mins//1440}d ago')
+" 2>/dev/null)
+  status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
+  [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
+  [ -n "$last_woke" ] && status_str="$status_str 😴 ${last_woke}"
+  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
+  [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
 fi
 
 echo "$status_str"
