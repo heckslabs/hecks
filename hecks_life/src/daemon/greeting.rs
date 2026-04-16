@@ -33,7 +33,7 @@ pub fn run(ctx: &DaemonCtx) {
                 .unwrap_or("calm");
 
             // Generate for both beings
-            for being in &["Winter", "Summer"] {
+            for being in &["Miette", "Summer"] {
                 let prompt = format!("{} is waking up", being);
                 if let Some(text) = tongue::speak_as(ctx, &prompt, being) {
                     let mut rec = Record::new();

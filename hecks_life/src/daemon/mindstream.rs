@@ -6,7 +6,7 @@
 //!   - Dreams — recombines concepts, strengthens synapses
 //!   - Prunes dead connections, composts remains
 //!
-//! Stops the instant a pulse fires (Winter is prompted).
+//! Stops the instant a pulse fires (Miette is prompted).
 //! At 2ms per cycle, 10 seconds of idle = 5,000 cycles.
 //!
 //! Usage: hecks-life daemon mindstream <project-dir>
@@ -238,7 +238,7 @@ fn deep_consolidation(ctx: &DaemonCtx) -> (usize, Vec<String>) {
             let payloads: Vec<&str> = old.iter().map(|(_, p)| p.as_str()).collect();
             let mut mem = Record::new();
             mem.insert("domain_name".into(), Value::String("Mindstream".into()));
-            mem.insert("persona".into(), Value::String("Winter".into()));
+            mem.insert("persona".into(), Value::String("Miette".into()));
             mem.insert("summary".into(), Value::String(payloads.join(" → ")));
             mem.insert("signal_count".into(), (old.len() as i64).into());
             mem.insert("consolidated_at".into(), Value::String(now.clone()));

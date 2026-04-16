@@ -29,7 +29,7 @@ pub fn hear(ctx: &DaemonCtx, commands: &str, input: &str) -> Option<String> {
 /// Speak: try to compose programmatically first, fall back to LLM.
 /// Many responses are instant — no LLM needed.
 pub fn speak(ctx: &DaemonCtx, input: &str) -> Option<String> {
-    speak_with_name(ctx, input, "Winter")
+    speak_with_name(ctx, input, "Miette")
 }
 
 /// Speak as a named being.

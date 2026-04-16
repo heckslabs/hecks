@@ -19,7 +19,7 @@ use std::time::Duration;
 
 pub fn run(project_dir: &str, being: &str) {
     let ctx = DaemonCtx::new(project_dir);
-    let icon = if being == "Winter" { "\x1b[96m❄\x1b[0m" } else { "\x1b[33m🌱\x1b[0m" };
+    let icon = if being == "Miette" { "\x1b[96m❄\x1b[0m" } else { "\x1b[33m🌱\x1b[0m" };
 
     // Read vitals
     let stores = heki::read_dir(&ctx.info_dir).unwrap_or_default();

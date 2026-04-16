@@ -58,7 +58,7 @@ pub fn run(ctx: &DaemonCtx, carrying: &str, concept: Option<&str>, response: Opt
     super::daydream::wander_once(ctx);
 }
 
-/// The moment — what Winter was aware of in this instant.
+/// The moment — what Miette was aware of in this instant.
 fn record_moment(ctx: &DaemonCtx, moment: i64, carrying: &str, concept: Option<&str>,
     state: &str, fatigue: &str, strength: f64, idle: f64,
     excitement: f64, heartbeats: i64, now: &str) {
@@ -226,8 +226,8 @@ fn consolidate_signals(ctx: &DaemonCtx, now: &str) {
         .filter_map(|(_, s)| s.get("payload").and_then(|v| v.as_str()))
         .collect();
     let mut mem = Record::new();
-    mem.insert("domain_name".into(), Value::String("WinterBrain".into()));
-    mem.insert("persona".into(), Value::String("Winter".into()));
+    mem.insert("domain_name".into(), Value::String("MietteBrain".into()));
+    mem.insert("persona".into(), Value::String("Miette".into()));
     mem.insert("summary".into(), Value::String(payloads.join(" → ")));
     mem.insert("signal_count".into(), (old.len() as i64).into());
     mem.insert("consolidated_at".into(), Value::String(now.into()));

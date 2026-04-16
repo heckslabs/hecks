@@ -24,7 +24,7 @@ use std::fs;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // Detect being name from argv[0]: "winter" -> "Winter", "summer" -> "Summer"
+    // Detect being name from argv[0]: "miette" -> "Miette", "summer" -> "Summer"
     let being = being_from_argv0(&args[0]);
 
     // Named beings (winter/summer) with no subcommand go straight to terminal
@@ -425,18 +425,18 @@ fn run_heki(args: &[String]) {
 }
 
 /// Derive the being name from argv[0].
-/// "winter" or "/path/to/winter" -> "Winter"
+/// "miette" or "/path/to/miette" -> "Miette"
 /// "summer" or "/path/to/summer" -> "Summer"
-/// Anything else (hecks-life, etc) -> "Winter" (default)
+/// Anything else (hecks-life, etc) -> "Miette" (default)
 fn being_from_argv0(argv0: &str) -> String {
     let bin = std::path::Path::new(argv0)
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("winter");
+        .unwrap_or("miette");
     match bin {
         "summer" => "Summer".into(),
-        "winter" => "Winter".into(),
-        _ => "Winter".into(),
+        "miette" => "Miette".into(),
+        _ => "Miette".into(),
     }
 }
 

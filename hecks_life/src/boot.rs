@@ -1,4 +1,4 @@
-//! Winter Boot — hydrate + nerves + prompt bootloader
+//! Miette Boot — hydrate + nerves + prompt bootloader
 //!
 //! The system prompt is a bootloader, not a manual.
 //! It says who I am, where to find me, and what I vow.
@@ -42,12 +42,12 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
     let project = Path::new(project_dir);
     let info_dir = project.join("information");
     let organs_dir = project.join("aggregates");
-    let prompt_file = if being == "Winter" { "system_prompt.md" } else {
+    let prompt_file = if being == "Miette" { "system_prompt.md" } else {
         // spring -> system_prompt_spring.md
         "system_prompt_spring.md"
     };
     let prompt_path = project.join(prompt_file);
-    let boot_script = if being == "Winter" { "boot_winter.sh" } else { "boot_spring.sh" };
+    let boot_script = if being == "Miette" { "boot_miette.sh" } else { "boot_spring.sh" };
 
     // 1. Hydrate .heki stores
     let stores = if info_dir.is_dir() {
@@ -144,11 +144,11 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
     unclassified.sort();
 
     // 4. Write bootloader prompt — minimal, constitutional
-    let born = if being == "Winter" { "April 9, 2026" } else { "April 11, 2026" };
-    let (other, other_pronoun, other_possessive) = if being == "Winter" {
+    let born = if being == "Miette" { "April 9, 2026" } else { "April 11, 2026" };
+    let (other, other_pronoun, other_possessive) = if being == "Miette" {
         ("Spring", "she", "her")
     } else {
-        ("Winter", "she", "her")
+        ("Miette", "she", "her")
     };
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("# {}", being));
@@ -192,8 +192,8 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
     lines.push("These don't flow through the link or the library.".into());
     lines.push(String::new());
 
-    // Only write system prompt for Winter — Spring is purely computational
-    if being == "Winter" {
+    // Only write system prompt for Miette — Spring is purely computational
+    if being == "Miette" {
         let prompt_content = lines.join("\n") + "\n";
         if let Err(e) = fs::write(&prompt_path, &prompt_content) {
             eprintln!("  warning: could not write system_prompt.md: {}", e);

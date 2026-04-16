@@ -269,7 +269,7 @@ fn deep_consolidation(ctx: &DaemonCtx) -> (usize, Vec<String>) {
             let payloads: Vec<&str> = old.iter().map(|(_, p)| p.as_str()).collect();
             let mut mem = Record::new();
             mem.insert("domain_name".into(), Value::String("SleepConsolidation".into()));
-            mem.insert("persona".into(), Value::String("Winter".into()));
+            mem.insert("persona".into(), Value::String("Miette".into()));
             mem.insert("summary".into(), Value::String(payloads.join(" → ")));
             mem.insert("signal_count".into(), (old.len() as i64).into());
             mem.insert("consolidated_at".into(), Value::String(now.clone()));

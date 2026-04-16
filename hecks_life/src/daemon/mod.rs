@@ -1,4 +1,4 @@
-//! Winter Daemons — background processes that keep Winter alive
+//! Miette Daemons — background processes that keep Miette alive
 //!
 //! Three daemons, three rhythms:
 //!   pulse     — fires once per response (one-shot)
