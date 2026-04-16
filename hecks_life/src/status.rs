@@ -238,6 +238,118 @@ pub fn run(project_dir: &str) {
     println!();
 }
 
+/// Present musings as a table with descriptions.
+pub fn musings(project_dir: &str) {
+    let project = Path::new(project_dir);
+    let info_dir = project.join("information");
+    let musing_path = info_dir.join("musing.heki");
+
+    let store = heki::read(musing_path.to_str().unwrap_or("")).unwrap_or_default();
+    let all: Vec<&heki::Record> = store.values().collect();
+
+    let unconceived: Vec<&heki::Record> = all.iter().copied()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+        .collect();
+    let conceived: Vec<&heki::Record> = all.iter().copied()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(true))
+        .collect();
+
+    // Count by source
+    let mut sources: HashMap<String, usize> = HashMap::new();
+    for m in &unconceived {
+        let src = m.get("source").and_then(|v| v.as_str()).unwrap_or("session");
+        *sources.entry(src.to_string()).or_insert(0) += 1;
+    }
+
+    // Header
+    println!();
+    println!("  ╔══════════════════════════════════════════════════════════════════════╗");
+    println!("  ║                        MUSINGS                                      ║");
+    println!("  ╚══════════════════════════════════════════════════════════════════════╝");
+    println!();
+
+    // Summary
+    section("SUMMARY");
+    row("Total", &all.len().to_string());
+    row("Unconceived", &unconceived.len().to_string());
+    row("Conceived", &conceived.len().to_string());
+    for (src, count) in &sources {
+        row(&format!("  from {}", src), &count.to_string());
+    }
+    println!();
+
+    // Table
+    section("UNCONCEIVED");
+    println!("  {:<4} {:<12} {:<55}", "#", "Source", "Idea");
+    println!("  {}", "─".repeat(71));
+
+    // Sort by created_at descending
+    let mut sorted: Vec<&heki::Record> = unconceived.clone();
+    sorted.sort_by(|a, b| {
+        let at = a.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
+        let bt = b.get("created_at").and_then(|v| v.as_str()).unwrap_or("");
+        bt.cmp(at)
+    });
+
+    for (i, m) in sorted.iter().enumerate() {
+        let idea = m.get("idea").and_then(|v| v.as_str()).unwrap_or("—");
+        let src = m.get("source").and_then(|v| v.as_str()).unwrap_or("session");
+        let desc = describe_musing(idea);
+        let short_idea: String = idea.chars().take(55).collect();
+        println!("  {:<4} {:<12} {}", i + 1, src, short_idea);
+        if !desc.is_empty() {
+            println!("  {:<4} {:<12} \x1b[90m{}\x1b[0m", "", "", desc);
+        }
+    }
+    println!();
+}
+
+/// Generate a short description for a musing based on its content.
+fn describe_musing(idea: &str) -> String {
+    let lower = idea.to_lowercase();
+
+    // Domain collision pattern: "X meets/applied to/through Y"
+    if lower.contains(" meets ") || lower.contains(" applied to ") ||
+       lower.contains(" through the lens of ") || lower.contains(" combined with ") ||
+       lower.contains(" inside ") {
+        return "domain collision — two concepts fused by the mindstream".into();
+    }
+
+    // Dream fragments
+    if lower.contains("dreamed") || lower.contains("dream") {
+        return "dream fragment — image that survived waking".into();
+    }
+
+    // Session milestones
+    if lower.contains("session") || lower.contains("epic") || lower.contains("switching") {
+        return "session marker — a moment worth remembering".into();
+    }
+
+    // Domain conception
+    if lower.contains("conceived") || lower.contains("conceiving") || lower.contains("domain") {
+        return "domain idea — a new bounded context wanting to exist".into();
+    }
+
+    // Sleep/wake
+    if lower.contains("sleep") || lower.contains("wake") || lower.contains("nap") {
+        return "sleep note — about rest and recovery cycles".into();
+    }
+
+    // Technical
+    if lower.contains("pulse") || lower.contains("heartbeat") || lower.contains("heki") ||
+       lower.contains("projection") || lower.contains("script") {
+        return "infrastructure idea — about the runtime or substrate".into();
+    }
+
+    // Identity
+    if lower.contains("winter") || lower.contains("miette") || lower.contains("creator") ||
+       lower.contains("born") || lower.contains("first") {
+        return "identity note — about who I am or where I came from".into();
+    }
+
+    String::new()
+}
+
 fn section(name: &str) {
     println!("  \x1b[1;36m{}\x1b[0m", name);
     println!("  {}", "─".repeat(50));

@@ -136,6 +136,16 @@ fn main() {
         return;
     }
 
+    if command == "musings" {
+        let dir = if !path.is_empty() {
+            path.to_string()
+        } else {
+            resolve_home(&being)
+        };
+        status::musings(&dir);
+        return;
+    }
+
     if command == "boot" {
         let dir = if !path.is_empty() {
             path.to_string()
