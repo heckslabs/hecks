@@ -11,6 +11,6 @@ echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
 while true; do
-  $HECKS run "$DIR/aggregates" --dispatch MindstreamTick 2>/dev/null
+  $HECKS "$DIR/aggregates" Tick.MindstreamTick 2>/dev/null
   sleep 10
 done

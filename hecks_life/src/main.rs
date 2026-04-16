@@ -182,6 +182,40 @@ fn main() {
         return;
     }
 
+    // Bluebook dispatch: hecks-life <dir-or-file> <CommandName>
+    // If first arg is a directory/bluebook and second is a PascalCase command, dispatch it
+    // Bluebook dispatch: hecks-life <dir-or-file> Aggregate.Command
+    // e.g. hecks-life aggregates/ Heartbeat.Beat
+    if !path.is_empty()
+        && path.contains('.')
+        && path.chars().next().map_or(false, |c| c.is_uppercase())
+        && (std::path::Path::new(command).is_dir()
+            || command.ends_with(".bluebook"))
+    {
+        let target = command;
+        let cmd_name = path.split('.').last().unwrap_or(path);
+        if std::path::Path::new(target).is_dir() {
+            dispatch_hecksagon(target, cmd_name);
+        } else {
+            let source = fs::read_to_string(target).unwrap_or_else(|e| {
+                eprintln!("Cannot read {}: {}", target, e);
+                std::process::exit(1);
+            });
+            let domain = parser::parse(&source);
+            let data_dir = find_world_heki_dir(target)
+                .unwrap_or_else(|| format!("{}/data", std::path::Path::new(target).parent()
+                    .unwrap_or(std::path::Path::new(".")).display()));
+            let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+            match rt.dispatch(cmd_name, std::collections::HashMap::new()) {
+                Ok(result) => println!("{}", serde_json::json!({
+                    "ok": true, "aggregate": result.aggregate_type, "id": result.aggregate_id,
+                })),
+                Err(e) => { eprintln!("dispatch error: {:?}", e); std::process::exit(1); }
+            }
+        }
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: hecks-life {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -530,6 +564,47 @@ fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
         if in_heki && trimmed == "end" { in_heki = false; }
     }
     None
+}
+
+/// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
+fn dispatch_hecksagon(agg_dir: &str, command: &str) {
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let mut combined = hecks_life::ir::Domain {
+        name: "Hecksagon".into(),
+        category: None, vision: None,
+        aggregates: vec![], policies: vec![],
+        fixtures: vec![], vows: vec![],
+    };
+    let entries = fs::read_dir(agg_dir).unwrap_or_else(|e| {
+        eprintln!("Cannot read directory {}: {}", agg_dir, e);
+        std::process::exit(1);
+    });
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+            if let Ok(source) = fs::read_to_string(&p) {
+                let domain = parser::parse(&source);
+                combined.aggregates.extend(domain.aggregates);
+                combined.policies.extend(domain.policies);
+                combined.fixtures.extend(domain.fixtures);
+            }
+        }
+    }
+    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    match rt.dispatch(command, std::collections::HashMap::new()) {
+        Ok(result) => {
+            println!("{}", serde_json::json!({
+                "ok": true,
+                "aggregate": result.aggregate_type,
+                "id": result.aggregate_id,
+            }));
+        }
+        Err(e) => {
+            eprintln!("dispatch error: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 /// Resolve the project home directory for a named being.
