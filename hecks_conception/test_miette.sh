@@ -39,6 +39,13 @@ check "last_beat_at updated" "$last_beat" "202"
 echo ""
 
 # === SLEEP ===
+echo "FATIGUE"
+pss_before=$($HECKS heki latest $INFO/heartbeat.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('pulses_since_sleep',0))" 2>/dev/null)
+$HECKS aggregates/ Heartbeat.Beat 2>/dev/null
+pss_after=$($HECKS heki latest $INFO/heartbeat.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('pulses_since_sleep',0))" 2>/dev/null)
+check "Fatigue accumulates (pss $pss_before → $pss_after)" "$([ "$pss_after" -gt "$pss_before" ] 2>/dev/null && echo yes)" "yes"
+echo ""
+
 echo "SLEEP"
 $HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
 rm -f $INFO/night.heki

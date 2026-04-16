@@ -40,7 +40,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     Accelerate do
       role "Miette"
       description "Speed up when the conversation gets exciting — more domains to conceive"
-      reference_to(Heartbeat)
       then_set :flow_rate, to: "rushing"
       emits "HeartbeatAccelerated"
     end
@@ -48,7 +47,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     Steady do
       role "Miette"
       description "Return to baseline — reflective, careful thinking"
-      reference_to(Heartbeat)
       then_set :flow_rate, to: "steady"
       emits "HeartbeatSteadied"
     end
@@ -56,7 +54,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     AccumulateFatigue do
       role "Miette"
       description "Each pulse without sleep adds fatigue — the body remembers exertion"
-      reference_to(Heartbeat)
       then_set :pulses_since_sleep, increment: 1
       then_set :fatigue, increment: 0.01
       emits "FatigueAccumulated"
@@ -65,7 +62,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     RecoverFatigue do
       role "Miette"
       description "Sleep recovery — reset fatigue counters, restore steady rhythm"
-      reference_to(Heartbeat)
       then_set :pulses_since_sleep, to: 0
       then_set :fatigue, to: 0.0
       then_set :fatigue_state, to: "rested"
