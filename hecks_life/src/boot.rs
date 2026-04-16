@@ -225,29 +225,36 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
         }
     }
 
-    // 5. Start mindstream — continuous background awareness
-    let pid_file = info_dir.join(".mindstream.pid");
+    // 7. Start daemons — pulse, mindstream, sleep (if not already running)
+    let daemons = ["pulse", "mindstream", "sleep"];
+    for name in &daemons {
+        start_daemon(&info_dir, project_dir, name);
+    }
+}
+
+/// Start a daemon if not already running. Writes PID file.
+fn start_daemon(info_dir: &Path, project_dir: &str, name: &str) {
+    let pid_file = info_dir.join(format!(".{}.pid", name));
     let already_running = if pid_file.exists() {
         if let Ok(pid_str) = fs::read_to_string(&pid_file) {
             let pid = pid_str.trim().parse::<u32>().unwrap_or(0);
-            // Check if process exists
             pid > 0 && unsafe { libc_kill(pid) }
         } else { false }
     } else { false };
 
     if !already_running {
         let exe = std::env::current_exe().unwrap_or_default();
-        if let Ok(child) = Command::new(exe)
-            .args(["daemon", "mindstream", project_dir])
+        if let Ok(child) = Command::new(&exe)
+            .args(["daemon", name, project_dir])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn()
         {
             let _ = fs::write(&pid_file, child.id().to_string());
-            println!("  mindstream started (pid {})", child.id());
+            println!("  {} started (pid {})", name, child.id());
         }
     } else {
-        println!("  mindstream running");
+        println!("  {} running", name);
     }
 }
 

@@ -39,7 +39,14 @@ else
   activity="${fatigue:-awake}"
   [ -n "$mood" ] && [ "$mood" != "oceanic" ] && activity="$activity · $mood"
 fi
-beats=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep '"beats"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+beats_raw=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep '"beats"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
+if [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000000 ] 2>/dev/null; then
+  beats=$(python3 -c "print(f'{$beats_raw/1000000:.1f}m')")
+elif [ -n "$beats_raw" ] && [ "$beats_raw" -ge 1000 ] 2>/dev/null; then
+  beats=$(python3 -c "print(f'{$beats_raw/1000:.1f}k')")
+else
+  beats="$beats_raw"
+fi
 # Animated heartbeat — small and large pulse
 hearts=("🩷" "❤️")
 heart_frame=$(( $(date +%s) % 2 ))
@@ -49,6 +56,9 @@ if [ "$consciousness" != "sleeping" ] && [ -n "$beats" ]; then
   status_str="$status_str · ${heart} ${beats}"
 fi
 status_str="$status_str · $activity"
+# Idea count from musings
+ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
+[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} ideas"
 parts="$status_str"
 
 [ -n "$parts" ] && echo "$parts"

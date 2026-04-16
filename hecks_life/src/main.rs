@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training, status};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -123,6 +123,16 @@ fn main() {
         } else {
             eprintln!("tongue: could not reach language center (is ollama running?)");
         }
+        return;
+    }
+
+    if command == "status" {
+        let dir = if !path.is_empty() {
+            path.to_string()
+        } else {
+            resolve_home(&being)
+        };
+        status::run(&dir);
         return;
     }
 
