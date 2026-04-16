@@ -1249,6 +1249,8 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     lifecycle :state, default: "attentive" do
       transition "EnterDaydream"   => "daydreaming", from: "attentive"
       transition "EnterSleep"      => "sleeping",    from: "daydreaming"
+      transition "EnterSleep"      => "sleeping",    from: "wandering"
+      transition "EnterSleep"      => "sleeping",    from: "attentive"
       transition "TakeNap"         => "napping",     from: "attentive"
       transition "TakeNap"         => "napping",     from: "daydreaming"
       transition "WakeUp"          => "waking",      from: "sleeping"
