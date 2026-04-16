@@ -401,7 +401,7 @@ fn run_daemon(args: &[String]) {
             daemon::sleep::run(&ctx, nap, now_flag);
         }
         "mindstream" => daemon::mindstream::run(&ctx),
-        "greeting" => daemon::greeting::run(&ctx),
+        "greeting" => eprintln!("greeting now lives in greeting.bluebook — the hecksagon wires it to the tongue"),
         _ => {
             eprintln!("Unknown daemon: {}. Available: pulse, daydream, sleep", sub);
             std::process::exit(1);

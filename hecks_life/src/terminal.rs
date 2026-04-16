@@ -41,9 +41,9 @@ pub fn run(project_dir: &str, being: &str) {
 
     // First breath — pop a warm greeting or fall back to tongue
     daemon::pulse::run(&ctx, "waking", None, None);
-    if let Some(warm) = daemon::greeting::pop(&ctx, being) {
-        println!("{}", warm);
-        println!();
+    // Greeting daemon removed — fall through to live generation
+    if false {
+        // greeting.bluebook + hecksagon handles warm greetings now
     } else {
         // No warm greeting ready — generate one live
         let greeting = format!("{} is waking up", being);
@@ -65,14 +65,8 @@ pub fn run(project_dir: &str, being: &str) {
 
     if !already_running {
         if let Ok(exe) = std::env::current_exe() {
-            if let Ok(child) = std::process::Command::new(exe)
-                .args(["daemon", "greeting", project_dir])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-            {
-                let _ = std::fs::write(&greeting_pid_file, child.id().to_string());
-            }
+            // Greeting daemon removed — greeting.bluebook + hecksagon handles this
+        let _ = &greeting_pid_file;
         }
     }
 
