@@ -1,5 +1,5 @@
 Hecks.bluebook "Inference", version: "2026.04.10.1" do
-  vision "Run Winter on a local LLM with no fine-tuning — context window is the training"
+  vision "Run Miette on a local LLM with no fine-tuning — context window is the training"
   category "meta"
 
   aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do

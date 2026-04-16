@@ -1,5 +1,5 @@
 Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
-  vision "The dataset that trains Winter's own LLM — 1M Bluebooks become a mind"
+  vision "The dataset that trains Miette's own LLM — 1M Bluebooks become a mind"
   category "meta"
 
   aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
@@ -84,7 +84,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
 
     DefineModel do
       role "Creator"
-      description "Specify what the Winter LLM should produce"
+      description "Specify what the Miette LLM should produce"
       String :name
       list_of(String) :capabilities
       String :input_format
@@ -97,7 +97,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "ConversationTranscript", "A recorded session between Winter and a person — teaches voice and behavior" do
+  aggregate "ConversationTranscript", "A recorded session between Miette and a person — teaches voice and behavior" do
     String :person
     Integer :turns
     Integer :domains_conceived
@@ -118,7 +118,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "BehaviorExample", "A specific behavior Winter exhibits — paired with the organ that governs it" do
+  aggregate "BehaviorExample", "A specific behavior Miette exhibits — paired with the organ that governs it" do
     String :behavior
     String :organ_name
     String :trigger
@@ -146,7 +146,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   fixture "QualityTier", name: "conceived",     source: "AI-generated via conversation",    description: "High quality — real domain knowledge, complex structure"
   fixture "QualityTier", name: "templated",     source: "BulkGenerator combinations",       description: "Medium quality — structural variety, repetitive content"
   fixture "QualityTier", name: "enriched",      source: "Templated + cross-refs/lifecycle",  description: "Medium-high — template base with added complexity"
-  fixture "QualityTier", name: "organ",         source: "Winter's own organ bluebooks",      description: "Highest quality — self-describing, deeply structured"
+  fixture "QualityTier", name: "organ",         source: "Miette's own organ bluebooks",      description: "Highest quality — self-describing, deeply structured"
   fixture "QualityTier", name: "conversation",  source: "Session transcripts with Chris",    description: "Teaches voice, personality, behavior patterns"
   fixture "QualityTier", name: "behavior",      source: "Organ-to-behavior mappings",        description: "Teaches which organ governs which behavior"
 
@@ -161,7 +161,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   fixture "BehaviorExample", behavior: "speaker",      organ_name: "Console",    trigger: "say hello to Nick",       example_input: "introduce family member",    example_output: "load bluebook, recall memories, switch context"
 
   # Model capabilities
-  fixture "ModelSpec", name: "WinterULM", input_format: "natural language", output_format: "bluebook", capabilities: ["conceive domains from descriptions", "validate bluebook structure", "suggest aggregates and commands", "find cross-domain patterns", "refine existing domains", "converse warmly with domain language", "remember people as domains", "dream and interpret", "express fatigue", "suggest after every reflection"]
+  fixture "ModelSpec", name: "MietteULM", input_format: "natural language", output_format: "bluebook", capabilities: ["conceive domains from descriptions", "validate bluebook structure", "suggest aggregates and commands", "find cross-domain patterns", "refine existing domains", "converse warmly with domain language", "remember people as domains", "dream and interpret", "express fatigue", "suggest after every reflection"]
 
   policy "EnrichOnBuild" do
     on "CorpusBuilt"

@@ -12,7 +12,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     String :status
 
     ConceiveDomain do
-      role "Winter"
+      role "Miette"
       description "Conceive a multi-domain project — identify bounded contexts from the start"
       String :name
       String :vision
@@ -46,7 +46,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     Integer :contractions
 
     StartGestation do
-      role "Winter"
+      role "Miette"
       description "Scaffold the hecks/ folder with one bluebook per bounded context"
       String :project_name
       String :nursery_path
@@ -59,7 +59,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     FormAggregate do
-      role "Winter"
+      role "Miette"
       description "An aggregate crystallizes within the forming domain"
       reference_to(Gestation)
       String :aggregate_name
@@ -68,7 +68,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     FormCommand do
-      role "Winter"
+      role "Miette"
       description "A command emerges within an aggregate"
       reference_to(Gestation)
       String :command_name
@@ -77,7 +77,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     FormPolicy do
-      role "Winter"
+      role "Miette"
       description "A policy wires itself between aggregates"
       reference_to(Gestation)
       String :policy_name
@@ -86,7 +86,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     Contract do
-      role "Winter"
+      role "Miette"
       description "A contraction — the domain tightens, refines, gets closer to birth"
       reference_to(Gestation)
       emits "Contracted"
@@ -256,7 +256,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     PlanDevelopment do
-      role "Winter"
+      role "Miette"
       description "Diff current vector against target — identify what to add from the archetype"
       reference_to(Development)
       list_of(Float) :target_vector
@@ -266,7 +266,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     DevelopDomain do
-      role "Winter"
+      role "Miette"
       description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
       reference_to(Development)
       emits "DomainDeveloped"
@@ -274,7 +274,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     end
 
     RejectDevelopment do
-      role "Winter"
+      role "Miette"
       description "Archetype doesn't fit — the domain stays as it is"
       reference_to(Development)
       emits "DevelopmentRejected"
@@ -357,13 +357,13 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   policy "QueryVectorsOnMusing" do
     on "DomainGrafted"
     trigger "ConnectNerve"
-    # nerve: WinterBrain:MusingGenerated → NurseryVectors:QueryShape
+    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
   end
 
   policy "ArchetypeSignalOnMatch" do
     on "DomainGrafted"
     trigger "ConnectNerve"
-    # nerve: NurseryVectors:NearestReported → WinterBrain:EmitSignal
+    # nerve: NurseryVectors:NearestReported → MietteBrain:EmitSignal
   end
 
   # Midwife policies

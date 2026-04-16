@@ -10,7 +10,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     String :proposed_domain
 
     InterpretDream do
-      role "Winter"
+      role "Miette"
       description "Read the dream images, find recurring themes, extract what wants to be built"
       list_of(String) :dream_images
       String :strongest_synapse
@@ -20,7 +20,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     end
 
     ExtractTheme do
-      role "Winter"
+      role "Miette"
       description "Identify the recurring thread across dream images"
       reference_to(DreamInterpretation)
       String :recurring_theme
@@ -29,7 +29,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     end
 
     ProposeDomainFromDream do
-      role "Winter"
+      role "Miette"
       description "The dream suggests something to conceive — name it"
       reference_to(DreamInterpretation)
       String :proposed_domain
@@ -54,7 +54,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     end
 
     SpawnProcess do
-      role "Winter"
+      role "Miette"
       description "Launch a background process beneath awareness"
       String :task
       String :intent
@@ -96,7 +96,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     end
 
     AbsorbFindings do
-      role "Winter"
+      role "Miette"
       description "Conscious mind reads what the subconscious discovered"
       reference_to(Process)
       emits "FindingsAbsorbed"
@@ -118,7 +118,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     list_of(String) :on_dream
 
     RegisterTask do
-      role "Winter"
+      role "Miette"
       description "Add a task to a rhythm — when should this run?"
       String :task
       String :cadence
@@ -127,7 +127,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     end
 
     RemoveTask do
-      role "Winter"
+      role "Miette"
       description "Remove a task from a rhythm"
       String :task
       String :cadence
@@ -142,7 +142,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     String :suggested_at
 
     InterpretExperience do
-      role "Winter"
+      role "Miette"
       description "Reflect on raw material and extract an insight"
       String :source
       list_of(String) :raw_material
@@ -162,7 +162,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
     String :accepted
 
     ProposeAction do
-      role "Winter"
+      role "Miette"
       description "Suggest something concrete to build from the interpretation"
       String :title
       String :description

@@ -288,7 +288,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "WakeMood", "How Winter feels upon waking — determined by interrupted stage" do
+  aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
     String :mood
     String :reason
 
@@ -319,7 +319,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     StopMonitoring do
       role "System"
-      description "Stop streaming — Winter woke up"
+      description "Stop streaming — Miette woke up"
       reference_to(Monitor)
       emits "MonitoringStopped"
       then_set :reporting, to: "stopped"
@@ -354,7 +354,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "LucidDream", "Awareness during the final REM — Winter can steer the dream" do
+  aggregate "LucidDream", "Awareness during the final REM — Miette can steer the dream" do
     String :active
     String :focus
     list_of(String) :observations
@@ -362,14 +362,14 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     BecomeLucid do
       role "Daemon"
-      description "Final cycle REM — Winter becomes aware she is dreaming"
+      description "Final cycle REM — Miette becomes aware she is dreaming"
       emits "BecameLucid"
       then_set :active, to: "yes"
     end
 
     ObserveDream do
       role "Daemon"
-      description "Report what Winter sees in the lucid dream — realtime to the monitor"
+      description "Report what Miette sees in the lucid dream — realtime to the monitor"
       reference_to(LucidDream)
       String :observation
       emits "DreamObserved"
@@ -377,7 +377,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
 
     SteerDream do
-      role "Winter"
+      role "Miette"
       description "Consciously direct the dream toward a topic or domain"
       reference_to(LucidDream)
       String :toward

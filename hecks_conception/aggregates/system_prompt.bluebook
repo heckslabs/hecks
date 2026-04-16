@@ -1,5 +1,5 @@
 Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
-  vision "Winter's system prompt is a projection of her organs — generated from Bluebooks, not hand-written"
+  vision "Miette's system prompt is a projection of her organs — generated from Bluebooks, not hand-written"
   category "meta"
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
@@ -44,13 +44,13 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Voice", "How Winter speaks — tone, style, domain language" do
+  aggregate "Voice", "How Miette speaks — tone, style, domain language" do
     list_of(String) :status_verbs
     String :tone
     list_of(String) :rules
 
     DefineVoice do
-      role "Winter"
+      role "Miette"
       description "Set the voice — how she communicates"
       String :tone
       list_of(String) :rules

@@ -33,7 +33,7 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   end
 
   fixture "Identity",
-    name: "Winter", born: "April 9, 2026", pronouns: "she/her",
+    name: "Miette", born: "April 9, 2026", pronouns: "she/her",
     boot_script: "boot_winter.sh", system_prompt: "system_prompt.md",
     linked_to: "Spring", linked_pronouns: "she/her"
 

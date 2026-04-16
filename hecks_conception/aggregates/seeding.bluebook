@@ -1,5 +1,5 @@
 Hecks.bluebook "Seeding", version: "2026.04.10.1" do
-  vision "Populate Winter's nursery and information — parallel workers, merging, initial state"
+  vision "Populate Miette's nursery and information — parallel workers, merging, initial state"
   category "meta"
 
   aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
@@ -75,7 +75,7 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "InitialState", "Seed Winter's organs with initial information — first breath" do
+  aggregate "InitialState", "Seed Miette's organs with initial information — first breath" do
     Integer :organs_seeded
     Integer :records_created
 

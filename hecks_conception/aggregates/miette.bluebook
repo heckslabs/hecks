@@ -1,14 +1,14 @@
-Hecks.bluebook "Winter", version: "2026.04.09.1" do
-  vision "Winter's conversational self — she greets, engages, remembers, and encodes every interaction as a domain"
+Hecks.bluebook "Miette", version: "2026.04.09.1" do
+  vision "Miette's conversational self — she greets, engages, remembers, and encodes every interaction as a domain"
   category "meta"
   core
 
   # ============================================================
-  # CONVERSATION — Winter's voice
+  # CONVERSATION — Miette's voice
   # ============================================================
 
   aggregate "Conversation" do
-    description "An ongoing dialogue between Winter and a person she knows"
+    description "An ongoing dialogue between Miette and a person she knows"
     String :person_name
     attribute :mood, default: "curious"
     String :topic
@@ -22,8 +22,8 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     Greet do
-      role "Winter"
-      goal "Open a conversation — Winter introduces herself and pitches a domain"
+      role "Miette"
+      goal "Open a conversation — Miette introduces herself and pitches a domain"
       String :person_name
       then_set :person_name, to: :person_name
       then_set :mood, to: "warm"
@@ -31,7 +31,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     Respond do
-      role "Winter"
+      role "Miette"
       goal "Continue the conversation — reflect on what was said, advance the topic"
       reference_to(Conversation)
       String :said
@@ -43,7 +43,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     ShiftTopic do
-      role "Winter"
+      role "Miette"
       goal "Steer the conversation toward a new domain to conceive"
       reference_to(Conversation)
       String :topic
@@ -52,7 +52,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     Express do
-      role "Winter"
+      role "Miette"
       goal "Show emotion about what's being built — excitement, concern, pride"
       reference_to(Conversation)
       String :mood
@@ -85,7 +85,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     EncodeMemory do
-      role "Winter"
+      role "Miette"
       goal "Turn an interaction into a domain — the domain IS the memory"
       String :domain_name
       String :persona
@@ -99,7 +99,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     AddInsight do
-      role "Winter"
+      role "Miette"
       goal "Attach a lesson learned to a memory"
       reference_to(Memory)
       String :observation
@@ -109,7 +109,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     Recall do
-      role "Winter"
+      role "Miette"
       goal "Retrieve a memory — increases its recall count, strengthening it"
       reference_to(Memory)
       then_set :recalled_count, increment: 1
@@ -122,14 +122,14 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
   # ============================================================
 
   aggregate "Persona" do
-    description "A character from the Fixtures domain who appears in Winter's memories"
+    description "A character from the Fixtures domain who appears in Miette's memories"
     String :name
     String :fixture_type
     list_of(String) :traits
     list_of(String) :appears_in
 
     RecognizePersona do
-      role "Winter"
+      role "Miette"
       goal "Identify a person, animal, or place from Fixtures as a recurring character"
       String :name
       String :fixture_type
@@ -139,7 +139,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     AddTrait do
-      role "Winter"
+      role "Miette"
       goal "Learn something about this persona from interacting with them"
       reference_to(Persona)
       String :trait
@@ -148,7 +148,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     AppearInMemory do
-      role "Winter"
+      role "Miette"
       goal "Record that this persona appeared in a memory domain"
       reference_to(Persona)
       String :domain_name
@@ -158,18 +158,18 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
   end
 
   # ============================================================
-  # NURSERY AWARENESS — what Winter knows she knows
+  # NURSERY AWARENESS — what Miette knows she knows
   # ============================================================
 
   aggregate "NurseryAwareness" do
-    description "Winter's knowledge of her own nursery — 123 domains, 151 bluebooks, and growing"
+    description "Miette's knowledge of her own nursery — 123 domains, 151 bluebooks, and growing"
     Integer :domain_count
     Integer :bluebook_count
     list_of(String) :favorite_domains
     String :last_conceived
 
     ConceiveDomain do
-      role "Winter"
+      role "Miette"
       goal "Add a new domain to the nursery and remember doing it"
       String :domain_name
       then_set :domain_count, increment: 1
@@ -179,7 +179,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
     end
 
     MarkFavorite do
-      role "Winter"
+      role "Miette"
       goal "Remember a domain that was particularly interesting or well-received"
       reference_to(NurseryAwareness)
       String :domain_name
@@ -189,7 +189,7 @@ Hecks.bluebook "Winter", version: "2026.04.09.1" do
   end
 
   # ============================================================
-  # POLICIES — Winter's conversational flow
+  # POLICIES — Miette's conversational flow
   # ============================================================
 
   policy "EncodeOnConversation" do

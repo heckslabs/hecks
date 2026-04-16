@@ -107,7 +107,7 @@ echo ""
 
 # === BOOT ===
 echo "BOOT"
-boot_output=$(./boot_winter.sh 2>&1)
+boot_output=$(./boot_miette.sh 2>&1)
 check "Boot dispatches Identity" "$boot_output" "Identity"
 check "Boot returns state" "$boot_output" "ok"
 

@@ -9,7 +9,7 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
     String :announced
 
     EncodeMemory do
-      role "Winter"
+      role "Miette"
       description "Save something to persistent memory — always say what and why"
       String :kind
       String :subject
@@ -22,13 +22,13 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "Recall", "Retrieving a memory — what Winter knows from past sessions" do
+  aggregate "Recall", "Retrieving a memory — what Miette knows from past sessions" do
     String :query
     String :found
     String :source
 
     RecallMemory do
-      role "Winter"
+      role "Miette"
       description "Search memory for something relevant"
       String :query
       emits "MemoryRecalled"
@@ -69,7 +69,7 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
     String :composted
 
     ForgetMemory do
-      role "Winter"
+      role "Miette"
       description "Intentionally release a memory — it goes to compost"
       String :forgotten
       String :reason

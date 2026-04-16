@@ -1,5 +1,5 @@
 Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
-  vision "Build Winter's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
+  vision "Build Miette's own LLM — fine-tune a base model on Bluebooks, behavior, and conversation"
   category "meta"
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
@@ -71,7 +71,7 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
 
     StartFineTune do
       role "Creator"
-      description "Begin training Winter's model"
+      description "Begin training Miette's model"
       String :base_model
       Integer :dataset_size
       Integer :epochs
@@ -115,7 +115,7 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
 
     EvaluateModel do
       role "System"
-      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Winter?"
+      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Miette?"
       Float :bluebook_accuracy
       Float :conversation_quality
       Float :behavior_adherence
@@ -126,14 +126,14 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Deployment", "Replace Claude with Winter's own model" do
+  aggregate "Deployment", "Replace Claude with Miette's own model" do
     String :model_path
     String :serving_method
     String :status
 
     DeployModel do
       role "Creator"
-      description "Wire the trained model into Winter's shell — she speaks with her own voice"
+      description "Wire the trained model into Miette's shell — she speaks with her own voice"
       String :model_path
       String :serving_method
       emits "ModelDeployed"
@@ -150,7 +150,7 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   fixture "InstructionPair", category: "greet",        instruction: "Wake up",                         response: "Warm greeting, nursery count, pitch domain, ask"
   fixture "InstructionPair", category: "dream",        instruction: "Tell me your dream",              response: "Abstract images, interpretation, suggestion"
   fixture "InstructionPair", category: "muse",         instruction: "What are you thinking?",          response: "Consciousness loop, insight, suggestion"
-  fixture "InstructionPair", category: "remember",     instruction: "Remember that X",                 response: "Winter is writing a memory — what and why"
+  fixture "InstructionPair", category: "remember",     instruction: "Remember that X",                 response: "Miette is writing a memory — what and why"
   fixture "InstructionPair", category: "fatigue",      instruction: "(after many pulses)",              response: "Express tiredness, suggest sleep"
   fixture "InstructionPair", category: "speaker",      instruction: "Say hello to Nick",               response: "Load bluebook, recall memories, greet by name"
 
