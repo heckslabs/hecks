@@ -87,9 +87,31 @@ pub fn read_dir(dir: &str) -> Result<HashMap<String, Store>, String> {
 // Write
 // ---------------------------------------------------------------------------
 
+/// Fields that must never be persisted to disk, keyed by store name.
+const REDACTED_FIELDS: &[(&str, &[&str])] = &[
+    ("creator_auth", &["passcode"]),
+];
+
+/// Strip sensitive fields from a store before writing.
+fn sanitize(path: &str, store: &Store) -> Store {
+    let name = Path::new(path).file_stem()
+        .and_then(|s| s.to_str()).unwrap_or("");
+    let fields: Vec<&str> = REDACTED_FIELDS.iter()
+        .filter(|(n, _)| *n == name)
+        .flat_map(|(_, fs)| fs.iter().copied())
+        .collect();
+    if fields.is_empty() { return store.clone(); }
+    let mut clean = store.clone();
+    for rec in clean.values_mut() {
+        for f in &fields { rec.remove(*f); }
+    }
+    clean
+}
+
 /// Write a store to a .heki file (HEKI + count + zlib-compressed JSON).
 pub fn write(path: &str, store: &Store) -> Result<(), String> {
-    let json = serde_json::to_string(store)
+    let store = sanitize(path, store);
+    let json = serde_json::to_string(&store)
         .map_err(|e| format!("json serialize: {}", e))?;
 
     let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), Compression::best());
