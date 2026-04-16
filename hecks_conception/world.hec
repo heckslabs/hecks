@@ -1,0 +1,5 @@
+Hecks.world "Miette" do
+  heki do
+    dir "information"
+  end
+end

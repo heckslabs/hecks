@@ -195,7 +195,9 @@ fn main() {
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.to_string());
             if let Some(cmd_name) = dispatch_cmd {
-                let data_dir = format!("{}/data", path.trim_end_matches('/'));
+                // Read data dir from world.hec (sibling or parent of aggregates dir)
+                let data_dir = find_world_heki_dir(path)
+                    .unwrap_or_else(|| format!("{}/data", path.trim_end_matches('/')));
                 // Merge all bluebooks into one combined domain
                 let mut combined = hecks_life::ir::Domain {
                     name: "Hecksagon".into(),
@@ -507,6 +509,31 @@ fn being_from_argv0(argv0: &str) -> String {
         "miette" => "Miette".into(),
         _ => "Miette".into(),
     }
+}
+
+/// Find the heki dir from world.hec — look in parent of the given path.
+/// Parses: `heki do\n  dir "information"\nend`
+fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
+    let parent = std::path::Path::new(aggregates_path).parent()?;
+    let world_path = parent.join("world.hec");
+    let content = fs::read_to_string(&world_path).ok()?;
+    // Simple parse: find `dir "..."` inside `heki do...end`
+    let mut in_heki = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("heki") && trimmed.contains("do") { in_heki = true; }
+        if in_heki && trimmed.starts_with("dir") {
+            // Extract quoted string
+            if let Some(start) = trimmed.find('"') {
+                if let Some(end) = trimmed[start+1..].find('"') {
+                    let dir = &trimmed[start+1..start+1+end];
+                    return Some(parent.join(dir).to_string_lossy().into());
+                }
+            }
+        }
+        if in_heki && trimmed == "end" { in_heki = false; }
+    }
+    None
 }
 
 /// Resolve the project home directory for a named being.
