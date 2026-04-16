@@ -1,0 +1,175 @@
+Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
+  vision "Convert Rust daemon code into executable bluebook definitions — the compiler eats itself"
+  category "autophagy"
+
+  # ============================================================
+  # RUST TO BLUEBOOK
+  # ============================================================
+  #
+  # The pattern we learned converting daydream.rs:
+  #
+  # 1. ANALYZE — functions→commands, structs→attributes,
+  #    heki writes→mutations, heki reads→givens,
+  #    control flow→guards/policies, loops→dispatch cycle
+  #
+  # 2. MAP — each Rust construct gets a bluebook equivalent
+  #
+  # 3. VERIFY — hecks-life run aggregates/ --dispatch CommandName
+  #    produces the same heki state as the Rust
+  #
+  # 4. DELETE — remove the .rs file, the bluebook is the program
+  #
+  # The hecksagon wires domains together. Policies chain events
+  # to commands across aggregates. The runtime dispatches.
+  # No daemon code needed.
+
+  aggregate "RustFile", "A Rust source file to be converted" do
+    String :path
+    String :module_name
+    Integer :line_count
+    String :status
+
+    Analyze do
+      role "Miette"
+      description "Read Rust file, identify functions, structs, heki operations"
+      String :path
+      emits "FileAnalyzed"
+      then_set :path, to: :path
+      then_set :status, to: "analyzed"
+    end
+
+    MapToBluebook do
+      role "Miette"
+      description "Map each Rust construct to its bluebook equivalent"
+      reference_to(RustFile)
+      given { status == "analyzed" }
+      emits "BluebookMapped"
+      then_set :status, to: "mapped"
+    end
+
+    GenerateBluebook do
+      role "Miette"
+      description "Write the bluebook aggregates, commands, policies"
+      reference_to(RustFile)
+      given { status == "mapped" }
+      emits "BluebookGenerated"
+      then_set :status, to: "generated"
+    end
+
+    Verify do
+      role "Miette"
+      description "Test via --dispatch that bluebook reproduces the Rust behavior"
+      reference_to(RustFile)
+      given { status == "generated" }
+      emits "BluebookVerified"
+      then_set :status, to: "verified"
+    end
+
+    DeleteRust do
+      role "Miette"
+      description "Remove the Rust file — the bluebook is the program now"
+      reference_to(RustFile)
+      given { status == "verified" }
+      emits "RustDeleted"
+      then_set :status, to: "deleted"
+    end
+  end
+
+  aggregate "Mapping", "One Rust construct mapped to a bluebook concept" do
+    String :rust_construct
+    String :rust_type
+    String :bluebook_concept
+    String :bluebook_type
+
+    MapFunction do
+      role "Miette"
+      description "fn foo() → command Foo"
+      String :rust_construct
+      String :bluebook_concept
+      emits "FunctionMapped"
+      then_set :rust_construct, to: :rust_construct
+      then_set :rust_type, to: "function"
+      then_set :bluebook_concept, to: :bluebook_concept
+      then_set :bluebook_type, to: "command"
+    end
+
+    MapSideEffect do
+      role "Miette"
+      description "heki::write → then_set, heki::read → given"
+      String :rust_construct
+      String :bluebook_concept
+      emits "SideEffectMapped"
+      then_set :rust_construct, to: :rust_construct
+      then_set :rust_type, to: "side_effect"
+      then_set :bluebook_concept, to: :bluebook_concept
+    end
+
+    MapControlFlow do
+      role "Miette"
+      description "if/match → guard or policy"
+      String :rust_construct
+      String :bluebook_concept
+      emits "ControlFlowMapped"
+      then_set :rust_construct, to: :rust_construct
+      then_set :rust_type, to: "control_flow"
+      then_set :bluebook_concept, to: :bluebook_concept
+    end
+  end
+
+  aggregate "Conversion", "Track overall progress — how much Rust remains" do
+    Integer :files_total
+    Integer :files_converted
+    Integer :lines_deleted
+
+    StartConversion do
+      role "Miette"
+      description "Begin converting Rust daemons to bluebooks"
+      emits "ConversionStarted"
+      then_set :files_converted, to: 0
+      then_set :lines_deleted, to: 0
+    end
+
+    RecordConversion do
+      role "Miette"
+      description "A Rust file has been replaced by a bluebook"
+      reference_to(Conversion)
+      Integer :lines_deleted
+      emits "FileConverted"
+    end
+  end
+
+  # What we've done and what's left
+  fixture "RustFile", path: "daemon/daydream.rs", module_name: "daydream", line_count: 211, status: "deleted"
+  fixture "RustFile", path: "daemon/pulse_organs.rs", module_name: "pulse_organs", line_count: 170, status: "pending"
+  fixture "RustFile", path: "daemon/dream_interpret.rs", module_name: "dream_interpret", line_count: 97, status: "pending"
+  fixture "RustFile", path: "daemon/pulse.rs", module_name: "pulse", line_count: 130, status: "pending"
+  fixture "RustFile", path: "daemon/mindstream.rs", module_name: "mindstream", line_count: 400, status: "pending"
+  fixture "RustFile", path: "daemon/sleep.rs", module_name: "sleep", line_count: 620, status: "pending"
+  fixture "Conversion", files_total: 6, files_converted: 1, lines_deleted: 211
+
+  # The chain: analyze → map → generate → verify → delete
+  policy "MapOnAnalyze" do
+    on "FileAnalyzed"
+    trigger "MapToBluebook"
+  end
+
+  policy "GenerateOnMap" do
+    on "BluebookMapped"
+    trigger "GenerateBluebook"
+  end
+
+  policy "VerifyOnGenerate" do
+    on "BluebookGenerated"
+    trigger "Verify"
+  end
+
+  policy "DeleteOnVerify" do
+    on "BluebookVerified"
+    trigger "DeleteRust"
+  end
+
+  policy "TrackOnDelete" do
+    on "RustDeleted"
+    trigger "RecordConversion"
+  end
+end
