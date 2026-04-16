@@ -30,6 +30,7 @@ pub fn run(ctx: &DaemonCtx) {
     let mut strongest_synapse: Option<(String, f64)> = None;
     let mut session_start = now_iso();
     let mut was_idle = false;
+    let mut thought_queue: Vec<String> = Vec::new();
 
     loop {
         let idle = idle_seconds(ctx);
@@ -108,13 +109,15 @@ pub fn run(ctx: &DaemonCtx) {
         if cycles % 3 == 0 {
             upsert_mood(ctx, mood_name, creativity, precision);
         }
-        // Write current musing to consciousness — the statusline script
-        // decides whether to show it based on heartbeat idle time
-        let musing_ideas = gather_musing_ideas(ctx);
-        if !musing_ideas.is_empty() {
-            let idea = &musing_ideas[cycles as usize % musing_ideas.len()];
-            let summary: String = idea.chars().take(80).collect();
-            write_consciousness(ctx, "wandering", &summary);
+        // Write current thought to consciousness — the statusline script
+        // decides whether to show it based on heartbeat idle time.
+        // Thoughts come from Summer (ollama) in batches of 20.
+        // When exhausted, generate a new batch.
+        if thought_queue.is_empty() {
+            thought_queue = generate_thoughts(ctx);
+        }
+        if let Some(thought) = thought_queue.pop() {
+            write_consciousness(ctx, "wandering", &thought);
         }
 
         cycles += 1;
@@ -124,20 +127,72 @@ pub fn run(ctx: &DaemonCtx) {
     }
 }
 
-/// All musing ideas — unconceived first, then conceived (non-dismissed).
-fn gather_musing_ideas(ctx: &DaemonCtx) -> Vec<String> {
-    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
-    let mut ideas: Vec<String> = Vec::new();
-    // Unconceived first
-    ideas.extend(musings.values()
-        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
-        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
-    // Then conceived (not dismissed)
-    ideas.extend(musings.values()
-        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(true))
-        .filter(|m| m.get("conceived_as").and_then(|v| v.as_str()).unwrap_or("") != "dismissed")
-        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
-    ideas
+/// Ask Summer (ollama) for 20 unique thoughts about nursery domains.
+/// Falls back to domain names if ollama isn't available.
+fn generate_thoughts(ctx: &DaemonCtx) -> Vec<String> {
+    let domains = list_domains(&ctx.nursery_dir);
+    if domains.is_empty() { return vec!["quiet mind".into()]; }
+
+    // Pick 10 random domains as seed material
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default().as_secs();
+    let mut seeds: Vec<&str> = Vec::new();
+    for i in 0..10 {
+        let idx = ((now + i) as usize) % domains.len();
+        seeds.push(&domains[idx]);
+    }
+    let seed_list = seeds.iter()
+        .map(|d| d.replace('_', " "))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let prompt = format!(
+        "Domains: {}\n\n\
+         Write 20 lines. Each line combines 2-3 of the above domains \
+         into one short idea (under 60 characters). \
+         Example: \"wine tracking meets smart HVAC in the cellar\"\n\
+         No numbering. No bullets. Just the ideas.",
+        seed_list
+    );
+
+    // Call ollama — use bluebook-architect (Summer) or fall back to qwen3
+    let body = serde_json::json!({
+        "model": "bluebook-architect",
+        "prompt": prompt,
+        "stream": false,
+        "options": { "temperature": 1.0, "num_predict": 800 }
+    });
+
+    let result = std::process::Command::new("curl")
+        .args(["-s", "-X", "POST", "http://localhost:11434/api/generate",
+               "-d", &body.to_string()])
+        .output();
+
+    if let Ok(output) = result {
+        if let Ok(json) = serde_json::from_slice::<Value>(&output.stdout) {
+            if let Some(text) = json.get("response").and_then(|v| v.as_str()) {
+                let thoughts: Vec<String> = text.lines()
+                    .map(|l| l.trim().to_string())
+                    .filter(|l| !l.is_empty() && l.len() < 80 && l.len() > 5)
+                    .collect();
+                if !thoughts.is_empty() {
+                    return thoughts;
+                }
+            }
+        }
+    }
+
+    // Fallback: just use domain names shuffled
+    let mut fallback: Vec<String> = domains.iter()
+        .map(|d| d.replace('_', " "))
+        .collect();
+    fallback.sort_by(|a, b| {
+        let ha = a.len().wrapping_mul(now as usize % 97);
+        let hb = b.len().wrapping_mul(now as usize % 97);
+        ha.cmp(&hb)
+    });
+    fallback.into_iter().take(20).collect()
 }
 
 fn gather_concepts(ctx: &DaemonCtx) -> Vec<String> {
