@@ -114,6 +114,13 @@ check "Boot shows capabilities" "$boot_output" "capabilities"
 echo ""
 
 # === MINDSTREAM ===
+echo "QUERIES"
+vitals=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
+check "Heartbeat.ReadVitals query works" "$vitals" "ReadVitals"
+beats_q=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',{}).get('beats',0))" 2>/dev/null)
+check "Query returns beats ($beats_q)" "$beats_q" "[0-9]"
+echo ""
+
 echo "MINDSTREAM"
 ps aux | grep "mindstream.sh" | grep -v grep > /dev/null
 check "Mindstream running" "$?" "0"
