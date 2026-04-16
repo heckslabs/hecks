@@ -25,9 +25,10 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
 
     Beat do
       role "Winter"
-      description "One heartbeat tick — pump context through the system, record the moment"
+      description "One heartbeat tick — 1 beat per second since last beat"
       String :carrying
-      then_set :beats, increment: 1
+      then_set :beats, increment: seconds_since(:last_beat_at)
+      then_set :last_beat_at, to: :now
       then_set :carrying, to: :carrying
       emits "HeartbeatPulsed"
     end

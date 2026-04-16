@@ -38,21 +38,21 @@ pub fn apply_mutations(
     for mutation in &cmd.mutations {
         match mutation.operation {
             MutationOp::Set => {
-                let val = resolve_mutation_value(&mutation.value, attrs);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
                 state.set(&mutation.field, val);
             }
             MutationOp::Append => {
-                let val = resolve_mutation_value(&mutation.value, attrs);
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
                 state.append(&mutation.field, val);
             }
             MutationOp::Increment => {
-                let amount = resolve_mutation_value(&mutation.value, attrs)
+                let amount = resolve_mutation_value(&mutation.value, attrs, state)
                     .as_int()
                     .unwrap_or(1);
                 state.increment(&mutation.field, amount);
             }
             MutationOp::Decrement => {
-                let amount = resolve_mutation_value(&mutation.value, attrs)
+                let amount = resolve_mutation_value(&mutation.value, attrs, state)
                     .as_int()
                     .unwrap_or(1);
                 state.decrement(&mutation.field, amount);
@@ -150,6 +150,7 @@ fn compare_lt(left: &Value, right: &Value) -> bool {
 pub fn resolve_mutation_value(
     value_expr: &str,
     attrs: &HashMap<String, Value>,
+    state: &AggregateState,
 ) -> Value {
     let value_expr = value_expr.trim();
 
@@ -172,9 +173,28 @@ pub fn resolve_mutation_value(
         return Value::Map(map);
     }
 
+    // Computed: seconds_since(:field) — elapsed seconds since a timestamp field
+    if value_expr.starts_with("seconds_since(") && value_expr.ends_with(')') {
+        let field = value_expr[14..value_expr.len()-1].trim().trim_start_matches(':');
+        if let Some(Value::Str(ts)) = state.fields.get(field) {
+            let elapsed = crate::daemon::seconds_since_iso(ts);
+            return Value::Int(elapsed.max(1.0) as i64);
+        }
+        return Value::Int(1);
+    }
+
+    // :now — current ISO timestamp
+    if value_expr == ":now" || value_expr == "now" {
+        return Value::Str(crate::daemon::now_iso());
+    }
+
     if value_expr.starts_with(':') {
         let field = &value_expr[1..];
-        return attrs.get(field).cloned().unwrap_or(Value::Null);
+        // Try attrs first, then state fields
+        return attrs.get(field)
+            .or_else(|| state.fields.get(field))
+            .cloned()
+            .unwrap_or(Value::Null);
     }
 
     if let Ok(n) = value_expr.parse::<i64>() {
