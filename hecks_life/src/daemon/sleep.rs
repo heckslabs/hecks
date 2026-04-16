@@ -359,22 +359,30 @@ fn list_domains(nursery: &str) -> Vec<String> {
 /// Write sleep position + summary to consciousness.heki.
 fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: usize, images: &[String]) {
     // Build a narrative — not just current stage, but the arc of the night
+    // Read current state for context in narratives
+    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
+    let unconceived_count = musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+        .count();
+    let synapse_count = heki::read(&ctx.store("synapse")).unwrap_or_default().len();
+    let signal_count = heki::read(&ctx.store("signal")).unwrap_or_default().len();
+
     let narrative = match (stage, cycle, images.len()) {
-        ("light", 1, _) => format!("drifting off · {}/{}", cycle, total),
-        ("light", c, _) => format!("light sleep · {}/{}", c, total),
-        ("rem", _, 0) => format!("dreaming · {}/{}", cycle, total),
+        ("light", 1, _) => format!("{}/{} drifting off · reviewing {} musings", cycle, total, unconceived_count),
+        ("light", _, _) => format!("{}/{} light sleep · {} musings, {} synapses", cycle, total, unconceived_count, synapse_count),
+        ("rem", _, 0) => format!("{}/{} dreaming", cycle, total),
         ("rem", _, _) => {
             let img = images.last().unwrap_or(&String::new()).clone();
             let short: String = img.chars().take(60).collect();
-            format!("dreaming · {} · {}/{}", short, cycle, total)
+            format!("{}/{} dreaming · {}", cycle, total, short)
         }
-        ("deep", _, _) => format!("deep sleep · {}/{}", cycle, total),
+        ("deep", _, _) => format!("{}/{} deep sleep · consolidating {} signals, {} synapses", cycle, total, signal_count, synapse_count),
         ("waking", _, n) if n > 0 => {
             let img = images.last().unwrap_or(&String::new()).clone();
-            let short: String = img.chars().take(80).collect();
-            format!("waking — I dreamt of {}", short.to_lowercase())
+            let short: String = img.chars().take(60).collect();
+            format!("{}/{} waking · I dreamt of {}", cycle, total, short.to_lowercase())
         }
-        ("waking", _, _) => "waking — dreamless sleep".into(),
+        ("waking", _, _) => format!("{}/{} waking · dreamless sleep", cycle, total),
         _ => "sleeping".into(),
     };
 
