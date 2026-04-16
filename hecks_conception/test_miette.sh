@@ -107,9 +107,9 @@ echo ""
 
 # === BOOT ===
 echo "BOOT"
-boot_output=$($HECKS boot . 2>&1 | head -10)
-check "Boot runs" "$boot_output" "records"
-check "Boot shows capabilities" "$boot_output" "capabilities"
+boot_output=$(./boot_winter.sh 2>&1)
+check "Boot dispatches Identity" "$boot_output" "Identity"
+check "Boot returns state" "$boot_output" "ok"
 
 echo ""
 

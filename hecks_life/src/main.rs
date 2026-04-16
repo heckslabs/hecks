@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, daemon, tongue, lexicon, terminal, project, training};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -140,8 +140,7 @@ fn main() {
         } else {
             resolve_home(&being)
         };
-        let show_nerves = args.iter().any(|a| a == "--nerves");
-        boot::run(&dir, show_nerves, &being);
+        eprintln!("boot now runs via ./boot_winter.sh (bluebook dispatch)");
         return;
     }
 
