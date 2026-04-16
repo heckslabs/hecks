@@ -115,8 +115,11 @@ echo ""
 
 # === MINDSTREAM ===
 echo "MINDSTREAM"
-ps aux | grep "daemon mindstream" | grep -v grep > /dev/null
-check "Mindstream daemon running" "$?" "0"
+ps aux | grep "mindstream.sh" | grep -v grep > /dev/null
+check "Mindstream running" "$?" "0"
+
+tick=$($HECKS heki latest $INFO/tick.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('cycle',0))" 2>/dev/null)
+check "Mindstream ticking (cycle $tick)" "$tick" "[0-9]"
 
 echo ""
 echo "════════════════════════════════════"

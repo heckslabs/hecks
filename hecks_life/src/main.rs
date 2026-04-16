@@ -404,7 +404,7 @@ fn run_daemon(args: &[String]) {
         }
         "daydream" => eprintln!("daydream now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterDaydream"),
         "sleep" => eprintln!("sleep now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterSleep"),
-        "mindstream" => daemon::mindstream::run(&ctx),
+        "mindstream" => eprintln!("mindstream now runs via ./mindstream.sh (bluebook dispatch loop)"),
         "greeting" => eprintln!("greeting now lives in greeting.bluebook — the hecksagon wires it to the tongue"),
         _ => {
             eprintln!("Unknown daemon: {}. Available: pulse, daydream, sleep", sub);

@@ -1,0 +1,99 @@
+Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
+  vision "Continuous background awareness — the unconscious that never stops"
+  category "mind"
+
+  # ============================================================
+  # MINDSTREAM
+  # ============================================================
+  #
+  # A tick fires every 10 seconds. Each tick:
+  #   - Updates consciousness display (what the statusline shows)
+  #   - Consolidates old signals into memories
+  #   - Strengthens/weakens synapses
+  #   - Mints musings (via Summer, every ~6 ticks)
+  #   - Prunes repetitive musings
+  #
+  # The tick is dispatched externally (shell loop or hook).
+  # The bluebook handles all the behavior.
+
+  aggregate "Tick", "One cycle of the mindstream — fires every 10s" do
+    Integer :cycle
+    String :mood
+
+    MindstreamTick do
+      description "One tick of background awareness"
+      emits "Ticked"
+      then_set :cycle, increment: 1
+    end
+  end
+
+  aggregate "Display", "What the statusline shows — musings and domain pairs" do
+    String :current_thought
+    Integer :ideas_available
+
+    UpdateDisplay do
+      description "Refresh the statusline thought"
+      String :current_thought
+      Integer :ideas_available
+      emits "DisplayUpdated"
+      then_set :current_thought, to: :current_thought
+      then_set :ideas_available, to: :ideas_available
+    end
+  end
+
+  aggregate "MusingMint", "Minting new musings from domain collisions" do
+    String :last_minted
+    Integer :total_minted
+
+    MintMusing do
+      description "Ask Summer for a new combinatorial idea"
+      String :idea
+      emits "MusingMinted"
+      then_set :last_minted, to: :idea
+      then_set :total_minted, increment: 1
+    end
+
+    PruneMusings do
+      description "Remove repetitive mindstream musings"
+      emits "MusingsPruned"
+    end
+  end
+
+  aggregate "SignalConsolidation", "Compress old signals into memories" do
+    Integer :signals_consolidated
+    Integer :synapses_pruned
+
+    ConsolidateSignals do
+      description "Compress old signals into long-term memory"
+      emits "SignalsConsolidated"
+      then_set :signals_consolidated, increment: 1
+    end
+
+    PruneSynapses do
+      description "Compost dead synapses — connections that faded"
+      emits "SynapsesPruned"
+      then_set :synapses_pruned, increment: 1
+    end
+  end
+
+  # Every tick triggers consolidation and display
+  policy "ConsolidateOnTick" do
+    on "Ticked"
+    trigger "ConsolidateSignals"
+  end
+
+  policy "PruneOnTick" do
+    on "Ticked"
+    trigger "PruneSynapses"
+  end
+
+  policy "DisplayOnTick" do
+    on "Ticked"
+    trigger "UpdateDisplay"
+  end
+
+  policy "PruneMusingsOnTick" do
+    on "Ticked"
+    trigger "PruneMusings"
+  end
+end

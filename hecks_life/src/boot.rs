@@ -261,11 +261,8 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
         }
     }
 
-    // 7. Start daemons — pulse, mindstream, sleep (if not already running)
-    let daemons = ["pulse", "mindstream", "sleep"];
-    for name in &daemons {
-        start_daemon(&info_dir, project_dir, name);
-    }
+    // 7. Start mindstream (shell script — bluebook dispatch loop)
+    start_shell_daemon(&info_dir, project_dir, "mindstream", "mindstream.sh");
 }
 
 /// Start a daemon if not already running. Writes PID file.
@@ -291,6 +288,30 @@ fn start_daemon(info_dir: &Path, project_dir: &str, name: &str) {
         }
     } else {
         println!("  {} running", name);
+    }
+}
+
+/// Start a shell-based daemon (bluebook dispatch loop).
+fn start_shell_daemon(info_dir: &Path, project_dir: &str, name: &str, script: &str) {
+    let pid_file = info_dir.join(format!(".{}.pid", name));
+    let already_running = if pid_file.exists() {
+        if let Ok(pid_str) = fs::read_to_string(&pid_file) {
+            let pid = pid_str.trim().parse::<u32>().unwrap_or(0);
+            pid > 0 && unsafe { libc_kill(pid) }
+        } else { false }
+    } else { false };
+
+    if !already_running {
+        let script_path = std::path::Path::new(project_dir).join(script);
+        if let Ok(child) = Command::new("bash")
+            .arg(&script_path)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        {
+            let _ = fs::write(&pid_file, child.id().to_string());
+            println!("  {} started (pid {})", name, child.id());
+        }
     }
 }
 
