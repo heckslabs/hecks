@@ -136,8 +136,7 @@ pub fn run(ctx: &DaemonCtx) {
     }
 }
 
-/// Autumn — Summer's cloud twin on Modal (T4 GPU).
-const AUTUMN_URL: &str = "https://chrisyoung--summer-conceive.modal.run";
+/// Summer — local ollama model for creative ideation.
 
 /// Fast local display ideas — unconceived musings + nursery domain combos.
 /// Shuffled by current minute so order changes but is stable within a minute.
@@ -156,7 +155,7 @@ fn gather_display_ideas(ctx: &DaemonCtx) -> Vec<String> {
         .filter(|m| m.get("conceived_as").and_then(|v| v.as_str()).unwrap_or("") != "dismissed")
         .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
 
-    // Combinatorial domain triples from nursery
+    // Combinatorial domain pairs from nursery
     let domains = list_domains(&ctx.nursery_dir);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
@@ -165,12 +164,10 @@ fn gather_display_ideas(ctx: &DaemonCtx) -> Vec<String> {
     for i in 0..30 {
         let a = ((minute + i * 3) as usize) % domains.len().max(1);
         let b = ((minute + i * 7 + 1) as usize) % domains.len().max(1);
-        let c = ((minute + i * 11 + 2) as usize) % domains.len().max(1);
-        if a < domains.len() && b < domains.len() && c < domains.len() && a != b && b != c {
-            ideas.push(format!("{} meets {} meets {}",
+        if a < domains.len() && b < domains.len() && a != b {
+            ideas.push(format!("{} meets {}",
                 domains[a].replace('_', " "),
-                domains[b].replace('_', " "),
-                domains[c].replace('_', " ")));
+                domains[b].replace('_', " ")));
         }
     }
 
@@ -192,16 +189,22 @@ fn extract_vision(bluebook: &str) -> Option<String> {
     None
 }
 
-/// Call Autumn on Modal. Returns the response text or None.
-fn call_modal(vision: &str) -> Option<String> {
-    let body = serde_json::json!({ "vision": vision });
+/// Call Summer (local ollama) for creative ideation. Returns response text or None.
+fn call_summer(prompt: &str) -> Option<String> {
+    let body = serde_json::json!({
+        "model": "bluebook-architect",
+        "prompt": prompt,
+        "stream": false,
+        "think": false,
+        "options": { "temperature": 1.0, "num_predict": 100 }
+    });
     let result = std::process::Command::new("curl")
-        .args(["-s", "-m", "60", "-X", "POST", AUTUMN_URL,
-               "-H", "Content-Type: application/json",
+        .args(["-s", "-m", "30", "-X", "POST",
+               "http://localhost:11434/api/generate",
                "-d", &body.to_string()])
         .output().ok()?;
     let json: Value = serde_json::from_slice(&result.stdout).ok()?;
-    json.get("bluebook").and_then(|v| v.as_str()).map(String::from)
+    json.get("response").and_then(|v| v.as_str()).map(String::from)
 }
 
 fn gather_concepts(ctx: &DaemonCtx) -> Vec<String> {
@@ -283,8 +286,8 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     (vec![image], 1)
 }
 
-/// Mint one musing by asking Autumn (Modal) to conceive a cross-domain fusion.
-/// Extracts the vision line as the musing idea.
+/// Mint one musing by asking Summer (local ollama) to generate a
+/// surprising cross-domain idea. Summer is creative, conceiver is structural.
 fn maybe_mint_musing(ctx: &DaemonCtx) {
     let domains = list_domains(&ctx.nursery_dir);
     if domains.is_empty() { return; }
@@ -298,26 +301,26 @@ fn maybe_mint_musing(ctx: &DaemonCtx) {
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap_or_default().as_secs();
 
-    // Pick 3 random domains for Autumn to fuse
-    let d1 = &domains[((now * 3) as usize) % domains.len()];
-    let d2 = &domains[((now * 7 + 1) as usize) % domains.len()];
-    let d3 = &domains[((now * 11 + 2) as usize) % domains.len()];
-    let vision = format!(
-        "a system that combines {} with {} and {}",
-        d1.replace('_', " "), d2.replace('_', " "), d3.replace('_', " ")
+    // Pick 2 random domains for Summer to fuse
+    let d1 = domains[((now * 3) as usize) % domains.len()].replace('_', " ");
+    let d2 = domains[((now * 7 + 1) as usize) % domains.len()].replace('_', " ");
+
+    let prompt = format!(
+        "Combine these 2 domains into 1 surprising short idea (under 60 chars): \
+         {} and {}. Just the idea, nothing else.",
+        d1, d2
     );
 
-    if let Some(bluebook) = call_modal(&vision) {
-        if let Some(idea) = extract_vision(&bluebook) {
-            if idea.len() > 10 && idea.len() < 80
-                && !existing.iter().any(|e| e == &idea)
-                && passes_quality_gate(&idea) {
-                let mut rec = Record::new();
-                rec.insert("idea".into(), Value::String(idea));
-                rec.insert("conceived".into(), Value::Bool(false));
-                rec.insert("source".into(), Value::String("mindstream".into()));
-                let _ = heki::append(&ctx.store("musing"), &rec);
-            }
+    if let Some(text) = call_summer(&prompt) {
+        let idea = text.lines().next().unwrap_or("").trim().to_string();
+        if idea.len() > 10 && idea.len() < 80
+            && !existing.iter().any(|e| e == &idea)
+            && passes_quality_gate(&idea) {
+            let mut rec = Record::new();
+            rec.insert("idea".into(), Value::String(idea));
+            rec.insert("conceived".into(), Value::Bool(false));
+            rec.insert("source".into(), Value::String("mindstream".into()));
+            let _ = heki::append(&ctx.store("musing"), &rec);
         }
     }
 }

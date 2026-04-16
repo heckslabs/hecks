@@ -15,9 +15,10 @@ Hecks.bluebook "MusingGrooming", version: "2026.04.16.2" do
   # Then show the next batch. Continue until all are reviewed.
   #
   # CONCEIVE means the musing becomes a nursery domain:
-  #   - Generate the bluebook (via Autumn/Modal or claude agent)
-  #   - Write to nursery/{snake_name}/{snake_name}.bluebook
+  #   - Run: hecks-life conceive {snake_name} "{musing idea}" --corpus nursery
+  #   - Instant, no LLM needed — the conceiver scans the corpus for archetypes
   #   - Mark the musing as conceived_as the domain name
+  #   - Never use LLM agents or Modal for domain conception — the conceiver is faster and better
   #
   # Musings not conceived stay unconceived — never remove them
   # unless the user explicitly says to compost them.

@@ -1,0 +1,197 @@
+Hecks.bluebook "ComplianceMentalHealth" do
+  vision "Governed mental health clinic — treatment, prescriptions, billing, and mandatory reporting under strict audit trails"
+  category "healthcare"
+  aggregate "Patient", "A registered patient with demographics, insurance, and risk flags" do
+    String :mrn
+    String :full_name
+    String :risk_level
+    String :status
+    RegisterPatient do
+      role "IntakeCoordinator"
+      description "Enroll a new patient with demographics and insurance"
+      String :mrn
+      String :full_name
+      emits "PatientRegistered"
+      then_set :mrn, to: :mrn
+      then_set :full_name, to: :full_name
+      then_set :status, to: "active"
+    end
+    ElevateRiskLevel do
+      role "Clinician"
+      description "Flag a patient as high-risk after clinical assessment"
+      reference_to(Patient)
+      String :risk_level
+      given { status == "active" }
+      emits "RiskLevelElevated"
+      then_set :risk_level, to: :risk_level
+    end
+    DischargePatient do
+      role "Clinician"
+      description "Discharge a patient from active care"
+      reference_to(Patient)
+      given { status == "active" }
+      emits "PatientDischarged"
+      then_set :status, to: "discharged"
+    end
+  end
+  aggregate "TreatmentPlan", "A care plan requiring supervisory approval before sessions" do
+    String :diagnosis_code
+    String :primary_goal
+    String :status
+    reference_to(Patient)
+    CreateTreatmentPlan do
+      role "Clinician"
+      description "Draft a treatment plan tied to a diagnosis and modality"
+      reference_to(Patient)
+      String :diagnosis_code
+      String :primary_goal
+      emits "TreatmentPlanCreated"
+      then_set :diagnosis_code, to: :diagnosis_code
+      then_set :primary_goal, to: :primary_goal
+      then_set :status, to: "draft"
+    end
+    ApproveTreatmentPlan do
+      role "ClinicalSupervisor"
+      description "Approve a draft plan after supervisory review"
+      reference_to(TreatmentPlan)
+      given { status == "draft" }
+      emits "TreatmentPlanApproved"
+      then_set :status, to: "active"
+    end
+    ReviewTreatmentPlan do
+      role "Clinician"
+      description "Periodic review and goal update"
+      reference_to(TreatmentPlan)
+      String :updated_goal
+      given { status == "active" }
+      emits "TreatmentPlanReviewed"
+      then_set :primary_goal, to: :updated_goal
+    end
+  end
+  aggregate "SessionNote", "A clinical session record requiring co-signature for compliance" do
+    String :content_summary
+    String :clinician_name
+    String :status
+    reference_to(Patient)
+    reference_to(TreatmentPlan)
+    RecordSessionNote do
+      role "Clinician"
+      description "Document a therapy session within 24 hours"
+      reference_to(Patient)
+      String :content_summary
+      String :clinician_name
+      emits "SessionNoteRecorded"
+      then_set :content_summary, to: :content_summary
+      then_set :clinician_name, to: :clinician_name
+      then_set :status, to: "pending_cosign"
+    end
+    CosignSessionNote do
+      role "ClinicalSupervisor"
+      description "Co-sign a note to satisfy supervisory compliance"
+      reference_to(SessionNote)
+      String :cosigner_name
+      given { status == "pending_cosign" }
+      emits "SessionNoteCosigned"
+      then_set :status, to: "finalized"
+    end
+    AmendSessionNote do
+      role "Clinician"
+      description "Append a correction — original preserved for audit"
+      reference_to(SessionNote)
+      String :amendment_text
+      given { status == "finalized" }
+      emits "SessionNoteAmended"
+    end
+  end
+  aggregate "Prescription", "A medication order with refill guards and discontinuation" do
+    String :medication_name
+    String :status
+    Integer :refills_remaining
+    reference_to(Patient)
+    WritePrescription do
+      role "Prescriber"
+      description "Order a medication with dosage and refill count"
+      reference_to(Patient)
+      String :medication_name
+      Integer :refills_remaining
+      emits "PrescriptionWritten"
+      then_set :medication_name, to: :medication_name
+      then_set :refills_remaining, to: :refills_remaining
+      then_set :status, to: "active"
+    end
+    RefillPrescription do
+      role "Prescriber"
+      description "Process a refill if refills remain"
+      reference_to(Prescription)
+      given { status == "active" }
+      given { refills_remaining > 0 }
+      emits "PrescriptionRefilled"
+    end
+    DiscontinuePrescription do
+      role "Prescriber"
+      description "Discontinue a medication"
+      reference_to(Prescription)
+      given { status == "active" }
+      emits "PrescriptionDiscontinued"
+      then_set :status, to: "discontinued"
+    end
+  end
+  aggregate "InsuranceClaim", "A billing claim with adjudication and appeal lifecycle" do
+    Float :billed_amount
+    String :status
+    reference_to(Patient)
+    reference_to(SessionNote)
+    SubmitClaim do
+      role "BillingSpecialist"
+      description "File a claim for a cosigned session"
+      reference_to(Patient)
+      reference_to(SessionNote)
+      Float :billed_amount
+      emits "ClaimSubmitted"
+      then_set :billed_amount, to: :billed_amount
+      then_set :status, to: "submitted"
+    end
+    AdjudicateClaim do
+      role "BillingSpecialist"
+      description "Record the carrier's adjudication decision"
+      reference_to(InsuranceClaim)
+      given { status == "submitted" }
+      emits "ClaimAdjudicated"
+      then_set :status, to: "adjudicated"
+    end
+    AppealDenial do
+      role "BillingSpecialist"
+      description "Appeal a denied claim"
+      reference_to(InsuranceClaim)
+      given { status == "denied" }
+      emits "DenialAppealed"
+      then_set :status, to: "appealed"
+    end
+  end
+  policy "RequireCosignOnNote" do
+    on "SessionNoteRecorded"
+    trigger "CosignSessionNote"
+  end
+  policy "BillAfterCosign" do
+    on "SessionNoteCosigned"
+    trigger "SubmitClaim"
+  end
+  policy "ReviewPlanOnDischarge" do
+    on "PatientDischarged"
+    trigger "ReviewTreatmentPlan"
+  end
+  policy "ApprovePlanBeforeSessions" do
+    on "TreatmentPlanCreated"
+    trigger "ApproveTreatmentPlan"
+  end
+  policy "FlagRiskOnAmendment" do
+    on "SessionNoteAmended"
+    trigger "ElevateRiskLevel"
+  end
+  fixture "Patient", mrn: "MRN-0001", full_name: "Elena Vasquez", risk_level: "standard", status: "active"
+  fixture "Patient", mrn: "MRN-0002", full_name: "James Okoro", risk_level: "high", status: "active"
+  fixture "TreatmentPlan", diagnosis_code: "F33.1", primary_goal: "Reduce depressive episodes below two per month", status: "active"
+  fixture "SessionNote", content_summary: "Explored cognitive distortions around workplace conflict", clinician_name: "Dr. Amara Singh", status: "finalized"
+  fixture "Prescription", medication_name: "Sertraline", status: "active", refills_remaining: 3
+  fixture "InsuranceClaim", billed_amount: 175.0, status: "adjudicated"
+end

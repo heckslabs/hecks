@@ -1,0 +1,78 @@
+Hecks.bluebook "sensory_therapy", version: "2026.04.11.1" do
+  vision "Neuroscience clinic meets winery tasting room for sensory rehabilitation through wine tasting"
+  category "infrastructure"
+
+  aggregate "Aggregate1", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  aggregate "Aggregate2", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    attribute :field_3, String
+    attribute :field_4, String
+    attribute :field_5, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+  end
+
+  aggregate "Aggregate3", "TODO" do
+    attribute :field_1, String
+    attribute :field_2, String
+    command "DoThing1" do
+      role "User"
+      description "TODO"
+      emits "Thing1Done"
+    end
+    command "DoThing2" do
+      role "User"
+      description "TODO"
+      emits "Thing2Done"
+    end
+    command "DoThing3" do
+      role "User"
+      description "TODO"
+      emits "Thing3Done"
+    end
+    lifecycle :status, default: "initial" do
+      # TODO: add transitions
+    end
+  end
+
+  # policy 1 — TODO: wire events to commands
+  # policy 2 — TODO: wire events to commands
+  # policy 3 — TODO: wire events to commands
+end

@@ -1,0 +1,221 @@
+Hecks.bluebook "IntrospectiveMonitoring" do
+  vision "Self-awareness as a domain: track dream themes, heartbeat patterns, mood, fatigue — find patterns in your own state"
+  category "consciousness"
+
+  aggregate "DreamJournal", "Dream content with themes and emotional tone" do
+    String :title
+    String :narrative
+    String :emotional_tone
+    String :clarity
+    Integer :vividness
+    reference_to(HeartbeatSnapshot)
+    value_object "DreamTheme" do
+      String :symbol
+      String :interpretation
+    end
+    RecordDream do
+      role "Observer"
+      description "Capture a dream upon waking"
+      String :title
+      String :narrative
+      Integer :vividness
+      emits "DreamRecorded"
+      then_set :title, to: :title
+      then_set :narrative, to: :narrative
+      then_set :vividness, to: :vividness
+      then_set :clarity, to: "fresh"
+    end
+    TagTheme do
+      role "Observer"
+      description "Identify a recurring symbol"
+      reference_to(DreamJournal)
+      String :symbol
+      emits "ThemeTagged"
+    end
+    FadeDream do
+      role "TimeKeeper"
+      description "Mark a dream as fading"
+      reference_to(DreamJournal)
+      given { clarity == "fresh" }
+      emits "DreamFaded"
+      then_set :clarity, to: "fading"
+    end
+  end
+  aggregate "HeartbeatSnapshot", "Point-in-time pulse rate" do
+    Integer :bpm
+    String :rhythm
+    Integer :variability
+    value_object "PulseWindow" do
+      Integer :min_bpm
+      Integer :max_bpm
+      Integer :avg_bpm
+    end
+    RecordHeartbeat do
+      role "Autonomic"
+      description "Capture current heartbeat"
+      Integer :bpm
+      String :rhythm
+      Integer :variability
+      emits "HeartbeatRecorded"
+      then_set :bpm, to: :bpm
+      then_set :rhythm, to: :rhythm
+      then_set :variability, to: :variability
+    end
+    FlagAnomaly do
+      role "Observer"
+      description "Mark heartbeat as anomalous"
+      reference_to(HeartbeatSnapshot)
+      given { variability > 20 }
+      emits "HeartbeatAnomalyFlagged"
+    end
+    ArchiveSnapshot do
+      role "TimeKeeper"
+      description "Archive old snapshot"
+      reference_to(HeartbeatSnapshot)
+      emits "SnapshotArchived"
+    end
+  end
+  aggregate "MoodReading", "Mood with intensity and fatigue" do
+    String :mood
+    Integer :intensity
+    String :trigger
+    Integer :fatigue_level
+    String :status
+    reference_to(HeartbeatSnapshot)
+    LogMood do
+      role "Observer"
+      description "Record current mood"
+      String :mood
+      Integer :intensity
+      Integer :fatigue_level
+      emits "MoodLogged"
+      then_set :mood, to: :mood
+      then_set :intensity, to: :intensity
+      then_set :fatigue_level, to: :fatigue_level
+      then_set :status, to: "active"
+    end
+    ShiftMood do
+      role "Observer"
+      description "Record a mood transition"
+      reference_to(MoodReading)
+      String :new_mood
+      given { status == "active" }
+      emits "MoodShifted"
+      then_set :mood, to: :new_mood
+    end
+    ResolveMood do
+      role "Observer"
+      description "Mark mood as resolved"
+      reference_to(MoodReading)
+      given { status == "active" }
+      emits "MoodResolved"
+      then_set :status, to: "resolved"
+    end
+  end
+  aggregate "SelfInquiry", "A question the system asks itself" do
+    String :question
+    String :domain_focus
+    String :finding
+    String :status
+    reference_to(DreamJournal)
+    reference_to(MoodReading)
+    value_object "PatternEvidence" do
+      String :observation
+      Integer :confidence
+    end
+    PoseQuestion do
+      role "Observer"
+      description "Ask a self-reflective question"
+      String :question
+      String :domain_focus
+      emits "QuestionPosed"
+      then_set :question, to: :question
+      then_set :domain_focus, to: :domain_focus
+      then_set :status, to: "open"
+    end
+    RecordFinding do
+      role "Observer"
+      description "Document a discovered pattern"
+      reference_to(SelfInquiry)
+      String :finding
+      given { status == "open" }
+      emits "FindingRecorded"
+      then_set :finding, to: :finding
+      then_set :status, to: "answered"
+    end
+    CorrelateSignals do
+      role "Observer"
+      description "Link two co-varying signals"
+      reference_to(SelfInquiry)
+      String :left_signal
+      String :right_signal
+      given { status == "answered" }
+      emits "SignalsCorrelated"
+    end
+  end
+  aggregate "Awareness", "Consolidated self-knowledge" do
+    String :summary
+    String :dominant_theme
+    Integer :clarity_score
+    String :status
+    reference_to(SelfInquiry)
+    SynthesizeAwareness do
+      role "Observer"
+      description "Combine findings into a snapshot"
+      String :summary
+      String :dominant_theme
+      Integer :clarity_score
+      emits "AwarenessSynthesized"
+      then_set :summary, to: :summary
+      then_set :dominant_theme, to: :dominant_theme
+      then_set :clarity_score, to: :clarity_score
+      then_set :status, to: "current"
+    end
+    Deepen do
+      role "Observer"
+      description "Refine with a new finding"
+      reference_to(Awareness)
+      given { status == "current" }
+      emits "AwarenessDeepened"
+    end
+    Expire do
+      role "TimeKeeper"
+      description "Mark awareness as stale"
+      reference_to(Awareness)
+      given { status == "current" }
+      emits "AwarenessExpired"
+      then_set :status, to: "stale"
+    end
+  end
+
+  policy "InquireOnRecurringDream" do
+    on "ThemeTagged"
+    trigger "PoseQuestion"
+  end
+  policy "CorrelateOnAnomaly" do
+    on "HeartbeatAnomalyFlagged"
+    trigger "CorrelateSignals"
+  end
+  policy "CheckMoodOnDream" do
+    on "DreamRecorded"
+    trigger "LogMood"
+  end
+  policy "SynthesizeOnFinding" do
+    on "FindingRecorded"
+    trigger "SynthesizeAwareness"
+  end
+  policy "ReflectOnCorrelation" do
+    on "SignalsCorrelated"
+    trigger "PoseQuestion"
+  end
+
+  fixture "DreamJournal", title: "The glass tower", narrative: "Climbing a transparent staircase, each step revealing a memory", emotional_tone: "wonder", clarity: "fresh", vividness: 8
+  fixture "DreamJournal", title: "The still ocean", narrative: "Standing on water reflecting yesterday's thoughts", emotional_tone: "calm", clarity: "fading", vividness: 5
+  fixture "HeartbeatSnapshot", bpm: 62, rhythm: "steady", variability: 8
+  fixture "HeartbeatSnapshot", bpm: 88, rhythm: "elevated", variability: 24
+  fixture "MoodReading", mood: "contemplative", intensity: 6, trigger: "vivid dream", fatigue_level: 3, status: "active"
+  fixture "MoodReading", mood: "restless", intensity: 7, trigger: "unresolved symbol", fatigue_level: 7, status: "active"
+  fixture "SelfInquiry", question: "Why does the glass tower recur when fatigue is high?", domain_focus: "dream-fatigue", finding: "Fatigue correlates with architectural imagery", status: "answered"
+  fixture "SelfInquiry", question: "Does elevated heart rate predict vivid dreams?", domain_focus: "heartbeat-dreams", finding: "", status: "open"
+  fixture "Awareness", summary: "Architectural dreams emerge under fatigue; pulse precedes vivid imagery", dominant_theme: "fatigue-dream-pulse", clarity_score: 7, status: "current"
+end

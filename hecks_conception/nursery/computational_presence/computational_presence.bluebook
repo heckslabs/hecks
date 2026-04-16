@@ -1,0 +1,200 @@
+Hecks.bluebook "ComputationalPresence", version: "2026.04.16.1" do
+  vision "Mindfulness as computational practice — what moment is this, what is attended, what drifts in the background, and is awareness truly present or scattered"
+  category "consciousness"
+
+  aggregate "Moment", "A discrete instant of experience with a quality of attention" do
+    String :label
+    String :quality
+    Float :clarity
+    String :body_state
+    reference_to(AttentionField)
+    value_object "Sensation" do
+      String :modality
+      Float :intensity
+    end
+    AriseMoment do
+      role "Observer"
+      description "Register a new moment as it appears in awareness"
+      String :label
+      Float :clarity
+      emits "MomentArose"
+      then_set :label, to: :label
+      then_set :clarity, to: :clarity
+      then_set :quality, to: "fresh"
+    end
+    DeepenMoment do
+      role "Observer"
+      description "Settle more fully into the current moment"
+      reference_to(Moment)
+      Float :clarity
+      given { quality != "dissolved" }
+      emits "MomentDeepened"
+      then_set :clarity, to: :clarity
+      then_set :quality, to: "deepened"
+    end
+    DissolveMoment do
+      role "Observer"
+      description "Let the moment pass without clinging"
+      reference_to(Moment)
+      given { quality != "dissolved" }
+      emits "MomentDissolved"
+      then_set :quality, to: "dissolved"
+    end
+  end
+  aggregate "AttentionField", "The landscape of what awareness is holding" do
+    String :primary_focus
+    Integer :breadth
+    Float :stability
+    String :mode
+    NarrowFocus do
+      role "Observer"
+      description "Concentrate attention on a single object"
+      String :primary_focus
+      emits "FocusNarrowed"
+      then_set :primary_focus, to: :primary_focus
+      then_set :mode, to: "concentrated"
+    end
+    WidenField do
+      role "Observer"
+      description "Expand awareness to the full panorama"
+      reference_to(AttentionField)
+      Integer :breadth
+      given { mode != "collapsed" }
+      emits "FieldWidened"
+      then_set :breadth, to: :breadth
+      then_set :mode, to: "panoramic"
+    end
+    Stabilize do
+      role "Observer"
+      description "Anchor attention so it stops wavering"
+      reference_to(AttentionField)
+      Float :stability
+      emits "FieldStabilized"
+      then_set :stability, to: :stability
+      then_set :mode, to: "anchored"
+    end
+  end
+  aggregate "Distraction", "A pull away from presence that hijacks attention" do
+    String :trigger
+    String :category
+    Float :pull_strength
+    String :status
+    NoticeDistraction do
+      role "Observer"
+      description "Catch a distraction as it pulls attention away"
+      String :trigger
+      String :category
+      Float :pull_strength
+      emits "DistractionNoticed"
+      then_set :trigger, to: :trigger
+      then_set :category, to: :category
+      then_set :status, to: "active"
+    end
+    ReleaseDistraction do
+      role "Observer"
+      description "Let go and return to presence"
+      reference_to(Distraction)
+      given { status == "active" }
+      emits "DistractionReleased"
+      then_set :status, to: "released"
+    end
+    InvestigateDistraction do
+      role "Observer"
+      description "Turn toward the distraction with curiosity"
+      reference_to(Distraction)
+      given { status == "active" }
+      emits "DistractionInvestigated"
+      then_set :status, to: "investigated"
+    end
+  end
+  aggregate "PresenceScore", "A running measure of how present the system is" do
+    Float :score
+    Integer :streak_minutes
+    String :assessment
+    MeasurePresence do
+      role "System"
+      description "Calculate presence from clarity, stability, and distractions"
+      Float :score
+      emits "PresenceMeasured"
+      then_set :score, to: :score
+    end
+    StreakTick do
+      role "System"
+      description "Increment the unbroken presence streak"
+      reference_to(PresenceScore)
+      Integer :streak_minutes
+      given { score > 0.5 }
+      emits "StreakTicked"
+      then_set :streak_minutes, to: :streak_minutes
+    end
+    Assess do
+      role "System"
+      description "Produce a qualitative assessment from the score"
+      reference_to(PresenceScore)
+      String :assessment
+      emits "PresenceAssessed"
+      then_set :assessment, to: :assessment
+    end
+  end
+  aggregate "Anchor", "A chosen object of attention for returning from distraction" do
+    String :name
+    String :sense_door
+    String :instruction
+    Float :effectiveness
+    value_object "SenseDoor" do
+      String :name
+      String :channel
+    end
+    SetAnchor do
+      role "Observer"
+      description "Choose a new anchor point for returning to presence"
+      String :name
+      String :sense_door
+      emits "AnchorSet"
+      then_set :name, to: :name
+      then_set :sense_door, to: :sense_door
+    end
+    ReturnToAnchor do
+      role "Observer"
+      description "Use the anchor to come back from distraction"
+      reference_to(Anchor)
+      emits "ReturnedToAnchor"
+    end
+    EvaluateAnchor do
+      role "Observer"
+      description "Rate how well this anchor brings attention back"
+      reference_to(Anchor)
+      Float :effectiveness
+      emits "AnchorEvaluated"
+      then_set :effectiveness, to: :effectiveness
+    end
+  end
+  policy "MeasureOnMomentArose" do
+    on "MomentArose"
+    trigger "MeasurePresence"
+  end
+  policy "ReturnOnDistractionReleased" do
+    on "DistractionReleased"
+    trigger "ReturnToAnchor"
+  end
+  policy "AssessOnStreakTick" do
+    on "StreakTicked"
+    trigger "Assess"
+  end
+  policy "MeasureOnDistraction" do
+    on "DistractionNoticed"
+    trigger "MeasurePresence"
+  end
+  policy "StreakOnPresenceMeasured" do
+    on "PresenceMeasured"
+    trigger "StreakTick"
+  end
+
+  fixture "Moment", label: "breath at the nostrils", quality: "deepened", clarity: 0.85, body_state: "still"
+  fixture "Moment", label: "sound of rain on glass", quality: "fresh", clarity: 0.6, body_state: "relaxed"
+  fixture "AttentionField", primary_focus: "rising of the abdomen", breadth: 2, stability: 0.78, mode: "concentrated"
+  fixture "Distraction", trigger: "unfinished task", category: "planning", pull_strength: 0.7, status: "released"
+  fixture "Distraction", trigger: "itch on left knee", category: "bodily", pull_strength: 0.3, status: "investigated"
+  fixture "PresenceScore", score: 0.82, streak_minutes: 14, assessment: "settled and clear"
+  fixture "Anchor", name: "breath", sense_door: "body", instruction: "rest where the breath is vivid", effectiveness: 0.88
+end
