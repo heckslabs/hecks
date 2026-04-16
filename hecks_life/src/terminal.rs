@@ -8,7 +8,6 @@
 //! Usage: hecks-life terminal <project-dir>
 
 use crate::daemon::{self, DaemonCtx};
-use crate::tongue;
 use crate::lexicon;
 use crate::heki;
 use std::io::{self, Read, Write};
@@ -499,8 +498,16 @@ fn think_then_speak(
         io::stdout().flush().unwrap();
     });
 
-    let result = tongue::speak_as(ctx, input, being);
+    // Dispatch through the bluebook — Speech.Speak
+    let agg_dir = format!("{}/aggregates", ctx.info_dir.trim_end_matches("/information"));
+    let output = std::process::Command::new(std::env::current_exe().unwrap_or_default())
+        .args([&agg_dir, "Speech.Speak"])
+        .output()
+        .ok();
     done.store(true, Ordering::Relaxed);
     let _ = spinner.join();
-    result
+    output.and_then(|o| {
+        let json: serde_json::Value = serde_json::from_slice(&o.stdout).ok()?;
+        json.get("state")?.get("response")?.as_str().map(String::from)
+    })
 }

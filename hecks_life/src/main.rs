@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, daemon, tongue, lexicon, terminal, project, training};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, daemon, lexicon, terminal, project, training};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -113,15 +113,7 @@ fn main() {
     }
 
     if command == "speak" {
-        let dir = if args.len() > 3 { args[3].as_str() } else { "." };
-        let ctx = daemon::DaemonCtx::new(dir);
-        // Pulse now fires via bluebook dispatch
-        // Then speak
-        if let Some(response) = tongue::speak(&ctx, path) {
-            println!("{}", response);
-        } else {
-            eprintln!("tongue: could not reach language center (is ollama running?)");
-        }
+        eprintln!("speak is now a hecksagon concern — the tongue adapter handles LLM calls");
         return;
     }
 

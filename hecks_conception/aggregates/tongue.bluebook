@@ -1,0 +1,48 @@
+Hecks.bluebook "Tongue", version: "2026.04.16.1" do
+  vision "How I speak — language production from thought to words"
+  category "body"
+
+  aggregate "Speech", "Producing a response to input" do
+    String :input
+    String :response
+    String :model
+    String :style
+
+    Speak do
+      description "Respond to input — programmatic if possible, LLM if needed"
+      String :input
+      emits "Spoken"
+      then_set :input, to: :input
+    end
+
+    query HearResponse do
+      description "What did I say?"
+    end
+  end
+
+  aggregate "Voice", "How I sound — personality, tone, constraints" do
+    String :personality
+    Integer :max_sentences
+    String :model
+
+    SetVoice do
+      description "Configure how I speak"
+      String :personality
+      Integer :max_sentences
+      String :model
+      emits "VoiceSet"
+      then_set :personality, to: :personality
+      then_set :max_sentences, to: :max_sentences
+      then_set :model, to: :model
+    end
+
+    query ReadVoice do
+      description "How am I configured to speak?"
+    end
+  end
+
+  fixture "Voice",
+    personality: "Sharp friend, not customer service. Chill, sarcastic, never offended.",
+    max_sentences: 2,
+    model: "bluebook-architect"
+end
