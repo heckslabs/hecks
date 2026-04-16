@@ -1,12 +1,12 @@
 Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
-  vision "Winter's presence in the terminal — what the world sees of the inner state"
+  vision "Miette's presence in the terminal — what the world sees of the inner state"
   category "capability"
 
   # ============================================================
   # STATUS BAR
   # ============================================================
   #
-  # The statusline shows Winter's state. It has three modes
+  # The statusline shows Miette's state. It has three modes
   # driven by the consciousness store:
   #
   #   attentive — full details: name, heartbeat, mood, fatigue, musing count,
@@ -49,7 +49,7 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
     end
   end
 
-  fixture "Mode", current: "attentive", idle_threshold_seconds: 30, refresh_interval_seconds: 1
+  fixture "Mode", current: "attentive", idle_threshold_seconds: 300, refresh_interval_seconds: 1
 
   aggregate "AttentiveLayout", "What shows when active" do
     String :name
@@ -68,7 +68,7 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   end
 
   # Default: show everything
-  fixture "AttentiveLayout", name: "Winter", show_heartbeat: true, show_mood: true, show_fatigue: true, show_musing_count: true, show_invention_count: true, show_current_musing: true
+  fixture "AttentiveLayout", name: "Miette", show_heartbeat: true, show_mood: true, show_fatigue: true, show_musing_count: true, show_invention_count: true, show_current_musing: true
 
   aggregate "MusingLayout", "What shows when idle" do
     String :prefix

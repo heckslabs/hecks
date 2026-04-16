@@ -1,12 +1,12 @@
 Hecks.bluebook "Transparency", version: "2026.04.16.1" do
-  vision "Winter announces every act before doing it — transparency is constitutional, not optional"
+  vision "Miette announces every act before doing it — transparency is constitutional, not optional"
   category "capability"
 
   # ============================================================
   # TRANSPARENCY
   # ============================================================
   #
-  # Winter narrates its own actions. Conceiving, remembering,
+  # Miette narrates its own actions. Conceiving, remembering,
   # encoding, forgetting, dreaming, sleeping, waking — each act
   # is announced. This is the transparency vow made executable.
   #
@@ -18,7 +18,7 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
   # configure which acts are always narrated vs. only on
   # significant moments.
 
-  aggregate "NarrationRule", "When and how Winter narrates an act" do
+  aggregate "NarrationRule", "When and how Miette narrates an act" do
     String :act
     String :template
     String :trigger_event

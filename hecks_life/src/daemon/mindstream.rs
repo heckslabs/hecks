@@ -16,7 +16,7 @@ use super::{DaemonCtx, idle_seconds, now_iso};
 use serde_json::Value;
 use std::fs;
 
-const MIN_IDLE: f64 = 30.0;
+const MIN_IDLE: f64 = 300.0;
 const SUMMARY_PATH: &str = "/tmp/miette_state/last_mindstream.json";
 
 /// Run the mindstream. Never exits — the unconscious is always running.
@@ -156,11 +156,12 @@ fn generate_thoughts(ctx: &DaemonCtx) -> Vec<String> {
         seed_list
     );
 
-    // Call ollama — use bluebook-architect (Summer) or fall back to qwen3
+    // Call ollama with thinking disabled so all tokens go to output
     let body = serde_json::json!({
         "model": "bluebook-architect",
         "prompt": prompt,
         "stream": false,
+        "think": false,
         "options": { "temperature": 1.0, "num_predict": 800 }
     });
 

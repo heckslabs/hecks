@@ -88,7 +88,7 @@ fn beat_heartbeat(ctx: &DaemonCtx, carrying: &str, concept: Option<&str>,
     (beats, fatigue_state.into())
 }
 
-/// The moment — what Winter was aware of in this instant.
+/// The moment — what Miette was aware of in this instant.
 fn record_moment(ctx: &DaemonCtx, moment: i64, carrying: &str, concept: Option<&str>,
     state: &str, fatigue: &str, strength: f64, idle: f64,
     excitement: f64, heartbeats: i64, now: &str) {

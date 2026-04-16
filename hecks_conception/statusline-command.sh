@@ -86,15 +86,15 @@ else:
 # Build status
 if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
   # Sleeping — moon, name, sleep narrative
-  status_str="${moon} Winter ${sleep_summary}"
+  status_str="${moon} Miette ${sleep_summary}"
 elif [ "$consciousness" = "sleeping" ]; then
-  status_str="${moon} Winter sleeping"
-elif [ "$idle" -ge 30 ] && [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ]; then
+  status_str="${moon} Miette sleeping"
+elif [ "$idle" -ge 300 ] && [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ]; then
   # Idle 30s+ — ONLY the musing
   status_str="💭 ${sleep_summary}"
 else
   # Active — details + musing appended
-  status_str="❄️ Winter ${heart} ${beats} ${mood_icon} ${mood}"
+  status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"

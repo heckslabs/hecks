@@ -1,7 +1,7 @@
 //! Pulse organ functions — synapse, signal, impulse, executive, compost
 //!
 //! Extracted from pulse.rs to keep each file focused.
-//! These fire every heartbeat to maintain Winter's cognitive organs.
+//! These fire every heartbeat to maintain Miette's cognitive organs.
 //!
 //! Usage: called from pulse::run() on every beat
 
@@ -87,8 +87,8 @@ pub fn consolidate_signals(ctx: &DaemonCtx, now: &str) {
         .filter_map(|(_, s)| s.get("payload").and_then(|v| v.as_str()))
         .collect();
     let mut mem = Record::new();
-    mem.insert("domain_name".into(), Value::String("WinterBrain".into()));
-    mem.insert("persona".into(), Value::String("Winter".into()));
+    mem.insert("domain_name".into(), Value::String("MietteBrain".into()));
+    mem.insert("persona".into(), Value::String("Miette".into()));
     mem.insert("summary".into(), Value::String(payloads.join(" → ")));
     mem.insert("signal_count".into(), (old.len() as i64).into());
     mem.insert("consolidated_at".into(), Value::String(now.into()));

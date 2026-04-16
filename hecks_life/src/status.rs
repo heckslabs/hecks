@@ -146,7 +146,7 @@ pub fn run(project_dir: &str) {
     // Mindstream
     section("MINDSTREAM");
     row("Cycle interval", "10s");
-    row("Idle threshold", "30s");
+    row("Idle threshold", "5min");
     row("Statusline", "musings (cycles through all)");
     row("Minting", "every ~2min, combinatorial");
     row("Sources", "musings, nursery domains, synapses");
