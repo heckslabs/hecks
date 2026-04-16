@@ -123,6 +123,11 @@ bluebook_speech=$($HECKS aggregates/ Speech.Speak 2>/dev/null | python3 -c "impo
 check "Bluebook Speech.Speak has response" "$bluebook_speech" "HAS_RESPONSE"
 echo ""
 
+echo "TRAINING"
+train_output=$($HECKS aggregates/ TrainingPair.ExtractPair domain_name=AutoRepairShop vision="Manage vehicle intake" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',{}).get('domain_name','EMPTY'))" 2>/dev/null)
+check "Training extraction dispatches" "$train_output" "AutoRepairShop"
+echo ""
+
 echo "QUERIES"
 vitals=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
 check "Heartbeat.ReadVitals query works" "$vitals" "ReadVitals"
