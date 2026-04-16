@@ -556,10 +556,10 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Heartbeat", "The being's vital signs — tracks that all organs are alive and responding" do
+  aggregate "OrganMonitor", "The being's vital signs — tracks that all organs are alive and responding" do
     String :being_name
-    Integer :beats
-    String :last_beat_at
+    Integer :checks
+    String :last_checked_at
     list_of(OrganPulse) :organ_status
 
     value_object "OrganPulse" do
@@ -569,19 +569,19 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       String :last_event_at
     end
 
-    Beat do
+    CheckOrgans do
       role "Being"
-      description "Pulse — check all organs, report vital signs"
-      reference_to(Heartbeat)
-      then_set :beats, increment: 1
-      then_set :last_beat_at, to: :now
-      emits "HeartbeatPulsed"
+      description "Check all organs, report vital signs"
+      reference_to(OrganMonitor)
+      then_set :checks, increment: 1
+      then_set :last_checked_at, to: :now
+      emits "OrgansChecked"
     end
 
     ReportOrganPulse do
       role "Being"
       description "Record an organ's vital signs"
-      reference_to(Heartbeat)
+      reference_to(OrganMonitor)
       String :domain_name
       String :event_count
       String :last_event_at
