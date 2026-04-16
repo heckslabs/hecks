@@ -114,6 +114,15 @@ check "Boot returns state" "$boot_output" "ok"
 echo ""
 
 # === MINDSTREAM ===
+echo "SPEECH"
+# Test Rust tongue (current)
+rust_speech=$($HECKS speak "hello" . 2>&1)
+check "Rust tongue responds" "$rust_speech" "[a-zA-Z]"
+# Test bluebook tongue (target — should produce real response when adapter is wired)
+bluebook_speech=$($HECKS aggregates/ Speech.Speak 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); r=d.get('state',{}).get('response',''); print('HAS_RESPONSE' if r and r != 'null' else 'NO_RESPONSE')" 2>/dev/null)
+check "Bluebook Speech.Speak has response" "$bluebook_speech" "HAS_RESPONSE"
+echo ""
+
 echo "QUERIES"
 vitals=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
 check "Heartbeat.ReadVitals query works" "$vitals" "ReadVitals"

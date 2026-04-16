@@ -1,0 +1,63 @@
+Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
+  vision "LLM inference via Ollama — driven adapter for language production"
+  category "adapter"
+
+  # ============================================================
+  # OLLAMA ADAPTER
+  # ============================================================
+  #
+  # Like the sqlite adapter for persistence, this is the ollama
+  # adapter for language. When a command needs LLM inference,
+  # the hecksagon routes it through this adapter.
+  #
+  # The adapter:
+  #   1. Reads the aggregate state (input, voice config)
+  #   2. Builds a prompt from the voice personality + input
+  #   3. Calls ollama via HTTP
+  #   4. Writes the response back to the aggregate
+  #
+  # Declared in the hecksagon. The bluebook says Speak.
+  # The adapter resolves HOW to speak.
+
+  aggregate "Connection", "The ollama server connection" do
+    String :url
+    String :model
+    String :status
+
+    Connect do
+      description "Establish connection to ollama"
+      String :url
+      String :model
+      emits "Connected"
+      then_set :url, to: :url
+      then_set :model, to: :model
+      then_set :status, to: "ready"
+    end
+
+    query CheckHealth do
+      description "Is ollama running?"
+    end
+  end
+
+  aggregate "Inference", "One LLM call — prompt in, response out" do
+    String :prompt
+    String :response
+    String :model
+
+    Infer do
+      description "Send a prompt to ollama, get a response"
+      String :prompt
+      emits "Inferred"
+      then_set :prompt, to: :prompt
+    end
+
+    query ReadResponse do
+      description "What did ollama say?"
+    end
+  end
+
+  fixture "Connection",
+    url: "http://localhost:11434",
+    model: "bluebook-architect",
+    status: "ready"
+end

@@ -13,6 +13,7 @@ mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
 mod interpreter;
+pub mod adapter_llm;
 mod lifecycle;
 mod middleware;
 mod policy_engine;

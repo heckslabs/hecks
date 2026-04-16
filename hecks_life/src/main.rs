@@ -521,6 +521,38 @@ fn being_from_argv0(argv0: &str) -> String {
     }
 }
 
+/// Read ollama config from world.hec — returns (model, url) if configured.
+fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
+    let parent = std::path::Path::new(agg_path).parent()?;
+    let world_path = parent.join("world.hec");
+    let content = fs::read_to_string(&world_path).ok()?;
+    let mut in_ollama = false;
+    let mut model = None;
+    let mut url = None;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("ollama") && trimmed.contains("do") { in_ollama = true; }
+        if in_ollama {
+            if trimmed.starts_with("model") {
+                if let Some(s) = trimmed.find('"') {
+                    if let Some(e) = trimmed[s+1..].find('"') {
+                        model = Some(trimmed[s+1..s+1+e].to_string());
+                    }
+                }
+            }
+            if trimmed.starts_with("url") {
+                if let Some(s) = trimmed.find('"') {
+                    if let Some(e) = trimmed[s+1..].find('"') {
+                        url = Some(trimmed[s+1..s+1+e].to_string());
+                    }
+                }
+            }
+            if trimmed == "end" { in_ollama = false; }
+        }
+    }
+    Some((model?, url?))
+}
+
 /// Find the heki dir from world.hec — look in parent of the given path.
 /// Parses: `heki do\n  dir "information"\nend`
 fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
@@ -602,9 +634,17 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str) {
             "state": if records.len() == 1 { records[0].clone() } else { serde_json::json!(records) },
         }));
     } else {
-        // Command: dispatch, mutate, return state
+        // Command: dispatch, mutate, run adapters, return state
+        let ollama_config = find_world_ollama_config(agg_dir);
         match rt.dispatch(command, std::collections::HashMap::new()) {
             Ok(result) => {
+                // Run LLM adapter if configured
+                if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
+                    let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
+                    if let Some(repo) = rt.repositories.get_mut(&result.aggregate_type) {
+                        hecks_life::runtime::adapter_llm::resolve(repo, &state, config);
+                    }
+                }
                 let state = rt.find(&result.aggregate_type, &result.aggregate_id);
                 let fields = state.map(|s| {
                     let mut map = serde_json::Map::new();
