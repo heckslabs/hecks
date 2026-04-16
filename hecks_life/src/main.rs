@@ -197,6 +197,13 @@ fn main() {
                 .map(|s| s.to_string());
             if let Some(cmd_name) = dispatch_cmd {
                 let data_dir = format!("{}/data", path.trim_end_matches('/'));
+                // Merge all bluebooks into one combined domain
+                let mut combined = hecks_life::ir::Domain {
+                    name: "Hecksagon".into(),
+                    category: None, vision: None,
+                    aggregates: vec![], policies: vec![],
+                    fixtures: vec![], vows: vec![],
+                };
                 let entries = fs::read_dir(path).unwrap_or_else(|e| {
                     eprintln!("Cannot read directory {}: {}", path, e);
                     std::process::exit(1);
@@ -206,28 +213,28 @@ fn main() {
                     if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
                         if let Ok(source) = fs::read_to_string(&p) {
                             let domain = parser::parse(&source);
-                            let has_cmd = domain.aggregates.iter()
-                                .any(|a| a.commands.iter().any(|c| c.name == cmd_name));
-                            if has_cmd {
-                                let mut rt = Runtime::boot_with_data_dir(
-                                    domain, Some(data_dir.clone()));
-                                match rt.dispatch(&cmd_name, std::collections::HashMap::new()) {
-                                    Ok(result) => {
-                                        println!("{}", serde_json::json!({
-                                            "ok": true,
-                                            "aggregate": result.aggregate_type,
-                                            "id": result.aggregate_id,
-                                        }));
-                                    }
-                                    Err(e) => eprintln!("dispatch error: {:?}", e),
-                                }
-                                return;
-                            }
+                            combined.aggregates.extend(domain.aggregates);
+                            combined.policies.extend(domain.policies);
+                            combined.fixtures.extend(domain.fixtures);
                         }
                     }
                 }
-                eprintln!("command '{}' not found in any domain", cmd_name);
-                std::process::exit(1);
+                let mut rt = Runtime::boot_with_data_dir(
+                    combined, Some(data_dir));
+                match rt.dispatch(&cmd_name, std::collections::HashMap::new()) {
+                    Ok(result) => {
+                        println!("{}", serde_json::json!({
+                            "ok": true,
+                            "aggregate": result.aggregate_type,
+                            "id": result.aggregate_id,
+                        }));
+                    }
+                    Err(e) => {
+                        eprintln!("dispatch error: {:?}", e);
+                        std::process::exit(1);
+                    }
+                }
+                return;
             }
         }
     }
