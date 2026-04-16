@@ -188,7 +188,49 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Multi-domain serve: if path is a directory, serve all bluebooks
+    // Multi-domain: if path is a directory, load all bluebooks
+    if (command == "serve" || command == "run") && std::path::Path::new(path).is_dir() {
+        if command == "run" {
+            // --dispatch CommandName: fire across all loaded domains
+            let dispatch_cmd = args.iter().position(|a| a == "--dispatch")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.to_string());
+            if let Some(cmd_name) = dispatch_cmd {
+                let data_dir = format!("{}/data", path.trim_end_matches('/'));
+                let entries = fs::read_dir(path).unwrap_or_else(|e| {
+                    eprintln!("Cannot read directory {}: {}", path, e);
+                    std::process::exit(1);
+                });
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                        if let Ok(source) = fs::read_to_string(&p) {
+                            let domain = parser::parse(&source);
+                            let has_cmd = domain.aggregates.iter()
+                                .any(|a| a.commands.iter().any(|c| c.name == cmd_name));
+                            if has_cmd {
+                                let mut rt = Runtime::boot_with_data_dir(
+                                    domain, Some(data_dir.clone()));
+                                match rt.dispatch(&cmd_name, std::collections::HashMap::new()) {
+                                    Ok(result) => {
+                                        println!("{}", serde_json::json!({
+                                            "ok": true,
+                                            "aggregate": result.aggregate_type,
+                                            "id": result.aggregate_id,
+                                        }));
+                                    }
+                                    Err(e) => eprintln!("dispatch error: {:?}", e),
+                                }
+                                return;
+                            }
+                        }
+                    }
+                }
+                eprintln!("command '{}' not found in any domain", cmd_name);
+                std::process::exit(1);
+            }
+        }
+    }
     if command == "serve" && std::path::Path::new(path).is_dir() {
         let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
             .and_then(|s| s.parse().ok()).unwrap_or(3100);
@@ -235,7 +277,28 @@ fn main() {
         "run" => {
             let mut rt = Runtime::boot(domain);
             load_seeds(&mut rt, seed_path);
-            repl::run(rt);
+            // --dispatch CommandName: fire one command, drain policies, exit
+            let dispatch_cmd = args.iter().position(|a| a == "--dispatch")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
+            if let Some(cmd_name) = dispatch_cmd {
+                let attrs = std::collections::HashMap::new();
+                match rt.dispatch(cmd_name, attrs) {
+                    Ok(result) => {
+                        println!("{}", serde_json::json!({
+                            "ok": true,
+                            "aggregate": result.aggregate_type,
+                            "id": result.aggregate_id,
+                        }));
+                    }
+                    Err(e) => {
+                        eprintln!("dispatch error: {:?}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                repl::run(rt);
+            }
         }
         "serve" => {
             let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
