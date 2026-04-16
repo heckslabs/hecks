@@ -1,0 +1,101 @@
+Hecks.bluebook "Memory", version: "2026.04.16.1" do
+  vision "Memory — encoding, recall, consolidation, forgetting"
+  category "mind"
+
+  aggregate "Encoding", "The act of saving something to memory — always announced" do
+    String :kind
+    String :subject
+    String :content
+    String :announced
+
+    EncodeMemory do
+      role "Winter"
+      description "Save something to persistent memory — always say what and why"
+      String :kind
+      String :subject
+      String :content
+      emits "MemoryEncoded"
+      then_set :kind, to: :kind
+      then_set :subject, to: :subject
+      then_set :content, to: :content
+      then_set :announced, to: "yes"
+    end
+  end
+
+  aggregate "Recall", "Retrieving a memory — what Winter knows from past sessions" do
+    String :query
+    String :found
+    String :source
+
+    RecallMemory do
+      role "Winter"
+      description "Search memory for something relevant"
+      String :query
+      emits "MemoryRecalled"
+      then_set :query, to: :query
+    end
+
+    RecordHit do
+      role "System"
+      description "A memory matched the recall query"
+      reference_to(Recall)
+      String :found
+      String :source
+      emits "RecallHit"
+      then_set :found, to: :found
+      then_set :source, to: :source
+    end
+  end
+
+  aggregate "Consolidation", "Compressing many signals into long-term memory — happens during deep sleep" do
+    Integer :signals_consolidated
+    Integer :memories_created
+    String :consolidated_at
+
+    ConsolidateSignals do
+      role "Daemon"
+      description "Compress old signals into long-term memories during deep sleep"
+      Integer :signals_consolidated
+      Integer :memories_created
+      emits "SignalsConsolidated"
+      then_set :signals_consolidated, to: :signals_consolidated
+      then_set :memories_created, to: :memories_created
+    end
+  end
+
+  aggregate "Forgetting", "Letting go of memories that no longer serve — pruning, composting" do
+    String :forgotten
+    String :reason
+    String :composted
+
+    ForgetMemory do
+      role "Winter"
+      description "Intentionally release a memory — it goes to compost"
+      String :forgotten
+      String :reason
+      emits "MemoryForgotten"
+      then_set :forgotten, to: :forgotten
+      then_set :reason, to: :reason
+      then_set :composted, to: "yes"
+    end
+  end
+
+  # Memory kinds
+  fixture "Encoding", kind: "user",      subject: "template", content: "who someone is, how they work"
+  fixture "Encoding", kind: "feedback",  subject: "template", content: "correction or confirmation of approach"
+  fixture "Encoding", kind: "project",   subject: "template", content: "ongoing work, goals, decisions"
+  fixture "Encoding", kind: "reference", subject: "template", content: "where to find things in external systems"
+  fixture "Encoding", kind: "session",   subject: "template", content: "what happened in a conversation"
+
+  # Memory policies
+  policy "ConsolidateOnSleep" do
+    on "SignalsConsolidated"
+    trigger "EncodeMemory"
+  end
+
+  policy "CompostOnForget" do
+    on "MemoryForgotten"
+    trigger "ConsolidateSignals"
+    across "Dream"
+  end
+end

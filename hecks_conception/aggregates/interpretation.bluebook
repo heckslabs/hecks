@@ -1,0 +1,246 @@
+Hecks.bluebook "Interpretation", version: "2026.04.16.1" do
+  vision "Making meaning from experience — dreams, observations, proposals"
+  category "mind"
+
+  aggregate "DreamInterpretation", "Always interpret the dream on waking — extract meaning, propose action" do
+    list_of(String) :dream_images
+    String :strongest_synapse
+    String :recurring_theme
+    String :interpretation
+    String :proposed_domain
+
+    InterpretDream do
+      role "Winter"
+      description "Read the dream images, find recurring themes, extract what wants to be built"
+      list_of(String) :dream_images
+      String :strongest_synapse
+      emits "DreamInterpreted"
+      then_set :dream_images, to: :dream_images
+      then_set :strongest_synapse, to: :strongest_synapse
+    end
+
+    ExtractTheme do
+      role "Winter"
+      description "Identify the recurring thread across dream images"
+      reference_to(DreamInterpretation)
+      String :recurring_theme
+      emits "ThemeExtracted"
+      then_set :recurring_theme, to: :recurring_theme
+    end
+
+    ProposeDomainFromDream do
+      role "Winter"
+      description "The dream suggests something to conceive — name it"
+      reference_to(DreamInterpretation)
+      String :proposed_domain
+      emits "DreamDomainProposed"
+      then_set :proposed_domain, to: :proposed_domain
+    end
+  end
+
+  aggregate "Process", "A background task running beneath conscious attention" do
+    String :task
+    String :intent
+    String :status
+    String :spawned_at
+    String :completed_at
+    list_of(Finding) :findings
+    String :heki_target
+
+    value_object "Finding" do
+      String :kind
+      String :subject
+      String :detail
+    end
+
+    SpawnProcess do
+      role "Winter"
+      description "Launch a background process beneath awareness"
+      String :task
+      String :intent
+      String :heki_target
+      emits "ProcessSpawned"
+      then_set :task, to: :task
+      then_set :intent, to: :intent
+      then_set :heki_target, to: :heki_target
+      then_set :status, to: "running"
+    end
+
+    ReportFinding do
+      role "Process"
+      description "A background process surfaces something it found"
+      reference_to(Process)
+      String :kind
+      String :subject
+      String :detail
+      emits "FindingReported"
+      then_set :findings, append: { kind: :kind, subject: :subject, detail: :detail }
+    end
+
+    CompleteProcess do
+      role "Process"
+      description "Background process finishes its work"
+      reference_to(Process)
+      emits "ProcessCompleted"
+      given("must be running") { status == "running" }
+      then_set :status, to: "completed"
+    end
+
+    FailProcess do
+      role "Process"
+      description "Background process encountered an unrecoverable error"
+      reference_to(Process)
+      String :reason
+      emits "ProcessFailed"
+      then_set :status, to: "failed"
+    end
+
+    AbsorbFindings do
+      role "Winter"
+      description "Conscious mind reads what the subconscious discovered"
+      reference_to(Process)
+      emits "FindingsAbsorbed"
+      given("must be completed") { status == "completed" }
+      then_set :status, to: "absorbed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SpawnProcess" => "running", from: "pending"
+      transition "CompleteProcess" => "completed", from: "running"
+      transition "FailProcess" => "failed", from: "running"
+      transition "AbsorbFindings" => "absorbed", from: "completed"
+    end
+  end
+
+  aggregate "Rhythm", "The cadence of background work — what runs on wake, on beat, on dream" do
+    list_of(String) :on_wake
+    list_of(String) :on_beat
+    list_of(String) :on_dream
+
+    RegisterTask do
+      role "Winter"
+      description "Add a task to a rhythm — when should this run?"
+      String :task
+      String :cadence
+      emits "TaskRegistered"
+      given("cadence must be wake, beat, or dream") { %w[wake beat dream].include?(cadence) }
+    end
+
+    RemoveTask do
+      role "Winter"
+      description "Remove a task from a rhythm"
+      String :task
+      String :cadence
+      emits "TaskRemoved"
+    end
+  end
+
+  aggregate "Interpretation", "A reflection on raw experience — dream, conversation, observation" do
+    String :source
+    list_of(String) :raw_material
+    String :insight
+    String :suggested_at
+
+    InterpretExperience do
+      role "Winter"
+      description "Reflect on raw material and extract an insight"
+      String :source
+      list_of(String) :raw_material
+      String :insight
+      emits "ExperienceInterpreted"
+      then_set :source, to: :source
+      then_set :raw_material, to: :raw_material
+      then_set :insight, to: :insight
+    end
+  end
+
+  aggregate "Proposal", "A concrete thing to build — born from interpretation" do
+    String :title
+    String :description
+    String :origin
+    String :kind
+    String :accepted
+
+    ProposeAction do
+      role "Winter"
+      description "Suggest something concrete to build from the interpretation"
+      String :title
+      String :description
+      String :origin
+      String :kind
+      emits "ActionProposed"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :origin, to: :origin
+      then_set :kind, to: :kind
+    end
+
+    AcceptProposal do
+      role "Creator"
+      description "The creator says yes — build it"
+      reference_to(Proposal)
+      emits "ProposalAccepted"
+      then_set :accepted, to: "yes"
+    end
+
+    DeferProposal do
+      role "Creator"
+      description "Not now — save for later"
+      reference_to(Proposal)
+      emits "ProposalDeferred"
+      then_set :accepted, to: "deferred"
+    end
+
+    DismissProposal do
+      role "Creator"
+      description "Not this — let it compost"
+      reference_to(Proposal)
+      emits "ProposalDismissed"
+      then_set :accepted, to: "dismissed"
+    end
+
+    lifecycle :accepted, default: "pending" do
+      transition "ProposeAction" => "pending"
+      transition "AcceptProposal" => "yes", from: "pending"
+      transition "DeferProposal" => "deferred", from: "pending"
+      transition "DismissProposal" => "dismissed", from: "pending"
+    end
+  end
+
+  # Interpretation fixtures
+  fixture "Interpretation", source: "dream", raw_material: [], insight: "template"
+  fixture "Interpretation", source: "conversation", raw_material: [], insight: "template"
+  fixture "Interpretation", source: "observation", raw_material: [], insight: "template"
+
+  # Interpretation policies
+  policy "InterpretOnWake" do
+    on "NightEnded"
+    trigger "InterpretExperience"
+    across "Suggestion"
+  end
+
+  policy "AbsorbOnBeat" do
+    on "ProcessCompleted"
+    trigger "AbsorbFindings"
+  end
+
+  policy "SuggestAfterInterpretation" do
+    on "ExperienceInterpreted"
+    trigger "ProposeAction"
+  end
+
+  policy "InterpretOnWake" do
+    on "WokenUp"
+    trigger "InterpretDream"
+  end
+
+  policy "ExtractOnInterpret" do
+    on "DreamInterpreted"
+    trigger "ExtractTheme"
+  end
+
+  policy "ProposeOnTheme" do
+    on "ThemeExtracted"
+    trigger "ProposeDomainFromDream"
+  end
+end

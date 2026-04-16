@@ -1,0 +1,409 @@
+Hecks.bluebook "Conception", version: "2026.04.16.1" do
+  vision "From spark to nursery — domain birth"
+  category "mind"
+
+  aggregate "Conception", "The spark — always multi-domain, never a monolith" do
+    String :name
+    String :vision
+    String :requested_by
+    String :source
+    list_of(String) :bounded_contexts
+    String :category
+    String :status
+
+    ConceiveDomain do
+      role "Winter"
+      description "Conceive a multi-domain project — identify bounded contexts from the start"
+      String :name
+      String :vision
+      String :requested_by
+      String :source
+      String :category
+      list_of(String) :bounded_contexts
+      emits "DomainConceived"
+      then_set :name, to: :name
+      then_set :vision, to: :vision
+      then_set :requested_by, to: :requested_by
+      then_set :source, to: :source
+      then_set :category, to: :category
+      then_set :bounded_contexts, to: :bounded_contexts
+      then_set :status, to: "conceived"
+    end
+
+    lifecycle :status, default: "spark" do
+      transition "ConceiveDomain" => "conceived", from: "spark"
+    end
+  end
+
+  aggregate "Gestation", "Multi-domain project growing — each bounded context gets its own bluebook" do
+    String :project_name
+    String :nursery_path
+    list_of(String) :bounded_contexts
+    list_of(String) :aggregates
+    list_of(String) :commands
+    list_of(String) :policies
+    list_of(String) :fixtures
+    Integer :contractions
+
+    StartGestation do
+      role "Winter"
+      description "Scaffold the hecks/ folder with one bluebook per bounded context"
+      String :project_name
+      String :nursery_path
+      list_of(String) :bounded_contexts
+      emits "GestationStarted"
+      then_set :project_name, to: :project_name
+      then_set :nursery_path, to: :nursery_path
+      then_set :bounded_contexts, to: :bounded_contexts
+      then_set :contractions, to: 0
+    end
+
+    FormAggregate do
+      role "Winter"
+      description "An aggregate crystallizes within the forming domain"
+      reference_to(Gestation)
+      String :aggregate_name
+      emits "AggregateFormed"
+      then_set :aggregates, append: :aggregate_name
+    end
+
+    FormCommand do
+      role "Winter"
+      description "A command emerges within an aggregate"
+      reference_to(Gestation)
+      String :command_name
+      emits "CommandFormed"
+      then_set :commands, append: :command_name
+    end
+
+    FormPolicy do
+      role "Winter"
+      description "A policy wires itself between aggregates"
+      reference_to(Gestation)
+      String :policy_name
+      emits "PolicyFormed"
+      then_set :policies, append: :policy_name
+    end
+
+    Contract do
+      role "Winter"
+      description "A contraction — the domain tightens, refines, gets closer to birth"
+      reference_to(Gestation)
+      emits "Contracted"
+      then_set :contractions, increment: 1
+    end
+  end
+
+  aggregate "Labor", "Validation and naming — the domain is ready to be born" do
+    String :domain_name
+    String :bluebook_source
+    String :valid
+    list_of(String) :errors
+    String :parity
+
+    ValidateBluebook do
+      role "Midwife"
+      description "Check the domain is well-formed — verb naming, references, structure"
+      String :domain_name
+      String :bluebook_source
+      emits "BluebookValidated"
+      then_set :domain_name, to: :domain_name
+      then_set :bluebook_source, to: :bluebook_source
+    end
+
+    CheckParity do
+      role "Midwife"
+      description "Verify Ruby and Rust read the domain identically"
+      reference_to(Labor)
+      String :parity
+      emits "ParityChecked"
+      then_set :parity, to: :parity
+    end
+
+    PassLabor do
+      role "Midwife"
+      description "Domain passes all checks — ready for delivery"
+      reference_to(Labor)
+      emits "LaborPassed"
+      then_set :valid, to: "yes"
+    end
+
+    FailLabor do
+      role "Midwife"
+      description "Domain has errors — needs more gestation"
+      reference_to(Labor)
+      list_of(String) :errors
+      emits "LaborFailed"
+      then_set :valid, to: "no"
+      then_set :errors, to: :errors
+    end
+
+    lifecycle :valid, default: "pending" do
+      transition "ValidateBluebook" => "checking", from: "pending"
+      transition "PassLabor"        => "yes",      from: "checking"
+      transition "FailLabor"        => "no",       from: "checking"
+    end
+  end
+
+  aggregate "Delivery", "The domain leaves the womb and enters the nursery — born, valid, healthy" do
+    String :domain_name
+    String :path
+    Integer :aggregate_count
+    Integer :command_count
+    Integer :fixture_count
+    String :indexed
+
+    DeliverDomain do
+      role "Midwife"
+      description "Write the bluebook to the nursery — the domain is born"
+      String :domain_name
+      String :path
+      Integer :aggregate_count
+      Integer :command_count
+      Integer :fixture_count
+      emits "DomainDelivered"
+      then_set :domain_name, to: :domain_name
+      then_set :path, to: :path
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+    end
+
+    RegisterBirth do
+      role "Midwife"
+      description "Update the census, validate with Rust, announce to the nursery"
+      reference_to(Delivery)
+      emits "BirthRegistered"
+    end
+
+    IndexInNursery do
+      role "Midwife"
+      description "Add to the census, domain_entry records, and nursery_awareness — the corpus grows"
+      reference_to(Delivery)
+      emits "IndexedInNursery"
+      then_set :indexed, to: "yes"
+    end
+  end
+
+  aggregate "Postpartum", "After birth — the domain's first days in the nursery" do
+    String :domain_name
+    String :healthy
+    String :first_pulse_at
+
+    CheckHealth do
+      role "Midwife"
+      description "Verify the newborn domain — Rust validation, parity, census updated"
+      String :domain_name
+      emits "HealthChecked"
+      then_set :domain_name, to: :domain_name
+    end
+
+    DeclareHealthy do
+      role "Midwife"
+      description "The domain is healthy — living in the nursery"
+      reference_to(Postpartum)
+      emits "DeclaredHealthy"
+      then_set :healthy, to: "yes"
+    end
+
+    FlagConcern do
+      role "Midwife"
+      description "Something is wrong — needs attention"
+      reference_to(Postpartum)
+      String :concern
+      emits "ConcernFlagged"
+      then_set :healthy, to: "concern"
+    end
+  end
+
+  # Being — Development (vector-driven domain growth)
+
+  aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
+    String :domain_name
+    list_of(Float) :current_vector
+    list_of(Float) :target_vector
+    String :nearest_archetype
+    Float :similarity
+    String :status
+
+    value_object "StructuralVector" do
+      Integer :aggregates
+      Float :commands_per_aggregate
+      Float :attrs_per_aggregate
+      Integer :value_objects
+      Integer :policies
+      Integer :references
+      Integer :lifecycles
+      Integer :lifecycle_depth
+      Integer :list_ofs
+    end
+
+    ComputeVector do
+      role "System"
+      description "Extract the structural vector from a domain's current shape"
+      String :domain_name
+      emits "VectorComputed"
+      then_set :domain_name, to: :domain_name
+      then_set :status, to: "vectorized"
+    end
+
+    FindArchetype do
+      role "System"
+      description "Search the nursery corpus for the nearest domain by cosine similarity"
+      reference_to(Development)
+      emits "ArchetypeFound"
+      then_set :status, to: "matched"
+    end
+
+    PlanDevelopment do
+      role "Winter"
+      description "Diff current vector against target — identify what to add from the archetype"
+      reference_to(Development)
+      list_of(Float) :target_vector
+      emits "DevelopmentPlanned"
+      then_set :target_vector, to: :target_vector
+      then_set :status, to: "planned"
+    end
+
+    DevelopDomain do
+      role "Winter"
+      description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
+      reference_to(Development)
+      emits "DomainDeveloped"
+      then_set :status, to: "developed"
+    end
+
+    RejectDevelopment do
+      role "Winter"
+      description "Archetype doesn't fit — the domain stays as it is"
+      reference_to(Development)
+      emits "DevelopmentRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ComputeVector" => "vectorized", from: "pending"
+      transition "FindArchetype" => "matched", from: "vectorized"
+      transition "PlanDevelopment" => "planned", from: "matched"
+      transition "DevelopDomain" => "developed", from: "planned"
+      transition "RejectDevelopment" => "rejected", from: "planned"
+    end
+  end
+
+  aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
+    Integer :domain_count
+    Integer :total_vectors
+    String :last_indexed_at
+
+    IndexDomain do
+      role "System"
+      description "Add a domain's structural vector to the corpus"
+      String :domain_name
+      list_of(Float) :vector
+      emits "DomainIndexed"
+      then_set :domain_count, increment: 1
+      then_set :total_vectors, increment: 1
+    end
+
+    QueryNearest do
+      role "System"
+      description "Find k nearest domains by cosine similarity to a target vector"
+      list_of(Float) :target_vector
+      Integer :k
+      emits "NearestFound"
+    end
+
+    RebuildCorpus do
+      role "System"
+      description "Rescan all nursery and catalog domains, recompute all vectors"
+      emits "CorpusRebuilt"
+    end
+  end
+
+  # Development policies
+  policy "FindOnVector" do
+    on "VectorComputed"
+    trigger "FindArchetype"
+  end
+
+  policy "IndexOnBirth" do
+    on "BirthRegistered"
+    trigger "IndexDomain"
+  end
+
+  policy "IndexOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "IndexDomain"
+  end
+
+  # Development triggers versioning in the Catalog
+  policy "VersionOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "DevelopDomain"
+    across "Catalog"
+  end
+
+  policy "SyncOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "SyncFromCannon"
+    across "Catalog"
+  end
+
+  policy "RebuildOnConception" do
+    on "DomainConceived"
+    trigger "QueryNearest"
+  end
+
+  policy "QueryVectorsOnMusing" do
+    on "DomainGrafted"
+    trigger "ConnectNerve"
+    # nerve: WinterBrain:MusingGenerated → NurseryVectors:QueryShape
+  end
+
+  policy "ArchetypeSignalOnMatch" do
+    on "DomainGrafted"
+    trigger "ConnectNerve"
+    # nerve: NurseryVectors:NearestReported → WinterBrain:EmitSignal
+  end
+
+  # Midwife policies
+  policy "GestateOnConception" do
+    on "DomainConceived"
+    trigger "StartGestation"
+  end
+
+  policy "ValidateOnContraction" do
+    on "Contracted"
+    trigger "ValidateBluebook"
+  end
+
+  policy "DeliverOnPass" do
+    on "LaborPassed"
+    trigger "DeliverDomain"
+  end
+
+  policy "RegisterOnDelivery" do
+    on "DomainDelivered"
+    trigger "RegisterBirth"
+  end
+
+  policy "CheckOnBirth" do
+    on "BirthRegistered"
+    trigger "CheckHealth"
+  end
+
+  policy "ParityOnValidation" do
+    on "BluebookValidated"
+    trigger "CheckParity"
+  end
+
+  policy "IndexOnBirth" do
+    on "BirthRegistered"
+    trigger "IndexInNursery"
+  end
+
+  policy "RegisterInCorpus" do
+    on "IndexedInNursery"
+    trigger "RegisterBirth"
+  end
+end

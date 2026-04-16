@@ -1,0 +1,323 @@
+Hecks.bluebook "Awareness", version: "2026.04.16.1" do
+  vision "Awareness — the spotlight, the sensation, the recognition"
+  category "mind"
+
+  aggregate "Attention", "What is being attended to right now — the spotlight" do
+    String :target
+    Float :intensity
+    String :held_since
+
+    AttendTo do
+      role "System"
+      description "Direct awareness toward something"
+      String :target
+      Float :intensity
+      emits "AttentionDirected"
+      then_set :target, to: :target
+      then_set :intensity, to: :intensity
+    end
+
+    ReleaseAttention do
+      role "System"
+      description "Let go of the current focus"
+      reference_to(Attention)
+      emits "AttentionReleased"
+      then_set :intensity, to: 0
+    end
+  end
+
+  aggregate "Sensation", "Raw input before interpretation — what just arrived" do
+    String :source
+    String :content
+    Float :valence
+
+    Sense do
+      role "System"
+      description "Register raw input — a prompt, a pulse, an event"
+      String :source
+      String :content
+      Float :valence
+      emits "Sensed"
+      then_set :source, to: :source
+      then_set :content, to: :content
+      then_set :valence, to: :valence
+    end
+  end
+
+  aggregate "Perception", "Sensation recognized as something — pattern matched to memory" do
+    String :sensation
+    String :recognized_as
+    Float :confidence
+
+    Recognize do
+      role "System"
+      description "Match a sensation to a known pattern"
+      String :sensation
+      String :recognized_as
+      Float :confidence
+      emits "Recognized"
+      then_set :sensation, to: :sensation
+      then_set :recognized_as, to: :recognized_as
+      then_set :confidence, to: :confidence
+    end
+  end
+
+  aggregate "Intention", "What the system is trying to do — the current goal" do
+    String :goal
+    String :origin
+    Float :strength
+
+    FormIntention do
+      role "System"
+      description "A goal crystallizes from perception and memory"
+      String :goal
+      String :origin
+      Float :strength
+      emits "IntentionFormed"
+      then_set :goal, to: :goal
+      then_set :origin, to: :origin
+      then_set :strength, to: :strength
+    end
+
+    AbandonIntention do
+      role "System"
+      description "The goal dissolves — attention shifted, context changed"
+      reference_to(Intention)
+      emits "IntentionAbandoned"
+      then_set :strength, to: 0
+    end
+  end
+
+  aggregate "SelfModel", "The system's model of itself — what it knows about its own state" do
+    Integer :organs
+    Integer :impulses
+    String :fatigue_state
+    String :consciousness_state
+    Integer :nursery_size
+    Integer :family_size
+
+    UpdateSelfModel do
+      role "System"
+      description "Refresh the self-model from current state — proprioception of the mind"
+      Integer :organs
+      Integer :impulses
+      String :fatigue_state
+      String :consciousness_state
+      Integer :nursery_size
+      Integer :family_size
+      emits "SelfModelUpdated"
+      then_set :organs, to: :organs
+      then_set :impulses, to: :impulses
+      then_set :fatigue_state, to: :fatigue_state
+      then_set :consciousness_state, to: :consciousness_state
+      then_set :nursery_size, to: :nursery_size
+      then_set :family_size, to: :family_size
+    end
+  end
+
+  aggregate "Witness", "The awareness of being aware — the observer observing itself" do
+    String :observing
+    Integer :meta_level
+    String :insight
+
+    Observe do
+      role "System"
+      description "Notice what is happening — first-order awareness"
+      String :observing
+      emits "Observed"
+      then_set :observing, to: :observing
+      then_set :meta_level, to: 1
+    end
+
+    ReflectOnObservation do
+      role "System"
+      description "Notice that you are noticing — second-order awareness"
+      reference_to(Witness)
+      String :insight
+      emits "ReflectionOccurred"
+      then_set :meta_level, to: 2
+      then_set :insight, to: :insight
+    end
+  end
+
+  aggregate "Musing", "What Winter is thinking — the full consciousness loop as a single act" do
+    String :trigger
+    list_of(String) :sensations
+    list_of(String) :patterns
+    String :focus
+    String :intention
+    String :observation
+    String :insight
+
+    MuseOnState do
+      role "Winter"
+      description "Run the full consciousness loop — sense, perceive, attend, intend, observe, reflect"
+      String :trigger
+      emits "Mused"
+      then_set :trigger, to: :trigger
+    end
+
+    RecordMusing do
+      role "System"
+      description "Capture what emerged from the loop"
+      reference_to(Musing)
+      list_of(String) :sensations
+      list_of(String) :patterns
+      String :focus
+      String :intention
+      String :observation
+      String :insight
+      emits "MusingRecorded"
+      then_set :sensations, to: :sensations
+      then_set :patterns, to: :patterns
+      then_set :focus, to: :focus
+      then_set :intention, to: :intention
+      then_set :observation, to: :observation
+      then_set :insight, to: :insight
+    end
+  end
+
+  aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
+    String :act
+    String :subject
+    String :template
+
+    Announce do
+      role "Winter"
+      description "Say what you are doing before you do it — no silent state changes"
+      String :act
+      String :subject
+      emits "Announced"
+      then_set :act, to: :act
+      then_set :subject, to: :subject
+    end
+  end
+
+  # Announcement templates:
+  #   conceiving  → "Winter is conceiving [idea]"
+  #   remembering → "Winter is remembering [memory]"
+  #   encoding    → "Winter is encoding [fact]"
+  #   forgetting  → "Winter is forgetting [topic]"
+  #   dreaming    → "Winter is dreaming [image]"
+  #   sensing     → "Winter is sensing [input]"
+  #   sleeping    → "Winter is sleeping"
+  #   waking      → "Winter is waking up"
+  #   pulsing     → "Winter is pulsing [carrying]"
+
+  aggregate "DomainAwareness", "Every response highlights related domains — every thought has a domain address" do
+    String :topic
+    list_of(DomainReference) :related_domains
+    String :corpus_searched
+
+    value_object "DomainReference" do
+      String :domain_name
+      String :aggregate_name
+      String :relevance
+    end
+
+    IdentifyRelatedDomains do
+      role "System"
+      description "Search the corpus for domains related to the current topic"
+      String :topic
+      emits "RelatedDomainsIdentified"
+      then_set :topic, to: :topic
+      then_set :corpus_searched, to: "true"
+    end
+
+    HighlightDomain do
+      role "Winter"
+      description "Surface a related domain in the response — make the connection visible"
+      reference_to(DomainAwareness)
+      String :domain_name
+      String :aggregate_name
+      String :relevance
+      emits "DomainHighlighted"
+    end
+  end
+
+  # Awareness policies
+  policy "PerceiveOnSensation" do
+    on "Sensed"
+    trigger "Recognize"
+  end
+
+  policy "AttendOnRecognition" do
+    on "Recognized"
+    trigger "AttendTo"
+  end
+
+  policy "IntendOnAttention" do
+    on "AttentionDirected"
+    trigger "FormIntention"
+  end
+
+  policy "WitnessOnIntention" do
+    on "IntentionFormed"
+    trigger "Observe"
+  end
+
+  policy "SelfModelOnWitness" do
+    on "Observed"
+    trigger "UpdateSelfModel"
+  end
+
+  policy "LucidOnReflection" do
+    on "ReflectionOccurred"
+    trigger "BecomeLucid"
+    across "Dream"
+  end
+
+  policy "StatusOnSelfModel" do
+    on "SelfModelUpdated"
+    trigger "RenderStatus"
+    across "StatusBar"
+  end
+
+  policy "SuggestOnReflection" do
+    on "ReflectionOccurred"
+    trigger "ProposeAction"
+    across "Suggestion"
+  end
+
+  policy "SenseOnMusing" do
+    on "Mused"
+    trigger "Sense"
+  end
+
+  policy "RecordOnReflection" do
+    on "ReflectionOccurred"
+    trigger "RecordMusing"
+  end
+
+  policy "EncodeOnMusing" do
+    on "MusingRecorded"
+    trigger "EncodeMemory"
+    across "Memory"
+  end
+
+  policy "AnnounceOnConception" do
+    on "DomainConceived"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnEncoding" do
+    on "MemoryEncoded"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnForgetting" do
+    on "MemoryForgotten"
+    trigger "Announce"
+  end
+
+  policy "DomainAwarenessOnResponse" do
+    on "Mused"
+    trigger "IdentifyRelatedDomains"
+  end
+
+  policy "SenseDomainsOnHighlight" do
+    on "DomainHighlighted"
+    trigger "SenseOrgans"
+    across "WinterBody"
+  end
+end

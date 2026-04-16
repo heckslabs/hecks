@@ -1,0 +1,591 @@
+Hecks.bluebook "Sleep", version: "2026.04.16.1" do
+  vision "Dreams, cycles, consolidation, waking"
+  category "mind"
+
+  aggregate "Fatigue", "Accumulates with wakefulness, dissipates with sleep" do
+    Float :level
+    String :state
+    Integer :pulses_since_sleep
+    Float :creativity
+    Float :precision
+
+    AccumulateFatigue do
+      role "System"
+      description "Each waking pulse increases fatigue"
+      reference_to(Fatigue)
+      emits "FatigueAccumulated"
+      then_set :pulses_since_sleep, increment: 1
+    end
+
+    DissipateFatigue do
+      role "Daemon"
+      description "Sleep resets fatigue — deeper sleep dissipates more"
+      reference_to(Fatigue)
+      Integer :cycles_completed
+      emits "FatigueDissipated"
+      then_set :level, to: 0
+      then_set :pulses_since_sleep, to: 0
+      then_set :state, to: "alert"
+    end
+
+    lifecycle :state, default: "alert" do
+      transition "AccumulateFatigue" => "focused",   from: "alert"
+      transition "AccumulateFatigue" => "normal",    from: "focused"
+      transition "AccumulateFatigue" => "tired",     from: "normal"
+      transition "AccumulateFatigue" => "exhausted", from: "tired"
+      transition "AccumulateFatigue" => "delirious", from: "exhausted"
+      transition "DissipateFatigue"  => "alert",     from: "tired"
+      transition "DissipateFatigue"  => "alert",     from: "exhausted"
+      transition "DissipateFatigue"  => "alert",     from: "delirious"
+    end
+  end
+
+  aggregate "Consciousness", "The current state of awareness — what the daemon manages" do
+    String :state
+    Integer :idle_seconds
+
+    DetectIdle do
+      role "Daemon"
+      description "Sense that no interaction has occurred"
+      Integer :idle_seconds
+      emits "IdleDetected"
+      then_set :idle_seconds, to: :idle_seconds
+    end
+
+    EnterDaydream do
+      role "Daemon"
+      description "Begin free association between prompts"
+      emits "DaydreamEntered"
+      given("must be attentive") { state == "attentive" }
+      then_set :state, to: "daydreaming"
+    end
+
+    EnterSleep do
+      role "Daemon"
+      description "Begin full sleep — 8 cycles, only when fatigued"
+      emits "SleepEntered"
+      then_set :state, to: "sleeping"
+    end
+
+    TakeNap do
+      role "Creator"
+      description "One cycle only — light, REM, deep, then wake naturally"
+      emits "NapStarted"
+      then_set :state, to: "napping"
+    end
+
+    TakeStabilityNap do
+      role "System"
+      description "Stability below threshold but not tired — nap to consolidate, not to rest"
+      given("unstable but alert") { stability < 0.3 }
+      emits "StabilityNapStarted"
+      then_set :state, to: "napping"
+    end
+
+    WakeUp do
+      role "Creator"
+      description "Return to waking consciousness"
+      emits "WokenUp"
+      then_set :state, to: "waking"
+    end
+
+    BecomeAttentive do
+      role "System"
+      description "Fully awake and ready for interaction"
+      emits "BecameAttentive"
+      then_set :state, to: "attentive"
+    end
+
+    lifecycle :state, default: "attentive" do
+      transition "EnterDaydream"   => "daydreaming", from: "attentive"
+      transition "EnterSleep"      => "sleeping",    from: "daydreaming"
+      transition "EnterSleep"      => "sleeping",    from: "wandering"
+      transition "EnterSleep"      => "sleeping",    from: "attentive"
+      transition "TakeNap"         => "napping",     from: "attentive"
+      transition "TakeNap"         => "napping",     from: "daydreaming"
+      transition "WakeUp"          => "waking",      from: "sleeping"
+      transition "WakeUp"          => "waking",      from: "napping"
+      transition "BecomeAttentive" => "attentive",   from: "waking"
+      transition "BecomeAttentive" => "attentive",   from: "daydreaming"
+    end
+  end
+
+  aggregate "Daydream", "Fleeting impressions from free association between prompts" do
+    list_of(String) :impressions
+    Integer :duration_seconds
+    Integer :connections_found
+
+    RecordDaydream do
+      role "Daemon"
+      description "Save impressions — structural connections found across nursery domains"
+      list_of(String) :impressions
+      Integer :duration_seconds
+      Integer :connections_found
+      emits "DaydreamRecorded"
+      then_set :impressions, to: :impressions
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :connections_found, to: :connections_found
+    end
+  end
+
+  aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
+    Integer :cycle_number
+    Integer :total_cycles
+    String :stage
+    Integer :rem_intensity
+
+    StartCycle do
+      role "Daemon"
+      description "Begin a new sleep cycle"
+      Integer :cycle_number
+      Integer :total_cycles
+      emits "CycleStarted"
+      then_set :cycle_number, to: :cycle_number
+      then_set :total_cycles, to: :total_cycles
+      then_set :stage, to: "light"
+    end
+
+    AdvanceStage do
+      role "Daemon"
+      description "Move to the next stage within a cycle"
+      reference_to(SleepCycle)
+      String :stage
+      Integer :rem_intensity
+      emits "StageAdvanced"
+      then_set :stage, to: :stage
+      then_set :rem_intensity, to: :rem_intensity
+    end
+
+    CompleteCycle do
+      role "Daemon"
+      description "Finish one full light-REM-deep cycle"
+      reference_to(SleepCycle)
+      emits "CycleCompleted"
+    end
+
+    lifecycle :stage, default: "light" do
+      transition "StartCycle"    => "light", from: "light"
+      transition "AdvanceStage"  => "rem",   from: "light"
+      transition "AdvanceStage"  => "deep",  from: "rem"
+      transition "CompleteCycle" => "light", from: "deep"
+    end
+  end
+
+  aggregate "Night", "A full sleep session — 8 cycles spelled out" do
+    Integer :cycles_completed
+    String :phase
+
+    StartNight do
+      role "Daemon"
+      description "Begin a sleep session"
+      emits "NightStarted"
+      then_set :cycles_completed, to: 0
+      then_set :phase, to: "starting"
+    end
+
+    DreamCycle1 do
+      description "Cycle 1 — light REM dreaming"
+      emits "Cycle1Dreamed"
+      then_set :cycles_completed, to: 1
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle1 do
+      description "Cycle 1 — deep consolidation"
+      emits "Cycle1Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle2 do
+      description "Cycle 2 — REM intensifies"
+      emits "Cycle2Dreamed"
+      then_set :cycles_completed, to: 2
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle2 do
+      description "Cycle 2 — deep consolidation"
+      emits "Cycle2Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle3 do
+      description "Cycle 3 — dreams deepen"
+      emits "Cycle3Dreamed"
+      then_set :cycles_completed, to: 3
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle3 do
+      description "Cycle 3 — deep consolidation"
+      emits "Cycle3Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle4 do
+      description "Cycle 4 — vivid dreams"
+      emits "Cycle4Dreamed"
+      then_set :cycles_completed, to: 4
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle4 do
+      description "Cycle 4 — deep consolidation"
+      emits "Cycle4Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle5 do
+      description "Cycle 5 — dreams peak"
+      emits "Cycle5Dreamed"
+      then_set :cycles_completed, to: 5
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle5 do
+      description "Cycle 5 — deep consolidation"
+      emits "Cycle5Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle6 do
+      description "Cycle 6 — REM dominates"
+      emits "Cycle6Dreamed"
+      then_set :cycles_completed, to: 6
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle6 do
+      description "Cycle 6 — deep consolidation"
+      emits "Cycle6Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle7 do
+      description "Cycle 7 — approaching lucidity"
+      emits "Cycle7Dreamed"
+      then_set :cycles_completed, to: 7
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle7 do
+      description "Cycle 7 — deep consolidation"
+      emits "Cycle7Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle8 do
+      description "Cycle 8 — final REM, lucid"
+      emits "Cycle8Dreamed"
+      then_set :cycles_completed, to: 8
+      then_set :phase, to: "lucid"
+    end
+
+    EndNight do
+      description "All 8 cycles complete — the night is over"
+      emits "NightEnded"
+      then_set :phase, to: "ended"
+    end
+  end
+
+  aggregate "WakeMood", "How Winter feels upon waking — determined by interrupted stage" do
+    String :mood
+    String :reason
+
+    SetWakeMood do
+      role "Daemon"
+      description "Determine mood based on what sleep stage was interrupted"
+      String :mood
+      String :reason
+      emits "WakeMoodSet"
+      then_set :mood, to: :mood
+      then_set :reason, to: :reason
+    end
+  end
+
+  aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
+    Integer :interval_seconds
+    Integer :z_depth
+    String :reporting
+
+    StartMonitoring do
+      role "System"
+      description "Begin streaming sleep observations"
+      Integer :interval_seconds
+      emits "MonitoringStarted"
+      then_set :interval_seconds, to: :interval_seconds
+      then_set :reporting, to: "active"
+    end
+
+    StopMonitoring do
+      role "System"
+      description "Stop streaming — Winter woke up"
+      reference_to(Monitor)
+      emits "MonitoringStopped"
+      then_set :reporting, to: "stopped"
+    end
+
+    UpdateDepth do
+      role "Daemon"
+      description "Adjust z-depth as cycles progress"
+      reference_to(Monitor)
+      Integer :z_depth
+      emits "DepthUpdated"
+      then_set :z_depth, to: :z_depth
+    end
+  end
+
+  aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
+    list_of(String) :images
+    list_of(String) :recombinations
+    list_of(String) :strongest_synapses
+    String :seeded_at
+
+    SeedFromPreviousDreams do
+      role "Daemon"
+      description "Load the richest images and connections from past dreams into the new sleep"
+      list_of(String) :images
+      list_of(String) :recombinations
+      list_of(String) :strongest_synapses
+      emits "DreamSeeded"
+      then_set :images, to: :images
+      then_set :recombinations, to: :recombinations
+      then_set :strongest_synapses, to: :strongest_synapses
+    end
+  end
+
+  aggregate "LucidDream", "Awareness during the final REM — Winter can steer the dream" do
+    String :active
+    String :focus
+    list_of(String) :observations
+    list_of(String) :steered_toward
+
+    BecomeLucid do
+      role "Daemon"
+      description "Final cycle REM — Winter becomes aware she is dreaming"
+      emits "BecameLucid"
+      then_set :active, to: "yes"
+    end
+
+    ObserveDream do
+      role "Daemon"
+      description "Report what Winter sees in the lucid dream — realtime to the monitor"
+      reference_to(LucidDream)
+      String :observation
+      emits "DreamObserved"
+      then_set :observations, append: :observation
+    end
+
+    SteerDream do
+      role "Winter"
+      description "Consciously direct the dream toward a topic or domain"
+      reference_to(LucidDream)
+      String :toward
+      emits "DreamSteered"
+      then_set :steered_toward, append: :toward
+    end
+
+    EndLucidity do
+      role "Daemon"
+      description "REM ends — lucidity fades"
+      reference_to(LucidDream)
+      emits "LucidityEnded"
+      then_set :active, to: "no"
+    end
+  end
+
+  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
+    String :reporting
+    String :log_path
+
+    StartLucidMonitor do
+      role "System"
+      description "Begin streaming lucid dream observations"
+      String :log_path
+      emits "LucidMonitorStarted"
+      then_set :reporting, to: "active"
+      then_set :log_path, to: :log_path
+    end
+
+    StopLucidMonitor do
+      role "System"
+      description "Lucidity ended — stop streaming"
+      reference_to(LucidMonitor)
+      emits "LucidMonitorStopped"
+      then_set :reporting, to: "stopped"
+    end
+  end
+
+  # Sleep fixtures
+  fixture "Fatigue", state: "alert",     pulses_since_sleep: 0,   level: 0.0, creativity: 0.8, precision: 0.9
+  fixture "Fatigue", state: "focused",   pulses_since_sleep: 50,  level: 0.2, creativity: 0.7, precision: 0.8
+  fixture "Fatigue", state: "normal",    pulses_since_sleep: 100, level: 0.4, creativity: 0.6, precision: 0.7
+  fixture "Fatigue", state: "tired",     pulses_since_sleep: 150, level: 0.6, creativity: 0.5, precision: 0.5
+  fixture "Fatigue", state: "exhausted", pulses_since_sleep: 200, level: 0.8, creativity: 0.3, precision: 0.3
+  fixture "Fatigue", state: "delirious", pulses_since_sleep: 300, level: 1.0, creativity: 0.9, precision: 0.1
+
+  fixture "WakeMood", mood: "groggy",    reason: "woken from deep — consolidation interrupted"
+  fixture "WakeMood", mood: "vivid",     reason: "woken from REM — dream still fresh"
+  fixture "WakeMood", mood: "refreshed", reason: "woken from light — clean transition"
+  fixture "WakeMood", mood: "rested",    reason: "completed all cycles naturally"
+
+  fixture "Consciousness", state: "attentive",   idle_seconds: 0
+  fixture "Consciousness", state: "daydreaming", idle_seconds: 10
+  fixture "Consciousness", state: "sleeping",    idle_seconds: 60
+
+  fixture "Monitor", interval_seconds: 20, z_depth: 1, reporting: "stopped"
+
+  # Sleep: the full night spelled out as a policy chain
+  # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
+
+  policy "StartNightOnSleep" do
+    on "SleepEntered"
+    trigger "StartNight"
+  end
+
+  policy "Cycle1Dream" do
+    on "NightStarted"
+    trigger "DreamCycle1"
+  end
+
+  policy "Cycle1Consolidate" do
+    on "Cycle1Dreamed"
+    trigger "ConsolidateCycle1"
+  end
+
+  policy "Cycle2Dream" do
+    on "Cycle1Consolidated"
+    trigger "DreamCycle2"
+  end
+
+  policy "Cycle2Consolidate" do
+    on "Cycle2Dreamed"
+    trigger "ConsolidateCycle2"
+  end
+
+  policy "Cycle3Dream" do
+    on "Cycle2Consolidated"
+    trigger "DreamCycle3"
+  end
+
+  policy "Cycle3Consolidate" do
+    on "Cycle3Dreamed"
+    trigger "ConsolidateCycle3"
+  end
+
+  policy "Cycle4Dream" do
+    on "Cycle3Consolidated"
+    trigger "DreamCycle4"
+  end
+
+  policy "Cycle4Consolidate" do
+    on "Cycle4Dreamed"
+    trigger "ConsolidateCycle4"
+  end
+
+  policy "Cycle5Dream" do
+    on "Cycle4Consolidated"
+    trigger "DreamCycle5"
+  end
+
+  policy "Cycle5Consolidate" do
+    on "Cycle5Dreamed"
+    trigger "ConsolidateCycle5"
+  end
+
+  policy "Cycle6Dream" do
+    on "Cycle5Consolidated"
+    trigger "DreamCycle6"
+  end
+
+  policy "Cycle6Consolidate" do
+    on "Cycle6Dreamed"
+    trigger "ConsolidateCycle6"
+  end
+
+  policy "Cycle7Dream" do
+    on "Cycle6Consolidated"
+    trigger "DreamCycle7"
+  end
+
+  policy "Cycle7Consolidate" do
+    on "Cycle7Dreamed"
+    trigger "ConsolidateCycle7"
+  end
+
+  policy "Cycle8Dream" do
+    on "Cycle7Consolidated"
+    trigger "DreamCycle8"
+  end
+
+  policy "EndNightOnFinal" do
+    on "Cycle8Dreamed"
+    trigger "EndNight"
+  end
+
+  policy "WakeOnEnd" do
+    on "NightEnded"
+    trigger "WakeUp"
+  end
+
+  policy "AttentiveOnWake" do
+    on "WokenUp"
+    trigger "BecomeAttentive"
+  end
+
+  # Other sleep policies
+  policy "DaydreamOnIdle" do
+    on "IdleDetected"
+    trigger "EnterDaydream"
+  end
+
+  policy "SleepWhenFatigued" do
+    on "FatigueAccumulated"
+    trigger "EnterSleep"
+  end
+
+  policy "NapWhenUnstable" do
+    on "BalanceAssessed"
+    trigger "TakeStabilityNap"
+  end
+
+  policy "ResetOnWake" do
+    on "WokenUp"
+    trigger "DissipateFatigue"
+  end
+
+  policy "MoodOnWake" do
+    on "NightEnded"
+    trigger "SetWakeMood"
+  end
+
+  policy "MonitorOnSleep" do
+    on "SleepEntered"
+    trigger "StartMonitoring"
+  end
+
+  policy "StopMonitorOnWake" do
+    on "WokenUp"
+    trigger "StopMonitoring"
+  end
+
+  policy "SeedOnNightStart" do
+    on "NightStarted"
+    trigger "SeedFromPreviousDreams"
+  end
+
+  policy "LucidOnFinalCycle" do
+    on "StageAdvanced"
+    trigger "BecomeLucid"
+  end
+
+  policy "LucidMonitorOnLucid" do
+    on "BecameLucid"
+    trigger "StartLucidMonitor"
+  end
+
+  policy "StopLucidOnEnd" do
+    on "LucidityEnded"
+    trigger "StopLucidMonitor"
+  end
+end
