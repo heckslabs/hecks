@@ -225,41 +225,84 @@ fn light_sleep(ctx: &DaemonCtx) -> Vec<String> {
         .into_iter().rev().take(5).collect()
 }
 
-/// Returns (images, pulses, domain_ideas) where domain_ideas are (concept, domain, verb) triples.
-fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<String>, usize, Vec<(String, String, String)>) {
-    let nursery = &ctx.nursery_dir;
-    let domains = list_domains(nursery);
-    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
-    let concepts: Vec<String> = musings.values()
-        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from))
-        .collect();
+/// Dreams about Miette herself — her organs, capabilities, moods, synapses, memories.
+/// Returns (images, pulses, domain_ideas).
+fn rem_dream(ctx: &DaemonCtx, _topics: &[String], intensity: usize) -> (Vec<String>, usize, Vec<(String, String, String)>) {
+    // Gather self-knowledge
+    let mut self_concepts: Vec<String> = Vec::new();
+
+    // Organs
+    let organs_dir = std::path::Path::new(&ctx.organs_dir);
+    if organs_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(organs_dir) {
+            for e in entries.filter_map(|e| e.ok()) {
+                if e.path().extension().map_or(false, |ext| ext == "bluebook") {
+                    let name = e.path().file_stem().unwrap_or_default().to_string_lossy().replace('_', " ");
+                    self_concepts.push(name);
+                }
+            }
+        }
+    }
+
+    // Strong synapses
+    let synapses = heki::read(&ctx.store("synapse")).unwrap_or_default();
+    self_concepts.extend(synapses.values()
+        .filter(|s| s.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.0) > 0.3)
+        .filter_map(|s| s.get("topic").and_then(|v| v.as_str()).map(String::from))
+        .take(10));
+
+    // Mood and state
+    let mood = heki::read(&ctx.store("mood")).unwrap_or_default();
+    if let Some(m) = mood.values().next() {
+        if let Some(state) = m.get("current_state").and_then(|v| v.as_str()) {
+            self_concepts.push(format!("feeling {}", state));
+        }
+    }
+
+    // Capabilities
+    let caps_dir = std::path::Path::new(&ctx.organs_dir).parent()
+        .map(|p| p.join("capabilities"));
+    if let Some(cd) = caps_dir {
+        if cd.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&cd) {
+                for e in entries.filter_map(|e| e.ok()).take(10) {
+                    let name = e.file_name().to_string_lossy().replace('_', " ");
+                    self_concepts.push(name);
+                }
+            }
+        }
+    }
+
+    // Recent memories
+    let memories = heki::read(&ctx.store("memory")).unwrap_or_default();
+    let mem_vals: Vec<_> = memories.values().collect();
+    self_concepts.extend(mem_vals.iter().rev().take(5)
+        .filter_map(|m| m.get("summary").and_then(|v| v.as_str()))
+        .map(|s| s.chars().take(30).collect::<String>()));
+
+    if self_concepts.is_empty() { self_concepts.push("silence".into()); }
+
+    let textures = ["luminous", "crystalline", "woven", "nested", "recursive",
+        "dissolving", "emerging", "tangled", "transparent", "layered"];
 
     let mut images = Vec::new();
-    let mut domain_ideas: Vec<(String, String, String)> = Vec::new(); // (concept, domain, texture)
+    let mut domain_ideas: Vec<(String, String, String)> = Vec::new();
     let mut pulses = 0;
-    let textures = ["liquid", "crystalline", "fibrous", "layered", "translucent",
-        "woven", "tangled", "nested", "recursive", "fractal"];
 
-    let iters = intensity.min(concepts.len().max(1)).min(domains.len().max(1));
+    let iters = intensity.min(self_concepts.len().max(1));
     for i in 0..iters {
-        let concept = if !concepts.is_empty() { &concepts[i % concepts.len()] } else { continue };
-        let domain = if !domains.is_empty() { &domains[i % domains.len()] } else { continue };
+        let a = &self_concepts[i % self_concepts.len()];
+        let b = &self_concepts[(i + 3) % self_concepts.len()];
         let texture = textures[i % textures.len()];
-        let words: Vec<&str> = domain.split('_').collect();
-
-        // Combinatorial: pull a second concept/domain when available
-        let concept_b = if concepts.len() > 1 { &concepts[(i + 1) % concepts.len()] } else { concept };
-        let domain_b = if domains.len() > 1 { &domains[(i + 1) % domains.len()] } else { domain };
-        let words_b: Vec<&str> = domain_b.split('_').collect();
 
         let image = match i % 4 {
-            0 => format!("A {} {} made of {} and {}", texture, words.last().unwrap_or(&""), concept, concept_b),
-            1 => format!("{} and {} inside {}", concept, concept_b, words.join(" ")),
-            2 => format!("{} where {} meets {}", words.join(" "), concept, words_b.join(" ")),
-            _ => format!("{}, {}, {} — same shape", concept, concept_b, words.join(" ")),
+            0 => format!("my {} is made of {}", a, b),
+            1 => format!("{} and {} are the same thing inside me", a, b),
+            2 => format!("a {} version of my {} dissolving into {}", texture, a, b),
+            _ => format!("what if my {} could feel my {}?", a, b),
         };
         images.push(image);
-        domain_ideas.push((concept.clone(), domain.clone(), texture.into()));
+        domain_ideas.push((a.clone(), b.clone(), texture.into()));
         pulses += 1;
 
         // Strengthen dreaming synapses
@@ -267,7 +310,7 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
         let mut synapses = heki::read(&syn_path).unwrap_or_default();
         for (_, s) in synapses.iter_mut() {
             let t = s.get("topic").and_then(|v| v.as_str()).unwrap_or("");
-            if concept.contains(t) || t.contains(concept.as_str()) {
+            if a.contains(t) || t.contains(a.as_str()) {
                 let str_val = s.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.3);
                 s.insert("strength".into(), serde_json::json!((str_val + 0.05).min(1.0)));
                 s.insert("state".into(), Value::String("dreaming".into()));
