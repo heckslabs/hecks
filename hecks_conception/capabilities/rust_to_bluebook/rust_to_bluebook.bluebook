@@ -6,22 +6,36 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   # RUST TO BLUEBOOK
   # ============================================================
   #
-  # The pattern we learned converting daydream.rs:
+  # The pattern we learned converting 5 daemon files:
   #
   # 1. ANALYZE — functions→commands, structs→attributes,
   #    heki writes→mutations, heki reads→givens,
   #    control flow→guards/policies, loops→dispatch cycle
   #
   # 2. MAP — each Rust construct gets a bluebook equivalent
+  #    Most behavior is ALREADY in the bluebooks (body.bluebook,
+  #    mind.bluebook, greeting.bluebook). The Rust was redundant.
   #
   # 3. VERIFY — hecks-life run aggregates/ --dispatch CommandName
-  #    produces the same heki state as the Rust
+  #    The runtime merges all bluebooks in the directory into one
+  #    combined domain. Events cascade across domain boundaries.
+  #    world.hec declares persistence (heki dir), no flags needed.
   #
   # 4. DELETE — remove the .rs file, the bluebook is the program
   #
-  # The hecksagon wires domains together. Policies chain events
-  # to commands across aggregates. The runtime dispatches.
-  # No daemon code needed.
+  # Key learnings:
+  #   - The hecksagon merges domains. One Beat triggers policies
+  #     across body AND mind (Gut, Nerve, SelfImage, Proprioception).
+  #   - world.hec declares persistence: heki do dir "information" end
+  #   - Repository uses heki::read/upsert directly, no JSON adapter.
+  #   - persistence.rs (204 lines JSON parsing) was also deleted.
+  #   - Duplicate aggregate names across domains must be renamed
+  #     (mind's Heartbeat → OrganMonitor).
+  #   - LLM calls (tongue, Summer) are hecksagon concerns, not
+  #     domain logic — the bluebook declares the command, the
+  #     hecksagon routes it through the appropriate capability.
+  #   - Don't add effect declarations to the DSL — the runtime
+  #     already has what it needs (dispatch, mutations, policies, heki).
 
   aggregate "RustFile", "A Rust source file to be converted" do
     String :path
@@ -146,7 +160,8 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   fixture "RustFile", path: "daemon/mindstream.rs", module_name: "mindstream", line_count: 400, status: "pending"
   fixture "RustFile", path: "daemon/sleep.rs", module_name: "sleep", line_count: 620, status: "pending"
   fixture "RustFile", path: "daemon/greeting.rs", module_name: "greeting", line_count: 87, status: "deleted"
-  fixture "Conversion", files_total: 6, files_converted: 5, lines_deleted: 711
+  fixture "RustFile", path: "runtime/persistence.rs", module_name: "persistence", line_count: 204, status: "deleted"
+  fixture "Conversion", files_total: 7, files_converted: 6, lines_deleted: 915
 
   # The chain: analyze → map → generate → verify → delete
   policy "MapOnAnalyze" do
