@@ -185,7 +185,39 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     }
     if touched { let _ = heki::write(&syn_path, &synapses); }
 
+    // Every 500 cycles, try to mint a new musing from the collision
+    if cycle % 500 == 0 && cycle > 0 {
+        maybe_mint_musing(ctx, concept, domain);
+    }
+
     (vec![image], 1)
+}
+
+/// Mint a new musing if this concept+domain collision hasn't been mused before.
+fn maybe_mint_musing(ctx: &DaemonCtx, concept: &str, domain: &str) {
+    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
+    let domain_words = domain.replace('_', " ");
+
+    // Check if we already have a musing about this collision
+    let already_exists = musings.values().any(|m| {
+        let idea = m.get("idea").and_then(|v| v.as_str()).unwrap_or("");
+        idea.contains(concept) && idea.contains(&domain_words)
+    });
+    if already_exists { return; }
+
+    // Also skip if concept is too short or generic
+    if concept.len() < 5 { return; }
+
+    // Mint it
+    let verbs = ["meets", "applied to", "through the lens of", "combined with", "inside"];
+    let verb = verbs[(concept.len() + domain.len()) % verbs.len()];
+    let idea = format!("{} {} {}", domain_words, verb, concept);
+
+    let mut rec = Record::new();
+    rec.insert("idea".into(), Value::String(idea.clone()));
+    rec.insert("conceived".into(), Value::Bool(false));
+    rec.insert("source".into(), Value::String("mindstream".into()));
+    let _ = heki::append(&ctx.store("musing"), &rec);
 }
 
 /// Deep consolidation — same as sleep but runs every cycle.
