@@ -175,7 +175,33 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
     // Recover fatigue
     recover_fatigue(ctx, cycles_done, total_cycles, &now);
 
-    upsert_field(ctx, "consciousness", "state", "attentive");
+    // Poetic waking: show the dream, then interpret it, then wake
+    // 1. Show the raw dream imagery
+    if let Some(last_image) = all_images.last() {
+        let short: String = last_image.chars().take(70).collect();
+        let mut con = Record::new();
+        con.insert("state".into(), Value::String("waking".into()));
+        con.insert("sleep_stage".into(), Value::String("".into()));
+        con.insert("sleep_summary".into(), Value::String(
+            format!("dreamt of {}", short)));
+        con.insert("updated_at".into(), Value::String(now_iso()));
+        let _ = heki::upsert(&ctx.store("consciousness"), &con);
+        std::thread::sleep(std::time::Duration::from_secs(10));
+    }
+
+    // 2. Show the interpretation
+    {
+        let mut con = Record::new();
+        con.insert("state".into(), Value::String("waking".into()));
+        con.insert("sleep_stage".into(), Value::String("".into()));
+        con.insert("sleep_summary".into(), Value::String(interpretation));
+        con.insert("updated_at".into(), Value::String(now_iso()));
+        let _ = heki::upsert(&ctx.store("consciousness"), &con);
+        std::thread::sleep(std::time::Duration::from_secs(10));
+    }
+
+    // 3. Fully awake
+    upsert_field(ctx, "consciousness", "state", "wandering");
     eprintln!("Slept {} cycles, {} dream pulses (woke from {})", cycles_done, total_dream_pulses, deepest);
 }
 
@@ -314,7 +340,7 @@ fn recover_fatigue(ctx: &DaemonCtx, cycles_done: usize, total_cycles: usize, now
         let recovery = (pss as f64 * cycles_done as f64 / total_cycles as f64) as i64;
         let remaining = (pss - recovery).max(0);
         rec.insert("pulses_since_sleep".into(), remaining.into());
-        rec.insert("beats".into(), 0.into());
+        // beats is cumulative lifetime — never reset
         rec.insert("fatigue".into(), serde_json::json!((remaining as f64 / 300.0).min(1.0)));
         let state = match remaining {
             0..=50 => "alert", 51..=100 => "focused", 101..=150 => "normal",
