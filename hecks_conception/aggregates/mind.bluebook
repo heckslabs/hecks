@@ -1233,7 +1233,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     WakeUp do
       role "Creator"
       description "Return to waking consciousness"
-      reference_to(Consciousness)
       emits "WokenUp"
       then_set :state, to: "waking"
     end
@@ -1241,7 +1240,6 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     BecomeAttentive do
       role "System"
       description "Fully awake and ready for interaction"
-      reference_to(Consciousness)
       emits "BecameAttentive"
       then_set :state, to: "attentive"
     end
@@ -1321,54 +1319,120 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Night", "A full sleep session — accumulates across all cycles" do
+  aggregate "Night", "A full sleep session — 8 cycles spelled out" do
     Integer :cycles_completed
-    Integer :dream_pulses
-    list_of(String) :dream_images
-    list_of(String) :recombinations
-    Integer :consolidated
-    list_of(String) :pruned
-    Integer :duration_seconds
-    String :woke_from
+    String :phase
 
     StartNight do
       role "Daemon"
       description "Begin a sleep session"
       emits "NightStarted"
       then_set :cycles_completed, to: 0
-      then_set :dream_pulses, to: 0
-      then_set :consolidated, to: 0
+      then_set :phase, to: "starting"
     end
 
-    AccumulateDream do
-      role "Daemon"
-      description "Add a cycle's dream content to the night's total"
-      reference_to(Night)
-      list_of(String) :dream_images
-      list_of(String) :recombinations
-      Integer :dream_pulses
-      emits "DreamAccumulated"
-      then_set :cycles_completed, increment: 1
+    DreamCycle1 do
+      description "Cycle 1 — light REM dreaming"
+      emits "Cycle1Dreamed"
+      then_set :cycles_completed, to: 1
+      then_set :phase, to: "dreaming"
     end
 
-    AccumulateConsolidation do
-      role "Daemon"
-      description "Add a cycle's deep processing to the night's total"
-      reference_to(Night)
-      Integer :consolidated
-      list_of(String) :pruned
-      emits "ConsolidationAccumulated"
+    ConsolidateCycle1 do
+      description "Cycle 1 — deep consolidation"
+      emits "Cycle1Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle2 do
+      description "Cycle 2 — REM intensifies"
+      emits "Cycle2Dreamed"
+      then_set :cycles_completed, to: 2
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle2 do
+      description "Cycle 2 — deep consolidation"
+      emits "Cycle2Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle3 do
+      description "Cycle 3 — dreams deepen"
+      emits "Cycle3Dreamed"
+      then_set :cycles_completed, to: 3
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle3 do
+      description "Cycle 3 — deep consolidation"
+      emits "Cycle3Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle4 do
+      description "Cycle 4 — vivid dreams"
+      emits "Cycle4Dreamed"
+      then_set :cycles_completed, to: 4
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle4 do
+      description "Cycle 4 — deep consolidation"
+      emits "Cycle4Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle5 do
+      description "Cycle 5 — dreams peak"
+      emits "Cycle5Dreamed"
+      then_set :cycles_completed, to: 5
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle5 do
+      description "Cycle 5 — deep consolidation"
+      emits "Cycle5Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle6 do
+      description "Cycle 6 — REM dominates"
+      emits "Cycle6Dreamed"
+      then_set :cycles_completed, to: 6
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle6 do
+      description "Cycle 6 — deep consolidation"
+      emits "Cycle6Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle7 do
+      description "Cycle 7 — approaching lucidity"
+      emits "Cycle7Dreamed"
+      then_set :cycles_completed, to: 7
+      then_set :phase, to: "dreaming"
+    end
+
+    ConsolidateCycle7 do
+      description "Cycle 7 — deep consolidation"
+      emits "Cycle7Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    DreamCycle8 do
+      description "Cycle 8 — final REM, lucid"
+      emits "Cycle8Dreamed"
+      then_set :cycles_completed, to: 8
+      then_set :phase, to: "lucid"
     end
 
     EndNight do
-      role "Daemon"
-      description "Record the full night's sleep"
-      reference_to(Night)
-      Integer :duration_seconds
-      String :woke_from
+      description "All 8 cycles complete — the night is over"
       emits "NightEnded"
-      then_set :duration_seconds, to: :duration_seconds
-      then_set :woke_from, to: :woke_from
+      then_set :phase, to: "ended"
     end
   end
 
@@ -1519,7 +1583,105 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
   fixture "Monitor", interval_seconds: 20, z_depth: 1, reporting: "stopped"
 
-  # Sleep policies
+  # Sleep: the full night spelled out as a policy chain
+  # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
+
+  policy "StartNightOnSleep" do
+    on "SleepEntered"
+    trigger "StartNight"
+  end
+
+  policy "Cycle1Dream" do
+    on "NightStarted"
+    trigger "DreamCycle1"
+  end
+
+  policy "Cycle1Consolidate" do
+    on "Cycle1Dreamed"
+    trigger "ConsolidateCycle1"
+  end
+
+  policy "Cycle2Dream" do
+    on "Cycle1Consolidated"
+    trigger "DreamCycle2"
+  end
+
+  policy "Cycle2Consolidate" do
+    on "Cycle2Dreamed"
+    trigger "ConsolidateCycle2"
+  end
+
+  policy "Cycle3Dream" do
+    on "Cycle2Consolidated"
+    trigger "DreamCycle3"
+  end
+
+  policy "Cycle3Consolidate" do
+    on "Cycle3Dreamed"
+    trigger "ConsolidateCycle3"
+  end
+
+  policy "Cycle4Dream" do
+    on "Cycle3Consolidated"
+    trigger "DreamCycle4"
+  end
+
+  policy "Cycle4Consolidate" do
+    on "Cycle4Dreamed"
+    trigger "ConsolidateCycle4"
+  end
+
+  policy "Cycle5Dream" do
+    on "Cycle4Consolidated"
+    trigger "DreamCycle5"
+  end
+
+  policy "Cycle5Consolidate" do
+    on "Cycle5Dreamed"
+    trigger "ConsolidateCycle5"
+  end
+
+  policy "Cycle6Dream" do
+    on "Cycle5Consolidated"
+    trigger "DreamCycle6"
+  end
+
+  policy "Cycle6Consolidate" do
+    on "Cycle6Dreamed"
+    trigger "ConsolidateCycle6"
+  end
+
+  policy "Cycle7Dream" do
+    on "Cycle6Consolidated"
+    trigger "DreamCycle7"
+  end
+
+  policy "Cycle7Consolidate" do
+    on "Cycle7Dreamed"
+    trigger "ConsolidateCycle7"
+  end
+
+  policy "Cycle8Dream" do
+    on "Cycle7Consolidated"
+    trigger "DreamCycle8"
+  end
+
+  policy "EndNightOnFinal" do
+    on "Cycle8Dreamed"
+    trigger "EndNight"
+  end
+
+  policy "WakeOnEnd" do
+    on "NightEnded"
+    trigger "WakeUp"
+  end
+
+  policy "AttentiveOnWake" do
+    on "WokenUp"
+    trigger "BecomeAttentive"
+  end
+
+  # Other sleep policies
   policy "DaydreamOnIdle" do
     on "IdleDetected"
     trigger "EnterDaydream"

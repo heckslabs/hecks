@@ -112,18 +112,8 @@ impl Runtime {
             }
         }
 
-        // Drain policy triggers
-        if let Some(ref event) = result.event {
-            let triggers = self.policy_engine.react(event);
-            for trigger in triggers {
-                let policy_name = trigger.policy_name.clone();
-                let cmd = trigger.command_name.clone();
-                let data = trigger.event_data.clone();
-
-                let _ = command_dispatch::dispatch(self, &cmd, data);
-                self.policy_engine.complete(&policy_name);
-            }
-        }
+        // Drain policy triggers — recursively, so chains cascade fully
+        self.drain_policies(&result);
 
         Ok(result)
     }
@@ -139,6 +129,25 @@ impl Runtime {
             .get(aggregate_name)
             .map(|repo| repo.all())
             .unwrap_or_default()
+    }
+
+    /// Drain policy triggers recursively — each triggered command
+    /// can emit events that trigger more policies. This is how
+    /// EnterSleep cascades through 8 dream cycles to WakeUp.
+    fn drain_policies(&mut self, result: &CommandResult) {
+        if let Some(ref event) = result.event {
+            let triggers = self.policy_engine.react(event);
+            for trigger in triggers {
+                let policy_name = trigger.policy_name.clone();
+                let cmd = trigger.command_name.clone();
+                let data = trigger.event_data.clone();
+
+                if let Ok(inner_result) = command_dispatch::dispatch(self, &cmd, data) {
+                    self.drain_policies(&inner_result);
+                }
+                self.policy_engine.complete(&policy_name);
+            }
+        }
     }
 
     pub fn add_projection(&mut self, projection: Projection) {
