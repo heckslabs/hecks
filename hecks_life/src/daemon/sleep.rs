@@ -149,13 +149,18 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
     let _ = heki::append(&ctx.store("dream_state"), &dream);
     eprintln!("  Dream interpretation: {}", interpretation);
 
-    // Set wake mood based on depth
-    match deepest {
-        "deep" => upsert_mood(ctx, "groggy", 0.3, 0.2),
-        "rem" => upsert_mood(ctx, "vivid", (0.7 + cycles_done as f64 * 0.03).min(1.0), 0.5),
-        _ => upsert_mood(ctx, "refreshed",
+    // Set wake mood — full cycles mean proper rest, partial means groggy
+    if cycles_done >= total_cycles {
+        // Completed all cycles + waking light — well rested
+        upsert_mood(ctx, "refreshed",
             (0.5 + cycles_done as f64 * 0.05).min(1.0),
-            (0.4 + cycles_done as f64 * 0.05).min(1.0)),
+            (0.5 + cycles_done as f64 * 0.05).min(1.0));
+    } else if cycles_done > total_cycles / 2 {
+        // Most cycles done — vivid from REM
+        upsert_mood(ctx, "vivid", (0.6 + cycles_done as f64 * 0.04).min(1.0), 0.5);
+    } else {
+        // Woken early from deep — groggy
+        upsert_mood(ctx, "groggy", 0.3, 0.2);
     }
 
     // Recover fatigue
@@ -346,18 +351,10 @@ fn list_domains(nursery: &str) -> Vec<String> {
 fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: usize, images: &[String]) {
     // Build a narrative — not just current stage, but the arc of the night
     let narrative = match (stage, cycle, images.len()) {
-        ("light", 1, _) => "drifting off, reviewing the day".into(),
-        ("light", c, _) if c < 4 => format!("settling deeper, cycle {}/{}", c, total),
-        ("light", c, _) => format!("light sleep, cycle {}/{} — almost morning", c, total),
-        ("rem", _, 0) => "dreaming...".into(),
-        ("rem", _, _) => {
-            let img = images.last().unwrap_or(&String::new()).clone();
-            let short: String = img.chars().take(80).collect();
-            format!("dreaming: {}", short)
-        }
-        ("deep", 1, _) => "first consolidation — compressing signals".into(),
-        ("deep", c, _) if c < 4 => format!("deep sleep, pruning weak connections (cycle {})", c),
-        ("deep", c, _) => format!("deep consolidation cycle {} — strengthening memories", c),
+        ("light", 1, _) => format!("drifting off · {}/{}", cycle, total),
+        ("light", c, _) => format!("light sleep · {}/{}", c, total),
+        ("rem", _, _) => format!("dreaming · {}/{}", cycle, total),
+        ("deep", _, _) => format!("deep sleep · {}/{}", cycle, total),
         ("waking", _, n) if n > 0 => {
             let img = images.last().unwrap_or(&String::new()).clone();
             let short: String = img.chars().take(80).collect();
