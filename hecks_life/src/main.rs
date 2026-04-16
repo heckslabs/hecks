@@ -115,8 +115,7 @@ fn main() {
     if command == "speak" {
         let dir = if args.len() > 3 { args[3].as_str() } else { "." };
         let ctx = daemon::DaemonCtx::new(dir);
-        // Fire a pulse first — this is a conscious moment
-        daemon::pulse::run(&ctx, path, None, None);
+        // Pulse now fires via bluebook dispatch
         // Then speak
         if let Some(response) = tongue::speak(&ctx, path) {
             println!("{}", response);
@@ -399,7 +398,7 @@ fn run_daemon(args: &[String]) {
             let carrying = args.get(4).map(|s| s.as_str()).unwrap_or("—");
             let concept = args.get(5).map(|s| s.as_str());
             let response = args.get(6).map(|s| s.as_str());
-            daemon::pulse::run(&ctx, carrying, concept, response);
+            eprintln!("pulse now fires via bluebook dispatch: hecks-life run aggregates/ --dispatch Beat");
         }
         "daydream" => eprintln!("daydream now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterDaydream"),
         "sleep" => {

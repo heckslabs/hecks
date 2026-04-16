@@ -40,7 +40,7 @@ pub fn run(project_dir: &str, being: &str) {
     println!();
 
     // First breath — pop a warm greeting or fall back to tongue
-    daemon::pulse::run(&ctx, "waking", None, None);
+    // Pulse now fires via bluebook dispatch (PostToolUse hook)
     // Greeting daemon removed — fall through to live generation
     if false {
         // greeting.bluebook + hecksagon handles warm greetings now
@@ -95,8 +95,7 @@ pub fn run(project_dir: &str, being: &str) {
                 // Strip leading slash for lexicon commands
                 let input = if raw_input.starts_with('/') { &raw_input[1..] } else { raw_input };
 
-                // Fire a pulse
-                daemon::pulse::run(&ctx, input, None, None);
+                // Pulse now fires via bluebook dispatch
 
                 // Respond — use \r\n since we were just in raw mode
                 match think_then_speak(&ctx, input, icon, being, &lex) {

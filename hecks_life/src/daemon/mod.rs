@@ -10,8 +10,6 @@
 //!   hecks-life daemon daydream <project-dir>
 //!   hecks-life daemon sleep    <project-dir> [--nap] [--now]
 
-pub mod pulse;
-pub mod pulse_organs;
 pub mod sleep;
 pub mod mindstream;
 
