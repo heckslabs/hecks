@@ -362,7 +362,12 @@ fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: 
     let narrative = match (stage, cycle, images.len()) {
         ("light", 1, _) => format!("drifting off · {}/{}", cycle, total),
         ("light", c, _) => format!("light sleep · {}/{}", c, total),
-        ("rem", _, _) => format!("dreaming · {}/{}", cycle, total),
+        ("rem", _, 0) => format!("dreaming · {}/{}", cycle, total),
+        ("rem", _, _) => {
+            let img = images.last().unwrap_or(&String::new()).clone();
+            let short: String = img.chars().take(60).collect();
+            format!("dreaming · {} · {}/{}", short, cycle, total)
+        }
         ("deep", _, _) => format!("deep sleep · {}/{}", cycle, total),
         ("waking", _, n) if n > 0 => {
             let img = images.last().unwrap_or(&String::new()).clone();
