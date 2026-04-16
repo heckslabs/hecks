@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training, status};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, boot, daemon, tongue, lexicon, terminal, project, training};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -125,23 +125,12 @@ fn main() {
         return;
     }
 
-    if command == "status" {
-        let dir = if !path.is_empty() {
-            path.to_string()
-        } else {
-            resolve_home(&being)
-        };
-        status::run(&dir);
-        return;
-    }
-
-    if command == "musings" {
-        let dir = if !path.is_empty() {
-            path.to_string()
-        } else {
-            resolve_home(&being)
-        };
-        status::musings(&dir);
+    if command == "status" || command == "musings" {
+        eprintln!("status and musings now read from heki directly:");
+        eprintln!("  hecks-life heki latest information/heartbeat.heki");
+        eprintln!("  hecks-life heki latest information/consciousness.heki");
+        eprintln!("  hecks-life heki latest information/mood.heki");
+        eprintln!("  hecks-life heki read information/musing.heki");
         return;
     }
 
