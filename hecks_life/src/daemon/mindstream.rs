@@ -53,8 +53,7 @@ pub fn run(ctx: &DaemonCtx) {
 
         // === One cycle of the mindstream ===
 
-        // Wander — free-associate across nursery
-        super::daydream::wander_once(ctx);
+        // Daydream runs via bluebook dispatch now
 
         // Consolidate — compress old signals into memories
         let (consolidated, pruned) = deep_consolidation(ctx);

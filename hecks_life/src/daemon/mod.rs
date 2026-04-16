@@ -12,7 +12,6 @@
 
 pub mod pulse;
 pub mod pulse_organs;
-pub mod daydream;
 pub mod sleep;
 pub mod mindstream;
 pub mod greeting;

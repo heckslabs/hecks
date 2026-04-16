@@ -394,7 +394,7 @@ fn run_daemon(args: &[String]) {
             let response = args.get(6).map(|s| s.as_str());
             daemon::pulse::run(&ctx, carrying, concept, response);
         }
-        "daydream" => daemon::daydream::run(&ctx),
+        "daydream" => eprintln!("daydream now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterDaydream"),
         "sleep" => {
             let nap = args.iter().any(|a| a == "--nap");
             let now_flag = args.iter().any(|a| a == "--now");
