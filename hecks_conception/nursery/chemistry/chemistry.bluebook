@@ -1,623 +1,181 @@
-Hecks.bluebook "Chemistry", version: "2026.04.11.1" do
-  vision "The language of matter and transformation — elements, bonds, reactions, equilibria"
+Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
+  vision "The language of matter modeled as DDD — atoms as value objects, molecules as aggregates, reactions as commands, bonds as references"
   category "science"
 
-  # === Atomic Structure ===
-
-  aggregate "Element", "A chemical element — the irreducible identity of matter" do
+  aggregate "Element", "An atom — the irreducible unit of matter" do
     String :symbol
     String :name
     Integer :atomic_number
     Float :atomic_mass
-    Integer :group
-    Integer :period
-    String :category
-    Float :electronegativity
-    String :electron_configuration
+    String :group
+    String :period
+    String :state
 
-    value_object "IsotopeProfile" do
-      Integer :mass_number
-      Integer :neutron_count
-      Float :abundance
-      String :stable
-      String :half_life
-    end
-
-    DefineElement do
+    Register do
       role "Chemist"
-      description "Register an element with its fundamental properties"
+      description "Add an element to the periodic table"
       String :symbol
       String :name
       Integer :atomic_number
-      Float :atomic_mass
-      Integer :group
-      Integer :period
-      String :category
-      Float :electronegativity
-      emits "ElementDefined"
+      emits "ElementRegistered"
       then_set :symbol, to: :symbol
       then_set :name, to: :name
       then_set :atomic_number, to: :atomic_number
-      then_set :atomic_mass, to: :atomic_mass
-      then_set :group, to: :group
-      then_set :period, to: :period
-      then_set :category, to: :category
-      then_set :electronegativity, to: :electronegativity
-    end
-
-    ClassifyElement do
-      role "Chemist"
-      description "Assign element to a category — metal, nonmetal, metalloid, noble gas"
-      reference_to(Element)
-      String :category
-      emits "ElementClassified"
-      then_set :category, to: :category
     end
   end
 
-  aggregate "Atom", "A single atom — an element with specific electron state" do
-    String :element_symbol
-    Integer :charge
-    Integer :oxidation_state
-    Integer :electron_count
-    list_of(Orbital) :orbitals
+  aggregate "Compound", "A molecule — atoms bonded into a stable aggregate" do
+    String :formula
+    String :name
+    String :state
+    list_of(String) :elements
+    list_of(String) :bonds
 
-    value_object "Orbital" do
-      Integer :shell
-      String :subshell
-      Integer :electron_count
-      Float :energy_level
-    end
-
-    CreateAtom do
+    Synthesize do
       role "Chemist"
-      description "Instantiate an atom of a given element in ground state"
-      String :element_symbol
-      emits "AtomCreated"
-      then_set :element_symbol, to: :element_symbol
-      then_set :charge, to: 0
-      then_set :oxidation_state, to: 0
+      description "Combine elements into a compound through bonding"
+      String :formula
+      String :name
+      list_of(String) :elements
+      emits "CompoundSynthesized"
+      then_set :formula, to: :formula
+      then_set :name, to: :name
+      then_set :elements, to: :elements
     end
 
-    Ionize do
+    Decompose do
       role "Chemist"
-      description "Remove or add electrons — create a cation or anion"
-      reference_to(Atom)
-      Integer :electrons_transferred
-      emits "AtomIonized"
-      then_set :charge, to: :electrons_transferred
-    end
-
-    Excite do
-      role "System"
-      description "Promote an electron to a higher energy orbital"
-      reference_to(Atom)
-      String :from_orbital
-      String :to_orbital
-      emits "AtomExcited"
-    end
-
-    Relax do
-      role "System"
-      description "Electron drops to lower energy orbital — emits photon"
-      reference_to(Atom)
-      emits "PhotonEmitted"
+      description "Break a compound into its constituent elements"
+      reference_to(Compound)
+      emits "CompoundDecomposed"
     end
   end
 
-  # === Bonding ===
+  aggregate "Reaction", "A command that transforms matter — reactants become products" do
+    String :equation
+    String :reaction_type
+    list_of(String) :reactants
+    list_of(String) :products
+    String :catalyst
+    Float :energy_delta
+    String :status
 
-  aggregate "Bond", "A chemical bond between atoms — the force that holds matter together" do
+    React do
+      role "Chemist"
+      description "Execute a chemical reaction — transform reactants into products"
+      String :equation
+      list_of(String) :reactants
+      list_of(String) :products
+      emits "ReactionOccurred"
+      then_set :equation, to: :equation
+      then_set :reactants, to: :reactants
+      then_set :products, to: :products
+      then_set :status, to: "complete"
+    end
+
+    Catalyze do
+      role "Chemist"
+      description "Add a catalyst — lower the activation energy without being consumed"
+      reference_to(Reaction)
+      String :catalyst
+      emits "ReactionCatalyzed"
+      then_set :catalyst, to: :catalyst
+    end
+
+    Reverse do
+      role "Chemist"
+      description "Run the reaction backwards — products become reactants"
+      reference_to(Reaction)
+      emits "ReactionReversed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "React" => "complete"
+      transition "Reverse" => "reversed"
+    end
+  end
+
+  aggregate "Bond", "A reference between atoms — the force that holds molecules together" do
     String :bond_type
     String :atom_a
     String :atom_b
-    Integer :bond_order
-    Float :bond_energy
-    Float :bond_length
-    String :polarity
+    Float :strength
+    String :status
 
-    FormBond do
+    Form do
       role "Chemist"
-      description "Create a bond between two atoms — covalent, ionic, metallic, or hydrogen"
+      description "Create a bond between two atoms"
       String :atom_a
       String :atom_b
       String :bond_type
-      Integer :bond_order
-      given { bond_order > 0 }
       emits "BondFormed"
       then_set :atom_a, to: :atom_a
       then_set :atom_b, to: :atom_b
       then_set :bond_type, to: :bond_type
-      then_set :bond_order, to: :bond_order
+      then_set :status, to: "stable"
     end
 
-    BreakBond do
+    Break do
       role "Chemist"
-      description "Cleave a bond — homolytic or heterolytic"
+      description "Break a bond — release energy, free the atoms"
       reference_to(Bond)
-      String :cleavage_type
       emits "BondBroken"
+      then_set :status, to: "broken"
     end
 
-    AssessPolarity do
-      role "System"
-      description "Determine bond polarity from electronegativity difference"
-      reference_to(Bond)
-      emits "PolarityAssessed"
-    end
-  end
-
-  # === Molecules ===
-
-  aggregate "Molecule", "A stable arrangement of bonded atoms — the unit of chemical identity" do
-    String :formula
-    String :name
-    Float :molecular_weight
-    list_of(AtomRef) :atoms
-    list_of(BondRef) :bonds
-    String :geometry
-    Float :dipole_moment
-    String :state_of_matter
-
-    value_object "AtomRef" do
-      String :element_symbol
-      Integer :count
-      String :position
-    end
-
-    value_object "BondRef" do
-      String :from_atom
-      String :to_atom
-      String :bond_type
-      Integer :bond_order
-    end
-
-    AssembleMolecule do
-      role "Chemist"
-      description "Build a molecule from atoms and bonds"
-      String :formula
-      String :name
-      emits "MoleculeAssembled"
-      then_set :formula, to: :formula
-      then_set :name, to: :name
-    end
-
-    DetermineGeometry do
-      role "System"
-      description "VSEPR — predict molecular geometry from electron pairs"
-      reference_to(Molecule)
-      String :geometry
-      emits "GeometryDetermined"
-      then_set :geometry, to: :geometry
-    end
-
-    CalculateMass do
-      role "System"
-      description "Sum atomic masses of all constituent atoms"
-      reference_to(Molecule)
-      emits "MassCalculated"
-    end
-
-    ChangeState do
-      role "System"
-      description "Phase transition — solid, liquid, gas, plasma"
-      reference_to(Molecule)
-      String :state_of_matter
-      emits "StateChanged"
-      then_set :state_of_matter, to: :state_of_matter
+    lifecycle :status, default: "forming" do
+      transition "Form" => "stable"
+      transition "Break" => "broken"
     end
   end
 
-  # === Reactions ===
-
-  aggregate "Reaction", "A chemical transformation — reactants become products" do
-    String :equation
-    String :reaction_type
-    list_of(Species) :reactants
-    list_of(Species) :products
-    String :balanced
-    Float :enthalpy_change
-    Float :activation_energy
-    Float :rate_constant
-    Float :equilibrium_constant
-    String :status
-
-    value_object "Species" do
-      String :formula
-      Integer :coefficient
-      String :state
-      String :role
-    end
-
-    DefineReaction do
-      role "Chemist"
-      description "Write a reaction equation with reactants and products"
-      String :equation
-      String :reaction_type
-      emits "ReactionDefined"
-      then_set :equation, to: :equation
-      then_set :reaction_type, to: :reaction_type
-      then_set :status, to: "unbalanced"
-    end
-
-    BalanceEquation do
-      role "Chemist"
-      description "Balance stoichiometric coefficients — conservation of mass"
-      reference_to(Reaction)
-      given { status == "unbalanced" }
-      emits "EquationBalanced"
-      then_set :balanced, to: "true"
-      then_set :status, to: "balanced"
-    end
-
-    ClassifyReaction do
-      role "Chemist"
-      description "Identify reaction type — synthesis, decomposition, single/double displacement, combustion, redox"
-      reference_to(Reaction)
-      String :reaction_type
-      emits "ReactionClassified"
-      then_set :reaction_type, to: :reaction_type
-    end
-
-    StartReaction do
-      role "Chemist"
-      description "Initiate the reaction — provide activation energy"
-      reference_to(Reaction)
-      given { balanced == "true" }
-      emits "ReactionStarted"
-      then_set :status, to: "proceeding"
-    end
-
-    ReachEquilibrium do
-      role "System"
-      description "Forward and reverse rates equalize — dynamic equilibrium"
-      reference_to(Reaction)
-      Float :equilibrium_constant
-      emits "EquilibriumReached"
-      then_set :equilibrium_constant, to: :equilibrium_constant
-      then_set :status, to: "equilibrium"
-    end
-
-    CompleteReaction do
-      role "System"
-      description "Reaction goes to completion — all reactants consumed"
-      reference_to(Reaction)
-      emits "ReactionCompleted"
-      then_set :status, to: "complete"
-    end
-
-    lifecycle :status, default: "unbalanced" do
-      transition "DefineReaction" => "unbalanced", from: "pending"
-      transition "BalanceEquation" => "balanced", from: "unbalanced"
-      transition "StartReaction" => "proceeding", from: "balanced"
-      transition "ReachEquilibrium" => "equilibrium", from: "proceeding"
-      transition "CompleteReaction" => "complete", from: "proceeding"
-    end
-  end
-
-  # === Thermodynamics ===
-
-  aggregate "Thermodynamics", "Energy changes in chemical processes — the why of reactions" do
-    String :system_name
-    Float :enthalpy
-    Float :entropy
-    Float :gibbs_free_energy
-    Float :temperature
-    String :spontaneous
-
-    MeasureEnthalpy do
-      role "Chemist"
-      description "Determine heat content change — exothermic or endothermic"
-      String :system_name
-      Float :enthalpy
-      emits "EnthalpyMeasured"
-      then_set :system_name, to: :system_name
-      then_set :enthalpy, to: :enthalpy
-    end
-
-    MeasureEntropy do
-      role "Chemist"
-      description "Determine disorder change — does the system become more or less ordered"
-      reference_to(Thermodynamics)
-      Float :entropy
-      emits "EntropyMeasured"
-      then_set :entropy, to: :entropy
-    end
-
-    CalculateGibbs do
-      role "System"
-      description "G = H - TS — determines spontaneity"
-      reference_to(Thermodynamics)
-      Float :temperature
-      emits "GibbsCalculated"
-      then_set :temperature, to: :temperature
-    end
-
-    DetermineSpontaneity do
-      role "System"
-      description "Negative Gibbs = spontaneous, positive = nonspontaneous"
-      reference_to(Thermodynamics)
-      emits "SpontaneityDetermined"
-    end
-  end
-
-  # === Kinetics ===
-
-  aggregate "Kinetics", "How fast reactions proceed — rates, catalysts, mechanisms" do
-    String :reaction_name
-    Float :rate
-    Integer :order
-    String :rate_law
-    Float :activation_energy
-    list_of(MechanismStep) :mechanism
-
-    value_object "MechanismStep" do
-      Integer :step_number
-      String :description
-      String :rate_determining
-      String :intermediates
-    end
-
-    MeasureRate do
-      role "Chemist"
-      description "Determine how fast a reaction proceeds"
-      String :reaction_name
-      Float :rate
-      emits "RateMeasured"
-      then_set :reaction_name, to: :reaction_name
-      then_set :rate, to: :rate
-    end
-
-    DetermineOrder do
-      role "Chemist"
-      description "Find reaction order from concentration vs rate data"
-      reference_to(Kinetics)
-      Integer :order
-      String :rate_law
-      emits "OrderDetermined"
-      then_set :order, to: :order
-      then_set :rate_law, to: :rate_law
-    end
-
-    ProposeMechanism do
-      role "Chemist"
-      description "Hypothesize step-by-step pathway — identify rate-determining step"
-      reference_to(Kinetics)
-      emits "MechanismProposed"
-    end
-
-    AddCatalyst do
-      role "Chemist"
-      description "Lower activation energy without being consumed — speeds up reaction"
-      reference_to(Kinetics)
-      String :catalyst_name
-      Float :new_activation_energy
-      emits "CatalystAdded"
-      then_set :activation_energy, to: :new_activation_energy
-    end
-  end
-
-  # === Solutions ===
-
-  aggregate "Solution", "A homogeneous mixture — solute dissolved in solvent" do
-    String :name
+  aggregate "Solution", "A mixture — compounds dissolved in a solvent" do
     String :solvent
-    list_of(Solute) :solutes
+    list_of(String) :solutes
     Float :concentration
     Float :ph
-    Float :temperature
-    String :saturated
 
-    value_object "Solute" do
-      String :formula
-      Float :amount
-      String :unit
-    end
-
-    PrepareSolution do
+    Dissolve do
       role "Chemist"
-      description "Dissolve a solute in a solvent at a given concentration"
-      String :name
+      description "Dissolve a compound into a solvent"
       String :solvent
-      emits "SolutionPrepared"
-      then_set :name, to: :name
+      list_of(String) :solutes
+      emits "SolutionCreated"
       then_set :solvent, to: :solvent
-      then_set :saturated, to: "false"
-    end
-
-    AddSolute do
-      role "Chemist"
-      description "Dissolve additional solute into the solution"
-      reference_to(Solution)
-      String :formula
-      Float :amount
-      String :unit
-      emits "SoluteAdded"
-    end
-
-    MeasurePH do
-      role "Chemist"
-      description "Determine hydrogen ion concentration — acid, base, or neutral"
-      reference_to(Solution)
-      Float :ph
-      emits "PHMeasured"
-      then_set :ph, to: :ph
-    end
-
-    Dilute do
-      role "Chemist"
-      description "Add solvent to decrease concentration — C1V1 = C2V2"
-      reference_to(Solution)
-      Float :added_volume
-      emits "SolutionDiluted"
-    end
-
-    Saturate do
-      role "System"
-      description "No more solute can dissolve — maximum concentration reached"
-      reference_to(Solution)
-      emits "SolutionSaturated"
-      then_set :saturated, to: "true"
+      then_set :solutes, to: :solutes
     end
 
     Precipitate do
-      role "System"
-      description "Excess solute comes out of solution as solid"
+      role "Chemist"
+      description "A solute falls out of solution — becomes solid"
       reference_to(Solution)
       emits "PrecipitateFormed"
     end
   end
 
-  # === Organic Chemistry ===
-
-  aggregate "OrganicCompound", "Carbon-based molecules — the chemistry of life" do
-    String :name
-    String :formula
-    String :iupac_name
-    list_of(FunctionalGroup) :functional_groups
-    String :carbon_skeleton
-    String :hybridization
-    String :chirality
-
-    value_object "FunctionalGroup" do
-      String :name
-      String :formula
-      Integer :position
-      String :reactive
-    end
-
-    IdentifyCompound do
-      role "Chemist"
-      description "Name and classify an organic compound by its structure"
-      String :name
-      String :formula
-      String :iupac_name
-      emits "CompoundIdentified"
-      then_set :name, to: :name
-      then_set :formula, to: :formula
-      then_set :iupac_name, to: :iupac_name
-    end
-
-    IdentifyFunctionalGroups do
-      role "Chemist"
-      description "Find hydroxyl, carboxyl, amino, carbonyl, etc."
-      reference_to(OrganicCompound)
-      emits "FunctionalGroupsIdentified"
-    end
-
-    DetermineChirality do
-      role "Chemist"
-      description "R/S configuration — does the molecule have a non-superimposable mirror image"
-      reference_to(OrganicCompound)
-      String :chirality
-      emits "ChiralityDetermined"
-      then_set :chirality, to: :chirality
-    end
-
-    Polymerize do
-      role "Chemist"
-      description "Join monomers into a polymer chain — addition or condensation"
-      reference_to(OrganicCompound)
-      String :polymer_type
-      Integer :degree
-      emits "Polymerized"
-    end
-  end
-
-  # === Electrochemistry ===
-
-  aggregate "ElectrochemicalCell", "Electron transfer between species — batteries, corrosion, electrolysis" do
-    String :cell_type
-    String :anode
-    String :cathode
-    Float :cell_potential
-    Float :current
-    String :status
-
-    ConstructCell do
-      role "Chemist"
-      description "Build a galvanic or electrolytic cell from half-reactions"
-      String :cell_type
-      String :anode
-      String :cathode
-      emits "CellConstructed"
-      then_set :cell_type, to: :cell_type
-      then_set :anode, to: :anode
-      then_set :cathode, to: :cathode
-      then_set :status, to: "constructed"
-    end
-
-    MeasurePotential do
-      role "Chemist"
-      description "Calculate cell potential from standard reduction potentials"
-      reference_to(ElectrochemicalCell)
-      Float :cell_potential
-      emits "PotentialMeasured"
-      then_set :cell_potential, to: :cell_potential
-    end
-
-    RunElectrolysis do
-      role "Chemist"
-      description "Force a non-spontaneous reaction with external current"
-      reference_to(ElectrochemicalCell)
-      given { cell_type == "electrolytic" }
-      Float :current
-      emits "ElectrolysisStarted"
-      then_set :current, to: :current
-      then_set :status, to: "running"
-    end
-
-    lifecycle :status, default: "pending" do
-      transition "ConstructCell" => "constructed", from: "pending"
-      transition "RunElectrolysis" => "running", from: "constructed"
-    end
-  end
-
-  # === Policies ===
-
-  policy "AssessPolarityOnBond" do
-    on "BondFormed"
-    trigger "AssessPolarity"
-  end
-
-  policy "CalculateMassOnAssembly" do
-    on "MoleculeAssembled"
-    trigger "CalculateMass"
-  end
-
-  policy "GeometryOnAssembly" do
-    on "MoleculeAssembled"
-    trigger "DetermineGeometry"
-  end
-
-  policy "GibbsOnEntropy" do
-    on "EntropyMeasured"
-    trigger "CalculateGibbs"
-  end
-
-  policy "SpontaneityOnGibbs" do
-    on "GibbsCalculated"
-    trigger "DetermineSpontaneity"
-  end
-
-  policy "EquilibriumOnStart" do
-    on "ReactionStarted"
-    trigger "MeasureRate"
-  end
-
-  policy "PrecipitateOnSaturation" do
-    on "SolutionSaturated"
-    trigger "Precipitate"
-  end
-
   # Fixtures — the periodic table seeds
-  fixture "Element", symbol: "H", name: "Hydrogen", atomic_number: 1, atomic_mass: 1.008, group: 1, period: 1, category: "nonmetal", electronegativity: 2.20
-  fixture "Element", symbol: "He", name: "Helium", atomic_number: 2, atomic_mass: 4.003, group: 18, period: 1, category: "noble_gas", electronegativity: 0.0
-  fixture "Element", symbol: "C", name: "Carbon", atomic_number: 6, atomic_mass: 12.011, group: 14, period: 2, category: "nonmetal", electronegativity: 2.55
-  fixture "Element", symbol: "N", name: "Nitrogen", atomic_number: 7, atomic_mass: 14.007, group: 15, period: 2, category: "nonmetal", electronegativity: 3.04
-  fixture "Element", symbol: "O", name: "Oxygen", atomic_number: 8, atomic_mass: 15.999, group: 16, period: 2, category: "nonmetal", electronegativity: 3.44
-  fixture "Element", symbol: "Na", name: "Sodium", atomic_number: 11, atomic_mass: 22.990, group: 1, period: 3, category: "alkali_metal", electronegativity: 0.93
-  fixture "Element", symbol: "Cl", name: "Chlorine", atomic_number: 17, atomic_mass: 35.453, group: 17, period: 3, category: "halogen", electronegativity: 3.16
-  fixture "Element", symbol: "Fe", name: "Iron", atomic_number: 26, atomic_mass: 55.845, group: 8, period: 4, category: "transition_metal", electronegativity: 1.83
-  fixture "Element", symbol: "Au", name: "Gold", atomic_number: 79, atomic_mass: 196.967, group: 11, period: 6, category: "transition_metal", electronegativity: 2.54
+  fixture "Element", symbol: "H",  name: "Hydrogen",  atomic_number: 1,  state: "gas"
+  fixture "Element", symbol: "He", name: "Helium",    atomic_number: 2,  state: "gas"
+  fixture "Element", symbol: "C",  name: "Carbon",    atomic_number: 6,  state: "solid"
+  fixture "Element", symbol: "N",  name: "Nitrogen",  atomic_number: 7,  state: "gas"
+  fixture "Element", symbol: "O",  name: "Oxygen",    atomic_number: 8,  state: "gas"
+  fixture "Element", symbol: "Na", name: "Sodium",    atomic_number: 11, state: "solid"
+  fixture "Element", symbol: "Cl", name: "Chlorine",  atomic_number: 17, state: "gas"
+  fixture "Element", symbol: "Fe", name: "Iron",      atomic_number: 26, state: "solid"
+
+  fixture "Compound", formula: "H2O",  name: "Water",       elements: ["H", "H", "O"],  state: "liquid"
+  fixture "Compound", formula: "NaCl", name: "Salt",        elements: ["Na", "Cl"],      state: "solid"
+  fixture "Compound", formula: "CO2",  name: "Carbon Dioxide", elements: ["C", "O", "O"], state: "gas"
+
+  # Policies — when bonds break, compounds decompose
+  policy "DecomposeOnBreak" do
+    on "BondBroken"
+    trigger "Decompose"
+  end
+
+  # When a reaction completes, form new bonds
+  policy "BondOnReaction" do
+    on "ReactionOccurred"
+    trigger "Form"
+  end
 end

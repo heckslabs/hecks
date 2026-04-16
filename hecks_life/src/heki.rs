@@ -186,6 +186,21 @@ pub fn delete(path: &str, id: &str) -> Result<bool, String> {
     Ok(removed)
 }
 
+/// Archive a record — move it from source store to archive store.
+/// Adds archived_at and archived_reason fields.
+pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str) -> Result<bool, String> {
+    let mut store = read(source_path)?;
+    if let Some(mut rec) = store.remove(id) {
+        rec.insert("archived_reason".into(), serde_json::Value::String(reason.into()));
+        rec.insert("archived_at".into(), serde_json::Value::String(now_iso8601_internal()));
+        write(source_path, &store)?;
+        append(archive_path, &rec)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

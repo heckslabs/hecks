@@ -251,10 +251,10 @@ fn prune_repetitive_musings(ctx: &DaemonCtx) {
         concept_counts.entry(concept.clone()).or_default().push(id.clone());
     }
 
-    // If any concept has more than 3, dismiss the oldest
+    // If any concept has more than 3, archive the oldest
+    let archive_path = ctx.store("musing_archive");
     for (_, ids) in &concept_counts {
         if ids.len() > 3 {
-            // Sort by created_at, keep newest 3
             let mut with_time: Vec<(&str, String)> = ids.iter()
                 .map(|id| {
                     let created = store.get(id)
@@ -265,8 +265,12 @@ fn prune_repetitive_musings(ctx: &DaemonCtx) {
                 .collect();
             with_time.sort_by(|a, b| b.1.cmp(&a.1));
             for (id, _) in with_time.iter().skip(3) {
-                store.remove(*id);
-                changed = true;
+                if let Some(mut rec) = store.remove(*id) {
+                    rec.insert("archived_reason".into(), Value::String("pruned_repetitive".into()));
+                    rec.insert("archived_at".into(), Value::String(now_iso()));
+                    let _ = heki::append(&archive_path, &rec);
+                    changed = true;
+                }
             }
         }
     }

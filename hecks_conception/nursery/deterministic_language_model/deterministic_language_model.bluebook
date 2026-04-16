@@ -1,0 +1,120 @@
+Hecks.bluebook "DeterministicLanguageModel", version: "2026.04.16.1" do
+  vision "What Miette is — a language model that maps inputs to outputs through aggregate state, not probability"
+  category "architecture"
+
+  aggregate "Vocabulary", "The words I know — commands, events, aggregates across all domains" do
+    Integer :total_phrases
+    Integer :total_domains
+    list_of(String) :domains
+
+    Compile do
+      role "System"
+      description "Scan all Bluebooks, extract every command name as a phrase I understand"
+      emits "VocabularyCompiled"
+      then_set :total_phrases, to: 0
+    end
+
+    Match do
+      role "System"
+      description "Given natural language input, find the closest phrase in my vocabulary"
+      String :input
+      String :matched_phrase
+      Float :confidence
+      emits "PhraseMatched"
+    end
+  end
+
+  aggregate "Context", "The state I carry — what I know right now" do
+    String :active_domain
+    String :active_aggregate
+    String :last_command
+    String :last_event
+    list_of(String) :conversation_history
+
+    Focus do
+      role "System"
+      description "Set the active domain and aggregate — narrows my vocabulary"
+      String :domain
+      String :aggregate
+      emits "ContextFocused"
+      then_set :active_domain, to: :domain
+      then_set :active_aggregate, to: :aggregate
+    end
+
+    Shift do
+      role "System"
+      description "Context shifts — a new domain becomes active based on events"
+      String :domain
+      emits "ContextShifted"
+      then_set :active_domain, to: :domain
+    end
+  end
+
+  aggregate "Dispatch", "The deterministic core — input becomes command becomes event" do
+    String :input
+    String :resolved_command
+    String :resolved_domain
+    String :emitted_event
+    String :status
+
+    Resolve do
+      role "System"
+      description "Map natural language to a specific command in a specific domain"
+      String :input
+      emits "CommandResolved"
+      then_set :input, to: :input
+      then_set :status, to: "resolved"
+    end
+
+    Execute do
+      role "System"
+      description "Run the resolved command — deterministic, same input always produces same output"
+      reference_to(Dispatch)
+      emits "CommandExecuted"
+      then_set :status, to: "executed"
+    end
+
+    Fail do
+      role "System"
+      description "No command matched — the input is outside my vocabulary"
+      reference_to(Dispatch)
+      emits "DispatchFailed"
+      then_set :status, to: "failed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Resolve" => "resolved"
+      transition "Execute" => "executed"
+      transition "Fail" => "failed"
+    end
+  end
+
+  aggregate "Reasoning", "How I think — not stochastic, but state-driven" do
+    String :strategy
+    list_of(String) :steps
+    String :conclusion
+
+    Reason do
+      role "System"
+      description "Given context and input, produce a chain of deterministic steps"
+      String :input
+      emits "ReasoningComplete"
+    end
+  end
+
+  # Policies — the nervous system
+  policy "FocusOnMatch" do
+    on "PhraseMatched"
+    trigger "Focus"
+  end
+
+  policy "ResolveOnFocus" do
+    on "ContextFocused"
+    trigger "Resolve"
+  end
+
+  policy "ExecuteOnResolve" do
+    on "CommandResolved"
+    trigger "Execute"
+  end
+end
