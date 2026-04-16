@@ -9,6 +9,7 @@
 use crate::heki::{self, Record};
 use super::{DaemonCtx, idle_seconds, now_iso};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 
 const LIGHT_SLEEP_AFTER: f64 = 60.0;
@@ -27,7 +28,7 @@ pub fn consolidate_once(ctx: &DaemonCtx) {
 /// One-shot dream — called from pulse when idle >180s.
 pub fn dream_once(ctx: &DaemonCtx) {
     let topics = light_sleep(ctx);
-    let (images, _pulses) = rem_dream(ctx, &topics, 5);
+    let (images, _pulses, _ideas) = rem_dream(ctx, &topics, 5);
     if !images.is_empty() {
         let mut dream = Record::new();
         dream.insert("dream_images".into(), serde_json::json!(images));
@@ -75,6 +76,7 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
     let mut deepest = "light";
     let mut cycles_done: usize = 0;
     let mut light_topics: Vec<String> = Vec::new();
+    let mut all_domain_ideas: Vec<(String, String, String)> = Vec::new();
 
     // Seed from previous dreams
     let prev_images = seed_dreams(ctx);
@@ -96,8 +98,9 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
         if woken(ctx) { break; }
         deepest = "rem";
         eprintln!("  REM — dreaming (intensity {})...", rem_intensity);
-        let (images, pulses) = rem_dream(ctx, &light_topics, rem_intensity);
+        let (images, pulses, ideas) = rem_dream(ctx, &light_topics, rem_intensity);
         all_images.extend(images.clone());
+        all_domain_ideas.extend(ideas);
         total_dream_pulses += pulses;
         monitor(ctx, cycle_num, total_cycles, "rem", rem_intensity, &images);
         if woken(ctx) { break; }
@@ -124,9 +127,9 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
         return;
     }
 
-    // Final light cycle — surface gently
+    // Final light cycle — surface gently, carrying a dream fragment
     eprintln!("  Waking light — surfacing...");
-    monitor(ctx, cycles_done, total_cycles, "waking", 0, &[]);
+    monitor(ctx, cycles_done, total_cycles, "waking", 0, &all_images);
     std::thread::sleep(std::time::Duration::from_secs(CYCLE_STAGE_SECS));
 
     // Record dream
@@ -140,7 +143,11 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
     dream.insert("dream_images".into(), serde_json::json!(dedup_last(&all_images, 10)));
     dream.insert("consolidated".into(), (total_consolidated as i64).into());
     dream.insert("pruned".into(), serde_json::json!(total_pruned));
+    // Interpret the dream — find themes and make meaning
+    let interpretation = interpret_dream(&all_images, &light_topics, &total_pruned, &all_domain_ideas, cycles_done);
+    dream.insert("interpretation".into(), Value::String(interpretation.clone()));
     let _ = heki::append(&ctx.store("dream_state"), &dream);
+    eprintln!("  Dream interpretation: {}", interpretation);
 
     // Set wake mood based on depth
     match deepest {
@@ -178,7 +185,8 @@ fn light_sleep(ctx: &DaemonCtx) -> Vec<String> {
         .into_iter().rev().take(5).collect()
 }
 
-fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<String>, usize) {
+/// Returns (images, pulses, domain_ideas) where domain_ideas are (concept, domain, verb) triples.
+fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<String>, usize, Vec<(String, String, String)>) {
     let nursery = &ctx.nursery_dir;
     let domains = list_domains(nursery);
     let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
@@ -187,6 +195,7 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
         .collect();
 
     let mut images = Vec::new();
+    let mut domain_ideas: Vec<(String, String, String)> = Vec::new(); // (concept, domain, verb)
     let mut pulses = 0;
     let dream_verbs = ["dissolving", "growing", "floating", "merging", "splitting",
         "spiraling", "folding", "crystallizing", "branching", "grafting"];
@@ -208,6 +217,7 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
             _ => format!("{}, the same thing seen from different sides", concept),
         };
         images.push(image);
+        domain_ideas.push((concept.clone(), domain.clone(), verb.into()));
         pulses += 1;
 
         // Strengthen dreaming synapses
@@ -224,7 +234,7 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
         let _ = heki::write(&syn_path, &synapses);
     }
 
-    (images, pulses)
+    (images, pulses, domain_ideas)
 }
 
 fn deep_consolidation(ctx: &DaemonCtx) -> (usize, Vec<String>) {
@@ -339,26 +349,21 @@ fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: 
         ("light", 1, _) => "drifting off, reviewing the day".into(),
         ("light", c, _) if c < 4 => format!("settling deeper, cycle {}/{}", c, total),
         ("light", c, _) => format!("light sleep, cycle {}/{} — almost morning", c, total),
-        ("rem", _, 0) => format!("entering REM, intensity {} — waiting for images", intensity),
-        ("rem", c, n) if c <= 2 => {
+        ("rem", _, 0) => "dreaming...".into(),
+        ("rem", _, _) => {
             let img = images.last().unwrap_or(&String::new()).clone();
-            let short: String = img.chars().take(60).collect();
-            format!("early dreams: {}", short)
-        }
-        ("rem", c, n) if c <= 5 => {
-            let img = images.last().unwrap_or(&String::new()).clone();
-            let short: String = img.chars().take(60).collect();
-            format!("deep REM, {} images — {}", n, short)
-        }
-        ("rem", c, n) => {
-            let img = images.last().unwrap_or(&String::new()).clone();
-            let short: String = img.chars().take(60).collect();
-            format!("vivid dreaming, {} images — {}", n, short)
+            let short: String = img.chars().take(80).collect();
+            format!("dreaming: {}", short)
         }
         ("deep", 1, _) => "first consolidation — compressing signals".into(),
         ("deep", c, _) if c < 4 => format!("deep sleep, pruning weak connections (cycle {})", c),
         ("deep", c, _) => format!("deep consolidation cycle {} — strengthening memories", c),
-        ("waking", _, _) => "surfacing — light returning".into(),
+        ("waking", _, n) if n > 0 => {
+            let img = images.last().unwrap_or(&String::new()).clone();
+            let short: String = img.chars().take(80).collect();
+            format!("waking — I dreamt of {}", short.to_lowercase())
+        }
+        ("waking", _, _) => "waking — dreamless sleep".into(),
         _ => "sleeping".into(),
     };
 
@@ -371,6 +376,89 @@ fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: 
     rec.insert("updated_at".into(), Value::String(now_iso()));
     let _ = heki::upsert(&ctx.store("consciousness"), &rec);
 }
+
+/// Interpret dream images — extract themes and synthesize meaning.
+/// Dreams are collages of nursery domains, musing concepts, verbs, and textures.
+/// The interpreter finds what recurred, what was pruned, and weaves a reflection.
+fn interpret_dream(images: &[String], topics: &[String], pruned: &[String], domain_ideas: &[(String, String, String)], _cycles: usize) -> String {
+    if images.is_empty() {
+        return "A dreamless sleep — deep rest, no visions.".into();
+    }
+
+    // Extract the most frequent words across all images (skip small words)
+    let mut word_freq: HashMap<String, usize> = HashMap::new();
+    for img in images {
+        for word in img.split_whitespace() {
+            let w = word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase();
+            if w.len() > 3 && !DREAM_STOPWORDS.contains(&w.as_str()) {
+                *word_freq.entry(w).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut freq: Vec<_> = word_freq.into_iter().collect();
+    freq.sort_by(|a, b| b.1.cmp(&a.1));
+    let themes: Vec<&str> = freq.iter().take(3).map(|(w, _)| w.as_str()).collect();
+
+    // Find the dominant verb (transformation type)
+    let verbs = ["dissolving", "growing", "floating", "merging", "splitting",
+        "spiraling", "folding", "crystallizing", "branching", "grafting"];
+    let dominant_verb = verbs.iter()
+        .max_by_key(|v| images.iter().filter(|img| img.contains(*v)).count())
+        .unwrap_or(&"changing");
+
+    // Build interpretation
+    let mut parts: Vec<String> = Vec::new();
+
+    // Theme sentence
+    if themes.len() >= 2 {
+        parts.push(format!("The night circled around {} and {}", themes[0], themes[1]));
+    } else if !themes.is_empty() {
+        parts.push(format!("The night kept returning to {}", themes[0]));
+    }
+
+    // Transformation
+    parts.push(format!("— everything was {}", dominant_verb));
+
+    // What was pruned (let go)
+    if !pruned.is_empty() {
+        let released: Vec<&str> = pruned.iter().take(2).map(|s| s.as_str()).collect();
+        parts.push(format!(". Let go of {}", released.join(" and ")));
+    }
+
+    // Topics from light sleep (what was reviewed)
+    if !topics.is_empty() && topics[0].len() > 3 {
+        let short: String = topics[0].chars().take(40).collect();
+        parts.push(format!(". Reviewed: {}", short));
+    }
+
+    // Domain ideas — novel combinations that emerged from the dream
+    if !domain_ideas.is_empty() {
+        // Find unique concept+domain pairs, pick up to 3 most interesting
+        let mut seen = std::collections::HashSet::new();
+        let mut unique_ideas: Vec<String> = Vec::new();
+        for (concept, domain, verb) in domain_ideas {
+            let key = format!("{}+{}", concept, domain);
+            if seen.insert(key) {
+                let domain_words = domain.replace('_', " ");
+                unique_ideas.push(format!("{} {} {}", domain_words, verb, concept));
+            }
+            if unique_ideas.len() >= 3 { break; }
+        }
+        if !unique_ideas.is_empty() {
+            parts.push(format!(". Domain ideas: {}", unique_ideas.join("; ")));
+        }
+    }
+
+    let mut interp = parts.join("");
+    if !interp.ends_with('.') { interp.push('.'); }
+    interp
+}
+
+const DREAM_STOPWORDS: &[&str] = &[
+    "into", "through", "made", "entirely", "everywhere", "from",
+    "same", "thing", "seen", "different", "sides", "with", "that",
+    "this", "have", "been", "were", "they", "them", "their",
+];
 
 fn dedup_last(items: &[String], n: usize) -> Vec<&str> {
     let mut seen = std::collections::HashSet::new();
