@@ -174,8 +174,17 @@ fn main() {
     {
         let target = command;
         let cmd_name = path.split('.').last().unwrap_or(path);
+        // Parse key=value attrs from remaining args
+        let attrs: std::collections::HashMap<String, serde_json::Value> = args[3..].iter()
+            .filter_map(|a| {
+                let mut parts = a.splitn(2, '=');
+                let key = parts.next()?;
+                let val = parts.next()?;
+                Some((key.to_string(), serde_json::Value::String(val.to_string())))
+            })
+            .collect();
         if std::path::Path::new(target).is_dir() {
-            dispatch_hecksagon(target, cmd_name);
+            dispatch_hecksagon(target, cmd_name, attrs);
         } else {
             let source = fs::read_to_string(target).unwrap_or_else(|e| {
                 eprintln!("Cannot read {}: {}", target, e);
@@ -579,7 +588,7 @@ fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
-fn dispatch_hecksagon(agg_dir: &str, command: &str) {
+fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
     let mut combined = hecks_life::ir::Domain {
@@ -636,7 +645,13 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str) {
     } else {
         // Command: dispatch, mutate, run adapters, return state
         let ollama_config = find_world_ollama_config(agg_dir);
-        match rt.dispatch(command, std::collections::HashMap::new()) {
+        let rt_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = attrs.iter()
+            .map(|(k, v)| (k.clone(), match v {
+                serde_json::Value::String(s) => hecks_life::runtime::Value::Str(s.clone()),
+                _ => hecks_life::runtime::Value::Str(v.to_string()),
+            }))
+            .collect();
+        match rt.dispatch(command, rt_attrs) {
             Ok(result) => {
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {

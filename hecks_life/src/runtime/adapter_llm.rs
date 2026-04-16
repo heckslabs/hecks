@@ -14,11 +14,7 @@ pub fn resolve(
     state: &AggregateState,
     config: Option<(&str, &str)>,
 ) {
-    // Only act on aggregates with input/response convention
-    if !state.fields.contains_key("input") || !state.fields.contains_key("response") {
-        return;
-    }
-
+    // Only act on aggregates with input field set
     let input = match state.fields.get("input") {
         Some(Value::Str(s)) if !s.is_empty() && s != "null" => s.clone(),
         _ => return,
