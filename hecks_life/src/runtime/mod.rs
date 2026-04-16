@@ -15,7 +15,6 @@ mod event_bus;
 mod interpreter;
 mod lifecycle;
 mod middleware;
-pub mod persistence;
 mod policy_engine;
 mod projection;
 mod repository;
