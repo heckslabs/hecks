@@ -58,6 +58,10 @@ impl Repository {
     }
 
     pub fn next_id(&mut self) -> String {
+        // Heki adapter: singletons — reuse existing ID if one exists
+        if let Some(existing) = self.store.keys().next() {
+            return existing.clone();
+        }
         let id = self.next_id;
         self.next_id += 1;
         id.to_string()

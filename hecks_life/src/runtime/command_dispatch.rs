@@ -50,7 +50,12 @@ pub fn dispatch(
             return Err(RuntimeError::MissingAttribute("self-referencing id".into()));
         }
     } else {
-        (AggregateState::new(&repo.next_id()), true)
+        // Heki adapter: if a record already exists, use it (singleton)
+        let id = repo.next_id();
+        match repo.find(&id).cloned() {
+            Some(s) => (s, false),
+            None => (AggregateState::new(&id), true),
+        }
     };
 
     if is_new {
