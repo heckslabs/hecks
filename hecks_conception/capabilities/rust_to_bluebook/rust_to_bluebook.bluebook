@@ -1,6 +1,6 @@
 Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   vision "Convert Rust daemon code into executable bluebook definitions — the compiler eats itself"
-  category "capability"
+  category "autophagy"
 
   # ============================================================
   # RUST TO BLUEBOOK
