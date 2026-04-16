@@ -190,9 +190,10 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     }
     if touched { let _ = heki::write(&syn_path, &synapses); }
 
-    // Every 500 cycles, try to mint a new musing from the collision
-    if cycle % 500 == 0 && cycle > 0 {
+    // Every 120,000 cycles (~2 minutes), try to mint a new musing
+    if cycle % 120_000 == 0 && cycle > 0 {
         maybe_mint_musing(ctx, concept, domain);
+        prune_repetitive_musings(ctx);
     }
 
     (vec![image], 1)
@@ -223,6 +224,56 @@ fn maybe_mint_musing(ctx: &DaemonCtx, concept: &str, domain: &str) {
     rec.insert("conceived".into(), Value::Bool(false));
     rec.insert("source".into(), Value::String("mindstream".into()));
     let _ = heki::append(&ctx.store("musing"), &rec);
+}
+
+/// Prune repetitive mindstream musings — if the same concept appears
+/// in more than 3 musings, dismiss the extras. Keep the most recent 3.
+fn prune_repetitive_musings(ctx: &DaemonCtx) {
+    let path = ctx.store("musing");
+    let mut store = heki::read(&path).unwrap_or_default();
+    let mut changed = false;
+
+    // Group mindstream musings by concept (last word in the idea)
+    let mindstream_ids: Vec<(String, String)> = store.iter()
+        .filter(|(_, m)| m.get("source").and_then(|v| v.as_str()) == Some("mindstream"))
+        .filter(|(_, m)| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+        .map(|(id, m)| {
+            let idea = m.get("idea").and_then(|v| v.as_str()).unwrap_or("");
+            // Extract the concept — it's the last segment after the verb
+            let concept = idea.rsplit_once(' ').map(|(_, c)| c).unwrap_or(idea);
+            (id.clone(), concept.to_string())
+        })
+        .collect();
+
+    // Count per concept
+    let mut concept_counts: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for (id, concept) in &mindstream_ids {
+        concept_counts.entry(concept.clone()).or_default().push(id.clone());
+    }
+
+    // If any concept has more than 3, dismiss the oldest
+    for (_, ids) in &concept_counts {
+        if ids.len() > 3 {
+            // Sort by created_at, keep newest 3
+            let mut with_time: Vec<(&str, String)> = ids.iter()
+                .map(|id| {
+                    let created = store.get(id)
+                        .and_then(|m| m.get("created_at").and_then(|v| v.as_str()))
+                        .unwrap_or("").to_string();
+                    (id.as_str(), created)
+                })
+                .collect();
+            with_time.sort_by(|a, b| b.1.cmp(&a.1));
+            for (id, _) in with_time.iter().skip(3) {
+                store.remove(*id);
+                changed = true;
+            }
+        }
+    }
+
+    if changed {
+        let _ = heki::write(&path, &store);
+    }
 }
 
 /// Deep consolidation — same as sleep but runs every cycle.

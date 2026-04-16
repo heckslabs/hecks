@@ -14,9 +14,8 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   # "show me your musings" — I present them.
   #
   # Presentation format:
-  #   1. Summary table — total, unconceived, sources, recent count
-  #   2. Describe 3-5 interesting ones — why they stand out
-  #   3. Ask if the user wants the full list
+  #   1. Describe 3-5 interesting ones — why they stand out
+  #   2. Ask if the user wants to see more
   #
   # This is how ideas become domains. A musing is conceived
   # when it enters the nursery as a Bluebook.
@@ -91,7 +90,7 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   end
 
   # Default presentation: table first, then 3 descriptions, then offer full list
-  fixture "Presentation", format: "table_then_describe", preview_count: 3, show_sources: true
+  fixture "Presentation", format: "describe_then_offer", preview_count: 3, show_sources: false
 
   # When musings are reviewed, count sources
   policy "CountOnReview" do
