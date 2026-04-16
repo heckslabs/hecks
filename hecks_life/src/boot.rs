@@ -250,7 +250,7 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
         let unconceived = musing_store.values()
             .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
             .count();
-        if unconceived >= 5 {
+        if unconceived >= 20 {
             println!("  💡 {} unconceived musings — consider grooming", unconceived);
         }
     }

@@ -30,7 +30,6 @@ pub fn run(ctx: &DaemonCtx) {
     let mut strongest_synapse: Option<(String, f64)> = None;
     let mut session_start = now_iso();
     let mut was_idle = false;
-    let mut thought_queue: Vec<String> = Vec::new();
 
     loop {
         let idle = idle_seconds(ctx);
@@ -115,14 +114,18 @@ pub fn run(ctx: &DaemonCtx) {
             .and_then(|r| r.get("state").and_then(|v| v.as_str()))
             .unwrap_or("");
         if con_state != "sleeping" {
-            // Write current thought to consciousness — the statusline script
-            // decides whether to show it based on heartbeat idle time.
-            // Thoughts come from Summer (ollama) in batches of 20.
-            if thought_queue.is_empty() {
-                thought_queue = generate_thoughts(ctx);
+            // Statusline: read all unconceived musings from store + nursery domains
+            // This is fast (local disk), never blocks
+            let display_ideas = gather_display_ideas(ctx);
+            if !display_ideas.is_empty() {
+                let idea = &display_ideas[cycles as usize % display_ideas.len()];
+                let summary: String = idea.chars().take(80).collect();
+                write_consciousness(ctx, "wandering", &summary);
             }
-            if let Some(thought) = thought_queue.pop() {
-                write_consciousness(ctx, "wandering", &thought);
+
+            // Minting: ask Autumn every 6 cycles (~1 min)
+            if cycles % 6 == 0 && cycles > 0 {
+                maybe_mint_musing(ctx);
             }
         }
 
@@ -133,73 +136,72 @@ pub fn run(ctx: &DaemonCtx) {
     }
 }
 
-/// Ask Summer (ollama) for 20 unique thoughts about nursery domains.
-/// Falls back to domain names if ollama isn't available.
-fn generate_thoughts(ctx: &DaemonCtx) -> Vec<String> {
-    let domains = list_domains(&ctx.nursery_dir);
-    if domains.is_empty() { return vec!["quiet mind".into()]; }
+/// Autumn — Summer's cloud twin on Modal (T4 GPU).
+const AUTUMN_URL: &str = "https://chrisyoung--summer-conceive.modal.run";
 
-    // Pick 10 random domains as seed material
+/// Fast local display ideas — unconceived musings + nursery domain combos.
+/// Shuffled by current minute so order changes but is stable within a minute.
+fn gather_display_ideas(ctx: &DaemonCtx) -> Vec<String> {
+    let mut ideas: Vec<String> = Vec::new();
+
+    // Unconceived musings first — these are Autumn-generated, high quality
+    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
+    ideas.extend(musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
+
+    // Conceived (non-dismissed) musings
+    ideas.extend(musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(true))
+        .filter(|m| m.get("conceived_as").and_then(|v| v.as_str()).unwrap_or("") != "dismissed")
+        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
+
+    // Combinatorial domain triples from nursery
+    let domains = list_domains(&ctx.nursery_dir);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .unwrap_or_default().as_secs();
-    let mut seeds: Vec<&str> = Vec::new();
-    for i in 0..10 {
-        let idx = ((now + i) as usize) % domains.len();
-        seeds.push(&domains[idx]);
+    let minute = now / 60;
+    for i in 0..30 {
+        let a = ((minute + i * 3) as usize) % domains.len().max(1);
+        let b = ((minute + i * 7 + 1) as usize) % domains.len().max(1);
+        let c = ((minute + i * 11 + 2) as usize) % domains.len().max(1);
+        if a < domains.len() && b < domains.len() && c < domains.len() && a != b && b != c {
+            ideas.push(format!("{} meets {} meets {}",
+                domains[a].replace('_', " "),
+                domains[b].replace('_', " "),
+                domains[c].replace('_', " ")));
+        }
     }
-    let seed_list = seeds.iter()
-        .map(|d| d.replace('_', " "))
-        .collect::<Vec<_>>()
-        .join(", ");
 
-    let prompt = format!(
-        "Domains: {}\n\n\
-         Write 20 lines. Each line combines 2-3 of the above domains \
-         into one short idea (under 60 characters). \
-         Example: \"wine tracking meets smart HVAC in the cellar\"\n\
-         No numbering. No bullets. Just the ideas.",
-        seed_list
-    );
+    ideas
+}
 
-    // Call ollama with thinking disabled so all tokens go to output
-    let body = serde_json::json!({
-        "model": "bluebook-architect",
-        "prompt": prompt,
-        "stream": false,
-        "think": false,
-        "options": { "temperature": 1.0, "num_predict": 800 }
-    });
-
-    let result = std::process::Command::new("curl")
-        .args(["-s", "-X", "POST", "http://localhost:11434/api/generate",
-               "-d", &body.to_string()])
-        .output();
-
-    if let Ok(output) = result {
-        if let Ok(json) = serde_json::from_slice::<Value>(&output.stdout) {
-            if let Some(text) = json.get("response").and_then(|v| v.as_str()) {
-                let thoughts: Vec<String> = text.lines()
-                    .map(|l| l.trim().to_string())
-                    .filter(|l| !l.is_empty() && l.len() < 80 && l.len() > 5)
-                    .collect();
-                if !thoughts.is_empty() {
-                    return thoughts;
+/// Extract the vision string from a generated bluebook.
+fn extract_vision(bluebook: &str) -> Option<String> {
+    for line in bluebook.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("vision") {
+            if let Some(start) = trimmed.find('"') {
+                if let Some(end) = trimmed[start+1..].find('"') {
+                    return Some(trimmed[start+1..start+1+end].to_string());
                 }
             }
         }
     }
+    None
+}
 
-    // Fallback: just use domain names shuffled
-    let mut fallback: Vec<String> = domains.iter()
-        .map(|d| d.replace('_', " "))
-        .collect();
-    fallback.sort_by(|a, b| {
-        let ha = a.len().wrapping_mul(now as usize % 97);
-        let hb = b.len().wrapping_mul(now as usize % 97);
-        ha.cmp(&hb)
-    });
-    fallback.into_iter().take(20).collect()
+/// Call Autumn on Modal. Returns the response text or None.
+fn call_modal(vision: &str) -> Option<String> {
+    let body = serde_json::json!({ "vision": vision });
+    let result = std::process::Command::new("curl")
+        .args(["-s", "-m", "60", "-X", "POST", AUTUMN_URL,
+               "-H", "Content-Type: application/json",
+               "-d", &body.to_string()])
+        .output().ok()?;
+    let json: Value = serde_json::from_slice(&result.stdout).ok()?;
+    json.get("bluebook").and_then(|v| v.as_str()).map(String::from)
 }
 
 fn gather_concepts(ctx: &DaemonCtx) -> Vec<String> {
@@ -273,52 +275,80 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     }
     if touched { let _ = heki::write(&syn_path, &synapses); }
 
-    // Every 12 cycles (~2 minutes at 10s/cycle), mint a combinatorial musing
-    if cycle % 12 == 0 && cycle > 0 {
-        maybe_mint_musing(ctx, topics, &domains, cycle);
+    // Pruning still runs every cycle (fast, local)
+    if cycle > 0 {
         prune_repetitive_musings(ctx);
     }
 
     (vec![image], 1)
 }
 
-/// Mint a new musing by weaving multiple concepts and domains together.
-/// Combinatorial: A+B+C→insight, not A vs B.
-fn maybe_mint_musing(ctx: &DaemonCtx, topics: &[String], domains: &[String], cycle: u64) {
+/// Mint one musing by asking Autumn (Modal) to conceive a cross-domain fusion.
+/// Extracts the vision line as the musing idea.
+fn maybe_mint_musing(ctx: &DaemonCtx) {
+    let domains = list_domains(&ctx.nursery_dir);
+    if domains.is_empty() { return; }
+
     let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
-    let idx = cycle as usize;
+    let existing: Vec<String> = musings.values()
+        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from))
+        .collect();
 
-    // Pick 2-3 ingredients from different pools
-    let c1 = &topics[idx % topics.len()];
-    let c2 = &topics[(idx + 2) % topics.len()];
-    let d1 = domains[idx % domains.len()].replace('_', " ");
-    let d2 = domains[(idx + 1) % domains.len()].replace('_', " ");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap_or_default().as_secs();
 
-    // Skip if concepts are the same or too short
-    if c1 == c2 || c1.len() < 5 { return; }
+    // Pick 3 random domains for Autumn to fuse
+    let d1 = &domains[((now * 3) as usize) % domains.len()];
+    let d2 = &domains[((now * 7 + 1) as usize) % domains.len()];
+    let d3 = &domains[((now * 11 + 2) as usize) % domains.len()];
+    let vision = format!(
+        "a system that combines {} with {} and {}",
+        d1.replace('_', " "), d2.replace('_', " "), d3.replace('_', " ")
+    );
 
-    // Check for existing musings containing the same combination
-    let already_exists = musings.values().any(|m| {
-        let idea = m.get("idea").and_then(|v| v.as_str()).unwrap_or("");
-        idea.contains(c1.as_str()) && idea.contains(c2.as_str())
-    });
-    if already_exists { return; }
+    if let Some(bluebook) = call_modal(&vision) {
+        if let Some(idea) = extract_vision(&bluebook) {
+            if idea.len() > 10 && idea.len() < 80
+                && !existing.iter().any(|e| e == &idea)
+                && passes_quality_gate(&idea) {
+                let mut rec = Record::new();
+                rec.insert("idea".into(), Value::String(idea));
+                rec.insert("conceived".into(), Value::Bool(false));
+                rec.insert("source".into(), Value::String("mindstream".into()));
+                let _ = heki::append(&ctx.store("musing"), &rec);
+            }
+        }
+    }
+}
 
-    // Combinatorial templates — always weave 2+ ideas
-    let templates: Vec<String> = vec![
-        format!("{} and {} through the lens of {}", c1, c2, d1),
-        format!("{} where {} meets {} — what emerges?", d1, c1, c2),
-        format!("{} braided with {} inside {}", c1, d1, c2),
-        format!("{} and {} as one capability, shaped by {}", d1, d2, c1),
-        format!("what if {} held {} and {} at the same time?", d1, c1, c2),
-    ];
-    let idea = &templates[idx % templates.len()];
+/// Quality gate — reject musings that shouldn't have been minted.
+fn passes_quality_gate(idea: &str) -> bool {
+    let lower = idea.to_lowercase();
 
-    let mut rec = Record::new();
-    rec.insert("idea".into(), Value::String(idea.clone()));
-    rec.insert("conceived".into(), Value::Bool(false));
-    rec.insert("source".into(), Value::String("mindstream".into()));
-    let _ = heki::append(&ctx.store("musing"), &rec);
+    // Reject bare collisions: just "X + Y + Z" or "X meets Y"
+    if lower.starts_with("what if ") && lower.contains(" held ") { return false; }
+    if lower.matches(" meets ").count() >= 2 && lower.len() < 50 { return false; }
+    if lower.matches(" + ").count() >= 2 && !lower.contains(' ') { return false; }
+
+    // Reject old template patterns
+    if lower.contains(" as one capability, shaped by ") { return false; }
+    if lower.contains(" braided with ") && lower.contains(" inside ") { return false; }
+    if lower.contains(" through the lens of ") && lower.len() < 40 { return false; }
+
+    // Reject old verb residue
+    let dead_verbs = ["dissolving", "growing", "floating", "merging", "spiraling"];
+    if dead_verbs.iter().any(|v| lower.starts_with(v)) { return false; }
+
+    // Reject bare keywords (fewer than 4 words)
+    if idea.split_whitespace().count() < 4 { return false; }
+
+    // Reject session chatter
+    let chatter = ["excited about", "talk with", "just did", "switching to",
+                   "what moment is this", "how are you feeling", "what's your heartbeat"];
+    if chatter.iter().any(|c| lower.contains(c)) { return false; }
+
+    true
 }
 
 /// Prune repetitive mindstream musings — if the same concept appears

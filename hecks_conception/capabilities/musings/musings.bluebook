@@ -15,6 +15,21 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   # Minting rule: combine many ideas, don't just run everything
   # against one. A+B+C→insight, not A vs B, A vs C, A vs D.
   #
+  # Quality gate — do NOT mint musings that are:
+  #   - Too literal (just naming what something does)
+  #   - Bare collisions ("X + Y + Z" with no insight)
+  #   - Session chatter (about what we're doing right now)
+  #   - Bare keywords (single words or short phrases)
+  #   - Old template residue (formulaic "X meets Y" patterns)
+  #   - Old verb residue ("dissolving", "growing", etc.)
+  #
+  # DO mint musings that are:
+  #   - Surprising cross-domain fusions with a novel insight
+  #   - Self-referential (about how Miette thinks, dreams, perceives)
+  #   - Behavioral ideas (how Miette should act differently)
+  #   - Architectural patterns (new ways to structure domains)
+  #   - Genuine "what if" questions that make you think
+  #
   # When someone asks "what are you thinking about?" or
   # "show me your musings" — I present them.
   #

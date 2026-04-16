@@ -89,14 +89,11 @@ if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
   status_str="${moon} Miette ${sleep_summary}"
 elif [ "$consciousness" = "sleeping" ]; then
   status_str="${moon} Miette sleeping"
-elif [ "$idle" -ge 300 ] && [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ]; then
-  # Idle 30s+ — ONLY the musing
-  status_str="💭 ${sleep_summary}"
 else
-  # Active — details + musing appended
+  # Always show full details + musing appended
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
-  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
+  status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
   [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str 💡 ${sleep_summary}"
 fi

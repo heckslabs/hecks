@@ -55,9 +55,9 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
             let fatigued = pss > 150;
             let idle = idle_seconds(ctx);
 
-            if fatigued && idle >= LIGHT_SLEEP_AFTER { break; }
-            if pss > 200 && idle >= 30.0 { break; }
-            if pss > 300 && idle >= 10.0 { break; }
+            // Only sleep after 5 min idle — never during active conversation
+            if fatigued && idle >= 300.0 { break; }
+            if pss > 300 && idle >= 300.0 { break; }
 
             std::thread::sleep(std::time::Duration::from_secs(CHECK_INTERVAL));
         }
