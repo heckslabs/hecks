@@ -45,7 +45,8 @@ pub fn run(ctx: &DaemonCtx, carrying: &str, concept: Option<&str>, response: Opt
     record_moment(ctx, beats, carrying, concept, "attentive",
         &fatigue_state, strength, idle, excitement, heartbeats_elapsed, &now);
 
-    super::daydream::wander_once(ctx);
+    // Daydream now runs via bluebook dispatch (PostToolUse hook)
+    // super::daydream::wander_once(ctx);
 }
 
 /// Unified heartbeat — beats, fatigue, pulse rate all in one store.
