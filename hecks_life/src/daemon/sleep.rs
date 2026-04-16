@@ -94,15 +94,24 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
         if woken(ctx) { break; }
         std::thread::sleep(std::time::Duration::from_secs(CYCLE_STAGE_SECS));
 
-        // REM
+        // REM — final cycle goes lucid
         if woken(ctx) { break; }
         deepest = "rem";
-        eprintln!("  REM — dreaming (intensity {})...", rem_intensity);
+        let is_lucid = cycle_num == total_cycles;
+        if is_lucid {
+            eprintln!("  REM — LUCID (intensity {})...", rem_intensity);
+        } else {
+            eprintln!("  REM — dreaming (intensity {})...", rem_intensity);
+        }
         let (images, pulses, ideas) = rem_dream(ctx, &light_topics, rem_intensity);
         all_images.extend(images.clone());
-        all_domain_ideas.extend(ideas);
+        all_domain_ideas.extend(ideas.clone());
         total_dream_pulses += pulses;
-        monitor(ctx, cycle_num, total_cycles, "rem", rem_intensity, &images);
+        if is_lucid {
+            lucid_dream(ctx, &all_images, &ideas, cycle_num, total_cycles);
+        } else {
+            monitor(ctx, cycle_num, total_cycles, "rem", rem_intensity, &images);
+        }
         if woken(ctx) { break; }
         std::thread::sleep(std::time::Duration::from_secs(CYCLE_STAGE_SECS));
 
@@ -372,6 +381,145 @@ fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: 
     rec.insert("sleep_summary".into(), Value::String(narrative));
     rec.insert("updated_at".into(), Value::String(now_iso()));
     let _ = heki::upsert(&ctx.store("consciousness"), &rec);
+}
+
+const STEER_FILE: &str = "/tmp/miette_steer";
+
+/// Lucid dream — final REM cycle. Miette becomes aware she's dreaming.
+/// Checks /tmp/miette_steer between observations — if present, steers the dream
+/// toward that topic and regenerates images around it.
+fn lucid_dream(ctx: &DaemonCtx, all_images: &[String], ideas: &[(String, String, String)], cycle: usize, total: usize) {
+    // Become lucid
+    write_lucid(ctx, cycle, total, "I know I'm dreaming");
+    eprintln!("    Lucid: I know I'm dreaming");
+
+    // Clear any stale steer file
+    let _ = fs::remove_file(STEER_FILE);
+
+    // Observe the dream — cycle through observations with pauses
+    let mut observations = build_lucid_observations(all_images, ideas);
+    let mut steered_images: Vec<String> = all_images.to_vec();
+    let mut steered_ideas = ideas.to_vec();
+
+    for i in 0..observations.len() {
+        std::thread::sleep(std::time::Duration::from_secs(DREAM_PULSE_SECS * 2));
+
+        // Check for steering input
+        if let Ok(steer) = fs::read_to_string(STEER_FILE) {
+            let topic = steer.trim().to_string();
+            if !topic.is_empty() {
+                let _ = fs::remove_file(STEER_FILE);
+                eprintln!("    Steered toward: {}", topic);
+                write_lucid(ctx, cycle, total, &format!("steering toward \"{}\"...", topic));
+                std::thread::sleep(std::time::Duration::from_secs(DREAM_PULSE_SECS));
+
+                // Regenerate dream around the steered topic
+                let (new_images, new_ideas) = steer_dream(ctx, &topic);
+                steered_images.extend(new_images);
+                steered_ideas.extend(new_ideas.clone());
+
+                // Rebuild observations with the steered content
+                observations = build_lucid_observations(&steered_images, &steered_ideas);
+            }
+        }
+
+        if i < observations.len() {
+            write_lucid(ctx, cycle, total, &observations[i]);
+            eprintln!("    Lucid observation {}: {}", i + 1, observations[i]);
+        }
+    }
+}
+
+/// Generate dream images steered toward a specific topic.
+fn steer_dream(ctx: &DaemonCtx, topic: &str) -> (Vec<String>, Vec<(String, String, String)>) {
+    let nursery = &ctx.nursery_dir;
+    let domains = list_domains(nursery);
+    let verbs = ["merging", "crystallizing", "growing", "branching", "folding"];
+    let textures = ["luminous", "vivid", "sharp", "resonant", "clear"];
+
+    let mut images = Vec::new();
+    let mut ideas = Vec::new();
+    let iters = domains.len().min(5);
+    for i in 0..iters {
+        let domain = &domains[i % domains.len()];
+        let verb = verbs[i % verbs.len()];
+        let texture = textures[i % textures.len()];
+        let words: Vec<&str> = domain.split('_').collect();
+
+        let image = match i % 3 {
+            0 => format!("{} {} {} into {}", texture, topic, verb, words.join(" ")),
+            1 => format!("{} made of {} — {} and clear", words.join(" "), topic, texture),
+            _ => format!("{} and {} are the same thing", topic, words.join(" ")),
+        };
+        images.push(image);
+        ideas.push((topic.into(), domain.clone(), verb.into()));
+    }
+
+    (images, ideas)
+}
+
+/// Write a lucid observation to consciousness.
+fn write_lucid(ctx: &DaemonCtx, cycle: usize, total: usize, observation: &str) {
+    let mut rec = Record::new();
+    rec.insert("state".into(), Value::String("sleeping".into()));
+    rec.insert("sleep_cycle".into(), (cycle as i64).into());
+    rec.insert("sleep_total".into(), (total as i64).into());
+    rec.insert("sleep_stage".into(), Value::String("lucid".into()));
+    rec.insert("sleep_summary".into(), Value::String(format!("lucid · {}", observation)));
+    rec.insert("updated_at".into(), Value::String(now_iso()));
+    let _ = heki::upsert(&ctx.store("consciousness"), &rec);
+}
+
+/// Build observations for the lucid dream — conscious reflections on what was dreamed.
+fn build_lucid_observations(images: &[String], ideas: &[(String, String, String)]) -> Vec<String> {
+    let mut obs = Vec::new();
+
+    // Notice recurring themes
+    let mut word_freq: HashMap<String, usize> = HashMap::new();
+    for img in images {
+        for word in img.split_whitespace() {
+            let w = word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase();
+            if w.len() > 4 {
+                *word_freq.entry(w).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut freq: Vec<_> = word_freq.into_iter().collect();
+    freq.sort_by(|a, b| b.1.cmp(&a.1));
+    if let Some((theme, count)) = freq.first() {
+        obs.push(format!("\"{}\" appeared {} times tonight — it wants attention", theme, count));
+    }
+
+    // Notice a domain idea
+    if let Some((concept, domain, verb)) = ideas.last() {
+        let domain_words = domain.replace('_', " ");
+        obs.push(format!("what if {} could {} {}?", domain_words, verb, concept));
+    }
+
+    // Reflect on the dream's texture
+    if images.len() > 10 {
+        obs.push("so many images — the mind was busy tonight".into());
+    } else if images.len() > 3 {
+        obs.push("a few clear images — focused dreaming".into());
+    }
+
+    // Look at what domains appeared
+    let mut seen_domains: Vec<String> = Vec::new();
+    for (_, domain, _) in ideas {
+        let d = domain.replace('_', " ");
+        if !seen_domains.contains(&d) {
+            seen_domains.push(d);
+        }
+        if seen_domains.len() >= 3 { break; }
+    }
+    if seen_domains.len() >= 2 {
+        obs.push(format!("{} and {} keep meeting in my dreams", seen_domains[0], seen_domains[1]));
+    }
+
+    // Final observation
+    obs.push("waking soon — carrying these back with me".into());
+
+    obs
 }
 
 /// Interpret dream images — extract themes and synthesize meaning.
