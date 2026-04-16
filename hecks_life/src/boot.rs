@@ -208,6 +208,9 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
         stores
     };
     heki::print_summary(&stores);
+
+    // 6. Dump readable state to /tmp so the LLM can read it without parsing binary
+    dump_readable_state(&stores);
     println!("  {} organs, {} nerves, {} vows, {} capabilities  ({}ms)",
         organ_count, nerves.len(), vows.len(), capabilities.len(), elapsed.as_millis());
     if !capabilities.is_empty() {
@@ -246,6 +249,28 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
     } else {
         println!("  mindstream running");
     }
+}
+
+/// Dump key stores as readable JSON to /tmp/miette_state/
+/// so the LLM can read state without touching binary .heki files.
+fn dump_readable_state(stores: &HashMap<String, heki::Store>) {
+    let dir = "/tmp/miette_state";
+    let _ = fs::create_dir_all(dir);
+
+    // Dump each store as pretty JSON
+    for (name, store) in stores {
+        if store.is_empty() { continue; }
+        let path = format!("{}/{}.json", dir, name);
+        if let Ok(json) = serde_json::to_string_pretty(store) {
+            let _ = fs::write(&path, json);
+        }
+    }
+
+    // Write a manifest so the LLM knows what's available
+    let names: Vec<&String> = stores.keys().collect();
+    let manifest = format!("Readable state dumped at boot.\nStores: {}\nPath: {}/{{store}}.json",
+        names.iter().map(|n| n.as_str()).collect::<Vec<_>>().join(", "), dir);
+    let _ = fs::write(format!("{}/MANIFEST", dir), manifest);
 }
 
 /// Check if a process is alive (unix only).
