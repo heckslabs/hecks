@@ -10,7 +10,6 @@
 //!   hecks-life daemon daydream <project-dir>
 //!   hecks-life daemon sleep    <project-dir> [--nap] [--now]
 
-pub mod sleep;
 pub mod mindstream;
 
 use crate::heki;

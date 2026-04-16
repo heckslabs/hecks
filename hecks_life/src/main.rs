@@ -403,11 +403,7 @@ fn run_daemon(args: &[String]) {
             eprintln!("pulse now fires via bluebook dispatch: hecks-life run aggregates/ --dispatch Beat");
         }
         "daydream" => eprintln!("daydream now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterDaydream"),
-        "sleep" => {
-            let nap = args.iter().any(|a| a == "--nap");
-            let now_flag = args.iter().any(|a| a == "--now");
-            daemon::sleep::run(&ctx, nap, now_flag);
-        }
+        "sleep" => eprintln!("sleep now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterSleep"),
         "mindstream" => daemon::mindstream::run(&ctx),
         "greeting" => eprintln!("greeting now lives in greeting.bluebook — the hecksagon wires it to the tongue"),
         _ => {
