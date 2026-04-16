@@ -583,10 +583,25 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str) {
     let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
     match rt.dispatch(command, std::collections::HashMap::new()) {
         Ok(result) => {
+            // Return aggregate state — queries get their data back
+            let state = rt.find(&result.aggregate_type, &result.aggregate_id);
+            let fields = state.map(|s| {
+                let mut map = serde_json::Map::new();
+                for (k, v) in &s.fields {
+                    map.insert(k.clone(), match v {
+                        hecks_life::runtime::Value::Str(s) => serde_json::json!(s),
+                        hecks_life::runtime::Value::Int(n) => serde_json::json!(n),
+                        hecks_life::runtime::Value::Bool(b) => serde_json::json!(b),
+                        _ => serde_json::json!(v.to_string()),
+                    });
+                }
+                serde_json::Value::Object(map)
+            }).unwrap_or(serde_json::json!({}));
             println!("{}", serde_json::json!({
                 "ok": true,
                 "aggregate": result.aggregate_type,
                 "id": result.aggregate_id,
+                "state": fields,
             }));
         }
         Err(e) => {
