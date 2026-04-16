@@ -14,7 +14,6 @@ pub mod pulse;
 pub mod pulse_organs;
 pub mod sleep;
 pub mod mindstream;
-pub mod dream_interpret;
 
 use crate::heki;
 use std::path::Path;

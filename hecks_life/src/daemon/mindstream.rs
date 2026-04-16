@@ -40,8 +40,7 @@ pub fn run(ctx: &DaemonCtx) {
             record_stream(ctx, &session_start, cycles,
                 total_consolidated, total_pruned, images_generated);
             recover_fatigue(ctx, cycles);
-            // Interpret accumulated dream images → propose musings
-            super::dream_interpret::interpret_and_propose(ctx);
+            // Dream interpretation now lives in dream_interpretation.bluebook
             write_return_summary(cycles, total_consolidated, total_pruned,
                 images_generated, &all_images, &strongest_synapse, &session_start);
             was_idle = false;
