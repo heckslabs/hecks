@@ -56,7 +56,7 @@ pub fn idle_seconds(ctx: &DaemonCtx) -> f64 {
 }
 
 /// Parse ISO 8601 timestamp and return seconds elapsed.
-fn seconds_since_iso(ts: &str) -> f64 {
+pub fn seconds_since_iso(ts: &str) -> f64 {
     // Simple parse: extract enough to get epoch seconds
     // Format: 2026-04-11T21:45:08Z or 2026-04-11T14:50:02-07:00
     let now = SystemTime::now()

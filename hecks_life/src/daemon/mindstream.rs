@@ -16,7 +16,7 @@ use super::{DaemonCtx, idle_seconds, now_iso};
 use serde_json::Value;
 use std::fs;
 
-const MIN_IDLE: f64 = 5.0;
+const MIN_IDLE: f64 = 30.0;
 const SUMMARY_PATH: &str = "/tmp/miette_state/last_mindstream.json";
 
 /// Run the mindstream. Never exits — the unconscious is always running.
@@ -108,19 +108,36 @@ pub fn run(ctx: &DaemonCtx) {
         if cycles % 3 == 0 {
             upsert_mood(ctx, mood_name, creativity, precision);
         }
-        // Update consciousness every cycle — one new image every 10s
-        let summary = if let Some(img) = all_images.last() {
-            img.chars().take(60).collect()
-        } else {
-            mood_name.to_string()
-        };
-        write_consciousness(ctx, "wandering", &summary);
+        // Write current musing to consciousness — the statusline script
+        // decides whether to show it based on heartbeat idle time
+        let musing_ideas = gather_musing_ideas(ctx);
+        if !musing_ideas.is_empty() {
+            let idea = &musing_ideas[cycles as usize % musing_ideas.len()];
+            let summary: String = idea.chars().take(80).collect();
+            write_consciousness(ctx, "wandering", &summary);
+        }
 
         cycles += 1;
 
         // Yield — breathe between cycles
         std::thread::sleep(std::time::Duration::from_secs(10));
     }
+}
+
+/// All musing ideas — unconceived first, then conceived (non-dismissed).
+fn gather_musing_ideas(ctx: &DaemonCtx) -> Vec<String> {
+    let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
+    let mut ideas: Vec<String> = Vec::new();
+    // Unconceived first
+    ideas.extend(musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
+    // Then conceived (not dismissed)
+    ideas.extend(musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(true))
+        .filter(|m| m.get("conceived_as").and_then(|v| v.as_str()).unwrap_or("") != "dismissed")
+        .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from)));
+    ideas
 }
 
 fn gather_concepts(ctx: &DaemonCtx) -> Vec<String> {

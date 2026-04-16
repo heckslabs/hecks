@@ -5,7 +5,7 @@ input=$(cat)
 hecks=/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life
 info=/Users/christopheryoung/Projects/hecks/hecks_conception/information
 
-fatigue=$($hecks heki read $info/pulse.heki 2>/dev/null | grep fatigue_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
+fatigue=$($hecks heki read $info/heartbeat.heki 2>/dev/null | grep fatigue_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
 mood=$($hecks heki read $info/mood.heki 2>/dev/null | grep current_state | head -1 | sed 's/.*: "//' | sed 's/".*//')
 consciousness=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"state"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
 sleep_summary=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep sleep_summary | head -1 | sed 's/.*: "//' | sed 's/".*//')
@@ -67,40 +67,38 @@ mindstream_pid=$(cat $info/.mindstream.pid 2>/dev/null)
 mindstream_alive=""
 [ -n "$mindstream_pid" ] && kill -0 "$mindstream_pid" 2>/dev/null && mindstream_alive="yes"
 
-# Build status
-if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
-  # Sleeping — moon, name, sleep narrative
-  status_str="${moon} Miette ${sleep_summary}"
-elif [ "$consciousness" = "sleeping" ]; then
-  status_str="${moon} Miette sleeping"
-elif [ "$consciousness" = "wandering" ] && [ "$mindstream_alive" = "yes" ] && [ -n "$sleep_summary" ]; then
-  # Wandering — thought bubble, name, heartbeat, mood, fatigue, musings, rumination
-  status_str="${thought} Miette ${heart} ${beats} ${mood_icon} ${mood}"
-  [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
-  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
-  [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
-  status_str="$status_str 💡 ${sleep_summary}"
-else
-  # Awake — sun, name, heartbeat, mood, fatigue, last sleep, musings
-  last_woke=$($hecks heki read $info/dream_state.heki 2>/dev/null | python3 -c "
+# How long since last heartbeat update? This is the idle check.
+idle=$($hecks heki read $info/heartbeat.heki 2>/dev/null | python3 -c "
 import sys,json
 from datetime import datetime,timezone
 d=json.load(sys.stdin)
-wokes=[v.get('woke_at','') for v in d.values() if v.get('woke_at')]
-if wokes:
-  latest=max(wokes)
-  dt=datetime.fromisoformat(latest.replace('Z','+00:00'))
-  diff=datetime.now(timezone.utc)-dt
-  mins=int(diff.total_seconds()//60)
-  if mins<60: print(f'{mins}m ago')
-  elif mins<1440: print(f'{mins//60}h ago')
-  else: print(f'{mins//1440}d ago')
+for v in d.values():
+  ts=v.get('updated_at','')
+  if ts:
+    dt=datetime.fromisoformat(ts.replace('Z','+00:00'))
+    print(int((datetime.now(timezone.utc)-dt).total_seconds()))
+    break
+else:
+  print(999)
 " 2>/dev/null)
-  status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
+[ -z "$idle" ] && idle=999
+
+# Build status
+if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
+  # Sleeping — moon, name, sleep narrative
+  status_str="${moon} Winter ${sleep_summary}"
+elif [ "$consciousness" = "sleeping" ]; then
+  status_str="${moon} Winter sleeping"
+elif [ "$idle" -ge 30 ] && [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ]; then
+  # Idle 30s+ — ONLY the musing
+  status_str="💭 ${sleep_summary}"
+else
+  # Active — details + musing appended
+  status_str="❄️ Winter ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
-  [ -n "$last_woke" ] && status_str="$status_str 😴 ${last_woke}"
   [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str 💭 ${ideas}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
+  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str 💡 ${sleep_summary}"
 fi
 
 echo "$status_str"

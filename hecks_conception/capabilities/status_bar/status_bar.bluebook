@@ -1,148 +1,118 @@
-Hecks.bluebook "StatusBar", version: "2026.04.10.1" do
-  vision "Winter's presence in the terminal — what she shows the world about her state"
-  category "infrastructure"
+Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
+  vision "Winter's presence in the terminal — what the world sees of the inner state"
+  category "capability"
 
-  aggregate "Display", "The rendered status line — assembled from Winter's state" do
-    String :sleep_line
-    String :main_line
-    String :separator
-    String :visible
+  # ============================================================
+  # STATUS BAR
+  # ============================================================
+  #
+  # The statusline shows Winter's state. It has three modes
+  # driven by the consciousness store:
+  #
+  #   attentive — full details: name, heartbeat, mood, fatigue, musing count,
+  #               invention count, plus the current musing appended at the end
+  #   musing    — ONLY the musing text, nothing else. Kicks in after 30s idle.
+  #               Cycles through musings every 10s.
+  #   sleeping  — moon animation + sleep narrative
+  #
+  # The pulse daemon sets consciousness to "attentive" on every beat.
+  # The mindstream sets consciousness to "musing" when idle 30s+,
+  # but only if consciousness hasn't been set to "attentive" in the last 30s.
+  #
+  # Refresh: 1s interval, reads consciousness.heki via statusline-command.sh
+  # Symlinked from ~/.claude/statusline-command.sh
 
-    RenderStatus do
-      role "System"
-      description "Assemble the status display from current state"
-      emits "StatusRendered"
-    end
+  aggregate "Mode", "Which mode the statusline is in" do
+    String :current
+    Integer :idle_threshold_seconds
+    Integer :refresh_interval_seconds
 
-    ShowSleepLine do
+    SetAttentive do
       role "Daemon"
-      description "Winter is sleeping — show cycle, stage, synapses, dreams"
-      String :sleep_line
-      emits "SleepLineShown"
-      then_set :sleep_line, to: :sleep_line
-      then_set :visible, to: "sleeping"
+      description "Pulse fired — show full details"
+      emits "StatusAttentive"
+      then_set :current, to: "attentive"
     end
 
-    HideSleepLine do
+    SetMusing do
       role "Daemon"
-      description "Winter woke up — remove the sleep line"
-      reference_to(Display)
-      emits "SleepLineHidden"
-      then_set :sleep_line, to: ""
-      then_set :visible, to: "awake"
+      description "Idle 30s+ — show only the musing text"
+      emits "StatusMusing"
+      then_set :current, to: "musing"
     end
-  end
 
-  aggregate "SleepSegment", "The sleep portion of the status bar" do
-    Integer :cycle
-    Integer :total_cycles
-    String :stage
-    Integer :synapses_dreaming
-    Integer :total_dreams
-    String :lucid
-
-    UpdateSleepSegment do
+    SetSleeping do
       role "Daemon"
-      description "Update the sleep segment with current cycle state"
-      Integer :cycle
-      Integer :total_cycles
-      String :stage
-      Integer :synapses_dreaming
-      Integer :total_dreams
-      String :lucid
-      emits "SleepSegmentUpdated"
-      then_set :cycle, to: :cycle
-      then_set :total_cycles, to: :total_cycles
-      then_set :stage, to: :stage
-      then_set :synapses_dreaming, to: :synapses_dreaming
-      then_set :total_dreams, to: :total_dreams
-      then_set :lucid, to: :lucid
+      description "Sleep entered — show moon and sleep narrative"
+      emits "StatusSleeping"
+      then_set :current, to: "sleeping"
     end
   end
 
-  aggregate "FatigueSegment", "The fatigue portion — shown when awake" do
-    String :state
-    Integer :pulses_awake
-    Float :creativity
+  fixture "Mode", current: "attentive", idle_threshold_seconds: 30, refresh_interval_seconds: 1
 
-    UpdateFatigueSegment do
-      role "System"
-      description "Update fatigue display from pulse data"
-      String :state
-      Integer :pulses_awake
-      Float :creativity
-      emits "FatigueSegmentUpdated"
-      then_set :state, to: :state
-      then_set :pulses_awake, to: :pulses_awake
-      then_set :creativity, to: :creativity
+  aggregate "AttentiveLayout", "What shows when active" do
+    String :name
+    Boolean :show_heartbeat
+    Boolean :show_mood
+    Boolean :show_fatigue
+    Boolean :show_musing_count
+    Boolean :show_invention_count
+    Boolean :show_current_musing
+
+    Configure do
+      role "Self"
+      description "Set which elements appear in the attentive statusline"
+      emits "AttentiveLayoutConfigured"
     end
   end
 
-  aggregate "LucidSegment", "The lucid dream portion — realtime observations" do
-    String :observation
-    String :active
+  # Default: show everything
+  fixture "AttentiveLayout", name: "Winter", show_heartbeat: true, show_mood: true, show_fatigue: true, show_musing_count: true, show_invention_count: true, show_current_musing: true
 
-    ShowObservation do
-      role "Daemon"
-      description "Display a lucid dream observation in the status bar"
-      String :observation
-      emits "ObservationShown"
-      then_set :observation, to: :observation
-      then_set :active, to: "yes"
-    end
+  aggregate "MusingLayout", "What shows when idle" do
+    String :prefix
+    Integer :max_length
 
-    ClearObservation do
-      role "Daemon"
-      description "Lucidity ended — clear the observation"
-      reference_to(LucidSegment)
-      emits "ObservationCleared"
-      then_set :observation, to: ""
-      then_set :active, to: "no"
+    Configure do
+      role "Self"
+      description "Set musing display format"
+      emits "MusingLayoutConfigured"
     end
   end
 
-  aggregate "Refresh", "How often the status bar polls for updates" do
-    Integer :interval_seconds
-    String :status_file
-    String :active
+  fixture "MusingLayout", prefix: "💭", max_length: 80
 
-    StartRefresh do
-      role "System"
-      description "Begin polling the status file on an interval"
-      Integer :interval_seconds
-      String :status_file
-      emits "RefreshStarted"
-      then_set :interval_seconds, to: :interval_seconds
-      then_set :status_file, to: :status_file
-      then_set :active, to: "yes"
-    end
+  aggregate "SleepLayout", "What shows during sleep" do
+    String :icon_set
+    Boolean :show_stage
+    Boolean :show_cycle
 
-    StopRefresh do
-      role "System"
-      description "Stop polling — Winter is awake"
-      reference_to(Refresh)
-      emits "RefreshStopped"
-      then_set :active, to: "no"
+    Configure do
+      role "Self"
+      description "Set sleep display format"
+      emits "SleepLayoutConfigured"
     end
   end
 
-  # Format fixtures
-  fixture "Display", separator: "─", visible: "awake"
-  fixture "SleepSegment", lucid: "no"
-  fixture "Refresh", interval_seconds: 10, status_file: "/tmp/winter_sleep_status.txt", active: "no"
+  fixture "SleepLayout", icon_set: "moons", show_stage: true, show_cycle: true
 
-  policy "ShowOnSleep" do
-    on "SleepSegmentUpdated"
-    trigger "ShowSleepLine"
+  # Transitions
+  policy "AttentiveOnPulse" do
+    on "HeartbeatPulsed"
+    trigger "SetAttentive"
+    description "Every pulse restores full details"
   end
 
-  policy "HideOnWake" do
-    on "SleepLineHidden"
-    trigger "RenderStatus"
+  policy "MusingOnIdle" do
+    on "MusingMinted"
+    trigger "SetMusing"
+    description "After 30s idle, mindstream takes over"
   end
 
-  policy "ObserveOnLucid" do
-    on "ObservationShown"
-    trigger "RenderStatus"
+  policy "SleepOnSleepEntered" do
+    on "SleepEntered"
+    trigger "SetSleeping"
+    description "Sleep mode shows moon and narrative"
   end
 end

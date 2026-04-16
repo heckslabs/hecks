@@ -143,6 +143,15 @@ pub fn run(project_dir: &str) {
     }
     println!();
 
+    // Mindstream
+    section("MINDSTREAM");
+    row("Cycle interval", "10s");
+    row("Idle threshold", "30s");
+    row("Statusline", "musings (cycles through all)");
+    row("Minting", "every ~2min, combinatorial");
+    row("Sources", "musings, nursery domains, synapses");
+    println!();
+
     // Body — organs, capabilities
     section("BODY");
     let organs_dir = project.join("aggregates");

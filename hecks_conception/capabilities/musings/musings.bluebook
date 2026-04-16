@@ -25,6 +25,41 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   # This is how ideas become domains. A musing is conceived
   # when it enters the nursery as a Bluebook.
 
+  aggregate "Minting", "How the mindstream produces new musings" do
+    Integer :cycle_interval_seconds
+    Integer :idle_threshold_seconds
+    Integer :mint_every_cycles
+    String :style
+
+    Configure do
+      role "Self"
+      description "Set minting parameters"
+      Integer :cycle_interval_seconds
+      Integer :idle_threshold_seconds
+      Integer :mint_every_cycles
+      emits "MintingConfigured"
+      then_set :cycle_interval_seconds, to: :cycle_interval_seconds
+      then_set :idle_threshold_seconds, to: :idle_threshold_seconds
+      then_set :mint_every_cycles, to: :mint_every_cycles
+    end
+
+    Mint do
+      role "Self"
+      description "Produce a new musing from concept collision"
+      emits "MusingMinted"
+    end
+  end
+
+  # Minting defaults: 10s cycle, 30s idle for statusline, mint every 12 cycles (~2min)
+  # Style: combinatorial — weave 2-3 concepts, never radial A-meets-B
+  fixture "Minting", cycle_interval_seconds: 10, idle_threshold_seconds: 30, mint_every_cycles: 12, style: "combinatorial"
+
+  # Sources for concept collision:
+  #   - Conceived musings (ideas that became real)
+  #   - Nursery domain names
+  #   - Strong synapses (strength > 0.3)
+  #   - Unconceived musings (short keywords only)
+
   aggregate "Collection", "All musings — the idea backlog" do
     Integer :total
     Integer :unconceived
