@@ -1,0 +1,25 @@
+Hecks.bluebook "session_2026_04_10_070419", version: "2026.04.15.1" do
+  vision "Auto-generated session action — the primordial action created by the bootloader"
+  category "session"
+
+  aggregate "Session", "This session" do
+    String :session_id
+    String :engine
+    String :started_at
+    String :status
+
+    Start do
+      role "Bootloader"
+      emits "SessionStarted"
+      then_set :session_id, to: "session_2026_04_10_070419"
+      then_set :engine, to: "claude"
+      then_set :status, to: "active"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Start" => "active"
+    end
+  end
+
+  fixture "Session", session_id: "session_2026_04_10_070419", engine: "claude", started_at: "2026_04_10_070419", status: "active"
+end

@@ -124,6 +124,11 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
         return;
     }
 
+    // Final light cycle — surface gently
+    eprintln!("  Waking light — surfacing...");
+    monitor(ctx, cycles_done, total_cycles, "waking", 0, &[]);
+    std::thread::sleep(std::time::Duration::from_secs(CYCLE_STAGE_SECS));
+
     // Record dream
     let now = now_iso();
     let mut dream = Record::new();
@@ -353,6 +358,7 @@ fn monitor(ctx: &DaemonCtx, cycle: usize, total: usize, stage: &str, intensity: 
         ("deep", 1, _) => "first consolidation — compressing signals".into(),
         ("deep", c, _) if c < 4 => format!("deep sleep, pruning weak connections (cycle {})", c),
         ("deep", c, _) => format!("deep consolidation cycle {} — strengthening memories", c),
+        ("waking", _, _) => "surfacing — light returning".into(),
         _ => "sleeping".into(),
     };
 
