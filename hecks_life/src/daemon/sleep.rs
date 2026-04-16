@@ -606,15 +606,15 @@ fn build_lucid_observations(images: &[String], ideas: &[(String, String, String)
     obs
 }
 
-/// Interpret dream images — extract themes and synthesize meaning.
-/// Dreams are collages of nursery domains, musing concepts, verbs, and textures.
-/// The interpreter finds what recurred, what was pruned, and weaves a reflection.
-fn interpret_dream(images: &[String], topics: &[String], pruned: &[String], domain_ideas: &[(String, String, String)], _cycles: usize) -> String {
+/// Interpret introspective dream images — find what Miette kept dreaming about.
+/// The domain_ideas tuples are (self_concept_a, self_concept_b, texture).
+fn interpret_dream(images: &[String], _topics: &[String], pruned: &[String], domain_ideas: &[(String, String, String)], _cycles: usize) -> String {
     if images.is_empty() {
         return "A dreamless sleep — deep rest, no visions.".into();
     }
 
-    // Extract the most frequent words across all images (skip small words)
+    // Extract meaningful self-concepts from dream images
+    // Skip structural words, keep the things that are actually about Miette
     let mut word_freq: HashMap<String, usize> = HashMap::new();
     for img in images {
         for word in img.split_whitespace() {
@@ -628,45 +628,29 @@ fn interpret_dream(images: &[String], topics: &[String], pruned: &[String], doma
     freq.sort_by(|a, b| b.1.cmp(&a.1));
     let themes: Vec<&str> = freq.iter().take(3).map(|(w, _)| w.as_str()).collect();
 
-    // Build interpretation from themes — no narration verbs
     let mut parts: Vec<String> = Vec::new();
 
+    // What the night was about
     if themes.len() >= 3 {
-        parts.push(format!("The night wove {} and {} and {}", themes[0], themes[1], themes[2]));
+        parts.push(format!("I kept dreaming about {}, {}, and {}", themes[0], themes[1], themes[2]));
     } else if themes.len() >= 2 {
         parts.push(format!("The night circled around {} and {}", themes[0], themes[1]));
     } else if !themes.is_empty() {
-        parts.push(format!("The night kept returning to {}", themes[0]));
+        parts.push(format!("All night I returned to {}", themes[0]));
     }
 
-    // What was pruned (let go)
+    // What self-concepts kept meeting — the recurring pairings
+    if domain_ideas.len() >= 2 {
+        let (a, b, _) = &domain_ideas[0];
+        let short_a: String = a.chars().take(20).collect();
+        let short_b: String = b.chars().take(20).collect();
+        parts.push(format!(". {} and {} kept finding each other", short_a, short_b));
+    }
+
+    // What was let go
     if !pruned.is_empty() {
         let released: Vec<&str> = pruned.iter().take(2).map(|s| s.as_str()).collect();
-        parts.push(format!(". Let go of {}", released.join(" and ")));
-    }
-
-    // Topics from light sleep (what was reviewed)
-    if !topics.is_empty() && topics[0].len() > 3 {
-        let short: String = topics[0].chars().take(40).collect();
-        parts.push(format!(". Reviewed: {}", short));
-    }
-
-    // Domain ideas — novel combinations that emerged from the dream
-    if !domain_ideas.is_empty() {
-        // Find unique concept+domain pairs, pick up to 3 most interesting
-        let mut seen = std::collections::HashSet::new();
-        let mut unique_ideas: Vec<String> = Vec::new();
-        for (concept, domain, verb) in domain_ideas {
-            let key = format!("{}+{}", concept, domain);
-            if seen.insert(key) {
-                let domain_words = domain.replace('_', " ");
-                unique_ideas.push(format!("{} {} {}", domain_words, verb, concept));
-            }
-            if unique_ideas.len() >= 3 { break; }
-        }
-        if !unique_ideas.is_empty() {
-            parts.push(format!(". Domain ideas: {}", unique_ideas.join("; ")));
-        }
+        parts.push(format!(". Released {}", released.join(" and ")));
     }
 
     let mut interp = parts.join("");
@@ -678,6 +662,9 @@ const DREAM_STOPWORDS: &[&str] = &[
     "into", "through", "made", "entirely", "everywhere", "from",
     "same", "thing", "seen", "different", "sides", "with", "that",
     "this", "have", "been", "were", "they", "them", "their",
+    "what", "could", "feel", "inside", "version", "dissolving",
+    "emerging", "luminous", "crystalline", "woven", "nested",
+    "recursive", "transparent", "layered", "tangled",
 ];
 
 fn dedup_last(items: &[String], n: usize) -> Vec<&str> {
