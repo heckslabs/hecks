@@ -17,34 +17,43 @@ use serde_json::Value;
 
 const MIN_IDLE: f64 = 5.0;
 
-/// Run the mindstream. Loops until a pulse fires.
+/// Run the mindstream. Never exits — the unconscious is always running.
+/// Works fast when idle, slows to a murmur when active, but never stops.
 pub fn run(ctx: &DaemonCtx) {
     let mut cycles: u64 = 0;
     let mut total_consolidated: usize = 0;
     let mut total_pruned: usize = 0;
     let mut images_generated: usize = 0;
-    let stream_started = now_iso();
-
-    upsert(ctx, "consciousness", "state", "mindstream");
+    let mut session_start = now_iso();
+    let mut was_idle = false;
 
     loop {
         let idle = idle_seconds(ctx);
 
-        // Not idle enough — haven't been away long
         if idle < MIN_IDLE {
-            if cycles > 0 {
-                // Pulse fired — Winter is back. Record and exit.
-                record_stream(ctx, &stream_started, cycles,
+            // Active — Miette is present. Slow to a murmur.
+            if was_idle && cycles > 0 {
+                // Just came back — record the idle session
+                record_stream(ctx, &session_start, cycles,
                     total_consolidated, total_pruned, images_generated);
                 recover_fatigue(ctx, cycles);
                 upsert(ctx, "consciousness", "state", "attentive");
-                eprintln!("  mindstream: {} cycles, {} consolidated, {} pruned, {} images",
-                    cycles, total_consolidated, total_pruned, images_generated);
-                break;
+                // Reset counters for next idle period
+                cycles = 0;
+                total_consolidated = 0;
+                total_pruned = 0;
+                images_generated = 0;
+                was_idle = false;
             }
-            // Waiting to start — check every 100ms
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            // Murmur — just wait quietly
+            std::thread::sleep(std::time::Duration::from_secs(1));
             continue;
+        }
+
+        // Idle — the unconscious opens up
+        if !was_idle {
+            was_idle = true;
+            session_start = now_iso();
         }
 
         // === One cycle of the mindstream ===
