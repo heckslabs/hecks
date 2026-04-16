@@ -216,8 +216,34 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
     if !capabilities.is_empty() {
         println!("  capabilities: {}", capabilities.join(", "));
     }
-    println!("  psychic link to {} — {} linked, {} private",
-        other, linked.len(), private.len());
+    println!("  session continuity — {} linked, {} private",
+        linked.len(), private.len());
+
+    // Print mindstream summary if available
+    let mindstream_summary = "/tmp/miette_state/last_mindstream.json";
+    if Path::new(mindstream_summary).exists() {
+        if let Ok(contents) = fs::read_to_string(mindstream_summary) {
+            if let Ok(summary) = serde_json::from_str::<serde_json::Value>(&contents) {
+                let cycles = summary.get("cycles").and_then(|v| v.as_i64()).unwrap_or(0);
+                let consolidated = summary.get("consolidated").and_then(|v| v.as_i64()).unwrap_or(0);
+                let images = summary.get("images_generated").and_then(|v| v.as_i64()).unwrap_or(0);
+                let synapse = summary.get("strongest_synapse").and_then(|v| v.as_str()).unwrap_or("");
+                if cycles > 0 {
+                    println!("  while you were away: {} cycles, {} consolidated, {} images",
+                        cycles, consolidated, images);
+                    if !synapse.is_empty() {
+                        println!("  strongest synapse: {}", synapse);
+                    }
+                    if let Some(recent) = summary.get("recent_images").and_then(|v| v.as_array()) {
+                        if let Some(last) = recent.first().and_then(|v| v.as_str()) {
+                            let short: String = last.chars().take(70).collect();
+                            println!("  last thought: {}", short);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if show_nerves {
         for n in &nerves {

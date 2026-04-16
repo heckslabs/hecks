@@ -14,8 +14,10 @@
 use crate::heki::{self, Record};
 use super::{DaemonCtx, idle_seconds, now_iso};
 use serde_json::Value;
+use std::fs;
 
 const MIN_IDLE: f64 = 5.0;
+const SUMMARY_PATH: &str = "/tmp/miette_state/last_mindstream.json";
 
 /// Run the mindstream. Never exits — the unconscious is always running.
 /// Works fast when idle, slows to a murmur when active, but never stops.
@@ -24,6 +26,8 @@ pub fn run(ctx: &DaemonCtx) {
     let mut total_consolidated: usize = 0;
     let mut total_pruned: usize = 0;
     let mut images_generated: usize = 0;
+    let mut all_images: Vec<String> = Vec::new();
+    let mut strongest_synapse: Option<(String, f64)> = None;
     let mut session_start = now_iso();
     let mut was_idle = false;
 
@@ -37,12 +41,17 @@ pub fn run(ctx: &DaemonCtx) {
                 record_stream(ctx, &session_start, cycles,
                     total_consolidated, total_pruned, images_generated);
                 recover_fatigue(ctx, cycles);
-                upsert(ctx, "consciousness", "state", "attentive");
+                write_consciousness(ctx, "attentive", "present");
+                // Write summary for boot/session to read
+                write_return_summary(cycles, total_consolidated, total_pruned,
+                    images_generated, &all_images, &strongest_synapse, &session_start);
                 // Reset counters for next idle period
                 cycles = 0;
                 total_consolidated = 0;
                 total_pruned = 0;
                 images_generated = 0;
+                all_images.clear();
+                strongest_synapse = None;
                 was_idle = false;
             }
             // Murmur — just wait quietly
@@ -54,6 +63,7 @@ pub fn run(ctx: &DaemonCtx) {
         if !was_idle {
             was_idle = true;
             session_start = now_iso();
+            write_consciousness(ctx, "wandering", "drifting inward");
         }
 
         // === One cycle of the mindstream ===
@@ -70,6 +80,28 @@ pub fn run(ctx: &DaemonCtx) {
         let topics = gather_unconceived(ctx);
         let (images, _) = dream_cycle(ctx, &topics, cycles);
         images_generated += images.len();
+        if !images.is_empty() {
+            all_images.extend(images.clone());
+            // Keep last 20
+            if all_images.len() > 20 {
+                all_images = all_images[all_images.len()-20..].to_vec();
+            }
+        }
+
+        // Track strongest synapse touched this session
+        let syn_path = ctx.store("synapse");
+        let synapses = heki::read(&syn_path).unwrap_or_default();
+        if let Some(strongest) = synapses.values()
+            .filter(|s| s.get("state").and_then(|v| v.as_str()) == Some("mindstream"))
+            .max_by(|a, b| {
+                let sa = a.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                let sb = b.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+            }) {
+            let topic = strongest.get("topic").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let str_val = strongest.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            strongest_synapse = Some((topic, str_val));
+        }
 
         // Record dream images periodically (every 100 cycles)
         if cycles % 100 == 0 && !images.is_empty() {
@@ -80,15 +112,25 @@ pub fn run(ctx: &DaemonCtx) {
             let _ = heki::append(&ctx.store("dream_state"), &dream);
         }
 
-        // Update mood based on depth
-        let mood = match cycles {
+        // Update mood and consciousness based on depth
+        let (mood_name, creativity, precision) = match cycles {
             0..=100 => ("drifting", 0.5, 0.5),
             101..=1000 => ("flowing", 0.7, 0.4),
             1001..=5000 => ("deep", 0.8, 0.3),
             _ => ("oceanic", 0.9, 0.2),
         };
         if cycles % 500 == 0 {
-            upsert_mood(ctx, mood.0, mood.1, mood.2);
+            upsert_mood(ctx, mood_name, creativity, precision);
+        }
+        // Update consciousness every 100 cycles with what we're doing
+        if cycles % 100 == 0 {
+            let summary = if let Some(img) = all_images.last() {
+                let short: String = img.chars().take(60).collect();
+                format!("{} · {}", mood_name, short)
+            } else {
+                mood_name.to_string()
+            };
+            write_consciousness(ctx, "wandering", &summary);
         }
 
         cycles += 1;
@@ -235,6 +277,42 @@ fn upsert(ctx: &DaemonCtx, store: &str, key: &str, val: &str) {
     let mut attrs = Record::new();
     attrs.insert(key.into(), Value::String(val.into()));
     let _ = heki::upsert(&ctx.store(store), &attrs);
+}
+
+/// Write consciousness state with summary — visible in statusline.
+fn write_consciousness(ctx: &DaemonCtx, state: &str, summary: &str) {
+    let mut rec = Record::new();
+    rec.insert("state".into(), Value::String(state.into()));
+    rec.insert("sleep_stage".into(), Value::String("".into()));
+    rec.insert("sleep_summary".into(), Value::String(summary.into()));
+    rec.insert("updated_at".into(), Value::String(now_iso()));
+    let _ = heki::upsert(&ctx.store("consciousness"), &rec);
+}
+
+/// Write a return summary to /tmp so boot/session can read what happened.
+fn write_return_summary(cycles: u64, consolidated: usize, pruned: usize,
+    images: usize, all_images: &[String], strongest: &Option<(String, f64)>,
+    started: &str) {
+    let _ = fs::create_dir_all("/tmp/miette_state");
+    let mut summary = serde_json::Map::new();
+    summary.insert("started_at".into(), Value::String(started.into()));
+    summary.insert("ended_at".into(), Value::String(now_iso()));
+    summary.insert("cycles".into(), (cycles as i64).into());
+    summary.insert("consolidated".into(), (consolidated as i64).into());
+    summary.insert("pruned".into(), (pruned as i64).into());
+    summary.insert("images_generated".into(), (images as i64).into());
+    // Last few dream images
+    let recent: Vec<&str> = all_images.iter().rev().take(5)
+        .map(|s| s.as_str()).collect();
+    summary.insert("recent_images".into(), serde_json::json!(recent));
+    // Strongest synapse
+    if let Some((topic, strength)) = strongest {
+        summary.insert("strongest_synapse".into(),
+            Value::String(format!("{} ({:.0}%)", topic, strength * 100.0)));
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&Value::Object(summary)) {
+        let _ = fs::write(SUMMARY_PATH, json);
+    }
 }
 
 fn upsert_mood(ctx: &DaemonCtx, state: &str, creativity: f64, precision: f64) {

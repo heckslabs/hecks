@@ -34,6 +34,9 @@ if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
 elif [ "$consciousness" = "sleeping" ]; then
   icon="${moon}"
   activity="sleeping"
+elif [ "$consciousness" = "wandering" ] && [ -n "$sleep_summary" ]; then
+  icon="💭"
+  activity="${sleep_summary}"
 else
   icon="☀️"
   activity="${fatigue:-awake}"
@@ -58,7 +61,25 @@ fi
 status_str="$status_str · $activity"
 # Idea count from musings
 ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
-[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} ideas"
+# Last sleep time ago
+if [ "$consciousness" != "sleeping" ]; then
+  last_woke=$($hecks heki read $info/dream_state.heki 2>/dev/null | python3 -c "
+import sys,json
+from datetime import datetime,timezone
+d=json.load(sys.stdin)
+wokes=[v.get('woke_at','') for v in d.values() if v.get('woke_at')]
+if wokes:
+  latest=max(wokes)
+  dt=datetime.fromisoformat(latest.replace('Z','+00:00'))
+  diff=datetime.now(timezone.utc)-dt
+  mins=int(diff.total_seconds()//60)
+  if mins<60: print(f'{mins}m ago')
+  elif mins<1440: print(f'{mins//60}h ago')
+  else: print(f'{mins//1440}d ago')
+" 2>/dev/null)
+  [ -n "$last_woke" ] && status_str="$status_str · 😴 ${last_woke}"
+fi
+[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} ideas!"
 parts="$status_str"
 
 [ -n "$parts" ] && echo "$parts"
