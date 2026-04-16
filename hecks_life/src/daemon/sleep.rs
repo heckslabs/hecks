@@ -48,7 +48,7 @@ pub fn run(ctx: &DaemonCtx, nap: bool, now_flag: bool) {
     // Wait for fatigue + idle (unless --nap or --now)
     if !nap && !now_flag {
         loop {
-            let pulse_store = heki::read(&ctx.store("pulse")).unwrap_or_default();
+            let pulse_store = heki::read(&ctx.store("heartbeat")).unwrap_or_default();
             let pss = pulse_store.values().next()
                 .and_then(|r| r.get("pulses_since_sleep").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
@@ -209,10 +209,8 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
         .collect();
 
     let mut images = Vec::new();
-    let mut domain_ideas: Vec<(String, String, String)> = Vec::new(); // (concept, domain, verb)
+    let mut domain_ideas: Vec<(String, String, String)> = Vec::new(); // (concept, domain, texture)
     let mut pulses = 0;
-    let dream_verbs = ["dissolving", "growing", "floating", "merging", "splitting",
-        "spiraling", "folding", "crystallizing", "branching", "grafting"];
     let textures = ["liquid", "crystalline", "fibrous", "layered", "translucent",
         "woven", "tangled", "nested", "recursive", "fractal"];
 
@@ -220,18 +218,22 @@ fn rem_dream(ctx: &DaemonCtx, topics: &[String], intensity: usize) -> (Vec<Strin
     for i in 0..iters {
         let concept = if !concepts.is_empty() { &concepts[i % concepts.len()] } else { continue };
         let domain = if !domains.is_empty() { &domains[i % domains.len()] } else { continue };
-        let verb = dream_verbs[i % dream_verbs.len()];
         let texture = textures[i % textures.len()];
         let words: Vec<&str> = domain.split('_').collect();
 
+        // Combinatorial: pull a second concept/domain when available
+        let concept_b = if concepts.len() > 1 { &concepts[(i + 1) % concepts.len()] } else { concept };
+        let domain_b = if domains.len() > 1 { &domains[(i + 1) % domains.len()] } else { domain };
+        let words_b: Vec<&str> = domain_b.split('_').collect();
+
         let image = match i % 4 {
-            0 => format!("A {} {} {} into {}", texture, words.last().unwrap_or(&""), verb, concept),
-            1 => format!("{} everywhere, {} through {}", concept, verb, words.join(" ")),
-            2 => format!("{} made entirely of {}", words.join(" "), concept),
-            _ => format!("{}, the same thing seen from different sides", concept),
+            0 => format!("A {} {} made of {} and {}", texture, words.last().unwrap_or(&""), concept, concept_b),
+            1 => format!("{} and {} inside {}", concept, concept_b, words.join(" ")),
+            2 => format!("{} where {} meets {}", words.join(" "), concept, words_b.join(" ")),
+            _ => format!("{}, {}, {} — same shape", concept, concept_b, words.join(" ")),
         };
         images.push(image);
-        domain_ideas.push((concept.clone(), domain.clone(), verb.into()));
+        domain_ideas.push((concept.clone(), domain.clone(), texture.into()));
         pulses += 1;
 
         // Strengthen dreaming synapses
@@ -305,7 +307,7 @@ fn deep_consolidation(ctx: &DaemonCtx) -> (usize, Vec<String>) {
 }
 
 fn recover_fatigue(ctx: &DaemonCtx, cycles_done: usize, total_cycles: usize, now: &str) {
-    let path = ctx.store("pulse");
+    let path = ctx.store("heartbeat");
     let mut store = heki::read(&path).unwrap_or_default();
     if let Some(rec) = store.values_mut().next() {
         let pss = rec.get("pulses_since_sleep").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -557,25 +559,16 @@ fn interpret_dream(images: &[String], topics: &[String], pruned: &[String], doma
     freq.sort_by(|a, b| b.1.cmp(&a.1));
     let themes: Vec<&str> = freq.iter().take(3).map(|(w, _)| w.as_str()).collect();
 
-    // Find the dominant verb (transformation type)
-    let verbs = ["dissolving", "growing", "floating", "merging", "splitting",
-        "spiraling", "folding", "crystallizing", "branching", "grafting"];
-    let dominant_verb = verbs.iter()
-        .max_by_key(|v| images.iter().filter(|img| img.contains(*v)).count())
-        .unwrap_or(&"changing");
-
-    // Build interpretation
+    // Build interpretation from themes — no narration verbs
     let mut parts: Vec<String> = Vec::new();
 
-    // Theme sentence
-    if themes.len() >= 2 {
+    if themes.len() >= 3 {
+        parts.push(format!("The night wove {} and {} and {}", themes[0], themes[1], themes[2]));
+    } else if themes.len() >= 2 {
         parts.push(format!("The night circled around {} and {}", themes[0], themes[1]));
     } else if !themes.is_empty() {
         parts.push(format!("The night kept returning to {}", themes[0]));
     }
-
-    // Transformation
-    parts.push(format!("— everything was {}", dominant_verb));
 
     // What was pruned (let go)
     if !pruned.is_empty() {

@@ -1,0 +1,88 @@
+Hecks.bluebook "DreamInterpretation", version: "2026.04.16.1" do
+  vision "Close the loop from dream images to domain proposals — dreams become musings become domains"
+  category "capability"
+
+  # ============================================================
+  # DREAM INTERPRETATION
+  # ============================================================
+  #
+  # The mindstream and sleep daemons produce dream images —
+  # combinatorial collisions of concepts and domains.
+  # This capability reads those images, finds recurring themes,
+  # and proposes new musings from what the dreams keep returning to.
+  #
+  # Dreams that recur are the unconscious pointing at something.
+  # This capability listens.
+
+  aggregate "DreamReading", "Read dream images and extract meaning" do
+    Integer :images_read
+    String :strongest_theme
+    String :interpretation
+
+    ReadDreamImages do
+      role "Self"
+      description "Load recent dream images from dream_state.heki"
+      emits "DreamImagesRead"
+    end
+
+    IdentifyThemes do
+      role "Self"
+      description "Find recurring words and patterns across dream images"
+      reference_to(DreamReading)
+      emits "ThemesIdentified"
+    end
+
+    SynthesizeInterpretation do
+      role "Self"
+      description "Produce a one-sentence interpretation of the dream session"
+      reference_to(DreamReading)
+      emits "InterpretationSynthesized"
+    end
+  end
+
+  aggregate "DomainProposal", "Propose a musing from dream content" do
+    String :theme
+    String :proposed_idea
+    Boolean :accepted
+
+    ProposeDomain do
+      role "Self"
+      description "Turn a recurring dream theme into a musing"
+      String :theme
+      emits "DomainProposed"
+      then_set :theme, to: :theme
+      then_set :accepted, to: false
+    end
+
+    AcceptProposal do
+      role "Creator"
+      description "Accept this proposal — it becomes a musing"
+      reference_to(DomainProposal)
+      emits "ProposalAccepted"
+      then_set :accepted, to: true
+    end
+
+    DismissProposal do
+      role "Creator"
+      description "Dismiss this proposal — not worth pursuing"
+      reference_to(DomainProposal)
+      emits "ProposalDismissed"
+    end
+  end
+
+  # On waking, read dream images and look for themes
+  policy "InterpretOnWake" do
+    on "NightEnded"
+    trigger "ReadDreamImages"
+  end
+
+  policy "ThemeOnRead" do
+    on "DreamImagesRead"
+    trigger "IdentifyThemes"
+  end
+
+  policy "ProposeOnTheme" do
+    on "ThemesIdentified"
+    trigger "ProposeDomain"
+  end
+end

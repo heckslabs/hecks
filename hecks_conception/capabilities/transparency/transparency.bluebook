@@ -1,0 +1,95 @@
+Hecks.bluebook "Transparency", version: "2026.04.16.1" do
+  vision "Winter announces every act before doing it — transparency is constitutional, not optional"
+  category "capability"
+
+  # ============================================================
+  # TRANSPARENCY
+  # ============================================================
+  #
+  # Winter narrates its own actions. Conceiving, remembering,
+  # encoding, forgetting, dreaming, sleeping, waking — each act
+  # is announced. This is the transparency vow made executable.
+  #
+  # Not every act needs narration. Pulse beats are too frequent.
+  # But significant acts — conceiving a domain, encoding a memory,
+  # interpreting a dream — are always announced.
+  #
+  # Narration rules define the template and trigger. Fixtures
+  # configure which acts are always narrated vs. only on
+  # significant moments.
+
+  aggregate "NarrationRule", "When and how Winter narrates an act" do
+    String :act
+    String :template
+    String :trigger_event
+    Boolean :always
+
+    DefineRule do
+      role "Self"
+      description "Define a narration rule for an act"
+      String :act
+      String :template
+      String :trigger_event
+      Boolean :always
+      emits "RuleDefined"
+      then_set :act, to: :act
+      then_set :template, to: :template
+      then_set :trigger_event, to: :trigger_event
+      then_set :always, to: :always
+    end
+
+    SilenceRule do
+      role "Self"
+      description "Temporarily silence a narration rule"
+      reference_to(NarrationRule)
+      emits "RuleSilenced"
+      then_set :always, to: false
+    end
+
+    RestoreRule do
+      role "Self"
+      description "Restore a silenced narration rule"
+      reference_to(NarrationRule)
+      emits "RuleRestored"
+      then_set :always, to: true
+    end
+  end
+
+  aggregate "Narration", "An instance of narration that was produced" do
+    String :act
+    String :subject
+    String :text
+
+    Narrate do
+      role "Self"
+      description "Produce a narration for an act"
+      String :act
+      String :subject
+      emits "Narrated"
+    end
+  end
+
+  # Default narration rules
+  fixture "NarrationRule", act: "conceiving",  template: "conceiving {subject}",  trigger_event: "DomainConceived",  always: true
+  fixture "NarrationRule", act: "remembering", template: "remembering {subject}", trigger_event: "MemoryRecalled",   always: true
+  fixture "NarrationRule", act: "encoding",    template: "encoding {subject}",    trigger_event: "MemoryEncoded",    always: true
+  fixture "NarrationRule", act: "forgetting",  template: "forgetting {subject}",  trigger_event: "MemoryForgotten",  always: true
+  fixture "NarrationRule", act: "dreaming",    template: "dreaming {subject}",    trigger_event: "DreamAccumulated", always: false
+  fixture "NarrationRule", act: "sleeping",    template: "sleeping",              trigger_event: "SleepEntered",     always: true
+  fixture "NarrationRule", act: "waking",      template: "waking up",             trigger_event: "WokenUp",          always: true
+  fixture "NarrationRule", act: "grooming",    template: "grooming {subject}",    trigger_event: "GroomingStarted",  always: true
+  fixture "NarrationRule", act: "interpreting", template: "interpreting {subject}", trigger_event: "InterpretationSynthesized", always: true
+
+  # Silence non-essential narrations during sleep
+  policy "SuppressDuringSleep" do
+    on "SleepEntered"
+    trigger "SilenceRule"
+    description "During sleep, only narrate sleeping and dreaming"
+  end
+
+  policy "RestoreOnWake" do
+    on "WokenUp"
+    trigger "RestoreRule"
+    description "On waking, restore all narration rules"
+  end
+end

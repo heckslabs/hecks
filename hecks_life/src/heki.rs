@@ -319,7 +319,7 @@ pub fn print_summary(stores: &HashMap<String, Store>) {
     let total: usize = stores.values().map(|s| s.len()).sum();
 
     let mood = stores.get("mood").and_then(|s| latest(s));
-    let pulse = stores.get("pulse").and_then(|s| latest(s));
+    let pulse = stores.get("heartbeat").and_then(|s| latest(s));
     let census = stores.get("census").and_then(|s| latest(s));
     let heartbeat = stores.get("heartbeat").and_then(|s| latest(s));
     let being = stores.get("being").and_then(|s| latest(s));

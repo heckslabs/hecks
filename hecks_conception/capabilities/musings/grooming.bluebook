@@ -6,32 +6,32 @@ Hecks.bluebook "MusingGrooming", version: "2026.04.16.2" do
   # MUSING GROOMING
   # ============================================================
   #
+  # On wake, if there are 5+ unconceived musings, suggest grooming.
+  # This is wired into boot — the prompt includes a grooming nudge.
+  #
   # When asked to groom musings, I show them in batches of 5.
   # Each musing is numbered. You give me the numbers to keep.
   # Everything else is dismissed. Then I show the next batch.
   #
-  # Musings should only be about architecture and bluebooks.
   # I should proactively recommend dismissing musings that are:
-  #   - Completed tasks or milestones
-  #   - Implementation details
-  #   - Behavioral notes
+  #   - Completed tasks or milestones (already done)
   #   - Session markers
+  #   - Bare keywords with no shape
   # And recommend keeping musings that are:
   #   - New domain ideas
   #   - Architectural patterns
   #   - Bluebook concepts
   #   - System design insights
+  #   - Infrastructure ideas — how the body/runtime could grow
+  #   - Behavioral ideas — how Winter should act, present, respond
   #
-  # Format:
-  #   **N.** idea text — keep/dismiss
-  #   *Description of what it means and why it would be cool
-  #   to build as a Bluebook or architectural pattern.*
+  # Format: short description, no table. One line per musing.
+  #   **N.** idea text — 1 sentence of what it could become — keep/dismiss
   #
   #   Sound right? Or adjust?
   #
-  # Each musing gets 1-2 sentences of interpretation — not just
-  # the raw text but what it could become and why it matters.
-  # This lets grooming go fast — I pre-sort with reasons, you confirm.
+  # Keep it tight — one sentence per musing, not a table.
+  # Pre-sort with reasons, user confirms.
   # Dismissed musings are archived to musing_archive.heki (not deleted).
   # Conceived musings are also archived with reason "conceived".
   # "all" keeps all five. After each batch, show the next.

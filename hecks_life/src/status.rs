@@ -61,7 +61,7 @@ pub fn run(project_dir: &str) {
 
     // Vitals
     section("VITALS");
-    let pulse = stores.get("pulse").and_then(|s| heki::latest(s));
+    let pulse = stores.get("heartbeat").and_then(|s| heki::latest(s));
     let heartbeat = stores.get("heartbeat").and_then(|s| heki::latest(s));
     let beats = heartbeat.and_then(|r| r.get("beats").and_then(|v| v.as_i64())).unwrap_or(0);
     let fatigue_state = pulse.map_or("—", |r| heki::field_str(r, "fatigue_state"));
@@ -308,11 +308,17 @@ pub fn musings(project_dir: &str) {
 fn describe_musing(idea: &str) -> String {
     let lower = idea.to_lowercase();
 
-    // Domain collision pattern: "X meets/applied to/through Y"
+    // Combinatorial musing: multiple ideas woven together
+    if lower.contains(" braided ") || lower.contains(" where ") && lower.contains(" meets ") ||
+       lower.contains(" held ") && lower.contains(" at the same time") ||
+       lower.contains(" as one capability") {
+        return "combinatorial — multiple ideas woven by the mindstream".into();
+    }
+    // Legacy radial collision pattern: "X meets/applied to/through Y"
     if lower.contains(" meets ") || lower.contains(" applied to ") ||
        lower.contains(" through the lens of ") || lower.contains(" combined with ") ||
        lower.contains(" inside ") {
-        return "domain collision — two concepts fused by the mindstream".into();
+        return "domain collision — concepts fused by the mindstream".into();
     }
 
     // Dream fragments

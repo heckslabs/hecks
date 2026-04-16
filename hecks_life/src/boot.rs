@@ -25,7 +25,7 @@ struct Nerve {
 const LINKED_STORES: &[&str] = &[
     "memory", "awareness", "census", "conversation", "working_memory",
     "reflection", "synapse", "signal", "signal_somatic", "focus",
-    "concentration", "deliberation", "pulse", "heartbeat",
+    "concentration", "deliberation", "heartbeat",
     "subconscious", "domain_index", "arc", "consciousness",
     "discipline", "metabolic_rate", "musing", "conflict_monitor",
     "run_log", "inbox",
@@ -242,6 +242,16 @@ pub fn run(project_dir: &str, show_nerves: bool, being: &str) {
                     }
                 }
             }
+        }
+    }
+
+    // Suggest grooming if musings are piling up
+    if let Some(musing_store) = stores.get("musing") {
+        let unconceived = musing_store.values()
+            .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
+            .count();
+        if unconceived >= 5 {
+            println!("  💡 {} unconceived musings — consider grooming", unconceived);
         }
     }
 

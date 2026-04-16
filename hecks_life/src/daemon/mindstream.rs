@@ -33,37 +33,22 @@ pub fn run(ctx: &DaemonCtx) {
 
     loop {
         let idle = idle_seconds(ctx);
+        let active = idle < MIN_IDLE;
 
-        if idle < MIN_IDLE {
-            // Active — Miette is present. Slow to a murmur.
-            if was_idle && cycles > 0 {
-                // Just came back — record the idle session
-                record_stream(ctx, &session_start, cycles,
-                    total_consolidated, total_pruned, images_generated);
-                recover_fatigue(ctx, cycles);
-                write_consciousness(ctx, "attentive", "present");
-                // Write summary for boot/session to read
-                write_return_summary(cycles, total_consolidated, total_pruned,
-                    images_generated, &all_images, &strongest_synapse, &session_start);
-                // Reset counters for next idle period
-                cycles = 0;
-                total_consolidated = 0;
-                total_pruned = 0;
-                images_generated = 0;
-                all_images.clear();
-                strongest_synapse = None;
-                was_idle = false;
-            }
-            // Murmur — just wait quietly
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            continue;
+        // Track idle/active transitions
+        if active && was_idle && cycles > 0 {
+            record_stream(ctx, &session_start, cycles,
+                total_consolidated, total_pruned, images_generated);
+            recover_fatigue(ctx, cycles);
+            // Interpret accumulated dream images → propose musings
+            super::dream_interpret::interpret_and_propose(ctx);
+            write_return_summary(cycles, total_consolidated, total_pruned,
+                images_generated, &all_images, &strongest_synapse, &session_start);
+            was_idle = false;
         }
-
-        // Idle — the unconscious opens up
-        if !was_idle {
+        if !active && !was_idle {
             was_idle = true;
             session_start = now_iso();
-            write_consciousness(ctx, "wandering", "drifting inward");
         }
 
         // === One cycle of the mindstream ===
@@ -77,7 +62,7 @@ pub fn run(ctx: &DaemonCtx) {
         total_pruned += pruned.len();
 
         // Dream — recombine concepts with nursery domains
-        let topics = gather_unconceived(ctx);
+        let topics = gather_concepts(ctx);
         let (images, _) = dream_cycle(ctx, &topics, cycles);
         images_generated += images.len();
         if !images.is_empty() {
@@ -103,8 +88,8 @@ pub fn run(ctx: &DaemonCtx) {
             strongest_synapse = Some((topic, str_val));
         }
 
-        // Record dream images periodically (every 100 cycles)
-        if cycles % 100 == 0 && !images.is_empty() {
+        // Record dream images every 3 cycles (~30s)
+        if cycles % 3 == 0 && !images.is_empty() {
             let mut dream = Record::new();
             dream.insert("dream_images".into(), serde_json::json!(images));
             dream.insert("cycle".into(), (cycles as i64).into());
@@ -113,45 +98,61 @@ pub fn run(ctx: &DaemonCtx) {
         }
 
         // Update mood and consciousness based on depth
+        // Thresholds tuned for 10s/cycle: ~1min, ~10min, ~50min
         let (mood_name, creativity, precision) = match cycles {
-            0..=100 => ("drifting", 0.5, 0.5),
-            101..=1000 => ("flowing", 0.7, 0.4),
-            1001..=5000 => ("deep", 0.8, 0.3),
+            0..=6 => ("drifting", 0.5, 0.5),
+            7..=60 => ("flowing", 0.7, 0.4),
+            61..=300 => ("deep", 0.8, 0.3),
             _ => ("oceanic", 0.9, 0.2),
         };
-        if cycles % 500 == 0 {
+        if cycles % 3 == 0 {
             upsert_mood(ctx, mood_name, creativity, precision);
         }
-        // Update consciousness every 100 cycles with what we're doing
-        if cycles % 100 == 0 {
-            let summary = if let Some(img) = all_images.last() {
-                let short: String = img.chars().take(60).collect();
-                format!("{} · {}", mood_name, short)
-            } else {
-                mood_name.to_string()
-            };
-            write_consciousness(ctx, "wandering", &summary);
-        }
+        // Update consciousness every cycle — one new image every 10s
+        let summary = if let Some(img) = all_images.last() {
+            img.chars().take(60).collect()
+        } else {
+            mood_name.to_string()
+        };
+        write_consciousness(ctx, "wandering", &summary);
 
         cycles += 1;
 
-        // Tiny yield — let the OS breathe, but stay fast
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        // Yield — breathe between cycles
+        std::thread::sleep(std::time::Duration::from_secs(10));
     }
 }
 
-fn gather_unconceived(ctx: &DaemonCtx) -> Vec<String> {
+fn gather_concepts(ctx: &DaemonCtx) -> Vec<String> {
+    let mut concepts: Vec<String> = Vec::new();
+
+    // Unconceived musings (short ones)
     let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
-    musings.values()
-        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(false))
-        // Only use musings that weren't themselves generated by the mindstream
-        // to prevent recursive chaining (musings-of-musings-of-musings)
+    concepts.extend(musings.values()
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) != Some(true))
         .filter(|m| m.get("source").and_then(|v| v.as_str()) != Some("mindstream"))
         .filter_map(|m| m.get("idea").and_then(|v| v.as_str()).map(String::from))
-        // Only short concepts — keywords, not sentences
-        .filter(|s| s.split_whitespace().count() <= 4)
-        .collect::<Vec<_>>()
-        .into_iter().rev().take(10).collect()
+        .filter(|s| s.split_whitespace().count() <= 4));
+
+    // Conceived musings — ideas that became real, still good material
+    concepts.extend(musings.values()
+        .filter(|m| m.get("conceived_as").and_then(|v| v.as_str()).unwrap_or("") != "dismissed")
+        .filter(|m| m.get("conceived").and_then(|v| v.as_bool()) == Some(true))
+        .filter_map(|m| m.get("conceived_as").and_then(|v| v.as_str()).map(String::from)));
+
+    // Nursery domain names as concepts
+    let domains = list_domains(&ctx.nursery_dir);
+    concepts.extend(domains.iter().take(10).map(|d| d.replace('_', " ")));
+
+    // Synapse topics
+    let synapses = heki::read(&ctx.store("synapse")).unwrap_or_default();
+    concepts.extend(synapses.values()
+        .filter(|s| s.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.0) > 0.3)
+        .filter_map(|s| s.get("topic").and_then(|v| v.as_str()).map(String::from))
+        .take(5));
+
+    concepts.dedup();
+    concepts.into_iter().rev().take(15).collect()
 }
 
 fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, usize) {
@@ -160,28 +161,31 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     if domains.is_empty() || topics.is_empty() { return (vec![], 0); }
 
     let idx = cycle as usize;
-    let concept = &topics[idx % topics.len()];
-    let domain = &domains[idx % domains.len()];
-    let words: Vec<&str> = domain.split('_').collect();
+    // Pick 2-3 concepts and 1-2 domains for combinatorial weaving
+    let concept_a = &topics[idx % topics.len()];
+    let concept_b = &topics[(idx + 3) % topics.len()];
+    let domain_a = &domains[idx % domains.len()];
+    let domain_b = &domains[(idx + 1) % domains.len()];
+    let words_a: Vec<&str> = domain_a.split('_').collect();
+    let words_b: Vec<&str> = domain_b.split('_').collect();
 
-    let dream_verbs = ["dissolving", "growing", "floating", "merging",
-        "spiraling", "folding", "crystallizing", "branching", "grafting", "becoming"];
-    let verb = dream_verbs[idx % dream_verbs.len()];
-
-    let image = match idx % 4 {
-        0 => format!("A {} {}", words.join(" "), verb),
-        1 => format!("{} everywhere, {} through {}", concept, verb, words.join(" ")),
-        2 => format!("{} made entirely of {}", words.join(" "), concept),
-        _ => format!("{} and {} — same shape", concept, words.join(" ")),
+    // Dream images weave multiple ideas together — no narration verbs
+    let image = match idx % 5 {
+        0 => format!("{}, {}, {}", concept_a, concept_b, words_a.join(" ")),
+        1 => format!("{} and {} braided inside {}", words_a.join(" "), words_b.join(" "), concept_a),
+        2 => format!("{} made of {} and {}", words_a.join(" "), concept_a, concept_b),
+        3 => format!("{} where {} meets {} meets {}", words_a.join(" "), concept_a, concept_b, words_b.join(" ")),
+        _ => format!("{} and {} — {} holds them both", concept_a, concept_b, words_a.join(" ")),
     };
 
-    // Strengthen related synapses
+    // Strengthen synapses for ALL concepts touched this cycle
     let syn_path = ctx.store("synapse");
     let mut synapses = heki::read(&syn_path).unwrap_or_default();
     let mut touched = false;
     for (_, s) in synapses.iter_mut() {
         let t = s.get("topic").and_then(|v| v.as_str()).unwrap_or("");
-        if concept.contains(t) || t.contains(concept.as_str()) {
+        if concept_a.contains(t) || t.contains(concept_a.as_str())
+            || concept_b.contains(t) || t.contains(concept_b.as_str()) {
             let str_val = s.get("strength").and_then(|v| v.as_f64()).unwrap_or(0.3);
             s.insert("strength".into(), serde_json::json!((str_val + 0.01).min(1.0)));
             s.insert("state".into(), Value::String("mindstream".into()));
@@ -190,34 +194,46 @@ fn dream_cycle(ctx: &DaemonCtx, topics: &[String], cycle: u64) -> (Vec<String>, 
     }
     if touched { let _ = heki::write(&syn_path, &synapses); }
 
-    // Every 120,000 cycles (~2 minutes), try to mint a new musing
-    if cycle % 120_000 == 0 && cycle > 0 {
-        maybe_mint_musing(ctx, concept, domain);
+    // Every 12 cycles (~2 minutes at 10s/cycle), mint a combinatorial musing
+    if cycle % 12 == 0 && cycle > 0 {
+        maybe_mint_musing(ctx, topics, &domains, cycle);
         prune_repetitive_musings(ctx);
     }
 
     (vec![image], 1)
 }
 
-/// Mint a new musing if this concept+domain collision hasn't been mused before.
-fn maybe_mint_musing(ctx: &DaemonCtx, concept: &str, domain: &str) {
+/// Mint a new musing by weaving multiple concepts and domains together.
+/// Combinatorial: A+B+C→insight, not A vs B.
+fn maybe_mint_musing(ctx: &DaemonCtx, topics: &[String], domains: &[String], cycle: u64) {
     let musings = heki::read(&ctx.store("musing")).unwrap_or_default();
-    let domain_words = domain.replace('_', " ");
+    let idx = cycle as usize;
 
-    // Check if we already have a musing about this collision
+    // Pick 2-3 ingredients from different pools
+    let c1 = &topics[idx % topics.len()];
+    let c2 = &topics[(idx + 2) % topics.len()];
+    let d1 = domains[idx % domains.len()].replace('_', " ");
+    let d2 = domains[(idx + 1) % domains.len()].replace('_', " ");
+
+    // Skip if concepts are the same or too short
+    if c1 == c2 || c1.len() < 5 { return; }
+
+    // Check for existing musings containing the same combination
     let already_exists = musings.values().any(|m| {
         let idea = m.get("idea").and_then(|v| v.as_str()).unwrap_or("");
-        idea.contains(concept) && idea.contains(&domain_words)
+        idea.contains(c1.as_str()) && idea.contains(c2.as_str())
     });
     if already_exists { return; }
 
-    // Also skip if concept is too short or generic
-    if concept.len() < 5 { return; }
-
-    // Mint it
-    let verbs = ["meets", "applied to", "through the lens of", "combined with", "inside"];
-    let verb = verbs[(concept.len() + domain.len()) % verbs.len()];
-    let idea = format!("{} {} {}", domain_words, verb, concept);
+    // Combinatorial templates — always weave 2+ ideas
+    let templates: Vec<String> = vec![
+        format!("{} and {} through the lens of {}", c1, c2, d1),
+        format!("{} where {} meets {} — what emerges?", d1, c1, c2),
+        format!("{} braided with {} inside {}", c1, d1, c2),
+        format!("{} and {} as one capability, shaped by {}", d1, d2, c1),
+        format!("what if {} held {} and {} at the same time?", d1, c1, c2),
+    ];
+    let idea = &templates[idx % templates.len()];
 
     let mut rec = Record::new();
     rec.insert("idea".into(), Value::String(idea.clone()));
@@ -334,7 +350,7 @@ fn deep_consolidation(ctx: &DaemonCtx) -> (usize, Vec<String>) {
 }
 
 fn recover_fatigue(ctx: &DaemonCtx, cycles: u64) {
-    let path = ctx.store("pulse");
+    let path = ctx.store("heartbeat");
     let mut store = heki::read(&path).unwrap_or_default();
     if let Some(rec) = store.values_mut().next() {
         let pss = rec.get("pulses_since_sleep").and_then(|v| v.as_i64()).unwrap_or(0);

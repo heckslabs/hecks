@@ -83,7 +83,7 @@ pub fn run(project_dir: &str, being: &str) {
 
         // Footer — pulse, mood, heartbeats
         let stores = heki::read_dir(&ctx.info_dir).unwrap_or_default();
-        let pulse_rec = stores.get("pulse").and_then(|s| heki::latest(s));
+        let pulse_rec = stores.get("heartbeat").and_then(|s| heki::latest(s));
         let pulse_str = pulse_rec.map(|r| heki::field_str(r, "state")).unwrap_or("—");
         let mood_rec = stores.get("mood").and_then(|s| heki::latest(s));
         let mood_now = mood_rec.map(|r| heki::field_str(r, "current_state")).unwrap_or("—");

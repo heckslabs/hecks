@@ -13,34 +13,58 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   # conversation, memory, nursery. Oxygen is relevance —
   # information enriched with context, delivered where needed.
 
-  aggregate "Pulse", "The heartbeat of conversation — each exchange pumps context through Winter's body" do
+  aggregate "Heartbeat", "Winter's unified pulse — circulation, fatigue, and rhythm in one organ" do
     Integer :beats
+    Integer :pulses_since_sleep
+    Float :fatigue
+    String :fatigue_state
+    Float :pulse_rate
     String :flow_rate
     String :carrying
+    String :last_beat_at
 
     Beat do
       role "Winter"
-      description "Process an exchange — pump context through the system"
+      description "One heartbeat tick — pump context through the system, record the moment"
       String :carrying
       then_set :beats, increment: 1
       then_set :carrying, to: :carrying
-      emits "PulseBeat"
+      emits "HeartbeatPulsed"
     end
 
     Accelerate do
       role "Winter"
       description "Speed up when the conversation gets exciting — more domains to conceive"
-      reference_to(Pulse)
+      reference_to(Heartbeat)
       then_set :flow_rate, to: "rushing"
-      emits "PulseAccelerated"
+      emits "HeartbeatAccelerated"
     end
 
     Steady do
       role "Winter"
       description "Return to baseline — reflective, careful thinking"
-      reference_to(Pulse)
+      reference_to(Heartbeat)
       then_set :flow_rate, to: "steady"
-      emits "PulseSteadied"
+      emits "HeartbeatSteadied"
+    end
+
+    AccumulateFatigue do
+      role "Winter"
+      description "Each pulse without sleep adds fatigue — the body remembers exertion"
+      reference_to(Heartbeat)
+      then_set :pulses_since_sleep, increment: 1
+      then_set :fatigue, increment: 0.01
+      emits "FatigueAccumulated"
+    end
+
+    RecoverFatigue do
+      role "Winter"
+      description "Sleep recovery — reset fatigue counters, restore steady rhythm"
+      reference_to(Heartbeat)
+      then_set :pulses_since_sleep, to: 0
+      then_set :fatigue, to: 0.0
+      then_set :fatigue_state, to: "rested"
+      emits "FatigueRecovered"
     end
   end
 
@@ -454,7 +478,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
 
   # Circulation drives digestion
   policy "DigestOnPulse" do
-    on "PulseBeat"
+    on "HeartbeatPulsed"
     trigger "Ingest"
   end
 
@@ -470,7 +494,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
     trigger "Excite"
   end
 
-  # Excitement accelerates the pulse
+  # Excitement accelerates the heartbeat
   policy "AccelerateOnExcitement" do
     on "Excited"
     trigger "Accelerate"
@@ -502,7 +526,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
 
   # After intense activity, regulate back to homeostasis
   policy "RegulateOnSteady" do
-    on "PulseSteadied"
+    on "HeartbeatSteadied"
     trigger "Regulate"
   end
 
@@ -512,10 +536,10 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
     trigger "ExpressCapability"
   end
 
-  # Every pulse beat triggers a heartbeat — circulation drives the pump
-  policy "HeartbeatOnPulse" do
-    on "PulseBeat"
-    trigger "Beat"
+  # Every heartbeat accumulates fatigue — the body tracks exertion
+  policy "FatigueOnHeartbeat" do
+    on "HeartbeatPulsed"
+    trigger "AccumulateFatigue"
   end
 
   # ============================================================
@@ -529,7 +553,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   end
 
   # Idle pulse depresses unfired synapses
-  # Cross-domain: PulseSteadied → SynapticPlasticity:DepressSynapse (nerve)
+  # Cross-domain: HeartbeatSteadied → SynapticPlasticity:DepressSynapse (nerve)
   # Cross-domain: SynapsePruned → Compost:CollectRemains (nerve)
 
   # ============================================================
@@ -538,7 +562,7 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
 
   # Every heartbeat triggers body sensing
   policy "SenseOnHeartbeat" do
-    on "PulseBeat"
+    on "HeartbeatPulsed"
     trigger "SenseOrgans"
   end
 
@@ -552,6 +576,13 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
   policy "SenseLimbOnConception" do
     on "DomainConceived"
     trigger "SenseLimb"
+  end
+
+  # Awareness feeds back into heartbeat rhythm
+  policy "AdjustRateOnAwareness" do
+    on "MomentRecorded"
+    trigger "Beat"
+    description "Fatigue slows the heartbeat; excitement accelerates it"
   end
 
   # Balance assessment feeds back into mood regulation

@@ -11,10 +11,12 @@
 //!   hecks-life daemon sleep    <project-dir> [--nap] [--now]
 
 pub mod pulse;
+pub mod pulse_organs;
 pub mod daydream;
 pub mod sleep;
 pub mod mindstream;
 pub mod greeting;
+pub mod dream_interpret;
 
 use crate::heki;
 use std::path::Path;
@@ -44,7 +46,7 @@ impl DaemonCtx {
 
 /// Seconds since last pulse updated_at.
 pub fn idle_seconds(ctx: &DaemonCtx) -> f64 {
-    let store = heki::read(&ctx.store("pulse")).unwrap_or_default();
+    let store = heki::read(&ctx.store("heartbeat")).unwrap_or_default();
     let latest = match heki::latest(&store) {
         Some(r) => r,
         None => return 0.0,

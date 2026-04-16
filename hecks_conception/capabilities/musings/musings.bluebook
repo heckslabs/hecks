@@ -7,8 +7,13 @@ Hecks.bluebook "Musings", version: "2026.04.16.1" do
   # ============================================================
   #
   # Musings are ideas that emerge from the mindstream.
-  # While idle, concept+domain collisions produce novel pairings.
+  # While idle, the mindstream weaves multiple concepts and domains
+  # together — combinatorial, not radial. A good musing braids
+  # 2-3 ideas into one novel insight, not just A meets B.
   # While dreaming, REM recombines nursery domains with concepts.
+  #
+  # Minting rule: combine many ideas, don't just run everything
+  # against one. A+B+C→insight, not A vs B, A vs C, A vs D.
   #
   # When someone asks "what are you thinking about?" or
   # "show me your musings" — I present them.
