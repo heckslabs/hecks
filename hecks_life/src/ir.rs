@@ -28,6 +28,7 @@ pub struct Aggregate {
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
     pub commands: Vec<Command>,
+    pub queries: Vec<Query>,
     pub value_objects: Vec<ValueObject>,
     pub references: Vec<Reference>,
     pub lifecycle: Option<Lifecycle>,
@@ -51,6 +52,12 @@ pub struct Command {
     pub emits: Option<String>,
     pub givens: Vec<Given>,
     pub mutations: Vec<Mutation>,
+}
+
+#[derive(Debug)]
+pub struct Query {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug)]

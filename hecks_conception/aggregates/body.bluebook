@@ -23,6 +23,10 @@ Hecks.bluebook "WinterBody", version: "2026.04.11.1" do
     String :carrying
     String :last_beat_at
 
+    query ReadVitals do
+      description "How am I doing? Beats, fatigue, flow."
+    end
+
     Beat do
       role "Winter"
       description "One heartbeat tick — 1 beat per second since last beat"

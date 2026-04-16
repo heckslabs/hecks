@@ -101,7 +101,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
 
     let mut agg = Aggregate {
         name, description: desc, attributes: vec![],
-        commands: vec![], value_objects: vec![],
+        commands: vec![], queries: vec![], value_objects: vec![],
         references: vec![], lifecycle: None,
     };
 
@@ -152,7 +152,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                     ShorthandResult::Reference(r) => agg.references.push(r),
                     ShorthandResult::None => {}
                 }
-            } else if line.starts_with("query") || ends_with_do_block(line) {
+            } else if line.starts_with("query") {
+                let name = extract_string(line).unwrap_or_else(|| {
+                    line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
+                });
+                let desc = extract_second_string(line);
+                agg.queries.push(Query { name, description: desc });
+                if ends_with_do_block(line) { depth += 1; }
+            } else if ends_with_do_block(line) {
                 depth += 1;
             }
         } else if ends_with_do_block(line) {
