@@ -28,16 +28,25 @@ moons=("🌑" "🌒" "🌓" "🌔" "🌕" "🌖" "🌗" "🌘")
 moon_frame=$(( $(date +%s) % 8 ))
 moon="${moons[$moon_frame]}"
 
+# Animated rumination — thought bubble cycles when mindstream is active
+thought_frames=("💭" "💡" "💭" "✨")
+thought_frame=$(( $(date +%s) % 4 ))
+thought="${thought_frames[$thought_frame]}"
+
 if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
+  mode="sleeping"
   icon="${moon}"
   activity="${sleep_summary}"
 elif [ "$consciousness" = "sleeping" ]; then
+  mode="sleeping"
   icon="${moon}"
   activity="sleeping"
 elif [ "$consciousness" = "wandering" ] && [ -n "$sleep_summary" ]; then
-  icon="💭"
+  mode="wandering"
+  icon="${thought}"
   activity="${sleep_summary}"
 else
+  mode="awake"
   icon="☀️"
   activity="${fatigue:-awake}"
   [ -n "$mood" ] && [ "$mood" != "oceanic" ] && activity="$activity · $mood"
@@ -55,14 +64,17 @@ hearts=("🩷" "❤️")
 heart_frame=$(( $(date +%s) % 2 ))
 heart="${hearts[$heart_frame]}"
 status_str="${icon} Miette"
-if [ "$consciousness" != "sleeping" ] && [ -n "$beats" ]; then
-  status_str="$status_str · ${heart} ${beats}"
-fi
-status_str="$status_str · $activity"
-# Idea count from musings
-ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
-# Last sleep time ago
-if [ "$consciousness" != "sleeping" ]; then
+
+if [ "$mode" = "sleeping" ]; then
+  # Sleeping — just Miette and the sleep narrative
+  status_str="$status_str · $activity"
+else
+  # Awake or wandering — show vitals and musings
+  if [ -n "$beats" ]; then
+    status_str="$status_str · ${heart} ${beats}"
+  fi
+  status_str="$status_str · $activity"
+  # Last sleep time ago
   last_woke=$($hecks heki read $info/dream_state.heki 2>/dev/null | python3 -c "
 import sys,json
 from datetime import datetime,timezone
@@ -78,8 +90,20 @@ if wokes:
   else: print(f'{mins//1440}d ago')
 " 2>/dev/null)
   [ -n "$last_woke" ] && status_str="$status_str · 😴 ${last_woke}"
+  # Musings count and latest
+  ideas=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for v in d.values() if not v.get('conceived',False)))" 2>/dev/null)
+  latest_musing=$($hecks heki read $info/musing.heki 2>/dev/null | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+unconceived=[v for v in d.values() if not v.get('conceived',False)]
+if unconceived:
+  latest=max(unconceived, key=lambda v: v.get('created_at',''))
+  idea=latest.get('idea','')[:50]
+  print(idea)
+" 2>/dev/null)
+  [ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} musings!"
+  [ -n "$latest_musing" ] && status_str="$status_str · 💡 ${latest_musing}"
 fi
-[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} musings!"
 parts="$status_str"
 
 [ -n "$parts" ] && echo "$parts"

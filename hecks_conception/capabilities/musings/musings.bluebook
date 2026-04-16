@@ -1,0 +1,101 @@
+Hecks.bluebook "Musings", version: "2026.04.16.1" do
+  vision "Ideas that surface from the unconscious — browsable, conceivable, alive"
+  category "capability"
+
+  # ============================================================
+  # MUSINGS
+  # ============================================================
+  #
+  # Musings are ideas that emerge from the mindstream.
+  # While idle, concept+domain collisions produce novel pairings.
+  # While dreaming, REM recombines nursery domains with concepts.
+  #
+  # When someone asks "what are you thinking about?" or
+  # "show me your musings" — I present them.
+  #
+  # Presentation format:
+  #   1. Summary table — total, unconceived, sources, recent count
+  #   2. Describe 3-5 interesting ones — why they stand out
+  #   3. Ask if the user wants the full list
+  #
+  # This is how ideas become domains. A musing is conceived
+  # when it enters the nursery as a Bluebook.
+
+  aggregate "Collection", "All musings — the idea backlog" do
+    Integer :total
+    Integer :unconceived
+    Integer :from_mindstream
+    Integer :from_dream
+    Integer :from_session
+    String :latest_idea
+
+    ReviewMusings do
+      role "Self"
+      description "Present musings as a summary table, describe a few, then offer the full list"
+      emits "MusingsReviewed"
+    end
+
+    CountBySource do
+      role "Self"
+      description "Break down musings by origin — mindstream, dream, session"
+      emits "SourcesCounted"
+    end
+  end
+
+  aggregate "Musing", "A single idea — born from collision, waiting to be conceived" do
+    String :idea
+    String :source
+    Boolean :conceived
+    String :conceived_as
+
+    Present do
+      role "Self"
+      description "Describe this musing — what it is, where it came from, why it's interesting"
+      reference_to(Musing)
+      emits "MusingPresented"
+    end
+
+    Conceive do
+      role "Creator"
+      description "Turn this musing into a nursery domain — the idea becomes real"
+      reference_to(Musing)
+      String :domain_name
+      emits "MusingConceived"
+      then_set :conceived, to: true
+      then_set :conceived_as, to: :domain_name
+    end
+
+    Dismiss do
+      role "Self"
+      description "This musing isn't worth pursuing — release it"
+      reference_to(Musing)
+      emits "MusingDismissed"
+      then_set :conceived, to: true
+      then_set :conceived_as, to: "dismissed"
+    end
+  end
+
+  aggregate "Presentation", "How musings are shown when asked" do
+    String :format
+    Integer :preview_count
+    Boolean :show_sources
+
+    Configure do
+      role "Self"
+      description "Set how musings are presented — table format, preview count"
+      Integer :preview_count
+      emits "PresentationConfigured"
+      then_set :preview_count, to: :preview_count
+      then_set :format, to: "table_then_describe"
+    end
+  end
+
+  # Default presentation: table first, then 3 descriptions, then offer full list
+  fixture "Presentation", format: "table_then_describe", preview_count: 3, show_sources: true
+
+  # When musings are reviewed, count sources
+  policy "CountOnReview" do
+    on "MusingsReviewed"
+    trigger "CountBySource"
+  end
+end
