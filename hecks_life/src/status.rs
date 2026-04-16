@@ -80,9 +80,16 @@ pub fn run(project_dir: &str) {
     let mood_state = mood.map_or("—", |r| heki::field_str(r, "current_state"));
     let creativity = mood.and_then(|r| r.get("creativity_level").and_then(|v| v.as_f64())).unwrap_or(0.0);
     let precision = mood.and_then(|r| r.get("precision_level").and_then(|v| v.as_f64())).unwrap_or(0.0);
+    let concentration = stores.get("concentration").and_then(|s| heki::latest(s));
+    let stability = concentration.and_then(|r| r.get("stability").and_then(|v| v.as_f64())).unwrap_or(0.0);
+    let focus_target = concentration.map_or("—", |r| heki::field_str(r, "focus_target"));
+    let distractions = concentration.and_then(|r| r.get("distractions_released").and_then(|v| v.as_i64())).unwrap_or(0);
     row("Mood", mood_state);
     row("Creativity", &format!("{:.0}%", creativity * 100.0));
     row("Precision", &format!("{:.0}%", precision * 100.0));
+    row("Stability", &format!("{:.0}%", stability * 100.0));
+    row("Focus", focus_target);
+    row("Distractions released", &distractions.to_string());
     println!();
 
     // Dreams

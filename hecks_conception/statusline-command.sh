@@ -79,7 +79,7 @@ if wokes:
 " 2>/dev/null)
   [ -n "$last_woke" ] && status_str="$status_str · 😴 ${last_woke}"
 fi
-[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} ideas!"
+[ -n "$ideas" ] && [ "$ideas" != "0" ] && status_str="$status_str · 📘 ${ideas} musings!"
 parts="$status_str"
 
 [ -n "$parts" ] && echo "$parts"
