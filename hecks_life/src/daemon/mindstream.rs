@@ -109,15 +109,21 @@ pub fn run(ctx: &DaemonCtx) {
         if cycles % 3 == 0 {
             upsert_mood(ctx, mood_name, creativity, precision);
         }
-        // Write current thought to consciousness — the statusline script
-        // decides whether to show it based on heartbeat idle time.
-        // Thoughts come from Summer (ollama) in batches of 20.
-        // When exhausted, generate a new batch.
-        if thought_queue.is_empty() {
-            thought_queue = generate_thoughts(ctx);
-        }
-        if let Some(thought) = thought_queue.pop() {
-            write_consciousness(ctx, "wandering", &thought);
+        // Don't overwrite consciousness if sleeping — sleep daemon owns it
+        let con = heki::read(&ctx.store("consciousness")).unwrap_or_default();
+        let con_state = con.values().next()
+            .and_then(|r| r.get("state").and_then(|v| v.as_str()))
+            .unwrap_or("");
+        if con_state != "sleeping" {
+            // Write current thought to consciousness — the statusline script
+            // decides whether to show it based on heartbeat idle time.
+            // Thoughts come from Summer (ollama) in batches of 20.
+            if thought_queue.is_empty() {
+                thought_queue = generate_thoughts(ctx);
+            }
+            if let Some(thought) = thought_queue.pop() {
+                write_consciousness(ctx, "wandering", &thought);
+            }
         }
 
         cycles += 1;
