@@ -200,13 +200,8 @@ fn fire_signals(ctx: &DaemonCtx, concept: &str, beat: i64, strength: f64) {
     sig.insert("payload".into(), Value::String(concept.into()));
     let _ = heki::append(&ctx.store("signal"), &sig);
 
-    let mut musing = Record::new();
-    musing.insert("idea".into(), Value::String(concept.into()));
-    musing.insert("thinking_source".into(), Value::String("PatternEngine:concept".into()));
-    musing.insert("feeling_source".into(), Value::String(format!("OrganMap:strength:{:.1}", strength)));
-    musing.insert("conceived".into(), Value::Bool(false));
-    musing.insert("status".into(), Value::String("imagined".into()));
-    let _ = heki::append(&ctx.store("musing"), &musing);
+    // Concepts go to signals, not musings. Musings come from the mindstream
+    // (concept+domain collisions) or deliberate session ideas — not every pulse.
 }
 
 fn consolidate_signals(ctx: &DaemonCtx, now: &str) {
