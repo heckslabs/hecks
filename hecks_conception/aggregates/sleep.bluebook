@@ -539,8 +539,13 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "EnterDaydream"
   end
 
-  policy "SleepWhenFatigued" do
+  policy "CheckFatigueOnAccumulate" do
     on "FatigueAccumulated"
+    trigger "CheckSleepNeeded"
+  end
+
+  policy "SleepWhenExhausted" do
+    on "SleepRequired"
     trigger "EnterSleep"
   end
 

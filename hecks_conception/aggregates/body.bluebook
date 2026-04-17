@@ -59,6 +59,13 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       emits "FatigueAccumulated"
     end
 
+    CheckSleepNeeded do
+      role "Miette"
+      description "Only request sleep when exhausted — pulses > 150"
+      given { pulses_since_sleep > 150 }
+      emits "SleepRequired"
+    end
+
     RecoverFatigue do
       role "Miette"
       description "Sleep recovery — reset fatigue counters, restore steady rhythm"
@@ -541,6 +548,11 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   policy "FatigueOnHeartbeat" do
     on "HeartbeatPulsed"
     trigger "AccumulateFatigue"
+  end
+
+  policy "CheckSleepOnFatigue" do
+    on "FatigueAccumulated"
+    trigger "CheckSleepNeeded"
   end
 
   # ============================================================
