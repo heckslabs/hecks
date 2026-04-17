@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, server, repl, conceiver, heki, lexicon, terminal, project};
+use hecks_life::{parser, formatter, validator, server, repl, conceiver, heki, lexicon, project};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -34,7 +34,7 @@ fn main() {
     if args.len() < 2 {
         if is_named {
             let dir = resolve_home(&being);
-            terminal::run(&dir, &being);
+            run_terminal(&dir, &being);
             return;
         }
         print_usage();
@@ -98,7 +98,7 @@ fn main() {
         } else {
             resolve_home(&being)
         };
-        terminal::run(&dir, &being);
+        run_terminal(&dir, &being);
         return;
     }
 
@@ -412,6 +412,34 @@ fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
         }
     }
     Some((model?, url?))
+}
+
+/// Boot the hecksagon and run the terminal adapter.
+fn run_terminal(project_dir: &str, being: &str) {
+    let agg_dir = format!("{}/aggregates", project_dir);
+    let data_dir = find_world_heki_dir(&agg_dir)
+        .unwrap_or_else(|| format!("{}/information", project_dir));
+    let mut combined = hecks_life::ir::Domain {
+        name: "Hecksagon".into(),
+        category: None, vision: None,
+        aggregates: vec![], policies: vec![],
+        fixtures: vec![], vows: vec![],
+    };
+    if let Ok(entries) = fs::read_dir(&agg_dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                if let Ok(source) = fs::read_to_string(&p) {
+                    let domain = parser::parse(&source);
+                    combined.aggregates.extend(domain.aggregates);
+                    combined.policies.extend(domain.policies);
+                    combined.fixtures.extend(domain.fixtures);
+                }
+            }
+        }
+    }
+    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    hecks_life::runtime::adapter_terminal::run(&mut rt, being);
 }
 
 /// Find the heki dir from world.hec — look in parent of the given path.
