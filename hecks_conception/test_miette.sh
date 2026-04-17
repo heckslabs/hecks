@@ -164,6 +164,15 @@ speak_out=$($HECKS aggregates/ Speech.Speak input=hello 2>/dev/null | python3 -c
 check "Attrs pass through dispatch" "$speak_out" "hello"
 echo ""
 
+echo "TERMINAL"
+# Test terminal adapter — Session.StartSession dispatches
+session_out=$($HECKS aggregates/ Session.StartSession being=Miette 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',{}).get('being',''))" 2>/dev/null)
+check "Terminal session starts" "$session_out" "Miette"
+# Test input routes to speech via policy
+input_out=$($HECKS aggregates/ Session.ReceiveInput input=hello 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',{}).get('turns',0))" 2>/dev/null)
+check "Terminal receives input" "$input_out" "[1-9]"
+echo ""
+
 echo "QUERIES"
 vitals=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
 check "Heartbeat.ReadVitals query works" "$vitals" "ReadVitals"
