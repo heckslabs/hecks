@@ -14,4 +14,3 @@ pub mod validator;
 pub mod formatter;
 pub mod conceiver;
 pub mod heki;
-pub mod lexicon;
