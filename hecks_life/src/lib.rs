@@ -12,8 +12,6 @@ pub mod json_helpers;
 pub mod server;
 pub mod validator;
 pub mod formatter;
-pub mod repl;
-pub mod cli;
 pub mod conceiver;
 pub mod heki;
 pub mod lexicon;

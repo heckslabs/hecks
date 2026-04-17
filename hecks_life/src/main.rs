@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, server, repl, conceiver, heki, lexicon, project};
+use hecks_life::{parser, formatter, validator, server, conceiver, heki, lexicon, project};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -223,7 +223,7 @@ fn main() {
         "run" => {
             let mut rt = Runtime::boot(domain);
             load_seeds(&mut rt, seed_path);
-            repl::run(rt);
+            rt.run_interactive();
         }
         "serve" => {
             let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
