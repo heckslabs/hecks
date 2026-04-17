@@ -113,6 +113,18 @@ done
 echo ""
 
 # === BOOT ===
+echo "SERVE"
+# Test serve works on a directory
+serve_pid=""
+$HECKS serve nursery/auto_repair_shop/auto_repair_shop.bluebook 3199 &
+serve_pid=$!
+sleep 2
+serve_out=$(curl -s http://localhost:3199/aggregates 2>/dev/null)
+check "serve responds" "$serve_out" "Vehicle"
+kill $serve_pid 2>/dev/null
+wait $serve_pid 2>/dev/null
+echo ""
+
 echo "INTERACTIVE"
 # Test run_interactive exists (the run command works)
 run_help=$($HECKS run nursery/auto_repair_shop/auto_repair_shop.bluebook <<< "quit" 2>&1 | head -3)
