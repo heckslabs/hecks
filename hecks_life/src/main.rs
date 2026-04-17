@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, server, conceiver, heki, lexicon, project};
+use hecks_life::{parser, formatter, validator, server, conceiver, heki, lexicon};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -215,7 +215,7 @@ fn main() {
         "inspect" => formatter::inspect(&domain),
         "tree" => formatter::tree(&domain),
         "list" => formatter::list(&domain),
-        "project" => print!("{}", project::project(&domain)),
+        "project" => eprintln!("project is now: hecks-life serve <dir-or-file>"),
         "counts" => {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
