@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, lexicon, terminal, project};
+use hecks_life::{parser, formatter, validator, server, repl, conceiver, heki, lexicon, terminal, project};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -205,8 +205,6 @@ fn main() {
         "validate" => {
             let errors = validator::validate(&domain);
             if errors.is_empty() {
-                let warns = validator_warnings::warnings(&domain);
-                for w in &warns { println!("  WARNING: {}", w); }
                 println!("VALID — {} ({} aggregates)", domain.name, domain.aggregates.len());
             } else {
                 println!("INVALID — {} errors:", errors.len());
@@ -265,8 +263,6 @@ fn run_batch(command: &str) {
             "validate" => {
                 let errors = validator::validate(&domain);
                 if errors.is_empty() {
-                    let warns = validator_warnings::warnings(&domain);
-                    for w in &warns { eprintln!("  WARNING: {}", w); }
                     println!("VALID|{}", file_path); valid += 1;
                 }
                 else { println!("INVALID|{}|{}", file_path, errors.join("; ")); invalid += 1; }

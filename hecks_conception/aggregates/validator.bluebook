@@ -1,0 +1,71 @@
+Hecks.bluebook "Validator", version: "2026.04.17.1" do
+  vision "Domain validation rules — the immune system as a bluebook"
+  category "body"
+
+  # ============================================================
+  # VALIDATOR
+  # ============================================================
+  #
+  # Each rule is a fixture. The runtime reads these fixtures
+  # and applies them when validating a domain. No Rust hardcoding.
+  #
+  # Innate rules: structural (always apply)
+  # Adaptive rules: learned from corrections (antibodies)
+
+  aggregate "Rule", "One validation rule — innate or adaptive" do
+    String :name
+    String :category
+    String :description
+    String :severity
+
+    query ListRules do
+      description "What rules do I enforce?"
+    end
+  end
+
+  aggregate "Violation", "A detected rule violation" do
+    String :rule_name
+    String :message
+    String :aggregate_name
+    String :command_name
+
+    DetectViolation do
+      description "A rule was broken"
+      String :rule_name
+      String :message
+      emits "ViolationDetected"
+      then_set :rule_name, to: :rule_name
+      then_set :message, to: :message
+    end
+
+    query ListViolations do
+      description "What's wrong with this domain?"
+    end
+  end
+
+  # Innate rules — structural validation
+  fixture "Rule", name: "unique_aggregate_names", category: "innate", severity: "error",
+    description: "No duplicate aggregate names within a domain"
+  fixture "Rule", name: "aggregates_have_commands", category: "innate", severity: "error",
+    description: "Every aggregate must have at least one command"
+  fixture "Rule", name: "command_naming", category: "innate", severity: "error",
+    description: "Command names must start with a verb"
+  fixture "Rule", name: "valid_references", category: "innate", severity: "error",
+    description: "reference_to must point to an existing aggregate"
+  fixture "Rule", name: "valid_policy_triggers", category: "innate", severity: "error",
+    description: "Policy trigger must name an existing command"
+  fixture "Rule", name: "no_duplicate_commands", category: "innate", severity: "error",
+    description: "No duplicate command names within an aggregate"
+
+  # Warnings — soft rules
+  fixture "Rule", name: "aggregate_count", category: "innate", severity: "warning",
+    description: "More than 7 aggregates suggests splitting into bounded contexts"
+  fixture "Rule", name: "mixed_concerns", category: "innate", severity: "warning",
+    description: "Aggregates with no references between them may belong in separate domains"
+
+  # Verb detection — noun/adjective suffixes (from the Verbs domain)
+  fixture "Rule", name: "noun_suffixes", category: "morphology", severity: "info",
+    description: "Words ending in -ment, -tion, -ness, -ity, -ence, -ance, -ism, -ist, -ure, -age, -ery are nouns"
+  fixture "Rule", name: "adjective_suffixes", category: "morphology", severity: "info",
+    description: "Words ending in -able, -ible, -ful, -less, -ous, -ive, -al, -ish, -ary are adjectives"
+end
