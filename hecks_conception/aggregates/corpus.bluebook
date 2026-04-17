@@ -1,0 +1,32 @@
+Hecks.bluebook "Corpus", version: "2026.04.17.1" do
+  vision "The vocabulary — every loaded command is a searchable phrase"
+  category "mind"
+
+  # ============================================================
+  # CORPUS
+  # ============================================================
+  #
+  # The corpus is dynamic — built from whatever bluebooks are loaded.
+  # Every command name becomes a phrase. Every aggregate a context.
+  # No static fixtures. The runtime IR IS the vocabulary.
+  #
+  # MatchInput searches the loaded commands by converting
+  # PascalCase to phrases and fuzzy matching against input.
+
+  aggregate "Search", "Search the loaded vocabulary" do
+    String :input
+    String :matched_phrase
+    String :domain
+    String :aggregate
+    String :command
+    Float :confidence
+
+    query MatchInput do
+      description "Find the command matching this phrase"
+    end
+
+    query ListAll do
+      description "Show all known phrases"
+    end
+  end
+end

@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, validator, server, conceiver, heki, lexicon};
+use hecks_life::{parser, validator, server, conceiver, heki};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -59,19 +59,14 @@ fn main() {
     if command == "lexicon" {
         let dir = if !path.is_empty() { path.to_string() } else { resolve_home(&being) };
         let query = args.get(3).map(|s| s.as_str());
-        let lex = lexicon::Lexicon::compile(&dir);
+        let agg_dir = format!("{}/aggregates", dir);
         if let Some(input) = query {
-            match lex.match_input(input) {
-                Some(m) => {
-                    println!("  {:?} match ({:.0}%): {}", m.strategy, m.confidence * 100.0, m.matched_phrase);
-                    for r in &m.path {
-                        println!("  → {}::{}::{}", r.domain, r.aggregate, r.command);
-                    }
-                }
-                None => println!("  no match"),
-            }
+            let mut attrs = std::collections::HashMap::new();
+            attrs.insert("input".into(), serde_json::json!(input));
+            dispatch_hecksagon(&agg_dir, "MatchInput", attrs);
         } else {
-            lex.dump();
+            let attrs = std::collections::HashMap::new();
+            dispatch_hecksagon(&agg_dir, "ListAll", attrs);
         }
         return;
     }
@@ -509,29 +504,10 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         a.queries.iter().any(|q| q.name == command));
 
     if is_query {
-        // Query: find the aggregate, return its state, no mutation
-        let agg_name = rt.domain.aggregates.iter()
-            .find(|a| a.queries.iter().any(|q| q.name == command))
-            .map(|a| a.name.clone())
-            .unwrap();
-        let state = rt.all(&agg_name);
-        let records: Vec<serde_json::Value> = state.iter().map(|s| {
-            let mut map = serde_json::Map::new();
-            for (k, v) in &s.fields {
-                map.insert(k.clone(), match v {
-                    hecks_life::runtime::Value::Str(s) => serde_json::json!(s),
-                    hecks_life::runtime::Value::Int(n) => serde_json::json!(n),
-                    hecks_life::runtime::Value::Bool(b) => serde_json::json!(b),
-                    _ => serde_json::json!(v.to_string()),
-                });
-            }
-            serde_json::Value::Object(map)
-        }).collect();
-        println!("{}", serde_json::json!({
-            "aggregate": agg_name,
-            "query": command,
-            "state": if records.len() == 1 { records[0].clone() } else { serde_json::json!(records) },
-        }));
+        let result = rt.resolve_query(command, &attrs.iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+            .collect::<std::collections::HashMap<_, _>>());
+        println!("{}", result);
     } else {
         // Command: dispatch, mutate, run adapters, return state
         let ollama_config = find_world_ollama_config(agg_dir);
