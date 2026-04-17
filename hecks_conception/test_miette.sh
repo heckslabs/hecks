@@ -135,6 +135,35 @@ train_output=$($HECKS aggregates/ TrainingPair.ExtractPair domain_name=AutoRepai
 check "Training extraction dispatches" "$train_output" "AutoRepairShop"
 echo ""
 
+echo "COMPILER"
+validate_out=$($HECKS validate aggregates/body.bluebook 2>&1)
+check "validate command works" "$validate_out" "VALID"
+parse_out=$($HECKS parse nursery/auto_repair_shop/auto_repair_shop.bluebook 2>&1)
+check "parse command works" "$parse_out" "AutoRepairShop"
+tree_out=$($HECKS tree nursery/auto_repair_shop/auto_repair_shop.bluebook 2>&1)
+check "tree command works" "$tree_out" "Vehicle"
+echo ""
+
+echo "HEKI"
+$HECKS heki append $INFO/test_store.heki foo=bar 2>/dev/null
+heki_read=$($HECKS heki read $INFO/test_store.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))" 2>/dev/null)
+check "heki append + read" "$heki_read" "[1-9]"
+$HECKS heki latest $INFO/test_store.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('foo',''))" > /dev/null 2>&1
+check "heki latest" "$?" "0"
+rm -f $INFO/test_store.heki
+echo ""
+
+echo "CONCEIVER"
+$HECKS conceive test_integration "a test domain" --corpus nursery 2>/dev/null
+check "conceive creates domain" "$(ls nursery/test_integration/test_integration.bluebook 2>/dev/null)" "bluebook"
+rm -rf nursery/test_integration
+echo ""
+
+echo "AGGREGATE.COMMAND WITH ATTRS"
+speak_out=$($HECKS aggregates/ Speech.Speak input=hello 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('state',{}).get('input',''))" 2>/dev/null)
+check "Attrs pass through dispatch" "$speak_out" "hello"
+echo ""
+
 echo "QUERIES"
 vitals=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
 check "Heartbeat.ReadVitals query works" "$vitals" "ReadVitals"
