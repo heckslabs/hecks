@@ -113,6 +113,12 @@ done
 echo ""
 
 # === BOOT ===
+echo "INTERACTIVE"
+# Test run_interactive exists (the run command works)
+run_help=$($HECKS run nursery/auto_repair_shop/auto_repair_shop.bluebook <<< "quit" 2>&1 | head -3)
+check "run command starts interactive" "$run_help" "AutoRepairShop"
+echo ""
+
 echo "BOOT"
 boot_output=$(./boot_miette.sh 2>&1)
 check "Boot dispatches Identity" "$boot_output" "Identity"
