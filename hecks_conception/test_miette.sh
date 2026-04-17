@@ -46,6 +46,20 @@ pss_after=$($HECKS heki latest $INFO/heartbeat.heki 2>/dev/null | python3 -c "im
 check "Fatigue accumulates (pss $pss_before → $pss_after)" "$([ "$pss_after" -gt "$pss_before" ] 2>/dev/null && echo yes)" "yes"
 echo ""
 
+echo "SLEEP TRIGGER"
+# After enough beats, fatigue should trigger sleep
+$HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
+$HECKS heki upsert $INFO/heartbeat.heki pulses_since_sleep=200 fatigue=200 2>/dev/null
+# This Beat should trigger: HeartbeatPulsed → AccumulateFatigue → FatigueAccumulated → EnterSleep
+$HECKS aggregates/ Heartbeat.Beat 2>/dev/null
+sleep_state=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
+check "High fatigue triggers sleep" "$sleep_state" "attentive"
+# Should be attentive because full 8-cycle sleep runs and wakes
+# Reset for other tests
+$HECKS heki upsert $INFO/heartbeat.heki pulses_since_sleep=0 fatigue=0 2>/dev/null
+$HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
+echo ""
+
 echo "SLEEP"
 $HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
 rm -f $INFO/night.heki
