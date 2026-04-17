@@ -135,11 +135,11 @@ check "tree shows box drawing" "$tree_out" "├──"
 check "tree shows aggregates" "$tree_out" "Vehicle"
 check "tree shows commands" "$tree_out" "IntakeVehicle"
 
-# Status should show formatted vitals
-status_out=$($HECKS status . 2>&1)
-check "status shows heartbeats" "$status_out" "beats"
-check "status shows mood" "$status_out" "mood"
-check "status shows consciousness" "$status_out" "state"
+# Status via query — Heartbeat.ReadVitals returns vitals from heki
+status_out=$($HECKS aggregates/ Heartbeat.ReadVitals 2>/dev/null)
+check "status shows beats" "$status_out" "beats"
+check "status shows fatigue" "$status_out" "fatigue"
+check "status shows flow" "$status_out" "flow_rate"
 
 # Lexicon should match phrases
 lex_out=$($HECKS lexicon . "create pizza" 2>&1)

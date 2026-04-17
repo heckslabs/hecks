@@ -84,25 +84,7 @@ fn main() {
     // These commands now dispatch through the hecksagon:
     //   speak → Speech.Speak, status → Heartbeat.ReadVitals,
     //   boot → Identity.Identify, daemon → mindstream.sh
-    if command == "status" {
-        let home = resolve_home(&being);
-        let agg_dir = format!("{}/aggregates", home);
-        let info_dir = format!("{}/information", home);
-        // Read vitals from heki — the query side of CQRS
-        let hb = heki::read(&format!("{}/heartbeat.heki", info_dir)).unwrap_or_default();
-        let mood = heki::read(&format!("{}/mood.heki", info_dir)).unwrap_or_default();
-        let con = heki::read(&format!("{}/consciousness.heki", info_dir)).unwrap_or_default();
-        let hb_rec = heki::latest(&hb);
-        let mood_rec = heki::latest(&mood);
-        let con_rec = heki::latest(&con);
-        println!("beats: {}", hb_rec.and_then(|r| r.get("beats")).and_then(|v| v.as_i64()).unwrap_or(0));
-        println!("fatigue: {}", hb_rec.map(|r| heki::field_str(r, "fatigue_state")).unwrap_or("—"));
-        println!("mood: {}", mood_rec.map(|r| heki::field_str(r, "current_state")).unwrap_or("—"));
-        println!("state: {}", con_rec.map(|r| heki::field_str(r, "state")).unwrap_or("—"));
-        return;
-    }
-
-    if command == "speak" || command == "musings"
+    if command == "speak" || command == "status" || command == "musings"
         || command == "boot" || command == "daemon" {
         eprintln!("'{}' now dispatches through the hecksagon:", command);
         eprintln!("  hecks-life aggregates/ Aggregate.Command");
