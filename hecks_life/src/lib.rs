@@ -17,7 +17,6 @@ pub mod repl;
 pub mod cli;
 pub mod conceiver;
 pub mod heki;
-pub mod daemon;
 pub mod lexicon;
 pub mod terminal;
 pub mod project;

@@ -177,7 +177,7 @@ pub fn resolve_mutation_value(
     if value_expr.starts_with("seconds_since(") && value_expr.ends_with(')') {
         let field = value_expr[14..value_expr.len()-1].trim().trim_start_matches(':');
         if let Some(Value::Str(ts)) = state.fields.get(field) {
-            let elapsed = crate::daemon::seconds_since_iso(ts);
+            let elapsed = crate::heki::seconds_since_iso(ts);
             return Value::Int(elapsed.max(1.0) as i64);
         }
         return Value::Int(1);
@@ -185,7 +185,7 @@ pub fn resolve_mutation_value(
 
     // :now — current ISO timestamp
     if value_expr == ":now" || value_expr == "now" {
-        return Value::Str(crate::daemon::now_iso());
+        return Value::Str(crate::heki::now_iso());
     }
 
     if value_expr.starts_with(':') {

@@ -310,6 +310,46 @@ pub fn now_iso8601_internal() -> String {
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, mins, s)
 }
 
+/// Public alias for now_iso8601_internal.
+pub fn now_iso() -> String {
+    now_iso8601_internal()
+}
+
+/// Seconds elapsed since an ISO 8601 timestamp.
+pub fn seconds_since_iso(ts: &str) -> f64 {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64();
+    let epoch = parse_iso_to_epoch(ts);
+    if epoch > 0.0 { now - epoch } else { 0.0 }
+}
+
+fn parse_iso_to_epoch(ts: &str) -> f64 {
+    if ts.len() < 19 { return 0.0; }
+    let y: i64 = ts[0..4].parse().unwrap_or(0);
+    let m: u32 = ts[5..7].parse().unwrap_or(0);
+    let d: u32 = ts[8..10].parse().unwrap_or(0);
+    let h: u32 = ts[11..13].parse().unwrap_or(0);
+    let mn: u32 = ts[14..16].parse().unwrap_or(0);
+    let s: u32 = ts[17..19].parse().unwrap_or(0);
+    let (y_adj, m_adj) = if m <= 2 { (y - 1, m + 9) } else { (y, m - 3) };
+    let era = if y_adj >= 0 { y_adj } else { y_adj - 399 } / 400;
+    let yoe = (y_adj - era * 400) as u32;
+    let doy = (153 * m_adj + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe as i64 - 719468;
+    let mut epoch = days as f64 * 86400.0 + h as f64 * 3600.0 + mn as f64 * 60.0 + s as f64;
+    let tz_part = &ts[19..];
+    if tz_part.starts_with('+') || tz_part.starts_with('-') {
+        let sign: f64 = if tz_part.starts_with('-') { 1.0 } else { -1.0 };
+        let tz_h: f64 = tz_part[1..3].parse().unwrap_or(0.0);
+        let tz_m: f64 = if tz_part.len() >= 6 { tz_part[4..6].parse().unwrap_or(0.0) } else { 0.0 };
+        epoch += sign * (tz_h * 3600.0 + tz_m * 60.0);
+    }
+    epoch
+}
+
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------

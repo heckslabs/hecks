@@ -7,7 +7,6 @@
 //!
 //! Usage: hecks-life terminal <project-dir>
 
-use crate::daemon::{self, DaemonCtx};
 use crate::lexicon;
 use crate::heki;
 use std::io::{self, Read, Write};
@@ -17,11 +16,11 @@ use std::thread;
 use std::time::Duration;
 
 pub fn run(project_dir: &str, being: &str) {
-    let ctx = DaemonCtx::new(project_dir);
+    let info_dir = format!("{}/information", project_dir);
     let icon = if being == "Miette" { "\x1b[96m❄\x1b[0m" } else { "\x1b[33m🌱\x1b[0m" };
 
     // Read vitals
-    let stores = heki::read_dir(&ctx.info_dir).unwrap_or_default();
+    let stores = heki::read_dir(&info_dir).unwrap_or_default();
     let total: usize = stores.values().map(|s| s.len()).sum();
     let mood = stores.get("mood").and_then(|s| heki::latest(s));
     let mood_str = mood.map(|r| heki::field_str(r, "current_state")).unwrap_or("waking");
@@ -46,7 +45,7 @@ pub fn run(project_dir: &str, being: &str) {
     } else {
         // No warm greeting ready — generate one live
         let greeting = format!("{} is waking up", being);
-        match think_then_speak(&ctx, &greeting, icon, being, &lex) {
+        match think_then_speak(&info_dir, &greeting, icon, being, &lex) {
             Some(response) => { println!("{}", response); println!(); }
             None => {}
         }
@@ -75,7 +74,7 @@ pub fn run(project_dir: &str, being: &str) {
         lex = lexicon::Lexicon::compile(project_dir);
 
         // Footer — pulse, mood, heartbeats
-        let stores = heki::read_dir(&ctx.info_dir).unwrap_or_default();
+        let stores = heki::read_dir(&info_dir).unwrap_or_default();
         let pulse_rec = stores.get("heartbeat").and_then(|s| heki::latest(s));
         let pulse_str = pulse_rec.map(|r| heki::field_str(r, "state")).unwrap_or("—");
         let mood_rec = stores.get("mood").and_then(|s| heki::latest(s));
@@ -97,7 +96,7 @@ pub fn run(project_dir: &str, being: &str) {
                 // Pulse now fires via bluebook dispatch
 
                 // Respond — use \r\n since we were just in raw mode
-                match think_then_speak(&ctx, input, icon, being, &lex) {
+                match think_then_speak(&info_dir, input, icon, being, &lex) {
                     Some(response) => print!("{}\r\n", response),
                     None => print!("  *silence*\r\n"),
                 }
@@ -457,7 +456,7 @@ impl Drop for RawMode {
 
 /// Try lexicon first, then tongue. Show spinner while waiting.
 fn think_then_speak(
-    ctx: &DaemonCtx, input: &str, icon: &str, being: &str, lex: &lexicon::Lexicon,
+    info_dir: &str, input: &str, icon: &str, being: &str, lex: &lexicon::Lexicon,
 ) -> Option<String> {
     // Try lexicon match first — instant, no LLM
     if let Some(m) = lex.match_input(input) {
@@ -499,7 +498,7 @@ fn think_then_speak(
     });
 
     // Dispatch through the bluebook — Speech.Speak
-    let agg_dir = format!("{}/aggregates", ctx.info_dir.trim_end_matches("/information"));
+    let agg_dir = format!("{}/aggregates", info_dir.trim_end_matches("/information"));
     let output = std::process::Command::new(std::env::current_exe().unwrap_or_default())
         .args([&agg_dir, "Speech.Speak"])
         .output()
