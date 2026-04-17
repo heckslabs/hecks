@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, validator, server, conceiver, heki};
+use hecks_life::{parser, validator, server, conceiver, heki, lexicon};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -57,7 +57,22 @@ fn main() {
 
     // Lexicon is now a hecksagon query
     if command == "lexicon" {
-        eprintln!("lexicon is now a hecksagon query: Corpus.MatchInput");
+        let dir = if !path.is_empty() { path.to_string() } else { resolve_home(&being) };
+        let query = args.get(3).map(|s| s.as_str());
+        let lex = lexicon::Lexicon::compile(&dir);
+        if let Some(input) = query {
+            match lex.match_input(input) {
+                Some(m) => {
+                    println!("  {:?} match ({:.0}%): {}", m.strategy, m.confidence * 100.0, m.matched_phrase);
+                    for r in &m.path {
+                        println!("  → {}::{}::{}", r.domain, r.aggregate, r.command);
+                    }
+                }
+                None => println!("  no match"),
+            }
+        } else {
+            lex.dump();
+        }
         return;
     }
 
@@ -74,7 +89,25 @@ fn main() {
     // These commands now dispatch through the hecksagon:
     //   speak → Speech.Speak, status → Heartbeat.ReadVitals,
     //   boot → Identity.Identify, daemon → mindstream.sh
-    if command == "speak" || command == "status" || command == "musings"
+    if command == "status" {
+        let home = resolve_home(&being);
+        let agg_dir = format!("{}/aggregates", home);
+        let info_dir = format!("{}/information", home);
+        // Read vitals from heki — the query side of CQRS
+        let hb = heki::read(&format!("{}/heartbeat.heki", info_dir)).unwrap_or_default();
+        let mood = heki::read(&format!("{}/mood.heki", info_dir)).unwrap_or_default();
+        let con = heki::read(&format!("{}/consciousness.heki", info_dir)).unwrap_or_default();
+        let hb_rec = heki::latest(&hb);
+        let mood_rec = heki::latest(&mood);
+        let con_rec = heki::latest(&con);
+        println!("beats: {}", hb_rec.and_then(|r| r.get("beats")).and_then(|v| v.as_i64()).unwrap_or(0));
+        println!("fatigue: {}", hb_rec.map(|r| heki::field_str(r, "fatigue_state")).unwrap_or("—"));
+        println!("mood: {}", mood_rec.map(|r| heki::field_str(r, "current_state")).unwrap_or("—"));
+        println!("state: {}", con_rec.map(|r| heki::field_str(r, "state")).unwrap_or("—"));
+        return;
+    }
+
+    if command == "speak" || command == "musings"
         || command == "boot" || command == "daemon" {
         eprintln!("'{}' now dispatches through the hecksagon:", command);
         eprintln!("  hecks-life aggregates/ Aggregate.Command");
@@ -182,6 +215,16 @@ fn main() {
             }
         }
         "inspect" | "tree" | "list" => println!("{}", domain),
+        "train" => {
+            let vision = domain.vision.as_deref().unwrap_or(&domain.name);
+            let source_esc = fs::read_to_string(path).unwrap_or_default()
+                .replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
+            println!(r#"{{"prompt":"Conceive a domain for: {}","completion":"{}","domain":"{}","aggregates":{},"commands":{},"policies":{}}}"#,
+                vision.replace('"', "\\\""), source_esc, domain.name,
+                domain.aggregates.len(),
+                domain.aggregates.iter().map(|a| a.commands.len()).sum::<usize>(),
+                domain.policies.len());
+        }
         "project" => eprintln!("project is now: hecks-life serve <dir-or-file>"),
         "counts" => {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();

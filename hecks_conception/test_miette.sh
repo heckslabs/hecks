@@ -127,10 +127,35 @@ done
 echo ""
 
 # === BOOT ===
+echo "PARITY — features that must work like before"
+
+# Tree should show box-drawing structure
+tree_out=$($HECKS tree nursery/auto_repair_shop/auto_repair_shop.bluebook 2>&1)
+check "tree shows box drawing" "$tree_out" "├──"
+check "tree shows aggregates" "$tree_out" "Vehicle"
+check "tree shows commands" "$tree_out" "IntakeVehicle"
+
+# Status should show formatted vitals
+status_out=$($HECKS status . 2>&1)
+check "status shows heartbeats" "$status_out" "beats"
+check "status shows mood" "$status_out" "mood"
+check "status shows consciousness" "$status_out" "state"
+
+# Lexicon should match phrases
+lex_out=$($HECKS lexicon . "create pizza" 2>&1)
+check "lexicon matches phrases" "$lex_out" "match"
+
+# Train should produce JSONL
+train_out=$($HECKS train nursery/auto_repair_shop/auto_repair_shop.bluebook 2>&1)
+check "train produces JSON" "$train_out" "prompt"
+check "train has domain name" "$train_out" "AutoRepairShop"
+
+echo ""
+
 echo "DELETED MODULES"
 # Verify deleted modules give helpful messages, not crashes
-lexicon_out=$($HECKS lexicon 2>&1)
-check "lexicon redirects to hecksagon" "$lexicon_out" "hecksagon"
+speak_out=$($HECKS speak 2>&1)
+check "speak redirects to hecksagon" "$speak_out" "hecksagon"
 echo ""
 
 echo "SERVE"

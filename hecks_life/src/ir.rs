@@ -126,42 +126,26 @@ pub struct Fixture {
 
 impl fmt::Display for Domain {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({} aggregates)", self.name, self.aggregates.len())?;
-        if let Some(ref cat) = self.category {
-            write!(f, " [{}]", cat)?;
-        }
-        writeln!(f)?;
-        for agg in &self.aggregates {
-            writeln!(f, "  {} — {}", agg.name, agg.description.as_deref().unwrap_or(""))?;
-            for cmd in &agg.commands {
-                let givens = cmd.givens.len();
-                let mutations = cmd.mutations.len();
-                write!(f, "    {}", cmd.name)?;
-                if givens > 0 || mutations > 0 {
-                    write!(f, " ({} givens, {} mutations)", givens, mutations)?;
-                }
+        writeln!(f, "{}", self.name)?;
+        let agg_count = self.aggregates.len();
+        for (ai, agg) in self.aggregates.iter().enumerate() {
+            let is_last_agg = ai == agg_count - 1;
+            let prefix = if is_last_agg { "└──" } else { "├──" };
+            let cont = if is_last_agg { "    " } else { "│   " };
+            writeln!(f, "{} {} — {}", prefix, agg.name, agg.description.as_deref().unwrap_or(""))?;
+            let cmd_count = agg.commands.len();
+            for (ci, cmd) in agg.commands.iter().enumerate() {
+                let cmd_prefix = if ci == cmd_count - 1 { "└──" } else { "├──" };
+                write!(f, "{}{} {}", cont, cmd_prefix, cmd.name)?;
                 if let Some(ref emits) = cmd.emits {
-                    write!(f, " → {}", emits)?;
+                    write!(f, " -> {}", emits)?;
                 }
                 writeln!(f)?;
             }
         }
         if !self.policies.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "Policies:")?;
             for pol in &self.policies {
-                if let Some(ref target) = pol.target_domain {
-                    writeln!(f, "  {} → {}:{}", pol.on_event, target, pol.trigger_command)?;
-                } else {
-                    writeln!(f, "  {} → {}", pol.on_event, pol.trigger_command)?;
-                }
-            }
-        }
-        if !self.vows.is_empty() {
-            writeln!(f)?;
-            writeln!(f, "Vows:")?;
-            for vow in &self.vows {
-                writeln!(f, "  {} — {}", vow.name, vow.text)?;
+                writeln!(f, "  {} : {} -> {}", pol.name, pol.on_event, pol.trigger_command)?;
             }
         }
         Ok(())
