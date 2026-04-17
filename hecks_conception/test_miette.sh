@@ -113,6 +113,12 @@ done
 echo ""
 
 # === BOOT ===
+echo "DELETED MODULES"
+# Verify deleted modules give helpful messages, not crashes
+lexicon_out=$($HECKS lexicon 2>&1)
+check "lexicon redirects to hecksagon" "$lexicon_out" "hecksagon"
+echo ""
+
 echo "SERVE"
 # Test serve works on a directory
 serve_pid=""
