@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, daemon, lexicon, terminal, project};
+use hecks_life::{parser, formatter, validator, validator_warnings, server, repl, conceiver, heki, lexicon, terminal, project};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -52,16 +52,6 @@ fn main() {
 
     if command == "help" || command == "--help" {
         print_usage();
-        return;
-    }
-
-    // Heki commands — .heki binary store operations
-    if command == "hydrate" {
-        let dir = if path.is_empty() { "information" } else { path };
-        match heki::read_dir(dir) {
-            Ok(stores) => heki::print_summary(&stores),
-            Err(e) => { eprintln!("hydrate error: {}", e); std::process::exit(1); }
-        }
         return;
     }
 
@@ -112,32 +102,13 @@ fn main() {
         return;
     }
 
-    if command == "speak" {
-        eprintln!("speak is now a hecksagon concern — the tongue adapter handles LLM calls");
-        return;
-    }
-
-    if command == "status" || command == "musings" {
-        eprintln!("status and musings now read from heki directly:");
-        eprintln!("  hecks-life heki latest information/heartbeat.heki");
-        eprintln!("  hecks-life heki latest information/consciousness.heki");
-        eprintln!("  hecks-life heki latest information/mood.heki");
-        eprintln!("  hecks-life heki read information/musing.heki");
-        return;
-    }
-
-    if command == "boot" {
-        let dir = if !path.is_empty() {
-            path.to_string()
-        } else {
-            resolve_home(&being)
-        };
-        eprintln!("boot now runs via ./boot_winter.sh (bluebook dispatch)");
-        return;
-    }
-
-    if command == "daemon" {
-        run_daemon(&args);
+    // These commands now dispatch through the hecksagon:
+    //   speak → Speech.Speak, status → Heartbeat.ReadVitals,
+    //   boot → Identity.Identify, daemon → mindstream.sh
+    if command == "speak" || command == "status" || command == "musings"
+        || command == "boot" || command == "daemon" {
+        eprintln!("'{}' now dispatches through the hecksagon:", command);
+        eprintln!("  hecks-life aggregates/ Aggregate.Command");
         return;
     }
 
@@ -210,58 +181,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Multi-domain: if path is a directory, load all bluebooks
-    if (command == "serve" || command == "run") && std::path::Path::new(path).is_dir() {
-        if command == "run" {
-            // --dispatch CommandName: fire across all loaded domains
-            let dispatch_cmd = args.iter().position(|a| a == "--dispatch")
-                .and_then(|i| args.get(i + 1))
-                .map(|s| s.to_string());
-            if let Some(cmd_name) = dispatch_cmd {
-                // Read data dir from world.hec (sibling or parent of aggregates dir)
-                let data_dir = find_world_heki_dir(path)
-                    .unwrap_or_else(|| format!("{}/data", path.trim_end_matches('/')));
-                // Merge all bluebooks into one combined domain
-                let mut combined = hecks_life::ir::Domain {
-                    name: "Hecksagon".into(),
-                    category: None, vision: None,
-                    aggregates: vec![], policies: vec![],
-                    fixtures: vec![], vows: vec![],
-                };
-                let entries = fs::read_dir(path).unwrap_or_else(|e| {
-                    eprintln!("Cannot read directory {}: {}", path, e);
-                    std::process::exit(1);
-                });
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                        if let Ok(source) = fs::read_to_string(&p) {
-                            let domain = parser::parse(&source);
-                            combined.aggregates.extend(domain.aggregates);
-                            combined.policies.extend(domain.policies);
-                            combined.fixtures.extend(domain.fixtures);
-                        }
-                    }
-                }
-                let mut rt = Runtime::boot_with_data_dir(
-                    combined, Some(data_dir));
-                match rt.dispatch(&cmd_name, std::collections::HashMap::new()) {
-                    Ok(result) => {
-                        println!("{}", serde_json::json!({
-                            "ok": true,
-                            "aggregate": result.aggregate_type,
-                            "id": result.aggregate_id,
-                        }));
-                    }
-                    Err(e) => {
-                        eprintln!("dispatch error: {:?}", e);
-                        std::process::exit(1);
-                    }
-                }
-                return;
-            }
-        }
-    }
+    // Multi-domain serve
     if command == "serve" && std::path::Path::new(path).is_dir() {
         let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
             .and_then(|s| s.parse().ok()).unwrap_or(3100);
@@ -302,34 +222,10 @@ fn main() {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
         }
-        "train" => {
-            eprintln!("train is now: hecks-life aggregates/ TrainingPair.ExtractPair");
-        }
         "run" => {
             let mut rt = Runtime::boot(domain);
             load_seeds(&mut rt, seed_path);
-            // --dispatch CommandName: fire one command, drain policies, exit
-            let dispatch_cmd = args.iter().position(|a| a == "--dispatch")
-                .and_then(|i| args.get(i + 1))
-                .map(|s| s.as_str());
-            if let Some(cmd_name) = dispatch_cmd {
-                let attrs = std::collections::HashMap::new();
-                match rt.dispatch(cmd_name, attrs) {
-                    Ok(result) => {
-                        println!("{}", serde_json::json!({
-                            "ok": true,
-                            "aggregate": result.aggregate_type,
-                            "id": result.aggregate_id,
-                        }));
-                    }
-                    Err(e) => {
-                        eprintln!("dispatch error: {:?}", e);
-                        std::process::exit(1);
-                    }
-                }
-            } else {
-                repl::run(rt);
-            }
+            repl::run(rt);
         }
         "serve" => {
             let port: u16 = args.iter().find(|a| a.parse::<u16>().is_ok())
@@ -380,11 +276,7 @@ fn run_batch(command: &str) {
                 println!("{}|{}|{}|{}|{}|{}", file_path, domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
                 valid += 1;
             }
-            "train" => {
-                eprintln!("train is now: hecks-life aggregates/ TrainingPair.ExtractPair");
-                valid += 1;
-            }
-            _ => { eprintln!("Batch mode only supports: validate, counts, train"); std::process::exit(1); }
+            _ => { eprintln!("Batch mode only supports: validate, counts"); std::process::exit(1); }
         }
     }
     eprintln!("Batch: {} total, {} valid, {} invalid", total, valid, invalid);
@@ -396,37 +288,6 @@ fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
         match hecks_life::runtime::seed_loader::load(rt, path) {
             Ok(count) => eprintln!("  loaded {} seed commands from {}", count, path),
             Err(e) => eprintln!("  seed error: {}", e),
-        }
-    }
-}
-
-/// daemon subcommands: pulse, daydream, sleep
-///   hecks-life daemon pulse    <project-dir> [carrying] [concept] [response]
-///   hecks-life daemon daydream <project-dir>
-///   hecks-life daemon sleep    <project-dir> [--nap] [--now]
-fn run_daemon(args: &[String]) {
-    if args.len() < 4 {
-        eprintln!("Usage: hecks-life daemon <pulse|daydream|sleep> <project-dir> [args...]");
-        std::process::exit(1);
-    }
-    let sub = args[2].as_str();
-    let project_dir = args[3].as_str();
-    let ctx = daemon::DaemonCtx::new(project_dir);
-
-    match sub {
-        "pulse" => {
-            let carrying = args.get(4).map(|s| s.as_str()).unwrap_or("—");
-            let concept = args.get(5).map(|s| s.as_str());
-            let response = args.get(6).map(|s| s.as_str());
-            eprintln!("pulse now fires via bluebook dispatch: hecks-life run aggregates/ --dispatch Beat");
-        }
-        "daydream" => eprintln!("daydream now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterDaydream"),
-        "sleep" => eprintln!("sleep now runs via bluebook dispatch: hecks-life run aggregates/ --dispatch EnterSleep"),
-        "mindstream" => eprintln!("mindstream now runs via ./mindstream.sh (bluebook dispatch loop)"),
-        "greeting" => eprintln!("greeting now lives in greeting.bluebook — the hecksagon wires it to the tongue"),
-        _ => {
-            eprintln!("Unknown daemon: {}. Available: pulse, daydream, sleep", sub);
-            std::process::exit(1);
         }
     }
 }
