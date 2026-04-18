@@ -201,7 +201,9 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     //   - `default: ...`   (or any kwarg) → no positional type, default to "String"
     //   - bare token       → use it as the type (String, Integer, MyValueObject, …)
     let raw = parts.get(1).map(|s| s.trim()).unwrap_or("");
-    let list = line.contains("list_of");
+    // `list_of(` not just `list_of` — otherwise an attribute named
+    // `:list_ofs` would falsely register as a list type.
+    let list = line.contains("list_of(");
     let attr_type = if raw.starts_with("list_of(") {
         let open = raw.find('(')? + 1;
         let close = raw.find(')')?;
@@ -234,22 +236,58 @@ pub fn parse_fixture(line: &str) -> Fixture {
     let aggregate_name = extract_string(line).unwrap_or_default();
     let mut attributes = vec![];
 
-    // Parse key: "value" pairs after the aggregate name
-    // fixture "NonVerbSuffix", suffix: "ment", part_of_speech: "noun"
+    // Parse key: <value> pairs after the aggregate name. Values may be
+    // strings (with commas inside), arrays, hashes, or numbers — so we
+    // split on commas only at the top level (outside "...", [...], {...}).
+    //   fixture "Vow", name: "Hi, world", words: "Be transparent."
     if let Some(comma_pos) = line.find(',') {
         let rest = &line[comma_pos + 1..];
-        for part in rest.split(',') {
+        for part in split_top_level_commas(rest) {
             let part = part.trim();
             if let Some(colon) = part.find(':') {
                 let key = part[..colon].trim().to_string();
-                let val = extract_string(&part[colon + 1..])
-                    .unwrap_or_else(|| part[colon + 1..].trim().to_string());
+                let raw = part[colon + 1..].trim();
+                // For string-literal values, unwrap the quotes; otherwise
+                // keep the raw source token (numbers, arrays, hashes, bare).
+                let val = if raw.starts_with('"') {
+                    extract_string(raw).unwrap_or_else(|| raw.to_string())
+                } else {
+                    raw.to_string()
+                };
                 attributes.push((key, val));
             }
         }
     }
 
     Fixture { aggregate_name, attributes }
+}
+
+// Split on `,` at depth 0 — ignoring commas inside strings, brackets,
+// parens, and braces. Used for fixture kwargs and similar comma-separated
+// expressions where values can themselves contain commas.
+fn split_top_level_commas(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut start = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '"' if !escaped_at(s, i) => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            ',' if !in_str && depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&s[start..]);
+    parts
+}
+
+fn escaped_at(s: &str, i: usize) -> bool {
+    i > 0 && s.as_bytes().get(i - 1) == Some(&b'\\')
 }
 
 pub fn parse_mutation(line: &str) -> Option<Mutation> {

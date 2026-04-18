@@ -103,8 +103,32 @@ fn dump_mutation(m: &Mutation) -> Value {
     json!({
         "field": m.field,
         "op": dump_mutation_op(&m.operation),
-        "value": m.value,
+        "value": normalize_value(&m.value),
     })
+}
+
+// Strip whitespace adjacent to brackets/braces/parens. Source representations
+// differ ("[ a, b ]" vs "[a, b]") even when semantically identical; both
+// runtimes normalize so the canonical output agrees.
+fn normalize_value(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut in_str = false;
+    let mut prev = '\0';
+    let chars: Vec<char> = s.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        match c {
+            '"' if prev != '\\' => { in_str = !in_str; out.push(c); }
+            ' ' | '\t' if !in_str => {
+                let next = chars.get(i + 1).copied().unwrap_or('\0');
+                let just_after_open = matches!(prev, '[' | '{' | '(');
+                let just_before_close = matches!(next, ']' | '}' | ')');
+                if !just_after_open && !just_before_close { out.push(c); }
+            }
+            _ => out.push(c),
+        }
+        prev = c;
+    }
+    out
 }
 
 fn dump_mutation_op(op: &MutationOp) -> &'static str {
@@ -145,7 +169,7 @@ fn dump_policy(p: &Policy) -> Value {
 fn dump_fixture(f: &Fixture) -> Value {
     // Use array of [key, value] pairs to preserve order — same shape Ruby will emit.
     let pairs: Vec<Value> = f.attributes.iter()
-        .map(|(k, v)| json!([k, v]))
+        .map(|(k, v)| json!([k, normalize_value(v)]))
         .collect();
     json!({
         "aggregate_name": f.aggregate_name,

@@ -81,7 +81,7 @@ module Hecks
       def dump_command(cmd)
         {
           "name"        => cmd.name,
-          "description" => cmd.description,
+          "description" => command_description(cmd),
           "role"        => primary_role(cmd),
           "emits"       => emit_string(cmd.emits),
           "attributes"  => (cmd.attributes || []).map { |a| dump_attribute(a) },
@@ -93,7 +93,7 @@ module Hecks
 
       def dump_query(q)
         {
-          "name"        => q.name,
+          "name"        => q.name.to_s,
           "description" => q.respond_to?(:description) ? q.description : nil,
         }
       end
@@ -109,17 +109,22 @@ module Hecks
         {
           "field" => m.field.to_s,
           "op"    => mutation_op(m),
-          "value" => mutation_value(m.value),
+          "value" => normalize_value(mutation_value(m.value).to_s),
         }
       end
 
-      # Preserve the leading colon for Symbol values — `:label` means
-      # "bind from the :label parameter," not the literal string "label".
-      # Rust keeps the colon in source text; Ruby must too.
+      # Preserve source-text representation for mutation values. Rust keeps
+      # the original source bytes ("alert" stays \"alert\", :alert stays
+      # :alert, { k: v } stays { k: v }). Ruby parsed these into native
+      # objects, so we reverse-format them back to the same canonical text.
       def mutation_value(v)
         case v
         when Symbol then ":#{v}"
-        when nil    then nil
+        when String then "\"#{v}\""
+        when Numeric, TrueClass, FalseClass then v.to_s
+        when nil then nil
+        when Hash  then "{ #{v.map { |k, val| "#{k}: #{mutation_value(val)}" }.join(', ')} }"
+        when Array then "[#{v.map { |e| mutation_value(e) }.join(', ')}]"
         else v.to_s
         end
       end
@@ -162,8 +167,56 @@ module Hecks
       end
 
       def dump_fixture(f)
-        pairs = (f.attributes || {}).map { |k, v| [k.to_s, v.to_s] }
+        pairs = (f.attributes || {}).map { |k, v| [k.to_s, normalize_value(fixture_value(v))] }
         { "aggregate_name" => f.aggregate_name, "attributes" => pairs }
+      end
+
+      # Render a Ruby fixture value as the source-text token Rust would emit:
+      # arrays as [a, b], hashes as { k: v }, strings as their content (Rust
+      # already unwraps the quotes for fixture string values).
+      def fixture_value(v)
+        case v
+        when Array  then "[#{v.map { |e| fixture_value_inner(e) }.join(', ')}]"
+        when Hash   then "{ #{v.map { |k, val| "#{k}: #{fixture_value_inner(val)}" }.join(', ')} }"
+        when Symbol then ":#{v}"
+        when nil    then ""
+        else v.to_s
+        end
+      end
+
+      def fixture_value_inner(v)
+        case v
+        when String then "\"#{v}\""
+        when Symbol then ":#{v}"
+        when Array  then "[#{v.map { |e| fixture_value_inner(e) }.join(', ')}]"
+        when Hash   then "{ #{v.map { |k, val| "#{k}: #{fixture_value_inner(val)}" }.join(', ')} }"
+        else v.to_s
+        end
+      end
+
+      # Strip whitespace adjacent to brackets/braces/parens — matches Rust's
+      # normalize_value in dump.rs. Both sides apply this so the canonical
+      # output agrees regardless of source whitespace.
+      def normalize_value(s)
+        out = String.new(capacity: s.length)
+        in_str = false
+        prev = ""
+        chars = s.chars
+        chars.each_with_index do |c, i|
+          if c == '"' && prev != '\\'
+            in_str = !in_str
+            out << c
+          elsif (c == ' ' || c == "\t") && !in_str
+            nxt = chars[i + 1] || ""
+            just_after_open = ['[', '{', '('].include?(prev)
+            just_before_close = [']', '}', ')'].include?(nxt)
+            out << c unless just_after_open || just_before_close
+          else
+            out << c
+          end
+          prev = c
+        end
+        out
       end
 
       def collect_all_policies(domain)
@@ -173,8 +226,17 @@ module Hecks
       end
 
       def category_for(domain)
-        return domain.metadata[:category] if domain.respond_to?(:metadata) && domain.metadata.is_a?(Hash) && domain.metadata[:category]
+        return domain.category if domain.respond_to?(:category) && domain.category
         return domain.subdomain.to_s if domain.respond_to?(:subdomain) && domain.subdomain
+        nil
+      end
+
+      # Rust treats `description` and `goal` as the same field on commands
+      # (both feed cmd.description). Ruby keeps them separate. Mirror Rust:
+      # prefer `description`, fall back to `goal`.
+      def command_description(cmd)
+        return cmd.description if cmd.description && !cmd.description.empty?
+        return cmd.goal if cmd.respond_to?(:goal) && cmd.goal && !cmd.goal.empty?
         nil
       end
 

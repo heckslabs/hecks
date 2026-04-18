@@ -15,10 +15,11 @@ require "hecks"
 require_relative "canonical_ir"
 
 HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
-FIXTURES   = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
+SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
+REAL       = Dir[File.expand_path("../../hecks_conception/aggregates/*.bluebook", __dir__)].sort
 
 abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
-abort "no fixtures in spec/parity/bluebooks/" if FIXTURES.empty?
+abort "no fixtures in spec/parity/bluebooks/" if SYNTHETIC.empty?
 
 def ruby_dump(path)
   Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
@@ -59,33 +60,43 @@ def diff_lines(a, b)
   result
 end
 
-failed = 0
-FIXTURES.each do |fixture|
-  name = File.basename(fixture)
+def run_one(path, max_diff_lines: 40)
   begin
-    ruby_ir = ruby_dump(fixture)
-    rust_ir = rust_dump(fixture)
+    ruby_ir = ruby_dump(path)
+    rust_ir = rust_dump(path)
   rescue => e
-    puts "✗ #{name} — error before diff: #{e.message}"
-    failed += 1
-    next
+    return [:error, "error before diff: #{e.message.lines.first&.chomp}"]
   end
 
-  if ruby_ir == rust_ir
-    puts "✓ #{name}"
-  else
-    puts "✗ #{name}"
-    diffs = diff_lines(ruby_ir, rust_ir)
-    diffs.first(40).each { |l| puts l }
-    puts "  …(#{diffs.size - 40} more lines)" if diffs.size > 40
-    failed += 1
-  end
+  return [:pass, nil] if ruby_ir == rust_ir
+  diffs = diff_lines(ruby_ir, rust_ir)
+  shown = diffs.first(max_diff_lines)
+  shown << "  …(#{diffs.size - max_diff_lines} more lines)" if diffs.size > max_diff_lines
+  [:fail, shown.join("\n")]
 end
 
-if failed == 0
-  puts "\n#{FIXTURES.size}/#{FIXTURES.size} fixtures match"
-  exit 0
-else
-  puts "\n#{failed} of #{FIXTURES.size} fixtures drifted"
-  exit 1
+def section(title, paths, max_diff_lines:)
+  return [0, 0] if paths.empty?
+  puts "\n=== #{title} (#{paths.size}) ==="
+  failed = 0
+  paths.each do |p|
+    name = p.sub(File.expand_path("../..", __dir__) + "/", "")
+    status, body = run_one(p, max_diff_lines: max_diff_lines)
+    case status
+    when :pass  then puts "✓ #{name}"
+    when :fail  then puts "✗ #{name}"; puts body; failed += 1
+    when :error then puts "✗ #{name} — #{body}"; failed += 1
+    end
+  end
+  [paths.size, failed]
 end
+
+s_total, s_failed = section("Synthetic fixtures", SYNTHETIC, max_diff_lines: 40)
+r_total, r_failed = section("Real bluebooks (aggregates/)", REAL, max_diff_lines: 8)
+
+total  = s_total + r_total
+failed = s_failed + r_failed
+passed = total - failed
+
+puts "\n#{passed}/#{total} match  (synthetic #{s_total - s_failed}/#{s_total}, real #{r_total - r_failed}/#{r_total})"
+exit(failed == 0 ? 0 : 1)

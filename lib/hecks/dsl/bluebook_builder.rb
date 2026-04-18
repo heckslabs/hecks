@@ -398,7 +398,8 @@ module Hecks
           entry_points: @entry_points,
           vision: @vision, subdomain: @subdomain,
           glossary_terms: @glossary_terms,
-          sme: @sme
+          sme: @sme,
+          category: @category
         )
         classify_references(domain)
         if domain.respond_to?(:driving_ports=)

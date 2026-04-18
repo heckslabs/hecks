@@ -130,7 +130,8 @@ module Hecks
                      sagas: [], glossary_rules: [], modules: [], glossary_strict: false,
                      version: nil, world_concerns: [], description: nil,
                      entry_points: [],
-                     vision: nil, subdomain: nil, glossary_terms: [], sme: nil, fixtures: [])
+                     vision: nil, subdomain: nil, glossary_terms: [], sme: nil, fixtures: [],
+                     category: nil)
         validate_version!(version)
         @name = name
         @version = version
@@ -157,7 +158,11 @@ module Hecks
         @sme = sme
         @fixtures = fixtures
         @auto_glossary = build_auto_glossary(aggregates)
+        @category = category
       end
+
+      # @return [String, nil] domain category (e.g., "body", "mind", "meta", "adapter")
+      attr_reader :category
 
       # @return [String, nil] human-readable description of this domain
       attr_reader :description

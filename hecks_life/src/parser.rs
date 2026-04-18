@@ -57,13 +57,43 @@ pub fn parse(source: &str) -> Domain {
         }
 
         if line.starts_with("fixture") {
-            domain.fixtures.push(parse_fixture(line));
+            // Gather continuation lines: a fixture may span multiple physical
+            // lines either via a trailing comma or via unclosed brackets/parens
+            // (e.g. a list value spread across lines).
+            let mut full = line.to_string();
+            while needs_continuation(&full) && i + 1 < lines.len() {
+                i += 1;
+                full.push(' ');
+                full.push_str(lines[i].trim());
+            }
+            domain.fixtures.push(parse_fixture(&full));
         }
 
         i += 1;
     }
 
     domain
+}
+
+// True if the line is incomplete and the next physical line is a
+// continuation: either trailing comma, or unbalanced brackets/parens/braces
+// (outside string literals).
+fn needs_continuation(s: &str) -> bool {
+    let trimmed = s.trim_end();
+    if trimmed.ends_with(',') { return true; }
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            _ => {}
+        }
+        prev = c;
+    }
+    depth > 0
 }
 
 fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
