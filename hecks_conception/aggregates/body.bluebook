@@ -29,9 +29,10 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
     command "Beat" do
       role "Miette"
-      description "One heartbeat tick — 1 beat per second since last beat"
+      description "One heartbeat tick — caller passes elapsed seconds since last beat"
       attribute :carrying, String
-      then_set :beats, increment: seconds_since(:last_beat_at)
+      attribute :elapsed, Integer
+      then_set :beats, increment: :elapsed
       then_set :last_beat_at, to: :now
       then_set :carrying, to: :carrying
       emits "HeartbeatPulsed"

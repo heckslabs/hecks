@@ -15,5 +15,12 @@
 # Active known-drift entries
 # ============================================================
 
-hecks_conception/aggregates/body.bluebook  # uses seconds_since(:last_beat_at) — Ruby DSL has no such helper
-hecks_conception/aggregates/sleep.bluebook  # Ruby Lifecycle.transitions is Hash{cmd => target}; multiple transitions per command collapse. Rust uses Vec.
+# Both bluebooks below trip the same root cause: they have multiple transitions
+# per command in their Lifecycle blocks (e.g. AccumulateFatigue moves through
+# alert→focused→normal→tired). Ruby's Lifecycle.transitions is a Hash keyed
+# by command, so duplicates collapse to last-wins. Rust uses Vec<Transition>
+# and preserves all entries. Closing this needs a Hash→Vec migration in
+# Ruby's Lifecycle IR + LifecycleBuilder + lifecycle_steps runtime — bigger
+# than a syntax fix.
+hecks_conception/aggregates/body.bluebook   # Lifecycle multi-transition (DomainCell aggregate)
+hecks_conception/aggregates/sleep.bluebook  # Lifecycle multi-transition (Fatigue / Consciousness aggregates)

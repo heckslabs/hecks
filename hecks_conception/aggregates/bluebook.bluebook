@@ -1,0 +1,106 @@
+Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
+  vision "Bluebook describing itself — the IR shape every parser must produce"
+  category "meta"
+
+  # ============================================================
+  # The IR contract.
+  # ============================================================
+  #
+  # This bluebook is the canonical description of what a parsed .bluebook
+  # IR contains. Both the Ruby DSL parser (lib/hecks/dsl/) and the Rust
+  # parser (hecks_life/src/parser.rs) must produce structures matching
+  # the aggregates declared here.
+  #
+  # When parity drift surfaces (see spec/parity/parity_test.rb), the
+  # divergence is either a parser bug or — more rarely — a change to
+  # this file. Update this file FIRST when adding a real new IR concept,
+  # then teach both parsers to produce it.
+  #
+  # This domain is not booted as a runtime organ — it carries no live
+  # state. It documents shape.
+
+  aggregate "Domain", "The top of the IR tree — name + all aggregates + cross-cutting policies/fixtures" do
+    attribute :name, String
+    attribute :category, String
+    attribute :vision, String
+  end
+
+  aggregate "Aggregate", "A DDD aggregate root — attributes, value objects, commands, queries, lifecycle" do
+    attribute :name, String
+    attribute :description, String
+  end
+
+  aggregate "Attribute", "A typed field on an aggregate, value object, or command" do
+    attribute :name, String
+    attribute :type, String
+    attribute :list, String
+    attribute :default, String
+  end
+
+  aggregate "ValueObject", "An immutable embedded structure within an aggregate" do
+    attribute :name, String
+    attribute :description, String
+  end
+
+  aggregate "Reference", "A typed pointer from one aggregate or command to another aggregate" do
+    attribute :name, String
+    attribute :target, String
+    attribute :domain, String
+  end
+
+  aggregate "Command", "An intent to change aggregate state — role, attributes, mutations, emits" do
+    attribute :name, String
+    attribute :description, String
+    attribute :role, String
+    attribute :emits, String
+  end
+
+  aggregate "Query", "A read-side projection on an aggregate — pure, no side effects" do
+    attribute :name, String
+    attribute :description, String
+  end
+
+  aggregate "Given", "A precondition checked before a command executes — pure UL expression" do
+    attribute :expression, String
+    attribute :message, String
+  end
+
+  aggregate "Mutation", "A declared state change — set, append, increment, decrement, toggle" do
+    attribute :field, String
+    attribute :op, String
+    attribute :value, String
+  end
+
+  aggregate "Lifecycle", "The state machine of an aggregate — field, default state, transitions" do
+    attribute :field, String
+    attribute :default, String
+  end
+
+  aggregate "Transition", "One arrow in a lifecycle — command, source state(s), target state" do
+    attribute :command, String
+    attribute :to_state, String
+    attribute :from_state, String
+  end
+
+  aggregate "Policy", "A reactive wire — when EVENT fires on aggregate A, trigger COMMAND on aggregate B" do
+    attribute :name, String
+    attribute :on_event, String
+    attribute :trigger_command, String
+    attribute :target_domain, String
+  end
+
+  aggregate "Fixture", "A canonical instance of an aggregate seeded with the bluebook" do
+    attribute :aggregate_name, String
+    attribute :attributes, String
+  end
+
+  # ============================================================
+  # Mutation operation kinds — the only legal `op` values.
+  # ============================================================
+
+  fixture "Mutation", field: "example", op: "set",       value: "<expression>"
+  fixture "Mutation", field: "example", op: "append",    value: "<element>"
+  fixture "Mutation", field: "example", op: "increment", value: "<delta>"
+  fixture "Mutation", field: "example", op: "decrement", value: "<delta>"
+  fixture "Mutation", field: "example", op: "toggle",    value: ""
+end

@@ -10,7 +10,7 @@ require "zlib"
 require "time"
 
 NURSERY = File.expand_path("hecks_conception/nursery", __dir__)
-INFO    = File.expand_path("hecks_being/miette/information", __dir__)
+INFO    = File.expand_path("hecks_conception/information", __dir__)
 ENTRY_DIR = File.join(INFO, "domain_entry")
 
 SECTOR_KEYWORDS = {

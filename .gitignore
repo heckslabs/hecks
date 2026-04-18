@@ -51,3 +51,11 @@ hecks_conception/summer/__pycache__/
 hecks_conception/autumn/.wrangler/
 hecks_conception/information/.*.pid
 hecks_conception/.DS_Store
+
+# Miette runtime state — auto-generated .heki files in information/.
+# Already-tracked .heki files keep tracking (git ignores .gitignore for
+# files already in the index). New untracked .heki stays out of git.
+# To deliberately snapshot Miette's mind, use: git add -f <file>.heki
+hecks_conception/information/*.heki
+hecks_conception/information/.mindstream.pid
+
