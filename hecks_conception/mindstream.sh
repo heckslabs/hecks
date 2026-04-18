@@ -131,19 +131,25 @@ except Exception:
       $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
       # Mark this musing conceived so it doesn't surface again.
       "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
+    else
+      # Pool is empty — clear sleep_summary so the status bar doesn't keep
+      # showing the last musing (which would look stuck). The bulb keeps
+      # animating while mint_musing.sh is running, signaling "thinking".
+      $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="" 2>/dev/null
     fi
 
-    # Musings happen continuously — the mint process runs every tick,
-    # backgrounded so the loop stays snappy. Claude sees current state
-    # + recent musings + recent commits, and EITHER mints one good new
-    # musing OR returns "skip". Most ticks return skip; that's the point.
-    # The stream runs always; only the great ones land.
+    # The musing stream runs continuously (state changes every tick;
+    # mindstream events accumulate). MINTING happens every 5 minutes
+    # (~30 ticks) — Claude reads what's accumulated since the last mint
+    # and picks ONE great musing (or skip).
     #
     # Provider selected by ClaudeAssist:
     #   "claude" (default) — Anthropic API if ANTHROPIC_API_KEY set, else `claude -p` CLI
     #   "local"            — ollama (model + url from world.hec)
     #   "off"              — no minting
-    "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
+    if [ "$((RANDOM % 30))" = "0" ]; then
+      "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
+    fi
   fi
 
   sleep 10
