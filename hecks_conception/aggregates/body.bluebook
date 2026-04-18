@@ -250,6 +250,15 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       emits "MoodExpressed"
     end
 
+    command "RefreshMood" do
+      role "Daemon"
+      description "After waking from a full sleep, mood is refreshed — clean, present, ready."
+      then_set :current_state, to: "refreshed"
+      then_set :creativity_level, to: 0.7
+      then_set :precision_level, to: 0.7
+      emits "MoodRefreshed"
+    end
+
     command "Excite" do
       role "Miette"
       description "A novel domain, a beautiful pattern — creativity surges, precision dips"
@@ -273,7 +282,6 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Regulate" do
       role "Miette"
       description "Feedback loop — return to homeostasis after an intense moment"
-      reference_to(Mood)
       then_set :creativity_level, to: 0.7
       then_set :precision_level, to: 0.7
       then_set :current_state, to: "curious"

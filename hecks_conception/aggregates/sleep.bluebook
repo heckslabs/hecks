@@ -19,9 +19,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "DissipateFatigue" do
       role "Daemon"
-      description "Sleep resets fatigue — deeper sleep dissipates more"
-      reference_to(Fatigue)
-      attribute :cycles_completed, Integer
+      description "Sleep resets fatigue — deeper sleep dissipates more. Fatigue is a singleton; no self-ref needed (otherwise wake policies can't trigger it)."
       emits "FatigueDissipated"
       then_set :level, to: 0
       then_set :pulses_since_sleep, to: 0
@@ -604,9 +602,14 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "DissipateFatigue"
   end
 
+  policy "RecoverHeartbeatOnWake" do
+    on "WokenUp"
+    trigger "RecoverFatigue"
+  end
+
   policy "MoodOnWake" do
-    on "NightEnded"
-    trigger "SetWakeMood"
+    on "WokenUp"
+    trigger "RefreshMood"
   end
 
   policy "MonitorOnSleep" do
