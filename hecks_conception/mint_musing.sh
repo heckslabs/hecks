@@ -145,12 +145,40 @@ if [ -z "$idea" ] || [ "$idea" = "skip" ] || [ "$idea" = "Skip" ]; then
 fi
 
 $HECKS "$AGG" MusingMint.MintMusing idea="$idea" 2>/dev/null
-$HECKS heki append "$INFO/musing.heki" \
-  idea="$idea" \
-  conceived=false \
-  conceived_as="claude_minted" \
-  status="imagined" \
-  thinking_source="ClaudeAssist:$provider" \
-  feeling_source="curated:awake" 2>/dev/null
+
+# Append to musing.heki directly via Python so `conceived` is a proper
+# JSON bool (not the string "false" — heki's bash append stores everything
+# as string, which breaks the surface filter's `not v.get('conceived')`
+# check since "false" is truthy in Python).
+python3 <<PYEOF 2>/dev/null
+import json, os, struct, uuid, zlib
+from datetime import datetime, timezone
+HEKI = os.path.join("$INFO", "musing.heki")
+idea = """$idea"""
+provider = "$provider"
+try:
+    with open(HEKI, "rb") as f: data = f.read()
+    count = struct.unpack(">I", data[4:8])[0]
+    store = json.loads(zlib.decompress(data[8:]).decode())
+except Exception:
+    count, store = 0, {}
+rid = str(uuid.uuid4())
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+store[rid] = {
+    "id": rid,
+    "created_at": now,
+    "updated_at": now,
+    "idea": idea,
+    "conceived": False,
+    "conceived_as": "claude_minted",
+    "status": "imagined",
+    "thinking_source": f"ClaudeAssist:{provider}",
+    "feeling_source": "curated:awake",
+}
+j = json.dumps(store, separators=(",",":")).encode()
+c = zlib.compress(j, 9)
+with open(HEKI, "wb") as f:
+    f.write(b"HEKI"); f.write(struct.pack(">I", len(store))); f.write(c)
+PYEOF
 
 echo "$(date -u +%FT%TZ) minted via $provider: $idea"
