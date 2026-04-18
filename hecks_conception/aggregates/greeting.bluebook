@@ -3,19 +3,19 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
   category "meta"
 
   aggregate "Greeting", "A pre-generated greeting ready to serve on wake" do
-    String :being
-    String :text
-    String :mood
-    String :generated_at
+    attribute :being, String
+    attribute :text, String
+    attribute :mood, String
+    attribute :generated_at, String
     attribute :served, default: "false"
 
-    GenerateGreeting do
+    command "GenerateGreeting" do
       role "Daemon"
       description "Ask the tongue for a greeting and store it warm"
-      String :being
-      String :text
-      String :mood
-      String :generated_at
+      attribute :being, String
+      attribute :text, String
+      attribute :mood, String
+      attribute :generated_at, String
       emits "GreetingGenerated"
       then_set :being, to: :being
       then_set :text, to: :text
@@ -24,7 +24,7 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
       then_set :served, to: "false"
     end
 
-    ServeGreeting do
+    command "ServeGreeting" do
       role "System"
       description "Pop the freshest unserved greeting — instant wake"
       reference_to(Greeting)
@@ -35,11 +35,11 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
   end
 
   aggregate "GreetingQueue", "The warm cache — how many greetings are ready" do
-    Integer :ready_count
-    Integer :target_count
-    String :last_churned
+    attribute :ready_count, Integer
+    attribute :target_count, Integer
+    attribute :last_churned, String
 
-    RefillQueue do
+    command "RefillQueue" do
       role "Daemon"
       description "Generate greetings until the queue reaches target — runs continuously in background"
       reference_to(GreetingQueue)
@@ -47,11 +47,11 @@ Hecks.bluebook "Greeting", version: "2026.04.12.1" do
       then_set :last_churned, to: "now"
     end
 
-    SetTarget do
+    command "SetTarget" do
       role "System"
       description "Set how many warm greetings to keep ready"
       reference_to(GreetingQueue)
-      Integer :target_count
+      attribute :target_count, Integer
       emits "TargetSet"
       then_set :target_count, to: :target_count
     end

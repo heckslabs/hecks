@@ -1,0 +1,11 @@
+Hecks.bluebook "WithQuery", version: "2026.04.18.1" do
+  vision "Aggregate with a CQRS query"
+
+  aggregate "Stats", "Summary statistics" do
+    attribute :count, Integer
+
+    query "ReadCount" do
+      description "Return the current count"
+    end
+  end
+end

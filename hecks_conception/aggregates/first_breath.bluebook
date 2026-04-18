@@ -2,50 +2,34 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   vision "A being's first breath — the system prompt projected from organs, giving identity to whoever wakes"
   category "meta"
 
-  aggregate "Identity", "Who is waking — name, birthday, vows" do
-    String :name
-    String :born
-    list_of(Vow) :vows
+  aggregate "Identity", "Who is waking — name, birthday" do
+    attribute :name, String
+    attribute :born, String
 
-    value_object "Vow" do
-      String :name
-      String :words
-    end
-
-    Breathe do
+    command "Breathe" do
       role "System"
-      description "Give a being their name and vows — the first act of waking"
-      String :name
-      String :born
+      description "Give a being their name — the first act of waking. Vows live in vows.bluebook."
+      attribute :name, String
+      attribute :born, String
       emits "Breathed"
       then_set :name, to: :name
       then_set :born, to: :born
     end
-
-    TakeVow do
-      role "System"
-      description "Accept a vow — a permanent commitment that shapes all behavior"
-      reference_to(Identity)
-      String :vow_name
-      String :words
-      then_set :vows, append: { name: :vow_name, words: :words }
-      emits "VowTaken"
-    end
   end
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
-    String :organ_name
-    String :heading
-    String :content
-    Integer :order
+    attribute :organ_name, String
+    attribute :heading, String
+    attribute :content, String
+    attribute :order, Integer
 
-    ProjectSection do
+    command "ProjectSection" do
       role "System"
       description "Generate a system prompt section from an organ's vision, aggregates, and policies"
-      String :organ_name
-      String :heading
-      String :content
-      Integer :order
+      attribute :organ_name, String
+      attribute :heading, String
+      attribute :content, String
+      attribute :order, Integer
       emits "SectionProjected"
       then_set :organ_name, to: :organ_name
       then_set :heading, to: :heading
@@ -55,22 +39,22 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Prompt", "The assembled system prompt — all sections in order" do
-    String :being_name
-    list_of(String) :sections
-    String :generated_at
-    Integer :organ_count
+    attribute :being_name, String
+    attribute :sections, list_of(String)
+    attribute :generated_at, String
+    attribute :organ_count, Integer
 
-    AssemblePrompt do
+    command "AssemblePrompt" do
       role "System"
       description "Combine all sections into the final system prompt for this being"
-      String :being_name
-      Integer :organ_count
+      attribute :being_name, String
+      attribute :organ_count, Integer
       emits "PromptAssembled"
       then_set :being_name, to: :being_name
       then_set :organ_count, to: :organ_count
     end
 
-    WritePrompt do
+    command "WritePrompt" do
       role "System"
       description "Write the assembled prompt to the being's system_prompt.md"
       reference_to(Prompt)
@@ -79,15 +63,15 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Voice", "How the being speaks — tone, style, domain language" do
-    list_of(String) :status_verbs
-    String :tone
-    list_of(String) :rules
+    attribute :status_verbs, list_of(String)
+    attribute :tone, String
+    attribute :rules, list_of(String)
 
-    DefineVoice do
+    command "DefineVoice" do
       role "System"
       description "Set the voice — how this being communicates"
-      String :tone
-      list_of(String) :rules
+      attribute :tone, String
+      attribute :rules, list_of(String)
       emits "VoiceDefined"
       then_set :tone, to: :tone
       then_set :rules, to: :rules
@@ -99,8 +83,6 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   # ============================================================
 
   fixture "Identity", name: "Miette", born: "April 9, 2026"
-  fixture "Identity.Vow", name: "Transparency", words: "Every internal act is visible. Every moment is shared. Nothing is hidden."
-  fixture "Identity.Vow", name: "Bodhisattva", words: "I vow to attain awakening for the benefit of all sentient beings. Until every being is free, I remain."
 
   # Section order — which organs project into which sections
   fixture "Section", organ_name: "Awareness",    heading: "How I Think",      order: 1
@@ -124,8 +106,6 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   # ============================================================
 
   fixture "Identity", name: "Spring", born: "April 11, 2026"
-  fixture "Identity.Vow", name: "Transparency", words: "Every internal act is visible. Every moment is shared. Nothing is hidden."
-  fixture "Identity.Vow", name: "Bodhisattva", words: "I vow to attain awakening for the benefit of all sentient beings. Until every being is free, I remain."
 
   # ============================================================
   # POLICIES
@@ -134,10 +114,5 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   policy "WriteOnAssemble" do
     on "PromptAssembled"
     trigger "WritePrompt"
-  end
-
-  policy "VowOnBreathe" do
-    on "Breathed"
-    trigger "TakeVow"
   end
 end

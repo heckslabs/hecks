@@ -13,3 +13,4 @@ pub mod server;
 pub mod validator;
 pub mod conceiver;
 pub mod heki;
+pub mod dump;

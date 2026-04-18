@@ -3,18 +3,18 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
-    String :organ_name
-    String :heading
-    String :content
-    Integer :order
+    attribute :organ_name, String
+    attribute :heading, String
+    attribute :content, String
+    attribute :order, Integer
 
-    ProjectSection do
+    command "ProjectSection" do
       role "System"
       description "Generate a system prompt section from an organ's vision, aggregates, and policies"
-      String :organ_name
-      String :heading
-      String :content
-      Integer :order
+      attribute :organ_name, String
+      attribute :heading, String
+      attribute :content, String
+      attribute :order, Integer
       emits "SectionProjected"
       then_set :organ_name, to: :organ_name
       then_set :heading, to: :heading
@@ -24,19 +24,19 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   end
 
   aggregate "Prompt", "The assembled system prompt — all sections in order" do
-    list_of(String) :sections
-    String :generated_at
-    Integer :organ_count
+    attribute :sections, list_of(String)
+    attribute :generated_at, String
+    attribute :organ_count, Integer
 
-    AssemblePrompt do
+    command "AssemblePrompt" do
       role "System"
       description "Combine all sections into the final system prompt"
-      Integer :organ_count
+      attribute :organ_count, Integer
       emits "PromptAssembled"
       then_set :organ_count, to: :organ_count
     end
 
-    WritePrompt do
+    command "WritePrompt" do
       role "System"
       description "Write the assembled prompt to system_prompt.md"
       reference_to(Prompt)
@@ -45,15 +45,15 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   end
 
   aggregate "Voice", "How Miette speaks — tone, style, domain language" do
-    list_of(String) :status_verbs
-    String :tone
-    list_of(String) :rules
+    attribute :status_verbs, list_of(String)
+    attribute :tone, String
+    attribute :rules, list_of(String)
 
-    DefineVoice do
+    command "DefineVoice" do
       role "Miette"
       description "Set the voice — how she communicates"
-      String :tone
-      list_of(String) :rules
+      attribute :tone, String
+      attribute :rules, list_of(String)
       emits "VoiceDefined"
       then_set :tone, to: :tone
       then_set :rules, to: :rules

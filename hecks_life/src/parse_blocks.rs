@@ -195,14 +195,39 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     let parts: Vec<&str> = line.splitn(3, ',').collect();
     let first = parts.first()?.trim();
     let name = extract_symbol(first)?;
-    let attr_type = if parts.len() > 1 { parts[1].trim().to_string() } else { "String".to_string() };
+
+    // Resolve the type from parts[1]. Three cases:
+    //   - `list_of(X)`     → extract X, set list=true
+    //   - `default: ...`   (or any kwarg) → no positional type, default to "String"
+    //   - bare token       → use it as the type (String, Integer, MyValueObject, …)
+    let raw = parts.get(1).map(|s| s.trim()).unwrap_or("");
     let list = line.contains("list_of");
+    let attr_type = if raw.starts_with("list_of(") {
+        let open = raw.find('(')? + 1;
+        let close = raw.find(')')?;
+        raw[open..close].trim().to_string()
+    } else if raw.is_empty() || is_kwarg(raw) {
+        "String".to_string()
+    } else {
+        raw.to_string()
+    };
+
     let default = if line.contains("default:") {
         let after = extract_after(line, "default:")?;
         if after.contains('"') { extract_string(&after) }
         else { Some(after.split_whitespace().next().unwrap_or(&after).to_string()) }
     } else { None };
     Some(Attribute { name, attr_type, default, list })
+}
+
+// A kwarg looks like `key: value` where `key` is a lowercase identifier.
+// Distinguishes `default: true` (kwarg) from `String` or `MyVO` (positional type).
+fn is_kwarg(s: &str) -> bool {
+    let Some(colon_pos) = s.find(':') else { return false; };
+    let before = &s[..colon_pos];
+    !before.is_empty()
+        && before.chars().next().map_or(false, |c| c.is_ascii_lowercase())
+        && before.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
 pub fn parse_fixture(line: &str) -> Fixture {

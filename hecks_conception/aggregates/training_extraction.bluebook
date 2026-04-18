@@ -3,18 +3,18 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.16.1" do
   category "meta"
 
   aggregate "TrainingPair", "One JSONL line — prompt + completion from a domain" do
-    String :domain_name
-    String :vision
-    String :prompt
-    String :completion
-    Integer :aggregates
-    Integer :commands
-    Integer :policies
+    attribute :domain_name, String
+    attribute :vision, String
+    attribute :prompt, String
+    attribute :completion, String
+    attribute :aggregates, Integer
+    attribute :commands, Integer
+    attribute :policies, Integer
 
-    ExtractPair do
+    command "ExtractPair" do
       description "Parse a domain and produce the training pair"
-      String :domain_name
-      String :vision
+      attribute :domain_name, String
+      attribute :vision, String
       emits "PairExtracted"
       then_set :domain_name, to: :domain_name
       then_set :vision, to: :vision

@@ -1,0 +1,18 @@
+Hecks.bluebook "WithVO", version: "2026.04.18.1" do
+  vision "Aggregate containing a value object"
+
+  aggregate "Pizza", "A pizza with addresses" do
+    attribute :name, String
+
+    value_object "Address" do
+      attribute :street, String
+      attribute :city, String
+    end
+
+    command "Create" do
+      role "Customer"
+      attribute :name, String
+      emits "Created"
+    end
+  end
+end

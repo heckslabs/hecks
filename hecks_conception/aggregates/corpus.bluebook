@@ -14,12 +14,12 @@ Hecks.bluebook "Corpus", version: "2026.04.17.1" do
   # PascalCase to phrases and fuzzy matching against input.
 
   aggregate "Search", "Search the loaded vocabulary" do
-    String :input
-    String :matched_phrase
-    String :domain
-    String :aggregate
-    String :command
-    Float :confidence
+    attribute :input, String
+    attribute :matched_phrase, String
+    attribute :domain, String
+    attribute :aggregate, String
+    attribute :command, String
+    attribute :confidence, Float
 
     query MatchInput do
       description "Find the command matching this phrase"

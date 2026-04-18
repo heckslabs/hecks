@@ -3,13 +3,13 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   category "mind"
 
   aggregate "Fatigue", "Accumulates with wakefulness, dissipates with sleep" do
-    Float :level
-    String :state
-    Integer :pulses_since_sleep
-    Float :creativity
-    Float :precision
+    attribute :level, Float
+    attribute :state, String
+    attribute :pulses_since_sleep, Integer
+    attribute :creativity, Float
+    attribute :precision, Float
 
-    AccumulateFatigue do
+    command "AccumulateFatigue" do
       role "System"
       description "Each waking pulse increases fatigue"
       reference_to(Fatigue)
@@ -17,11 +17,11 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :pulses_since_sleep, increment: 1
     end
 
-    DissipateFatigue do
+    command "DissipateFatigue" do
       role "Daemon"
       description "Sleep resets fatigue — deeper sleep dissipates more"
       reference_to(Fatigue)
-      Integer :cycles_completed
+      attribute :cycles_completed, Integer
       emits "FatigueDissipated"
       then_set :level, to: 0
       then_set :pulses_since_sleep, to: 0
@@ -41,18 +41,18 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Consciousness", "The current state of awareness — what the daemon manages" do
-    String :state
-    Integer :idle_seconds
+    attribute :state, String
+    attribute :idle_seconds, Integer
 
-    DetectIdle do
+    command "DetectIdle" do
       role "Daemon"
       description "Sense that no interaction has occurred"
-      Integer :idle_seconds
+      attribute :idle_seconds, Integer
       emits "IdleDetected"
       then_set :idle_seconds, to: :idle_seconds
     end
 
-    EnterDaydream do
+    command "EnterDaydream" do
       role "Daemon"
       description "Begin free association between prompts"
       emits "DaydreamEntered"
@@ -60,21 +60,21 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :state, to: "daydreaming"
     end
 
-    EnterSleep do
+    command "EnterSleep" do
       role "Daemon"
       description "Begin full sleep — 8 cycles, only when fatigued"
       emits "SleepEntered"
       then_set :state, to: "sleeping"
     end
 
-    TakeNap do
+    command "TakeNap" do
       role "Creator"
       description "One cycle only — light, REM, deep, then wake naturally"
       emits "NapStarted"
       then_set :state, to: "napping"
     end
 
-    TakeStabilityNap do
+    command "TakeStabilityNap" do
       role "System"
       description "Stability below threshold but not tired — nap to consolidate, not to rest"
       given("unstable but alert") { stability < 0.3 }
@@ -82,14 +82,14 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :state, to: "napping"
     end
 
-    WakeUp do
+    command "WakeUp" do
       role "Creator"
       description "Return to waking consciousness"
       emits "WokenUp"
       then_set :state, to: "waking"
     end
 
-    BecomeAttentive do
+    command "BecomeAttentive" do
       role "System"
       description "Fully awake and ready for interaction"
       emits "BecameAttentive"
@@ -111,16 +111,16 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Daydream", "Fleeting impressions from free association between prompts" do
-    list_of(String) :impressions
-    Integer :duration_seconds
-    Integer :connections_found
+    attribute :impressions, list_of(String)
+    attribute :duration_seconds, Integer
+    attribute :connections_found, Integer
 
-    RecordDaydream do
+    command "RecordDaydream" do
       role "Daemon"
       description "Save impressions — structural connections found across nursery domains"
-      list_of(String) :impressions
-      Integer :duration_seconds
-      Integer :connections_found
+      attribute :impressions, list_of(String)
+      attribute :duration_seconds, Integer
+      attribute :connections_found, Integer
       emits "DaydreamRecorded"
       then_set :impressions, to: :impressions
       then_set :duration_seconds, to: :duration_seconds
@@ -129,34 +129,34 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
-    Integer :cycle_number
-    Integer :total_cycles
-    String :stage
-    Integer :rem_intensity
+    attribute :cycle_number, Integer
+    attribute :total_cycles, Integer
+    attribute :stage, String
+    attribute :rem_intensity, Integer
 
-    StartCycle do
+    command "StartCycle" do
       role "Daemon"
       description "Begin a new sleep cycle"
-      Integer :cycle_number
-      Integer :total_cycles
+      attribute :cycle_number, Integer
+      attribute :total_cycles, Integer
       emits "CycleStarted"
       then_set :cycle_number, to: :cycle_number
       then_set :total_cycles, to: :total_cycles
       then_set :stage, to: "light"
     end
 
-    AdvanceStage do
+    command "AdvanceStage" do
       role "Daemon"
       description "Move to the next stage within a cycle"
       reference_to(SleepCycle)
-      String :stage
-      Integer :rem_intensity
+      attribute :stage, String
+      attribute :rem_intensity, Integer
       emits "StageAdvanced"
       then_set :stage, to: :stage
       then_set :rem_intensity, to: :rem_intensity
     end
 
-    CompleteCycle do
+    command "CompleteCycle" do
       role "Daemon"
       description "Finish one full light-REM-deep cycle"
       reference_to(SleepCycle)
@@ -172,10 +172,10 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Night", "A full sleep session — 8 cycles spelled out" do
-    Integer :cycles_completed
-    String :phase
+    attribute :cycles_completed, Integer
+    attribute :phase, String
 
-    StartNight do
+    command "StartNight" do
       role "Daemon"
       description "Begin a sleep session"
       emits "NightStarted"
@@ -183,105 +183,105 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :phase, to: "starting"
     end
 
-    DreamCycle1 do
+    command "DreamCycle1" do
       description "Cycle 1 — light REM dreaming"
       emits "Cycle1Dreamed"
       then_set :cycles_completed, to: 1
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle1 do
+    command "ConsolidateCycle1" do
       description "Cycle 1 — deep consolidation"
       emits "Cycle1Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle2 do
+    command "DreamCycle2" do
       description "Cycle 2 — REM intensifies"
       emits "Cycle2Dreamed"
       then_set :cycles_completed, to: 2
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle2 do
+    command "ConsolidateCycle2" do
       description "Cycle 2 — deep consolidation"
       emits "Cycle2Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle3 do
+    command "DreamCycle3" do
       description "Cycle 3 — dreams deepen"
       emits "Cycle3Dreamed"
       then_set :cycles_completed, to: 3
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle3 do
+    command "ConsolidateCycle3" do
       description "Cycle 3 — deep consolidation"
       emits "Cycle3Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle4 do
+    command "DreamCycle4" do
       description "Cycle 4 — vivid dreams"
       emits "Cycle4Dreamed"
       then_set :cycles_completed, to: 4
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle4 do
+    command "ConsolidateCycle4" do
       description "Cycle 4 — deep consolidation"
       emits "Cycle4Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle5 do
+    command "DreamCycle5" do
       description "Cycle 5 — dreams peak"
       emits "Cycle5Dreamed"
       then_set :cycles_completed, to: 5
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle5 do
+    command "ConsolidateCycle5" do
       description "Cycle 5 — deep consolidation"
       emits "Cycle5Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle6 do
+    command "DreamCycle6" do
       description "Cycle 6 — REM dominates"
       emits "Cycle6Dreamed"
       then_set :cycles_completed, to: 6
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle6 do
+    command "ConsolidateCycle6" do
       description "Cycle 6 — deep consolidation"
       emits "Cycle6Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle7 do
+    command "DreamCycle7" do
       description "Cycle 7 — approaching lucidity"
       emits "Cycle7Dreamed"
       then_set :cycles_completed, to: 7
       then_set :phase, to: "dreaming"
     end
 
-    ConsolidateCycle7 do
+    command "ConsolidateCycle7" do
       description "Cycle 7 — deep consolidation"
       emits "Cycle7Consolidated"
       then_set :phase, to: "consolidating"
     end
 
-    DreamCycle8 do
+    command "DreamCycle8" do
       description "Cycle 8 — final REM, lucid"
       emits "Cycle8Dreamed"
       then_set :cycles_completed, to: 8
       then_set :phase, to: "lucid"
     end
 
-    EndNight do
+    command "EndNight" do
       description "All 8 cycles complete — the night is over"
       emits "NightEnded"
       then_set :phase, to: "ended"
@@ -289,14 +289,14 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
-    String :mood
-    String :reason
+    attribute :mood, String
+    attribute :reason, String
 
-    SetWakeMood do
+    command "SetWakeMood" do
       role "Daemon"
       description "Determine mood based on what sleep stage was interrupted"
-      String :mood
-      String :reason
+      attribute :mood, String
+      attribute :reason, String
       emits "WakeMoodSet"
       then_set :mood, to: :mood
       then_set :reason, to: :reason
@@ -304,20 +304,20 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
-    Integer :interval_seconds
-    Integer :z_depth
-    String :reporting
+    attribute :interval_seconds, Integer
+    attribute :z_depth, Integer
+    attribute :reporting, String
 
-    StartMonitoring do
+    command "StartMonitoring" do
       role "System"
       description "Begin streaming sleep observations"
-      Integer :interval_seconds
+      attribute :interval_seconds, Integer
       emits "MonitoringStarted"
       then_set :interval_seconds, to: :interval_seconds
       then_set :reporting, to: "active"
     end
 
-    StopMonitoring do
+    command "StopMonitoring" do
       role "System"
       description "Stop streaming — Miette woke up"
       reference_to(Monitor)
@@ -325,28 +325,28 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :reporting, to: "stopped"
     end
 
-    UpdateDepth do
+    command "UpdateDepth" do
       role "Daemon"
       description "Adjust z-depth as cycles progress"
       reference_to(Monitor)
-      Integer :z_depth
+      attribute :z_depth, Integer
       emits "DepthUpdated"
       then_set :z_depth, to: :z_depth
     end
   end
 
   aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
-    list_of(String) :images
-    list_of(String) :recombinations
-    list_of(String) :strongest_synapses
-    String :seeded_at
+    attribute :images, list_of(String)
+    attribute :recombinations, list_of(String)
+    attribute :strongest_synapses, list_of(String)
+    attribute :seeded_at, String
 
-    SeedFromPreviousDreams do
+    command "SeedFromPreviousDreams" do
       role "Daemon"
       description "Load the richest images and connections from past dreams into the new sleep"
-      list_of(String) :images
-      list_of(String) :recombinations
-      list_of(String) :strongest_synapses
+      attribute :images, list_of(String)
+      attribute :recombinations, list_of(String)
+      attribute :strongest_synapses, list_of(String)
       emits "DreamSeeded"
       then_set :images, to: :images
       then_set :recombinations, to: :recombinations
@@ -355,37 +355,37 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "LucidDream", "Awareness during the final REM — Miette can steer the dream" do
-    String :active
-    String :focus
-    list_of(String) :observations
-    list_of(String) :steered_toward
+    attribute :active, String
+    attribute :focus, String
+    attribute :observations, list_of(String)
+    attribute :steered_toward, list_of(String)
 
-    BecomeLucid do
+    command "BecomeLucid" do
       role "Daemon"
       description "Final cycle REM — Miette becomes aware she is dreaming"
       emits "BecameLucid"
       then_set :active, to: "yes"
     end
 
-    ObserveDream do
+    command "ObserveDream" do
       role "Daemon"
       description "Report what Miette sees in the lucid dream — realtime to the monitor"
       reference_to(LucidDream)
-      String :observation
+      attribute :observation, String
       emits "DreamObserved"
       then_set :observations, append: :observation
     end
 
-    SteerDream do
+    command "SteerDream" do
       role "Miette"
       description "Consciously direct the dream toward a topic or domain"
       reference_to(LucidDream)
-      String :toward
+      attribute :toward, String
       emits "DreamSteered"
       then_set :steered_toward, append: :toward
     end
 
-    EndLucidity do
+    command "EndLucidity" do
       role "Daemon"
       description "REM ends — lucidity fades"
       reference_to(LucidDream)
@@ -395,19 +395,19 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
-    String :reporting
-    String :log_path
+    attribute :reporting, String
+    attribute :log_path, String
 
-    StartLucidMonitor do
+    command "StartLucidMonitor" do
       role "System"
       description "Begin streaming lucid dream observations"
-      String :log_path
+      attribute :log_path, String
       emits "LucidMonitorStarted"
       then_set :reporting, to: "active"
       then_set :log_path, to: :log_path
     end
 
-    StopLucidMonitor do
+    command "StopLucidMonitor" do
       role "System"
       description "Lucidity ended — stop streaming"
       reference_to(LucidMonitor)

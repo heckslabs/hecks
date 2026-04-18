@@ -13,13 +13,6 @@ pub struct Domain {
     pub aggregates: Vec<Aggregate>,
     pub policies: Vec<Policy>,
     pub fixtures: Vec<Fixture>,
-    pub vows: Vec<Vow>,
-}
-
-#[derive(Debug)]
-pub struct Vow {
-    pub name: String,
-    pub text: String,
 }
 
 #[derive(Debug)]

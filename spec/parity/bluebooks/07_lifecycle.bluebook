@@ -1,0 +1,29 @@
+Hecks.bluebook "WithLifecycle", version: "2026.04.18.1" do
+  vision "Aggregate with a lifecycle state machine"
+
+  aggregate "Order", "An order moving through states" do
+    attribute :total, Integer
+
+    command "Place" do
+      role "Customer"
+      attribute :total, Integer
+      emits "Placed"
+    end
+
+    command "Approve" do
+      role "Manager"
+      emits "Approved"
+    end
+
+    command "Cancel" do
+      role "Customer"
+      emits "Cancelled"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Place"   => "placed",    from: "draft"
+      transition "Approve" => "approved",  from: "placed"
+      transition "Cancel"  => "cancelled", from: "placed"
+    end
+  end
+end

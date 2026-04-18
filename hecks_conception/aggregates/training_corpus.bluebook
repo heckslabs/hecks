@@ -3,16 +3,16 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
-    Integer :total_domains
-    Integer :total_tokens
-    list_of(String) :quality_tiers
-    String :format
+    attribute :total_domains, Integer
+    attribute :total_tokens, Integer
+    attribute :quality_tiers, list_of(String)
+    attribute :format, String
 
-    BuildCorpus do
+    command "BuildCorpus" do
       role "Creator"
       description "Assemble all nursery domains into a training dataset"
-      Integer :total_domains
-      String :format
+      attribute :total_domains, Integer
+      attribute :format, String
       emits "CorpusBuilt"
       then_set :total_domains, to: :total_domains
       then_set :format, to: :format
@@ -20,17 +20,17 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "QualityTier", "A tier of training data — different sources, different quality" do
-    String :name
-    String :source
-    Integer :domain_count
-    String :description
+    attribute :name, String
+    attribute :source, String
+    attribute :domain_count, Integer
+    attribute :description, String
 
-    DefineTier do
+    command "DefineTier" do
       role "Creator"
       description "Define a quality tier for training data"
-      String :name
-      String :source
-      String :description
+      attribute :name, String
+      attribute :source, String
+      attribute :description, String
       emits "TierDefined"
       then_set :name, to: :name
       then_set :source, to: :source
@@ -39,20 +39,20 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "TrainingPair", "A single training example — bluebook source + parsed IR + validation result" do
-    String :bluebook_source
-    String :ir_json
-    String :valid
-    Integer :aggregate_count
-    Integer :command_count
-    String :tier
+    attribute :bluebook_source, String
+    attribute :ir_json, String
+    attribute :valid, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :tier, String
 
-    CreatePair do
+    command "CreatePair" do
       role "System"
       description "Create a training pair from a bluebook"
-      String :bluebook_source
-      String :ir_json
-      String :valid
-      String :tier
+      attribute :bluebook_source, String
+      attribute :ir_json, String
+      attribute :valid, String
+      attribute :tier, String
       emits "PairCreated"
       then_set :bluebook_source, to: :bluebook_source
       then_set :ir_json, to: :ir_json
@@ -62,14 +62,14 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "Enrichment", "Add complexity to template domains — make them training-worthy" do
-    String :strategy
-    Integer :domains_enriched
+    attribute :strategy, String
+    attribute :domains_enriched, Integer
 
-    EnrichDomains do
+    command "EnrichDomains" do
       role "System"
       description "Add cross-references, lifecycles, fixtures, and policies to flat domains"
-      String :strategy
-      Integer :domains_enriched
+      attribute :strategy, String
+      attribute :domains_enriched, Integer
       emits "DomainsEnriched"
       then_set :strategy, to: :strategy
       then_set :domains_enriched, to: :domains_enriched
@@ -77,18 +77,18 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "ModelSpec", "What the trained model should be able to do" do
-    String :name
-    list_of(String) :capabilities
-    String :input_format
-    String :output_format
+    attribute :name, String
+    attribute :capabilities, list_of(String)
+    attribute :input_format, String
+    attribute :output_format, String
 
-    DefineModel do
+    command "DefineModel" do
       role "Creator"
       description "Specify what the Miette LLM should produce"
-      String :name
-      list_of(String) :capabilities
-      String :input_format
-      String :output_format
+      attribute :name, String
+      attribute :capabilities, list_of(String)
+      attribute :input_format, String
+      attribute :output_format, String
       emits "ModelDefined"
       then_set :name, to: :name
       then_set :capabilities, to: :capabilities
@@ -98,19 +98,19 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "ConversationTranscript", "A recorded session between Miette and a person — teaches voice and behavior" do
-    String :person
-    Integer :turns
-    Integer :domains_conceived
-    Integer :dreams_interpreted
-    Integer :suggestions_made
-    Integer :memories_saved
+    attribute :person, String
+    attribute :turns, Integer
+    attribute :domains_conceived, Integer
+    attribute :dreams_interpreted, Integer
+    attribute :suggestions_made, Integer
+    attribute :memories_saved, Integer
 
-    RecordTranscript do
+    command "RecordTranscript" do
       role "System"
       description "Capture a conversation session as training data"
-      String :person
-      Integer :turns
-      Integer :domains_conceived
+      attribute :person, String
+      attribute :turns, Integer
+      attribute :domains_conceived, Integer
       emits "TranscriptRecorded"
       then_set :person, to: :person
       then_set :turns, to: :turns
@@ -119,20 +119,20 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "BehaviorExample", "A specific behavior Miette exhibits — paired with the organ that governs it" do
-    String :behavior
-    String :organ_name
-    String :trigger
-    String :example_input
-    String :example_output
+    attribute :behavior, String
+    attribute :organ_name, String
+    attribute :trigger, String
+    attribute :example_input, String
+    attribute :example_output, String
 
-    RecordBehavior do
+    command "RecordBehavior" do
       role "System"
       description "Capture a behavior-to-organ mapping as training data"
-      String :behavior
-      String :organ_name
-      String :trigger
-      String :example_input
-      String :example_output
+      attribute :behavior, String
+      attribute :organ_name, String
+      attribute :trigger, String
+      attribute :example_input, String
+      attribute :example_output, String
       emits "BehaviorRecorded"
       then_set :behavior, to: :behavior
       then_set :organ_name, to: :organ_name

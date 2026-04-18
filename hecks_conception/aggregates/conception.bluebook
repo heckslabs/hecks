@@ -3,23 +3,23 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   category "mind"
 
   aggregate "Conception", "The spark — always multi-domain, never a monolith" do
-    String :name
-    String :vision
-    String :requested_by
-    String :source
-    list_of(String) :bounded_contexts
-    String :category
-    String :status
+    attribute :name, String
+    attribute :vision, String
+    attribute :requested_by, String
+    attribute :source, String
+    attribute :bounded_contexts, list_of(String)
+    attribute :category, String
+    attribute :status, String
 
-    ConceiveDomain do
+    command "ConceiveDomain" do
       role "Miette"
       description "Conceive a multi-domain project — identify bounded contexts from the start"
-      String :name
-      String :vision
-      String :requested_by
-      String :source
-      String :category
-      list_of(String) :bounded_contexts
+      attribute :name, String
+      attribute :vision, String
+      attribute :requested_by, String
+      attribute :source, String
+      attribute :category, String
+      attribute :bounded_contexts, list_of(String)
       emits "DomainConceived"
       then_set :name, to: :name
       then_set :vision, to: :vision
@@ -36,21 +36,21 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Gestation", "Multi-domain project growing — each bounded context gets its own bluebook" do
-    String :project_name
-    String :nursery_path
-    list_of(String) :bounded_contexts
-    list_of(String) :aggregates
-    list_of(String) :commands
-    list_of(String) :policies
-    list_of(String) :fixtures
-    Integer :contractions
+    attribute :project_name, String
+    attribute :nursery_path, String
+    attribute :bounded_contexts, list_of(String)
+    attribute :aggregates, list_of(String)
+    attribute :commands, list_of(String)
+    attribute :policies, list_of(String)
+    attribute :fixtures, list_of(String)
+    attribute :contractions, Integer
 
-    StartGestation do
+    command "StartGestation" do
       role "Miette"
       description "Scaffold the hecks/ folder with one bluebook per bounded context"
-      String :project_name
-      String :nursery_path
-      list_of(String) :bounded_contexts
+      attribute :project_name, String
+      attribute :nursery_path, String
+      attribute :bounded_contexts, list_of(String)
       emits "GestationStarted"
       then_set :project_name, to: :project_name
       then_set :nursery_path, to: :nursery_path
@@ -58,34 +58,34 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :contractions, to: 0
     end
 
-    FormAggregate do
+    command "FormAggregate" do
       role "Miette"
       description "An aggregate crystallizes within the forming domain"
       reference_to(Gestation)
-      String :aggregate_name
+      attribute :aggregate_name, String
       emits "AggregateFormed"
       then_set :aggregates, append: :aggregate_name
     end
 
-    FormCommand do
+    command "FormCommand" do
       role "Miette"
       description "A command emerges within an aggregate"
       reference_to(Gestation)
-      String :command_name
+      attribute :command_name, String
       emits "CommandFormed"
       then_set :commands, append: :command_name
     end
 
-    FormPolicy do
+    command "FormPolicy" do
       role "Miette"
       description "A policy wires itself between aggregates"
       reference_to(Gestation)
-      String :policy_name
+      attribute :policy_name, String
       emits "PolicyFormed"
       then_set :policies, append: :policy_name
     end
 
-    Contract do
+    command "Contract" do
       role "Miette"
       description "A contraction — the domain tightens, refines, gets closer to birth"
       reference_to(Gestation)
@@ -95,32 +95,32 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Labor", "Validation and naming — the domain is ready to be born" do
-    String :domain_name
-    String :bluebook_source
-    String :valid
-    list_of(String) :errors
-    String :parity
+    attribute :domain_name, String
+    attribute :bluebook_source, String
+    attribute :valid, String
+    attribute :errors, list_of(String)
+    attribute :parity, String
 
-    ValidateBluebook do
+    command "ValidateBluebook" do
       role "Midwife"
       description "Check the domain is well-formed — verb naming, references, structure"
-      String :domain_name
-      String :bluebook_source
+      attribute :domain_name, String
+      attribute :bluebook_source, String
       emits "BluebookValidated"
       then_set :domain_name, to: :domain_name
       then_set :bluebook_source, to: :bluebook_source
     end
 
-    CheckParity do
+    command "CheckParity" do
       role "Midwife"
       description "Verify Ruby and Rust read the domain identically"
       reference_to(Labor)
-      String :parity
+      attribute :parity, String
       emits "ParityChecked"
       then_set :parity, to: :parity
     end
 
-    PassLabor do
+    command "PassLabor" do
       role "Midwife"
       description "Domain passes all checks — ready for delivery"
       reference_to(Labor)
@@ -128,11 +128,11 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :valid, to: "yes"
     end
 
-    FailLabor do
+    command "FailLabor" do
       role "Midwife"
       description "Domain has errors — needs more gestation"
       reference_to(Labor)
-      list_of(String) :errors
+      attribute :errors, list_of(String)
       emits "LaborFailed"
       then_set :valid, to: "no"
       then_set :errors, to: :errors
@@ -146,21 +146,21 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Delivery", "The domain leaves the womb and enters the nursery — born, valid, healthy" do
-    String :domain_name
-    String :path
-    Integer :aggregate_count
-    Integer :command_count
-    Integer :fixture_count
-    String :indexed
+    attribute :domain_name, String
+    attribute :path, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :fixture_count, Integer
+    attribute :indexed, String
 
-    DeliverDomain do
+    command "DeliverDomain" do
       role "Midwife"
       description "Write the bluebook to the nursery — the domain is born"
-      String :domain_name
-      String :path
-      Integer :aggregate_count
-      Integer :command_count
-      Integer :fixture_count
+      attribute :domain_name, String
+      attribute :path, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
       emits "DomainDelivered"
       then_set :domain_name, to: :domain_name
       then_set :path, to: :path
@@ -169,14 +169,14 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :fixture_count, to: :fixture_count
     end
 
-    RegisterBirth do
+    command "RegisterBirth" do
       role "Midwife"
       description "Update the census, validate with Rust, announce to the nursery"
       reference_to(Delivery)
       emits "BirthRegistered"
     end
 
-    IndexInNursery do
+    command "IndexInNursery" do
       role "Midwife"
       description "Add to the census, domain_entry records, and nursery_awareness — the corpus grows"
       reference_to(Delivery)
@@ -186,19 +186,19 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Postpartum", "After birth — the domain's first days in the nursery" do
-    String :domain_name
-    String :healthy
-    String :first_pulse_at
+    attribute :domain_name, String
+    attribute :healthy, String
+    attribute :first_pulse_at, String
 
-    CheckHealth do
+    command "CheckHealth" do
       role "Midwife"
       description "Verify the newborn domain — Rust validation, parity, census updated"
-      String :domain_name
+      attribute :domain_name, String
       emits "HealthChecked"
       then_set :domain_name, to: :domain_name
     end
 
-    DeclareHealthy do
+    command "DeclareHealthy" do
       role "Midwife"
       description "The domain is healthy — living in the nursery"
       reference_to(Postpartum)
@@ -206,11 +206,11 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :healthy, to: "yes"
     end
 
-    FlagConcern do
+    command "FlagConcern" do
       role "Midwife"
       description "Something is wrong — needs attention"
       reference_to(Postpartum)
-      String :concern
+      attribute :concern, String
       emits "ConcernFlagged"
       then_set :healthy, to: "concern"
     end
@@ -219,35 +219,35 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   # Being — Development (vector-driven domain growth)
 
   aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
-    String :domain_name
-    list_of(Float) :current_vector
-    list_of(Float) :target_vector
-    String :nearest_archetype
-    Float :similarity
-    String :status
+    attribute :domain_name, String
+    attribute :current_vector, list_of(Float)
+    attribute :target_vector, list_of(Float)
+    attribute :nearest_archetype, String
+    attribute :similarity, Float
+    attribute :status, String
 
     value_object "StructuralVector" do
-      Integer :aggregates
-      Float :commands_per_aggregate
-      Float :attrs_per_aggregate
-      Integer :value_objects
-      Integer :policies
-      Integer :references
-      Integer :lifecycles
-      Integer :lifecycle_depth
-      Integer :list_ofs
+      attribute :aggregates, Integer
+      attribute :commands_per_aggregate, Float
+      attribute :attrs_per_aggregate, Float
+      attribute :value_objects, Integer
+      attribute :policies, Integer
+      attribute :references, Integer
+      attribute :lifecycles, Integer
+      attribute :lifecycle_depth, Integer
+      attribute :list_ofs, Integer
     end
 
-    ComputeVector do
+    command "ComputeVector" do
       role "System"
       description "Extract the structural vector from a domain's current shape"
-      String :domain_name
+      attribute :domain_name, String
       emits "VectorComputed"
       then_set :domain_name, to: :domain_name
       then_set :status, to: "vectorized"
     end
 
-    FindArchetype do
+    command "FindArchetype" do
       role "System"
       description "Search the nursery corpus for the nearest domain by cosine similarity"
       reference_to(Development)
@@ -255,17 +255,17 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :status, to: "matched"
     end
 
-    PlanDevelopment do
+    command "PlanDevelopment" do
       role "Miette"
       description "Diff current vector against target — identify what to add from the archetype"
       reference_to(Development)
-      list_of(Float) :target_vector
+      attribute :target_vector, list_of(Float)
       emits "DevelopmentPlanned"
       then_set :target_vector, to: :target_vector
       then_set :status, to: "planned"
     end
 
-    DevelopDomain do
+    command "DevelopDomain" do
       role "Miette"
       description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
       reference_to(Development)
@@ -273,7 +273,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
       then_set :status, to: "developed"
     end
 
-    RejectDevelopment do
+    command "RejectDevelopment" do
       role "Miette"
       description "Archetype doesn't fit — the domain stays as it is"
       reference_to(Development)
@@ -291,29 +291,29 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
-    Integer :domain_count
-    Integer :total_vectors
-    String :last_indexed_at
+    attribute :domain_count, Integer
+    attribute :total_vectors, Integer
+    attribute :last_indexed_at, String
 
-    IndexDomain do
+    command "IndexDomain" do
       role "System"
       description "Add a domain's structural vector to the corpus"
-      String :domain_name
-      list_of(Float) :vector
+      attribute :domain_name, String
+      attribute :vector, list_of(Float)
       emits "DomainIndexed"
       then_set :domain_count, increment: 1
       then_set :total_vectors, increment: 1
     end
 
-    QueryNearest do
+    command "QueryNearest" do
       role "System"
       description "Find k nearest domains by cosine similarity to a target vector"
-      list_of(Float) :target_vector
-      Integer :k
+      attribute :target_vector, list_of(Float)
+      attribute :k, Integer
       emits "NearestFound"
     end
 
-    RebuildCorpus do
+    command "RebuildCorpus" do
       role "System"
       description "Rescan all nursery and catalog domains, recompute all vectors"
       emits "CorpusRebuilt"

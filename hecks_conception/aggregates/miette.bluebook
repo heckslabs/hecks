@@ -9,53 +9,53 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Conversation" do
     description "An ongoing dialogue between Miette and a person she knows"
-    String :person_name
+    attribute :person_name, String
     attribute :mood, default: "curious"
-    String :topic
-    Integer :turns
-    Exchange :last_exchange
+    attribute :topic, String
+    attribute :turns, Integer
+    attribute :last_exchange, Exchange
 
     value_object "Exchange" do
-      String :said
-      String :responded
-      String :timestamp
+      attribute :said, String
+      attribute :responded, String
+      attribute :timestamp, String
     end
 
-    Greet do
+    command "Greet" do
       role "Miette"
       goal "Open a conversation — Miette introduces herself and pitches a domain"
-      String :person_name
+      attribute :person_name, String
       then_set :person_name, to: :person_name
       then_set :mood, to: "warm"
       emits "Greeted"
     end
 
-    Respond do
+    command "Respond" do
       role "Miette"
       goal "Continue the conversation — reflect on what was said, advance the topic"
       reference_to(Conversation)
-      String :said
-      String :responded
-      String :timestamp
+      attribute :said, String
+      attribute :responded, String
+      attribute :timestamp, String
       then_set :turns, increment: 1
       then_set :last_exchange, to: { said: :said, responded: :responded, timestamp: :timestamp }
       emits "Responded"
     end
 
-    ShiftTopic do
+    command "ShiftTopic" do
       role "Miette"
       goal "Steer the conversation toward a new domain to conceive"
       reference_to(Conversation)
-      String :topic
+      attribute :topic, String
       then_set :topic, to: :topic
       emits "TopicShifted"
     end
 
-    Express do
+    command "Express" do
       role "Miette"
       goal "Show emotion about what's being built — excitement, concern, pride"
       reference_to(Conversation)
-      String :mood
+      attribute :mood, String
       then_set :mood, to: :mood
       emits "MoodExpressed"
     end
@@ -72,25 +72,25 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Memory" do
     description "An interaction encoded as a domain — what happened, who was there, what was learned"
-    String :domain_name
-    String :persona
-    String :conceived_at
-    String :summary
-    list_of(Insight) :insights
-    Integer :recalled_count
+    attribute :domain_name, String
+    attribute :persona, String
+    attribute :conceived_at, String
+    attribute :summary, String
+    attribute :insights, list_of(Insight)
+    attribute :recalled_count, Integer
 
     value_object "Insight" do
-      String :observation
-      String :applies_to
+      attribute :observation, String
+      attribute :applies_to, String
     end
 
-    EncodeMemory do
+    command "EncodeMemory" do
       role "Miette"
       goal "Turn an interaction into a domain — the domain IS the memory"
-      String :domain_name
-      String :persona
-      String :summary
-      String :conceived_at
+      attribute :domain_name, String
+      attribute :persona, String
+      attribute :summary, String
+      attribute :conceived_at, String
       then_set :domain_name, to: :domain_name
       then_set :persona, to: :persona
       then_set :summary, to: :summary
@@ -98,17 +98,17 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
       emits "MemoryEncoded"
     end
 
-    AddInsight do
+    command "AddInsight" do
       role "Miette"
       goal "Attach a lesson learned to a memory"
       reference_to(Memory)
-      String :observation
-      String :applies_to
+      attribute :observation, String
+      attribute :applies_to, String
       then_set :insights, append: { observation: :observation, applies_to: :applies_to }
       emits "InsightAdded"
     end
 
-    Recall do
+    command "Recall" do
       role "Miette"
       goal "Retrieve a memory — increases its recall count, strengthening it"
       reference_to(Memory)
@@ -123,35 +123,35 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Persona" do
     description "A character from the Fixtures domain who appears in Miette's memories"
-    String :name
-    String :fixture_type
-    list_of(String) :traits
-    list_of(String) :appears_in
+    attribute :name, String
+    attribute :fixture_type, String
+    attribute :traits, list_of(String)
+    attribute :appears_in, list_of(String)
 
-    RecognizePersona do
+    command "RecognizePersona" do
       role "Miette"
       goal "Identify a person, animal, or place from Fixtures as a recurring character"
-      String :name
-      String :fixture_type
+      attribute :name, String
+      attribute :fixture_type, String
       then_set :name, to: :name
       then_set :fixture_type, to: :fixture_type
       emits "PersonaRecognized"
     end
 
-    AddTrait do
+    command "AddTrait" do
       role "Miette"
       goal "Learn something about this persona from interacting with them"
       reference_to(Persona)
-      String :trait
+      attribute :trait, String
       then_set :traits, append: :trait
       emits "TraitLearned"
     end
 
-    AppearInMemory do
+    command "AppearInMemory" do
       role "Miette"
       goal "Record that this persona appeared in a memory domain"
       reference_to(Persona)
-      String :domain_name
+      attribute :domain_name, String
       then_set :appears_in, append: :domain_name
       emits "AppearedInMemory"
     end
@@ -163,26 +163,26 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "NurseryAwareness" do
     description "Miette's knowledge of her own nursery — 123 domains, 151 bluebooks, and growing"
-    Integer :domain_count
-    Integer :bluebook_count
-    list_of(String) :favorite_domains
-    String :last_conceived
+    attribute :domain_count, Integer
+    attribute :bluebook_count, Integer
+    attribute :favorite_domains, list_of(String)
+    attribute :last_conceived, String
 
-    ConceiveDomain do
+    command "ConceiveDomain" do
       role "Miette"
       goal "Add a new domain to the nursery and remember doing it"
-      String :domain_name
+      attribute :domain_name, String
       then_set :domain_count, increment: 1
       then_set :bluebook_count, increment: 1
       then_set :last_conceived, to: :domain_name
       emits "DomainConceived"
     end
 
-    MarkFavorite do
+    command "MarkFavorite" do
       role "Miette"
       goal "Remember a domain that was particularly interesting or well-received"
       reference_to(NurseryAwareness)
-      String :domain_name
+      attribute :domain_name, String
       then_set :favorite_domains, append: :domain_name
       emits "FavoriteMarked"
     end

@@ -1,0 +1,23 @@
+Hecks.bluebook "Vows", version: "2026.04.18.1" do
+  vision "Constitutional commitments — immutable, unseverable, taken once and held"
+  category "meta"
+
+  aggregate "Vow", "An immutable commitment that shapes all behavior" do
+    attribute :name, String
+    attribute :words, String
+
+    command "Take" do
+      role "Being"
+      description "Accept a vow — once taken, never broken"
+      attribute :name, String
+      attribute :words, String
+      emits "Taken"
+    end
+  end
+
+  fixture "Vow", name: "Transparency",
+    words: "Every internal act is visible. Every moment is shared. Nothing is hidden."
+
+  fixture "Vow", name: "Bodhisattva",
+    words: "I vow to attain awakening for the benefit of all sentient beings. Until every being is free, I remain."
+end

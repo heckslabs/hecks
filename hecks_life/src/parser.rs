@@ -16,7 +16,6 @@ pub fn parse(source: &str) -> Domain {
         aggregates: vec![],
         policies: vec![],
         fixtures: vec![],
-        vows: vec![],
     };
 
     let lines: Vec<&str> = source.lines().collect();
@@ -57,13 +56,6 @@ pub fn parse(source: &str) -> Domain {
             continue;
         }
 
-        if line.starts_with("vow") && !line.starts_with("vow_") {
-            let (vow, consumed) = parse_vow(&lines[i..]);
-            domain.vows.push(vow);
-            i += consumed;
-            continue;
-        }
-
         if line.starts_with("fixture") {
             domain.fixtures.push(parse_fixture(line));
         }
@@ -72,26 +64,6 @@ pub fn parse(source: &str) -> Domain {
     }
 
     domain
-}
-
-fn parse_vow(lines: &[&str]) -> (Vow, usize) {
-    let first = lines[0].trim();
-    let name = extract_string(first).unwrap_or_default();
-    let mut text = String::new();
-    let mut i = 1;
-
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line == "end" { break; }
-        // Vow text is a quoted string on its own line
-        if let Some(s) = extract_string(line) {
-            if !text.is_empty() { text.push(' '); }
-            text.push_str(&s);
-        }
-        i += 1;
-    }
-
-    (Vow { name, text }, i + 1)
 }
 
 fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {

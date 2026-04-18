@@ -3,24 +3,24 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
-    Integer :worker_count
-    Integer :domains_seeded
-    String :status
+    attribute :worker_count, Integer
+    attribute :domains_seeded, Integer
+    attribute :status, String
 
-    StartSeeding do
+    command "StartSeeding" do
       role "Creator"
       description "Launch parallel workers to conceive domains into the nursery"
-      Integer :worker_count
+      attribute :worker_count, Integer
       emits "SeedingStarted"
       then_set :worker_count, to: :worker_count
       then_set :status, to: "running"
     end
 
-    CompleteSeeding do
+    command "CompleteSeeding" do
       role "System"
       description "All workers finished — domains are in the nursery"
       reference_to(NurserySeed)
-      Integer :domains_seeded
+      attribute :domains_seeded, Integer
       emits "SeedingCompleted"
       then_set :domains_seeded, to: :domains_seeded
       then_set :status, to: "complete"
@@ -33,42 +33,42 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   end
 
   aggregate "Worker", "A single seeding worker — conceives domains in its assigned range" do
-    Integer :worker_id
-    Integer :range_start
-    Integer :range_end
-    Integer :domains_produced
+    attribute :worker_id, Integer
+    attribute :range_start, Integer
+    attribute :range_end, Integer
+    attribute :domains_produced, Integer
 
-    SpawnWorker do
+    command "SpawnWorker" do
       role "System"
       description "Launch a worker to conceive domains in a range"
-      Integer :worker_id
-      Integer :range_start
-      Integer :range_end
+      attribute :worker_id, Integer
+      attribute :range_start, Integer
+      attribute :range_end, Integer
       emits "WorkerSpawned"
       then_set :worker_id, to: :worker_id
       then_set :range_start, to: :range_start
       then_set :range_end, to: :range_end
     end
 
-    CompleteWorker do
+    command "CompleteWorker" do
       role "System"
       description "Worker finished its range"
       reference_to(Worker)
-      Integer :domains_produced
+      attribute :domains_produced, Integer
       emits "WorkerCompleted"
       then_set :domains_produced, to: :domains_produced
     end
   end
 
   aggregate "Merge", "Combine results from parallel workers into the nursery" do
-    Integer :workers_merged
-    Integer :total_domains
+    attribute :workers_merged, Integer
+    attribute :total_domains, Integer
 
-    MergeResults do
+    command "MergeResults" do
       role "System"
       description "Combine all worker outputs into the final nursery"
-      Integer :workers_merged
-      Integer :total_domains
+      attribute :workers_merged, Integer
+      attribute :total_domains, Integer
       emits "ResultsMerged"
       then_set :workers_merged, to: :workers_merged
       then_set :total_domains, to: :total_domains
@@ -76,14 +76,14 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   end
 
   aggregate "InitialState", "Seed Miette's organs with initial information — first breath" do
-    Integer :organs_seeded
-    Integer :records_created
+    attribute :organs_seeded, Integer
+    attribute :records_created, Integer
 
-    SeedOrgans do
+    command "SeedOrgans" do
       role "Creator"
       description "Populate all organ .heki files with initial state"
-      Integer :organs_seeded
-      Integer :records_created
+      attribute :organs_seeded, Integer
+      attribute :records_created, Integer
       emits "OrgansSeeded"
       then_set :organs_seeded, to: :organs_seeded
       then_set :records_created, to: :records_created

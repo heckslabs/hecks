@@ -13,10 +13,10 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
   # Adaptive rules: learned from corrections (antibodies)
 
   aggregate "Rule", "One validation rule — innate or adaptive" do
-    String :name
-    String :category
-    String :description
-    String :severity
+    attribute :name, String
+    attribute :category, String
+    attribute :description, String
+    attribute :severity, String
 
     query ListRules do
       description "What rules do I enforce?"
@@ -24,15 +24,15 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
   end
 
   aggregate "Violation", "A detected rule violation" do
-    String :rule_name
-    String :message
-    String :aggregate_name
-    String :command_name
+    attribute :rule_name, String
+    attribute :message, String
+    attribute :aggregate_name, String
+    attribute :command_name, String
 
-    DetectViolation do
+    command "DetectViolation" do
       description "A rule was broken"
-      String :rule_name
-      String :message
+      attribute :rule_name, String
+      attribute :message, String
       emits "ViolationDetected"
       then_set :rule_name, to: :rule_name
       then_set :message, to: :message

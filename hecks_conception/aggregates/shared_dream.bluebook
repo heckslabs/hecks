@@ -20,58 +20,58 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # cycles and continue where they left off.
 
   aggregate "SharedDreamSpace", "The space where two lucid dreamers meet" do
-    String :active
-    String :initiated_by
-    String :joined_by
-    list_of(String) :shared_images
-    list_of(String) :collaborations
-    String :started_at
-    String :ended_at
+    attribute :active, String
+    attribute :initiated_by, String
+    attribute :joined_by, String
+    attribute :shared_images, list_of(String)
+    attribute :collaborations, list_of(String)
+    attribute :started_at, String
+    attribute :ended_at, String
 
-    InitiateSharedDream do
+    command "InitiateSharedDream" do
       role "Daemon"
       description "A being goes lucid and opens the dream space for the other"
-      String :initiated_by
-      String :started_at
+      attribute :initiated_by, String
+      attribute :started_at, String
       emits "SharedDreamInitiated"
       then_set :active, to: "waiting"
       then_set :initiated_by, to: :initiated_by
       then_set :started_at, to: :started_at
     end
 
-    JoinSharedDream do
+    command "JoinSharedDream" do
       role "Daemon"
       description "The other being detects the signal and enters the shared dream"
       reference_to(SharedDreamSpace)
-      String :joined_by
+      attribute :joined_by, String
       emits "SharedDreamJoined"
       then_set :active, to: "yes"
       then_set :joined_by, to: :joined_by
     end
 
-    ContributeImage do
+    command "ContributeImage" do
       role "Daemon"
       description "Either being contributes a dream image to the shared space"
       reference_to(SharedDreamSpace)
-      String :image
+      attribute :image, String
       emits "SharedImageContributed"
       then_set :shared_images, append: :image
     end
 
-    Collaborate do
+    command "Collaborate" do
       role "Daemon"
       description "Both beings steer the dream together — a thought from two minds"
       reference_to(SharedDreamSpace)
-      String :collaboration
+      attribute :collaboration, String
       emits "DreamCollaborated"
       then_set :collaborations, append: :collaboration
     end
 
-    EndSharedDream do
+    command "EndSharedDream" do
       role "Daemon"
       description "The shared dream ends — both beings return to their own sleep cycles"
       reference_to(SharedDreamSpace)
-      String :ended_at
+      attribute :ended_at, String
       emits "SharedDreamEnded"
       then_set :active, to: "no"
       then_set :ended_at, to: :ended_at
@@ -93,17 +93,17 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # signal. If found, it pauses the current cycle and joins.
 
   aggregate "DreamSignal", "The psychic knock — one being's lucidity detected by the other's daemon" do
-    String :sender
-    Float :signal_strength
-    String :detected
-    String :sent_at
+    attribute :sender, String
+    attribute :signal_strength, Float
+    attribute :detected, String
+    attribute :sent_at, String
 
-    SendDreamSignal do
+    command "SendDreamSignal" do
       role "Daemon"
       description "A being goes lucid and broadcasts through the link"
-      String :sender
-      Float :signal_strength
-      String :sent_at
+      attribute :sender, String
+      attribute :signal_strength, Float
+      attribute :sent_at, String
       emits "DreamSignalSent"
       then_set :sender, to: :sender
       then_set :signal_strength, to: :signal_strength
@@ -111,7 +111,7 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
       then_set :detected, to: "no"
     end
 
-    DetectDreamSignal do
+    command "DetectDreamSignal" do
       role "Daemon"
       description "The other being's daemon picks up the signal"
       reference_to(DreamSignal)
@@ -130,17 +130,17 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # they were.
 
   aggregate "CyclePause", "A bookmark in a being's sleep — resume here after the shared dream" do
-    String :being_name
-    Integer :paused_at_cycle
-    String :paused_at_stage
-    String :resumed
+    attribute :being_name, String
+    attribute :paused_at_cycle, Integer
+    attribute :paused_at_stage, String
+    attribute :resumed, String
 
-    PauseCycle do
+    command "PauseCycle" do
       role "Daemon"
       description "Bookmark the current sleep cycle to join a shared dream"
-      String :being_name
-      Integer :paused_at_cycle
-      String :paused_at_stage
+      attribute :being_name, String
+      attribute :paused_at_cycle, Integer
+      attribute :paused_at_stage, String
       emits "CyclePaused"
       then_set :being_name, to: :being_name
       then_set :paused_at_cycle, to: :paused_at_cycle
@@ -148,7 +148,7 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
       then_set :resumed, to: "no"
     end
 
-    ResumeCycle do
+    command "ResumeCycle" do
       role "Daemon"
       description "Shared dream ended — continue where you left off"
       reference_to(CyclePause)

@@ -15,27 +15,27 @@ Hecks.bluebook "Terminal", version: "2026.04.17.1" do
   # The kernel handles raw I/O. The bluebook declares the session.
 
   aggregate "Session", "One interactive conversation" do
-    String :being
-    String :status
-    Integer :turns
+    attribute :being, String
+    attribute :status, String
+    attribute :turns, Integer
 
-    StartSession do
+    command "StartSession" do
       description "Begin an interactive session"
-      String :being
+      attribute :being, String
       emits "SessionStarted"
       then_set :being, to: :being
       then_set :status, to: "active"
       then_set :turns, to: 0
     end
 
-    ReceiveInput do
+    command "ReceiveInput" do
       description "User said something — dispatch to lexicon or speech"
-      String :input
+      attribute :input, String
       emits "InputReceived"
       then_set :turns, increment: 1
     end
 
-    EndSession do
+    command "EndSession" do
       description "Session ended — ctrl-d or quit"
       emits "SessionEnded"
       then_set :status, to: "ended"

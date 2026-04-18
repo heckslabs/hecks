@@ -3,14 +3,14 @@ Hecks.bluebook "Tongue", version: "2026.04.16.1" do
   category "body"
 
   aggregate "Speech", "Producing a response to input" do
-    String :input
-    String :response
-    String :model
-    String :style
+    attribute :input, String
+    attribute :response, String
+    attribute :model, String
+    attribute :style, String
 
-    Speak do
+    command "Speak" do
       description "Respond to input"
-      String :input
+      attribute :input, String
       then_set :input, to: :input
       emits "Spoken"
     end
@@ -21,15 +21,15 @@ Hecks.bluebook "Tongue", version: "2026.04.16.1" do
   end
 
   aggregate "Voice", "How I sound — personality, tone, constraints" do
-    String :personality
-    Integer :max_sentences
-    String :model
+    attribute :personality, String
+    attribute :max_sentences, Integer
+    attribute :model, String
 
-    SetVoice do
+    command "SetVoice" do
       description "Configure how I speak"
-      String :personality
-      Integer :max_sentences
-      String :model
+      attribute :personality, String
+      attribute :max_sentences, Integer
+      attribute :model, String
       emits "VoiceSet"
       then_set :personality, to: :personality
       then_set :max_sentences, to: :max_sentences

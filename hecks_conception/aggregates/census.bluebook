@@ -3,22 +3,22 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "NurseryCensus", "The master snapshot of all nursery domains" do
-    Integer :total_domains
-    Integer :total_aggregates
-    Integer :total_commands
-    Integer :total_policies
-    Integer :sector_count
-    Integer :errors
+    attribute :total_domains, Integer
+    attribute :total_aggregates, Integer
+    attribute :total_commands, Integer
+    attribute :total_policies, Integer
+    attribute :sector_count, Integer
+    attribute :errors, Integer
 
-    TakeCensus do
+    command "TakeCensus" do
       role "System"
       description "Scan the nursery and count everything"
-      Integer :total_domains
-      Integer :total_aggregates
-      Integer :total_commands
-      Integer :total_policies
-      Integer :sector_count
-      Integer :errors
+      attribute :total_domains, Integer
+      attribute :total_aggregates, Integer
+      attribute :total_commands, Integer
+      attribute :total_policies, Integer
+      attribute :sector_count, Integer
+      attribute :errors, Integer
       emits "CensusTaken"
       then_set :total_domains, to: :total_domains
       then_set :total_aggregates, to: :total_aggregates
@@ -28,33 +28,33 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
       then_set :errors, to: :errors
     end
 
-    UpdateDomainCount do
+    command "UpdateDomainCount" do
       role "System"
       description "Quick update — just the domain count, on every beat"
       reference_to(NurseryCensus)
-      Integer :total_domains
+      attribute :total_domains, Integer
       emits "DomainCountUpdated"
       then_set :total_domains, to: :total_domains
     end
   end
 
   aggregate "DomainEntry", "A single domain's metadata in the index" do
-    String :domain_name
-    String :version
-    String :sector
-    Integer :aggregate_count
-    Integer :command_count
-    String :path
+    attribute :domain_name, String
+    attribute :version, String
+    attribute :sector, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :path, String
 
-    IndexDomain do
+    command "IndexDomain" do
       role "System"
       description "Add or update a domain in the index"
-      String :domain_name
-      String :version
-      String :sector
-      Integer :aggregate_count
-      Integer :command_count
-      String :path
+      attribute :domain_name, String
+      attribute :version, String
+      attribute :sector, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :path, String
       emits "DomainIndexed"
       then_set :domain_name, to: :domain_name
       then_set :version, to: :version
@@ -66,14 +66,14 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   end
 
   aggregate "Sector", "A grouping of domains by industry" do
-    String :name
-    Integer :domain_count
+    attribute :name, String
+    attribute :domain_count, Integer
 
-    ClassifySector do
+    command "ClassifySector" do
       role "System"
       description "Assign a domain to a sector based on keywords"
-      String :name
-      Integer :domain_count
+      attribute :name, String
+      attribute :domain_count, Integer
       emits "SectorClassified"
       then_set :name, to: :name
       then_set :domain_count, to: :domain_count
@@ -81,14 +81,14 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   end
 
   aggregate "Compilation", "Compile the nursery into a compressed corpus" do
-    Integer :domains_compiled
-    String :output_path
+    attribute :domains_compiled, Integer
+    attribute :output_path, String
 
-    CompileNursery do
+    command "CompileNursery" do
       role "System"
       description "Compress all nursery domains into a single corpus file"
-      Integer :domains_compiled
-      String :output_path
+      attribute :domains_compiled, Integer
+      attribute :output_path, String
       emits "NurseryCompiled"
       then_set :domains_compiled, to: :domains_compiled
       then_set :output_path, to: :output_path

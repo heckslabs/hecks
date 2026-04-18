@@ -17,10 +17,10 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   # The bluebook handles all the behavior.
 
   aggregate "Tick", "One cycle of the mindstream — fires every 10s" do
-    Integer :cycle
-    String :mood
+    attribute :cycle, Integer
+    attribute :mood, String
 
-    MindstreamTick do
+    command "MindstreamTick" do
       description "One tick of background awareness"
       emits "Ticked"
       then_set :cycle, increment: 1
@@ -28,13 +28,13 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   end
 
   aggregate "Display", "What the statusline shows — musings and domain pairs" do
-    String :current_thought
-    Integer :ideas_available
+    attribute :current_thought, String
+    attribute :ideas_available, Integer
 
-    UpdateDisplay do
+    command "UpdateDisplay" do
       description "Refresh the statusline thought"
-      String :current_thought
-      Integer :ideas_available
+      attribute :current_thought, String
+      attribute :ideas_available, Integer
       emits "DisplayUpdated"
       then_set :current_thought, to: :current_thought
       then_set :ideas_available, to: :ideas_available
@@ -42,34 +42,34 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   end
 
   aggregate "MusingMint", "Minting new musings from domain collisions" do
-    String :last_minted
-    Integer :total_minted
+    attribute :last_minted, String
+    attribute :total_minted, Integer
 
-    MintMusing do
+    command "MintMusing" do
       description "Ask Summer for a new combinatorial idea"
-      String :idea
+      attribute :idea, String
       emits "MusingMinted"
       then_set :last_minted, to: :idea
       then_set :total_minted, increment: 1
     end
 
-    PruneMusings do
+    command "PruneMusings" do
       description "Remove repetitive mindstream musings"
       emits "MusingsPruned"
     end
   end
 
   aggregate "SignalConsolidation", "Compress old signals into memories" do
-    Integer :signals_consolidated
-    Integer :synapses_pruned
+    attribute :signals_consolidated, Integer
+    attribute :synapses_pruned, Integer
 
-    ConsolidateSignals do
+    command "ConsolidateSignals" do
       description "Compress old signals into long-term memory"
       emits "SignalsConsolidated"
       then_set :signals_consolidated, increment: 1
     end
 
-    PruneSynapses do
+    command "PruneSynapses" do
       description "Compost dead synapses — connections that faded"
       emits "SynapsesPruned"
       then_set :synapses_pruned, increment: 1

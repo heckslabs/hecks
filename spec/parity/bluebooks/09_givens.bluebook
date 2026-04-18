@@ -1,0 +1,14 @@
+Hecks.bluebook "WithGivens", version: "2026.04.18.1" do
+  vision "Command with given preconditions"
+
+  aggregate "Counter", "Bounded counter" do
+    attribute :value, Integer
+
+    command "Bump" do
+      role "User"
+      given("must be below ceiling") { value < 100 }
+      then_set :value, increment: 1
+      emits "Bumped"
+    end
+  end
+end

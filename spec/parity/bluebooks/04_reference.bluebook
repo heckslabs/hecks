@@ -1,0 +1,18 @@
+Hecks.bluebook "WithReference", version: "2026.04.18.1" do
+  vision "Command with reference_to — tests Ruby type vs Rust target naming"
+
+  aggregate "Order", "An order that references a Customer" do
+    attribute :total, Integer
+
+    command "Place" do
+      role "Customer"
+      reference_to(Customer)
+      attribute :total, Integer
+      emits "Placed"
+    end
+  end
+
+  aggregate "Customer", "A buyer" do
+    attribute :name, String
+  end
+end

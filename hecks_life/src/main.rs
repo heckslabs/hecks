@@ -15,7 +15,7 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, validator, server, conceiver, heki};
+use hecks_life::{parser, validator, server, conceiver, heki, dump};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -181,6 +181,7 @@ fn main() {
 
     match command {
         "parse" => println!("{}", domain),
+        "dump" => println!("{}", serde_json::to_string_pretty(&dump::dump(&domain)).unwrap()),
         "validate" => {
             let errors = validator::validate(&domain);
             if errors.is_empty() {
@@ -410,7 +411,7 @@ fn run_terminal(project_dir: &str, being: &str) {
         name: "Hecksagon".into(),
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
-        fixtures: vec![], vows: vec![],
+        fixtures: vec![],
     };
     if let Ok(entries) = fs::read_dir(&agg_dir) {
         for entry in entries.flatten() {
@@ -462,7 +463,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         name: "Hecksagon".into(),
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
-        fixtures: vec![], vows: vec![],
+        fixtures: vec![],
     };
     let entries = fs::read_dir(agg_dir).unwrap_or_else(|e| {
         eprintln!("Cannot read directory {}: {}", agg_dir, e);

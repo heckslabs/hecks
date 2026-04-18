@@ -1,0 +1,12 @@
+Hecks.bluebook "AttributeTypes", version: "2026.04.18.1" do
+  vision "Exercises every attribute shape — primitives, lists, defaults"
+
+  aggregate "Sample", "All attribute kinds in one place" do
+    attribute :name, String
+    attribute :count, Integer
+    attribute :ratio, Float
+    attribute :tags, list_of(String)
+    attribute :active, default: true
+    attribute :status, default: "draft"
+  end
+end

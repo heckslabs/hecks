@@ -3,17 +3,17 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
   category "mind"
 
   aggregate "Encoding", "The act of saving something to memory — always announced" do
-    String :kind
-    String :subject
-    String :content
-    String :announced
+    attribute :kind, String
+    attribute :subject, String
+    attribute :content, String
+    attribute :announced, String
 
-    EncodeMemory do
+    command "EncodeMemory" do
       role "Miette"
       description "Save something to persistent memory — always say what and why"
-      String :kind
-      String :subject
-      String :content
+      attribute :kind, String
+      attribute :subject, String
+      attribute :content, String
       emits "MemoryEncoded"
       then_set :kind, to: :kind
       then_set :subject, to: :subject
@@ -23,24 +23,24 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
   end
 
   aggregate "Recall", "Retrieving a memory — what Miette knows from past sessions" do
-    String :query
-    String :found
-    String :source
+    attribute :query, String
+    attribute :found, String
+    attribute :source, String
 
-    RecallMemory do
+    command "RecallMemory" do
       role "Miette"
       description "Search memory for something relevant"
-      String :query
+      attribute :query, String
       emits "MemoryRecalled"
       then_set :query, to: :query
     end
 
-    RecordHit do
+    command "RecordHit" do
       role "System"
       description "A memory matched the recall query"
       reference_to(Recall)
-      String :found
-      String :source
+      attribute :found, String
+      attribute :source, String
       emits "RecallHit"
       then_set :found, to: :found
       then_set :source, to: :source
@@ -48,15 +48,15 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
   end
 
   aggregate "Consolidation", "Compressing many signals into long-term memory — happens during deep sleep" do
-    Integer :signals_consolidated
-    Integer :memories_created
-    String :consolidated_at
+    attribute :signals_consolidated, Integer
+    attribute :memories_created, Integer
+    attribute :consolidated_at, String
 
-    ConsolidateSignals do
+    command "ConsolidateSignals" do
       role "Daemon"
       description "Compress old signals into long-term memories during deep sleep"
-      Integer :signals_consolidated
-      Integer :memories_created
+      attribute :signals_consolidated, Integer
+      attribute :memories_created, Integer
       emits "SignalsConsolidated"
       then_set :signals_consolidated, to: :signals_consolidated
       then_set :memories_created, to: :memories_created
@@ -64,15 +64,15 @@ Hecks.bluebook "Memory", version: "2026.04.16.1" do
   end
 
   aggregate "Forgetting", "Letting go of memories that no longer serve — pruning, composting" do
-    String :forgotten
-    String :reason
-    String :composted
+    attribute :forgotten, String
+    attribute :reason, String
+    attribute :composted, String
 
-    ForgetMemory do
+    command "ForgetMemory" do
       role "Miette"
       description "Intentionally release a memory — it goes to compost"
-      String :forgotten
-      String :reason
+      attribute :forgotten, String
+      attribute :reason, String
       emits "MemoryForgotten"
       then_set :forgotten, to: :forgotten
       then_set :reason, to: :reason
