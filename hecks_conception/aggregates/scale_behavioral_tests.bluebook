@@ -18,15 +18,15 @@ Hecks.behaviors "Scale" do
 
   # ── Shard aggregate ──────────────────────────────────────────
 
-  test "CreateShard sets sector + path" do
-    tests "CreateShard", on: "Shard"
+  test "CarveShard sets sector + path" do
+    tests "CarveShard", on: "Shard"
     input  sector: "sample", path: "sample"
     expect sector: "sample", path: "sample", domain_count: 0
   end
 
-  test "UpdateShardCount sets domain_count" do
-    tests "UpdateShardCount", on: "Shard"
-    setup  "CreateShard", sector: "sample", path: "sample"
+  test "RecountShard sets domain_count" do
+    tests "RecountShard", on: "Shard"
+    setup  "CarveShard", sector: "sample", path: "sample"
     input  domain_count: 1
     expect domain_count: 1
   end

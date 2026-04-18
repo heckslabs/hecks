@@ -19,26 +19,35 @@ Hecks.behaviors "Console" do
 
   # ── Layout aggregate ──────────────────────────────────────────
 
+  test "ComposeLayout sets activity_expanded" do
+    tests "ComposeLayout", on: "Layout"
+    input  activity_expanded: "sample"
+    expect activity_expanded: "sample", thinking: "no"
+  end
+
   test "ToggleActivity runs" do
     tests "ToggleActivity", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
     expect ok: "true"
   end
 
   test "StartThinking runs" do
     tests "StartThinking", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
     expect thinking: "yes"
   end
 
   test "StopThinking runs" do
     tests "StopThinking", on: "Layout"
+    setup  "ComposeLayout", activity_expanded: "sample"
     expect thinking: "no"
   end
 
 
   # ── Footer aggregate ──────────────────────────────────────────
 
-  test "UpdateFooter sets branch + domain_count + mood + beats + sleep_state" do
-    tests "UpdateFooter", on: "Footer"
+  test "RefreshFooter sets branch + domain_count + mood + beats + sleep_state" do
+    tests "RefreshFooter", on: "Footer"
     input  branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
     expect branch: "sample", domain_count: 1, mood: "sample", beats: 1, sleep_state: "sample"
   end

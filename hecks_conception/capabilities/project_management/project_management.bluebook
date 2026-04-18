@@ -14,9 +14,9 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
     attribute :created_at, String
     attribute :completed_at, String
 
-    command "CreateFeature" do
+    command "ProposeFeature" do
       role "Chris"
-      description "Define a new feature to build — must have a title and category"
+      description "Propose a new feature to build — must have a title and category"
       attribute :title, String
       attribute :description, String
       attribute :domain_name, String
@@ -24,7 +24,7 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
       attribute :priority, String
       attribute :assignee, String
       attribute :labels, list_of(String)
-      emits "FeatureCreated"
+      emits "FeatureProposed"
       then_set :title, to: :title
       then_set :description, to: :description
       then_set :domain_name, to: :domain_name
@@ -86,7 +86,7 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "backlog" do
-      transition "CreateFeature" => "backlog"
+      transition "ProposeFeature" => "backlog"
       transition "PrioritizeFeature" => "prioritized", from: "backlog"
       transition "StartFeature" => "in_progress", from: "prioritized"
       transition "CompleteFeature" => "completed", from: "in_progress"
@@ -236,12 +236,12 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
     attribute :status, String
     attribute :progress_pct, Float
 
-    command "CreateMilestone" do
+    command "DeclareMilestone" do
       role "Chris"
-      description "Define a milestone with a name and target date"
+      description "Declare a milestone with a name and target date"
       attribute :name, String
       attribute :target_date, String
-      emits "MilestoneCreated"
+      emits "MilestoneDeclared"
       then_set :name, to: :name
       then_set :target_date, to: :target_date
       then_set :status, to: "planned"
@@ -276,7 +276,7 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
     end
 
     lifecycle :status, default: "planned" do
-      transition "CreateMilestone" => "planned"
+      transition "DeclareMilestone" => "planned"
       transition "AddFeatureToMilestone" => "in_progress", from: "planned"
       transition "AddFeatureToMilestone" => "in_progress", from: "in_progress"
       transition "CompleteMilestone" => "completed", from: "in_progress"
@@ -347,7 +347,7 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   # ============================================================
 
   policy "LinkOnCreate" do
-    on "FeatureCreated"
+    on "FeatureProposed"
     trigger "LinkToDomain"
   end
 
@@ -357,7 +357,7 @@ Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
   end
 
   policy "PrioritizeOnCreate" do
-    on "FeatureCreated"
+    on "FeatureProposed"
     trigger "PrioritizeFeature"
   end
 

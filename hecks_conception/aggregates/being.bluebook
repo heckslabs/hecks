@@ -16,7 +16,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
       attribute :expressed, default: true
     end
 
-    command "CreateBeing" do
+    command "ConceiveBeing" do
       role "Creator"
       description "Bring a new being into existence with a name and purpose"
       attribute :name, String
@@ -291,7 +291,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
       then_set :status, to: "active"
     end
 
-    command "UpdateMember" do
+    command "EvolveMember" do
       role "Miette"
       description "A family member developed — new version, new shape"
       reference_to(Member)

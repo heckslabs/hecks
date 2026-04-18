@@ -1002,8 +1002,8 @@ Hecks.behaviors "Runtime" do
 
   # ── Repository aggregate ──────────────────────────────────────────
 
-  test "Create sets aggregate_name" do
-    tests "Create", on: "Repository"
+  test "Persist sets aggregate_name" do
+    tests "Persist", on: "Repository"
     input  aggregate_name: "sample"
     expect ok: "true"
   end
@@ -1014,8 +1014,8 @@ Hecks.behaviors "Runtime" do
     expect ok: "true"
   end
 
-  test "Delete sets id" do
-    tests "Delete", on: "Repository"
+  test "Forget sets id" do
+    tests "Forget", on: "Repository"
     input  id: "sample"
     expect ok: "true"
   end

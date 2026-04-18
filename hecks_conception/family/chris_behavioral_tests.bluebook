@@ -3,8 +3,15 @@ Hecks.behaviors "Chris" do
 
   # ── Identity aggregate ──────────────────────────────────────────
 
-  test "UpdateRole sets role" do
-    tests "UpdateRole", on: "Identity"
+  test "Introduce sets name + role + company + tagline" do
+    tests "Introduce", on: "Identity"
+    input  name: "sample", role: "sample", company: "sample", tagline: "sample"
+    expect name: "sample", role: "sample", company: "sample", tagline: "sample"
+  end
+
+  test "ShiftRole sets role" do
+    tests "ShiftRole", on: "Identity"
+    setup  "Introduce", name: "sample", role: "sample", company: "sample", tagline: "sample"
     input  role: "sample"
     expect role: "sample"
   end
@@ -21,8 +28,8 @@ Hecks.behaviors "Chris" do
 
   # ── Convention aggregate ──────────────────────────────────────────
 
-  test "AddConvention sets name + rule + why + applies_to" do
-    tests "AddConvention", on: "Convention"
+  test "EnshrineConvention sets name + rule + why + applies_to" do
+    tests "EnshrineConvention", on: "Convention"
     input  name: "sample", rule: "sample", why: "sample", applies_to: "sample"
     expect name: "sample", rule: "sample", why: "sample", applies_to: "sample"
   end
@@ -39,15 +46,15 @@ Hecks.behaviors "Chris" do
 
   # ── Person aggregate ──────────────────────────────────────────
 
-  test "AddPerson sets name + relationship + context" do
-    tests "AddPerson", on: "Person"
+  test "MeetPerson sets name + relationship + context" do
+    tests "MeetPerson", on: "Person"
     input  name: "sample", relationship: "sample", context: "sample"
     expect name: "sample", relationship: "sample", context: "sample"
   end
 
-  test "AddNote sets note" do
-    tests "AddNote", on: "Person"
-    setup  "AddPerson", name: "sample", relationship: "sample", context: "sample"
+  test "AnnotatePerson sets note" do
+    tests "AnnotatePerson", on: "Person"
+    setup  "MeetPerson", name: "sample", relationship: "sample", context: "sample"
     input  note: "sample"
     expect notes_size: 1
   end
@@ -55,8 +62,15 @@ Hecks.behaviors "Chris" do
 
   # ── Embryonaut aggregate ──────────────────────────────────────────
 
+  test "Found sets status + product_vision + seed_target + cofounder_profile" do
+    tests "Found", on: "Embryonaut"
+    input  status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
+    expect status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
+  end
+
   test "RecordMilestone sets name + date + status" do
     tests "RecordMilestone", on: "Embryonaut"
+    setup  "Found", status: "sample", product_vision: "sample", seed_target: "sample", cofounder_profile: "sample"
     input  name: "sample", date: "sample", status: "sample"
     expect milestones_size: 1
   end

@@ -28,11 +28,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :theme, String
     attribute :daisy_class, String
 
-    command "CreateShell" do
+    command "RenderShell" do
       role "Builder"
       description "Emit drawer layout with sidebar-content and navbar"
       attribute :domain_name, String
-      emits "ShellCreated"
+      emits "ShellRendered"
     end
   end
 
@@ -78,10 +78,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :theme_toggle, String
     attribute :daisy_class, String
 
-    command "CreateNavbar" do
+    command "RenderNavbar" do
       role "Builder"
       description "Emit navbar with title, search, theme toggle"
-      emits "NavbarCreated"
+      emits "NavbarRendered"
     end
   end
 
@@ -90,12 +90,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :aggregate, String
     attribute :layout, String
 
-    command "CreatePage" do
+    command "RenderPage" do
       role "Builder"
       description "Generate a page for an aggregate — picks layout from data shape"
       attribute :aggregate, String
       attribute :layout, String
-      emits "PageCreated"
+      emits "PageRendered"
     end
   end
 
@@ -112,11 +112,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :variant, String
     attribute :daisy_class, String
 
-    command "CreateTabs" do
+    command "RenderTabs" do
       role "Builder"
       description "Generate tabs from lifecycle states or named queries"
       attribute :aggregate, String
-      emits "TabsCreated"
+      emits "TabsRendered"
     end
   end
 
@@ -128,10 +128,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :items, list_of(String)
     attribute :daisy_class, String
 
-    command "CreateBreadcrumbs" do
+    command "RenderBreadcrumbs" do
       role "Builder"
       description "Generate breadcrumbs from page hierarchy"
-      emits "BreadcrumbsCreated"
+      emits "BreadcrumbsRendered"
     end
   end
 
@@ -140,11 +140,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :current, Integer
     attribute :daisy_class, String
 
-    command "CreateSteps" do
+    command "RenderSteps" do
       role "Builder"
       description "Generate step indicators from a workflow or saga definition"
       attribute :workflow, String
-      emits "StepsCreated"
+      emits "StepsRendered"
     end
   end
 
@@ -165,12 +165,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :actions, list_of(String)
     attribute :daisy_class, String
 
-    command "CreateCard" do
+    command "RenderCard" do
       role "Builder"
       description "Generate a card — title from first String, body from attributes, footer from actions"
       attribute :aggregate, String
       attribute :variant, String
-      emits "CardCreated"
+      emits "CardRendered"
     end
   end
 
@@ -196,11 +196,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
       attribute :renderer, String
     end
 
-    command "CreateTable" do
+    command "RenderTable" do
       role "Builder"
       description "Generate table — one column per attribute, sortable headers"
       attribute :aggregate, String
-      emits "TableCreated"
+      emits "TableRendered"
     end
   end
 
@@ -221,12 +221,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :icon, String
     attribute :daisy_class, String
 
-    command "CreateStat" do
+    command "RenderStat" do
       role "Builder"
       description "Generate a stat card from a query count or computed value"
       attribute :label, String
       attribute :value_source, String
-      emits "StatCreated"
+      emits "StatRendered"
     end
   end
 
@@ -243,11 +243,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :trailing_action, String
     attribute :daisy_class, String
 
-    command "CreateList" do
+    command "RenderList" do
       role "Builder"
       description "Generate a list view with rows per instance"
       attribute :aggregate, String
-      emits "ListCreated"
+      emits "ListRendered"
     end
   end
 
@@ -256,11 +256,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :variant, String
     attribute :daisy_class, String
 
-    command "CreateBadge" do
+    command "RenderBadge" do
       role "Builder"
       description "Generate badges from enum values or lifecycle states"
       attribute :source, String
-      emits "BadgeCreated"
+      emits "BadgeRendered"
     end
   end
 
@@ -284,10 +284,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :placeholder, String
     attribute :daisy_class, String
 
-    command "CreateAvatar" do
+    command "RenderAvatar" do
       role "Builder"
       description "Generate avatar from a name or image — initials as fallback"
-      emits "AvatarCreated"
+      emits "AvatarRendered"
     end
   end
 
@@ -295,11 +295,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :source, String
     attribute :daisy_class, String
 
-    command "CreateTimeline" do
+    command "RenderTimeline" do
       role "Builder"
       description "Generate timeline from domain events on an aggregate"
       attribute :aggregate, String
-      emits "TimelineCreated"
+      emits "TimelineRendered"
     end
   end
 
@@ -308,11 +308,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :variant, String
     attribute :daisy_class, String
 
-    command "CreateAccordion" do
+    command "RenderAccordion" do
       role "Builder"
       description "Generate accordion from value objects or nested data"
       attribute :aggregate, String
-      emits "AccordionCreated"
+      emits "AccordionRendered"
     end
   end
 
@@ -327,12 +327,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :columns, list_of(String)
     attribute :card_variant, String
 
-    command "CreateBoard" do
+    command "RenderBoard" do
       role "Builder"
       description "Generate kanban from lifecycle — one column per state, drag between"
       attribute :aggregate, String
       attribute :lifecycle_field, String
-      emits "BoardCreated"
+      emits "BoardRendered"
     end
   end
 
@@ -359,12 +359,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
       attribute :validation, String
     end
 
-    command "CreateForm" do
+    command "RenderForm" do
       role "Builder"
       description "Generate form from command — bluebook types determine daisy input widgets"
       attribute :command, String
       attribute :variant, String
-      emits "FormCreated"
+      emits "FormRendered"
     end
   end
 
@@ -395,11 +395,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :secondary_fields, list_of(String)
     attribute :daisy_class, String
 
-    command "CreateQuickAdd" do
+    command "RenderQuickAdd" do
       role "Builder"
       description "Generate quick-add — primary field as join input, secondary as dropdown"
       attribute :command, String
-      emits "QuickAddCreated"
+      emits "QuickAddRendered"
     end
   end
 
@@ -422,11 +422,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
       attribute :options, list_of(String)
     end
 
-    command "CreateFilterBar" do
+    command "RenderFilterBar" do
       role "Builder"
       description "Generate filters — enums as filter radio groups, booleans as toggles"
       attribute :aggregate, String
-      emits "FilterBarCreated"
+      emits "FilterBarRendered"
     end
   end
 
@@ -443,11 +443,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :keyboard_shortcut, String
     attribute :daisy_class, String
 
-    command "CreateSearchBox" do
+    command "RenderSearchBox" do
       role "Builder"
       description "Generate search with / shortcut and kbd indicator"
       attribute :aggregates, list_of(String)
-      emits "SearchBoxCreated"
+      emits "SearchBoxRendered"
     end
   end
 
@@ -461,10 +461,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :max, Integer
     attribute :daisy_class, String
 
-    command "CreateRating" do
+    command "RenderRating" do
       role "Builder"
       description "Generate star rating from an Integer attribute named rating"
-      emits "RatingCreated"
+      emits "RatingRendered"
     end
   end
 
@@ -486,12 +486,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :keyboard_shortcut, String
     attribute :daisy_class, String
 
-    command "CreateButton" do
+    command "RenderButton" do
       role "Builder"
       description "Generate button — variant maps to btn-primary, btn-error, etc."
       attribute :command, String
       attribute :variant, String
-      emits "ButtonCreated"
+      emits "ButtonRendered"
     end
   end
 
@@ -514,11 +514,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
       attribute :danger, String
     end
 
-    command "CreateDropdown" do
+    command "RenderDropdown" do
       role "Builder"
       description "Generate dropdown from non-primary commands on an aggregate"
       attribute :aggregate, String
-      emits "DropdownCreated"
+      emits "DropdownRendered"
     end
   end
 
@@ -536,11 +536,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :content_type, String
     attribute :daisy_class, String
 
-    command "CreateModal" do
+    command "RenderModal" do
       role "Builder"
       description "Generate modal — forms for create/edit commands, confirms for delete"
       attribute :command, String
-      emits "ModalCreated"
+      emits "ModalRendered"
     end
   end
 
@@ -567,12 +567,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
       attribute :daisy_class, String
     end
 
-    command "CreateLifecycleBar" do
+    command "RenderLifecycleBar" do
       role "Builder"
       description "Generate transition buttons — only show valid next states"
       attribute :aggregate, String
       attribute :lifecycle_field, String
-      emits "LifecycleBarCreated"
+      emits "LifecycleBarRendered"
     end
   end
 
@@ -581,11 +581,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :icon, String
     attribute :daisy_class, String
 
-    command "CreateFab" do
+    command "RenderFab" do
       role "Builder"
       description "Generate FAB for the aggregate's primary create command"
       attribute :aggregate, String
-      emits "FabCreated"
+      emits "FabRendered"
     end
   end
 
@@ -599,10 +599,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :off_content, String
     attribute :daisy_class, String
 
-    command "CreateSwap" do
+    command "RenderSwap" do
       role "Builder"
       description "Generate swap for boolean toggles or view mode switches"
-      emits "SwapCreated"
+      emits "SwapRendered"
     end
   end
 
@@ -617,10 +617,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :position, String
     attribute :daisy_class, String
 
-    command "CreateToast" do
+    command "RenderToast" do
       role "Builder"
       description "Generate toast notification system — shows after command dispatch"
-      emits "ToastCreated"
+      emits "ToastRendered"
     end
   end
 
@@ -635,10 +635,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :dismissible, String
     attribute :daisy_class, String
 
-    command "CreateAlert" do
+    command "RenderAlert" do
       role "Builder"
       description "Generate alert for invariant violations or system messages"
-      emits "AlertCreated"
+      emits "AlertRendered"
     end
   end
 
@@ -652,10 +652,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :size, String
     attribute :daisy_class, String
 
-    command "CreateLoading" do
+    command "RenderLoading" do
       role "Builder"
       description "Generate loading state for async operations"
-      emits "LoadingCreated"
+      emits "LoadingRendered"
     end
   end
 
@@ -665,12 +665,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :max_source, String
     attribute :daisy_class, String
 
-    command "CreateProgress" do
+    command "RenderProgress" do
       role "Builder"
       description "Generate progress from a count vs target (e.g. reading goals)"
       attribute :value_source, String
       attribute :max_source, String
-      emits "ProgressCreated"
+      emits "ProgressRendered"
     end
   end
 
@@ -682,10 +682,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :layout, String
     attribute :daisy_class, String
 
-    command "CreateSkeleton" do
+    command "RenderSkeleton" do
       role "Builder"
       description "Generate skeleton matching the component it replaces while loading"
-      emits "SkeletonCreated"
+      emits "SkeletonRendered"
     end
   end
 
@@ -694,10 +694,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :position, String
     attribute :daisy_class, String
 
-    command "CreateTooltip" do
+    command "RenderTooltip" do
       role "Builder"
       description "Generate tooltips from attribute descriptions in the bluebook"
-      emits "TooltipCreated"
+      emits "TooltipRendered"
     end
   end
 
@@ -713,11 +713,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :icon, String
     attribute :daisy_class, String
 
-    command "CreateEmptyState" do
+    command "RenderEmptyState" do
       role "Builder"
       description "Generate empty state with hero layout — CTA button for create command"
       attribute :aggregate, String
-      emits "EmptyStateCreated"
+      emits "EmptyStateRendered"
     end
   end
 
@@ -737,11 +737,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :variant, String
     attribute :daisy_class, String
 
-    command "CreateEventStream" do
+    command "RenderEventStream" do
       role "Builder"
       description "Generate event stream as list items or timeline entries"
       attribute :position, String
-      emits "EventStreamCreated"
+      emits "EventStreamRendered"
     end
   end
 
@@ -754,11 +754,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :daisy_theme, String
     attribute :custom_colors, String
 
-    command "CreateTheme" do
+    command "ApplyTheme" do
       role "Builder"
       description "Set DaisyUI theme — dark, light, or custom"
       attribute :daisy_theme, String
-      emits "ThemeCreated"
+      emits "ThemeApplied"
     end
   end
 
@@ -777,10 +777,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
     attribute :themes, list_of(String)
     attribute :daisy_class, String
 
-    command "CreateThemeToggle" do
+    command "RenderThemeToggle" do
       role "Builder"
       description "Generate theme toggle — swap or dropdown with theme options"
-      emits "ThemeToggleCreated"
+      emits "ThemeToggleRendered"
     end
   end
 
@@ -804,28 +804,28 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
 
   workflow "BuildApp" do
     description "Generate a full DaisyUI app from a domain bluebook"
-    step "CreateTheme"
-    step "CreateShell"
-    step "CreateNavbar"
+    step "ApplyTheme"
+    step "RenderShell"
+    step "RenderNavbar"
     step "GenerateSidebar"
-    step "CreateSearchBox"
-    step "CreatePage"
-    step "CreateTable"
-    step "CreateCard"
-    step "CreateForm"
-    step "CreateQuickAdd"
-    step "CreateLifecycleBar"
-    step "CreateBoard"
-    step "CreateFilterBar"
-    step "CreateStat"
-    step "CreateButton"
-    step "CreateDropdown"
-    step "CreateModal"
-    step "CreateBadge"
-    step "CreateToast"
-    step "CreateEmptyState"
-    step "CreateEventStream"
-    step "CreateThemeToggle"
+    step "RenderSearchBox"
+    step "RenderPage"
+    step "RenderTable"
+    step "RenderCard"
+    step "RenderForm"
+    step "RenderQuickAdd"
+    step "RenderLifecycleBar"
+    step "RenderBoard"
+    step "RenderFilterBar"
+    step "RenderStat"
+    step "RenderButton"
+    step "RenderDropdown"
+    step "RenderModal"
+    step "RenderBadge"
+    step "RenderToast"
+    step "RenderEmptyState"
+    step "RenderEventStream"
+    step "RenderThemeToggle"
   end
 
   # ============================================================

@@ -27,8 +27,8 @@ Hecks.behaviors "TrainingPipeline" do
 
   # ── InstructionPair aggregate ──────────────────────────────────────────
 
-  test "CreateInstructionPair sets instruction + response + category" do
-    tests "CreateInstructionPair", on: "InstructionPair"
+  test "MintInstructionPair sets instruction + response + category" do
+    tests "MintInstructionPair", on: "InstructionPair"
     input  instruction: "sample", response: "sample", category: "sample"
     expect instruction: "sample", response: "sample", category: "sample"
   end

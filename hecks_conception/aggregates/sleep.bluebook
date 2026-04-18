@@ -470,7 +470,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :reporting, to: "stopped"
     end
 
-    command "UpdateDepth" do
+    command "Sink" do
       role "Daemon"
       description "Adjust z-depth as cycles progress"
       reference_to(Monitor)

@@ -45,9 +45,9 @@ Hecks.bluebook "Nutrition" do
     Integer :duration_days
     Float :target_calories
 
-    command "CreatePlan" do
+    command "Compose" do
       description "Draft a new meal plan"
-      emits "PlanCreated"
+      emits "PlanComposed"
       String :plan_name
       Integer :duration_days
       Float :target_calories
@@ -139,9 +139,9 @@ Hecks.bluebook "Nutrition" do
     transition from: "deficiency_detected", to: "resolved", on: "DeficiencyResolved"
   end
 
-  policy "CreatePlanAfterGoal" do
+  policy "ComposeAfterGoal" do
     on "GoalSet"
-    trigger "CreatePlan"
+    trigger "Compose"
   end
 
   policy "FinalizeAfterMeals" do

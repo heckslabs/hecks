@@ -136,7 +136,7 @@ Hecks.bluebook "ArtisanMetalworks" do
       attribute :severity
     end
 
-    command "CreateCastingOrder" do
+    command "Cast" do
       role "ProductionManager"
       goal "Schedule a casting run from smelted metal to jewelry molds"
       reference_to SmeltBatch
@@ -208,7 +208,7 @@ Hecks.bluebook "ArtisanMetalworks" do
 
   policy "SmeltTappedTriggersCasting" do
     on "SmeltTapped"
-    trigger "CreateCastingOrder"
+    trigger "Cast"
     map smelt_batch_id: :smelt_batch_id
   end
 

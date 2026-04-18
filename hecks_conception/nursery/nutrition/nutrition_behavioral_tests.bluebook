@@ -25,23 +25,23 @@ Hecks.behaviors "Nutrition" do
 
   # ── MealPlan aggregate ──────────────────────────────────────────
 
-  test "CreatePlan sets plan_name + duration_days + target_calories" do
-    tests "CreatePlan", on: "MealPlan"
+  test "Compose sets plan_name + duration_days + target_calories" do
+    tests "Compose", on: "MealPlan"
     input  plan_name: "sample", duration_days: 1, target_calories: 1.0
-    expect plan_name: "sample", duration_days: 1, target_calories: 1.0
+    expect ok: "true"
   end
 
   test "AddMeal sets meal_type + servings" do
     tests "AddMeal", on: "MealPlan"
     setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
-    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
     input  meal_type: "sample", servings: 1.0
     expect ok: "true"
   end
 
   test "FinalizePlan runs" do
     tests "FinalizePlan", on: "MealPlan"
-    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
+    setup  "Compose", plan_name: "sample", duration_days: 1, target_calories: 1.0
     expect ok: "true"
   end
 

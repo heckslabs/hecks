@@ -111,7 +111,7 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "GateDefinition", definition: "Immutable IR structure for a gate (access control on an aggregate)" do
 
-    command "Create" do
+    command "Erect" do
       attribute :aggregate, String
       attribute :role, String
     end

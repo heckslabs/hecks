@@ -25,22 +25,22 @@ Hecks.behaviors "PredictiveHealth" do
 
   # ── RiskModel aggregate ──────────────────────────────────────────
 
-  test "CreateModel sets model_name" do
-    tests "CreateModel", on: "RiskModel"
+  test "Train sets model_name" do
+    tests "Train", on: "RiskModel"
     input  model_name: "sample"
-    expect model_name: "sample"
+    expect ok: "true"
   end
 
   test "AddCondition sets condition_name + weight + threshold" do
     tests "AddCondition", on: "RiskModel"
-    setup  "CreateModel", model_name: "sample"
+    setup  "Train", model_name: "sample"
     input  condition_name: "sample", weight: 1.0, threshold: 1.0
     expect conditions_size: 1
   end
 
   test "ValidateModel sets accuracy" do
     tests "ValidateModel", on: "RiskModel"
-    setup  "CreateModel", model_name: "sample"
+    setup  "Train", model_name: "sample"
     input  accuracy: 1.0
     expect ok: "true"
   end
@@ -73,7 +73,7 @@ Hecks.behaviors "PredictiveHealth" do
 
   test "CalculatePremium runs" do
     tests "CalculatePremium", on: "PolicyPricing"
-    setup  "CreateModel", model_name: "sample"
+    setup  "Train", model_name: "sample"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
     expect ok: "true"
   end

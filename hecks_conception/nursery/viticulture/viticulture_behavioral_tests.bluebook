@@ -15,8 +15,8 @@ Hecks.behaviors "Viticulture" do
     expect ok: "true"
   end
 
-  test "UpdateAppellation sets new_appellation" do
-    tests "UpdateAppellation", on: "Vineyard"
+  test "Reclassify sets new_appellation" do
+    tests "Reclassify", on: "Vineyard"
     setup  "RegisterVineyard", name: "sample", appellation: "sample", total_hectares: 1.0
     input  new_appellation: "sample"
     expect ok: "true"

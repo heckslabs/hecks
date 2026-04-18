@@ -229,7 +229,7 @@ Hecks.bluebook "Bluebook", version: "2026.04.11.1" do
 
   aggregate "Result", definition: "Container for event storm parse results" do
 
-    command "CreateResult" do
+    command "ComposeResult" do
       attribute :source, String
     end
   end
@@ -369,35 +369,35 @@ Hecks.bluebook "Bluebook", version: "2026.04.11.1" do
 
   aggregate "BaseName", definition: "Root name object with inflection and formatting methods" do
 
-    command "CreateName" do
+    command "Inscribe" do
       attribute :raw, String
     end
   end
 
   aggregate "AggregateName", definition: "Name specialization for aggregates (singular, plural, module)" do
 
-    command "CreateAggregateName" do
+    command "InscribeAggregateName" do
       attribute :raw, String
     end
   end
 
   aggregate "CommandName", definition: "Name specialization for commands (past tense, event form)" do
 
-    command "CreateCommandName" do
+    command "InscribeCommandName" do
       attribute :raw, String
     end
   end
 
   aggregate "EventName", definition: "Name specialization for domain events (past participle)" do
 
-    command "CreateEventName" do
+    command "InscribeEventName" do
       attribute :raw, String
     end
   end
 
   aggregate "StateName", definition: "Name specialization for lifecycle states (snake, label)" do
 
-    command "CreateStateName" do
+    command "InscribeStateName" do
       attribute :raw, String
     end
   end
@@ -1261,7 +1261,7 @@ Hecks.bluebook "Bluebook", version: "2026.04.11.1" do
 
   aggregate "ValidationMessage", definition: "Structured validation result with severity and context" do
 
-    command "CreateMessage" do
+    command "ComposeMessage" do
       attribute :message, String
       attribute :severity, String
     end

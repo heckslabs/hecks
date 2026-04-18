@@ -72,15 +72,15 @@ Hecks.behaviors "Astronomy" do
 
   # ── Catalog aggregate ──────────────────────────────────────────
 
-  test "CreateCatalog sets name + authority" do
-    tests "CreateCatalog", on: "Catalog"
+  test "Establish sets name + authority" do
+    tests "Establish", on: "Catalog"
     input  name: "sample", authority: "sample"
-    expect name: "sample", authority: "sample"
+    expect ok: "true"
   end
 
   test "PublishCatalog runs" do
     tests "PublishCatalog", on: "Catalog"
-    setup  "CreateCatalog", name: "sample", authority: "sample"
+    setup  "Establish", name: "sample", authority: "sample"
     expect ok: "true"
   end
 

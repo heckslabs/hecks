@@ -59,7 +59,7 @@ Hecks.bluebook "FabricToRunway" do
       attribute :fabric_requirement
     end
 
-    command "CreateCollection" do
+    command "Curate" do
       role "FashionDirector"
       goal "Start a new seasonal collection"
       attribute :name
@@ -182,8 +182,8 @@ Hecks.bluebook "FabricToRunway" do
     map garment_name: :garment_name
   end
 
-  policy "CollectionCreatedTriggersShow" do
-    on "CollectionCreated"
+  policy "CollectionCuratedTriggersShow" do
+    on "CollectionCurated"
     trigger "PlanShow"
     map collection_id: :collection_id, venue: :default_venue
   end

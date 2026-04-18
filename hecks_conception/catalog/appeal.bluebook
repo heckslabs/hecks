@@ -14,11 +14,11 @@ Hecks.bluebook "Appeal", version: "2026.04.11.1" do
     emits "ProjectOpened"
   end
 
-  command "CreateProject" do
+  command "InitProject" do
     description "Initialize a new domain with a name"
     attribute :name, String
     attribute :path, String
-    emits "ProjectCreated"
+    emits "ProjectInitialized"
   end
 
   command "CloseProject" do
@@ -227,7 +227,7 @@ end
     attribute :required, String
   end
 
-  command "CreatePattern" do
+  command "CoinPattern" do
     description "Define a new reusable pattern from an existing aggregate shape"
     attribute :name, String
     attribute :category, String
@@ -268,11 +268,11 @@ end
     attribute :exists_in_domain, String
   end
 
-  command "CreateFeature" do
+  command "DraftFeature" do
     description "Define a new feature with a title and description"
     attribute :title, String
     attribute :description, String
-    emits "FeatureCreated"
+    emits "FeatureDrafted"
   end
 
   command "PlanFeature" do
@@ -384,10 +384,10 @@ end
   attribute :enabled, String
   attribute :permanent, String
 
-  command "CreateFlag" do
-    description "Create a feature flag when a feature ships"
+  command "RaiseFlag" do
+    description "Raise a feature flag when a feature ships"
     attribute :feature_title, String
-    emits "FlagCreated"
+    emits "FlagRaised"
   end
 
   command "ToggleFlag" do
@@ -949,7 +949,7 @@ end
     attribute :expectation, String
   end
 
-  command "CreateScenario" do
+  command "DraftScenario" do
     description "Define a new scenario with a name"
     attribute :name, String
   end
@@ -985,7 +985,7 @@ end
     attribute :attributes, String
   end
 
-  command "CreateFixture" do
+  command "ComposeFixture" do
     description "Define a new fixture set"
     attribute :name, String
   end

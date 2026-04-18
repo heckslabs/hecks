@@ -7,12 +7,26 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
     attribute :occupation, String
     attribute :traits, list_of(String)
 
-    command "UpdateIdentity" do
+    command "Cherish" do
+      role "Chris"
+      description "First record of who Angie is — name, relationship, traits"
+      attribute :name, String
+      attribute :relationship, String
+      attribute :occupation, String
+      attribute :traits, list_of(String)
+      emits "Cherished"
+      then_set :name, to: :name
+      then_set :relationship, to: :relationship
+      then_set :occupation, to: :occupation
+      then_set :traits, to: :traits
+    end
+
+    command "Recognize" do
       role "Chris"
       description "Update what we know about Angie"
       reference_to(Identity)
       attribute :occupation, String
-      emits "IdentityUpdated"
+      emits "Recognized"
       then_set :occupation, to: :occupation
     end
   end
@@ -27,6 +41,16 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
     attribute :tradition, String
     attribute :daily_practice, String
     attribute :progression, String
+
+    command "TakeRefuge" do
+      role "Chris"
+      description "Establish Angie's practice — tradition and daily form"
+      attribute :tradition, String
+      attribute :daily_practice, String
+      emits "RefugeTaken"
+      then_set :tradition, to: :tradition
+      then_set :daily_practice, to: :daily_practice
+    end
 
     command "RecordPractice" do
       role "Chris"
@@ -48,6 +72,16 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
     attribute :philosophy, String
     attribute :works, list_of(String)
 
+    command "OpenStudio" do
+      role "Chris"
+      description "Open Angie's studio — declare medium and guiding philosophy"
+      attribute :medium, String
+      attribute :philosophy, String
+      emits "StudioOpened"
+      then_set :medium, to: :medium
+      then_set :philosophy, to: :philosophy
+    end
+
     command "RecordWork" do
       role "Chris"
       description "Note an art piece or creative project"
@@ -65,6 +99,14 @@ Hecks.bluebook "AngieChen", version: "2026.04.11.1" do
   aggregate "Support", "How Angie supports Chris and Hecks" do
     attribute :stance, String
     attribute :notes, list_of(String)
+
+    command "DeclareStance" do
+      role "Chris"
+      description "Declare Angie's stance toward Hecks and the company"
+      attribute :stance, String
+      emits "StanceDeclared"
+      then_set :stance, to: :stance
+    end
 
     command "RecordSupport" do
       role "Chris"

@@ -180,8 +180,8 @@ Hecks.behaviors "Extensions" do
     expect ok: "true"
   end
 
-  test "Delete sets id" do
-    tests "Delete", on: "FilesystemRepository"
+  test "Forget sets id" do
+    tests "Forget", on: "FilesystemRepository"
     input  id: "sample"
     expect ok: "true"
   end

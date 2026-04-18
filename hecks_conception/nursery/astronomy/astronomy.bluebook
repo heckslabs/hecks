@@ -117,9 +117,9 @@ Hecks.bluebook "Astronomy" do
     String :authority
     Integer :entry_count
 
-    command "CreateCatalog" do
+    command "Establish" do
       description "Establish a new sky catalog"
-      emits "CatalogCreated"
+      emits "CatalogEstablished"
       String :name
       String :authority
     end

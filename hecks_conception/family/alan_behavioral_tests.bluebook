@@ -3,8 +3,15 @@ Hecks.behaviors "Alan" do
 
   # ── Identity aggregate ──────────────────────────────────────────
 
-  test "UpdateIdentity sets role" do
-    tests "UpdateIdentity", on: "Identity"
+  test "MeetAlan sets name + relationship + industry + role + brands" do
+    tests "MeetAlan", on: "Identity"
+    input  name: "sample", relationship: "sample", industry: "sample", role: "sample", brands: "sample"
+    expect name: "sample", relationship: "sample", industry: "sample", role: "sample", brands: "sample"
+  end
+
+  test "Recognize sets role" do
+    tests "Recognize", on: "Identity"
+    setup  "MeetAlan", name: "sample", relationship: "sample", industry: "sample", role: "sample", brands: "sample"
     input  role: "sample"
     expect role: "sample"
   end
@@ -12,14 +19,22 @@ Hecks.behaviors "Alan" do
 
   # ── Business aggregate ──────────────────────────────────────────
 
+  test "MapBusiness sets model + channels + competitors" do
+    tests "MapBusiness", on: "Business"
+    input  model: "sample", channels: "sample", competitors: "sample"
+    expect model: "sample", channels: "sample", competitors: "sample"
+  end
+
   test "RecordInsight sets note" do
     tests "RecordInsight", on: "Business"
+    setup  "MapBusiness", model: "sample", channels: "sample", competitors: "sample"
     input  note: "sample"
     expect notes_size: 1
   end
 
   test "AddPainPoint sets pain_point" do
     tests "AddPainPoint", on: "Business"
+    setup  "MapBusiness", model: "sample", channels: "sample", competitors: "sample"
     input  pain_point: "sample"
     expect pain_points_size: 1
   end
@@ -27,8 +42,15 @@ Hecks.behaviors "Alan" do
 
   # ── Demo aggregate ──────────────────────────────────────────
 
+  test "ScheduleDemo sets demo_date + domains_conceived" do
+    tests "ScheduleDemo", on: "Demo"
+    input  demo_date: "sample", domains_conceived: "sample"
+    expect demo_date: "sample", domains_conceived: "sample", status: "scheduled"
+  end
+
   test "RecordDemoProgress sets note" do
     tests "RecordDemoProgress", on: "Demo"
+    setup  "ScheduleDemo", demo_date: "sample", domains_conceived: "sample"
     input  note: "sample"
     expect notes_size: 1
   end

@@ -9,8 +9,8 @@ Hecks.behaviors "Robotics" do
     expect ok: "true"
   end
 
-  test "UpdateFirmware sets new_version" do
-    tests "UpdateFirmware", on: "Robot"
+  test "FlashFirmware sets new_version" do
+    tests "FlashFirmware", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", name: "sample", platform_type: "sample"
     input  new_version: "sample"
     expect ok: "true"

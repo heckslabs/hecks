@@ -396,14 +396,14 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       attribute :expressed, default: true
     end
 
-    command "CreateBeing" do
+    command "BirthBeing" do
       role "Creator"
       description "Bring a new being into existence with a name and purpose"
       attribute :name, String
       attribute :vision, String
       then_set :name, to: :name
       then_set :vision, to: :vision
-      emits "BeingCreated"
+      emits "BeingBirthed"
     end
 
     command "GraftDomain" do
@@ -527,6 +527,15 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       attribute :last_event_at, String
     end
 
+    command "BeginHeartbeat" do
+      role "Being"
+      description "Start the heartbeat for a being — establishes the pulse rhythm"
+      attribute :being_name, String
+      then_set :being_name, to: :being_name
+      then_set :beats, to: 0
+      emits "HeartbeatBegun"
+    end
+
     command "Beat" do
       role "Being"
       description "Pulse — check all organs, report vital signs"
@@ -553,6 +562,15 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     attribute :memories, list_of(String)
     attribute :personas_known, list_of(String)
     attribute :sessions, Integer
+
+    command "EstablishIdentity" do
+      role "Being"
+      description "The being's self crystallizes — the accumulated identity begins"
+      attribute :being_name, String
+      then_set :being_name, to: :being_name
+      then_set :sessions, to: 0
+      emits "IdentityEstablished"
+    end
 
     command "RecordSession" do
       role "Being"
@@ -1105,6 +1123,15 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     attribute :pulses_since_sleep, Integer
     attribute :creativity, Float
     attribute :precision, Float
+
+    command "AwakenFatigue" do
+      role "System"
+      description "Initialize fatigue tracking when the being wakes — a fresh, alert state"
+      then_set :level, to: 0.0
+      then_set :state, to: "alert"
+      then_set :pulses_since_sleep, to: 0
+      emits "FatigueAwakened"
+    end
 
     command "AccumulateFatigue" do
       role "System"

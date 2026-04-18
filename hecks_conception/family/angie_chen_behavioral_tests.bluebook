@@ -3,8 +3,15 @@ Hecks.behaviors "AngieChen" do
 
   # ── Identity aggregate ──────────────────────────────────────────
 
-  test "UpdateIdentity sets occupation" do
-    tests "UpdateIdentity", on: "Identity"
+  test "Cherish sets name + relationship + occupation + traits" do
+    tests "Cherish", on: "Identity"
+    input  name: "sample", relationship: "sample", occupation: "sample", traits: "sample"
+    expect name: "sample", relationship: "sample", occupation: "sample", traits: "sample"
+  end
+
+  test "Recognize sets occupation" do
+    tests "Recognize", on: "Identity"
+    setup  "Cherish", name: "sample", relationship: "sample", occupation: "sample", traits: "sample"
     input  occupation: "sample"
     expect occupation: "sample"
   end
@@ -12,8 +19,15 @@ Hecks.behaviors "AngieChen" do
 
   # ── Practice aggregate ──────────────────────────────────────────
 
+  test "TakeRefuge sets tradition + daily_practice" do
+    tests "TakeRefuge", on: "Practice"
+    input  tradition: "sample", daily_practice: "sample"
+    expect tradition: "sample", daily_practice: "sample"
+  end
+
   test "RecordPractice sets progression" do
     tests "RecordPractice", on: "Practice"
+    setup  "TakeRefuge", tradition: "sample", daily_practice: "sample"
     input  progression: "sample"
     expect progression: "sample"
   end
@@ -21,8 +35,15 @@ Hecks.behaviors "AngieChen" do
 
   # ── Art aggregate ──────────────────────────────────────────
 
+  test "OpenStudio sets medium + philosophy" do
+    tests "OpenStudio", on: "Art"
+    input  medium: "sample", philosophy: "sample"
+    expect medium: "sample", philosophy: "sample"
+  end
+
   test "RecordWork sets work" do
     tests "RecordWork", on: "Art"
+    setup  "OpenStudio", medium: "sample", philosophy: "sample"
     input  work: "sample"
     expect works_size: 1
   end
@@ -30,8 +51,15 @@ Hecks.behaviors "AngieChen" do
 
   # ── Support aggregate ──────────────────────────────────────────
 
+  test "DeclareStance sets stance" do
+    tests "DeclareStance", on: "Support"
+    input  stance: "sample"
+    expect stance: "sample"
+  end
+
   test "RecordSupport sets note" do
     tests "RecordSupport", on: "Support"
+    setup  "DeclareStance", stance: "sample"
     input  note: "sample"
     expect notes_size: 1
   end

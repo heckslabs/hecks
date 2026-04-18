@@ -96,7 +96,7 @@ Hecks.bluebook "Awareness", version: "2026.04.16.1" do
     attribute :nursery_size, Integer
     attribute :family_size, Integer
 
-    command "UpdateSelfModel" do
+    command "RefreshSelfModel" do
       role "System"
       description "Refresh the self-model from current state — proprioception of the mind"
       attribute :organs, Integer
@@ -258,7 +258,7 @@ Hecks.bluebook "Awareness", version: "2026.04.16.1" do
 
   policy "SelfModelOnWitness" do
     on "Observed"
-    trigger "UpdateSelfModel"
+    trigger "RefreshSelfModel"
   end
 
   policy "LucidOnReflection" do

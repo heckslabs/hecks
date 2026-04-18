@@ -32,6 +32,15 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     attribute :activity_expanded, String
     attribute :thinking, String
 
+    command "ComposeLayout" do
+      role "System"
+      description "Lay out the terminal panels — activity, chat, input, footer"
+      attribute :activity_expanded, String
+      emits "LayoutComposed"
+      then_set :activity_expanded, to: :activity_expanded
+      then_set :thinking, to: "no"
+    end
+
     command "ToggleActivity" do
       role "System"
       description "Expand or collapse the activity panel"
@@ -63,7 +72,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     attribute :beats, Integer
     attribute :sleep_state, String
 
-    command "UpdateFooter" do
+    command "RefreshFooter" do
       role "System"
       description "Refresh the footer with current state"
       attribute :branch, String
@@ -71,7 +80,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       attribute :mood, String
       attribute :beats, Integer
       attribute :sleep_state, String
-      emits "FooterUpdated"
+      emits "FooterRefreshed"
       then_set :branch, to: :branch
       then_set :domain_count, to: :domain_count
       then_set :mood, to: :mood
@@ -156,7 +165,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
 
   policy "FooterOnMessage" do
     on "MessageRecorded"
-    trigger "UpdateFooter"
+    trigger "RefreshFooter"
   end
 
   policy "LoadOnTalkWith" do

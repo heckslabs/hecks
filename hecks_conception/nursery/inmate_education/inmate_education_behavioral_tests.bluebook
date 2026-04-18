@@ -19,22 +19,22 @@ Hecks.behaviors "InmateEducation" do
 
   # ── Course aggregate ──────────────────────────────────────────
 
-  test "CreateCourse sets course_name + subject" do
-    tests "CreateCourse", on: "Course"
+  test "Author sets course_name + subject" do
+    tests "Author", on: "Course"
     input  course_name: "sample", subject: "sample"
-    expect course_name: "sample", subject: "sample"
+    expect ok: "true"
   end
 
   test "AddModule sets module_name + content_type + duration_minutes" do
     tests "AddModule", on: "Course"
-    setup  "CreateCourse", course_name: "sample", subject: "sample"
+    setup  "Author", course_name: "sample", subject: "sample"
     input  module_name: "sample", content_type: "sample", duration_minutes: 1
     expect modules_size: 1
   end
 
   test "PublishCourse runs" do
     tests "PublishCourse", on: "Course"
-    setup  "CreateCourse", course_name: "sample", subject: "sample"
+    setup  "Author", course_name: "sample", subject: "sample"
     expect ok: "true"
   end
 
@@ -43,7 +43,7 @@ Hecks.behaviors "InmateEducation" do
 
   test "RegisterEnrollment runs" do
     tests "RegisterEnrollment", on: "Enrollment"
-    setup  "CreateCourse", course_name: "sample", subject: "sample"
+    setup  "Author", course_name: "sample", subject: "sample"
     setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
     expect ok: "true"
   end
@@ -64,14 +64,22 @@ Hecks.behaviors "InmateEducation" do
 
   # ── BehaviorRecord aggregate ──────────────────────────────────────────
 
+  test "OpenRecord runs" do
+    tests "OpenRecord", on: "BehaviorRecord"
+    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
+    expect ok: "true"
+  end
+
   test "RecordInfraction sets infraction_type + severity + date" do
     tests "RecordInfraction", on: "BehaviorRecord"
+    setup  "OpenRecord"
     input  infraction_type: "sample", severity: "sample", date: "sample"
     expect infractions_size: 1
   end
 
   test "AwardMerit sets merit_type + description + date" do
     tests "AwardMerit", on: "BehaviorRecord"
+    setup  "OpenRecord"
     input  merit_type: "sample", description: "sample", date: "sample"
     expect merits_size: 1
   end

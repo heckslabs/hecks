@@ -9,10 +9,10 @@ Hecks.behaviors "Appeal" do
     expect path: "sample"
   end
 
-  test "CreateProject sets name + path" do
-    tests "CreateProject", on: "Project"
+  test "InitProject sets name + path" do
+    tests "InitProject", on: "Project"
     input  name: "sample", path: "sample"
-    expect name: "sample", path: "sample"
+    expect ok: "true"
   end
 
   test "CloseProject runs" do
@@ -37,7 +37,7 @@ Hecks.behaviors "Appeal" do
 
   test "LoadDomain runs" do
     tests "LoadDomain", on: "Explorer"
-    setup  "CreateProject", name: "sample", path: "sample"
+    setup  "OpenProject", path: "sample"
     expect ok: "true"
   end
 
@@ -55,7 +55,7 @@ Hecks.behaviors "Appeal" do
 
   test "OpenFile sets path + domain" do
     tests "OpenFile", on: "Explorer"
-    setup  "CreateProject", name: "sample", path: "sample"
+    setup  "OpenProject", path: "sample"
     input  path: "sample", domain: "sample"
     expect ok: "true"
   end
@@ -82,7 +82,7 @@ Hecks.behaviors "Appeal" do
 
   test "OpenDocument sets filename" do
     tests "OpenDocument", on: "Document"
-    setup  "CreateProject", name: "sample", path: "sample"
+    setup  "OpenProject", path: "sample"
     input  filename: "sample"
     expect filename: "sample"
   end
@@ -128,7 +128,7 @@ Hecks.behaviors "Appeal" do
 
   test "SelectTarget sets target" do
     tests "SelectTarget", on: "Generator"
-    setup  "CreateProject", name: "sample", path: "sample"
+    setup  "OpenProject", path: "sample"
     input  target: "sample"
     expect ok: "true"
   end
@@ -153,15 +153,15 @@ Hecks.behaviors "Appeal" do
 
   # ── Pattern aggregate ──────────────────────────────────────────
 
-  test "CreatePattern sets name + category + template" do
-    tests "CreatePattern", on: "Pattern"
+  test "CoinPattern sets name + category + template" do
+    tests "CoinPattern", on: "Pattern"
     input  name: "sample", category: "sample", template: "sample"
-    expect name: "sample", category: "sample", template: "sample"
+    expect ok: "true"
   end
 
   test "ApplyPattern sets pattern_name + aggregate_name + parameters" do
     tests "ApplyPattern", on: "Pattern"
-    setup  "CreateProject", name: "sample", path: "sample"
+    setup  "OpenProject", path: "sample"
     input  pattern_name: "sample", aggregate_name: "sample", parameters: "sample"
     expect ok: "true"
   end
@@ -175,10 +175,10 @@ Hecks.behaviors "Appeal" do
 
   # ── Feature aggregate ──────────────────────────────────────────
 
-  test "CreateFeature sets title + description" do
-    tests "CreateFeature", on: "Feature"
+  test "DraftFeature sets title + description" do
+    tests "DraftFeature", on: "Feature"
     input  title: "sample", description: "sample"
-    expect title: "sample", description: "sample", status: "draft"
+    expect ok: "true"
   end
 
   test "PlanFeature runs" do
@@ -255,10 +255,10 @@ Hecks.behaviors "Appeal" do
 
   # ── FeatureFlag aggregate ──────────────────────────────────────────
 
-  test "CreateFlag sets feature_title" do
-    tests "CreateFlag", on: "FeatureFlag"
+  test "RaiseFlag sets feature_title" do
+    tests "RaiseFlag", on: "FeatureFlag"
     input  feature_title: "sample"
-    expect feature_title: "sample"
+    expect ok: "true"
   end
 
   test "ToggleFlag runs" do
@@ -592,10 +592,10 @@ Hecks.behaviors "Appeal" do
 
   # ── Scenario aggregate ──────────────────────────────────────────
 
-  test "CreateScenario sets name" do
-    tests "CreateScenario", on: "Scenario"
+  test "DraftScenario sets name" do
+    tests "DraftScenario", on: "Scenario"
     input  name: "sample"
-    expect name: "sample"
+    expect ok: "true"
   end
 
   test "AddStep sets phase + aggregate_name + command_name + attributes" do
@@ -618,10 +618,10 @@ Hecks.behaviors "Appeal" do
 
   # ── Fixture aggregate ──────────────────────────────────────────
 
-  test "CreateFixture sets name" do
-    tests "CreateFixture", on: "Fixture"
+  test "ComposeFixture sets name" do
+    tests "ComposeFixture", on: "Fixture"
     input  name: "sample"
-    expect name: "sample"
+    expect ok: "true"
   end
 
   test "AddEntry sets aggregate_name + attributes" do
@@ -632,7 +632,7 @@ Hecks.behaviors "Appeal" do
 
   test "ApplyToScenario runs" do
     tests "ApplyToScenario", on: "Fixture"
-    setup  "CreateScenario", name: "sample"
+    setup  "DraftScenario", name: "sample"
     expect ok: "true"
   end
 

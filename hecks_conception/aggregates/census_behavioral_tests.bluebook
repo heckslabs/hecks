@@ -9,8 +9,8 @@ Hecks.behaviors "Census" do
     expect total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
   end
 
-  test "UpdateDomainCount sets total_domains" do
-    tests "UpdateDomainCount", on: "NurseryCensus"
+  test "RecountDomains sets total_domains" do
+    tests "RecountDomains", on: "NurseryCensus"
     setup  "TakeCensus", total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
     input  total_domains: 1
     expect total_domains: 1

@@ -33,8 +33,8 @@ Hecks.behaviors "Volcanology" do
     expect ok: "true"
   end
 
-  test "UpdateMetrics sets plume_height_km" do
-    tests "UpdateMetrics", on: "Eruption"
+  test "Refine sets plume_height_km" do
+    tests "Refine", on: "Eruption"
     setup  "DeclareEruption", eruption_id: "sample", eruption_type: "sample"
     input  plume_height_km: 1.0
     expect ok: "true"

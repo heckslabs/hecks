@@ -8,12 +8,28 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
     attribute :role, String
     attribute :brands, list_of(String)
 
-    command "UpdateIdentity" do
+    command "MeetAlan" do
+      role "Chris"
+      description "First record of who Alan is — name, industry, brands"
+      attribute :name, String
+      attribute :relationship, String
+      attribute :industry, String
+      attribute :role, String
+      attribute :brands, list_of(String)
+      emits "AlanMet"
+      then_set :name, to: :name
+      then_set :relationship, to: :relationship
+      then_set :industry, to: :industry
+      then_set :role, to: :role
+      then_set :brands, to: :brands
+    end
+
+    command "Recognize" do
       role "Chris"
       description "Update what we know about Alan"
       reference_to(Identity)
       attribute :role, String
-      emits "IdentityUpdated"
+      emits "Recognized"
       then_set :role, to: :role
     end
   end
@@ -31,6 +47,18 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
     attribute :competitors, list_of(String)
     attribute :pain_points, list_of(String)
     attribute :notes, list_of(String)
+
+    command "MapBusiness" do
+      role "Chris"
+      description "Map Alan's business — model, channels, competitors"
+      attribute :model, String
+      attribute :channels, list_of(String)
+      attribute :competitors, list_of(String)
+      emits "BusinessMapped"
+      then_set :model, to: :model
+      then_set :channels, to: :channels
+      then_set :competitors, to: :competitors
+    end
 
     command "RecordInsight" do
       role "Chris"
@@ -64,6 +92,17 @@ Hecks.bluebook "Alan", version: "2026.04.11.1" do
     attribute :demo_date, String
     attribute :status, String
     attribute :notes, list_of(String)
+
+    command "ScheduleDemo" do
+      role "Chris"
+      description "Schedule Alan's demo — set date and initialize the conceived list"
+      attribute :demo_date, String
+      attribute :domains_conceived, list_of(String)
+      emits "DemoScheduled"
+      then_set :demo_date, to: :demo_date
+      then_set :domains_conceived, to: :domains_conceived
+      then_set :status, to: "scheduled"
+    end
 
     command "RecordDemoProgress" do
       role "Chris"

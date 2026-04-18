@@ -57,9 +57,9 @@ Hecks.bluebook "Volcanology" do
       String :eruption_type
     end
 
-    command "UpdateMetrics" do
+    command "Refine" do
       description "Revise eruption parameters as new data arrives"
-      emits "MetricsUpdated"
+      emits "MetricsRefined"
       reference_to Eruption
       Float :plume_height_km
     end

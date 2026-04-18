@@ -144,7 +144,7 @@ Hecks.bluebook "Extensions", version: "2026.04.11.1" do
       attribute :id, String
     end
 
-    command "Delete" do
+    command "Forget" do
       attribute :id, String
     end
   end

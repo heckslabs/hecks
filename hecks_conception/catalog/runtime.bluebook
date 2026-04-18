@@ -795,7 +795,7 @@ Hecks.bluebook "Runtime", version: "2026.04.11.1" do
 
   aggregate "Repository", definition: "Aggregate persistence port with collection proxy" do
 
-    command "Create" do
+    command "Persist" do
       attribute :aggregate_name, String
     end
 
@@ -803,7 +803,7 @@ Hecks.bluebook "Runtime", version: "2026.04.11.1" do
       attribute :id, String
     end
 
-    command "Delete" do
+    command "Forget" do
       attribute :id, String
     end
   end

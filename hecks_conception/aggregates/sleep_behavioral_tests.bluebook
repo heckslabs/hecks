@@ -279,8 +279,8 @@ Hecks.behaviors "Sleep" do
     expect reporting: "stopped"
   end
 
-  test "UpdateDepth sets z_depth" do
-    tests "UpdateDepth", on: "Monitor"
+  test "Sink sets z_depth" do
+    tests "Sink", on: "Monitor"
     setup  "StartMonitoring", interval_seconds: 1
     input  z_depth: 1
     expect z_depth: 1

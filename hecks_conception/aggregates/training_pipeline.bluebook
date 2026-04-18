@@ -48,7 +48,7 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
     attribute :response, String
     attribute :category, String
 
-    command "CreateInstructionPair" do
+    command "MintInstructionPair" do
       role "System"
       description "Build one training pair"
       attribute :instruction, String

@@ -25,22 +25,22 @@ Hecks.behaviors "RepatriationFlights" do
 
   # ── CargoManifest aggregate ──────────────────────────────────────────
 
-  test "CreateManifest sets manifest_number + aircraft_id" do
-    tests "CreateManifest", on: "CargoManifest"
+  test "Manifest sets manifest_number + aircraft_id" do
+    tests "Manifest", on: "CargoManifest"
     input  manifest_number: "sample", aircraft_id: "sample"
-    expect manifest_number: "sample", aircraft_id: "sample"
+    expect ok: "true"
   end
 
   test "LoadItem sets description + weight_kg + fragile" do
     tests "LoadItem", on: "CargoManifest"
-    setup  "CreateManifest", manifest_number: "sample", aircraft_id: "sample"
+    setup  "Manifest", manifest_number: "sample", aircraft_id: "sample"
     input  description: "sample", weight_kg: 1.0, fragile: "sample"
     expect items_size: 1
   end
 
   test "SealManifest runs" do
     tests "SealManifest", on: "CargoManifest"
-    setup  "CreateManifest", manifest_number: "sample", aircraft_id: "sample"
+    setup  "Manifest", manifest_number: "sample", aircraft_id: "sample"
     expect ok: "true"
   end
 

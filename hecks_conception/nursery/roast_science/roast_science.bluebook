@@ -152,9 +152,9 @@ Hecks.bluebook "RoastScience" do
       attribute :unit
     end
 
-    command "CreateRecipe" do
+    command "Compose" do
       role "Barista"
-      goal "Create a new brew recipe"
+      goal "Compose a new brew recipe"
       reference_to RoastBatch
       attribute :recipe_name
       attribute :brew_method
@@ -197,7 +197,7 @@ Hecks.bluebook "RoastScience" do
 
   policy "BatchCompletedTriggersRecipe" do
     on "BatchCompleted"
-    trigger "CreateRecipe"
+    trigger "Compose"
     map roast_batch_id: :batch_id
   end
 

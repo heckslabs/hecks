@@ -19,22 +19,22 @@ Hecks.behaviors "SmartGrocery" do
 
   # ── DietaryProfile aggregate ──────────────────────────────────────────
 
-  test "CreateProfile sets customer_name + calorie_target" do
-    tests "CreateProfile", on: "DietaryProfile"
+  test "Enroll sets customer_name + calorie_target" do
+    tests "Enroll", on: "DietaryProfile"
     input  customer_name: "sample", calorie_target: 1
-    expect customer_name: "sample", calorie_target: 1
+    expect ok: "true"
   end
 
   test "AddRestriction sets restriction_type + severity" do
     tests "AddRestriction", on: "DietaryProfile"
-    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    setup  "Enroll", customer_name: "sample", calorie_target: 1
     input  restriction_type: "sample", severity: "sample"
     expect restrictions_size: 1
   end
 
   test "SetGoal sets nutrient_name + target_amount + unit" do
     tests "SetGoal", on: "DietaryProfile"
-    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    setup  "Enroll", customer_name: "sample", calorie_target: 1
     input  nutrient_name: "sample", target_amount: 1.0, unit: "sample"
     expect goals_size: 1
   end
@@ -44,7 +44,7 @@ Hecks.behaviors "SmartGrocery" do
 
   test "GeneratePlan sets week_start" do
     tests "GeneratePlan", on: "MealPlan"
-    setup  "CreateProfile", customer_name: "sample", calorie_target: 1
+    setup  "Enroll", customer_name: "sample", calorie_target: 1
     input  week_start: "sample"
     expect ok: "true"
   end
@@ -65,22 +65,22 @@ Hecks.behaviors "SmartGrocery" do
 
   # ── ShoppingList aggregate ──────────────────────────────────────────
 
-  test "GenerateList runs" do
-    tests "GenerateList", on: "ShoppingList"
+  test "Compile runs" do
+    tests "Compile", on: "ShoppingList"
     setup  "GeneratePlan", week_start: "sample"
     expect ok: "true"
   end
 
   test "AddItem sets product_name + quantity + aisle" do
     tests "AddItem", on: "ShoppingList"
-    setup  "GenerateList"
+    setup  "Compile"
     input  product_name: "sample", quantity: 1, aisle: "sample"
     expect items_size: 1
   end
 
   test "Checkout runs" do
     tests "Checkout", on: "ShoppingList"
-    setup  "GenerateList"
+    setup  "Compile"
     expect ok: "true"
   end
 

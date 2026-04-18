@@ -65,7 +65,7 @@ Hecks.bluebook "FinancialFreedom" do
       attribute :interest_rate, Float
     end
 
-    command "CreateProfile" do
+    command "Assess" do
       role "FinancialCounselor"
       goal "Create a financial profile"
       reference_to SurvivorCase
@@ -179,12 +179,12 @@ Hecks.bluebook "FinancialFreedom" do
 
   policy "CaseOpenedTriggersProfile" do
     on "CaseOpened"
-    trigger "CreateProfile"
+    trigger "Assess"
     map survivor_case_id: :case_id
   end
 
-  policy "ProfileCreatedTriggersTaxReturn" do
-    on "ProfileCreated"
+  policy "ProfileAssessedTriggersTaxReturn" do
+    on "ProfileAssessed"
     trigger "PrepareTaxReturn"
     map survivor_case_id: :case_id, financial_profile_id: :profile_id
   end

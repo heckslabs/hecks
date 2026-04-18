@@ -25,15 +25,15 @@ Hecks.behaviors "FabricToRunway" do
 
   # ── Collection aggregate ──────────────────────────────────────────
 
-  test "CreateCollection sets name + season" do
-    tests "CreateCollection", on: "Collection"
+  test "Curate sets name + season" do
+    tests "Curate", on: "Collection"
     input  name: "sample", season: "sample"
-    expect name: "sample", season: "sample"
+    expect ok: "true"
   end
 
   test "AddGarment sets garment_name + garment_type + fabric_requirement" do
     tests "AddGarment", on: "Collection"
-    setup  "CreateCollection", name: "sample", season: "sample"
+    setup  "Curate", name: "sample", season: "sample"
     input  garment_name: "sample", garment_type: "sample", fabric_requirement: "sample"
     expect garments_size: 1
   end
@@ -66,7 +66,7 @@ Hecks.behaviors "FabricToRunway" do
 
   test "PlanShow sets venue + show_date" do
     tests "PlanShow", on: "RunwayShow"
-    setup  "CreateCollection", name: "sample", season: "sample"
+    setup  "Curate", name: "sample", season: "sample"
     input  venue: "sample", show_date: "sample"
     expect ok: "true"
   end

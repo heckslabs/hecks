@@ -68,8 +68,8 @@ Hecks.behaviors "Meteorology" do
     expect ok: "true"
   end
 
-  test "UpdatePosition sets latitude + longitude" do
-    tests "UpdatePosition", on: "PressureSystem"
+  test "Reposition sets latitude + longitude" do
+    tests "Reposition", on: "PressureSystem"
     setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
     input  latitude: 1.0, longitude: 1.0
     expect ok: "true"

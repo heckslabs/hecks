@@ -46,7 +46,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
     attribute :command_count, Integer
     attribute :tier, String
 
-    command "CreatePair" do
+    command "MintPair" do
       role "System"
       description "Create a training pair from a bluebook"
       attribute :bluebook_source, String

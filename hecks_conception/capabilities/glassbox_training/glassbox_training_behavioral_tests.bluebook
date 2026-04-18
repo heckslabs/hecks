@@ -28,21 +28,21 @@ Hecks.behaviors "GlassboxTraining" do
 
   # ── TrainingExample aggregate ──────────────────────────────────────────
 
-  test "CreateExample sets input + output + category" do
-    tests "CreateExample", on: "TrainingExample"
+  test "MintExample sets input + output + category" do
+    tests "MintExample", on: "TrainingExample"
     input  input: "sample", output: "sample", category: "sample"
     expect input: "sample", output: "sample", category: "sample"
   end
 
   test "ValidateExample runs" do
     tests "ValidateExample", on: "TrainingExample"
-    setup  "CreateExample", input: "sample", output: "sample", category: "sample"
+    setup  "MintExample", input: "sample", output: "sample", category: "sample"
     expect ok: "true"
   end
 
   test "ScoreQuality sets quality_score" do
     tests "ScoreQuality", on: "TrainingExample"
-    setup  "CreateExample", input: "sample", output: "sample", category: "sample"
+    setup  "MintExample", input: "sample", output: "sample", category: "sample"
     input  quality_score: 1.0
     expect quality_score: 1.0
   end

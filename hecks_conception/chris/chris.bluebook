@@ -14,13 +14,27 @@ Hecks.bluebook "Chris" do
     attribute :tagline, default: "In the world of AI, specification is king"
     attribute :expertise, list_of(String)
 
-    command "UpdateRole" do
+    command "Introduce" do
       role "Chris"
-      goal "Update Chris's current role or focus"
+      goal "Establish Chris's identity — name, role, company, tagline"
+      attribute :name, String
+      attribute :role, String
+      attribute :company, String
+      attribute :tagline, String
+      then_set :name, to: :name
+      then_set :role, to: :role
+      then_set :company, to: :company
+      then_set :tagline, to: :tagline
+      emits "Introduced"
+    end
+
+    command "ShiftRole" do
+      role "Chris"
+      goal "Shift Chris's current role or focus"
       reference_to(Identity)
       attribute :role, String
       then_set :role, to: :role
-      emits "RoleUpdated"
+      emits "RoleShifted"
     end
   end
 
@@ -62,9 +76,9 @@ Hecks.bluebook "Chris" do
     attribute :why, String
     attribute :applies_to, String
 
-    command "AddConvention" do
+    command "EnshrineConvention" do
       role "Chris"
-      goal "Add a code convention"
+      goal "Enshrine a code convention"
       attribute :name, String
       attribute :rule, String
       attribute :why, String
@@ -73,7 +87,7 @@ Hecks.bluebook "Chris" do
       then_set :rule, to: :rule
       then_set :why, to: :why
       then_set :applies_to, to: :applies_to
-      emits "ConventionAdded"
+      emits "ConventionEnshrined"
     end
   end
 
@@ -116,7 +130,7 @@ Hecks.bluebook "Chris" do
     attribute :context, String
     attribute :notes, list_of(String)
 
-    command "AddPerson" do
+    command "MeetPerson" do
       role "Chris"
       goal "Remember someone Chris mentioned"
       attribute :name, String
@@ -125,16 +139,16 @@ Hecks.bluebook "Chris" do
       then_set :name, to: :name
       then_set :relationship, to: :relationship
       then_set :context, to: :context
-      emits "PersonAdded"
+      emits "PersonMet"
     end
 
-    command "AddNote" do
+    command "AnnotatePerson" do
       role "Chris"
-      goal "Add context about a person"
+      goal "Annotate a person with new context"
       reference_to(Person)
       attribute :note, String
       then_set :notes, append: :note
-      emits "NoteAdded"
+      emits "PersonAnnotated"
     end
   end
 
@@ -155,6 +169,20 @@ Hecks.bluebook "Chris" do
       attribute :name, String
       attribute :date, String
       attribute :status, String
+    end
+
+    command "Found" do
+      role "Chris"
+      goal "Found Embryonaut — declare the company and its product vision"
+      attribute :status, String
+      attribute :product_vision, String
+      attribute :seed_target, String
+      attribute :cofounder_profile, String
+      then_set :status, to: :status
+      then_set :product_vision, to: :product_vision
+      then_set :seed_target, to: :seed_target
+      then_set :cofounder_profile, to: :cofounder_profile
+      emits "Founded"
     end
 
     command "RecordMilestone" do

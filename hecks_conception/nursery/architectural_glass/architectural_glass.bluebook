@@ -18,7 +18,7 @@ Hecks.bluebook "ArchitecturalGlass" do
       end
     end
 
-    command "CreateFormula" do
+    command "Forge" do
       role "GlassMaster"
       goal "Design a new glass formula"
       attribute :name
@@ -163,7 +163,7 @@ Hecks.bluebook "ArchitecturalGlass" do
 
   policy "InstallationSpecifiedTriggersFormula" do
     on "InstallationSpecified"
-    trigger "CreateFormula"
+    trigger "Forge"
     map name: :glass_type
   end
 

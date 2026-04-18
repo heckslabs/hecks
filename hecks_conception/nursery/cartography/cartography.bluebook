@@ -10,9 +10,9 @@ Hecks.bluebook "Cartography" do
     reference_to Datum
     reference_to Projection
 
-    command "CreateSheet" do
+    command "Plate" do
       description "Define a new map sheet with its coverage area"
-      emits "SheetCreated"
+      emits "SheetPlated"
       String :sheet_id
       String :title
       String :scale
@@ -87,9 +87,9 @@ Hecks.bluebook "Cartography" do
       String :attribute_value
     end
 
-    command "DeleteFeature" do
+    command "Erase" do
       description "Remove an erroneous feature from the map"
-      emits "FeatureDeleted"
+      emits "FeatureErased"
       reference_to GeographicFeature
       given "feature must not be referenced by other features"
     end
@@ -163,13 +163,13 @@ Hecks.bluebook "Cartography" do
     trigger "DefineProjection"
   end
 
-  policy "CreateSheetAfterProjection" do
+  policy "PlateSheetAfterProjection" do
     on "ProjectionDefined"
-    trigger "CreateSheet"
+    trigger "Plate"
   end
 
-  policy "DigitizeAfterSheetCreated" do
-    on "SheetCreated"
+  policy "DigitizeAfterSheetPlated" do
+    on "SheetPlated"
     trigger "DigitizeFeature"
   end
 

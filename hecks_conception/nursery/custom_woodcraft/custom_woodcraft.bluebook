@@ -98,7 +98,7 @@ Hecks.bluebook "CustomWoodcraft" do
       attribute :completed, default: false
     end
 
-    command "CreateWorkOrder" do
+    command "Commission" do
       role "ShopForeman"
       goal "Create a work order for a furniture piece"
       reference_to Lumber
@@ -149,9 +149,9 @@ Hecks.bluebook "CustomWoodcraft" do
     end
   end
 
-  policy "LumberGradedTriggersWorkOrder" do
+  policy "LumberGradedTriggersCommission" do
     on "LumberGraded"
-    trigger "CreateWorkOrder"
+    trigger "Commission"
     map lumber_id: :lumber_id
   end
 
@@ -173,8 +173,8 @@ Hecks.bluebook "CustomWoodcraft" do
     map name: :design_name, style: :design_style
   end
 
-  policy "WorkOrderCreatedTriggersStep" do
-    on "WorkOrderCreated"
+  policy "WorkOrderCommissionedTriggersStep" do
+    on "WorkOrderCommissioned"
     trigger "CompleteStep"
     map work_order_id: :work_order_id, step_name: :first_step
   end

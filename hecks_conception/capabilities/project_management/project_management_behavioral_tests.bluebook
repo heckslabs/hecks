@@ -3,48 +3,48 @@ Hecks.behaviors "ProjectManagement" do
 
   # ── Feature aggregate ──────────────────────────────────────────
 
-  test "CreateFeature sets title + description + domain_name + category + priority + assignee + labels" do
-    tests "CreateFeature", on: "Feature"
+  test "ProposeFeature sets title + description + domain_name + category + priority + assignee + labels" do
+    tests "ProposeFeature", on: "Feature"
     input  title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     expect title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample", status: "backlog"
   end
 
   test "AssignFeature sets assignee" do
     tests "AssignFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     input  assignee: "sample"
     expect assignee: "sample"
   end
 
   test "LabelFeature sets label" do
     tests "LabelFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     input  label: "sample"
     expect labels_size: 1
   end
 
   test "StartFeature runs" do
     tests "StartFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteFeature runs" do
     tests "CompleteFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     setup  "StartFeature"
     expect status: "completed"
   end
 
   test "DeferFeature runs" do
     tests "DeferFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     expect status: "deferred"
   end
 
   test "CancelFeature runs" do
     tests "CancelFeature", on: "Feature"
-    setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
+    setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
     expect status: "cancelled"
   end
 
@@ -125,29 +125,29 @@ Hecks.behaviors "ProjectManagement" do
 
   # ── Milestone aggregate ──────────────────────────────────────────
 
-  test "CreateMilestone sets name + target_date" do
-    tests "CreateMilestone", on: "Milestone"
+  test "DeclareMilestone sets name + target_date" do
+    tests "DeclareMilestone", on: "Milestone"
     input  name: "sample", target_date: "sample"
     expect name: "sample", target_date: "sample", progress_pct: 0.0, status: "planned"
   end
 
   test "AddFeatureToMilestone sets feature_id" do
     tests "AddFeatureToMilestone", on: "Milestone"
-    setup  "CreateMilestone", name: "sample", target_date: "sample"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
     input  feature_id: "sample"
     expect features_size: 1, status: "in_progress"
   end
 
   test "CalculateProgress sets progress_pct" do
     tests "CalculateProgress", on: "Milestone"
-    setup  "CreateMilestone", name: "sample", target_date: "sample"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
     input  progress_pct: 1.0
     expect progress_pct: 1.0
   end
 
   test "CompleteMilestone runs" do
     tests "CompleteMilestone", on: "Milestone"
-    setup  "CreateMilestone", name: "sample", target_date: "sample"
+    setup  "DeclareMilestone", name: "sample", target_date: "sample"
     setup  "AddFeatureToMilestone", feature_id: "sample"
     expect progress_pct: 100.0, status: "completed"
   end

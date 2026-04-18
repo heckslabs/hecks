@@ -258,8 +258,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── Result aggregate ──────────────────────────────────────────
 
-  test "CreateResult sets source" do
-    tests "CreateResult", on: "Result"
+  test "ComposeResult sets source" do
+    tests "ComposeResult", on: "Result"
     input  source: "sample"
     expect ok: "true"
   end
@@ -420,8 +420,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── BaseName aggregate ──────────────────────────────────────────
 
-  test "CreateName sets raw" do
-    tests "CreateName", on: "BaseName"
+  test "Inscribe sets raw" do
+    tests "Inscribe", on: "BaseName"
     input  raw: "sample"
     expect ok: "true"
   end
@@ -429,8 +429,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── AggregateName aggregate ──────────────────────────────────────────
 
-  test "CreateAggregateName sets raw" do
-    tests "CreateAggregateName", on: "AggregateName"
+  test "InscribeAggregateName sets raw" do
+    tests "InscribeAggregateName", on: "AggregateName"
     input  raw: "sample"
     expect ok: "true"
   end
@@ -438,8 +438,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── CommandName aggregate ──────────────────────────────────────────
 
-  test "CreateCommandName sets raw" do
-    tests "CreateCommandName", on: "CommandName"
+  test "InscribeCommandName sets raw" do
+    tests "InscribeCommandName", on: "CommandName"
     input  raw: "sample"
     expect ok: "true"
   end
@@ -447,8 +447,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── EventName aggregate ──────────────────────────────────────────
 
-  test "CreateEventName sets raw" do
-    tests "CreateEventName", on: "EventName"
+  test "InscribeEventName sets raw" do
+    tests "InscribeEventName", on: "EventName"
     input  raw: "sample"
     expect ok: "true"
   end
@@ -456,8 +456,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── StateName aggregate ──────────────────────────────────────────
 
-  test "CreateStateName sets raw" do
-    tests "CreateStateName", on: "StateName"
+  test "InscribeStateName sets raw" do
+    tests "InscribeStateName", on: "StateName"
     input  raw: "sample"
     expect ok: "true"
   end
@@ -1491,8 +1491,8 @@ Hecks.behaviors "Bluebook" do
 
   # ── ValidationMessage aggregate ──────────────────────────────────────────
 
-  test "CreateMessage sets message + severity" do
-    tests "CreateMessage", on: "ValidationMessage"
+  test "ComposeMessage sets message + severity" do
+    tests "ComposeMessage", on: "ValidationMessage"
     input  message: "sample", severity: "sample"
     expect ok: "true"
   end

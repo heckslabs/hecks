@@ -60,9 +60,9 @@ Hecks.bluebook "PredictiveHealth" do
       end
     end
 
-    command "CreateModel" do
+    command "Train" do
       role "DataScientist"
-      goal "Create a new predictive risk model"
+      goal "Train a new predictive risk model"
       attribute :model_name
     end
 

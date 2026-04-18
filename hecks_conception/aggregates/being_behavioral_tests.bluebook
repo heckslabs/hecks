@@ -3,43 +3,43 @@ Hecks.behaviors "Being" do
 
   # ── Being aggregate ──────────────────────────────────────────
 
-  test "CreateBeing sets name + vision" do
-    tests "CreateBeing", on: "Being"
+  test "ConceiveBeing sets name + vision" do
+    tests "ConceiveBeing", on: "Being"
     input  name: "sample", vision: "sample"
     expect name: "sample", vision: "sample"
   end
 
   test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
     tests "GraftDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
     expect organs_size: 1, active_count: 1
   end
 
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "ExpressDomain sets domain_name" do
     tests "ExpressDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "UpgradeOrgan sets domain_name + new_version" do
     tests "UpgradeOrgan", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", new_version: "sample"
     expect ok: "true"
   end
@@ -126,8 +126,8 @@ Hecks.behaviors "Being" do
     expect name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample", status: "active"
   end
 
-  test "UpdateMember sets version + aggregate_count + command_count + fixture_count" do
-    tests "UpdateMember", on: "Member"
+  test "EvolveMember sets version + aggregate_count + command_count + fixture_count" do
+    tests "EvolveMember", on: "Member"
     setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
     input  version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1

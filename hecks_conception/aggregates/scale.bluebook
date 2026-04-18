@@ -31,7 +31,7 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
     attribute :domain_count, Integer
     attribute :path, String
 
-    command "CreateShard" do
+    command "CarveShard" do
       role "System"
       description "Create a sector directory in the nursery"
       attribute :sector, String
@@ -42,7 +42,7 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
       then_set :domain_count, to: 0
     end
 
-    command "UpdateShardCount" do
+    command "RecountShard" do
       role "System"
       description "Recount domains in this shard"
       reference_to(Shard)

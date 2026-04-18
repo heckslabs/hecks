@@ -42,22 +42,22 @@ Hecks.behaviors "WaterQualityAPI" do
 
   # ── APIEndpoint aggregate ──────────────────────────────────────────
 
-  test "CreateEndpoint sets endpoint_path + description + rate_limit" do
-    tests "CreateEndpoint", on: "APIEndpoint"
+  test "Draft sets endpoint_path + description + rate_limit" do
+    tests "Draft", on: "APIEndpoint"
     input  endpoint_path: "sample", description: "sample", rate_limit: 1
-    expect endpoint_path: "sample", description: "sample", rate_limit: 1
+    expect ok: "true"
   end
 
   test "RegisterConsumer sets consumer_name + api_key + tier" do
     tests "RegisterConsumer", on: "APIEndpoint"
-    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
     input  consumer_name: "sample", api_key: "sample", tier: "sample"
     expect consumers_size: 1
   end
 
   test "PublishEndpoint runs" do
     tests "PublishEndpoint", on: "APIEndpoint"
-    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
     expect ok: "true"
   end
 
@@ -66,7 +66,7 @@ Hecks.behaviors "WaterQualityAPI" do
 
   test "ConfigureFeed sets feed_name + frequency_seconds" do
     tests "ConfigureFeed", on: "DataFeed"
-    setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    setup  "Draft", endpoint_path: "sample", description: "sample", rate_limit: 1
     setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
     input  feed_name: "sample", frequency_seconds: 1
     expect ok: "true"

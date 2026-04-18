@@ -28,7 +28,7 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
       then_set :errors, to: :errors
     end
 
-    command "UpdateDomainCount" do
+    command "RecountDomains" do
       role "System"
       description "Quick update — just the domain count, on every beat"
       reference_to(NurseryCensus)

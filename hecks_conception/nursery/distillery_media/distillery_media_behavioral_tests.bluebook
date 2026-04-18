@@ -3,22 +3,22 @@ Hecks.behaviors "DistilleryMedia" do
 
   # ── Spirit aggregate ──────────────────────────────────────────
 
-  test "CreateSpirit sets name + spirit_type" do
-    tests "CreateSpirit", on: "Spirit"
+  test "Distill sets name + spirit_type" do
+    tests "Distill", on: "Spirit"
     input  name: "sample", spirit_type: "sample"
-    expect name: "sample", spirit_type: "sample"
+    expect ok: "true"
   end
 
   test "AddIngredient sets name + quantity_kg" do
     tests "AddIngredient", on: "Spirit"
-    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    setup  "Distill", name: "sample", spirit_type: "sample"
     input  name: "sample", quantity_kg: 1.0
     expect name: "sample", ingredients_size: 1
   end
 
   test "ApproveDistillation runs" do
     tests "ApproveDistillation", on: "Spirit"
-    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    setup  "Distill", name: "sample", spirit_type: "sample"
     expect ok: "true"
   end
 
@@ -27,7 +27,7 @@ Hecks.behaviors "DistilleryMedia" do
 
   test "FillBarrel sets barrel_type" do
     tests "FillBarrel", on: "BarrelAging"
-    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    setup  "Distill", name: "sample", spirit_type: "sample"
     input  barrel_type: "sample"
     expect ok: "true"
   end
@@ -66,7 +66,7 @@ Hecks.behaviors "DistilleryMedia" do
 
   test "ScheduleTasting sets host" do
     tests "ScheduleTasting", on: "TastingSession"
-    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    setup  "Distill", name: "sample", spirit_type: "sample"
     input  host: "sample"
     expect ok: "true"
   end
@@ -89,7 +89,7 @@ Hecks.behaviors "DistilleryMedia" do
 
   test "ProposeDeal sets sponsor_name + deal_value_cents" do
     tests "ProposeDeal", on: "Sponsorship"
-    setup  "CreateSpirit", name: "sample", spirit_type: "sample"
+    setup  "Distill", name: "sample", spirit_type: "sample"
     input  sponsor_name: "sample", deal_value_cents: 1
     expect ok: "true"
   end

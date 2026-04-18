@@ -192,7 +192,7 @@ Hecks.bluebook "Cli", version: "2026.04.11.1" do
 
   aggregate "NewProjectCommand", definition: "Scaffolds a new Hecks domain project" do
 
-    command "Create" do
+    command "Scaffold" do
       attribute :project_name, String
     end
   end

@@ -42,13 +42,13 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
     attribute :category, String
     attribute :quality_score, Float
 
-    command "CreateExample" do
+    command "MintExample" do
       role "System"
-      description "Create a new training example from a bluebook"
+      description "Mint a new training example from a bluebook"
       attribute :input, String
       attribute :output, String
       attribute :category, String
-      emits "ExampleCreated"
+      emits "ExampleMinted"
       then_set :input, to: :input
       then_set :output, to: :output
       then_set :category, to: :category

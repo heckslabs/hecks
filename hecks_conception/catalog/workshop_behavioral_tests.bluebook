@@ -205,8 +205,8 @@ Hecks.behaviors "Workshop" do
 
   # ── Workshop aggregate ──────────────────────────────────────────
 
-  test "CreateSession sets name" do
-    tests "CreateSession", on: "Workshop"
+  test "Convene sets name" do
+    tests "Convene", on: "Workshop"
     input  name: "sample"
     expect ok: "true"
   end

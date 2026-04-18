@@ -144,43 +144,43 @@ Hecks.behaviors "Mind" do
 
   # ── Being aggregate ──────────────────────────────────────────
 
-  test "CreateBeing sets name + vision" do
-    tests "CreateBeing", on: "Being"
+  test "BirthBeing sets name + vision" do
+    tests "BirthBeing", on: "Being"
     input  name: "sample", vision: "sample"
     expect name: "sample", vision: "sample"
   end
 
   test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
     tests "GraftDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
     expect organs_size: 1, active_count: 1
   end
 
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "ExpressDomain sets domain_name" do
     tests "ExpressDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "UpgradeOrgan sets domain_name + new_version" do
     tests "UpgradeOrgan", on: "Being"
-    setup  "CreateBeing", name: "sample", vision: "sample"
+    setup  "BirthBeing", name: "sample", vision: "sample"
     input  domain_name: "sample", new_version: "sample"
     expect ok: "true"
   end
@@ -218,13 +218,21 @@ Hecks.behaviors "Mind" do
 
   # ── Heartbeat aggregate ──────────────────────────────────────────
 
+  test "BeginHeartbeat sets being_name" do
+    tests "BeginHeartbeat", on: "Heartbeat"
+    input  being_name: "sample"
+    expect being_name: "sample", beats: 0
+  end
+
   test "Beat runs" do
     tests "Beat", on: "Heartbeat"
+    setup  "BeginHeartbeat", being_name: "sample"
     expect beats: 1, last_beat_at: :now
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
     tests "ReportOrganPulse", on: "Heartbeat"
+    setup  "BeginHeartbeat", being_name: "sample"
     input  domain_name: "sample", event_count: "sample", last_event_at: "sample"
     expect organ_status_size: 1
   end
@@ -232,19 +240,28 @@ Hecks.behaviors "Mind" do
 
   # ── Identity aggregate ──────────────────────────────────────────
 
+  test "EstablishIdentity sets being_name" do
+    tests "EstablishIdentity", on: "Identity"
+    input  being_name: "sample"
+    expect being_name: "sample", sessions: 0
+  end
+
   test "RecordSession runs" do
     tests "RecordSession", on: "Identity"
+    setup  "EstablishIdentity", being_name: "sample"
     expect sessions: 1
   end
 
   test "RememberPerson sets persona_name" do
     tests "RememberPerson", on: "Identity"
+    setup  "EstablishIdentity", being_name: "sample"
     input  persona_name: "sample"
     expect personas_known_size: 1
   end
 
   test "EncodeIdentityMemory sets memory" do
     tests "EncodeIdentityMemory", on: "Identity"
+    setup  "EstablishIdentity", being_name: "sample"
     input  memory: "sample"
     expect memories_size: 1
   end
@@ -437,13 +454,20 @@ Hecks.behaviors "Mind" do
 
   # ── Fatigue aggregate ──────────────────────────────────────────
 
+  test "AwakenFatigue runs" do
+    tests "AwakenFatigue", on: "Fatigue"
+    expect level: 0.0, state: "alert", pulses_since_sleep: 0
+  end
+
   test "AccumulateFatigue runs" do
     tests "AccumulateFatigue", on: "Fatigue"
+    setup  "AwakenFatigue"
     expect pulses_since_sleep: 1, state: "focused"
   end
 
   test "DissipateFatigue sets cycles_completed" do
     tests "DissipateFatigue", on: "Fatigue"
+    setup  "AwakenFatigue"
     setup  "AccumulateFatigue"
     input  cycles_completed: 1
     expect level: 0, pulses_since_sleep: 0, state: "alert"

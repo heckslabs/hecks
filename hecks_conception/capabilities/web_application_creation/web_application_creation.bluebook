@@ -130,14 +130,14 @@ Hecks.bluebook "WebApplicationCreation", version: "2026.04.11.1" do
       attribute :usage, String
     end
 
-    command "CreateStyleGuide" do
+    command "DraftStyleGuide" do
       role "Designer"
-      description "Define the visual language — not AI-generic, distinctly yours"
+      description "Draft the visual language — not AI-generic, distinctly yours"
       attribute :name, String
       attribute :spacing_unit, Integer
       attribute :border_radius, String
       attribute :density, String
-      emits "StyleGuideCreated"
+      emits "StyleGuideDrafted"
       then_set :name, to: :name
       then_set :spacing_unit, to: :spacing_unit
       then_set :border_radius, to: :border_radius

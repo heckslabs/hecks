@@ -66,9 +66,9 @@ Hecks.bluebook "RepatriationFlights" do
       end
     end
 
-    command "CreateManifest" do
+    command "Manifest" do
       role "CargoAgent"
-      goal "Create a cargo manifest for the flight"
+      goal "Open a cargo manifest for the flight"
       attribute :manifest_number
       attribute :aircraft_id
     end
@@ -190,7 +190,7 @@ Hecks.bluebook "RepatriationFlights" do
 
   policy "FlightPlannedTriggersManifest" do
     on "FlightPlanned"
-    trigger "CreateManifest"
+    trigger "Manifest"
     map aircraft_id: :aircraft_id
   end
 

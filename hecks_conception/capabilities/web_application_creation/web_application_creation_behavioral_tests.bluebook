@@ -49,27 +49,27 @@ Hecks.behaviors "WebApplicationCreation" do
 
   # ── StyleGuide aggregate ──────────────────────────────────────────
 
-  test "CreateStyleGuide sets name + spacing_unit + border_radius + density" do
-    tests "CreateStyleGuide", on: "StyleGuide"
+  test "DraftStyleGuide sets name + spacing_unit + border_radius + density" do
+    tests "DraftStyleGuide", on: "StyleGuide"
     input  name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
     expect name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
   end
 
   test "SetPalette runs" do
     tests "SetPalette", on: "StyleGuide"
-    setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
     expect ok: "true"
   end
 
   test "SetTypography runs" do
     tests "SetTypography", on: "StyleGuide"
-    setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
     expect ok: "true"
   end
 
   test "TweakStyle sets token_name + token_value" do
     tests "TweakStyle", on: "StyleGuide"
-    setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
+    setup  "DraftStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
     input  token_name: "sample", token_value: "sample"
     expect ok: "true"
   end

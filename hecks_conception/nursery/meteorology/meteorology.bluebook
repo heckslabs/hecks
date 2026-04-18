@@ -113,9 +113,9 @@ Hecks.bluebook "Meteorology" do
       Float :central_pressure_hpa
     end
 
-    command "UpdatePosition" do
+    command "Reposition" do
       description "Record the latest position of the system"
-      emits "PositionUpdated"
+      emits "Repositioned"
       reference_to PressureSystem
       Float :latitude
       Float :longitude

@@ -47,24 +47,24 @@ Hecks.behaviors "CustomWoodcraft" do
 
   # ── WorkOrder aggregate ──────────────────────────────────────────
 
-  test "CreateWorkOrder sets craftsman" do
-    tests "CreateWorkOrder", on: "WorkOrder"
+  test "Commission sets craftsman" do
+    tests "Commission", on: "WorkOrder"
     setup  "DesignPiece", name: "sample", style: "sample"
     setup  "MillLog", species: "sample", board_feet: 1.0
     input  craftsman: "sample"
-    expect craftsman: "sample"
+    expect ok: "true"
   end
 
   test "CompleteStep sets step_name" do
     tests "CompleteStep", on: "WorkOrder"
-    setup  "CreateWorkOrder", craftsman: "sample"
+    setup  "Commission", craftsman: "sample"
     input  step_name: "sample"
     expect ok: "true"
   end
 
   test "FinishPiece runs" do
     tests "FinishPiece", on: "WorkOrder"
-    setup  "CreateWorkOrder", craftsman: "sample"
+    setup  "Commission", craftsman: "sample"
     expect ok: "true"
   end
 

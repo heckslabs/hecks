@@ -24,9 +24,9 @@ Hecks.bluebook "Viticulture" do
       given "vineyard must have three years without synthetic inputs"
     end
 
-    command "UpdateAppellation" do
+    command "Reclassify" do
       description "Change the official appellation designation"
-      emits "AppellationUpdated"
+      emits "Reclassified"
       reference_to Vineyard
       String :new_appellation
     end

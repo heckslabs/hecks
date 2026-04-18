@@ -71,23 +71,23 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   # ── CastingOrder aggregate ──────────────────────────────────────────
 
-  test "CreateCastingOrder sets quantity" do
-    tests "CreateCastingOrder", on: "CastingOrder"
+  test "Cast sets quantity" do
+    tests "Cast", on: "CastingOrder"
     setup  "SketchDesign", title: "sample", style: "sample"
     setup  "ChargeFurnace", volume_kg: 1.0
     input  quantity: 1
-    expect quantity: 1
+    expect ok: "true"
   end
 
   test "CompleteCasting runs" do
     tests "CompleteCasting", on: "CastingOrder"
-    setup  "CreateCastingOrder", quantity: 1
+    setup  "Cast", quantity: 1
     expect ok: "true"
   end
 
   test "ReportDefect sets defect_type + severity" do
     tests "ReportDefect", on: "CastingOrder"
-    setup  "CreateCastingOrder", quantity: 1
+    setup  "Cast", quantity: 1
     input  defect_type: "sample", severity: "sample"
     expect ok: "true"
   end

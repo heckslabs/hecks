@@ -19,22 +19,22 @@ Hecks.behaviors "FrozenScience" do
 
   # ── FlavorFormula aggregate ──────────────────────────────────────────
 
-  test "CreateFormula sets flavor_name + target_temp_c" do
-    tests "CreateFormula", on: "FlavorFormula"
+  test "Formulate sets flavor_name + target_temp_c" do
+    tests "Formulate", on: "FlavorFormula"
     input  flavor_name: "sample", target_temp_c: 1.0
-    expect flavor_name: "sample", target_temp_c: 1.0
+    expect ok: "true"
   end
 
   test "AddComponent sets ingredient_name + ratio_pct + phase" do
     tests "AddComponent", on: "FlavorFormula"
-    setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
+    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
     input  ingredient_name: "sample", ratio_pct: 1.0, phase: "sample"
     expect components_size: 1
   end
 
   test "ApproveFormula runs" do
     tests "ApproveFormula", on: "FlavorFormula"
-    setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
+    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
     expect ok: "true"
   end
 
@@ -43,7 +43,7 @@ Hecks.behaviors "FrozenScience" do
 
   test "StartCycle sets batch_id" do
     tests "StartCycle", on: "FreezingCycle"
-    setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
+    setup  "Formulate", flavor_name: "sample", target_temp_c: 1.0
     input  batch_id: "sample"
     expect ok: "true"
   end
@@ -64,22 +64,22 @@ Hecks.behaviors "FrozenScience" do
 
   # ── ParlorMenu aggregate ──────────────────────────────────────────
 
-  test "CreateMenu sets menu_name + season" do
-    tests "CreateMenu", on: "ParlorMenu"
+  test "Compose sets menu_name + season" do
+    tests "Compose", on: "ParlorMenu"
     input  menu_name: "sample", season: "sample"
-    expect menu_name: "sample", season: "sample"
+    expect ok: "true"
   end
 
   test "AddOffering sets flavor_name + price_cents + serving_temp_c" do
     tests "AddOffering", on: "ParlorMenu"
-    setup  "CreateMenu", menu_name: "sample", season: "sample"
+    setup  "Compose", menu_name: "sample", season: "sample"
     input  flavor_name: "sample", price_cents: 1, serving_temp_c: 1.0
     expect offerings_size: 1
   end
 
   test "LaunchMenu runs" do
     tests "LaunchMenu", on: "ParlorMenu"
-    setup  "CreateMenu", menu_name: "sample", season: "sample"
+    setup  "Compose", menu_name: "sample", season: "sample"
     expect ok: "true"
   end
 

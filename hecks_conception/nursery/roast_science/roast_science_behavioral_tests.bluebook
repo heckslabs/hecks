@@ -65,23 +65,23 @@ Hecks.behaviors "RoastScience" do
 
   # ── BrewRecipe aggregate ──────────────────────────────────────────
 
-  test "CreateRecipe sets recipe_name + brew_method" do
-    tests "CreateRecipe", on: "BrewRecipe"
+  test "Compose sets recipe_name + brew_method" do
+    tests "Compose", on: "BrewRecipe"
     setup  "StartBatch", batch_number: "sample", weight_kg: 1.0
     input  recipe_name: "sample", brew_method: "sample"
-    expect recipe_name: "sample", brew_method: "sample"
+    expect ok: "true"
   end
 
   test "SetParameter sets param_name + value + unit" do
     tests "SetParameter", on: "BrewRecipe"
-    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
+    setup  "Compose", recipe_name: "sample", brew_method: "sample"
     input  param_name: "sample", value: 1.0, unit: "sample"
     expect parameters_size: 1
   end
 
   test "PublishRecipe runs" do
     tests "PublishRecipe", on: "BrewRecipe"
-    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
+    setup  "Compose", recipe_name: "sample", brew_method: "sample"
     expect ok: "true"
   end
 

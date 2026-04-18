@@ -63,9 +63,9 @@ Hecks.bluebook "SmartGrocery" do
       end
     end
 
-    command "CreateProfile" do
+    command "Enroll" do
       role "Customer"
-      goal "Create a dietary profile"
+      goal "Enroll a customer with a dietary profile"
       attribute :customer_name
       attribute :calorie_target, Integer
     end
@@ -150,9 +150,9 @@ Hecks.bluebook "SmartGrocery" do
       end
     end
 
-    command "GenerateList" do
+    command "Compile" do
       role "SmartSystem"
-      goal "Generate shopping list from meal plan"
+      goal "Compile shopping list from meal plan"
       reference_to MealPlan
     end
 
@@ -175,15 +175,15 @@ Hecks.bluebook "SmartGrocery" do
     end
   end
 
-  policy "ProfileCreatedTriggersPlan" do
-    on "ProfileCreated"
+  policy "EnrolledTriggersPlan" do
+    on "Enrolled"
     trigger "GeneratePlan"
     map dietary_profile_id: :profile_id
   end
 
   policy "PlanApprovedTriggersList" do
     on "PlanApproved"
-    trigger "GenerateList"
+    trigger "Compile"
     map meal_plan_id: :plan_id
   end
 

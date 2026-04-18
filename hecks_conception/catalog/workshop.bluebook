@@ -148,7 +148,7 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "Workshop", definition: "Interactive domain-building session for REPL-driven development" do
 
-    command "CreateSession" do
+    command "Convene" do
       attribute :name, String
     end
 

@@ -21,8 +21,8 @@ Hecks.behaviors "TrainingCorpus" do
 
   # ── TrainingPair aggregate ──────────────────────────────────────────
 
-  test "CreatePair sets bluebook_source + ir_json + valid + tier" do
-    tests "CreatePair", on: "TrainingPair"
+  test "MintPair sets bluebook_source + ir_json + valid + tier" do
+    tests "MintPair", on: "TrainingPair"
     input  bluebook_source: "sample", ir_json: "sample", valid: "sample", tier: "sample"
     expect bluebook_source: "sample", ir_json: "sample", valid: "sample", tier: "sample"
   end

@@ -31,7 +31,7 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
     attribute :current_thought, String
     attribute :ideas_available, Integer
 
-    command "UpdateDisplay" do
+    command "RefreshDisplay" do
       description "Refresh the statusline thought"
       attribute :current_thought, String
       attribute :ideas_available, Integer
@@ -127,7 +127,7 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
 
   policy "DisplayOnTick" do
     on "Ticked"
-    trigger "UpdateDisplay"
+    trigger "RefreshDisplay"
   end
 
   policy "PruneMusingsOnTick" do

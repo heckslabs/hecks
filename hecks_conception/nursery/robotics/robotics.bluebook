@@ -17,9 +17,9 @@ Hecks.bluebook "Robotics" do
       String :platform_type
     end
 
-    command "UpdateFirmware" do
+    command "FlashFirmware" do
       description "Flash new firmware to the robot controller"
-      emits "FirmwareUpdated"
+      emits "FirmwareFlashed"
       reference_to Robot
       String :new_version
       given "robot must be in standby mode"

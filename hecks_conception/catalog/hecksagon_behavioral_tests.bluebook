@@ -148,8 +148,8 @@ Hecks.behaviors "Hecksagon" do
 
   # ── GateDefinition aggregate ──────────────────────────────────────────
 
-  test "Create sets aggregate + role" do
-    tests "Create", on: "GateDefinition"
+  test "Erect sets aggregate + role" do
+    tests "Erect", on: "GateDefinition"
     input  aggregate: "sample", role: "sample"
     expect ok: "true"
   end

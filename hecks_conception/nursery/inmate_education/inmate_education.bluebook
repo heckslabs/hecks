@@ -54,9 +54,9 @@ Hecks.bluebook "InmateEducation" do
       end
     end
 
-    command "CreateCourse" do
+    command "Author" do
       role "CurriculumDesigner"
-      goal "Create a new e-learning course"
+      goal "Author a new e-learning course"
       attribute :course_name
       attribute :subject
     end
@@ -136,6 +136,13 @@ Hecks.bluebook "InmateEducation" do
       attribute :merit_type
       attribute :description
       attribute :date
+    end
+
+    command "OpenRecord" do
+      role "CaseManager"
+      goal "Open a behavior record for an inmate"
+      reference_to Inmate
+      emits "RecordOpened"
     end
 
     command "RecordInfraction" do

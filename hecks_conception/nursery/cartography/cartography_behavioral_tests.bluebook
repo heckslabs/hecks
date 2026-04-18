@@ -3,21 +3,21 @@ Hecks.behaviors "Cartography" do
 
   # ── MapSheet aggregate ──────────────────────────────────────────
 
-  test "CreateSheet sets sheet_id + title + scale" do
-    tests "CreateSheet", on: "MapSheet"
+  test "Plate sets sheet_id + title + scale" do
+    tests "Plate", on: "MapSheet"
     input  sheet_id: "sample", title: "sample", scale: "sample"
-    expect sheet_id: "sample", title: "sample", scale: "sample"
+    expect ok: "true"
   end
 
   test "PublishSheet runs" do
     tests "PublishSheet", on: "MapSheet"
-    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
     expect ok: "true"
   end
 
   test "RetireSheet runs" do
     tests "RetireSheet", on: "MapSheet"
-    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
     expect ok: "true"
   end
 
@@ -42,7 +42,7 @@ Hecks.behaviors "Cartography" do
 
   test "DigitizeFeature sets feature_type + name + geometry_wkt" do
     tests "DigitizeFeature", on: "GeographicFeature"
-    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
     input  feature_type: "sample", name: "sample", geometry_wkt: "sample"
     expect ok: "true"
   end
@@ -54,8 +54,8 @@ Hecks.behaviors "Cartography" do
     expect ok: "true"
   end
 
-  test "DeleteFeature runs" do
-    tests "DeleteFeature", on: "GeographicFeature"
+  test "Erase runs" do
+    tests "Erase", on: "GeographicFeature"
     setup  "DigitizeFeature", feature_type: "sample", name: "sample", geometry_wkt: "sample"
     expect ok: "true"
   end
@@ -81,7 +81,7 @@ Hecks.behaviors "Cartography" do
 
   test "SubmitRevision sets change_description" do
     tests "SubmitRevision", on: "MapRevision"
-    setup  "CreateSheet", sheet_id: "sample", title: "sample", scale: "sample"
+    setup  "Plate", sheet_id: "sample", title: "sample", scale: "sample"
     input  change_description: "sample"
     expect ok: "true"
   end

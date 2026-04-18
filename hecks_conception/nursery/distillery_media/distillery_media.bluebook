@@ -18,7 +18,7 @@ Hecks.bluebook "DistilleryMedia" do
       end
     end
 
-    command "CreateSpirit" do
+    command "Distill" do
       role "Distiller"
       goal "Start a new spirit recipe"
       attribute :name

@@ -246,8 +246,8 @@ Hecks.behaviors "Cli" do
 
   # ── NewProjectCommand aggregate ──────────────────────────────────────────
 
-  test "Create sets project_name" do
-    tests "Create", on: "NewProjectCommand"
+  test "Scaffold sets project_name" do
+    tests "Scaffold", on: "NewProjectCommand"
     input  project_name: "sample"
     expect ok: "true"
   end

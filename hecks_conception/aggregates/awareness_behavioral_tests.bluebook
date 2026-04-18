@@ -51,8 +51,8 @@ Hecks.behaviors "Awareness" do
 
   # ── SelfModel aggregate ──────────────────────────────────────────
 
-  test "UpdateSelfModel sets organs + impulses + fatigue_state + consciousness_state + nursery_size + family_size" do
-    tests "UpdateSelfModel", on: "SelfModel"
+  test "RefreshSelfModel sets organs + impulses + fatigue_state + consciousness_state + nursery_size + family_size" do
+    tests "RefreshSelfModel", on: "SelfModel"
     input  organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     expect organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
   end

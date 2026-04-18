@@ -93,9 +93,9 @@ Hecks.bluebook "WaterQualityAPI" do
       attribute :tier
     end
 
-    command "CreateEndpoint" do
+    command "Draft" do
       role "APIDeveloper"
-      goal "Create a new API endpoint"
+      goal "Draft a new API endpoint"
       attribute :endpoint_path
       attribute :description
       attribute :rate_limit, Integer
