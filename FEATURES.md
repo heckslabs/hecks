@@ -172,6 +172,15 @@
 - **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Miette. 7 aggregates, 3 policies, seeded with current Linear issues.
 - **DLMState** — the DLM tracks itself in Heki. SessionState, GrowthTracker, HonestyTracker, DreamLog, PerformanceMetric, SynapseHistory — 6 aggregates, 18 commands, 5 cross-domain policies. Acceleration rate measures domains conceived per session. Persists across sleep cycles.
 
+### Parity Suite
+- **Ruby ↔ Rust IR conformance** — `spec/parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
+- **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `spec/parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
+- **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
+- **Known-drift list** — `spec/parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
+- **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
+- **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
+- **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
+
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
 - `Hecks.boot(__dir__, adapter: :sqlite)` — automatic SQL setup
