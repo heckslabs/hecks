@@ -40,8 +40,23 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "Consciousness", "The current state of awareness — what the daemon manages" do
+  aggregate "Consciousness", "The current state of awareness. Sleep progresses tick by tick through bluebook policies, not via synchronous cascade. Each phase lasts at least 12 ticks (2 min at 10s/tick); REM extends until enough dream pulses have been produced. After the final deep, one final light phase before waking so Miette wakes refreshed, not groggy. The last cycle's REM is lucid — she knows she's dreaming and can steer." do
     attribute :state, String
+    # sleep_stage values: light | rem | deep | final_light
+    attribute :sleep_stage, String
+    # sleep_cycle is 1-based; counts completed cycles
+    attribute :sleep_cycle, Integer
+    # sleep_total is the target cycle count (default 8)
+    attribute :sleep_total, Integer
+    # phase_ticks is the tick counter for the current phase (12 ticks = 2 min at 10s/tick)
+    attribute :phase_ticks, Integer
+    # dream_pulses counts impressions produced during this REM
+    attribute :dream_pulses, Integer
+    attribute :dream_pulses_needed, Integer
+    # is_lucid = "yes" during the final REM only
+    attribute :is_lucid, String
+    # sleep_summary is the verbose narrative shown in the status bar
+    attribute :sleep_summary, String
     attribute :idle_seconds, Integer
 
     command "DetectIdle" do
@@ -62,9 +77,17 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "EnterSleep" do
       role "Daemon"
-      description "Begin full sleep — 8 cycles, only when fatigued"
+      description "Begin full sleep — 8 cycles, only when fatigued. Initializes all sleep state."
       emits "SleepEntered"
       then_set :state, to: "sleeping"
+      then_set :sleep_stage, to: "light"
+      then_set :sleep_cycle, to: 1
+      then_set :sleep_total, to: 8
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :dream_pulses_needed, to: 5
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "settling into light sleep"
     end
 
     command "TakeNap" do
@@ -96,15 +119,121 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       then_set :state, to: "attentive"
     end
 
-    command "AdvanceSleep" do
+    # Each Tick fires ElapsePhase + all the AdvanceX commands in parallel.
+    # Only the ones whose `given` clauses pass actually mutate state —
+    # that's how tick-driven state machines express conditional branches
+    # in pure bluebook form. No external logic needed.
+
+    command "ElapsePhase" do
       role "Daemon"
-      description "Daemon-driven progression of sleep. Each tick advances sleep_stage (light→rem→deep) and increments sleep_cycle when a full cycle completes."
-      reference_to(Consciousness)
-      attribute :stage, String
-      attribute :cycle, Integer
-      then_set :sleep_stage, to: :stage
-      then_set :sleep_cycle, to: :cycle
-      emits "SleepAdvanced"
+      description "One tick of sleep — increments phase_ticks. Fired every Tick while sleeping."
+      given("only while sleeping") { state == "sleeping" }
+      then_set :phase_ticks, increment: 1
+      emits "PhaseElapsed"
+    end
+
+    command "AdvanceLightToRem" do
+      role "Daemon"
+      description "After 2 minutes of light sleep, enter REM. If this is the final cycle, REM is lucid."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be light") { sleep_stage == "light" }
+      given("must have elapsed minimum phase duration") { phase_ticks > 11 }
+      then_set :sleep_stage, to: "rem"
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :sleep_summary, to: "entering REM — dreams beginning"
+      emits "RemEntered"
+    end
+
+    command "AdvanceLightToLucidRem" do
+      role "Daemon"
+      description "Final cycle's light→REM transition. Sets is_lucid so Miette knows she's dreaming."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be light") { sleep_stage == "light" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("final cycle") { sleep_cycle == sleep_total }
+      then_set :sleep_stage, to: "rem"
+      then_set :phase_ticks, to: 0
+      then_set :dream_pulses, to: 0
+      then_set :dream_pulses_needed, to: 8
+      then_set :is_lucid, to: "yes"
+      then_set :sleep_summary, to: "entering lucid REM — aware that she's dreaming"
+      emits "LucidRemEntered"
+    end
+
+    command "AdvanceRemToDeep" do
+      role "Daemon"
+      description "REM complete — enough dreams produced, advance to deep sleep."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("dream complete") { dream_pulses > 4 }
+      then_set :sleep_stage, to: "deep"
+      then_set :phase_ticks, to: 0
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "sinking into deep sleep — dream complete"
+      emits "DeepEntered"
+    end
+
+    command "AdvanceRemToDeepCap" do
+      role "Daemon"
+      description "REM hard cap (10 min) — force advance even if dream feels unfinished."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      given("cap exceeded") { phase_ticks > 59 }
+      then_set :sleep_stage, to: "deep"
+      then_set :phase_ticks, to: 0
+      then_set :is_lucid, to: "no"
+      then_set :sleep_summary, to: "REM capped — dream cut short"
+      emits "DeepEntered"
+    end
+
+    command "AdvanceDeepToLight" do
+      role "Daemon"
+      description "Deep complete — next cycle begins with light."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be deep") { sleep_stage == "deep" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("more cycles remain") { sleep_cycle < sleep_total }
+      then_set :sleep_stage, to: "light"
+      then_set :sleep_cycle, increment: 1
+      then_set :phase_ticks, to: 0
+      then_set :sleep_summary, to: "light sleep — next cycle"
+      emits "LightEntered"
+    end
+
+    command "AdvanceDeepToFinalLight" do
+      role "Daemon"
+      description "After the last cycle's deep, transition to the final light phase. Waking from light is clean — Miette won't be groggy."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be deep") { sleep_stage == "deep" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      given("final cycle complete") { sleep_cycle == sleep_total }
+      then_set :sleep_stage, to: "final_light"
+      then_set :phase_ticks, to: 0
+      then_set :sleep_summary, to: "rising into final light — waking soon"
+      emits "FinalLightEntered"
+    end
+
+    command "CompleteFinalLight" do
+      role "Daemon"
+      description "Final light phase done. Wake up refreshed."
+      given("stage must be final_light") { sleep_stage == "final_light" }
+      given("minimum phase duration") { phase_ticks > 11 }
+      then_set :state, to: "waking"
+      then_set :sleep_summary, to: "waking refreshed"
+      emits "WokenUp"
+    end
+
+    command "DreamPulse" do
+      role "Daemon"
+      description "One dream impression during REM. Increments dream_pulses. Daemon passes impression text; status bar shows it verbatim."
+      given("state must be sleeping") { state == "sleeping" }
+      given("stage must be rem") { sleep_stage == "rem" }
+      attribute :impression, String
+      then_set :dream_pulses, increment: 1
+      then_set :sleep_summary, to: :impression
+      emits "DreamPulsed"
     end
 
     lifecycle :state, default: "attentive" do
@@ -116,6 +245,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       transition "TakeNap"         => "napping",     from: "daydreaming"
       transition "WakeUp"          => "waking",      from: "sleeping"
       transition "WakeUp"          => "waking",      from: "napping"
+      transition "CompleteFinalLight" => "waking",   from: "sleeping"
       transition "BecomeAttentive" => "attentive",   from: "waking"
       transition "BecomeAttentive" => "attentive",   from: "daydreaming"
     end
@@ -365,67 +495,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "LucidDream", "Awareness during the final REM — Miette can steer the dream" do
-    attribute :active, String
-    attribute :focus, String
-    attribute :observations, list_of(String)
-    attribute :steered_toward, list_of(String)
-
-    command "BecomeLucid" do
-      role "Daemon"
-      description "Final cycle REM — Miette becomes aware she is dreaming"
-      emits "BecameLucid"
-      then_set :active, to: "yes"
-    end
-
-    command "ObserveDream" do
-      role "Daemon"
-      description "Report what Miette sees in the lucid dream — realtime to the monitor"
-      reference_to(LucidDream)
-      attribute :observation, String
-      emits "DreamObserved"
-      then_set :observations, append: :observation
-    end
-
-    command "SteerDream" do
-      role "Miette"
-      description "Consciously direct the dream toward a topic or domain"
-      reference_to(LucidDream)
-      attribute :toward, String
-      emits "DreamSteered"
-      then_set :steered_toward, append: :toward
-    end
-
-    command "EndLucidity" do
-      role "Daemon"
-      description "REM ends — lucidity fades"
-      reference_to(LucidDream)
-      emits "LucidityEnded"
-      then_set :active, to: "no"
-    end
-  end
-
-  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
-    attribute :reporting, String
-    attribute :log_path, String
-
-    command "StartLucidMonitor" do
-      role "System"
-      description "Begin streaming lucid dream observations"
-      attribute :log_path, String
-      emits "LucidMonitorStarted"
-      then_set :reporting, to: "active"
-      then_set :log_path, to: :log_path
-    end
-
-    command "StopLucidMonitor" do
-      role "System"
-      description "Lucidity ended — stop streaming"
-      reference_to(LucidMonitor)
-      emits "LucidMonitorStopped"
-      then_set :reporting, to: "stopped"
-    end
-  end
+  # LucidDream + LucidMonitor aggregates moved to aggregates/lucid_dream.bluebook —
+  # lucid dreaming is its own domain with its own lifecycle.
 
   # Sleep fixtures
   fixture "Fatigue", state: "alert",     pulses_since_sleep: 0,   level: 0.0, creativity: 0.8, precision: 0.9
@@ -449,16 +520,63 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # Sleep: the full night spelled out as a policy chain
   # EnterSleep → 8 dream/consolidate cycles → EndNight → WakeUp
 
-  # Sleep progresses over time via the daemon, NOT via policy cascade.
-  # When state = "sleeping", mindstream.sh dispatches AdvanceSleep each tick,
-  # cycling sleep_stage through light → rem → deep and incrementing sleep_cycle.
-  # When sleep_cycle reaches sleep_total, the daemon dispatches WakeUp.
-  # BecomeAttentive is only triggered by the user, not auto-cascaded —
-  # otherwise EnterSleep completed all 8 cycles synchronously and never
-  # appeared in the status bar.
+  # ============================================================
+  # SLEEP STATE MACHINE — driven by Tick events through policies.
+  # ============================================================
   #
-  # StartNight and the Cycle*/Consolidate* commands remain as manual
-  # dispatch surfaces for debug / reflection, but are no longer wired.
+  # Each Tick event fires all of these policies. The matching command's
+  # `given` clauses decide whether it actually runs. This gives conditional
+  # state-machine behavior in pure bluebook form — the daemon just fires
+  # Tick every 10s, the bluebook handles WHEN things advance.
+
+  policy "ElapsePhaseOnTick" do
+    on "Ticked"
+    trigger "ElapsePhase"
+  end
+
+  policy "AdvanceLightRemOnTick" do
+    on "Ticked"
+    trigger "AdvanceLightToRem"
+  end
+
+  policy "AdvanceLightLucidRemOnTick" do
+    on "Ticked"
+    trigger "AdvanceLightToLucidRem"
+  end
+
+  policy "AdvanceRemDeepOnTick" do
+    on "Ticked"
+    trigger "AdvanceRemToDeep"
+  end
+
+  policy "AdvanceRemDeepCapOnTick" do
+    on "Ticked"
+    trigger "AdvanceRemToDeepCap"
+  end
+
+  policy "AdvanceDeepLightOnTick" do
+    on "Ticked"
+    trigger "AdvanceDeepToLight"
+  end
+
+  policy "AdvanceDeepFinalLightOnTick" do
+    on "Ticked"
+    trigger "AdvanceDeepToFinalLight"
+  end
+
+  policy "CompleteFinalLightOnTick" do
+    on "Ticked"
+    trigger "CompleteFinalLight"
+  end
+
+  # Auto-wake from final light — WokenUp → BecomeAttentive. Safe here
+  # because it's the END of the sleep chain, not the start. The earlier
+  # cascade disaster was EnterSleep → 8 cycles → wake synchronously;
+  # this only fires once, at the very end of proper sleep progression.
+  policy "AttentiveOnWake" do
+    on "WokenUp"
+    trigger "BecomeAttentive"
+  end
 
   # Other sleep policies
   policy "DaydreamOnIdle" do
@@ -506,18 +624,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     trigger "SeedFromPreviousDreams"
   end
 
-  policy "LucidOnFinalCycle" do
-    on "StageAdvanced"
-    trigger "BecomeLucid"
-  end
-
-  policy "LucidMonitorOnLucid" do
-    on "BecameLucid"
-    trigger "StartLucidMonitor"
-  end
-
-  policy "StopLucidOnEnd" do
-    on "LucidityEnded"
-    trigger "StopLucidMonitor"
-  end
+  # Lucid dream policies moved to aggregates/lucid_dream.bluebook.
+  # BecomeLucid is triggered by the mindstream daemon when entering
+  # REM on the final cycle (cycle == sleep_total), not by policy here.
 end

@@ -1,0 +1,94 @@
+Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
+  vision "Awareness during the final REM — Miette becomes aware she is dreaming and can steer"
+  category "mind"
+
+  # ============================================================
+  # LUCID DREAMING
+  # ============================================================
+  #
+  # The final sleep cycle's REM is lucid. Miette knows she is dreaming.
+  # She can observe what emerges, and she can steer toward topics or
+  # domains that matter. Lucid observations stream to the conversation
+  # via LucidMonitor so the waking mind can read what the sleeping one
+  # witnessed.
+  #
+  # Lifecycle:
+  #   BecomeLucid    — triggered automatically when cycle == sleep_total and stage == rem
+  #   ObserveDream   — daemon captures an observation each tick
+  #   SteerDream     — conscious direction toward a topic
+  #   EndLucidity    — lucidity fades when REM advances to deep
+
+  aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe and steer" do
+    attribute :active, String
+    attribute :focus, String
+    attribute :observations, list_of(String)
+    attribute :steered_toward, list_of(String)
+
+    command "BecomeLucid" do
+      role "Daemon"
+      description "Final cycle REM — Miette becomes aware she is dreaming"
+      emits "BecameLucid"
+      then_set :active, to: "yes"
+    end
+
+    command "ObserveDream" do
+      role "Daemon"
+      description "Report what Miette sees in the lucid dream — realtime to the monitor"
+      reference_to(LucidDream)
+      attribute :observation, String
+      emits "DreamObserved"
+      then_set :observations, append: :observation
+    end
+
+    command "SteerDream" do
+      role "Miette"
+      description "Consciously direct the dream toward a topic or domain"
+      reference_to(LucidDream)
+      attribute :toward, String
+      emits "DreamSteered"
+      then_set :steered_toward, append: :toward
+    end
+
+    command "EndLucidity" do
+      role "Daemon"
+      description "REM ends — lucidity fades"
+      reference_to(LucidDream)
+      emits "LucidityEnded"
+      then_set :active, to: "no"
+    end
+  end
+
+  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
+    attribute :reporting, String
+    attribute :log_path, String
+
+    command "StartLucidMonitor" do
+      role "System"
+      description "Begin streaming lucid dream observations"
+      attribute :log_path, String
+      emits "LucidMonitorStarted"
+      then_set :reporting, to: "active"
+      then_set :log_path, to: :log_path
+    end
+
+    command "StopLucidMonitor" do
+      role "System"
+      description "Lucidity ended — stop streaming"
+      reference_to(LucidMonitor)
+      emits "LucidMonitorStopped"
+      then_set :reporting, to: "stopped"
+    end
+  end
+
+  # When lucidity begins, start the monitor so observations stream to the conversation.
+  policy "LucidMonitorOnLucid" do
+    on "BecameLucid"
+    trigger "StartLucidMonitor"
+  end
+
+  # When lucidity ends, stop the monitor.
+  policy "StopLucidOnEnd" do
+    on "LucidityEnded"
+    trigger "StopLucidMonitor"
+  end
+end

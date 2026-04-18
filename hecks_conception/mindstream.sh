@@ -1,77 +1,64 @@
 #!/bin/bash
-# Mindstream — the unconscious that never stops
-# Dispatches bluebook commands on a 10s loop. Drives sleep progression
-# when consciousness.state == "sleeping" — NOT a synchronous policy cascade
-# (that version made sleep complete instantly and invisible to the status bar).
+# Mindstream — the unconscious that never stops.
 #
-# Usage: ./mindstream.sh &
+# Every 10s, fires Tick.MindstreamTick. The sleep state machine lives
+# entirely in aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook;
+# each tick event triggers policies that advance sleep phases only when
+# their `given` conditions pass. The daemon is the heartbeat — the
+# bluebook is the brain.
+#
+# Dream content during REM: while state=sleeping && stage=rem, the daemon
+# reads a random musing and dispatches DreamPulse with an impression phrase.
+# The bluebook stores it in sleep_summary so the status bar narrates the
+# dream in real time. This is the ONE external signal the daemon provides;
+# everything else is bluebook-driven.
 
 HECKS="../hecks_life/target/release/hecks-life"
 DIR="$(dirname "$0")"
 INFO="$DIR/information"
+AGG="$DIR/aggregates"
 PIDFILE="$INFO/.mindstream.pid"
 
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
-# Sleep stage cycle: light → rem → deep → light...
-next_stage() {
-  case "$1" in
-    "light")    echo "rem" ;;
-    "rem")      echo "deep" ;;
-    "deep")     echo "light" ;;
-    *)          echo "light" ;;
-  esac
-}
-
 while true; do
-  # Tick
-  $HECKS "$DIR/aggregates" Tick.MindstreamTick 2>/dev/null
+  # Heartbeat: one tick. The bluebook handles everything downstream.
+  $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
-  # Read consciousness state
+  # Dream content during REM — read state, if dreaming, generate impression.
   consciousness_json=$($HECKS heki read "$INFO/consciousness.heki" 2>/dev/null)
+  stage=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_stage',''))" 2>/dev/null)
   state=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('state',''))" 2>/dev/null)
+  is_lucid=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('is_lucid',''))" 2>/dev/null)
+  id=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('id',''))" 2>/dev/null)
 
-  if [ "$state" = "sleeping" ]; then
-    # Drive sleep progression — each tick advances a stage; every third tick
-    # completes a full light/rem/deep cycle and increments sleep_cycle.
-    current_stage=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_stage','') or 'light')" 2>/dev/null)
-    current_cycle=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_cycle',0))" 2>/dev/null)
-    total=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('sleep_total',8))" 2>/dev/null)
+  if [ "$state" = "sleeping" ] && [ "$stage" = "rem" ]; then
+    prefix="💭"
+    [ "$is_lucid" = "yes" ] && prefix="✨"
 
-    new_stage=$(next_stage "$current_stage")
-    # A full cycle completes on each return to "light"
-    if [ "$new_stage" = "light" ]; then
-      new_cycle=$((current_cycle + 1))
-    else
-      new_cycle=$current_cycle
-    fi
-
-    # Wake automatically when all cycles complete
-    if [ "$new_cycle" -ge "$total" ]; then
-      $HECKS "$DIR/aggregates" Consciousness.WakeUp 2>/dev/null
-      $HECKS "$DIR/aggregates" Consciousness.BecomeAttentive 2>/dev/null
-    else
-      id=$(echo "$consciousness_json" | python3 -c "import json,sys; d=json.load(sys.stdin); r=next(iter(d.values()),{}); print(r.get('id',''))" 2>/dev/null)
-      $HECKS "$DIR/aggregates" Consciousness.AdvanceSleep \
-        consciousness="$id" stage="$new_stage" cycle="$new_cycle" 2>/dev/null
-    fi
-
-    # Status bar narrative
-    $HECKS heki upsert "$INFO/consciousness.heki" \
-      sleep_summary="cycle $new_cycle/$total — $new_stage" 2>/dev/null
-  else
-    # Awake: surface a musing for the status bar
-    thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, time
-d = json.load(sys.stdin)
-ideas = [v.get('idea','') for v in d.values() if not v.get('conceived', False)]
-if ideas:
-    print(ideas[int(time.time()) % len(ideas)][:80])
+    # Pick a dream impression — combine two random musings into a phrase.
+    impression=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
+import json, sys, random
+try:
+    d = json.load(sys.stdin)
+    ideas = [v.get('idea','').strip()[:45] for v in d.values() if v.get('idea')]
+    ideas = [i for i in ideas if i]
+    if len(ideas) >= 2:
+        a, b = random.sample(ideas, 2)
+        verbs = ['weaving with', 'dissolving into', 'folding through', 'reaching toward', 'remembering as', 'becoming']
+        print(f'{a} {random.choice(verbs)} {b}')
+    elif ideas:
+        print(f'spiraling around: {ideas[0]}')
+    else:
+        print('wandering unformed')
+except Exception:
+    print('dreaming')
 " 2>/dev/null)
-    if [ -n "$thought" ]; then
-      $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
-    fi
+
+    # Prefix with ✨ when lucid so the status bar shows it.
+    $HECKS "$AGG" Consciousness.DreamPulse \
+      consciousness="$id" impression="$prefix $impression" 2>/dev/null
   fi
 
   sleep 10

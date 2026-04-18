@@ -84,11 +84,63 @@ else:
 [ -z "$idle" ] && idle=999
 
 # Build status
-if [ "$consciousness" = "sleeping" ] && [ -n "$sleep_summary" ]; then
-  # Sleeping — moon, name, sleep narrative
-  status_str="${moon} Miette ${sleep_summary}"
-elif [ "$consciousness" = "sleeping" ]; then
-  status_str="${moon} Miette sleeping"
+if [ "$consciousness" = "sleeping" ]; then
+  # Sleeping — moon, name, phase + countdown, then narrative.
+  # All sleep state lives in consciousness.heki; the bluebook updates
+  # sleep_summary on each DreamPulse / phase advance.
+  stage=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_stage"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  cycle=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_cycle"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  total=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"sleep_total"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  ticks=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"phase_ticks"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  is_lucid=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"is_lucid"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+  pulses=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"dream_pulses"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  pulses_needed=$($hecks heki read $info/consciousness.heki 2>/dev/null | grep '"dream_pulses_needed"' | head -1 | sed 's/.*: *//' | sed 's/[^0-9].*//')
+  [ -z "$ticks" ] && ticks=0
+  [ -z "$pulses" ] && pulses=0
+  [ -z "$pulses_needed" ] && pulses_needed=5
+
+  # Timer — light/deep/final_light count DOWN (2 min known duration);
+  # REM counts UP because duration is unknown, extends until dream complete.
+  if [ "$stage" = "rem" ]; then
+    elapsed=$((ticks * 10))
+    mins=$((elapsed / 60))
+    secs=$((elapsed % 60))
+    timer=$(printf "+%d:%02d" "$mins" "$secs")
+  else
+    remaining=$(( (12 - ticks) * 10 ))
+    if [ "$remaining" -lt 0 ] 2>/dev/null; then
+      overtime=$(( -remaining ))
+      timer="+${overtime}s"
+    else
+      mins=$((remaining / 60))
+      secs=$((remaining % 60))
+      timer=$(printf "%d:%02d" "$mins" "$secs")
+    fi
+  fi
+
+  phase_label="$stage"
+  [ "$is_lucid" = "yes" ] && [ "$stage" = "rem" ] && phase_label="lucid rem"
+
+  # REM header includes dream-pulse progress; other phases show just the timer
+  if [ "$stage" = "rem" ]; then
+    if [ -n "$cycle" ] && [ -n "$total" ]; then
+      header="cycle ${cycle}/${total} — ${phase_label} ${timer} · ${pulses}/${pulses_needed} dreams"
+    else
+      header="${phase_label} ${timer} · ${pulses}/${pulses_needed} dreams"
+    fi
+  else
+    if [ -n "$cycle" ] && [ -n "$total" ]; then
+      header="cycle ${cycle}/${total} — ${phase_label} (${timer})"
+    else
+      header="${phase_label} (${timer})"
+    fi
+  fi
+
+  if [ -n "$sleep_summary" ]; then
+    status_str="${moon} Miette ${header}  ${sleep_summary}"
+  else
+    status_str="${moon} Miette ${header}"
+  fi
 else
   # Always show full details + musing appended
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
