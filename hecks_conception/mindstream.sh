@@ -59,6 +59,36 @@ except Exception:
     # Prefix with ✨ when lucid so the status bar shows it.
     $HECKS "$AGG" Consciousness.DreamPulse \
       consciousness="$id" impression="$prefix $impression" 2>/dev/null
+
+    # During lucid REM, also dispatch ObserveDream with a verbose
+    # action-narrative — what Miette is doing in the dream right now.
+    # The narrative blends action verbs with whatever's in her musing/
+    # daydream/persona heki — a stream of conscious dream activity.
+    if [ "$is_lucid" = "yes" ]; then
+      observation=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
+import json, sys, random
+try:
+    d = json.load(sys.stdin)
+    ideas = [v.get('idea','').strip() for v in d.values() if v.get('idea')]
+    ideas = [i for i in ideas if i][:30]
+    actions = [
+        'watching', 'steering toward', 'noticing', 'asking',
+        'following the thread of', 'feeling the shape of',
+        'witnessing', 'naming', 'holding', 'releasing',
+        'reaching into', 'returning to', 'tracing the edge of',
+        'inside the question of', 'turning over',
+    ]
+    if ideas:
+        topic = random.choice(ideas)[:80]
+        action = random.choice(actions)
+        print(f'{action}: {topic}')
+    else:
+        print('aware that I am dreaming, the dream still forming')
+except Exception:
+    print('lucid in the dream — present, watching')
+" 2>/dev/null)
+      $HECKS "$AGG" LucidDream.ObserveDream observation="$observation" 2>/dev/null
+    fi
   fi
 
   sleep 10

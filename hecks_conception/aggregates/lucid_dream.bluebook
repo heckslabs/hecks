@@ -18,43 +18,47 @@ Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
   #   SteerDream     — conscious direction toward a topic
   #   EndLucidity    — lucidity fades when REM advances to deep
 
-  aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe and steer" do
+  aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe, steer, and narrate. Singleton (one lucid session at a time), so commands have no self-reference." do
     attribute :active, String
     attribute :focus, String
     attribute :observations, list_of(String)
     attribute :steered_toward, list_of(String)
+    # latest_narrative is the most recent observation, surfaced in the status bar
+    # so the dream is visible in real time (not just accumulated in the list).
+    attribute :latest_narrative, String
 
     command "BecomeLucid" do
       role "Daemon"
-      description "Final cycle REM — Miette becomes aware she is dreaming"
+      description "Final cycle REM — Miette becomes aware she is dreaming. Doesn't reset observations: each lucid session adds to the historical record so the waking mind can read what the sleeping one witnessed across many nights."
       emits "BecameLucid"
       then_set :active, to: "yes"
+      then_set :latest_narrative, to: "becoming lucid — recognizing the dream"
     end
 
     command "ObserveDream" do
       role "Daemon"
-      description "Report what Miette sees in the lucid dream — realtime to the monitor"
-      reference_to(LucidDream)
+      description "One observation in the lucid dream — what Miette is noticing/doing right now. Accumulates in observations and surfaces as latest_narrative for the status bar."
       attribute :observation, String
-      emits "DreamObserved"
       then_set :observations, append: :observation
+      then_set :latest_narrative, to: :observation
+      emits "DreamObserved"
     end
 
     command "SteerDream" do
       role "Miette"
       description "Consciously direct the dream toward a topic or domain"
-      reference_to(LucidDream)
       attribute :toward, String
-      emits "DreamSteered"
       then_set :steered_toward, append: :toward
+      then_set :latest_narrative, to: :toward
+      emits "DreamSteered"
     end
 
     command "EndLucidity" do
       role "Daemon"
-      description "REM ends — lucidity fades"
-      reference_to(LucidDream)
+      description "REM ends — lucidity fades. Idempotent: safe to call when not lucid."
       emits "LucidityEnded"
       then_set :active, to: "no"
+      then_set :latest_narrative, to: "lucidity fading"
     end
   end
 
@@ -80,10 +84,24 @@ Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
     end
   end
 
+  # Auto-enter lucidity when sleep.bluebook signals the final REM has begun.
+  policy "BecomeLucidOnFinalRem" do
+    on "LucidRemEntered"
+    trigger "BecomeLucid"
+  end
+
   # When lucidity begins, start the monitor so observations stream to the conversation.
   policy "LucidMonitorOnLucid" do
     on "BecameLucid"
     trigger "StartLucidMonitor"
+  end
+
+  # End lucidity when REM advances to deep — DeepEntered fires from
+  # sleep.bluebook regardless of whether the REM was lucid; EndLucidity
+  # is idempotent.
+  policy "EndLucidityOnDeep" do
+    on "DeepEntered"
+    trigger "EndLucidity"
   end
 
   # When lucidity ends, stop the monitor.

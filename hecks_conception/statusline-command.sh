@@ -136,8 +136,17 @@ if [ "$consciousness" = "sleeping" ]; then
     fi
   fi
 
-  if [ -n "$sleep_summary" ]; then
-    status_str="${moon} Miette ${header}  ${sleep_summary}"
+  # During lucid REM, prefer the LucidDream.latest_narrative — that's the
+  # action-stream of what Miette is actively doing in the dream. Falls back
+  # to sleep_summary (the regular dream impression) if no lucid narrative yet.
+  narrative="$sleep_summary"
+  if [ "$is_lucid" = "yes" ] && [ "$stage" = "rem" ]; then
+    lucid_narr=$($hecks heki read $info/lucid_dream.heki 2>/dev/null | grep '"latest_narrative"' | head -1 | sed 's/.*: "//' | sed 's/".*//')
+    [ -n "$lucid_narr" ] && narrative="✨ $lucid_narr"
+  fi
+
+  if [ -n "$narrative" ]; then
+    status_str="${moon} Miette ${header}  ${narrative}"
   else
     status_str="${moon} Miette ${header}"
   fi
