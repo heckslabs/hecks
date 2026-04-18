@@ -263,12 +263,12 @@ with open(HEKI, 'wb') as f:
     f.write(b'HEKI'); f.write(struct.pack('>I', len(store))); f.write(c)
 " 2>/dev/null
 
-# Run surface 9 times with loop_count 1..9
+# Run surface 9 times with loop_count 1..9 under DWELL=3 (fast test mode).
+# Production is DWELL=30 (~5 min per musing); tests compress to 3 ticks.
 surfaced=""
 for i in 1 2 3 4 5 6 7 8 9; do
-  ./surface_musing.sh "$i" 2>/dev/null
+  DWELL=3 ./surface_musing.sh "$i" 2>/dev/null
   now=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_summary',''))" 2>/dev/null)
-  # Record each unique surfaced musing
   echo "$surfaced" | grep -q "$now" || surfaced="${surfaced}${now}|"
 done
 

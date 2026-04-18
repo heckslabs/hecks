@@ -1,19 +1,22 @@
 #!/bin/bash
 # surface_musing.sh — surface one unconceived musing to the status bar,
-# and (every 3rd call) mark it conceived so the pool cycles.
+# and (every DWELL-th call) mark it conceived so the pool cycles.
 #
 # Usage:
 #   surface_musing.sh <loop_count>
 #
-# Called once per daemon tick. When loop_count is divisible by 3
-# (~30 seconds dwell at 10s/tick), the surfaced musing is marked
-# conceived and the pool advances on the next call.
+# Dwell: 30 ticks = ~5 minutes at 10s/tick. Matches the mint cadence
+# (Claude mints at most once per 5 min) so the pool stays roughly
+# balanced — new musings arrive at the rate they're consumed.
+#
+# Override with DWELL env var for tests: DWELL=3 ./surface_musing.sh 3
 #
 # Split out of mindstream.sh so tests can simulate cycling deterministically.
 
 DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
 INFO="$DIR/information"
+DWELL="${DWELL:-30}"
 loop_count="${1:-1}"
 
 thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
@@ -41,9 +44,10 @@ except Exception:
 
 if [ -n "$thought" ]; then
   $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
-  # Mark conceived only every 3rd call (~30s on screen) so each musing
-  # has time to be read before the pool advances.
-  if [ "$((loop_count % 3))" = "0" ]; then
+  # Mark conceived only every DWELL-th call. Default 30 (= ~5 min on
+  # screen) so each musing gets full attention and the pool advances
+  # at roughly the same rate Claude mints new ones (~5 min cadence).
+  if [ "$((loop_count % DWELL))" = "0" ]; then
     "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
   fi
 else
