@@ -106,19 +106,39 @@ except Exception:
     # waiting to be conceived); fall back to any musing so the status bar
     # stays alive even when the unconceived queue is empty.
     thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, sys, time
+import json, re, sys, time
+def is_real_musing(s):
+    # Skip tag-shaped entries (e.g. awareness_pulse, rust_heartbeat,
+    # always_wander, independence) — those are topics/signals, not
+    # actual musings. A real musing has a real sentence shape:
+    # multiple words and either a space or punctuation.
+    s = (s or '').strip()
+    if len(s) < 20: return False
+    if not re.search(r'[ —\-:.?!]', s): return False
+    # Bare snake_case identifier? Reject.
+    if re.fullmatch(r'[a-z][a-z0-9_]*', s): return False
+    return True
 try:
     d = json.load(sys.stdin)
-    all_ideas = [v.get('idea','').strip() for v in d.values() if v.get('idea')]
+    all_ideas = [v.get('idea','').strip() for v in d.values() if is_real_musing(v.get('idea',''))]
     unconceived = [v.get('idea','').strip() for v in d.values()
-                   if v.get('idea') and not v.get('conceived', False)]
-    pool = [i for i in unconceived if i] or [i for i in all_ideas if i]
+                   if is_real_musing(v.get('idea','')) and not v.get('conceived', False)]
+    pool = unconceived or all_ideas
     if pool:
         print(pool[int(time.time() / 10) % len(pool)][:80])
 except Exception:
     pass
 " 2>/dev/null)
     [ -n "$thought" ] && $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
+
+    # Mint a curated musing every 30 ticks (~5 min) — backgrounded so the
+    # tick loop stays snappy. Provider is read from ClaudeAssist:
+    #   "claude" (default) — Anthropic API if ANTHROPIC_API_KEY set, else `claude -p` CLI
+    #   "local"            — ollama (model + url from world.hec)
+    #   "off"              — skip
+    if [ "$((RANDOM % 30))" = "0" ]; then
+      "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
+    fi
   fi
 
   sleep 10
