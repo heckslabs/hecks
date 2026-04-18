@@ -12,22 +12,20 @@ Hecks.behaviors "WarehouseManagement" do
   test "ReserveLocation runs" do
     tests "ReserveLocation", on: "Location"
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
-    input  location: 1
     expect status: "reserved"
   end
 
   test "CloseLocation sets reason" do
     tests "CloseLocation", on: "Location"
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
-    input  location: 1, reason: "sample"
+    input  reason: "sample"
     expect status: "closed"
   end
 
   test "ReopenLocation runs" do
     tests "ReopenLocation", on: "Location"
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
-    setup  "CloseLocation", location: 1, reason: "sample"
-    input  location: 1
+    setup  "CloseLocation", reason: "sample"
     expect status: "empty"
   end
 
@@ -43,7 +41,6 @@ Hecks.behaviors "WarehouseManagement" do
   test "InspectPallet runs" do
     tests "InspectPallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
-    input  pallet: 1
     expect status: "inspected"
   end
 
@@ -51,27 +48,24 @@ Hecks.behaviors "WarehouseManagement" do
     tests "StowPallet", on: "Pallet"
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
-    setup  "InspectPallet", pallet: 1
-    input  pallet: 1, location: 1
+    setup  "InspectPallet"
     expect status: "stowed"
   end
 
   test "PickPallet runs" do
     tests "PickPallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
-    setup  "InspectPallet", pallet: 1
-    setup  "StowPallet", pallet: 1, location: 1
-    input  pallet: 1
+    setup  "InspectPallet"
+    setup  "StowPallet"
     expect status: "picked"
   end
 
   test "StagePallet runs" do
     tests "StagePallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
-    setup  "InspectPallet", pallet: 1
-    setup  "StowPallet", pallet: 1, location: 1
-    setup  "PickPallet", pallet: 1
-    input  pallet: 1
+    setup  "InspectPallet"
+    setup  "StowPallet"
+    setup  "PickPallet"
     expect status: "staged"
   end
 
@@ -87,7 +81,6 @@ Hecks.behaviors "WarehouseManagement" do
   test "CompletePickList runs" do
     tests "CompletePickList", on: "PickList"
     setup  "GeneratePickList", priority: "sample", line_count: 1
-    input  pick_list: 1
     expect status: "completed"
   end
 
@@ -97,22 +90,20 @@ Hecks.behaviors "WarehouseManagement" do
   test "CreateShipment sets carrier + destination" do
     tests "CreateShipment", on: "Shipment"
     setup  "GeneratePickList", priority: "sample", line_count: 1
-    input  pick_list: 1, carrier: "sample", destination: "sample"
+    input  carrier: "sample", destination: "sample"
     expect carrier: "sample", destination: "sample", status: "packing"
   end
 
   test "LoadShipment runs" do
     tests "LoadShipment", on: "Shipment"
-    setup  "CreateShipment", pick_list: 1, carrier: "sample", destination: "sample"
-    input  shipment: 1
+    setup  "CreateShipment", carrier: "sample", destination: "sample"
     expect status: "loaded"
   end
 
   test "DispatchShipment runs" do
     tests "DispatchShipment", on: "Shipment"
-    setup  "CreateShipment", pick_list: 1, carrier: "sample", destination: "sample"
-    setup  "LoadShipment", shipment: 1
-    input  shipment: 1
+    setup  "CreateShipment", carrier: "sample", destination: "sample"
+    setup  "LoadShipment"
     expect status: "dispatched"
   end
 

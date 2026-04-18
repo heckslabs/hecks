@@ -12,7 +12,6 @@ Hecks.behaviors "ReliefWorkers" do
   test "CloseIncident runs" do
     tests "CloseIncident", on: "Incident"
     setup  "DeclareIncident", incident_id: "sample", disaster_type: "sample", location_name: "sample", severity: "sample", workers_needed: 1
-    input  incident: 1
     expect status: "closed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "ReliefWorkers" do
   test "MatchVolunteer runs" do
     tests "MatchVolunteer", on: "Volunteer"
     setup  "RegisterVolunteer", volunteer_id: "sample", name: "sample", availability: "sample"
-    input  volunteer: 1
     expect status: "matched"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "ReliefWorkers" do
   test "RecallVolunteer runs" do
     tests "RecallVolunteer", on: "Deployment"
     setup  "DeployVolunteer", deployment_id: "sample", volunteer_id: "sample", incident_id: "sample", role_assigned: "sample", start_date: "sample"
-    input  deployment: 1
     expect status: "recalled"
   end
 

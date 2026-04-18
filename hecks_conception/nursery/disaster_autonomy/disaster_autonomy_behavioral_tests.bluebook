@@ -12,7 +12,7 @@ Hecks.behaviors "DisasterAutonomy" do
   test "EscalateDisaster sets severity" do
     tests "EscalateDisaster", on: "DisasterEvent"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, severity: "sample"
+    input  severity: "sample"
     expect severity: "sample"
   end
 
@@ -22,21 +22,19 @@ Hecks.behaviors "DisasterAutonomy" do
   test "DeployFleet sets fleet_id + drone_count + deployment_zone" do
     tests "DeployFleet", on: "SearchFleet"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
+    input  fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     expect fleet_id: "sample", event: :event, drone_count: 1, deployment_zone: "sample", status: "deployed"
   end
 
   test "ReportSurvivorFound runs" do
     tests "ReportSurvivorFound", on: "SearchFleet"
-    setup  "DeployFleet", disaster_event: 1, fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
-    input  search_fleet: 1
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     expect ok: "true"
   end
 
   test "RecallFleet runs" do
     tests "RecallFleet", on: "SearchFleet"
-    setup  "DeployFleet", disaster_event: 1, fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
-    input  search_fleet: 1
+    setup  "DeployFleet", fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     expect status: "recalled"
   end
 
@@ -46,14 +44,13 @@ Hecks.behaviors "DisasterAutonomy" do
   test "PlanDrop sets drop_id + supply_type + target_location + delivery_method" do
     tests "PlanDrop", on: "SupplyDrop"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
+    input  drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
     expect drop_id: "sample", event: :event, supply_type: "sample", target_location: "sample", delivery_method: "sample", status: "planned"
   end
 
   test "ExecuteDrop runs" do
     tests "ExecuteDrop", on: "SupplyDrop"
-    setup  "PlanDrop", disaster_event: 1, drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
-    input  supply_drop: 1
+    setup  "PlanDrop", drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
     expect status: "delivered"
   end
 
@@ -63,21 +60,19 @@ Hecks.behaviors "DisasterAutonomy" do
   test "ActivateGridResponse sets response_id + grid_sector + affected_substations" do
     tests "ActivateGridResponse", on: "GridResponse"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, response_id: "sample", grid_sector: "sample", affected_substations: 1
+    input  response_id: "sample", grid_sector: "sample", affected_substations: 1
     expect response_id: "sample", event: :event, grid_sector: "sample", affected_substations: 1, status: "active"
   end
 
   test "ReroutePower runs" do
     tests "ReroutePower", on: "GridResponse"
-    setup  "ActivateGridResponse", disaster_event: 1, response_id: "sample", grid_sector: "sample", affected_substations: 1
-    input  grid_response: 1
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
     expect ok: "true"
   end
 
   test "RestoreGrid runs" do
     tests "RestoreGrid", on: "GridResponse"
-    setup  "ActivateGridResponse", disaster_event: 1, response_id: "sample", grid_sector: "sample", affected_substations: 1
-    input  grid_response: 1
+    setup  "ActivateGridResponse", response_id: "sample", grid_sector: "sample", affected_substations: 1
     expect status: "restored"
   end
 
@@ -87,21 +82,19 @@ Hecks.behaviors "DisasterAutonomy" do
   test "DeclareRestriction sets control_id + restricted_zone" do
     tests "DeclareRestriction", on: "AirspaceControl"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, control_id: "sample", restricted_zone: "sample"
+    input  control_id: "sample", restricted_zone: "sample"
     expect control_id: "sample", event: :event, restricted_zone: "sample", status: "restricted"
   end
 
   test "AuthorizeDroneFleet runs" do
     tests "AuthorizeDroneFleet", on: "AirspaceControl"
-    setup  "DeclareRestriction", disaster_event: 1, control_id: "sample", restricted_zone: "sample"
-    input  airspace_control: 1
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
     expect ok: "true"
   end
 
   test "LiftRestriction runs" do
     tests "LiftRestriction", on: "AirspaceControl"
-    setup  "DeclareRestriction", disaster_event: 1, control_id: "sample", restricted_zone: "sample"
-    input  airspace_control: 1
+    setup  "DeclareRestriction", control_id: "sample", restricted_zone: "sample"
     expect status: "open"
   end
 
@@ -111,21 +104,19 @@ Hecks.behaviors "DisasterAutonomy" do
   test "OpenRegistry sets registry_id" do
     tests "OpenRegistry", on: "SurvivorRegistry"
     setup  "DeclareDisaster", event_id: "sample", disaster_type: "sample", affected_region: "sample", severity: "sample", estimated_affected: 1
-    input  disaster_event: 1, registry_id: "sample"
+    input  registry_id: "sample"
     expect registry_id: "sample", event: :event, total_found: 0, status: "active"
   end
 
   test "RegisterSurvivor runs" do
     tests "RegisterSurvivor", on: "SurvivorRegistry"
-    setup  "OpenRegistry", disaster_event: 1, registry_id: "sample"
-    input  survivor_registry: 1
+    setup  "OpenRegistry", registry_id: "sample"
     expect ok: "true"
   end
 
   test "MarkRescued runs" do
     tests "MarkRescued", on: "SurvivorRegistry"
-    setup  "OpenRegistry", disaster_event: 1, registry_id: "sample"
-    input  survivor_registry: 1
+    setup  "OpenRegistry", registry_id: "sample"
     expect ok: "true"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "VisionAPI" do
   test "WriteRx runs" do
     tests "WriteRx", on: "EyeExam"
     setup  "ConductExam", exam_id: "sample", patient_name: "sample", optometrist: "sample", exam_date: "sample"
-    input  eye_exam: 1
     expect status: "prescribed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "VisionAPI" do
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "LensOrder"
     setup  "PlaceLensOrder", order_id: "sample", exam_id: "sample", lens_type: "sample", vendor: "sample", price: 1.0
-    input  lens_order: 1
     expect status: "fulfilled"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "VisionAPI" do
   test "AdjudicateClaim runs" do
     tests "AdjudicateClaim", on: "InsuranceClaim"
     setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", provider_name: "sample", amount: 1.0
-    input  insurance_claim: 1
     expect status: "adjudicated"
   end
 
@@ -60,7 +57,6 @@ Hecks.behaviors "VisionAPI" do
   test "RevokeAccess runs" do
     tests "RevokeAccess", on: "APIClient"
     setup  "RegisterAPIClient", client_id: "sample", client_name: "sample", api_key: "sample", rate_limit: 1
-    input  a_p_i_client: 1
     expect status: "revoked"
   end
 

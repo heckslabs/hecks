@@ -13,53 +13,50 @@ Hecks.behaviors "CallCenter" do
     tests "AssignToAgent", on: "Ticket"
     setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    input  ticket: 1, agent: 1
     expect status: "assigned"
   end
 
   test "BeginWork runs" do
     tests "BeginWork", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent", ticket: 1, agent: 1
-    input  ticket: 1
+    setup  "AssignToAgent"
     expect status: "in_progress"
   end
 
   test "ResolveTicket sets resolution_note" do
     tests "ResolveTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent", ticket: 1, agent: 1
-    setup  "BeginWork", ticket: 1
-    input  ticket: 1, resolution_note: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    input  resolution_note: "sample"
     expect status: "resolved"
   end
 
   test "CloseTicket runs" do
     tests "CloseTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent", ticket: 1, agent: 1
-    setup  "BeginWork", ticket: 1
-    setup  "ResolveTicket", ticket: 1, resolution_note: "sample"
-    input  ticket: 1
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    setup  "ResolveTicket", resolution_note: "sample"
     expect status: "closed"
   end
 
   test "ReopenTicket sets reason" do
     tests "ReopenTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent", ticket: 1, agent: 1
-    setup  "BeginWork", ticket: 1
-    setup  "ResolveTicket", ticket: 1, resolution_note: "sample"
-    input  ticket: 1, reason: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    setup  "ResolveTicket", resolution_note: "sample"
+    input  reason: "sample"
     expect status: "open"
   end
 
   test "EscalateTicket sets reason" do
     tests "EscalateTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
-    setup  "AssignToAgent", ticket: 1, agent: 1
-    setup  "BeginWork", ticket: 1
-    input  ticket: 1, reason: "sample"
+    setup  "AssignToAgent"
+    setup  "BeginWork"
+    input  reason: "sample"
     expect priority: "urgent"
   end
 
@@ -76,22 +73,19 @@ Hecks.behaviors "CallCenter" do
     tests "AssignTicket", on: "Agent"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     setup  "HireAgent", name: "sample", skill_level: "sample"
-    input  agent: 1, ticket: 1
     expect ok: "true"
   end
 
   test "SetAgentBreak runs" do
     tests "SetAgentBreak", on: "Agent"
     setup  "HireAgent", name: "sample", skill_level: "sample"
-    input  agent: 1
     expect status: "on_break"
   end
 
   test "ReturnFromBreak runs" do
     tests "ReturnFromBreak", on: "Agent"
     setup  "HireAgent", name: "sample", skill_level: "sample"
-    setup  "SetAgentBreak", agent: 1
-    input  agent: 1
+    setup  "SetAgentBreak"
     expect status: "available"
   end
 
@@ -108,14 +102,12 @@ Hecks.behaviors "CallCenter" do
     tests "EnqueueTicket", on: "Queue"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
-    input  queue: 1, ticket: 1
     expect ok: "true"
   end
 
   test "DequeueTicket runs" do
     tests "DequeueTicket", on: "Queue"
     setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
-    input  queue: 1
     expect ok: "true"
   end
 
@@ -131,7 +123,7 @@ Hecks.behaviors "CallCenter" do
   test "BreachSla sets ticket_id + breach_type" do
     tests "BreachSla", on: "SlaPolicy"
     setup  "DefineSla", policy_name: "sample", priority: "sample", response_minutes: 1, resolution_minutes: 1
-    input  sla_policy: 1, ticket_id: "sample", breach_type: "sample"
+    input  ticket_id: "sample", breach_type: "sample"
     expect ok: "true"
   end
 

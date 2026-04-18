@@ -12,30 +12,28 @@ Hecks.behaviors "ElevatorPhysics" do
   test "LoadPassengers sets current_load_kg" do
     tests "LoadPassengers", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
-    input  elevator_car: 1, current_load_kg: 1.0
+    input  current_load_kg: 1.0
     expect current_load_kg: 1.0
   end
 
   test "MoveToFloor sets current_floor" do
     tests "MoveToFloor", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
-    input  elevator_car: 1, current_floor: 1
+    input  current_floor: 1
     expect current_floor: 1, status: "moving"
   end
 
   test "ArriveAtFloor runs" do
     tests "ArriveAtFloor", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
-    setup  "MoveToFloor", elevator_car: 1, current_floor: 1
-    input  elevator_car: 1
+    setup  "MoveToFloor", current_floor: 1
     expect status: "idle"
   end
 
   test "EmergencyStop runs" do
     tests "EmergencyStop", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
-    setup  "MoveToFloor", elevator_car: 1, current_floor: 1
-    input  elevator_car: 1
+    setup  "MoveToFloor", current_floor: 1
     expect status: "emergency"
   end
 
@@ -51,14 +49,13 @@ Hecks.behaviors "ElevatorPhysics" do
   test "InspectCable sets wear_pct" do
     tests "InspectCable", on: "CableSystem"
     setup  "InstallCable", cable_id: "sample", material: "sample", diameter_mm: 1.0, breaking_strength_kn: 1.0, safety_factor: 1.0
-    input  cable_system: 1, wear_pct: 1.0
+    input  wear_pct: 1.0
     expect wear_pct: 1.0
   end
 
   test "ReplaceCable runs" do
     tests "ReplaceCable", on: "CableSystem"
     setup  "InstallCable", cable_id: "sample", material: "sample", diameter_mm: 1.0, breaking_strength_kn: 1.0, safety_factor: 1.0
-    input  cable_system: 1
     expect wear_pct: 0.0, status: "replaced"
   end
 
@@ -74,14 +71,14 @@ Hecks.behaviors "ElevatorPhysics" do
   test "CalculateBalanceRatio sets balance_ratio" do
     tests "CalculateBalanceRatio", on: "Counterweight"
     setup  "ConfigureCounterweight", counterweight_id: "sample", mass_kg: 1.0, car_weight_kg: 1.0
-    input  counterweight: 1, balance_ratio: 1.0
+    input  balance_ratio: 1.0
     expect balance_ratio: 1.0
   end
 
   test "AdjustMass sets mass_kg" do
     tests "AdjustMass", on: "Counterweight"
     setup  "ConfigureCounterweight", counterweight_id: "sample", mass_kg: 1.0, car_weight_kg: 1.0
-    input  counterweight: 1, mass_kg: 1.0
+    input  mass_kg: 1.0
     expect mass_kg: 1.0
   end
 
@@ -97,15 +94,14 @@ Hecks.behaviors "ElevatorPhysics" do
   test "DetermineMotorRequirements sets motor_torque_nm + power_required_kw" do
     tests "DetermineMotorRequirements", on: "LoadCalculation"
     setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
-    input  load_calculation: 1, motor_torque_nm: 1.0, power_required_kw: 1.0
+    input  motor_torque_nm: 1.0, power_required_kw: 1.0
     expect motor_torque_nm: 1.0, power_required_kw: 1.0, status: "motor_sized"
   end
 
   test "ValidateSafety runs" do
     tests "ValidateSafety", on: "LoadCalculation"
     setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
-    setup  "DetermineMotorRequirements", load_calculation: 1, motor_torque_nm: 1.0, power_required_kw: 1.0
-    input  load_calculation: 1
+    setup  "DetermineMotorRequirements", motor_torque_nm: 1.0, power_required_kw: 1.0
     expect status: "validated"
   end
 
@@ -121,15 +117,14 @@ Hecks.behaviors "ElevatorPhysics" do
   test "RecordFindings sets findings" do
     tests "RecordFindings", on: "SafetyInspection"
     setup  "ConductInspection", inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample"
-    input  safety_inspection: 1, findings: "sample"
+    input  findings: "sample"
     expect findings: "sample", status: "reported"
   end
 
   test "CertifyElevator runs" do
     tests "CertifyElevator", on: "SafetyInspection"
     setup  "ConductInspection", inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample"
-    setup  "RecordFindings", safety_inspection: 1, findings: "sample"
-    input  safety_inspection: 1
+    setup  "RecordFindings", findings: "sample"
     expect status: "certified"
   end
 

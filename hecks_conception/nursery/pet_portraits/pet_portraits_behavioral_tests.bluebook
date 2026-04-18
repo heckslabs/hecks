@@ -12,7 +12,6 @@ Hecks.behaviors "PetPortraits" do
   test "MarkAdopted runs" do
     tests "MarkAdopted", on: "ShelterAnimal"
     setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", personality: "sample"
-    input  shelter_animal: 1
     expect status: "adopted"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "PetPortraits" do
   test "CompleteSession runs" do
     tests "CompleteSession", on: "PhotoSession"
     setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
-    input  photo_session: 1
     expect status: "completed"
   end
 
   test "SelectBestPhotos runs" do
     tests "SelectBestPhotos", on: "PhotoSession"
     setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
-    setup  "CompleteSession", photo_session: 1
-    input  photo_session: 1
+    setup  "CompleteSession"
     expect status: "selected"
   end
 
@@ -52,7 +49,6 @@ Hecks.behaviors "PetPortraits" do
   test "PublishProfile runs" do
     tests "PublishProfile", on: "AdoptionProfile"
     setup  "CreateProfile", profile_id: "sample", animal_id: "sample", headline: "sample", story: "sample"
-    input  adoption_profile: 1
     expect status: "published"
   end
 
@@ -68,7 +64,6 @@ Hecks.behaviors "PetPortraits" do
   test "RespondToInquiry runs" do
     tests "RespondToInquiry", on: "AdoptionInquiry"
     setup  "SubmitInquiry", inquiry_id: "sample", profile_id: "sample", adopter_name: "sample", message: "sample"
-    input  adoption_inquiry: 1
     expect status: "responded"
   end
 

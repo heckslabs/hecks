@@ -12,15 +12,13 @@ Hecks.behaviors "Chiropractic" do
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    input  patient: 1
     expect status: "active"
   end
 
   test "DeactivatePatient runs" do
     tests "DeactivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    setup  "ActivatePatient", patient: 1
-    input  patient: 1
+    setup  "ActivatePatient"
     expect status: "inactive"
   end
 
@@ -30,13 +28,14 @@ Hecks.behaviors "Chiropractic" do
   test "PerformAdjustment sets patient_name + adjustment_date + technique + pain_before" do
     tests "PerformAdjustment", on: "Adjustment"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+    input  patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
     expect patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
   end
 
   test "RecordPostAdjustment sets pain_after + notes" do
     tests "RecordPostAdjustment", on: "Adjustment"
-    input  adjustment: 1, pain_after: 1, notes: "sample"
+    setup  "PerformAdjustment", patient_name: "sample", adjustment_date: "sample", technique: "sample", pain_before: 1
+    input  pain_after: 1, notes: "sample"
     expect pain_after: 1, notes: "sample"
   end
 
@@ -46,14 +45,14 @@ Hecks.behaviors "Chiropractic" do
   test "OrderImaging sets patient_name + imaging_type + body_region + order_date" do
     tests "OrderImaging", on: "ImagingStudy"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
+    input  patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
     expect patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample", status: "ordered"
   end
 
   test "InterpretImaging sets findings" do
     tests "InterpretImaging", on: "ImagingStudy"
-    setup  "OrderImaging", patient: 1, patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
-    input  imaging_study: 1, findings: "sample"
+    setup  "OrderImaging", patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
+    input  findings: "sample"
     expect findings: "sample", status: "interpreted"
   end
 
@@ -63,20 +62,19 @@ Hecks.behaviors "Chiropractic" do
   test "CreateTreatmentPlan sets patient_name + diagnosis + planned_visits + frequency" do
     tests "CreateTreatmentPlan", on: "TreatmentPlan"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    input  patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample", completed_visits: 0, status: "active"
   end
 
   test "RecordCompletedVisit runs" do
     tests "RecordCompletedVisit", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient: 1, patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
-    input  treatment_plan: 1
+    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect ok: "true"
   end
 
   test "CloseTreatmentPlan runs" do
     tests "CloseTreatmentPlan", on: "TreatmentPlan"
-    input  treatment_plan: 1
+    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     expect status: "closed"
   end
 
@@ -86,20 +84,19 @@ Hecks.behaviors "Chiropractic" do
   test "CreateInvoice sets patient_name + service_date + total_amount" do
     tests "CreateInvoice", on: "Invoice"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", service_date: "sample", total_amount: 1.0
+    input  patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect patient_name: "sample", service_date: "sample", total_amount: 1.0, payment_status: "unpaid", insurance_claim_status: "pending"
   end
 
   test "SubmitInsuranceClaim runs" do
     tests "SubmitInsuranceClaim", on: "Invoice"
-    input  invoice: 1
+    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect insurance_claim_status: "submitted"
   end
 
   test "RecordPayment runs" do
     tests "RecordPayment", on: "Invoice"
-    setup  "CreateInvoice", patient: 1, patient_name: "sample", service_date: "sample", total_amount: 1.0
-    input  invoice: 1
+    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
     expect payment_status: "paid"
   end
 

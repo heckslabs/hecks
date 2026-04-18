@@ -12,7 +12,7 @@ Hecks.behaviors "BakeryProduction" do
   test "ScaleRecipe sets multiplier" do
     tests "ScaleRecipe", on: "Recipe"
     setup  "CreateRecipe", name: "sample", category: "sample", yield_count: 1, prep_minutes: 1, bake_minutes: 1, bake_temp_f: 1.0
-    input  recipe: 1, multiplier: 1.0
+    input  multiplier: 1.0
     expect ok: "true"
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "BakeryProduction" do
   test "CompleteBatch runs" do
     tests "CompleteBatch", on: "Batch"
     setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
-    input  batch: 1
     expect ok: "true"
   end
 
   test "RejectBatch sets reason" do
     tests "RejectBatch", on: "Batch"
     setup  "StartBatch", recipe_name: "sample", production_date: "sample", quantity: 1, baker: "sample"
-    input  batch: 1, reason: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 
@@ -51,14 +50,13 @@ Hecks.behaviors "BakeryProduction" do
   test "DeductForBatch sets quantity" do
     tests "DeductForBatch", on: "IngredientStock"
     setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
-    input  ingredient_stock: 1, quantity: 1.0
+    input  quantity: 1.0
     expect ok: "true"
   end
 
   test "FlagLowStock runs" do
     tests "FlagLowStock", on: "IngredientStock"
     setup  "ReceiveDelivery", ingredient_name: "sample", quantity: 1.0, supplier: "sample"
-    input  ingredient_stock: 1
     expect ok: "true"
   end
 
@@ -74,7 +72,6 @@ Hecks.behaviors "BakeryProduction" do
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "Order"
     setup  "PlaceOrder", customer_name: "sample", pickup_date: "sample"
-    input  order: 1
     expect ok: "true"
   end
 

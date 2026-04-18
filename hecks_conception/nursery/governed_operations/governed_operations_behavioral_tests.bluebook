@@ -12,44 +12,40 @@ Hecks.behaviors "GovernedOperations" do
   test "AddRule runs" do
     tests "AddRule", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    input  jurisdictional_contract: 1
     expect status: "draft"
   end
 
   test "UpdateRule sets rule_code" do
     tests "UpdateRule", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    input  jurisdictional_contract: 1, rule_code: "sample"
+    input  rule_code: "sample"
     expect ok: "true"
   end
 
   test "ActivateContract runs" do
     tests "ActivateContract", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    input  jurisdictional_contract: 1
     expect status: "active"
   end
 
   test "SuspendContract runs" do
     tests "SuspendContract", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    setup  "ActivateContract", jurisdictional_contract: 1
-    input  jurisdictional_contract: 1
+    setup  "ActivateContract"
     expect status: "suspended"
   end
 
   test "SupersedeContract runs" do
     tests "SupersedeContract", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    setup  "ActivateContract", jurisdictional_contract: 1
-    input  jurisdictional_contract: 1
+    setup  "ActivateContract"
     expect status: "superseded"
   end
 
   test "CheckCompliance sets action_type + action_id" do
     tests "CheckCompliance", on: "JurisdictionalContract"
     setup  "DefineContract", jurisdiction: "sample", regulation_code: "sample", effective_date: "sample"
-    input  jurisdictional_contract: 1, action_type: "sample", action_id: "sample"
+    input  action_type: "sample", action_id: "sample"
     expect ok: "true"
   end
 
@@ -65,38 +61,34 @@ Hecks.behaviors "GovernedOperations" do
   test "AddStandard runs" do
     tests "AddStandard", on: "OperationalContract"
     setup  "CreateOperationalContract", name: "sample", department: "sample"
-    input  operational_contract: 1
     expect status: "draft"
   end
 
   test "UpdateStandard sets standard_name" do
     tests "UpdateStandard", on: "OperationalContract"
     setup  "CreateOperationalContract", name: "sample", department: "sample"
-    input  operational_contract: 1, standard_name: "sample"
+    input  standard_name: "sample"
     expect ok: "true"
   end
 
   test "ApproveContract runs" do
     tests "ApproveContract", on: "OperationalContract"
     setup  "CreateOperationalContract", name: "sample", department: "sample"
-    setup  "SubmitContract", operational_contract: 1
-    input  operational_contract: 1
+    setup  "SubmitContract"
     expect status: "active"
   end
 
   test "SubmitContract runs" do
     tests "SubmitContract", on: "OperationalContract"
     setup  "CreateOperationalContract", name: "sample", department: "sample"
-    input  operational_contract: 1
     expect status: "pending_approval"
   end
 
   test "RetireContract runs" do
     tests "RetireContract", on: "OperationalContract"
     setup  "CreateOperationalContract", name: "sample", department: "sample"
-    setup  "SubmitContract", operational_contract: 1
-    setup  "ApproveContract", operational_contract: 1
-    input  operational_contract: 1
+    setup  "SubmitContract"
+    setup  "ApproveContract"
     expect status: "retired"
   end
 
@@ -112,60 +104,56 @@ Hecks.behaviors "GovernedOperations" do
   test "RecordProduction sets produced_at" do
     tests "RecordProduction", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    input  batch: 1, produced_at: "sample"
+    input  produced_at: "sample"
     expect produced_at: "sample", status: "in_production"
   end
 
   test "SubmitForRelease runs" do
     tests "SubmitForRelease", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", batch: 1, produced_at: "sample"
-    input  batch: 1
+    setup  "RecordProduction", produced_at: "sample"
     expect status: "pending_release"
   end
 
   test "ApproveBatch runs" do
     tests "ApproveBatch", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", batch: 1, produced_at: "sample"
-    setup  "SubmitForRelease", batch: 1
-    input  batch: 1
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
     expect status: "approved"
   end
 
   test "RejectBatch sets reason" do
     tests "RejectBatch", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", batch: 1, produced_at: "sample"
-    setup  "SubmitForRelease", batch: 1
-    input  batch: 1, reason: "sample"
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    input  reason: "sample"
     expect status: "rejected"
   end
 
   test "QuarantineBatch sets reason" do
     tests "QuarantineBatch", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", batch: 1, produced_at: "sample"
-    setup  "SubmitForRelease", batch: 1
-    setup  "RejectBatch", batch: 1, reason: "sample"
-    input  batch: 1, reason: "sample"
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    setup  "RejectBatch", reason: "sample"
+    input  reason: "sample"
     expect status: "quarantined"
   end
 
   test "ReleaseBatch runs" do
     tests "ReleaseBatch", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    setup  "RecordProduction", batch: 1, produced_at: "sample"
-    setup  "SubmitForRelease", batch: 1
-    setup  "ApproveBatch", batch: 1
-    input  batch: 1
+    setup  "RecordProduction", produced_at: "sample"
+    setup  "SubmitForRelease"
+    setup  "ApproveBatch"
     expect status: "released"
   end
 
   test "RecordViolation runs" do
     tests "RecordViolation", on: "Batch"
     setup  "CreateBatch", batch_number: "sample", product: "sample", quantity: 1
-    input  batch: 1
     expect ok: "true"
   end
 
@@ -181,54 +169,49 @@ Hecks.behaviors "GovernedOperations" do
   test "AssessImpact sets risk_level" do
     tests "AssessImpact", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    input  change_request: 1, risk_level: "sample"
+    input  risk_level: "sample"
     expect risk_level: "sample", status: "assessing"
   end
 
   test "RouteForApproval runs" do
     tests "RouteForApproval", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    setup  "AssessImpact", change_request: 1, risk_level: "sample"
-    input  change_request: 1
+    setup  "AssessImpact", risk_level: "sample"
     expect status: "pending_approval"
   end
 
   test "ApproveChange runs" do
     tests "ApproveChange", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    setup  "AssessImpact", change_request: 1, risk_level: "sample"
-    setup  "RouteForApproval", change_request: 1
-    input  change_request: 1
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
     expect status: "approved"
   end
 
   test "RejectChange runs" do
     tests "RejectChange", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    setup  "AssessImpact", change_request: 1, risk_level: "sample"
-    setup  "RouteForApproval", change_request: 1
-    input  change_request: 1
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
     expect status: "rejected"
   end
 
   test "ImplementChange runs" do
     tests "ImplementChange", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    setup  "AssessImpact", change_request: 1, risk_level: "sample"
-    setup  "RouteForApproval", change_request: 1
-    setup  "ApproveChange", change_request: 1
-    input  change_request: 1
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    setup  "ApproveChange"
     expect status: "implementing"
   end
 
   test "VerifyChange runs" do
     tests "VerifyChange", on: "ChangeRequest"
     setup  "SubmitChangeRequest", title: "sample", description: "sample", requester: "sample", impact_area: "sample"
-    setup  "AssessImpact", change_request: 1, risk_level: "sample"
-    setup  "RouteForApproval", change_request: 1
-    setup  "ApproveChange", change_request: 1
-    setup  "ImplementChange", change_request: 1
-    input  change_request: 1
+    setup  "AssessImpact", risk_level: "sample"
+    setup  "RouteForApproval"
+    setup  "ApproveChange"
+    setup  "ImplementChange"
     expect status: "verified"
   end
 
@@ -244,73 +227,68 @@ Hecks.behaviors "GovernedOperations" do
   test "InvestigateIssue runs" do
     tests "InvestigateIssue", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    input  c_a_p_a: 1
     expect status: "investigating"
   end
 
   test "IdentifyRootCause sets root_cause" do
     tests "IdentifyRootCause", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    input  c_a_p_a: 1, root_cause: "sample"
+    setup  "InvestigateIssue"
+    input  root_cause: "sample"
     expect root_cause: "sample", status: "root_cause_identified"
   end
 
   test "DefineCorrectiveAction sets corrective_action" do
     tests "DefineCorrectiveAction", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    setup  "IdentifyRootCause", c_a_p_a: 1, root_cause: "sample"
-    input  c_a_p_a: 1, corrective_action: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    input  corrective_action: "sample"
     expect corrective_action: "sample"
   end
 
   test "DefinePreventiveAction sets preventive_action" do
     tests "DefinePreventiveAction", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    setup  "IdentifyRootCause", c_a_p_a: 1, root_cause: "sample"
-    input  c_a_p_a: 1, preventive_action: "sample"
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    input  preventive_action: "sample"
     expect preventive_action: "sample", status: "action_defined"
   end
 
   test "ImplementAction runs" do
     tests "ImplementAction", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    setup  "IdentifyRootCause", c_a_p_a: 1, root_cause: "sample"
-    setup  "DefinePreventiveAction", c_a_p_a: 1, preventive_action: "sample"
-    input  c_a_p_a: 1
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
     expect status: "implementing"
   end
 
   test "VerifyEffectiveness runs" do
     tests "VerifyEffectiveness", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    setup  "IdentifyRootCause", c_a_p_a: 1, root_cause: "sample"
-    setup  "DefinePreventiveAction", c_a_p_a: 1, preventive_action: "sample"
-    setup  "ImplementAction", c_a_p_a: 1
-    input  c_a_p_a: 1
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
+    setup  "ImplementAction"
     expect status: "verifying"
   end
 
   test "CollectEvidence runs" do
     tests "CollectEvidence", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    input  c_a_p_a: 1
     expect ok: "true"
   end
 
   test "CloseCAPA runs" do
     tests "CloseCAPA", on: "CAPA"
     setup  "OpenCAPA", title: "sample", issue_description: "sample"
-    setup  "InvestigateIssue", c_a_p_a: 1
-    setup  "IdentifyRootCause", c_a_p_a: 1, root_cause: "sample"
-    setup  "DefinePreventiveAction", c_a_p_a: 1, preventive_action: "sample"
-    setup  "ImplementAction", c_a_p_a: 1
-    setup  "VerifyEffectiveness", c_a_p_a: 1
-    input  c_a_p_a: 1
+    setup  "InvestigateIssue"
+    setup  "IdentifyRootCause", root_cause: "sample"
+    setup  "DefinePreventiveAction", preventive_action: "sample"
+    setup  "ImplementAction"
+    setup  "VerifyEffectiveness"
     expect status: "closed"
   end
 
@@ -326,45 +304,41 @@ Hecks.behaviors "GovernedOperations" do
   test "IdentifyAffectedBatches sets batch_numbers" do
     tests "IdentifyAffectedBatches", on: "Recall"
     setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    input  recall: 1, batch_numbers: "sample"
+    input  batch_numbers: "sample"
     expect affected_batches: "sample", status: "identifying"
   end
 
   test "NotifyStakeholders runs" do
     tests "NotifyStakeholders", on: "Recall"
     setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    setup  "IdentifyAffectedBatches", recall: 1, batch_numbers: "sample"
-    input  recall: 1
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
     expect status: "notifying"
   end
 
   test "ExecuteRecall runs" do
     tests "ExecuteRecall", on: "Recall"
     setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    setup  "IdentifyAffectedBatches", recall: 1, batch_numbers: "sample"
-    setup  "NotifyStakeholders", recall: 1
-    input  recall: 1
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
     expect status: "executing"
   end
 
   test "DocumentRecall runs" do
     tests "DocumentRecall", on: "Recall"
     setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    setup  "IdentifyAffectedBatches", recall: 1, batch_numbers: "sample"
-    setup  "NotifyStakeholders", recall: 1
-    setup  "ExecuteRecall", recall: 1
-    input  recall: 1
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
+    setup  "ExecuteRecall"
     expect status: "documented"
   end
 
   test "CloseRecall runs" do
     tests "CloseRecall", on: "Recall"
     setup  "InitiateRecall", recall_number: "sample", product: "sample", reason: "sample", scope: "sample"
-    setup  "IdentifyAffectedBatches", recall: 1, batch_numbers: "sample"
-    setup  "NotifyStakeholders", recall: 1
-    setup  "ExecuteRecall", recall: 1
-    setup  "DocumentRecall", recall: 1
-    input  recall: 1
+    setup  "IdentifyAffectedBatches", batch_numbers: "sample"
+    setup  "NotifyStakeholders"
+    setup  "ExecuteRecall"
+    setup  "DocumentRecall"
     expect status: "closed"
   end
 
@@ -380,52 +354,47 @@ Hecks.behaviors "GovernedOperations" do
   test "PrepareAuditPackage runs" do
     tests "PrepareAuditPackage", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    input  audit: 1
     expect status: "preparing"
   end
 
   test "ConductAudit runs" do
     tests "ConductAudit", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    setup  "PrepareAuditPackage", audit: 1
-    input  audit: 1
+    setup  "PrepareAuditPackage"
     expect status: "in_progress"
   end
 
   test "RecordFinding runs" do
     tests "RecordFinding", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    setup  "PrepareAuditPackage", audit: 1
-    setup  "ConductAudit", audit: 1
-    input  audit: 1
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
     expect status: "findings_recorded"
   end
 
   test "ResolveFinding sets finding_area + resolution" do
     tests "ResolveFinding", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    setup  "PrepareAuditPackage", audit: 1
-    setup  "ConductAudit", audit: 1
-    setup  "RecordFinding", audit: 1
-    input  audit: 1, finding_area: "sample", resolution: "sample"
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
+    setup  "RecordFinding"
+    input  finding_area: "sample", resolution: "sample"
     expect status: "resolved"
   end
 
   test "CloseAudit runs" do
     tests "CloseAudit", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    setup  "PrepareAuditPackage", audit: 1
-    setup  "ConductAudit", audit: 1
-    setup  "RecordFinding", audit: 1
-    setup  "ResolveFinding", audit: 1, finding_area: "sample", resolution: "sample"
-    input  audit: 1
+    setup  "PrepareAuditPackage"
+    setup  "ConductAudit"
+    setup  "RecordFinding"
+    setup  "ResolveFinding", finding_area: "sample", resolution: "sample"
     expect status: "closed"
   end
 
   test "GenerateReport runs" do
     tests "GenerateReport", on: "Audit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scope: "sample", scheduled_at: "sample"
-    input  audit: 1
     expect ok: "true"
   end
 
@@ -441,43 +410,39 @@ Hecks.behaviors "GovernedOperations" do
   test "CheckJurisdictional runs" do
     tests "CheckJurisdictional", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    input  governance_gate: 1
     expect ok: "true"
   end
 
   test "CheckOperational runs" do
     tests "CheckOperational", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    input  governance_gate: 1
     expect ok: "true"
   end
 
   test "RouteApproval runs" do
     tests "RouteApproval", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    input  governance_gate: 1
     expect status: "routing"
   end
 
   test "AllowAction runs" do
     tests "AllowAction", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    input  governance_gate: 1
     expect verdict: "allowed", status: "decided"
   end
 
   test "BlockAction sets reason" do
     tests "BlockAction", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    input  governance_gate: 1, reason: "sample"
+    input  reason: "sample"
     expect verdict: "blocked", status: "decided"
   end
 
   test "LogDecision sets decided_at" do
     tests "LogDecision", on: "GovernanceGate"
     setup  "EvaluateAction", action_type: "sample", action_id: "sample"
-    setup  "AllowAction", governance_gate: 1
-    input  governance_gate: 1, decided_at: "sample"
+    setup  "AllowAction"
+    input  decided_at: "sample"
     expect decided_at: "sample", status: "logged"
   end
 
@@ -493,46 +458,40 @@ Hecks.behaviors "GovernedOperations" do
   test "RequestApproval runs" do
     tests "RequestApproval", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    input  approval_workflow: 1
     expect status: "pending"
   end
 
   test "RecordApproval runs" do
     tests "RecordApproval", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    setup  "RequestApproval", approval_workflow: 1
-    input  approval_workflow: 1
+    setup  "RequestApproval"
     expect ok: "true"
   end
 
   test "RecordRejection runs" do
     tests "RecordRejection", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    setup  "RequestApproval", approval_workflow: 1
-    input  approval_workflow: 1
+    setup  "RequestApproval"
     expect ok: "true"
   end
 
   test "CheckQuorum runs" do
     tests "CheckQuorum", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    input  approval_workflow: 1
     expect ok: "true"
   end
 
   test "CompleteApproval runs" do
     tests "CompleteApproval", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    setup  "RequestApproval", approval_workflow: 1
-    input  approval_workflow: 1
+    setup  "RequestApproval"
     expect status: "approved"
   end
 
   test "RejectWorkflow runs" do
     tests "RejectWorkflow", on: "ApprovalWorkflow"
     setup  "InitiateApproval", action_type: "sample", action_id: "sample", required_approvers: "sample"
-    setup  "RequestApproval", approval_workflow: 1
-    input  approval_workflow: 1
+    setup  "RequestApproval"
     expect status: "rejected"
   end
 
@@ -575,21 +534,18 @@ Hecks.behaviors "GovernedOperations" do
   test "ConsumeToken runs" do
     tests "ConsumeToken", on: "Token"
     setup  "AllocateTokens", account: "sample", amount: 1
-    input  token: 1
     expect balance: 1, consumed: 1
   end
 
   test "RefundToken runs" do
     tests "RefundToken", on: "Token"
     setup  "AllocateTokens", account: "sample", amount: 1
-    input  token: 1
     expect balance: 1, consumed: 1
   end
 
   test "CheckBalance runs" do
     tests "CheckBalance", on: "Token"
     setup  "AllocateTokens", account: "sample", amount: 1
-    input  token: 1
     expect ok: "true"
   end
 

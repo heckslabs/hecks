@@ -12,14 +12,13 @@ Hecks.behaviors "MentalHealthClinic" do
   test "DocumentConcern sets description + onset_date + severity" do
     tests "DocumentConcern", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client: 1, description: "sample", onset_date: "sample", severity: 1
+    input  description: "sample", onset_date: "sample", severity: 1
     expect ok: "true"
   end
 
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client: 1
     expect status: "discharged"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "MentalHealthClinic" do
   test "AssignClient runs" do
     tests "AssignClient", on: "Therapist"
     setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
-    input  therapist: 1
     expect ok: "true"
   end
 
@@ -45,13 +43,14 @@ Hecks.behaviors "MentalHealthClinic" do
   test "AdministerAssessment sets client_name + instrument_name + administered_date + total_score + notes" do
     tests "AdministerAssessment", on: "Assessment"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client: 1, client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+    input  client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
     expect client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
   end
 
   test "ClassifyRisk sets risk_level" do
     tests "ClassifyRisk", on: "Assessment"
-    input  assessment: 1, risk_level: "sample"
+    setup  "AdministerAssessment", client_name: "sample", instrument_name: "sample", administered_date: "sample", total_score: 1, notes: "sample"
+    input  risk_level: "sample"
     expect risk_level: "sample"
   end
 
@@ -61,20 +60,20 @@ Hecks.behaviors "MentalHealthClinic" do
   test "CreateTreatmentPlan sets client_name + diagnosis + start_date" do
     tests "CreateTreatmentPlan", on: "TreatmentPlan"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client: 1, client_name: "sample", diagnosis: "sample", start_date: "sample"
+    input  client_name: "sample", diagnosis: "sample", start_date: "sample"
     expect client_name: "sample", diagnosis: "sample", start_date: "sample", status: "active"
   end
 
   test "UpdateGoal sets description + target_date + intervention" do
     tests "UpdateGoal", on: "TreatmentPlan"
-    input  treatment_plan: 1, description: "sample", target_date: "sample", intervention: "sample"
+    setup  "CreateTreatmentPlan", client_name: "sample", diagnosis: "sample", start_date: "sample"
+    input  description: "sample", target_date: "sample", intervention: "sample"
     expect ok: "true"
   end
 
   test "CloseTreatmentPlan runs" do
     tests "CloseTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", client: 1, client_name: "sample", diagnosis: "sample", start_date: "sample"
-    input  treatment_plan: 1
+    setup  "CreateTreatmentPlan", client_name: "sample", diagnosis: "sample", start_date: "sample"
     expect status: "closed"
   end
 
@@ -85,14 +84,14 @@ Hecks.behaviors "MentalHealthClinic" do
     tests "ScheduleTherapySession", on: "TherapySession"
     setup  "RegisterTherapist", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample", caseload_limit: 1
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", referral_source: "sample", emergency_contact: "sample"
-    input  client: 1, therapist: 1, client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
+    input  client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
     expect client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
   end
 
   test "CompleteTherapySession sets notes" do
     tests "CompleteTherapySession", on: "TherapySession"
-    setup  "ScheduleTherapySession", client: 1, therapist: 1, client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
-    input  therapy_session: 1, notes: "sample"
+    setup  "ScheduleTherapySession", client_name: "sample", therapist_name: "sample", session_date: "sample", session_type: "sample"
+    input  notes: "sample"
     expect notes: "sample", status: "completed"
   end
 

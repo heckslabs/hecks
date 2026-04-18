@@ -12,7 +12,7 @@ Hecks.behaviors "HospitalPower" do
   test "UpdateLoad sets power_load_kw" do
     tests "UpdateLoad", on: "PatientArea"
     setup  "DefineArea", area_id: "sample", area_name: "sample", floor: "sample", criticality: "sample", power_load_kw: 1.0
-    input  patient_area: 1, power_load_kw: 1.0
+    input  power_load_kw: 1.0
     expect power_load_kw: 1.0
   end
 
@@ -28,15 +28,13 @@ Hecks.behaviors "HospitalPower" do
   test "StartGenerator runs" do
     tests "StartGenerator", on: "BackupGenerator"
     setup  "InstallGenerator", generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
-    input  backup_generator: 1
     expect status: "running"
   end
 
   test "StopGenerator runs" do
     tests "StopGenerator", on: "BackupGenerator"
     setup  "InstallGenerator", generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
-    setup  "StartGenerator", backup_generator: 1
-    input  backup_generator: 1
+    setup  "StartGenerator"
     expect status: "standby"
   end
 
@@ -52,15 +50,13 @@ Hecks.behaviors "HospitalPower" do
   test "SwitchToBackup runs" do
     tests "SwitchToBackup", on: "TransferSwitch"
     setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
-    input  transfer_switch: 1
     expect current_source: "backup"
   end
 
   test "SwitchToMain runs" do
     tests "SwitchToMain", on: "TransferSwitch"
     setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
-    setup  "SwitchToBackup", transfer_switch: 1
-    input  transfer_switch: 1
+    setup  "SwitchToBackup"
     expect current_source: "main"
   end
 
@@ -76,7 +72,6 @@ Hecks.behaviors "HospitalPower" do
   test "ActivateShedding runs" do
     tests "ActivateShedding", on: "LoadShedPlan"
     setup  "DefineShedPlan", plan_id: "sample"
-    input  load_shed_plan: 1
     expect status: "active"
   end
 

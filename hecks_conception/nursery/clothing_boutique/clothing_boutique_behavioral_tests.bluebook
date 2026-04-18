@@ -12,14 +12,13 @@ Hecks.behaviors "ClothingBoutique" do
   test "MarkdownGarment sets sale_price" do
     tests "MarkdownGarment", on: "Garment"
     setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
-    input  garment: 1, sale_price: 1.0
+    input  sale_price: 1.0
     expect retail_price: 1.0
   end
 
   test "RetireGarment runs" do
     tests "RetireGarment", on: "Garment"
     setup  "ReceiveGarment", style_number: "sample", name: "sample", designer: "sample", fabric: "sample", retail_price: 1.0, season: "sample"
-    input  garment: 1
     expect status: "retired"
   end
 
@@ -35,14 +34,12 @@ Hecks.behaviors "ClothingBoutique" do
   test "RefreshDisplay runs" do
     tests "RefreshDisplay", on: "Display"
     setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
-    input  display: 1
     expect ok: "true"
   end
 
   test "DismantleDisplay runs" do
     tests "DismantleDisplay", on: "Display"
     setup  "CreateDisplay", display_name: "sample", theme: "sample", location: "sample"
-    input  display: 1
     expect status: "dismantled"
   end
 
@@ -58,7 +55,6 @@ Hecks.behaviors "ClothingBoutique" do
   test "CompleteAlteration runs" do
     tests "CompleteAlteration", on: "Alteration"
     setup  "RequestAlteration", ticket_number: "sample", style_number: "sample", customer_name: "sample", alteration_type: "sample", due_date: "sample", charge: 1.0
-    input  alteration: 1
     expect status: "completed"
   end
 
@@ -74,15 +70,13 @@ Hecks.behaviors "ClothingBoutique" do
   test "LaunchCollection runs" do
     tests "LaunchCollection", on: "SeasonalCollection"
     setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
-    input  seasonal_collection: 1
     expect status: "active"
   end
 
   test "CloseOutCollection runs" do
     tests "CloseOutCollection", on: "SeasonalCollection"
     setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
-    setup  "LaunchCollection", seasonal_collection: 1
-    input  seasonal_collection: 1
+    setup  "LaunchCollection"
     expect status: "closed"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "Florist" do
   test "AssembleArrangement runs" do
     tests "AssembleArrangement", on: "Arrangement"
     setup  "DesignArrangement", arrangement_id: "sample", name: "sample", style: "sample", price: 1.0, occasion: "sample"
-    input  arrangement: 1
     expect status: "assembled"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "Florist" do
   test "DiscardWiltedFlowers sets quantity_discarded" do
     tests "DiscardWiltedFlowers", on: "Flower"
     setup  "ReceiveFlowers", flower_id: "sample", common_name: "sample", botanical_name: "sample", color: "sample", season: "sample", vase_life_days: 1, quantity_on_hand: 1
-    input  flower: 1, quantity_discarded: 1
+    input  quantity_discarded: 1
     expect ok: "true"
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "Florist" do
   test "ConfirmEventOrder runs" do
     tests "ConfirmEventOrder", on: "EventOrder"
     setup  "PlaceEventOrder", order_id: "sample", customer_name: "sample", event_type: "sample", event_date: "sample", budget: 1.0
-    input  event_order: 1
     expect status: "confirmed"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "Florist" do
   test "CompleteDelivery runs" do
     tests "CompleteDelivery", on: "FloralDelivery"
     setup  "ScheduleDelivery", delivery_id: "sample", order_id: "sample", address: "sample", delivery_date: "sample", time_window: "sample"
-    input  floral_delivery: 1
     expect status: "delivered"
   end
 
@@ -76,14 +73,12 @@ Hecks.behaviors "Florist" do
   test "PauseSubscription runs" do
     tests "PauseSubscription", on: "Subscription"
     setup  "StartSubscription", subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
-    input  subscription: 1
     expect status: "paused"
   end
 
   test "CancelSubscription runs" do
     tests "CancelSubscription", on: "Subscription"
     setup  "StartSubscription", subscription_id: "sample", customer_name: "sample", frequency: "sample", arrangement_style: "sample", price_per_delivery: 1.0
-    input  subscription: 1
     expect status: "canceled"
   end
 

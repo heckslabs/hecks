@@ -12,7 +12,6 @@ Hecks.behaviors "RadiologyClouds" do
   test "ReadScan runs" do
     tests "ReadScan", on: "Scan"
     setup  "AcquireScan", scan_id: "sample", patient_name: "sample", modality: "sample", body_part: "sample", acquired_date: "sample"
-    input  scan: 1
     expect status: "read"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "RadiologyClouds" do
   test "UploadImage sets size_gb" do
     tests "UploadImage", on: "CloudStore"
     setup  "CreateBucket", bucket_id: "sample", region: "sample", quota_gb: 1.0
-    input  cloud_store: 1, size_gb: 1.0
+    input  size_gb: 1.0
     expect ok: "true"
   end
 
@@ -44,7 +43,7 @@ Hecks.behaviors "RadiologyClouds" do
   test "CompleteAnalysis sets confidence + finding" do
     tests "CompleteAnalysis", on: "AIAnalysis"
     setup  "RunAnalysis", analysis_id: "sample", scan_id: "sample", model_name: "sample"
-    input  a_i_analysis: 1, confidence: 1.0, finding: "sample"
+    input  confidence: 1.0, finding: "sample"
     expect confidence: 1.0, finding: "sample", status: "completed"
   end
 
@@ -60,7 +59,6 @@ Hecks.behaviors "RadiologyClouds" do
   test "RevokeLink runs" do
     tests "RevokeLink", on: "ShareLink"
     setup  "CreateShareLink", link_id: "sample", scan_id: "sample", recipient_email: "sample", expires_at: "sample"
-    input  share_link: 1
     expect status: "revoked"
   end
 

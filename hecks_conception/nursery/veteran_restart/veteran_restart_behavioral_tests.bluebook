@@ -12,15 +12,13 @@ Hecks.behaviors "VeteranRestart" do
   test "AssessNeeds runs" do
     tests "AssessNeeds", on: "Veteran"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1
     expect status: "assessed"
   end
 
   test "GraduateProgram runs" do
     tests "GraduateProgram", on: "Veteran"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    setup  "AssessNeeds", veteran: 1
-    input  veteran: 1
+    setup  "AssessNeeds"
     expect status: "graduated"
   end
 
@@ -30,31 +28,28 @@ Hecks.behaviors "VeteranRestart" do
   test "MatchHousing sets housing_type + location_preference + budget" do
     tests "MatchHousing", on: "HousingApplication"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
+    input  housing_type: "sample", location_preference: "sample", budget: 1.0
     expect veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0, status: "matched"
   end
 
   test "SubmitApplication runs" do
     tests "SubmitApplication", on: "HousingApplication"
-    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
-    input  housing_application: 1
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
     expect status: "submitted"
   end
 
   test "ApproveApplication runs" do
     tests "ApproveApplication", on: "HousingApplication"
-    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
-    setup  "SubmitApplication", housing_application: 1
-    input  housing_application: 1
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
     expect status: "approved"
   end
 
   test "SignLease runs" do
     tests "SignLease", on: "HousingApplication"
-    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
-    setup  "SubmitApplication", housing_application: 1
-    setup  "ApproveApplication", housing_application: 1
-    input  housing_application: 1
+    setup  "MatchHousing", housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication"
+    setup  "ApproveApplication"
     expect status: "leased"
   end
 
@@ -64,29 +59,27 @@ Hecks.behaviors "VeteranRestart" do
   test "FileClaim sets benefit_type + description" do
     tests "FileClaim", on: "BenefitsClaim"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1, benefit_type: "sample", description: "sample"
+    input  benefit_type: "sample", description: "sample"
     expect veteran: 1, benefit_type: "sample", description: "sample", status: "filed"
   end
 
   test "ApproveBenefits sets monthly_amount" do
     tests "ApproveBenefits", on: "BenefitsClaim"
-    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
-    input  benefits_claim: 1, monthly_amount: 1.0
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    input  monthly_amount: 1.0
     expect monthly_amount: 1.0, status: "approved"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "BenefitsClaim"
-    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
-    input  benefits_claim: 1
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
     expect status: "denied"
   end
 
   test "AppealClaim runs" do
     tests "AppealClaim", on: "BenefitsClaim"
-    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
-    setup  "DenyClaim", benefits_claim: 1
-    input  benefits_claim: 1
+    setup  "FileClaim", benefit_type: "sample", description: "sample"
+    setup  "DenyClaim"
     expect status: "appealed"
   end
 
@@ -96,20 +89,20 @@ Hecks.behaviors "VeteranRestart" do
   test "StartFinancialPlan sets monthly_income" do
     tests "StartFinancialPlan", on: "FinancialPlan"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1, monthly_income: 1.0
+    input  monthly_income: 1.0
     expect veteran: 1, monthly_income: 1.0, status: "active"
   end
 
   test "SetBudget sets monthly_expenses + savings_target" do
     tests "SetBudget", on: "FinancialPlan"
-    input  financial_plan: 1, monthly_expenses: 1.0, savings_target: 1.0
+    setup  "StartFinancialPlan", monthly_income: 1.0
+    input  monthly_expenses: 1.0, savings_target: 1.0
     expect monthly_expenses: 1.0, savings_target: 1.0
   end
 
   test "ReviewProgress runs" do
     tests "ReviewProgress", on: "FinancialPlan"
-    setup  "StartFinancialPlan", veteran: 1, monthly_income: 1.0
-    input  financial_plan: 1
+    setup  "StartFinancialPlan", monthly_income: 1.0
     expect ok: "true"
   end
 
@@ -119,21 +112,19 @@ Hecks.behaviors "VeteranRestart" do
   test "OpenCase sets case_type + description + assigned_attorney" do
     tests "OpenCase", on: "LegalCase"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
+    input  case_type: "sample", description: "sample", assigned_attorney: "sample"
     expect case_type: "sample", description: "sample", assigned_attorney: "sample", veteran: 1, status: "open"
   end
 
   test "ResolveCase runs" do
     tests "ResolveCase", on: "LegalCase"
-    setup  "OpenCase", veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
-    input  legal_case: 1
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
     expect status: "resolved"
   end
 
   test "EscalateCase runs" do
     tests "EscalateCase", on: "LegalCase"
-    setup  "OpenCase", veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
-    input  legal_case: 1
+    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
     expect status: "escalated"
   end
 
@@ -143,14 +134,13 @@ Hecks.behaviors "VeteranRestart" do
   test "SetMilestone sets milestone_type + description + target_date" do
     tests "SetMilestone", on: "Milestone"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
-    input  veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample"
+    input  milestone_type: "sample", description: "sample", target_date: "sample"
     expect veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample", status: "pending"
   end
 
   test "AchieveMilestone runs" do
     tests "AchieveMilestone", on: "Milestone"
-    setup  "SetMilestone", veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample"
-    input  milestone: 1
+    setup  "SetMilestone", milestone_type: "sample", description: "sample", target_date: "sample"
     expect status: "achieved"
   end
 

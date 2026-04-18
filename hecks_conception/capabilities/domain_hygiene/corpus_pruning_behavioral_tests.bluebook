@@ -33,7 +33,6 @@ Hecks.behaviors "CorpusPruning" do
   test "Revalidate runs" do
     tests "Revalidate", on: "FeatureEnrichment"
     setup  "AddReferences", domain_name: "sample"
-    input  feature_enrichment: 1
     expect ok: "true"
   end
 
@@ -49,7 +48,6 @@ Hecks.behaviors "CorpusPruning" do
   test "MergeDuplicates runs" do
     tests "MergeDuplicates", on: "Deduplicator"
     setup  "FindDuplicates", jsonl_path: "sample", similarity_threshold: 1.0
-    input  deduplicator: 1
     expect ok: "true"
   end
 
@@ -65,7 +63,7 @@ Hecks.behaviors "CorpusPruning" do
   test "CapCategory sets category + max_count" do
     tests "CapCategory", on: "CategoryBalancer"
     setup  "AssessBalance", jsonl_path: "sample"
-    input  category_balancer: 1, category: "sample", max_count: 1
+    input  category: "sample", max_count: 1
     expect ok: "true"
   end
 

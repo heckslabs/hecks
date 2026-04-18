@@ -12,14 +12,13 @@ Hecks.behaviors "JewelryWorkshop" do
   test "CastPiece sets casting_method" do
     tests "CastPiece", on: "JewelryPiece"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    input  jewelry_piece: 1, casting_method: "sample"
+    input  casting_method: "sample"
     expect status: "cast"
   end
 
   test "PolishPiece runs" do
     tests "PolishPiece", on: "JewelryPiece"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    input  jewelry_piece: 1
     expect status: "finished"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "JewelryWorkshop" do
   test "GradeStone sets lab_name" do
     tests "GradeStone", on: "Gemstone"
     setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
-    input  gemstone: 1, lab_name: "sample"
+    input  lab_name: "sample"
     expect ok: "true"
   end
 
@@ -45,14 +44,14 @@ Hecks.behaviors "JewelryWorkshop" do
   test "PrepareSetting sets setting_type + metal" do
     tests "PrepareSetting", on: "Setting"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    input  jewelry_piece: 1, setting_type: "sample", metal: "sample"
+    input  setting_type: "sample", metal: "sample"
     expect ok: "true"
   end
 
   test "SetStone runs" do
     tests "SetStone", on: "Setting"
     setup  "AcquireStone", stone_type: "sample", carat_weight: 1.0, cut: "sample", clarity: "sample", color_grade: "sample"
-    input  setting: 1, gemstone: 1
+    setup  "PrepareSetting", setting_type: "sample", metal: "sample"
     expect status: "set"
   end
 
@@ -62,13 +61,14 @@ Hecks.behaviors "JewelryWorkshop" do
   test "AppraisePiece sets appraiser_name + purpose + appraised_value" do
     tests "AppraisePiece", on: "Appraisal"
     setup  "DesignPiece", name: "sample", piece_type: "sample", metal: "sample"
-    input  jewelry_piece: 1, appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    input  appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
     expect ok: "true"
   end
 
   test "UpdateAppraisal sets new_value" do
     tests "UpdateAppraisal", on: "Appraisal"
-    input  appraisal: 1, new_value: 1.0
+    setup  "AppraisePiece", appraiser_name: "sample", purpose: "sample", appraised_value: 1.0
+    input  new_value: 1.0
     expect appraised_value: 1.0
   end
 
@@ -84,15 +84,13 @@ Hecks.behaviors "JewelryWorkshop" do
   test "AcceptCommission runs" do
     tests "AcceptCommission", on: "Commission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    input  commission: 1
     expect status: "in_progress"
   end
 
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "Commission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    setup  "AcceptCommission", commission: 1
-    input  commission: 1
+    setup  "AcceptCommission"
     expect status: "delivered"
   end
 

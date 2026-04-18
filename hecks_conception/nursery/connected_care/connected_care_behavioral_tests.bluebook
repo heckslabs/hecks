@@ -12,7 +12,6 @@ Hecks.behaviors "ConnectedCare" do
   test "DischargePatient runs" do
     tests "DischargePatient", on: "HomePatient"
     setup  "EnrollPatient", patient_id: "sample", name: "sample", address: "sample", condition: "sample", primary_caregiver: "sample"
-    input  home_patient: 1
     expect status: "discharged"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "ConnectedCare" do
   test "ReadSensor sets battery_pct" do
     tests "ReadSensor", on: "HomeSensor"
     setup  "DeploySensor", sensor_id: "sample", patient_id: "sample", sensor_type: "sample", location_room: "sample"
-    input  home_sensor: 1, battery_pct: 1.0
+    input  battery_pct: 1.0
     expect battery_pct: 1.0
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "ConnectedCare" do
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "CareAlert"
     setup  "TriggerAlert", alert_id: "sample", patient_id: "sample", sensor_id: "sample", alert_type: "sample", severity: "sample"
-    input  care_alert: 1
     expect status: "resolved"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "ConnectedCare" do
   test "ConfirmArrival runs" do
     tests "ConfirmArrival", on: "CaregiverDispatch"
     setup  "DispatchCaregiver", dispatch_id: "sample", alert_id: "sample", caregiver_name: "sample", eta: "sample"
-    input  caregiver_dispatch: 1
     expect status: "on_site"
   end
 

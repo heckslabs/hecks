@@ -12,7 +12,7 @@ Hecks.behaviors "TattooShop" do
   test "AssignStation sets station_number" do
     tests "AssignStation", on: "Artist"
     setup  "HireArtist", name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
-    input  artist: 1, station_number: "sample"
+    input  station_number: "sample"
     expect station_number: "sample"
   end
 
@@ -23,20 +23,20 @@ Hecks.behaviors "TattooShop" do
     tests "BookAppointment", on: "Appointment"
     setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
     setup  "HireArtist", name: "sample", specialty_style: "sample", station_number: "sample", years_experience: 1
-    input  artist: 1, design: 1, date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    input  date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
     expect ok: "true"
   end
 
   test "StartSession runs" do
     tests "StartSession", on: "Appointment"
-    input  appointment: 1
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
     expect status: "in_progress"
   end
 
   test "CompleteSession runs" do
     tests "CompleteSession", on: "Appointment"
-    setup  "StartSession", appointment: 1
-    input  appointment: 1
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    setup  "StartSession"
     expect status: "completed"
   end
 
@@ -52,14 +52,13 @@ Hecks.behaviors "TattooShop" do
   test "ApproveDesign runs" do
     tests "ApproveDesign", on: "Design"
     setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
-    input  design: 1
     expect status: "approved"
   end
 
   test "ReviseDesign sets revision_notes" do
     tests "ReviseDesign", on: "Design"
     setup  "SketchDesign", title: "sample", style: "sample", placement: "sample", size_inches: 1.0
-    input  design: 1, revision_notes: "sample"
+    input  revision_notes: "sample"
     expect ok: "true"
   end
 
@@ -68,14 +67,15 @@ Hecks.behaviors "TattooShop" do
 
   test "SignConsent sets client_name + allergies" do
     tests "SignConsent", on: "ConsentForm"
-    input  appointment: 1, client_name: "sample", allergies: "sample"
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    input  client_name: "sample", allergies: "sample"
     expect status: "signed"
   end
 
   test "FlagAllergy sets allergen" do
     tests "FlagAllergy", on: "ConsentForm"
-    setup  "SignConsent", appointment: 1, client_name: "sample", allergies: "sample"
-    input  consent_form: 1, allergen: "sample"
+    setup  "SignConsent", client_name: "sample", allergies: "sample"
+    input  allergen: "sample"
     expect ok: "true"
   end
 
@@ -84,13 +84,15 @@ Hecks.behaviors "TattooShop" do
 
   test "DispenseKit sets instructions + ointment_type + follow_up_days" do
     tests "DispenseKit", on: "AftercareKit"
-    input  appointment: 1, instructions: "sample", ointment_type: "sample", follow_up_days: 1
+    setup  "BookAppointment", date: "sample", time_slot: "sample", duration_hours: 1, deposit_amount: 1.0
+    input  instructions: "sample", ointment_type: "sample", follow_up_days: 1
     expect ok: "true"
   end
 
   test "ScheduleFollowUp sets follow_up_date" do
     tests "ScheduleFollowUp", on: "AftercareKit"
-    input  aftercare_kit: 1, follow_up_date: "sample"
+    setup  "DispenseKit", instructions: "sample", ointment_type: "sample", follow_up_days: 1
+    input  follow_up_date: "sample"
     expect ok: "true"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "PrisonManagement" do
   test "ClassifyInmate sets classification" do
     tests "ClassifyInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    input  inmate: 1, classification: "sample"
+    input  classification: "sample"
     expect status: "classified"
   end
 
@@ -20,36 +20,33 @@ Hecks.behaviors "PrisonManagement" do
     tests "HouseInmate", on: "Inmate"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", inmate: 1, classification: "sample"
-    input  inmate: 1, cell: 1
+    setup  "ClassifyInmate", classification: "sample"
     expect status: "housed"
   end
 
   test "ReclassifyInmate sets new_classification" do
     tests "ReclassifyInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", inmate: 1, classification: "sample"
-    setup  "HouseInmate", inmate: 1, cell: 1
-    input  inmate: 1, new_classification: "sample"
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
+    input  new_classification: "sample"
     expect ok: "true"
   end
 
   test "PrepareForRelease runs" do
     tests "PrepareForRelease", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", inmate: 1, classification: "sample"
-    setup  "HouseInmate", inmate: 1, cell: 1
-    input  inmate: 1
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
     expect status: "preparing_release"
   end
 
   test "ReleaseInmate runs" do
     tests "ReleaseInmate", on: "Inmate"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    setup  "ClassifyInmate", inmate: 1, classification: "sample"
-    setup  "HouseInmate", inmate: 1, cell: 1
-    setup  "PrepareForRelease", inmate: 1
-    input  inmate: 1
+    setup  "ClassifyInmate", classification: "sample"
+    setup  "HouseInmate"
+    setup  "PrepareForRelease"
     expect status: "released"
   end
 
@@ -66,29 +63,25 @@ Hecks.behaviors "PrisonManagement" do
     tests "AssignInmateToCell", on: "Cell"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    input  cell: 1, inmate: 1
     expect ok: "true"
   end
 
   test "InspectCell runs" do
     tests "InspectCell", on: "Cell"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    input  cell: 1
     expect ok: "true"
   end
 
   test "LockdownCell runs" do
     tests "LockdownCell", on: "Cell"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    input  cell: 1
     expect status: "lockdown"
   end
 
   test "LiftLockdown runs" do
     tests "LiftLockdown", on: "Cell"
     setup  "OpenCell", cell_id: "sample", block: "sample", max_occupancy: 1, security_level: "sample"
-    setup  "LockdownCell", cell: 1
-    input  cell: 1
+    setup  "LockdownCell"
     expect status: "available"
   end
 
@@ -105,7 +98,6 @@ Hecks.behaviors "PrisonManagement" do
     tests "EnrollInmate", on: "Program"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
-    input  program: 1, inmate: 1
     expect ok: "true"
   end
 
@@ -113,7 +105,6 @@ Hecks.behaviors "PrisonManagement" do
     tests "GraduateInmate", on: "Program"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
     setup  "CreateProgram", program_name: "sample", program_type: "sample", capacity: 1
-    input  program: 1, inmate: 1
     expect ok: "true"
   end
 
@@ -123,22 +114,21 @@ Hecks.behaviors "PrisonManagement" do
   test "FileIncident sets incident_type + severity + description" do
     tests "FileIncident", on: "Incident"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    input  inmate: 1, incident_type: "sample", severity: "sample", description: "sample"
+    input  incident_type: "sample", severity: "sample", description: "sample"
     expect status: "open"
   end
 
   test "InvestigateIncident runs" do
     tests "InvestigateIncident", on: "Incident"
-    setup  "FileIncident", inmate: 1, incident_type: "sample", severity: "sample", description: "sample"
-    input  incident: 1
+    setup  "FileIncident", incident_type: "sample", severity: "sample", description: "sample"
     expect status: "investigating"
   end
 
   test "ResolveIncident sets resolution" do
     tests "ResolveIncident", on: "Incident"
-    setup  "FileIncident", inmate: 1, incident_type: "sample", severity: "sample", description: "sample"
-    setup  "InvestigateIncident", incident: 1
-    input  incident: 1, resolution: "sample"
+    setup  "FileIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
     expect status: "resolved"
   end
 
@@ -148,21 +138,19 @@ Hecks.behaviors "PrisonManagement" do
   test "ScheduleVisit sets visitor_name + visit_type + scheduled_date" do
     tests "ScheduleVisit", on: "Visit"
     setup  "AdmitInmate", name: "sample", classification: "sample", admission_date: "sample"
-    input  inmate: 1, visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    input  visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
     expect status: "scheduled"
   end
 
   test "ConductVisit runs" do
     tests "ConductVisit", on: "Visit"
-    setup  "ScheduleVisit", inmate: 1, visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
-    input  visit: 1
+    setup  "ScheduleVisit", visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
     expect status: "completed"
   end
 
   test "CancelVisit runs" do
     tests "CancelVisit", on: "Visit"
-    setup  "ScheduleVisit", inmate: 1, visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
-    input  visit: 1
+    setup  "ScheduleVisit", visitor_name: "sample", visit_type: "sample", scheduled_date: "sample"
     expect status: "cancelled"
   end
 

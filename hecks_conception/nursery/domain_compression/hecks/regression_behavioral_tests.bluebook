@@ -12,37 +12,34 @@ Hecks.behaviors "Regression" do
   test "EnrollBlueprint sets domain_name" do
     tests "EnrollBlueprint", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
-    input  regression_suite: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect blueprint_count: 1
   end
 
   test "RunRegression runs" do
     tests "RunRegression", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
-    input  regression_suite: 1
     expect last_run_status: "running"
   end
 
   test "RecordResults sets pass_count + fail_count + run_at" do
     tests "RecordResults", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
-    input  regression_suite: 1, pass_count: 1, fail_count: 1, run_at: "sample"
+    input  pass_count: 1, fail_count: 1, run_at: "sample"
     expect last_pass_count: 1, last_fail_count: 1, last_run_at: "sample"
   end
 
   test "MarkPassing runs" do
     tests "MarkPassing", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
-    setup  "RunRegression", regression_suite: 1
-    input  regression_suite: 1
+    setup  "RunRegression"
     expect last_run_status: "passing"
   end
 
   test "MarkFailing runs" do
     tests "MarkFailing", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
-    setup  "RunRegression", regression_suite: 1
-    input  regression_suite: 1
+    setup  "RunRegression"
     expect last_run_status: "failing"
   end
 

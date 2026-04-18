@@ -12,34 +12,30 @@ Hecks.behaviors "RustToBluebook" do
   test "MapToBluebook runs" do
     tests "MapToBluebook", on: "RustFile"
     setup  "Analyze", path: "sample"
-    input  rust_file: 1
     expect status: "mapped"
   end
 
   test "GenerateBluebook runs" do
     tests "GenerateBluebook", on: "RustFile"
     setup  "Analyze", path: "sample"
-    setup  "MapToBluebook", rust_file: 1
-    input  rust_file: 1
+    setup  "MapToBluebook"
     expect status: "generated"
   end
 
   test "Verify runs" do
     tests "Verify", on: "RustFile"
     setup  "Analyze", path: "sample"
-    setup  "MapToBluebook", rust_file: 1
-    setup  "GenerateBluebook", rust_file: 1
-    input  rust_file: 1
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
     expect status: "verified"
   end
 
   test "DeleteRust runs" do
     tests "DeleteRust", on: "RustFile"
     setup  "Analyze", path: "sample"
-    setup  "MapToBluebook", rust_file: 1
-    setup  "GenerateBluebook", rust_file: 1
-    setup  "Verify", rust_file: 1
-    input  rust_file: 1
+    setup  "MapToBluebook"
+    setup  "GenerateBluebook"
+    setup  "Verify"
     expect status: "deleted"
   end
 
@@ -75,7 +71,7 @@ Hecks.behaviors "RustToBluebook" do
   test "RecordConversion sets lines_deleted" do
     tests "RecordConversion", on: "Conversion"
     setup  "StartConversion"
-    input  conversion: 1, lines_deleted: 1
+    input  lines_deleted: 1
     expect ok: "true"
   end
 

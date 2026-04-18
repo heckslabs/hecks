@@ -12,14 +12,13 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "ValidateShape sets domain_name" do
     tests "ValidateShape", on: "DomainShape"
     setup  "DefineShape", name: "sample", description: "sample"
-    input  domain_shape: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect ok: "true"
   end
 
   test "CompareToCorpus runs" do
     tests "CompareToCorpus", on: "DomainShape"
     setup  "DefineShape", name: "sample", description: "sample"
-    input  domain_shape: 1
     expect ok: "true"
   end
 
@@ -35,21 +34,20 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "ExtractSignature runs" do
     tests "ExtractSignature", on: "Archetype"
     setup  "IdentifyArchetype", name: "sample", description: "sample"
-    input  archetype: 1
     expect ok: "true"
   end
 
   test "MatchArchetype sets domain_name + similarity" do
     tests "MatchArchetype", on: "Archetype"
     setup  "IdentifyArchetype", name: "sample", description: "sample"
-    input  archetype: 1, domain_name: "sample", similarity: 1.0
+    input  domain_name: "sample", similarity: 1.0
     expect ok: "true"
   end
 
   test "NameArchetype sets name" do
     tests "NameArchetype", on: "Archetype"
     setup  "IdentifyArchetype", name: "sample", description: "sample"
-    input  archetype: 1, name: "sample"
+    input  name: "sample"
     expect name: "sample"
   end
 
@@ -65,14 +63,14 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "ValidateAgainstRule sets domain_name" do
     tests "ValidateAgainstRule", on: "PatternRule"
     setup  "DefineRule", name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
-    input  pattern_rule: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect ok: "true"
   end
 
   test "WaiveRule sets domain_name + reason" do
     tests "WaiveRule", on: "PatternRule"
     setup  "DefineRule", name: "sample", rule: "sample", applies_to: "sample", severity: "sample"
-    input  pattern_rule: 1, domain_name: "sample", reason: "sample"
+    input  domain_name: "sample", reason: "sample"
     expect ok: "true"
   end
 
@@ -88,21 +86,20 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "CompareDNA sets other_domain_name" do
     tests "CompareDNA", on: "DomainDNA"
     setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
-    input  domain_d_n_a: 1, other_domain_name: "sample"
+    input  other_domain_name: "sample"
     expect ok: "true"
   end
 
   test "FindRelatives sets threshold" do
     tests "FindRelatives", on: "DomainDNA"
     setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
-    input  domain_d_n_a: 1, threshold: 1.0
+    input  threshold: 1.0
     expect ok: "true"
   end
 
   test "MapEvolution runs" do
     tests "MapEvolution", on: "DomainDNA"
     setup  "ExtractDNA", domain_name: "sample", category: "sample", born_at: "sample"
-    input  domain_d_n_a: 1
     expect ok: "true"
   end
 
@@ -118,14 +115,13 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "ProveEquivalence sets structural_similarity + vocabulary_overlap" do
     tests "ProveEquivalence", on: "Isomorphism"
     setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
-    input  isomorphism: 1, structural_similarity: 1.0, vocabulary_overlap: 1.0
+    input  structural_similarity: 1.0, vocabulary_overlap: 1.0
     expect structural_similarity: 1.0, vocabulary_overlap: 1.0
   end
 
   test "MapCorrespondence runs" do
     tests "MapCorrespondence", on: "Isomorphism"
     setup  "DetectIsomorphism", domain_a: "sample", domain_b: "sample"
-    input  isomorphism: 1
     expect ok: "true"
   end
 
@@ -141,21 +137,20 @@ Hecks.behaviors "UniversalDomainPattern" do
   test "DetectEmergingPattern sets pattern_name" do
     tests "DetectEmergingPattern", on: "MetaEvolution"
     setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
-    input  meta_evolution: 1, pattern_name: "sample"
+    input  pattern_name: "sample"
     expect ok: "true"
   end
 
   test "DeprecatePattern sets pattern_name" do
     tests "DeprecatePattern", on: "MetaEvolution"
     setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
-    input  meta_evolution: 1, pattern_name: "sample"
+    input  pattern_name: "sample"
     expect ok: "true"
   end
 
   test "PublishEvolution runs" do
     tests "PublishEvolution", on: "MetaEvolution"
     setup  "SnapshotMetaState", corpus_snapshot_date: "sample"
-    input  meta_evolution: 1
     expect ok: "true"
   end
 

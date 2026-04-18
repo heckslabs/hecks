@@ -12,7 +12,6 @@ Hecks.behaviors "PetAdoption" do
   test "AdoptAnimal runs" do
     tests "AdoptAnimal", on: "Animal"
     setup  "IntakeAnimal", animal_id: "sample", name: "sample", species: "sample", breed: "sample", age_months: 1, temperament: "sample"
-    input  animal: 1
     expect status: "adopted"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "PetAdoption" do
   test "TrackImpressions sets impressions" do
     tests "TrackImpressions", on: "AdoptionCampaign"
     setup  "LaunchCampaign", campaign_id: "sample", target_audience: "sample", platform: "sample", budget: 1.0
-    input  adoption_campaign: 1, impressions: 1
+    input  impressions: 1
     expect impressions: 1
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "PetAdoption" do
   test "MatchAdopter runs" do
     tests "MatchAdopter", on: "AdopterProfile"
     setup  "CreateAdopterProfile", adopter_id: "sample", name: "sample", preferred_species: "sample", housing_type: "sample"
-    input  adopter_profile: 1
     expect ok: "true"
   end
 
@@ -60,7 +58,7 @@ Hecks.behaviors "PetAdoption" do
   test "RecordOutcome sets outcome" do
     tests "RecordOutcome", on: "FollowUp"
     setup  "ScheduleFollowUp", followup_id: "sample", animal_id: "sample", adopter_id: "sample", scheduled_date: "sample"
-    input  follow_up: 1, outcome: "sample"
+    input  outcome: "sample"
     expect outcome: "sample", status: "completed"
   end
 

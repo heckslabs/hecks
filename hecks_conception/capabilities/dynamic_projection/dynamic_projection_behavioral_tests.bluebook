@@ -12,7 +12,6 @@ Hecks.behaviors "DynamicProjection" do
   test "UnbindElement runs" do
     tests "UnbindElement", on: "Binding"
     setup  "BindElement", bluebook_path: "sample", concept_type: "sample", concept_name: "sample", element_id: "sample", element_type: "sample"
-    input  binding: 1
     expect ok: "true"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "DynamicProjection" do
   test "DetectChange sets path + change_type" do
     tests "DetectChange", on: "BluebookWatch"
     setup  "WatchBluebook", path: "sample"
-    input  bluebook_watch: 1, path: "sample", change_type: "sample"
+    input  path: "sample", change_type: "sample"
     expect changes_detected: 1
   end
 
@@ -44,15 +43,13 @@ Hecks.behaviors "DynamicProjection" do
   test "RegeneratePage runs" do
     tests "RegeneratePage", on: "PageProjection"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
-    setup  "FlagStale", page_projection: 1
-    input  page_projection: 1
+    setup  "FlagStale"
     expect status: "current"
   end
 
   test "FlagStale runs" do
     tests "FlagStale", on: "PageProjection"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
-    input  page_projection: 1
     expect status: "stale"
   end
 
@@ -68,7 +65,6 @@ Hecks.behaviors "DynamicProjection" do
   test "RegenerateForm runs" do
     tests "RegenerateForm", on: "FormProjection"
     setup  "ProjectForm", command_name: "sample", aggregate_name: "sample"
-    input  form_projection: 1
     expect ok: "true"
   end
 
@@ -84,7 +80,6 @@ Hecks.behaviors "DynamicProjection" do
   test "RegenerateNavigation runs" do
     tests "RegenerateNavigation", on: "NavigationProjection"
     setup  "ProjectNavigation", project_name: "sample"
-    input  navigation_projection: 1
     expect ok: "true"
   end
 
@@ -108,7 +103,7 @@ Hecks.behaviors "DynamicProjection" do
   test "ReportDrift sets total_bindings + stale_bindings + orphan_elements + missing_projections" do
     tests "ReportDrift", on: "DriftDetector"
     setup  "ScanForDrift"
-    input  drift_detector: 1, total_bindings: 1, stale_bindings: 1, orphan_elements: 1, missing_projections: 1
+    input  total_bindings: 1, stale_bindings: 1, orphan_elements: 1, missing_projections: 1
     expect total_bindings: 1, stale_bindings: 1, orphan_elements: 1, missing_projections: 1
   end
 

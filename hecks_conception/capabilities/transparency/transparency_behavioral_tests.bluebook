@@ -12,14 +12,12 @@ Hecks.behaviors "Transparency" do
   test "SilenceRule runs" do
     tests "SilenceRule", on: "NarrationRule"
     setup  "DefineRule", act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
-    input  narration_rule: 1
     expect always: false
   end
 
   test "RestoreRule runs" do
     tests "RestoreRule", on: "NarrationRule"
     setup  "DefineRule", act: "sample", template: "sample", trigger_event: "sample", always: "sample_trueclass"
-    input  narration_rule: 1
     expect always: true
   end
 

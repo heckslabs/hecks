@@ -12,14 +12,13 @@ Hecks.behaviors "VeterinaryClinic" do
   test "RecordWeight sets weight" do
     tests "RecordWeight", on: "Pet"
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    input  pet: 1, weight: 1.0
+    input  weight: 1.0
     expect weight: 1.0
   end
 
   test "MarkDeceased runs" do
     tests "MarkDeceased", on: "Pet"
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    input  pet: 1
     expect status: "deceased"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "VeterinaryClinic" do
   test "UpdateContactInfo sets phone + email" do
     tests "UpdateContactInfo", on: "Owner"
     setup  "RegisterOwner", first_name: "sample", last_name: "sample", phone: "sample", email: "sample"
-    input  owner: 1, phone: "sample", email: "sample"
+    input  phone: "sample", email: "sample"
     expect phone: "sample", email: "sample"
   end
 
@@ -45,22 +44,21 @@ Hecks.behaviors "VeterinaryClinic" do
   test "ScheduleAppointment sets appointment_date + time_slot + reason" do
     tests "ScheduleAppointment", on: "Appointment"
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    input  pet: 1, appointment_date: "sample", time_slot: "sample", reason: "sample"
+    input  appointment_date: "sample", time_slot: "sample", reason: "sample"
     expect appointment_date: "sample", time_slot: "sample", reason: "sample", status: "scheduled"
   end
 
   test "CheckInPatient runs" do
     tests "CheckInPatient", on: "Appointment"
-    setup  "ScheduleAppointment", pet: 1, appointment_date: "sample", time_slot: "sample", reason: "sample"
-    input  appointment: 1
+    setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
     expect status: "checked_in"
   end
 
   test "CompleteAppointment sets notes" do
     tests "CompleteAppointment", on: "Appointment"
-    setup  "ScheduleAppointment", pet: 1, appointment_date: "sample", time_slot: "sample", reason: "sample"
-    setup  "CheckInPatient", appointment: 1
-    input  appointment: 1, notes: "sample"
+    setup  "ScheduleAppointment", appointment_date: "sample", time_slot: "sample", reason: "sample"
+    setup  "CheckInPatient"
+    input  notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
@@ -70,14 +68,13 @@ Hecks.behaviors "VeterinaryClinic" do
   test "AdministerVaccine sets vaccine_name + lot_number + expiration_date" do
     tests "AdministerVaccine", on: "Vaccination"
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    input  pet: 1, vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
+    input  vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
     expect vaccine_name: "sample", lot_number: "sample", expiration_date: "sample", status: "current"
   end
 
   test "ExpireVaccination runs" do
     tests "ExpireVaccination", on: "Vaccination"
-    setup  "AdministerVaccine", pet: 1, vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
-    input  vaccination: 1
+    setup  "AdministerVaccine", vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
     expect status: "expired"
   end
 
@@ -87,20 +84,19 @@ Hecks.behaviors "VeterinaryClinic" do
   test "PrescribeMedication sets medication_name + dosage + frequency + refills_remaining" do
     tests "PrescribeMedication", on: "Prescription"
     setup  "RegisterPet", name: "sample", species: "sample", breed: "sample", weight: 1.0, date_of_birth: "sample"
-    input  pet: 1, medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
+    input  medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
     expect medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1, status: "active"
   end
 
   test "RefillPrescription runs" do
     tests "RefillPrescription", on: "Prescription"
-    input  prescription: 1
+    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
     expect ok: "true"
   end
 
   test "DiscontinueMedication runs" do
     tests "DiscontinueMedication", on: "Prescription"
-    setup  "PrescribeMedication", pet: 1, medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
-    input  prescription: 1
+    setup  "PrescribeMedication", medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
     expect status: "discontinued"
   end
 

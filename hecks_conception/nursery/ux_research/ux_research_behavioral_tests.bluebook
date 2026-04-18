@@ -12,14 +12,12 @@ Hecks.behaviors "UXResearch" do
   test "LaunchStudy runs" do
     tests "LaunchStudy", on: "Study"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
-    input  study: 1
     expect ok: "true"
   end
 
   test "ConcludeStudy runs" do
     tests "ConcludeStudy", on: "Study"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
-    input  study: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,19 @@ Hecks.behaviors "UXResearch" do
   test "RecruitParticipant sets participant_id + name + email + demographic_segment" do
     tests "RecruitParticipant", on: "Participant"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
-    input  study: 1, participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    input  participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
     expect ok: "true"
   end
 
   test "QualifyParticipant runs" do
     tests "QualifyParticipant", on: "Participant"
-    input  participant: 1
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
     expect ok: "true"
   end
 
   test "ExcludeParticipant runs" do
     tests "ExcludeParticipant", on: "Participant"
-    input  participant: 1
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
     expect ok: "true"
   end
 
@@ -50,19 +48,21 @@ Hecks.behaviors "UXResearch" do
 
   test "ScheduleSession sets session_id + session_type + scheduled_at + duration_minutes + facilitator" do
     tests "ScheduleSession", on: "Session"
-    input  participant: 1, session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    setup  "RecruitParticipant", participant_id: "sample", name: "sample", email: "sample", demographic_segment: "sample"
+    input  session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
     expect ok: "true"
   end
 
   test "CompleteSession runs" do
     tests "CompleteSession", on: "Session"
-    input  session: 1
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
     expect ok: "true"
   end
 
   test "CancelSession sets cancellation_reason" do
     tests "CancelSession", on: "Session"
-    input  session: 1, cancellation_reason: "sample"
+    setup  "ScheduleSession", session_id: "sample", session_type: "sample", scheduled_at: "sample", duration_minutes: 1, facilitator: "sample"
+    input  cancellation_reason: "sample"
     expect ok: "true"
   end
 
@@ -72,19 +72,19 @@ Hecks.behaviors "UXResearch" do
   test "DocumentFinding sets finding_id + title + description + severity + evidence_type" do
     tests "DocumentFinding", on: "Finding"
     setup  "PlanStudy", study_name: "sample", research_question: "sample", methodology: "sample", lead_researcher: "sample", target_participants: 1
-    input  study: 1, finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    input  finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
     expect ok: "true"
   end
 
   test "ValidateFinding runs" do
     tests "ValidateFinding", on: "Finding"
-    input  finding: 1
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
     expect ok: "true"
   end
 
   test "ArchiveFinding runs" do
     tests "ArchiveFinding", on: "Finding"
-    input  finding: 1
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
     expect ok: "true"
   end
 
@@ -93,19 +93,20 @@ Hecks.behaviors "UXResearch" do
 
   test "ProposeRecommendation sets recommendation_id + title + rationale + effort_estimate + priority" do
     tests "ProposeRecommendation", on: "Recommendation"
-    input  finding: 1, recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
+    setup  "DocumentFinding", finding_id: "sample", title: "sample", description: "sample", severity: "sample", evidence_type: "sample"
+    input  recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
     expect ok: "true"
   end
 
   test "AcceptRecommendation runs" do
     tests "AcceptRecommendation", on: "Recommendation"
-    input  recommendation: 1
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
     expect ok: "true"
   end
 
   test "DeferRecommendation runs" do
     tests "DeferRecommendation", on: "Recommendation"
-    input  recommendation: 1
+    setup  "ProposeRecommendation", recommendation_id: "sample", title: "sample", rationale: "sample", effort_estimate: "sample", priority: "sample"
     expect ok: "true"
   end
 

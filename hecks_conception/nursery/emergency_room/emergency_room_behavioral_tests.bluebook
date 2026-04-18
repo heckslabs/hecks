@@ -13,44 +13,41 @@ Hecks.behaviors "EmergencyRoom" do
     tests "AdmitPatient", on: "Patient"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    input  patient: 1, bed: 1
     expect status: "admitted"
   end
 
   test "BeginTreatment runs" do
     tests "BeginTreatment", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient", patient: 1, bed: 1
-    input  patient: 1
+    setup  "AdmitPatient"
     expect status: "treating"
   end
 
   test "StabilizePatient runs" do
     tests "StabilizePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient", patient: 1, bed: 1
-    setup  "BeginTreatment", patient: 1
-    input  patient: 1
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
     expect status: "stabilized"
   end
 
   test "DischargePatient sets discharge_instructions" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient", patient: 1, bed: 1
-    setup  "BeginTreatment", patient: 1
-    setup  "StabilizePatient", patient: 1
-    input  patient: 1, discharge_instructions: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  discharge_instructions: "sample"
     expect status: "discharged"
   end
 
   test "TransferToInpatient sets ward" do
     tests "TransferToInpatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    setup  "AdmitPatient", patient: 1, bed: 1
-    setup  "BeginTreatment", patient: 1
-    setup  "StabilizePatient", patient: 1
-    input  patient: 1, ward: "sample"
+    setup  "AdmitPatient"
+    setup  "BeginTreatment"
+    setup  "StabilizePatient"
+    input  ward: "sample"
     expect status: "transferred"
   end
 
@@ -66,15 +63,13 @@ Hecks.behaviors "EmergencyRoom" do
   test "OccupyBed runs" do
     tests "OccupyBed", on: "Bed"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
-    input  bed: 1
     expect status: "occupied"
   end
 
   test "CleanBed runs" do
     tests "CleanBed", on: "Bed"
     setup  "PrepareBed", bed_id: "sample", zone: "sample", equipment_level: "sample"
-    setup  "OccupyBed", bed: 1
-    input  bed: 1
+    setup  "OccupyBed"
     expect status: "available"
   end
 
@@ -84,14 +79,14 @@ Hecks.behaviors "EmergencyRoom" do
   test "PerformTriage sets acuity_level + vital_signs_summary" do
     tests "PerformTriage", on: "TriageAssessment"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    input  patient: 1, acuity_level: 1, vital_signs_summary: "sample"
+    input  acuity_level: 1, vital_signs_summary: "sample"
     expect status: "completed"
   end
 
   test "EscalateTriage sets new_acuity_level" do
     tests "EscalateTriage", on: "TriageAssessment"
-    setup  "PerformTriage", patient: 1, acuity_level: 1, vital_signs_summary: "sample"
-    input  triage_assessment: 1, new_acuity_level: 1
+    setup  "PerformTriage", acuity_level: 1, vital_signs_summary: "sample"
+    input  new_acuity_level: 1
     expect ok: "true"
   end
 
@@ -101,14 +96,14 @@ Hecks.behaviors "EmergencyRoom" do
   test "OrderProcedure sets procedure_name + physician" do
     tests "OrderProcedure", on: "Procedure"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample"
-    input  patient: 1, procedure_name: "sample", physician: "sample"
+    input  procedure_name: "sample", physician: "sample"
     expect status: "ordered"
   end
 
   test "PerformProcedure sets notes" do
     tests "PerformProcedure", on: "Procedure"
-    setup  "OrderProcedure", patient: 1, procedure_name: "sample", physician: "sample"
-    input  procedure: 1, notes: "sample"
+    setup  "OrderProcedure", procedure_name: "sample", physician: "sample"
+    input  notes: "sample"
     expect status: "completed"
   end
 

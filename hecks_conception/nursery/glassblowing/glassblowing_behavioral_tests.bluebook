@@ -12,15 +12,13 @@ Hecks.behaviors "Glassblowing" do
   test "BlowPiece runs" do
     tests "BlowPiece", on: "GlassPiece"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
-    input  glass_piece: 1
     expect status: "blown"
   end
 
   test "TransferToAnnealer runs" do
     tests "TransferToAnnealer", on: "GlassPiece"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
-    setup  "BlowPiece", glass_piece: 1
-    input  glass_piece: 1
+    setup  "BlowPiece"
     expect status: "annealing"
   end
 
@@ -36,14 +34,12 @@ Hecks.behaviors "Glassblowing" do
   test "ReachWorkingTemp runs" do
     tests "ReachWorkingTemp", on: "Furnace"
     setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
-    input  furnace: 1
     expect status: "ready"
   end
 
   test "ShutDownFurnace runs" do
     tests "ShutDownFurnace", on: "Furnace"
     setup  "LightFurnace", name: "sample", fuel_type: "sample", capacity_lbs: 1, target_temperature: 1
-    input  furnace: 1
     expect status: "cooling"
   end
 
@@ -59,7 +55,7 @@ Hecks.behaviors "Glassblowing" do
   test "ConsumeColor sets amount_used" do
     tests "ConsumeColor", on: "ColorBar"
     setup  "StockColor", color_name: "sample", color_type: "sample", manufacturer: "sample", quantity_lbs: 1.0, working_temp_f: 1
-    input  color_bar: 1, amount_used: 1.0
+    input  amount_used: 1.0
     expect ok: "true"
   end
 
@@ -69,20 +65,20 @@ Hecks.behaviors "Glassblowing" do
   test "LoadAnnealer sets hold_temp_f + ramp_rate_per_hour + total_hours" do
     tests "LoadAnnealer", on: "AnnealingCycle"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
-    input  glass_piece: 1, hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    input  hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
     expect ok: "true"
   end
 
   test "StartCycle runs" do
     tests "StartCycle", on: "AnnealingCycle"
-    input  annealing_cycle: 1
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
     expect status: "annealing"
   end
 
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "AnnealingCycle"
-    setup  "StartCycle", annealing_cycle: 1
-    input  annealing_cycle: 1
+    setup  "LoadAnnealer", hold_temp_f: 1, ramp_rate_per_hour: 1, total_hours: 1
+    setup  "StartCycle"
     expect status: "completed"
   end
 
@@ -98,15 +94,13 @@ Hecks.behaviors "Glassblowing" do
   test "OpenExhibition runs" do
     tests "OpenExhibition", on: "GlassExhibition"
     setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
-    input  glass_exhibition: 1
     expect status: "open"
   end
 
   test "CloseExhibition runs" do
     tests "CloseExhibition", on: "GlassExhibition"
     setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
-    setup  "OpenExhibition", glass_exhibition: 1
-    input  glass_exhibition: 1
+    setup  "OpenExhibition"
     expect status: "closed"
   end
 

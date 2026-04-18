@@ -11,14 +11,13 @@ Hecks.behaviors "Voice" do
   test "HearSpeech sets transcript" do
     tests "HearSpeech", on: "Listener"
     setup  "StartListening"
-    input  listener: 1, transcript: "sample"
+    input  transcript: "sample"
     expect last_heard: "sample"
   end
 
   test "StopListening runs" do
     tests "StopListening", on: "Listener"
     setup  "StartListening"
-    input  listener: 1
     expect status: "silent"
   end
 
@@ -34,14 +33,14 @@ Hecks.behaviors "Voice" do
   test "ChangeVoice sets voice" do
     tests "ChangeVoice", on: "Speaker"
     setup  "Speak", text: "sample"
-    input  speaker: 1, voice: "sample"
+    input  voice: "sample"
     expect voice: "sample"
   end
 
   test "ChangeRate sets rate" do
     tests "ChangeRate", on: "Speaker"
     setup  "Speak", text: "sample"
-    input  speaker: 1, rate: "sample"
+    input  rate: "sample"
     expect rate: "sample"
   end
 
@@ -56,14 +55,12 @@ Hecks.behaviors "Voice" do
   test "RecordTurn runs" do
     tests "RecordTurn", on: "Conversation"
     setup  "StartConversation"
-    input  conversation: 1
     expect turn_count: 1
   end
 
   test "EndConversation runs" do
     tests "EndConversation", on: "Conversation"
     setup  "StartConversation"
-    input  conversation: 1
     expect status: "ended"
   end
 

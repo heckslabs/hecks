@@ -12,15 +12,13 @@ Hecks.behaviors "GameDevelopment" do
   test "EnterProduction runs" do
     tests "EnterProduction", on: "GameProject"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    input  game_project: 1
     expect status: "production"
   end
 
   test "ShipGold runs" do
     tests "ShipGold", on: "GameProject"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    setup  "EnterProduction", game_project: 1
-    input  game_project: 1
+    setup  "EnterProduction"
     expect status: "gold"
   end
 
@@ -30,20 +28,21 @@ Hecks.behaviors "GameDevelopment" do
   test "PlanSprint sets name + duration_days + story_points" do
     tests "PlanSprint", on: "Sprint"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    input  game_project: 1, name: "sample", duration_days: 1, story_points: 1
+    input  name: "sample", duration_days: 1, story_points: 1
     expect ok: "true"
   end
 
   test "StartSprint runs" do
     tests "StartSprint", on: "Sprint"
-    input  sprint: 1
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
     expect status: "active"
   end
 
   test "CloseSprint sets completed_points" do
     tests "CloseSprint", on: "Sprint"
-    setup  "StartSprint", sprint: 1
-    input  sprint: 1, completed_points: 1
+    setup  "PlanSprint", name: "sample", duration_days: 1, story_points: 1
+    setup  "StartSprint"
+    input  completed_points: 1
     expect status: "closed"
   end
 
@@ -53,13 +52,13 @@ Hecks.behaviors "GameDevelopment" do
   test "TriggerBuild sets version + platform + build_config" do
     tests "TriggerBuild", on: "Build"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
-    input  game_project: 1, version: "sample", platform: "sample", build_config: "sample"
+    input  version: "sample", platform: "sample", build_config: "sample"
     expect ok: "true"
   end
 
   test "CertifyBuild runs" do
     tests "CertifyBuild", on: "Build"
-    input  build: 1
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
     expect status: "certified"
   end
 
@@ -68,20 +67,21 @@ Hecks.behaviors "GameDevelopment" do
 
   test "SchedulePlaytest sets session_name + tester_count" do
     tests "SchedulePlaytest", on: "Playtest"
-    input  build: 1, session_name: "sample", tester_count: 1
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    input  session_name: "sample", tester_count: 1
     expect ok: "true"
   end
 
   test "ConductPlaytest runs" do
     tests "ConductPlaytest", on: "Playtest"
-    input  playtest: 1
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
     expect status: "completed"
   end
 
   test "AnalyzeResults runs" do
     tests "AnalyzeResults", on: "Playtest"
-    setup  "ConductPlaytest", playtest: 1
-    input  playtest: 1
+    setup  "SchedulePlaytest", session_name: "sample", tester_count: 1
+    setup  "ConductPlaytest"
     expect ok: "true"
   end
 
@@ -90,13 +90,15 @@ Hecks.behaviors "GameDevelopment" do
 
   test "FileBug sets title + severity + repro_steps" do
     tests "FileBug", on: "BugReport"
-    input  build: 1, title: "sample", severity: "sample", repro_steps: "sample"
+    setup  "TriggerBuild", version: "sample", platform: "sample", build_config: "sample"
+    input  title: "sample", severity: "sample", repro_steps: "sample"
     expect ok: "true"
   end
 
   test "ResolveBug sets resolution" do
     tests "ResolveBug", on: "BugReport"
-    input  bug_report: 1, resolution: "sample"
+    setup  "FileBug", title: "sample", severity: "sample", repro_steps: "sample"
+    input  resolution: "sample"
     expect status: "resolved"
   end
 

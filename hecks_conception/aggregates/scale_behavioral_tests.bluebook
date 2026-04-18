@@ -12,7 +12,6 @@ Hecks.behaviors "Scale" do
   test "MarkProcessed runs" do
     tests "MarkProcessed", on: "ChangeTracker"
     setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
-    input  change_tracker: 1
     expect changed_since_last: 0
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "Scale" do
   test "UpdateShardCount sets domain_count" do
     tests "UpdateShardCount", on: "Shard"
     setup  "CreateShard", sector: "sample", path: "sample"
-    input  shard: 1, domain_count: 1
+    input  domain_count: 1
     expect domain_count: 1
   end
 
@@ -53,7 +52,6 @@ Hecks.behaviors "Scale" do
   test "EvictCache runs" do
     tests "EvictCache", on: "LazyIndex"
     setup  "QueryIndex", loaded_in_memory: 1
-    input  lazy_index: 1
     expect ok: "true"
   end
 

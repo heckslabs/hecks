@@ -12,55 +12,51 @@ Hecks.behaviors "CourierDelivery" do
   test "SortParcel sets hub_code" do
     tests "SortParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    input  parcel: 1, hub_code: "sample"
+    input  hub_code: "sample"
     expect status: "sorted"
   end
 
   test "LoadParcel runs" do
     tests "LoadParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", parcel: 1, hub_code: "sample"
-    input  parcel: 1
+    setup  "SortParcel", hub_code: "sample"
     expect status: "loaded"
   end
 
   test "DispatchParcel runs" do
     tests "DispatchParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", parcel: 1, hub_code: "sample"
-    setup  "LoadParcel", parcel: 1
-    input  parcel: 1
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
     expect status: "in_transit"
   end
 
   test "AttemptDelivery runs" do
     tests "AttemptDelivery", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", parcel: 1, hub_code: "sample"
-    setup  "LoadParcel", parcel: 1
-    setup  "DispatchParcel", parcel: 1
-    input  parcel: 1
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
     expect status: "attempted"
   end
 
   test "MarkDelivered runs" do
     tests "MarkDelivered", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", parcel: 1, hub_code: "sample"
-    setup  "LoadParcel", parcel: 1
-    setup  "DispatchParcel", parcel: 1
-    input  parcel: 1
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
     expect status: "delivered"
   end
 
   test "ReturnToSender sets reason" do
     tests "ReturnToSender", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    setup  "SortParcel", parcel: 1, hub_code: "sample"
-    setup  "LoadParcel", parcel: 1
-    setup  "DispatchParcel", parcel: 1
-    setup  "AttemptDelivery", parcel: 1
-    input  parcel: 1, reason: "sample"
+    setup  "SortParcel", hub_code: "sample"
+    setup  "LoadParcel"
+    setup  "DispatchParcel"
+    setup  "AttemptDelivery"
+    input  reason: "sample"
     expect status: "returned"
   end
 
@@ -76,15 +72,13 @@ Hecks.behaviors "CourierDelivery" do
   test "StartRoute runs" do
     tests "StartRoute", on: "Route"
     setup  "PlanRoute", zone: "sample", stop_count: 1
-    input  route: 1
     expect status: "active"
   end
 
   test "CompleteRoute runs" do
     tests "CompleteRoute", on: "Route"
     setup  "PlanRoute", zone: "sample", stop_count: 1
-    setup  "StartRoute", route: 1
-    input  route: 1
+    setup  "StartRoute"
     expect status: "completed"
   end
 
@@ -100,15 +94,13 @@ Hecks.behaviors "CourierDelivery" do
   test "CheckInDriver runs" do
     tests "CheckInDriver", on: "Driver"
     setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
-    input  driver: 1
     expect status: "on_duty"
   end
 
   test "CheckOutDriver runs" do
     tests "CheckOutDriver", on: "Driver"
     setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
-    setup  "CheckInDriver", driver: 1
-    input  driver: 1
+    setup  "CheckInDriver"
     expect status: "available"
   end
 
@@ -118,13 +110,14 @@ Hecks.behaviors "CourierDelivery" do
   test "CaptureProof sets signature_data + photo_url" do
     tests "CaptureProof", on: "ProofOfDelivery"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
-    input  parcel: 1, signature_data: "sample", photo_url: "sample"
+    input  signature_data: "sample", photo_url: "sample"
     expect ok: "true"
   end
 
   test "DisputeProof sets reason" do
     tests "DisputeProof", on: "ProofOfDelivery"
-    input  proof_of_delivery: 1, reason: "sample"
+    setup  "CaptureProof", signature_data: "sample", photo_url: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 

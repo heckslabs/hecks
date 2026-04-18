@@ -12,7 +12,6 @@ Hecks.behaviors "GymReservations" do
   test "CancelClass runs" do
     tests "CancelClass", on: "ClassSchedule"
     setup  "ScheduleClass", class_name: "sample", day_of_week: "sample", time_slot: "sample", trainer_name: "sample", room: "sample", capacity: 1
-    input  class_schedule: 1
     expect ok: "true"
   end
 
@@ -28,14 +27,12 @@ Hecks.behaviors "GymReservations" do
   test "CancelBooking runs" do
     tests "CancelBooking", on: "Booking"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
-    input  booking: 1
     expect ok: "true"
   end
 
   test "MarkAttended runs" do
     tests "MarkAttended", on: "Booking"
     setup  "ReserveSpot", member_name: "sample", class_name: "sample", session_date: "sample"
-    input  booking: 1
     expect ok: "true"
   end
 
@@ -51,7 +48,7 @@ Hecks.behaviors "GymReservations" do
   test "UpdateAvailability sets available_days" do
     tests "UpdateAvailability", on: "Trainer"
     setup  "RegisterTrainer", name: "sample", specialization: "sample"
-    input  trainer: 1, available_days: "sample"
+    input  available_days: "sample"
     expect ok: "true"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "GymReservations" do
   test "PromoteFromWaitList runs" do
     tests "PromoteFromWaitList", on: "WaitList"
     setup  "JoinWaitList", member_name: "sample", class_name: "sample", requested_date: "sample"
-    input  wait_list: 1
     expect ok: "true"
   end
 

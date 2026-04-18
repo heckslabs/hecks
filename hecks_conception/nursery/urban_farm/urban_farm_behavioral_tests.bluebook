@@ -12,7 +12,6 @@ Hecks.behaviors "UrbanFarm" do
   test "ReclaimPlot runs" do
     tests "ReclaimPlot", on: "FarmPlot"
     setup  "AssignPlot", plot_id: "sample", assigned_to: "sample", area_sqft: 1.0, soil_type: "sample"
-    input  farm_plot: 1
     expect status: "available"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "UrbanFarm" do
   test "HarvestCrop sets yield_lbs" do
     tests "HarvestCrop", on: "CropCycle"
     setup  "PlantCrop", cycle_id: "sample", plot_id: "sample", crop_name: "sample", planted_date: "sample", expected_harvest: "sample"
-    input  crop_cycle: 1, yield_lbs: 1.0
+    input  yield_lbs: 1.0
     expect yield_lbs: 1.0, status: "harvested"
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "UrbanFarm" do
   test "RunIrrigation runs" do
     tests "RunIrrigation", on: "IrrigationSystem"
     setup  "ConfigureIrrigation", system_id: "sample", zone_name: "sample", irrigation_type: "sample", flow_rate_gpm: 1.0, schedule: "sample"
-    input  irrigation_system: 1
     expect ok: "true"
   end
 
@@ -69,7 +67,6 @@ Hecks.behaviors "UrbanFarm" do
   test "ConductWorkshop runs" do
     tests "ConductWorkshop", on: "EducationWorkshop"
     setup  "ScheduleWorkshop", workshop_id: "sample", topic: "sample", instructor: "sample", date: "sample", max_participants: 1
-    input  education_workshop: 1
     expect status: "conducted"
   end
 

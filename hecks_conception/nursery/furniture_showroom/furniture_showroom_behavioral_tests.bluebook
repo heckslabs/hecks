@@ -12,14 +12,12 @@ Hecks.behaviors "FurnitureShowroom" do
   test "SellPiece runs" do
     tests "SellPiece", on: "FurniturePiece"
     setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
-    input  furniture_piece: 1
     expect status: "sold"
   end
 
   test "DiscontinuePiece runs" do
     tests "DiscontinuePiece", on: "FurniturePiece"
     setup  "AddPiece", sku: "sample", name: "sample", collection: "sample", material: "sample", price: 1.0
-    input  furniture_piece: 1
     expect status: "discontinued"
   end
 
@@ -35,7 +33,7 @@ Hecks.behaviors "FurnitureShowroom" do
   test "RestageRoom sets style" do
     tests "RestageRoom", on: "ShowroomRoom"
     setup  "StageRoom", room_name: "sample", style: "sample"
-    input  showroom_room: 1, style: "sample"
+    input  style: "sample"
     expect style: "sample"
   end
 
@@ -51,14 +49,13 @@ Hecks.behaviors "FurnitureShowroom" do
   test "CompleteDelivery runs" do
     tests "CompleteDelivery", on: "Delivery"
     setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
-    input  delivery: 1
     expect status: "delivered"
   end
 
   test "ReportDeliveryDamage sets damage_description" do
     tests "ReportDeliveryDamage", on: "Delivery"
     setup  "ScheduleDelivery", delivery_id: "sample", sku: "sample", customer_name: "sample", address: "sample", scheduled_date: "sample"
-    input  delivery: 1, damage_description: "sample"
+    input  damage_description: "sample"
     expect status: "damaged"
   end
 
@@ -74,14 +71,14 @@ Hecks.behaviors "FurnitureShowroom" do
   test "FileWarrantyClaim sets issue_description" do
     tests "FileWarrantyClaim", on: "Warranty"
     setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
-    input  warranty: 1, issue_description: "sample"
+    input  issue_description: "sample"
     expect status: "claim_pending"
   end
 
   test "ResolveWarrantyClaim sets resolution" do
     tests "ResolveWarrantyClaim", on: "Warranty"
     setup  "ActivateWarranty", warranty_id: "sample", sku: "sample", customer_name: "sample", coverage_type: "sample", expiration_date: "sample"
-    input  warranty: 1, resolution: "sample"
+    input  resolution: "sample"
     expect status: "resolved"
   end
 

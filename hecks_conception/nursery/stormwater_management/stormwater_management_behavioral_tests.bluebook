@@ -12,14 +12,14 @@ Hecks.behaviors "StormwaterManagement" do
   test "CalculateRunoffCoefficient sets runoff_coefficient" do
     tests "CalculateRunoffCoefficient", on: "Watershed"
     setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
-    input  watershed: 1, runoff_coefficient: 1.0
+    input  runoff_coefficient: 1.0
     expect runoff_coefficient: 1.0
   end
 
   test "UpdateImperviousness sets impervious_pct" do
     tests "UpdateImperviousness", on: "Watershed"
     setup  "DelineateWatershed", name: "sample", area_sq_km: 1.0, soil_type: "sample", impervious_pct: 1.0
-    input  watershed: 1, impervious_pct: 1.0
+    input  impervious_pct: 1.0
     expect impervious_pct: 1.0
   end
 
@@ -35,14 +35,12 @@ Hecks.behaviors "StormwaterManagement" do
   test "AssessCapacity runs" do
     tests "AssessCapacity", on: "DrainNetwork"
     setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
-    input  drain_network: 1
     expect ok: "true"
   end
 
   test "FlagOverflow runs" do
     tests "FlagOverflow", on: "DrainNetwork"
     setup  "MapDrainNetwork", name: "sample", watershed_name: "sample", total_capacity_cms: 1.0, inlet_count: 1, outlet_count: 1
-    input  drain_network: 1
     expect status: "at_risk"
   end
 
@@ -58,14 +56,13 @@ Hecks.behaviors "StormwaterManagement" do
   test "ModelRunoff sets runoff_volume_m3" do
     tests "ModelRunoff", on: "StormEvent"
     setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
-    input  storm_event: 1, runoff_volume_m3: 1.0
+    input  runoff_volume_m3: 1.0
     expect runoff_volume_m3: 1.0
   end
 
   test "GenerateHydrograph runs" do
     tests "GenerateHydrograph", on: "StormEvent"
     setup  "RecordStormEvent", name: "sample", intensity_mm_hr: 1.0, duration_hours: 1.0, return_period_years: 1
-    input  storm_event: 1
     expect status: "analyzed"
   end
 
@@ -81,15 +78,14 @@ Hecks.behaviors "StormwaterManagement" do
   test "EvaluateCompliance sets compliance_status" do
     tests "EvaluateCompliance", on: "ComplianceReport"
     setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
-    input  compliance_report: 1, compliance_status: "sample"
+    input  compliance_status: "sample"
     expect compliance_status: "sample", status: "evaluated"
   end
 
   test "IssueViolation runs" do
     tests "IssueViolation", on: "ComplianceReport"
     setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
-    setup  "EvaluateCompliance", compliance_report: 1, compliance_status: "sample"
-    input  compliance_report: 1
+    setup  "EvaluateCompliance", compliance_status: "sample"
     expect status: "violation"
   end
 

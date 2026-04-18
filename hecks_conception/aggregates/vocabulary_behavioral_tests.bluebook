@@ -12,7 +12,7 @@ Hecks.behaviors "Vocabulary" do
   test "Translate sets natural_phrase" do
     tests "Translate", on: "Sentence"
     setup  "Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
-    input  sentence: 1, natural_phrase: "sample"
+    input  natural_phrase: "sample"
     expect translations_size: 1
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "Vocabulary" do
   test "TranslateComposition sets natural_phrase" do
     tests "TranslateComposition", on: "Composition"
     setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
-    input  composition: 1, natural_phrase: "sample"
+    input  natural_phrase: "sample"
     expect translations_size: 1
   end
 
   test "MarkInvalid runs" do
     tests "MarkInvalid", on: "Composition"
     setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
-    input  composition: 1
     expect valid: "false"
   end
 
@@ -51,14 +50,14 @@ Hecks.behaviors "Vocabulary" do
   test "AddPhrase sets phrase" do
     tests "AddPhrase", on: "Acl"
     setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
-    input  acl: 1, phrase: "sample"
+    input  phrase: "sample"
     expect natural_phrases_size: 1
   end
 
   test "BindParam sets word + maps_to + in_command" do
     tests "BindParam", on: "Acl"
     setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
-    input  acl: 1, word: "sample", maps_to: "sample", in_command: "sample"
+    input  word: "sample", maps_to: "sample", in_command: "sample"
     expect parameter_map_size: 1
   end
 
@@ -73,7 +72,7 @@ Hecks.behaviors "Vocabulary" do
   test "Match sets input" do
     tests "Match", on: "Lexicon"
     setup  "Compile"
-    input  lexicon: 1, input: "sample"
+    input  input: "sample"
     expect ok: "true"
   end
 

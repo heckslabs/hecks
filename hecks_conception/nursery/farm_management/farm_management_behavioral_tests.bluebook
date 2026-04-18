@@ -12,14 +12,13 @@ Hecks.behaviors "FarmManagement" do
   test "PlantField sets current_crop" do
     tests "PlantField", on: "Field"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  field: 1, current_crop: "sample"
+    input  current_crop: "sample"
     expect current_crop: "sample", status: "planted"
   end
 
   test "FallowField runs" do
     tests "FallowField", on: "Field"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  field: 1
     expect current_crop: "", status: "fallow"
   end
 
@@ -29,21 +28,21 @@ Hecks.behaviors "FarmManagement" do
   test "StartCropCycle sets crop_variety + planting_date + days_to_maturity" do
     tests "StartCropCycle", on: "CropCycle"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  field: 1, crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
     expect crop_variety: "sample", planting_date: "sample", days_to_maturity: 1, growth_stage: "seedling", status: "growing"
   end
 
   test "AdvanceGrowthStage sets growth_stage" do
     tests "AdvanceGrowthStage", on: "CropCycle"
-    setup  "StartCropCycle", field: 1, crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
-    input  crop_cycle: 1, growth_stage: "sample"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  growth_stage: "sample"
     expect growth_stage: "sample"
   end
 
   test "RecordCropLoss sets loss_reason" do
     tests "RecordCropLoss", on: "CropCycle"
-    setup  "StartCropCycle", field: 1, crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
-    input  crop_cycle: 1, loss_reason: "sample"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  loss_reason: "sample"
     expect status: "damaged"
   end
 
@@ -53,21 +52,20 @@ Hecks.behaviors "FarmManagement" do
   test "SetIrrigation sets method + frequency + volume_gallons" do
     tests "SetIrrigation", on: "IrrigationSchedule"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  field: 1, method: "sample", frequency: "sample", volume_gallons: 1.0
+    input  method: "sample", frequency: "sample", volume_gallons: 1.0
     expect method: "sample", frequency: "sample", volume_gallons: 1.0, status: "active"
   end
 
   test "AdjustVolume sets new_volume" do
     tests "AdjustVolume", on: "IrrigationSchedule"
-    setup  "SetIrrigation", field: 1, method: "sample", frequency: "sample", volume_gallons: 1.0
-    input  irrigation_schedule: 1, new_volume: 1.0
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
+    input  new_volume: 1.0
     expect volume_gallons: 1.0
   end
 
   test "SuspendIrrigation runs" do
     tests "SuspendIrrigation", on: "IrrigationSchedule"
-    setup  "SetIrrigation", field: 1, method: "sample", frequency: "sample", volume_gallons: 1.0
-    input  irrigation_schedule: 1
+    setup  "SetIrrigation", method: "sample", frequency: "sample", volume_gallons: 1.0
     expect status: "suspended"
   end
 
@@ -77,13 +75,15 @@ Hecks.behaviors "FarmManagement" do
   test "RecordHarvest sets harvest_date + yield_bushels + moisture_percent + quality_grade" do
     tests "RecordHarvest", on: "Harvest"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  crop_cycle: 1, field: 1, harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    setup  "StartCropCycle", crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
+    input  harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
     expect harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
   end
 
   test "StoreHarvest sets storage_location" do
     tests "StoreHarvest", on: "Harvest"
-    input  harvest: 1, storage_location: "sample"
+    setup  "RecordHarvest", harvest_date: "sample", yield_bushels: 1.0, moisture_percent: 1.0, quality_grade: "sample"
+    input  storage_location: "sample"
     expect storage_location: "sample"
   end
 
@@ -93,19 +93,21 @@ Hecks.behaviors "FarmManagement" do
   test "CollectSample sets test_date" do
     tests "CollectSample", on: "SoilTest"
     setup  "RegisterField", name: "sample", acreage: 1.0, soil_type: "sample", gps_coordinates: "sample"
-    input  field: 1, test_date: "sample"
+    input  test_date: "sample"
     expect test_date: "sample"
   end
 
   test "RecordResults sets ph_level + nitrogen_ppm + phosphorus_ppm + potassium_ppm + organic_matter_percent" do
     tests "RecordResults", on: "SoilTest"
-    input  soil_test: 1, ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
+    setup  "CollectSample", test_date: "sample"
+    input  ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
     expect ph_level: 1.0, nitrogen_ppm: 1.0, phosphorus_ppm: 1.0, potassium_ppm: 1.0, organic_matter_percent: 1.0
   end
 
   test "IssueRecommendations sets recommendations" do
     tests "IssueRecommendations", on: "SoilTest"
-    input  soil_test: 1, recommendations: "sample"
+    setup  "CollectSample", test_date: "sample"
+    input  recommendations: "sample"
     expect recommendations: "sample"
   end
 

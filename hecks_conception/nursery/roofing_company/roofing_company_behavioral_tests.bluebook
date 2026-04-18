@@ -12,14 +12,13 @@ Hecks.behaviors "RoofingCompany" do
   test "QuoteJob sets material_cost_per_square + labor_cost_per_square" do
     tests "QuoteJob", on: "RoofEstimate"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
-    input  roof_estimate: 1, material_cost_per_square: 1.0, labor_cost_per_square: 1.0
+    input  material_cost_per_square: 1.0, labor_cost_per_square: 1.0
     expect ok: "true"
   end
 
   test "AcceptQuote runs" do
     tests "AcceptQuote", on: "RoofEstimate"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
-    input  roof_estimate: 1
     expect ok: "true"
   end
 
@@ -29,13 +28,13 @@ Hecks.behaviors "RoofingCompany" do
   test "OrderMaterials sets supplier + material_type + quantity_bundles" do
     tests "OrderMaterials", on: "MaterialOrder"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
-    input  roof_estimate: 1, supplier: "sample", material_type: "sample", quantity_bundles: 1
+    input  supplier: "sample", material_type: "sample", quantity_bundles: 1
     expect ok: "true"
   end
 
   test "ReceiveDelivery runs" do
     tests "ReceiveDelivery", on: "MaterialOrder"
-    input  material_order: 1
+    setup  "OrderMaterials", supplier: "sample", material_type: "sample", quantity_bundles: 1
     expect ok: "true"
   end
 
@@ -52,7 +51,6 @@ Hecks.behaviors "RoofingCompany" do
     tests "AssignToJob", on: "Crew"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
     setup  "FormCrew", foreman_name: "sample", crew_size: 1
-    input  crew: 1, roof_estimate: 1
     expect ok: "true"
   end
 
@@ -62,13 +60,13 @@ Hecks.behaviors "RoofingCompany" do
   test "PlaceHold sets reason" do
     tests "PlaceHold", on: "WeatherHold"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
-    input  roof_estimate: 1, reason: "sample"
+    input  reason: "sample"
     expect reason: "sample"
   end
 
   test "LiftHold runs" do
     tests "LiftHold", on: "WeatherHold"
-    input  weather_hold: 1
+    setup  "PlaceHold", reason: "sample"
     expect ok: "true"
   end
 
@@ -78,13 +76,14 @@ Hecks.behaviors "RoofingCompany" do
   test "RegisterWarranty sets warranty_type + duration_years + coverage_details" do
     tests "RegisterWarranty", on: "RoofWarranty"
     setup  "MeasureRoof", customer_name: "sample", address: "sample", square_footage: 1.0, pitch: 1.0
-    input  roof_estimate: 1, warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    input  warranty_type: "sample", duration_years: 1, coverage_details: "sample"
     expect warranty_type: "sample", duration_years: 1, coverage_details: "sample"
   end
 
   test "FileLeakClaim sets leak_location" do
     tests "FileLeakClaim", on: "RoofWarranty"
-    input  roof_warranty: 1, leak_location: "sample"
+    setup  "RegisterWarranty", warranty_type: "sample", duration_years: 1, coverage_details: "sample"
+    input  leak_location: "sample"
     expect ok: "true"
   end
 

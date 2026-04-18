@@ -12,7 +12,7 @@ Hecks.behaviors "FrozenScience" do
   test "MeasureProperty sets property_name + value + unit" do
     tests "MeasureProperty", on: "BaseIngredient"
     setup  "CatalogIngredient", name: "sample", category: "sample"
-    input  base_ingredient: 1, property_name: "sample", value: 1.0, unit: "sample"
+    input  property_name: "sample", value: 1.0, unit: "sample"
     expect properties_size: 1
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "FrozenScience" do
   test "AddComponent sets ingredient_name + ratio_pct + phase" do
     tests "AddComponent", on: "FlavorFormula"
     setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
-    input  flavor_formula: 1, ingredient_name: "sample", ratio_pct: 1.0, phase: "sample"
+    input  ingredient_name: "sample", ratio_pct: 1.0, phase: "sample"
     expect components_size: 1
   end
 
   test "ApproveFormula runs" do
     tests "ApproveFormula", on: "FlavorFormula"
     setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
-    input  flavor_formula: 1
     expect ok: "true"
   end
 
@@ -45,19 +44,20 @@ Hecks.behaviors "FrozenScience" do
   test "StartCycle sets batch_id" do
     tests "StartCycle", on: "FreezingCycle"
     setup  "CreateFormula", flavor_name: "sample", target_temp_c: 1.0
-    input  flavor_formula: 1, batch_id: "sample"
+    input  batch_id: "sample"
     expect ok: "true"
   end
 
   test "RecordMeasurement sets time_seconds + temperature_c + viscosity + overrun_pct" do
     tests "RecordMeasurement", on: "FreezingCycle"
-    input  freezing_cycle: 1, time_seconds: 1, temperature_c: 1.0, viscosity: 1.0, overrun_pct: 1.0
+    setup  "StartCycle", batch_id: "sample"
+    input  time_seconds: 1, temperature_c: 1.0, viscosity: 1.0, overrun_pct: 1.0
     expect measurements_size: 1
   end
 
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "FreezingCycle"
-    input  freezing_cycle: 1
+    setup  "StartCycle", batch_id: "sample"
     expect ok: "true"
   end
 
@@ -73,14 +73,13 @@ Hecks.behaviors "FrozenScience" do
   test "AddOffering sets flavor_name + price_cents + serving_temp_c" do
     tests "AddOffering", on: "ParlorMenu"
     setup  "CreateMenu", menu_name: "sample", season: "sample"
-    input  parlor_menu: 1, flavor_name: "sample", price_cents: 1, serving_temp_c: 1.0
+    input  flavor_name: "sample", price_cents: 1, serving_temp_c: 1.0
     expect offerings_size: 1
   end
 
   test "LaunchMenu runs" do
     tests "LaunchMenu", on: "ParlorMenu"
     setup  "CreateMenu", menu_name: "sample", season: "sample"
-    input  parlor_menu: 1
     expect ok: "true"
   end
 

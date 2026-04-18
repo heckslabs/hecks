@@ -12,21 +12,21 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "AddRegulation sets code + title + effective_date + applies_to + requirement + penalty" do
     tests "AddRegulation", on: "Jurisdiction"
     setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
-    input  jurisdiction: 1, code: "sample", title: "sample", effective_date: "sample", applies_to: "sample", requirement: "sample", penalty: "sample"
+    input  code: "sample", title: "sample", effective_date: "sample", applies_to: "sample", requirement: "sample", penalty: "sample"
     expect status: "active", regulations_size: 1
   end
 
   test "UpdateRegulation sets code + requirement + penalty" do
     tests "UpdateRegulation", on: "Jurisdiction"
     setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
-    input  jurisdiction: 1, code: "sample", requirement: "sample", penalty: "sample"
+    input  code: "sample", requirement: "sample", penalty: "sample"
     expect ok: "true"
   end
 
   test "RetireRegulation sets code" do
     tests "RetireRegulation", on: "Jurisdiction"
     setup  "RegisterJurisdiction", name: "sample", authority: "sample", region: "sample"
-    input  jurisdiction: 1, code: "sample"
+    input  code: "sample"
     expect ok: "true"
   end
 
@@ -42,33 +42,31 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "AssignResponsibility sets responsible_party" do
     tests "AssignResponsibility", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
-    input  compliance_obligation: 1, responsible_party: "sample"
+    input  responsible_party: "sample"
     expect responsible_party: "sample", status: "assigned"
   end
 
   test "ScheduleDeadline sets due_date" do
     tests "ScheduleDeadline", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
-    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
-    input  compliance_obligation: 1, due_date: "sample"
+    setup  "AssignResponsibility", responsible_party: "sample"
+    input  due_date: "sample"
     expect due_date: "sample", status: "scheduled"
   end
 
   test "MarkComplete runs" do
     tests "MarkComplete", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
-    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
-    setup  "ScheduleDeadline", compliance_obligation: 1, due_date: "sample"
-    input  compliance_obligation: 1
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
     expect status: "completed"
   end
 
   test "FlagOverdue runs" do
     tests "FlagOverdue", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
-    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
-    setup  "ScheduleDeadline", compliance_obligation: 1, due_date: "sample"
-    input  compliance_obligation: 1
+    setup  "AssignResponsibility", responsible_party: "sample"
+    setup  "ScheduleDeadline", due_date: "sample"
     expect status: "overdue"
   end
 
@@ -84,41 +82,38 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "CompleteSection runs" do
     tests "CompleteSection", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    input  safety_data_sheet: 1
     expect sections_complete: 1
   end
 
   test "ReviewSDS sets reviewer" do
     tests "ReviewSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    input  safety_data_sheet: 1, reviewer: "sample"
+    input  reviewer: "sample"
     expect reviewer: "sample", status: "under_review"
   end
 
   test "ApproveSDS sets approved_date" do
     tests "ApproveSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
-    input  safety_data_sheet: 1, approved_date: "sample"
+    setup  "ReviewSDS", reviewer: "sample"
+    input  approved_date: "sample"
     expect approved_date: "sample", status: "approved"
   end
 
   test "PublishSDS runs" do
     tests "PublishSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
-    setup  "ApproveSDS", safety_data_sheet: 1, approved_date: "sample"
-    input  safety_data_sheet: 1
+    setup  "ReviewSDS", reviewer: "sample"
+    setup  "ApproveSDS", approved_date: "sample"
     expect status: "published"
   end
 
   test "ReviseSDS runs" do
     tests "ReviseSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
-    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
-    setup  "ApproveSDS", safety_data_sheet: 1, approved_date: "sample"
-    setup  "PublishSDS", safety_data_sheet: 1
-    input  safety_data_sheet: 1
+    setup  "ReviewSDS", reviewer: "sample"
+    setup  "ApproveSDS", approved_date: "sample"
+    setup  "PublishSDS"
     expect sds_version: 1, sections_complete: 0, status: "drafting"
   end
 
@@ -134,22 +129,20 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "IdentifyGap runs" do
     tests "IdentifyGap", on: "LabelCompliance"
     setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
-    input  label_compliance: 1
     expect status: "gap_found"
   end
 
   test "CorrectLabel runs" do
     tests "CorrectLabel", on: "LabelCompliance"
     setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
-    setup  "IdentifyGap", label_compliance: 1
-    input  label_compliance: 1, required_elements: "sample_labelelement"
+    setup  "IdentifyGap"
+    input  required_elements: "sample_labelelement"
     expect required_elements: "sample_labelelement", status: "corrected"
   end
 
   test "CertifyLabel runs" do
     tests "CertifyLabel", on: "LabelCompliance"
     setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
-    input  label_compliance: 1
     expect status: "certified"
   end
 
@@ -165,24 +158,21 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "GenerateShippingPaper runs" do
     tests "GenerateShippingPaper", on: "HazmatShipping"
     setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
-    input  hazmat_shipping: 1
     expect status: "documented"
   end
 
   test "ValidatePackaging runs" do
     tests "ValidatePackaging", on: "HazmatShipping"
     setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
-    setup  "GenerateShippingPaper", hazmat_shipping: 1
-    input  hazmat_shipping: 1
+    setup  "GenerateShippingPaper"
     expect status: "validated"
   end
 
   test "CertifyCompliance runs" do
     tests "CertifyCompliance", on: "HazmatShipping"
     setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
-    setup  "GenerateShippingPaper", hazmat_shipping: 1
-    setup  "ValidatePackaging", hazmat_shipping: 1
-    input  hazmat_shipping: 1
+    setup  "GenerateShippingPaper"
+    setup  "ValidatePackaging"
     expect status: "certified"
   end
 
@@ -198,22 +188,21 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "PrepareReport sets waste_generated + disposal_method" do
     tests "PrepareReport", on: "EnvironmentalReport"
     setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
-    input  environmental_report: 1, waste_generated: 1.0, disposal_method: "sample"
+    input  waste_generated: 1.0, disposal_method: "sample"
     expect waste_generated: 1.0, disposal_method: "sample", status: "prepared"
   end
 
   test "FileReport runs" do
     tests "FileReport", on: "EnvironmentalReport"
     setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
-    setup  "PrepareReport", environmental_report: 1, waste_generated: 1.0, disposal_method: "sample"
-    input  environmental_report: 1
+    setup  "PrepareReport", waste_generated: 1.0, disposal_method: "sample"
     expect filed: "true", status: "filed"
   end
 
   test "TrackWaste sets waste_generated + disposal_method" do
     tests "TrackWaste", on: "EnvironmentalReport"
     setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
-    input  environmental_report: 1, waste_generated: 1.0, disposal_method: "sample"
+    input  waste_generated: 1.0, disposal_method: "sample"
     expect waste_generated: 1.0, disposal_method: "sample"
   end
 
@@ -229,28 +218,26 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "IdentifyExpiredDocuments sets documents_expired" do
     tests "IdentifyExpiredDocuments", on: "AuditReadiness"
     setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
-    input  audit_readiness: 1, documents_expired: 1
+    input  documents_expired: 1
     expect documents_expired: 1
   end
 
   test "GenerateAuditPackage runs" do
     tests "GenerateAuditPackage", on: "AuditReadiness"
     setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
-    input  audit_readiness: 1
     expect ok: "true"
   end
 
   test "SimulateInspection sets findings_open + readiness_score" do
     tests "SimulateInspection", on: "AuditReadiness"
     setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
-    input  audit_readiness: 1, findings_open: 1, readiness_score: 1.0
+    input  findings_open: 1, readiness_score: 1.0
     expect findings_open: 1, readiness_score: 1.0
   end
 
   test "CloseAuditFinding runs" do
     tests "CloseAuditFinding", on: "AuditReadiness"
     setup  "AssessReadiness", last_audit_date: "sample", next_expected: "sample", findings_open: 1, documents_current: 1, documents_expired: 1, readiness_score: 1.0
-    input  audit_readiness: 1
     expect findings_open: 1
   end
 
@@ -266,34 +253,32 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "AssessImpact sets impact_assessment" do
     tests "AssessImpact", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
-    input  regulatory_change: 1, impact_assessment: "sample"
+    input  impact_assessment: "sample"
     expect impact_assessment: "sample", status: "assessed"
   end
 
   test "PlanResponse sets action_required" do
     tests "PlanResponse", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
-    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
-    input  regulatory_change: 1, action_required: "sample"
+    setup  "AssessImpact", impact_assessment: "sample"
+    input  action_required: "sample"
     expect action_required: "sample", status: "planned"
   end
 
   test "ImplementChange runs" do
     tests "ImplementChange", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
-    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
-    setup  "PlanResponse", regulatory_change: 1, action_required: "sample"
-    input  regulatory_change: 1
+    setup  "AssessImpact", impact_assessment: "sample"
+    setup  "PlanResponse", action_required: "sample"
     expect status: "implemented"
   end
 
   test "VerifyCompliance runs" do
     tests "VerifyCompliance", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
-    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
-    setup  "PlanResponse", regulatory_change: 1, action_required: "sample"
-    setup  "ImplementChange", regulatory_change: 1
-    input  regulatory_change: 1
+    setup  "AssessImpact", impact_assessment: "sample"
+    setup  "PlanResponse", action_required: "sample"
+    setup  "ImplementChange"
     expect status: "verified"
   end
 

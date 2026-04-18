@@ -12,7 +12,6 @@ Hecks.behaviors "GenomicsInfra" do
   test "SequenceSample runs" do
     tests "SequenceSample", on: "GenomeSample"
     setup  "SubmitSample", sample_id: "sample", patient_id: "sample", sample_type: "sample", collection_date: "sample"
-    input  genome_sample: 1
     expect status: "sequenced"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "GenomicsInfra" do
   test "ScaleCluster sets node_count" do
     tests "ScaleCluster", on: "ComputeCluster"
     setup  "DeployCluster", cluster_id: "sample", region: "sample", node_count: 1, cpu_cores_total: 1.0, memory_tb: 1.0
-    input  compute_cluster: 1, node_count: 1
+    input  node_count: 1
     expect node_count: 1
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "GenomicsInfra" do
   test "ArchiveData runs" do
     tests "ArchiveData", on: "SequenceStore"
     setup  "CreateStore", store_id: "sample", cluster_id: "sample", quota_tb: 1.0
-    input  sequence_store: 1
     expect ok: "true"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "GenomicsInfra" do
   test "CompletePipeline runs" do
     tests "CompletePipeline", on: "AnalysisPipeline"
     setup  "LaunchPipeline", pipeline_id: "sample", sample_id: "sample", pipeline_type: "sample"
-    input  analysis_pipeline: 1
     expect status: "completed"
   end
 

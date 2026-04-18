@@ -12,14 +12,13 @@ Hecks.behaviors "Catalog" do
   test "DevelopDomain sets version + aggregate_count + command_count + policy_count + lines" do
     tests "DevelopDomain", on: "Entry"
     setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
-    input  entry: 1, version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
+    input  version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     expect version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
   end
 
   test "RetireDomain runs" do
     tests "RetireDomain", on: "Entry"
     setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
-    input  entry: 1
     expect status: "retired"
   end
 

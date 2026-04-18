@@ -12,14 +12,13 @@ Hecks.behaviors "GameStore" do
   test "SellGame runs" do
     tests "SellGame", on: "Game"
     setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
-    input  game: 1
     expect ok: "true"
   end
 
   test "ClearanceGame sets clearance_price" do
     tests "ClearanceGame", on: "Game"
     setup  "StockGame", sku: "sample", title: "sample", platform: "sample", genre: "sample", price: 1.0, quantity: 1, age_rating: "sample"
-    input  game: 1, clearance_price: 1.0
+    input  clearance_price: 1.0
     expect price: 1.0
   end
 
@@ -35,15 +34,13 @@ Hecks.behaviors "GameStore" do
   test "LaunchTournament runs" do
     tests "LaunchTournament", on: "Tournament"
     setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    input  tournament: 1
     expect status: "in_progress"
   end
 
   test "ConcludeTournament runs" do
     tests "ConcludeTournament", on: "Tournament"
     setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
-    setup  "LaunchTournament", tournament: 1
-    input  tournament: 1
+    setup  "LaunchTournament"
     expect status: "concluded"
   end
 
@@ -59,7 +56,6 @@ Hecks.behaviors "GameStore" do
   test "RejectTradeIn runs" do
     tests "RejectTradeIn", on: "TradeIn"
     setup  "AcceptTradeIn", trade_id: "sample", customer_name: "sample", game_title: "sample", condition: "sample", credit_offered: 1.0
-    input  trade_in: 1
     expect status: "rejected"
   end
 
@@ -75,14 +71,12 @@ Hecks.behaviors "GameStore" do
   test "FulfillPreorder runs" do
     tests "FulfillPreorder", on: "Preorder"
     setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
-    input  preorder: 1
     expect status: "fulfilled"
   end
 
   test "CancelPreorder runs" do
     tests "CancelPreorder", on: "Preorder"
     setup  "PlacePreorder", preorder_id: "sample", customer_name: "sample", game_title: "sample", release_date: "sample", deposit: 1.0
-    input  preorder: 1
     expect status: "canceled"
   end
 

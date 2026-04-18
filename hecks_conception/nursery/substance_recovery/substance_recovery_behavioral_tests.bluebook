@@ -12,14 +12,12 @@ Hecks.behaviors "SubstanceRecovery" do
   test "TransitionToAftercare runs" do
     tests "TransitionToAftercare", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
-    input  client: 1
     expect status: "aftercare"
   end
 
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
-    input  client: 1
     expect status: "discharged"
   end
 
@@ -35,14 +33,13 @@ Hecks.behaviors "SubstanceRecovery" do
   test "EnrollInProgram runs" do
     tests "EnrollInProgram", on: "TreatmentProgram"
     setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
-    input  treatment_program: 1
     expect ok: "true"
   end
 
   test "UpdateCapacity sets capacity" do
     tests "UpdateCapacity", on: "TreatmentProgram"
     setup  "EstablishProgram", program_name: "sample", treatment_level: "sample", duration_days: 1, modality: "sample", capacity: 1
-    input  treatment_program: 1, capacity: 1
+    input  capacity: 1
     expect capacity: 1
   end
 
@@ -52,13 +49,13 @@ Hecks.behaviors "SubstanceRecovery" do
   test "RecordMilestone sets client_name + milestone_type + description + achieved_date + days_sober + verified_by" do
     tests "RecordMilestone", on: "RecoveryMilestone"
     setup  "IntakeClient", name: "sample", date_of_birth: "sample", primary_substance: "sample", intake_date: "sample", insurance_id: "sample"
-    input  client: 1, client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
+    input  client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
     expect client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
   end
 
   test "CelebrateMilestone runs" do
     tests "CelebrateMilestone", on: "RecoveryMilestone"
-    input  recovery_milestone: 1
+    setup  "RecordMilestone", client_name: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample", days_sober: 1, verified_by: "sample"
     expect ok: "true"
   end
 
@@ -74,7 +71,6 @@ Hecks.behaviors "SubstanceRecovery" do
   test "AssignCase runs" do
     tests "AssignCase", on: "Counselor"
     setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
-    input  counselor: 1
     expect ok: "true"
   end
 
@@ -84,19 +80,20 @@ Hecks.behaviors "SubstanceRecovery" do
   test "CreateSupportGroup sets group_name + meeting_day + meeting_time + facilitator_name + max_members" do
     tests "CreateSupportGroup", on: "SupportGroup"
     setup  "HireCounselor", name: "sample", license_type: "sample", license_number: "sample", specialty: "sample"
-    input  counselor: 1, group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    input  group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     expect group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
   end
 
   test "AddGroupMember sets client_name + joined_date" do
     tests "AddGroupMember", on: "SupportGroup"
-    input  support_group: 1, client_name: "sample", joined_date: "sample"
+    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
+    input  client_name: "sample", joined_date: "sample"
     expect ok: "true"
   end
 
   test "RecordAttendance runs" do
     tests "RecordAttendance", on: "SupportGroup"
-    input  support_group: 1
+    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     expect ok: "true"
   end
 

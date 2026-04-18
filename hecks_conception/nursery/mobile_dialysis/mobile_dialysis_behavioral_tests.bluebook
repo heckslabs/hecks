@@ -12,7 +12,6 @@ Hecks.behaviors "MobileDialysis" do
   test "PauseEnrollment runs" do
     tests "PauseEnrollment", on: "DialysisPatient"
     setup  "EnrollPatient", patient_id: "sample", name: "sample", blood_type: "sample", access_type: "sample", treatments_per_week: 1
-    input  dialysis_patient: 1
     expect status: "paused"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "MobileDialysis" do
   test "DispatchUnit runs" do
     tests "DispatchUnit", on: "MobileUnit"
     setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
-    input  mobile_unit: 1
     expect status: "dispatched"
   end
 
   test "ReturnUnit runs" do
     tests "ReturnUnit", on: "MobileUnit"
     setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
-    setup  "DispatchUnit", mobile_unit: 1
-    input  mobile_unit: 1
+    setup  "DispatchUnit"
     expect status: "available"
   end
 
@@ -52,15 +49,13 @@ Hecks.behaviors "MobileDialysis" do
   test "StartRoute runs" do
     tests "StartRoute", on: "TreatmentRoute"
     setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
-    input  treatment_route: 1
     expect status: "in_progress"
   end
 
   test "FinishRoute runs" do
     tests "FinishRoute", on: "TreatmentRoute"
     setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
-    setup  "StartRoute", treatment_route: 1
-    input  treatment_route: 1
+    setup  "StartRoute"
     expect status: "finished"
   end
 
@@ -76,7 +71,7 @@ Hecks.behaviors "MobileDialysis" do
   test "EndTreatment sets duration_hours + fluid_removed_liters" do
     tests "EndTreatment", on: "TreatmentSession"
     setup  "StartTreatment", session_id: "sample", patient_id: "sample", unit_id: "sample"
-    input  treatment_session: 1, duration_hours: 1.0, fluid_removed_liters: 1.0
+    input  duration_hours: 1.0, fluid_removed_liters: 1.0
     expect duration_hours: 1.0, fluid_removed_liters: 1.0, status: "completed"
   end
 

@@ -12,15 +12,13 @@ Hecks.behaviors "DialysisNetworkOps" do
   test "StartTreatment runs" do
     tests "StartTreatment", on: "DialysisMachine"
     setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
-    input  dialysis_machine: 1
     expect status: "treating"
   end
 
   test "EndTreatment runs" do
     tests "EndTreatment", on: "DialysisMachine"
     setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
-    setup  "StartTreatment", dialysis_machine: 1
-    input  dialysis_machine: 1
+    setup  "StartTreatment"
     expect status: "online"
   end
 
@@ -36,14 +34,13 @@ Hecks.behaviors "DialysisNetworkOps" do
   test "TestLink sets latency_ms" do
     tests "TestLink", on: "NetworkLink"
     setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
-    input  network_link: 1, latency_ms: 1.0
+    input  latency_ms: 1.0
     expect latency_ms: 1.0
   end
 
   test "MarkDown runs" do
     tests "MarkDown", on: "NetworkLink"
     setup  "EstablishLink", link_id: "sample", center_name: "sample", link_type: "sample", bandwidth_mbps: 1.0
-    input  network_link: 1
     expect status: "down"
   end
 
@@ -59,15 +56,13 @@ Hecks.behaviors "DialysisNetworkOps" do
   test "AcknowledgeAlert runs" do
     tests "AcknowledgeAlert", on: "RemoteAlert"
     setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
-    input  remote_alert: 1
     expect status: "acknowledged"
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "RemoteAlert"
     setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
-    setup  "AcknowledgeAlert", remote_alert: 1
-    input  remote_alert: 1
+    setup  "AcknowledgeAlert"
     expect status: "resolved"
   end
 

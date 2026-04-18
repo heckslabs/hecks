@@ -12,24 +12,22 @@ Hecks.behaviors "PhysicalTherapy" do
   test "AssessLimitation sets body_region + description + severity_score" do
     tests "AssessLimitation", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    input  patient: 1, body_region: "sample", description: "sample", severity_score: 1
+    input  body_region: "sample", description: "sample", severity_score: 1
     expect status: "assessed"
   end
 
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    setup  "AssessLimitation", patient: 1, body_region: "sample", description: "sample", severity_score: 1
-    input  patient: 1
+    setup  "AssessLimitation", body_region: "sample", description: "sample", severity_score: 1
     expect status: "active"
   end
 
   test "DischargePatient runs" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    setup  "AssessLimitation", patient: 1, body_region: "sample", description: "sample", severity_score: 1
-    setup  "ActivatePatient", patient: 1
-    input  patient: 1
+    setup  "AssessLimitation", body_region: "sample", description: "sample", severity_score: 1
+    setup  "ActivatePatient"
     expect status: "discharged"
   end
 
@@ -45,7 +43,7 @@ Hecks.behaviors "PhysicalTherapy" do
   test "AdjustDifficulty sets difficulty" do
     tests "AdjustDifficulty", on: "Exercise"
     setup  "DefineExercise", name: "sample", target_muscle_group: "sample", difficulty: "sample", instructions: "sample", repetitions: 1, sets: 1
-    input  exercise: 1, difficulty: "sample"
+    input  difficulty: "sample"
     expect difficulty: "sample"
   end
 
@@ -55,21 +53,20 @@ Hecks.behaviors "PhysicalTherapy" do
   test "ScheduleSession sets patient_name + therapist_name + scheduled_date" do
     tests "ScheduleSession", on: "Session"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     expect patient_name: "sample", therapist_name: "sample", scheduled_date: "sample", status: "scheduled"
   end
 
   test "CompleteSession sets notes" do
     tests "CompleteSession", on: "Session"
-    setup  "ScheduleSession", patient: 1, patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
-    input  session: 1, notes: "sample"
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
+    input  notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
   test "CancelSession runs" do
     tests "CancelSession", on: "Session"
-    setup  "ScheduleSession", patient: 1, patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
-    input  session: 1
+    setup  "ScheduleSession", patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     expect status: "cancelled"
   end
 
@@ -79,19 +76,19 @@ Hecks.behaviors "PhysicalTherapy" do
   test "CreatePrescription sets physician_name + patient_name + diagnosis + authorized_visits" do
     tests "CreatePrescription", on: "Prescription"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    input  patient: 1, physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
+    input  physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1, visits_used: 0, status: "active"
   end
 
   test "RecordVisit runs" do
     tests "RecordVisit", on: "Prescription"
-    input  prescription: 1
+    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect ok: "true"
   end
 
   test "ExpirePrescription runs" do
     tests "ExpirePrescription", on: "Prescription"
-    input  prescription: 1
+    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     expect status: "expired"
   end
 
@@ -101,13 +98,13 @@ Hecks.behaviors "PhysicalTherapy" do
   test "RecordProgress sets patient_name + assessment_date + pain_score + range_of_motion + strength_score + therapist_notes" do
     tests "RecordProgress", on: "ProgressReport"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
+    input  patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
     expect patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
   end
 
   test "FlagRegression runs" do
     tests "FlagRegression", on: "ProgressReport"
-    input  progress_report: 1
+    setup  "RecordProgress", patient_name: "sample", assessment_date: "sample", pain_score: 1, range_of_motion: 1, strength_score: 1, therapist_notes: "sample"
     expect ok: "true"
   end
 

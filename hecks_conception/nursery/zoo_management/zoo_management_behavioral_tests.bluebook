@@ -12,7 +12,6 @@ Hecks.behaviors "ZooManagement" do
   test "ClearQuarantine runs" do
     tests "ClearQuarantine", on: "Animal"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    input  animal: 1
     expect status: "cleared"
   end
 
@@ -20,26 +19,25 @@ Hecks.behaviors "ZooManagement" do
     tests "PlaceOnExhibit", on: "Animal"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine", animal: 1
-    input  animal: 1, habitat: 1
+    setup  "ClearQuarantine"
     expect status: "on_exhibit"
   end
 
   test "MoveOffExhibit sets reason" do
     tests "MoveOffExhibit", on: "Animal"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine", animal: 1
-    setup  "PlaceOnExhibit", animal: 1, habitat: 1
-    input  animal: 1, reason: "sample"
+    setup  "ClearQuarantine"
+    setup  "PlaceOnExhibit"
+    input  reason: "sample"
     expect status: "off_exhibit"
   end
 
   test "TransferAnimal sets destination_zoo" do
     tests "TransferAnimal", on: "Animal"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    setup  "ClearQuarantine", animal: 1
-    setup  "PlaceOnExhibit", animal: 1, habitat: 1
-    input  animal: 1, destination_zoo: "sample"
+    setup  "ClearQuarantine"
+    setup  "PlaceOnExhibit"
+    input  destination_zoo: "sample"
     expect status: "transferred"
   end
 
@@ -55,24 +53,22 @@ Hecks.behaviors "ZooManagement" do
   test "InspectHabitat runs" do
     tests "InspectHabitat", on: "Habitat"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    input  habitat: 1
     expect status: "active"
   end
 
   test "CloseHabitat sets reason" do
     tests "CloseHabitat", on: "Habitat"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    setup  "InspectHabitat", habitat: 1
-    input  habitat: 1, reason: "sample"
+    setup  "InspectHabitat"
+    input  reason: "sample"
     expect status: "closed"
   end
 
   test "ReopenHabitat runs" do
     tests "ReopenHabitat", on: "Habitat"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    setup  "InspectHabitat", habitat: 1
-    setup  "CloseHabitat", habitat: 1, reason: "sample"
-    input  habitat: 1
+    setup  "InspectHabitat"
+    setup  "CloseHabitat", reason: "sample"
     expect status: "active"
   end
 
@@ -80,7 +76,6 @@ Hecks.behaviors "ZooManagement" do
     tests "AssignAnimalToHabitat", on: "Habitat"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
     setup  "BuildHabitat", name: "sample", biome_type: "sample", area_sqft: 1.0, max_capacity: 1
-    input  habitat: 1, animal: 1
     expect ok: "true"
   end
 
@@ -90,20 +85,21 @@ Hecks.behaviors "ZooManagement" do
   test "CreateFeedingSchedule sets diet_type + feeding_time + portion_kg" do
     tests "CreateFeedingSchedule", on: "FeedingSchedule"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    input  animal: 1, diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
     expect diet_type: "sample", feeding_time: "sample", portion_kg: 1.0, status: "active"
   end
 
   test "RecordFeeding sets fed_by" do
     tests "RecordFeeding", on: "FeedingSchedule"
-    input  feeding_schedule: 1, fed_by: "sample"
+    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  fed_by: "sample"
     expect ok: "true"
   end
 
   test "AdjustDiet sets new_diet_type + new_portion_kg" do
     tests "AdjustDiet", on: "FeedingSchedule"
-    setup  "CreateFeedingSchedule", animal: 1, diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
-    input  feeding_schedule: 1, new_diet_type: "sample", new_portion_kg: 1.0
+    setup  "CreateFeedingSchedule", diet_type: "sample", feeding_time: "sample", portion_kg: 1.0
+    input  new_diet_type: "sample", new_portion_kg: 1.0
     expect ok: "true"
   end
 
@@ -113,14 +109,14 @@ Hecks.behaviors "ZooManagement" do
   test "ScheduleExam sets exam_type + veterinarian" do
     tests "ScheduleExam", on: "VeterinaryExam"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    input  animal: 1, exam_type: "sample", veterinarian: "sample"
+    input  exam_type: "sample", veterinarian: "sample"
     expect status: "scheduled"
   end
 
   test "PerformExam sets findings" do
     tests "PerformExam", on: "VeterinaryExam"
-    setup  "ScheduleExam", animal: 1, exam_type: "sample", veterinarian: "sample"
-    input  veterinary_exam: 1, findings: "sample"
+    setup  "ScheduleExam", exam_type: "sample", veterinarian: "sample"
+    input  findings: "sample"
     expect status: "completed"
   end
 
@@ -130,14 +126,14 @@ Hecks.behaviors "ZooManagement" do
   test "InitiateBreeding sets species + target_offspring" do
     tests "InitiateBreeding", on: "BreedingProgram"
     setup  "RegisterAnimal", common_name: "sample", species: "sample", sex: "sample", date_of_birth: "sample"
-    input  animal: 1, species: "sample", target_offspring: 1
+    input  species: "sample", target_offspring: 1
     expect status: "active"
   end
 
   test "RecordBirth sets offspring_name" do
     tests "RecordBirth", on: "BreedingProgram"
-    setup  "InitiateBreeding", animal: 1, species: "sample", target_offspring: 1
-    input  breeding_program: 1, offspring_name: "sample"
+    setup  "InitiateBreeding", species: "sample", target_offspring: 1
+    input  offspring_name: "sample"
     expect ok: "true"
   end
 

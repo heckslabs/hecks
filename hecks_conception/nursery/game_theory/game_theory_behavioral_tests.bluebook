@@ -12,14 +12,12 @@ Hecks.behaviors "GameTheory" do
   test "ValidateGame runs" do
     tests "ValidateGame", on: "StrategicGame"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1
     expect ok: "true"
   end
 
   test "ArchiveGame runs" do
     tests "ArchiveGame", on: "StrategicGame"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,19 @@ Hecks.behaviors "GameTheory" do
   test "RegisterStrategy sets player_id + strategy_type" do
     tests "RegisterStrategy", on: "Strategy"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1, player_id: "sample", strategy_type: "sample"
+    input  player_id: "sample", strategy_type: "sample"
     expect player_id: "sample", strategy_type: "sample"
   end
 
   test "ComputeBestResponse runs" do
     tests "ComputeBestResponse", on: "Strategy"
-    input  strategy: 1
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
     expect ok: "true"
   end
 
   test "EliminateDominated runs" do
     tests "EliminateDominated", on: "Strategy"
-    input  strategy: 1
+    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
     expect ok: "true"
   end
 
@@ -51,19 +49,20 @@ Hecks.behaviors "GameTheory" do
   test "ConstructMatrix sets rows + columns" do
     tests "ConstructMatrix", on: "PayoffMatrix"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1, rows: 1, columns: 1
+    input  rows: 1, columns: 1
     expect ok: "true"
   end
 
   test "ModifyPayoff sets row + column + new_payoff" do
     tests "ModifyPayoff", on: "PayoffMatrix"
-    input  payoff_matrix: 1, row: 1, column: 1, new_payoff: "sample"
+    setup  "ConstructMatrix", rows: 1, columns: 1
+    input  row: 1, column: 1, new_payoff: "sample"
     expect ok: "true"
   end
 
   test "VerifySymmetry runs" do
     tests "VerifySymmetry", on: "PayoffMatrix"
-    input  payoff_matrix: 1
+    setup  "ConstructMatrix", rows: 1, columns: 1
     expect ok: "true"
   end
 
@@ -73,13 +72,13 @@ Hecks.behaviors "GameTheory" do
   test "SolveNash runs" do
     tests "SolveNash", on: "Equilibrium"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1
     expect ok: "true"
   end
 
   test "RefineEquilibrium sets refinement_type" do
     tests "RefineEquilibrium", on: "Equilibrium"
-    input  equilibrium: 1, refinement_type: "sample"
+    setup  "SolveNash"
+    input  refinement_type: "sample"
     expect ok: "true"
   end
 
@@ -89,19 +88,19 @@ Hecks.behaviors "GameTheory" do
   test "ConfigureSimulation sets simulation_id + iteration_count + learning_rule" do
     tests "ConfigureSimulation", on: "Simulation"
     setup  "DefineGame", game_id: "sample", name: "sample", game_type: "sample", player_count: 1
-    input  strategic_game: 1, simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
+    input  simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect ok: "true"
   end
 
   test "RunSimulation runs" do
     tests "RunSimulation", on: "Simulation"
-    input  simulation: 1
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect ok: "true"
   end
 
   test "ExportResults runs" do
     tests "ExportResults", on: "Simulation"
-    input  simulation: 1
+    setup  "ConfigureSimulation", simulation_id: "sample", iteration_count: 1, learning_rule: "sample"
     expect ok: "true"
   end
 

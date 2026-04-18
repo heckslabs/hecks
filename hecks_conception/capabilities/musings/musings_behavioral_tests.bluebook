@@ -32,19 +32,17 @@ Hecks.behaviors "Musings" do
 
   test "Present runs" do
     tests "Present", on: "Musing"
-    input  musing: 1
     expect ok: "true"
   end
 
   test "Conceive sets domain_name" do
     tests "Conceive", on: "Musing"
-    input  musing: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect conceived: true, conceived_as: "sample"
   end
 
   test "Dismiss runs" do
     tests "Dismiss", on: "Musing"
-    input  musing: 1
     expect conceived: true, conceived_as: "dismissed"
   end
 

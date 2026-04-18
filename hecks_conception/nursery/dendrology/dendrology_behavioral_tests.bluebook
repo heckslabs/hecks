@@ -12,14 +12,14 @@ Hecks.behaviors "Dendrology" do
   test "MeasureGrowth sets new_dbh_cm + new_height_m" do
     tests "MeasureGrowth", on: "TreeSpecimen"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
-    input  tree_specimen: 1, new_dbh_cm: 1.0, new_height_m: 1.0
+    input  new_dbh_cm: 1.0, new_height_m: 1.0
     expect ok: "true"
   end
 
   test "FellTree sets reason" do
     tests "FellTree", on: "TreeSpecimen"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
-    input  tree_specimen: 1, reason: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 
@@ -29,19 +29,19 @@ Hecks.behaviors "Dendrology" do
   test "ExtractCore sets core_id" do
     tests "ExtractCore", on: "GrowthRingAnalysis"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
-    input  tree_specimen: 1, core_id: "sample"
+    input  core_id: "sample"
     expect ok: "true"
   end
 
   test "CountRings runs" do
     tests "CountRings", on: "GrowthRingAnalysis"
-    input  growth_ring_analysis: 1
+    setup  "ExtractCore", core_id: "sample"
     expect ok: "true"
   end
 
   test "CrossdateRings runs" do
     tests "CrossdateRings", on: "GrowthRingAnalysis"
-    input  growth_ring_analysis: 1
+    setup  "ExtractCore", core_id: "sample"
     expect ok: "true"
   end
 
@@ -51,19 +51,21 @@ Hecks.behaviors "Dendrology" do
   test "AssessHealth sets assessment_date + assessor" do
     tests "AssessHealth", on: "HealthAssessment"
     setup  "TagTree", specimen_id: "sample", species: "sample", dbh_cm: 1.0
-    input  tree_specimen: 1, assessment_date: "sample", assessor: "sample"
+    input  assessment_date: "sample", assessor: "sample"
     expect ok: "true"
   end
 
   test "PrescribeTreatment sets treatment_type" do
     tests "PrescribeTreatment", on: "HealthAssessment"
-    input  health_assessment: 1, treatment_type: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  treatment_type: "sample"
     expect ok: "true"
   end
 
   test "ScheduleFollowup sets followup_date" do
     tests "ScheduleFollowup", on: "HealthAssessment"
-    input  health_assessment: 1, followup_date: "sample"
+    setup  "AssessHealth", assessment_date: "sample", assessor: "sample"
+    input  followup_date: "sample"
     expect ok: "true"
   end
 
@@ -79,14 +81,12 @@ Hecks.behaviors "Dendrology" do
   test "TallySpecies runs" do
     tests "TallySpecies", on: "ForestInventory"
     setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
-    input  forest_inventory: 1
     expect ok: "true"
   end
 
   test "CloseInventory runs" do
     tests "CloseInventory", on: "ForestInventory"
     setup  "InitiateInventory", plot_id: "sample", area_hectares: 1.0, forest_type: "sample"
-    input  forest_inventory: 1
     expect ok: "true"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "ThriftStore" do
   test "SortDonation runs" do
     tests "SortDonation", on: "Donation"
     setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
-    input  donation: 1
     expect status: "sorted"
   end
 
   test "IssueTaxReceipt runs" do
     tests "IssueTaxReceipt", on: "Donation"
     setup  "ReceiveDonation", donation_id: "sample", donor_name: "sample", received_date: "sample", item_count: 1
-    input  donation: 1
     expect ok: "true"
   end
 
@@ -35,14 +33,13 @@ Hecks.behaviors "ThriftStore" do
   test "MarkdownItem sets new_price" do
     tests "MarkdownItem", on: "PricedItem"
     setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
-    input  priced_item: 1, new_price: 1.0
+    input  new_price: 1.0
     expect price: 1.0
   end
 
   test "SellItem runs" do
     tests "SellItem", on: "PricedItem"
     setup  "PriceItem", item_id: "sample", description: "sample", category: "sample", condition: "sample", price: 1.0
-    input  priced_item: 1
     expect status: "sold"
   end
 
@@ -58,7 +55,6 @@ Hecks.behaviors "ThriftStore" do
   test "RotateDisplay runs" do
     tests "RotateDisplay", on: "StoreDisplay"
     setup  "ArrangeDisplay", display_id: "sample", theme: "sample", location: "sample"
-    input  store_display: 1
     expect ok: "true"
   end
 
@@ -74,7 +70,7 @@ Hecks.behaviors "ThriftStore" do
   test "LogShift sets date + hours" do
     tests "LogShift", on: "Volunteer"
     setup  "EnrollVolunteer", volunteer_id: "sample", name: "sample", phone: "sample", availability: "sample"
-    input  volunteer: 1, date: "sample", hours: 1.0
+    input  date: "sample", hours: 1.0
     expect ok: "true"
   end
 
@@ -90,7 +86,6 @@ Hecks.behaviors "ThriftStore" do
   test "EndSale runs" do
     tests "EndSale", on: "SaleEvent"
     setup  "LaunchSale", sale_id: "sample", name: "sample", discount_type: "sample", discount_amount: 1.0, start_date: "sample", end_date: "sample"
-    input  sale_event: 1
     expect status: "ended"
   end
 

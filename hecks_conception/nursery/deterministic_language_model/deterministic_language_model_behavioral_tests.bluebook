@@ -41,14 +41,12 @@ Hecks.behaviors "DeterministicLanguageModel" do
   test "Execute runs" do
     tests "Execute", on: "Dispatch"
     setup  "Resolve", input: "sample"
-    input  dispatch: 1
     expect status: "executed"
   end
 
   test "Fail runs" do
     tests "Fail", on: "Dispatch"
     setup  "Resolve", input: "sample"
-    input  dispatch: 1
     expect status: "failed"
   end
 

@@ -12,28 +12,28 @@ Hecks.behaviors "CustomerPersonas" do
   test "AddMotivation sets need + emotion + urgency" do
     tests "AddMotivation", on: "Persona"
     setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
-    input  persona: 1, need: "sample", emotion: "sample", urgency: "sample"
+    input  need: "sample", emotion: "sample", urgency: "sample"
     expect ok: "true"
   end
 
   test "AddObjection sets concern + severity + counter_argument" do
     tests "AddObjection", on: "Persona"
     setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
-    input  persona: 1, concern: "sample", severity: "sample", counter_argument: "sample"
+    input  concern: "sample", severity: "sample", counter_argument: "sample"
     expect ok: "true"
   end
 
   test "AddTrigger sets trigger" do
     tests "AddTrigger", on: "Persona"
     setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
-    input  persona: 1, trigger: "sample"
+    input  trigger: "sample"
     expect ok: "true"
   end
 
   test "RefinePersona sets field + value" do
     tests "RefinePersona", on: "Persona"
     setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
-    input  persona: 1, field: "sample", value: "sample"
+    input  field: "sample", value: "sample"
     expect ok: "true"
   end
 
@@ -49,28 +49,26 @@ Hecks.behaviors "CustomerPersonas" do
   test "AddTouchpoint sets channel + action + content_type + effectiveness" do
     tests "AddTouchpoint", on: "BuyerJourney"
     setup  "MapJourney", persona_name: "sample", stage: "sample"
-    input  buyer_journey: 1, channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
+    input  channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
     expect stage: "unaware"
   end
 
   test "MeasureConversion sets conversion_rate" do
     tests "MeasureConversion", on: "BuyerJourney"
     setup  "MapJourney", persona_name: "sample", stage: "sample"
-    input  buyer_journey: 1, conversion_rate: 1.0
+    input  conversion_rate: 1.0
     expect conversion_rate: 1.0
   end
 
   test "IdentifyDropoff runs" do
     tests "IdentifyDropoff", on: "BuyerJourney"
     setup  "MapJourney", persona_name: "sample", stage: "sample"
-    input  buyer_journey: 1
     expect ok: "true"
   end
 
   test "OptimizeJourney runs" do
     tests "OptimizeJourney", on: "BuyerJourney"
     setup  "MapJourney", persona_name: "sample", stage: "sample"
-    input  buyer_journey: 1
     expect ok: "true"
   end
 
@@ -86,21 +84,18 @@ Hecks.behaviors "CustomerPersonas" do
   test "ValidateInsight runs" do
     tests "ValidateInsight", on: "PersonaInsight"
     setup  "RecordInsight", persona_name: "sample", channel: "sample", insight: "sample", data_source: "sample", observed_at: "sample"
-    input  persona_insight: 1
     expect ok: "true"
   end
 
   test "ActOnInsight runs" do
     tests "ActOnInsight", on: "PersonaInsight"
     setup  "RecordInsight", persona_name: "sample", channel: "sample", insight: "sample", data_source: "sample", observed_at: "sample"
-    input  persona_insight: 1
     expect ok: "true"
   end
 
   test "ArchiveInsight runs" do
     tests "ArchiveInsight", on: "PersonaInsight"
     setup  "RecordInsight", persona_name: "sample", channel: "sample", insight: "sample", data_source: "sample", observed_at: "sample"
-    input  persona_insight: 1
     expect actionable: "false"
   end
 
@@ -116,14 +111,13 @@ Hecks.behaviors "CustomerPersonas" do
   test "RecommendProducts sets products" do
     tests "RecommendProducts", on: "ChannelFit"
     setup  "ScoreChannelFit", persona_name: "sample", channel: "sample", fit_score: 1.0, reasoning: "sample"
-    input  channel_fit: 1, products: "sample"
+    input  products: "sample"
     expect ok: "true"
   end
 
   test "IdentifyMismatch runs" do
     tests "IdentifyMismatch", on: "ChannelFit"
     setup  "ScoreChannelFit", persona_name: "sample", channel: "sample", fit_score: 1.0, reasoning: "sample"
-    input  channel_fit: 1
     expect ok: "true"
   end
 
@@ -139,14 +133,14 @@ Hecks.behaviors "CustomerPersonas" do
   test "IdentifyBarrier sets switching_barrier" do
     tests "IdentifyBarrier", on: "CompetitorLoyalty"
     setup  "AnalyzeLoyalty", persona_name: "sample", competitor: "sample", loyalty_reason: "sample", switching_barrier: "sample"
-    input  competitor_loyalty: 1, switching_barrier: "sample"
+    input  switching_barrier: "sample"
     expect switching_barrier: "sample"
   end
 
   test "ProposeWinStrategy sets switching_trigger + win_strategy" do
     tests "ProposeWinStrategy", on: "CompetitorLoyalty"
     setup  "AnalyzeLoyalty", persona_name: "sample", competitor: "sample", loyalty_reason: "sample", switching_barrier: "sample"
-    input  competitor_loyalty: 1, switching_trigger: "sample", win_strategy: "sample"
+    input  switching_trigger: "sample", win_strategy: "sample"
     expect switching_trigger: "sample", win_strategy: "sample"
   end
 

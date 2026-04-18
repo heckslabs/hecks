@@ -12,22 +12,21 @@ Hecks.behaviors "Artifact" do
   test "TestSelf runs" do
     tests "TestSelf", on: "Artifact"
     setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
-    input  artifact: 1
     expect status: "verified"
   end
 
   test "FailSelfTest sets failed_command + failure_reason" do
     tests "FailSelfTest", on: "Artifact"
     setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
-    input  artifact: 1, failed_command: "sample", failure_reason: "sample"
+    input  failed_command: "sample", failure_reason: "sample"
     expect status: "broken"
   end
 
   test "Evolve sets shape_hash + aggregate_count + command_count + fixture_count + port_count" do
     tests "Evolve", on: "Artifact"
     setup  "Seal", domain_name: "sample", shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
-    setup  "TestSelf", artifact: 1
-    input  artifact: 1, shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
+    setup  "TestSelf"
+    input  shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1
     expect shape_hash: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, port_count: 1, status: "sealed"
   end
 
@@ -43,23 +42,21 @@ Hecks.behaviors "Artifact" do
   test "RecordVerdict sets pass_count + fail_count" do
     tests "RecordVerdict", on: "FixtureSet"
     setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
-    input  fixture_set: 1, pass_count: 1, fail_count: 1
+    input  pass_count: 1, fail_count: 1
     expect pass_count: 1, fail_count: 1, verdict: "tested"
   end
 
   test "MarkClean runs" do
     tests "MarkClean", on: "FixtureSet"
     setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
-    setup  "RecordVerdict", fixture_set: 1, pass_count: 1, fail_count: 1
-    input  fixture_set: 1
+    setup  "RecordVerdict", pass_count: 1, fail_count: 1
     expect verdict: "clean"
   end
 
   test "MarkDrift runs" do
     tests "MarkDrift", on: "FixtureSet"
     setup  "Embed", domain_name: "sample", shape_hash_at_creation: "sample", fixture_count: 1
-    setup  "RecordVerdict", fixture_set: 1, pass_count: 1, fail_count: 1
-    input  fixture_set: 1
+    setup  "RecordVerdict", pass_count: 1, fail_count: 1
     expect verdict: "drift"
   end
 
@@ -75,7 +72,7 @@ Hecks.behaviors "Artifact" do
   test "GrantCommand sets command_name" do
     tests "GrantCommand", on: "AccessGate"
     setup  "DefineGate", domain_name: "sample", actor_name: "sample", port_name: "sample"
-    input  access_gate: 1, command_name: "sample"
+    input  command_name: "sample"
     expect allowed_commands_size: 1
   end
 

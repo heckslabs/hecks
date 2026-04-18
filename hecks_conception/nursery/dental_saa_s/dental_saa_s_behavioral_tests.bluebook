@@ -12,7 +12,6 @@ Hecks.behaviors "DentalSaaS" do
   test "SuspendTenant runs" do
     tests "SuspendTenant", on: "Tenant"
     setup  "RegisterTenant", tenant_id: "sample", practice_name: "sample", plan_tier: "sample"
-    input  tenant: 1
     expect status: "suspended"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "DentalSaaS" do
   test "CancelAppointment runs" do
     tests "CancelAppointment", on: "Appointment"
     setup  "BookAppointment", appointment_id: "sample", patient_name: "sample", dentist_name: "sample", procedure_type: "sample", date_time: "sample"
-    input  appointment: 1
     expect status: "cancelled"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "DentalSaaS" do
   test "CancelSubscription runs" do
     tests "CancelSubscription", on: "Subscription"
     setup  "StartSubscription", tenant_id: "sample", plan_name: "sample", monthly_rate: 1.0
-    input  subscription: 1
     expect status: "cancelled"
   end
 

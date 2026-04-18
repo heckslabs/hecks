@@ -12,29 +12,29 @@ Hecks.behaviors "SharedDream" do
   test "JoinSharedDream sets joined_by" do
     tests "JoinSharedDream", on: "SharedDreamSpace"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
-    input  shared_dream_space: 1, joined_by: "sample"
+    input  joined_by: "sample"
     expect joined_by: "sample", active: "yes"
   end
 
   test "ContributeImage sets image" do
     tests "ContributeImage", on: "SharedDreamSpace"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
-    input  shared_dream_space: 1, image: "sample"
+    input  image: "sample"
     expect shared_images_size: 1
   end
 
   test "Collaborate sets collaboration" do
     tests "Collaborate", on: "SharedDreamSpace"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
-    input  shared_dream_space: 1, collaboration: "sample"
+    input  collaboration: "sample"
     expect collaborations_size: 1
   end
 
   test "EndSharedDream sets ended_at" do
     tests "EndSharedDream", on: "SharedDreamSpace"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
-    setup  "JoinSharedDream", shared_dream_space: 1, joined_by: "sample"
-    input  shared_dream_space: 1, ended_at: "sample"
+    setup  "JoinSharedDream", joined_by: "sample"
+    input  ended_at: "sample"
     expect ended_at: "sample", active: "no"
   end
 
@@ -50,7 +50,6 @@ Hecks.behaviors "SharedDream" do
   test "DetectDreamSignal runs" do
     tests "DetectDreamSignal", on: "DreamSignal"
     setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
-    input  dream_signal: 1
     expect detected: "yes"
   end
 
@@ -66,7 +65,6 @@ Hecks.behaviors "SharedDream" do
   test "ResumeCycle runs" do
     tests "ResumeCycle", on: "CyclePause"
     setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
-    input  cycle_pause: 1
     expect resumed: "yes"
   end
 

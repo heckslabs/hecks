@@ -12,14 +12,12 @@ Hecks.behaviors "DiveShop" do
   test "SellEquipment runs" do
     tests "SellEquipment", on: "DiveEquipment"
     setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
-    input  dive_equipment: 1
     expect ok: "true"
   end
 
   test "RetireEquipment runs" do
     tests "RetireEquipment", on: "DiveEquipment"
     setup  "StockEquipment", equipment_id: "sample", name: "sample", equipment_type: "sample", brand: "sample", price: 1.0, quantity: 1
-    input  dive_equipment: 1
     expect status: "retired"
   end
 
@@ -35,14 +33,12 @@ Hecks.behaviors "DiveShop" do
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "DiverCertification"
     setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
-    input  diver_certification: 1
     expect status: "certified"
   end
 
   test "FailStudent runs" do
     tests "FailStudent", on: "DiverCertification"
     setup  "EnrollStudent", cert_id: "sample", student_name: "sample", course_level: "sample", instructor_name: "sample", pool_sessions: 1, open_water_dives: 1
-    input  diver_certification: 1
     expect status: "failed"
   end
 
@@ -58,15 +54,13 @@ Hecks.behaviors "DiveShop" do
   test "LaunchTrip runs" do
     tests "LaunchTrip", on: "DiveTrip"
     setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
-    input  dive_trip: 1
     expect status: "in_progress"
   end
 
   test "CompleteTrip runs" do
     tests "CompleteTrip", on: "DiveTrip"
     setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
-    setup  "LaunchTrip", dive_trip: 1
-    input  dive_trip: 1
+    setup  "LaunchTrip"
     expect status: "completed"
   end
 
@@ -82,14 +76,13 @@ Hecks.behaviors "DiveShop" do
   test "FillTank runs" do
     tests "FillTank", on: "Tank"
     setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
-    input  tank: 1
     expect ok: "true"
   end
 
   test "HydroTestTank sets new_hydro_date" do
     tests "HydroTestTank", on: "Tank"
     setup  "RegisterTank", tank_id: "sample", material: "sample", volume_liters: 1.0, last_hydro_date: "sample", next_hydro_date: "sample"
-    input  tank: 1, new_hydro_date: "sample"
+    input  new_hydro_date: "sample"
     expect last_hydro_date: "sample"
   end
 
@@ -105,7 +98,6 @@ Hecks.behaviors "DiveShop" do
   test "CompleteMaintenance runs" do
     tests "CompleteMaintenance", on: "EquipmentMaintenance"
     setup  "OpenMaintenanceTicket", maintenance_id: "sample", equipment_id: "sample", issue_description: "sample", technician_name: "sample", cost: 1.0
-    input  equipment_maintenance: 1
     expect status: "completed"
   end
 

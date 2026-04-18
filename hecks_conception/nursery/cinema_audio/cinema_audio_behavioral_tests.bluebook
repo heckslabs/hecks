@@ -12,14 +12,13 @@ Hecks.behaviors "CinemaAudio" do
   test "CalculateReverberation sets reverberation_time_sec" do
     tests "CalculateReverberation", on: "Auditorium"
     setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
-    input  auditorium: 1, reverberation_time_sec: 1.0
+    input  reverberation_time_sec: 1.0
     expect reverberation_time_sec: 1.0
   end
 
   test "TreatRoom runs" do
     tests "TreatRoom", on: "Auditorium"
     setup  "MeasureRoom", name: "sample", length_m: 1.0, width_m: 1.0, height_m: 1.0, wall_material: "sample"
-    input  auditorium: 1
     expect status: "treated"
   end
 
@@ -35,14 +34,13 @@ Hecks.behaviors "CinemaAudio" do
   test "AimSpeaker sets tilt_degrees + rotation_degrees" do
     tests "AimSpeaker", on: "Speaker"
     setup  "PlaceSpeaker", name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
-    input  speaker: 1, tilt_degrees: 1.0, rotation_degrees: 1.0
+    input  tilt_degrees: 1.0, rotation_degrees: 1.0
     expect ok: "true"
   end
 
   test "ActivateSpeaker runs" do
     tests "ActivateSpeaker", on: "Speaker"
     setup  "PlaceSpeaker", name: "sample", speaker_type: "sample", x_position: 1.0, y_position: 1.0, z_position: 1.0, power_watts: 1.0
-    input  speaker: 1
     expect status: "active"
   end
 
@@ -58,22 +56,21 @@ Hecks.behaviors "CinemaAudio" do
   test "RecordMeasurement sets measured_spl_db" do
     tests "RecordMeasurement", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
-    input  calibration: 1, measured_spl_db: 1.0
+    input  measured_spl_db: 1.0
     expect measured_spl_db: 1.0
   end
 
   test "ApplyCorrection sets correction_db" do
     tests "ApplyCorrection", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
-    input  calibration: 1, correction_db: 1.0
+    input  correction_db: 1.0
     expect correction_db: 1.0, status: "calibrated"
   end
 
   test "VerifyCalibration runs" do
     tests "VerifyCalibration", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
-    setup  "ApplyCorrection", calibration: 1, correction_db: 1.0
-    input  calibration: 1
+    setup  "ApplyCorrection", correction_db: 1.0
     expect status: "verified"
   end
 
@@ -89,15 +86,13 @@ Hecks.behaviors "CinemaAudio" do
   test "MapChannels runs" do
     tests "MapChannels", on: "Soundtrack"
     setup  "LoadSoundtrack", title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
-    input  soundtrack: 1
     expect status: "mapped"
   end
 
   test "PlaySoundtrack runs" do
     tests "PlaySoundtrack", on: "Soundtrack"
     setup  "LoadSoundtrack", title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
-    setup  "MapChannels", soundtrack: 1
-    input  soundtrack: 1
+    setup  "MapChannels"
     expect status: "playing"
   end
 

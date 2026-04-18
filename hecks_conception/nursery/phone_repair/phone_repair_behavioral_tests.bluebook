@@ -12,7 +12,6 @@ Hecks.behaviors "PhoneRepair" do
   test "DiagnoseDevice runs" do
     tests "DiagnoseDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", make: "sample", model: "sample", serial_number: "sample", owner_name: "sample"
-    input  device: 1
     expect condition: "diagnosed"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "PhoneRepair" do
   test "BeginRepair runs" do
     tests "BeginRepair", on: "RepairTicket"
     setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    input  repair_ticket: 1
     expect status: "in_progress"
   end
 
   test "CloseTicket runs" do
     tests "CloseTicket", on: "RepairTicket"
     setup  "OpenTicket", ticket_id: "sample", device_id: "sample", issue_description: "sample", estimated_cost: 1.0, priority: "sample"
-    setup  "BeginRepair", repair_ticket: 1
-    input  repair_ticket: 1
+    setup  "BeginRepair"
     expect status: "closed"
   end
 
@@ -52,7 +49,7 @@ Hecks.behaviors "PhoneRepair" do
   test "UsePart sets quantity_used" do
     tests "UsePart", on: "Part"
     setup  "OrderPart", part_number: "sample", name: "sample", compatible_models: "sample", cost: 1.0, quantity_in_stock: 1
-    input  part: 1, quantity_used: 1
+    input  quantity_used: 1
     expect ok: "true"
   end
 
@@ -68,7 +65,6 @@ Hecks.behaviors "PhoneRepair" do
   test "ClaimWarranty runs" do
     tests "ClaimWarranty", on: "RepairWarranty"
     setup  "IssueWarranty", warranty_id: "sample", ticket_id: "sample", duration_days: 1, expiration_date: "sample"
-    input  repair_warranty: 1
     expect status: "claimed"
   end
 

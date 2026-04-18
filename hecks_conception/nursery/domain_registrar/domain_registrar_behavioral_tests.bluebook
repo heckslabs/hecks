@@ -12,14 +12,12 @@ Hecks.behaviors "DomainRegistrar" do
   test "LockDomain runs" do
     tests "LockDomain", on: "DomainName"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1
     expect ok: "true"
   end
 
   test "SuspendDomain runs" do
     tests "SuspendDomain", on: "DomainName"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,19 @@ Hecks.behaviors "DomainRegistrar" do
   test "RenewDomain sets renewal_id + years + price" do
     tests "RenewDomain", on: "Renewal"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1, renewal_id: "sample", years: 1, price: 1.0
+    input  renewal_id: "sample", years: 1, price: 1.0
     expect ok: "true"
   end
 
   test "AutoRenew runs" do
     tests "AutoRenew", on: "Renewal"
-    input  renewal: 1
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
     expect ok: "true"
   end
 
   test "CancelRenewal runs" do
     tests "CancelRenewal", on: "Renewal"
-    input  renewal: 1
+    setup  "RenewDomain", renewal_id: "sample", years: 1, price: 1.0
     expect ok: "true"
   end
 
@@ -51,19 +49,20 @@ Hecks.behaviors "DomainRegistrar" do
   test "InitiateTransfer sets transfer_id + auth_code + gaining_registrar" do
     tests "InitiateTransfer", on: "Transfer"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1, transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    input  transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
     expect ok: "true"
   end
 
   test "ApproveTransfer runs" do
     tests "ApproveTransfer", on: "Transfer"
-    input  transfer: 1
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
     expect ok: "true"
   end
 
   test "RejectTransfer sets rejection_reason" do
     tests "RejectTransfer", on: "Transfer"
-    input  transfer: 1, rejection_reason: "sample"
+    setup  "InitiateTransfer", transfer_id: "sample", auth_code: "sample", gaining_registrar: "sample"
+    input  rejection_reason: "sample"
     expect ok: "true"
   end
 
@@ -73,19 +72,20 @@ Hecks.behaviors "DomainRegistrar" do
   test "CreateDNSRecord sets record_id + record_type + hostname + value + ttl" do
     tests "CreateDNSRecord", on: "DNSRecord"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1, record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    input  record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     expect record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
   end
 
   test "UpdateDNSRecord sets value + ttl" do
     tests "UpdateDNSRecord", on: "DNSRecord"
-    input  d_n_s_record: 1, value: "sample", ttl: 1
+    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
+    input  value: "sample", ttl: 1
     expect ok: "true"
   end
 
   test "DeleteDNSRecord runs" do
     tests "DeleteDNSRecord", on: "DNSRecord"
-    input  d_n_s_record: 1
+    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     expect ok: "true"
   end
 
@@ -95,19 +95,20 @@ Hecks.behaviors "DomainRegistrar" do
   test "ActivatePrivacy sets privacy_id + proxy_email + proxy_name" do
     tests "ActivatePrivacy", on: "WHOISPrivacy"
     setup  "RegisterDomain", domain: "sample", tld: "sample", registrant_email: "sample", registration_years: 1
-    input  domain_name: 1, privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    input  privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
     expect ok: "true"
   end
 
   test "DeactivatePrivacy runs" do
     tests "DeactivatePrivacy", on: "WHOISPrivacy"
-    input  w_h_o_i_s_privacy: 1
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
     expect ok: "true"
   end
 
   test "RefreshProxy sets proxy_email" do
     tests "RefreshProxy", on: "WHOISPrivacy"
-    input  w_h_o_i_s_privacy: 1, proxy_email: "sample"
+    setup  "ActivatePrivacy", privacy_id: "sample", proxy_email: "sample", proxy_name: "sample"
+    input  proxy_email: "sample"
     expect ok: "true"
   end
 

@@ -12,15 +12,13 @@ Hecks.behaviors "StainedGlass" do
   test "CutPanel runs" do
     tests "CutPanel", on: "Panel"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
-    input  panel: 1
     expect status: "cut"
   end
 
   test "LeadPanel runs" do
     tests "LeadPanel", on: "Panel"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
-    setup  "CutPanel", panel: 1
-    input  panel: 1
+    setup  "CutPanel"
     expect status: "leaded"
   end
 
@@ -36,7 +34,6 @@ Hecks.behaviors "StainedGlass" do
   test "ApproveDesign runs" do
     tests "ApproveDesign", on: "GlassDesign"
     setup  "SketchDesign", title: "sample", style: "sample", client_name: "sample"
-    input  glass_design: 1
     expect status: "approved"
   end
 
@@ -52,7 +49,7 @@ Hecks.behaviors "StainedGlass" do
   test "ConsumeGlass sets square_feet_used" do
     tests "ConsumeGlass", on: "GlassInventory"
     setup  "ReceiveGlass", color: "sample", texture: "sample", manufacturer: "sample", square_feet: 1.0, category: "sample"
-    input  glass_inventory: 1, square_feet_used: 1.0
+    input  square_feet_used: 1.0
     expect ok: "true"
   end
 
@@ -62,20 +59,22 @@ Hecks.behaviors "StainedGlass" do
   test "PrepareCame sets came_profile + came_width_mm" do
     tests "PrepareCame", on: "Leadwork"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
-    input  panel: 1, came_profile: "sample", came_width_mm: 1.0
+    input  came_profile: "sample", came_width_mm: 1.0
     expect ok: "true"
   end
 
   test "SolderJoints sets solder_type" do
     tests "SolderJoints", on: "Leadwork"
-    input  leadwork: 1, solder_type: "sample"
+    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
+    input  solder_type: "sample"
     expect status: "soldered"
   end
 
   test "ApplyPatina sets patina_type" do
     tests "ApplyPatina", on: "Leadwork"
-    setup  "SolderJoints", leadwork: 1, solder_type: "sample"
-    input  leadwork: 1, patina_type: "sample"
+    setup  "PrepareCame", came_profile: "sample", came_width_mm: 1.0
+    setup  "SolderJoints", solder_type: "sample"
+    input  patina_type: "sample"
     expect status: "finished"
   end
 
@@ -85,13 +84,13 @@ Hecks.behaviors "StainedGlass" do
   test "ScheduleInstallation sets location + date + installer_name" do
     tests "ScheduleInstallation", on: "GlassInstallation"
     setup  "CartoonPanel", title: "sample", width_inches: 1.0, height_inches: 1.0, piece_count: 1
-    input  panel: 1, location: "sample", date: "sample", installer_name: "sample"
+    input  location: "sample", date: "sample", installer_name: "sample"
     expect ok: "true"
   end
 
   test "CompleteInstallation runs" do
     tests "CompleteInstallation", on: "GlassInstallation"
-    input  glass_installation: 1
+    setup  "ScheduleInstallation", location: "sample", date: "sample", installer_name: "sample"
     expect status: "installed"
   end
 

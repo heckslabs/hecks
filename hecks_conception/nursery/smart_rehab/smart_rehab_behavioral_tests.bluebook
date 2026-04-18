@@ -12,7 +12,6 @@ Hecks.behaviors "SmartRehab" do
   test "DischargePatient runs" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", patient_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
-    input  patient: 1
     expect status: "discharged"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "SmartRehab" do
   test "AdjustProgram sets frequency" do
     tests "AdjustProgram", on: "ExerciseProgram"
     setup  "PrescribeProgram", program_id: "sample", patient_id: "sample", frequency: "sample"
-    input  exercise_program: 1, frequency: "sample"
+    input  frequency: "sample"
     expect frequency: "sample"
   end
 
@@ -44,7 +43,7 @@ Hecks.behaviors "SmartRehab" do
   test "ReadSensor sets battery_level" do
     tests "ReadSensor", on: "WearableSensor"
     setup  "PairSensor", device_id: "sample", patient_id: "sample", sensor_type: "sample"
-    input  wearable_sensor: 1, battery_level: 1.0
+    input  battery_level: 1.0
     expect battery_level: 1.0
   end
 
@@ -60,7 +59,7 @@ Hecks.behaviors "SmartRehab" do
   test "AnnotateReport sets therapist_notes" do
     tests "AnnotateReport", on: "ProgressReport"
     setup  "GenerateReport", report_id: "sample", patient_id: "sample", range_of_motion: 1.0, pain_score: 1.0, sensor_summary: "sample"
-    input  progress_report: 1, therapist_notes: "sample"
+    input  therapist_notes: "sample"
     expect therapist_notes: "sample"
   end
 

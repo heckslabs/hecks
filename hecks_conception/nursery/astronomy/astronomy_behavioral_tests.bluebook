@@ -12,14 +12,14 @@ Hecks.behaviors "Astronomy" do
   test "UpdateEphemeris sets new_ra + new_dec" do
     tests "UpdateEphemeris", on: "CelestialBody"
     setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
-    input  celestial_body: 1, new_ra: 1.0, new_dec: 1.0
+    input  new_ra: 1.0, new_dec: 1.0
     expect ok: "true"
   end
 
   test "ReclassifyBody sets new_type" do
     tests "ReclassifyBody", on: "CelestialBody"
     setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
-    input  celestial_body: 1, new_type: "sample"
+    input  new_type: "sample"
     expect ok: "true"
   end
 
@@ -30,19 +30,21 @@ Hecks.behaviors "Astronomy" do
     tests "LogObservation", on: "Observation"
     setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
     setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
-    input  celestial_body: 1, telescope: 1, observer_name: "sample", timestamp: "sample"
+    input  observer_name: "sample", timestamp: "sample"
     expect ok: "true"
   end
 
   test "GradeSeeing sets seeing_conditions" do
     tests "GradeSeeing", on: "Observation"
-    input  observation: 1, seeing_conditions: "sample"
+    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
+    input  seeing_conditions: "sample"
     expect ok: "true"
   end
 
   test "CorrectMagnitude sets corrected_value" do
     tests "CorrectMagnitude", on: "Observation"
-    input  observation: 1, corrected_value: 1.0
+    setup  "LogObservation", observer_name: "sample", timestamp: "sample"
+    input  corrected_value: 1.0
     expect ok: "true"
   end
 
@@ -58,14 +60,12 @@ Hecks.behaviors "Astronomy" do
   test "CalibrateOptics runs" do
     tests "CalibrateOptics", on: "Telescope"
     setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
-    input  telescope: 1
     expect ok: "true"
   end
 
   test "RetireTelescope runs" do
     tests "RetireTelescope", on: "Telescope"
     setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
-    input  telescope: 1
     expect ok: "true"
   end
 
@@ -81,7 +81,6 @@ Hecks.behaviors "Astronomy" do
   test "PublishCatalog runs" do
     tests "PublishCatalog", on: "Catalog"
     setup  "CreateCatalog", name: "sample", authority: "sample"
-    input  catalog: 1
     expect ok: "true"
   end
 

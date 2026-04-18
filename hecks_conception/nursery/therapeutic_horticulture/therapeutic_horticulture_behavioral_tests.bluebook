@@ -12,7 +12,6 @@ Hecks.behaviors "TherapeuticHorticulture" do
   test "GraduateClient runs" do
     tests "GraduateClient", on: "TherapyClient"
     setup  "EnrollClient", client_id: "sample", name: "sample", diagnosis: "sample", therapist_name: "sample"
-    input  therapy_client: 1
     expect status: "graduated"
   end
 
@@ -28,14 +27,12 @@ Hecks.behaviors "TherapeuticHorticulture" do
   test "TendPlot runs" do
     tests "TendPlot", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
-    input  garden_plot: 1
     expect ok: "true"
   end
 
   test "HarvestPlot runs" do
     tests "HarvestPlot", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", client_id: "sample", plant_type: "sample", season: "sample"
-    input  garden_plot: 1
     expect ok: "true"
   end
 
@@ -51,7 +48,7 @@ Hecks.behaviors "TherapeuticHorticulture" do
   test "RecordPostMood sets mood_after + notes" do
     tests "RecordPostMood", on: "MoodEntry"
     setup  "RecordMood", entry_id: "sample", client_id: "sample", date: "sample", mood_before: 1
-    input  mood_entry: 1, mood_after: 1, notes: "sample"
+    input  mood_after: 1, notes: "sample"
     expect mood_after: 1, notes: "sample"
   end
 
@@ -67,7 +64,7 @@ Hecks.behaviors "TherapeuticHorticulture" do
   test "FinalizeReport sets therapist_summary" do
     tests "FinalizeReport", on: "TherapyReport"
     setup  "GenerateTherapyReport", report_id: "sample", client_id: "sample", avg_mood_change: 1.0, sessions_attended: 1
-    input  therapy_report: 1, therapist_summary: "sample"
+    input  therapist_summary: "sample"
     expect therapist_summary: "sample", status: "finalized"
   end
 

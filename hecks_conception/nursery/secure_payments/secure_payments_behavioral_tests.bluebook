@@ -12,14 +12,12 @@ Hecks.behaviors "SecurePayments" do
   test "RotateKey runs" do
     tests "RotateKey", on: "KeyPair"
     setup  "GenerateKeyPair", key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample"
-    input  key_pair: 1
     expect status: "rotated"
   end
 
   test "RevokeKey runs" do
     tests "RevokeKey", on: "KeyPair"
     setup  "GenerateKeyPair", key_id: "sample", algorithm: "sample", key_length_bits: 1, expiry_date: "sample"
-    input  key_pair: 1
     expect status: "revoked"
   end
 
@@ -35,24 +33,22 @@ Hecks.behaviors "SecurePayments" do
   test "SignTransaction sets signature_hash" do
     tests "SignTransaction", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    input  transaction: 1, signature_hash: "sample"
+    input  signature_hash: "sample"
     expect signature_hash: "sample", status: "signed"
   end
 
   test "VerifySignature runs" do
     tests "VerifySignature", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    setup  "SignTransaction", transaction: 1, signature_hash: "sample"
-    input  transaction: 1
+    setup  "SignTransaction", signature_hash: "sample"
     expect status: "verified"
   end
 
   test "SettleTransaction runs" do
     tests "SettleTransaction", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
-    setup  "SignTransaction", transaction: 1, signature_hash: "sample"
-    setup  "VerifySignature", transaction: 1
-    input  transaction: 1
+    setup  "SignTransaction", signature_hash: "sample"
+    setup  "VerifySignature"
     expect status: "settled"
   end
 
@@ -68,15 +64,14 @@ Hecks.behaviors "SecurePayments" do
   test "InvestigateAlert runs" do
     tests "InvestigateAlert", on: "FraudAlert"
     setup  "RaiseFraudAlert", transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
-    input  fraud_alert: 1
     expect status: "investigated"
   end
 
   test "ResolveAlert sets resolution" do
     tests "ResolveAlert", on: "FraudAlert"
     setup  "RaiseFraudAlert", transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
-    setup  "InvestigateAlert", fraud_alert: 1
-    input  fraud_alert: 1, resolution: "sample"
+    setup  "InvestigateAlert"
+    input  resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end
 
@@ -92,7 +87,6 @@ Hecks.behaviors "SecurePayments" do
   test "VerifyChain runs" do
     tests "VerifyChain", on: "AuditLog"
     setup  "RecordAuditEntry", entry_id: "sample", action: "sample", actor: "sample", timestamp: "sample"
-    input  audit_log: 1
     expect status: "verified"
   end
 

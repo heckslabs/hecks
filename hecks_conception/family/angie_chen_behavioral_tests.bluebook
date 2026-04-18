@@ -5,7 +5,7 @@ Hecks.behaviors "AngieChen" do
 
   test "UpdateIdentity sets occupation" do
     tests "UpdateIdentity", on: "Identity"
-    input  identity: 1, occupation: "sample"
+    input  occupation: "sample"
     expect occupation: "sample"
   end
 
@@ -14,7 +14,7 @@ Hecks.behaviors "AngieChen" do
 
   test "RecordPractice sets progression" do
     tests "RecordPractice", on: "Practice"
-    input  practice: 1, progression: "sample"
+    input  progression: "sample"
     expect progression: "sample"
   end
 
@@ -23,7 +23,7 @@ Hecks.behaviors "AngieChen" do
 
   test "RecordWork sets work" do
     tests "RecordWork", on: "Art"
-    input  art: 1, work: "sample"
+    input  work: "sample"
     expect works_size: 1
   end
 
@@ -32,7 +32,7 @@ Hecks.behaviors "AngieChen" do
 
   test "RecordSupport sets note" do
     tests "RecordSupport", on: "Support"
-    input  support: 1, note: "sample"
+    input  note: "sample"
     expect notes_size: 1
   end
 

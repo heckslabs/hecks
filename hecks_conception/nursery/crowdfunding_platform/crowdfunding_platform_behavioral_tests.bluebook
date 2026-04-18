@@ -12,14 +12,12 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "FundCampaign runs" do
     tests "FundCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
-    input  campaign: 1
     expect ok: "true"
   end
 
   test "CancelCampaign runs" do
     tests "CancelCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
-    input  campaign: 1
     expect ok: "true"
   end
 
@@ -35,14 +33,13 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "UpdatePaymentMethod sets payment_method" do
     tests "UpdatePaymentMethod", on: "Backer"
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
-    input  backer: 1, payment_method: "sample"
+    input  payment_method: "sample"
     expect ok: "true"
   end
 
   test "DeactivateBacker runs" do
     tests "DeactivateBacker", on: "Backer"
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
-    input  backer: 1
     expect ok: "true"
   end
 
@@ -53,19 +50,20 @@ Hecks.behaviors "CrowdfundingPlatform" do
     tests "MakePledge", on: "Pledge"
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
-    input  campaign: 1, backer: 1, pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    input  pledge_id: "sample", amount: 1.0, reward_tier: "sample"
     expect ok: "true"
   end
 
   test "IncreasePledge sets additional_amount" do
     tests "IncreasePledge", on: "Pledge"
-    input  pledge: 1, additional_amount: 1.0
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    input  additional_amount: 1.0
     expect ok: "true"
   end
 
   test "WithdrawPledge runs" do
     tests "WithdrawPledge", on: "Pledge"
-    input  pledge: 1
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
     expect ok: "true"
   end
 
@@ -74,19 +72,21 @@ Hecks.behaviors "CrowdfundingPlatform" do
 
   test "FulfillReward sets reward_id + tier_name + description + shipping_address" do
     tests "FulfillReward", on: "Reward"
-    input  pledge: 1, reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    setup  "MakePledge", pledge_id: "sample", amount: 1.0, reward_tier: "sample"
+    input  reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
     expect ok: "true"
   end
 
   test "MarkShipped sets carrier + tracking_number" do
     tests "MarkShipped", on: "Reward"
-    input  reward: 1, carrier: "sample", tracking_number: "sample"
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
+    input  carrier: "sample", tracking_number: "sample"
     expect ok: "true"
   end
 
   test "ReportDamaged runs" do
     tests "ReportDamaged", on: "Reward"
-    input  reward: 1
+    setup  "FulfillReward", reward_id: "sample", tier_name: "sample", description: "sample", shipping_address: "sample"
     expect ok: "true"
   end
 
@@ -96,19 +96,20 @@ Hecks.behaviors "CrowdfundingPlatform" do
   test "SetMilestone sets milestone_id + title + description + target_date" do
     tests "SetMilestone", on: "Milestone"
     setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
-    input  campaign: 1, milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     expect ok: "true"
   end
 
   test "CompleteMilestone runs" do
     tests "CompleteMilestone", on: "Milestone"
-    input  milestone: 1
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
     expect ok: "true"
   end
 
   test "DelayMilestone sets new_target_date + delay_reason" do
     tests "DelayMilestone", on: "Milestone"
-    input  milestone: 1, new_target_date: "sample", delay_reason: "sample"
+    setup  "SetMilestone", milestone_id: "sample", title: "sample", description: "sample", target_date: "sample"
+    input  new_target_date: "sample", delay_reason: "sample"
     expect ok: "true"
   end
 

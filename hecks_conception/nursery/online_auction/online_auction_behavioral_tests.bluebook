@@ -12,14 +12,12 @@ Hecks.behaviors "OnlineAuction" do
   test "CloseLot runs" do
     tests "CloseLot", on: "Lot"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
-    input  lot: 1
     expect ok: "true"
   end
 
   test "WithdrawLot runs" do
     tests "WithdrawLot", on: "Lot"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
-    input  lot: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,20 @@ Hecks.behaviors "OnlineAuction" do
   test "PlaceBid sets bid_id + amount + bidder_name + bidder_email" do
     tests "PlaceBid", on: "Bid"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
-    input  lot: 1, bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    input  bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
     expect bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
   end
 
   test "RetractBid sets retraction_reason" do
     tests "RetractBid", on: "Bid"
-    input  bid: 1, retraction_reason: "sample"
+    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
+    input  retraction_reason: "sample"
     expect ok: "true"
   end
 
   test "FlagSuspiciousBid runs" do
     tests "FlagSuspiciousBid", on: "Bid"
-    input  bid: 1
+    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
     expect ok: "true"
   end
 
@@ -57,14 +56,12 @@ Hecks.behaviors "OnlineAuction" do
   test "VerifySeller runs" do
     tests "VerifySeller", on: "Seller"
     setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
-    input  seller: 1
     expect ok: "true"
   end
 
   test "SuspendSeller runs" do
     tests "SuspendSeller", on: "Seller"
     setup  "RegisterSeller", seller_id: "sample", name: "sample", email: "sample"
-    input  seller: 1
     expect ok: "true"
   end
 
@@ -74,19 +71,20 @@ Hecks.behaviors "OnlineAuction" do
   test "CreateSettlement sets settlement_id + hammer_price + buyer_premium + seller_commission" do
     tests "CreateSettlement", on: "AuctionSettlement"
     setup  "ListLot", lot_number: "sample", title: "sample", description: "sample", category: "sample", starting_price: 1.0, reserve_price: 1.0, auction_end: "sample"
-    input  lot: 1, settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     expect settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
   end
 
   test "DisburseToSeller runs" do
     tests "DisburseToSeller", on: "AuctionSettlement"
-    input  auction_settlement: 1
+    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "AuctionSettlement"
-    input  auction_settlement: 1, hold_reason: "sample"
+    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  hold_reason: "sample"
     expect ok: "true"
   end
 
@@ -95,19 +93,21 @@ Hecks.behaviors "OnlineAuction" do
 
   test "OpenDispute sets dispute_id + complainant + reason + description" do
     tests "OpenDispute", on: "Dispute"
-    input  auction_settlement: 1, dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
+    input  dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
   end
 
   test "ResolveDispute sets resolution" do
     tests "ResolveDispute", on: "Dispute"
-    input  dispute: 1, resolution: "sample"
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
+    input  resolution: "sample"
     expect ok: "true"
   end
 
   test "EscalateDispute runs" do
     tests "EscalateDispute", on: "Dispute"
-    input  dispute: 1
+    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     expect ok: "true"
   end
 

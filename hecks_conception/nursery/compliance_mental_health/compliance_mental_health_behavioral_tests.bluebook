@@ -12,14 +12,13 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "ElevateRiskLevel sets risk_level" do
     tests "ElevateRiskLevel", on: "Patient"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1, risk_level: "sample"
+    input  risk_level: "sample"
     expect risk_level: "sample"
   end
 
   test "DischargePatient runs" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1
     expect status: "discharged"
   end
 
@@ -29,22 +28,21 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "CreateTreatmentPlan sets diagnosis_code + primary_goal" do
     tests "CreateTreatmentPlan", on: "TreatmentPlan"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1, diagnosis_code: "sample", primary_goal: "sample"
+    input  diagnosis_code: "sample", primary_goal: "sample"
     expect diagnosis_code: "sample", primary_goal: "sample", status: "draft"
   end
 
   test "ApproveTreatmentPlan runs" do
     tests "ApproveTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient: 1, diagnosis_code: "sample", primary_goal: "sample"
-    input  treatment_plan: 1
+    setup  "CreateTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
     expect status: "active"
   end
 
   test "ReviewTreatmentPlan sets updated_goal" do
     tests "ReviewTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient: 1, diagnosis_code: "sample", primary_goal: "sample"
-    setup  "ApproveTreatmentPlan", treatment_plan: 1
-    input  treatment_plan: 1, updated_goal: "sample"
+    setup  "CreateTreatmentPlan", diagnosis_code: "sample", primary_goal: "sample"
+    setup  "ApproveTreatmentPlan"
+    input  updated_goal: "sample"
     expect primary_goal: "sample"
   end
 
@@ -54,22 +52,22 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "RecordSessionNote sets content_summary + clinician_name" do
     tests "RecordSessionNote", on: "SessionNote"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1, content_summary: "sample", clinician_name: "sample"
+    input  content_summary: "sample", clinician_name: "sample"
     expect content_summary: "sample", clinician_name: "sample", status: "pending_cosign"
   end
 
   test "CosignSessionNote sets cosigner_name" do
     tests "CosignSessionNote", on: "SessionNote"
-    setup  "RecordSessionNote", patient: 1, content_summary: "sample", clinician_name: "sample"
-    input  session_note: 1, cosigner_name: "sample"
+    setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
+    input  cosigner_name: "sample"
     expect status: "finalized"
   end
 
   test "AmendSessionNote sets amendment_text" do
     tests "AmendSessionNote", on: "SessionNote"
-    setup  "RecordSessionNote", patient: 1, content_summary: "sample", clinician_name: "sample"
-    setup  "CosignSessionNote", session_note: 1, cosigner_name: "sample"
-    input  session_note: 1, amendment_text: "sample"
+    setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
+    setup  "CosignSessionNote", cosigner_name: "sample"
+    input  amendment_text: "sample"
     expect ok: "true"
   end
 
@@ -79,21 +77,19 @@ Hecks.behaviors "ComplianceMentalHealth" do
   test "WritePrescription sets medication_name + refills_remaining" do
     tests "WritePrescription", on: "Prescription"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1, medication_name: "sample", refills_remaining: 1
+    input  medication_name: "sample", refills_remaining: 1
     expect medication_name: "sample", refills_remaining: 1, status: "active"
   end
 
   test "RefillPrescription runs" do
     tests "RefillPrescription", on: "Prescription"
-    setup  "WritePrescription", patient: 1, medication_name: "sample", refills_remaining: 1
-    input  prescription: 1
+    setup  "WritePrescription", medication_name: "sample", refills_remaining: 1
     expect ok: "true"
   end
 
   test "DiscontinuePrescription runs" do
     tests "DiscontinuePrescription", on: "Prescription"
-    setup  "WritePrescription", patient: 1, medication_name: "sample", refills_remaining: 1
-    input  prescription: 1
+    setup  "WritePrescription", medication_name: "sample", refills_remaining: 1
     expect status: "discontinued"
   end
 
@@ -102,21 +98,21 @@ Hecks.behaviors "ComplianceMentalHealth" do
 
   test "SubmitClaim sets billed_amount" do
     tests "SubmitClaim", on: "InsuranceClaim"
+    setup  "RecordSessionNote", content_summary: "sample", clinician_name: "sample"
     setup  "RegisterPatient", mrn: "sample", full_name: "sample"
-    input  patient: 1, session_note: 1, billed_amount: 1.0
+    input  billed_amount: 1.0
     expect billed_amount: 1.0, status: "submitted"
   end
 
   test "AdjudicateClaim runs" do
     tests "AdjudicateClaim", on: "InsuranceClaim"
-    setup  "SubmitClaim", patient: 1, session_note: 1, billed_amount: 1.0
-    input  insurance_claim: 1
+    setup  "SubmitClaim", billed_amount: 1.0
     expect status: "adjudicated"
   end
 
   test "AppealDenial runs" do
     tests "AppealDenial", on: "InsuranceClaim"
-    input  insurance_claim: 1
+    setup  "SubmitClaim", billed_amount: 1.0
     expect status: "appealed"
   end
 

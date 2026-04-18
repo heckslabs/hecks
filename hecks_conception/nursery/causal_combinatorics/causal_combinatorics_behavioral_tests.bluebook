@@ -12,7 +12,7 @@ Hecks.behaviors "CausalCombinatorics" do
   test "MergeGraphs sets other_graph_name" do
     tests "MergeGraphs", on: "PolicyGraph"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
-    input  policy_graph: 1, other_graph_name: "sample"
+    input  other_graph_name: "sample"
     expect ok: "true"
   end
 
@@ -22,19 +22,19 @@ Hecks.behaviors "CausalCombinatorics" do
   test "TraceCascade sets trigger_event" do
     tests "TraceCascade", on: "CascadeAnalysis"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
-    input  policy_graph: 1, trigger_event: "sample"
+    input  trigger_event: "sample"
     expect ok: "true"
   end
 
   test "DetectCycle runs" do
     tests "DetectCycle", on: "CascadeAnalysis"
-    input  cascade_analysis: 1
+    setup  "TraceCascade", trigger_event: "sample"
     expect ok: "true"
   end
 
   test "MeasureFanOut runs" do
     tests "MeasureFanOut", on: "CascadeAnalysis"
-    input  cascade_analysis: 1
+    setup  "TraceCascade", trigger_event: "sample"
     expect ok: "true"
   end
 
@@ -44,13 +44,13 @@ Hecks.behaviors "CausalCombinatorics" do
   test "MeasureEmergence sets domains_combined" do
     tests "MeasureEmergence", on: "EmergenceMetric"
     setup  "BuildGraph", name: "sample", domain_names: "sample"
-    input  policy_graph: 1, domains_combined: 1
+    input  domains_combined: 1
     expect ok: "true"
   end
 
   test "RankCombinations runs" do
     tests "RankCombinations", on: "EmergenceMetric"
-    input  emergence_metric: 1
+    setup  "MeasureEmergence", domains_combined: 1
     expect ok: "true"
   end
 
@@ -66,7 +66,6 @@ Hecks.behaviors "CausalCombinatorics" do
   test "MeasureSaturation runs" do
     tests "MeasureSaturation", on: "GenerativeCapacity"
     setup  "EstimateCapacity", corpus_size: 1
-    input  generative_capacity: 1
     expect ok: "true"
   end
 
@@ -82,14 +81,12 @@ Hecks.behaviors "CausalCombinatorics" do
   test "TestLaw runs" do
     tests "TestLaw", on: "CombinatorialLaw"
     setup  "ProposeLaw", name: "sample", statement: "sample"
-    input  combinatorial_law: 1
     expect ok: "true"
   end
 
   test "RefuteLaw runs" do
     tests "RefuteLaw", on: "CombinatorialLaw"
     setup  "ProposeLaw", name: "sample", statement: "sample"
-    input  combinatorial_law: 1
     expect ok: "true"
   end
 

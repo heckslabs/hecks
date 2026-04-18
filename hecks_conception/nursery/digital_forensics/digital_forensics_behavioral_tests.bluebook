@@ -12,7 +12,6 @@ Hecks.behaviors "DigitalForensics" do
   test "VerifyIntegrity runs" do
     tests "VerifyIntegrity", on: "EvidenceItem"
     setup  "CollectEvidence", evidence_id: "sample", case_number: "sample", source_device: "sample", file_type: "sample", size_mb: 1.0, hash_value: "sample"
-    input  evidence_item: 1
     expect status: "verified"
   end
 
@@ -28,14 +27,12 @@ Hecks.behaviors "DigitalForensics" do
   test "TransferCustody runs" do
     tests "TransferCustody", on: "ChainOfCustody"
     setup  "StartChain", chain_id: "sample", evidence_id: "sample"
-    input  chain_of_custody: 1
     expect ok: "true"
   end
 
   test "SealChain runs" do
     tests "SealChain", on: "ChainOfCustody"
     setup  "StartChain", chain_id: "sample", evidence_id: "sample"
-    input  chain_of_custody: 1
     expect status: "sealed"
   end
 
@@ -51,7 +48,7 @@ Hecks.behaviors "DigitalForensics" do
   test "FinalizeAnalysis sets findings + confidence" do
     tests "FinalizeAnalysis", on: "ContentAnalysis"
     setup  "AnalyzeContent", analysis_id: "sample", evidence_id: "sample", analysis_type: "sample"
-    input  content_analysis: 1, findings: "sample", confidence: 1.0
+    input  findings: "sample", confidence: 1.0
     expect findings: "sample", confidence: 1.0, status: "finalized"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "DigitalForensics" do
   test "SubmitReport runs" do
     tests "SubmitReport", on: "ForensicReport"
     setup  "DraftReport", report_id: "sample", case_number: "sample", examiner: "sample", summary: "sample"
-    input  forensic_report: 1
     expect status: "submitted"
   end
 

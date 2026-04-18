@@ -6,19 +6,19 @@ Hecks.behaviors "PaymentGateway" do
   test "AuthorizeTransaction sets transaction_id + amount + currency + card_last_four" do
     tests "AuthorizeTransaction", on: "Transaction"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    input  merchant: 1, transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    input  transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect ok: "true"
   end
 
   test "CaptureTransaction runs" do
     tests "CaptureTransaction", on: "Transaction"
-    input  transaction: 1
+    setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect ok: "true"
   end
 
   test "VoidTransaction runs" do
     tests "VoidTransaction", on: "Transaction"
-    input  transaction: 1
+    setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
     expect ok: "true"
   end
 
@@ -34,14 +34,12 @@ Hecks.behaviors "PaymentGateway" do
   test "SuspendMerchant runs" do
     tests "SuspendMerchant", on: "Merchant"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    input  merchant: 1
     expect ok: "true"
   end
 
   test "ReinstateMerchant runs" do
     tests "ReinstateMerchant", on: "Merchant"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    input  merchant: 1
     expect ok: "true"
   end
 
@@ -51,19 +49,20 @@ Hecks.behaviors "PaymentGateway" do
   test "CreateSettlement sets settlement_id + gross_amount + fees + period" do
     tests "CreateSettlement", on: "Settlement"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    input  merchant: 1, settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    input  settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     expect settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
   end
 
   test "DisburseSettlement runs" do
     tests "DisburseSettlement", on: "Settlement"
-    input  settlement: 1
+    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "Settlement"
-    input  settlement: 1, hold_reason: "sample"
+    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
+    input  hold_reason: "sample"
     expect ok: "true"
   end
 
@@ -72,19 +71,22 @@ Hecks.behaviors "PaymentGateway" do
 
   test "FileChargeback sets chargeback_id + reason_code + amount + evidence_due_date" do
     tests "FileChargeback", on: "Chargeback"
-    input  transaction: 1, chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
+    setup  "AuthorizeTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", card_last_four: "sample"
+    input  chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
     expect ok: "true"
   end
 
   test "SubmitEvidence sets document_type + document_url" do
     tests "SubmitEvidence", on: "Chargeback"
-    input  chargeback: 1, document_type: "sample", document_url: "sample"
+    setup  "FileChargeback", chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
+    input  document_type: "sample", document_url: "sample"
     expect ok: "true"
   end
 
   test "ResolveChargeback sets outcome" do
     tests "ResolveChargeback", on: "Chargeback"
-    input  chargeback: 1, outcome: "sample"
+    setup  "FileChargeback", chargeback_id: "sample", reason_code: "sample", amount: 1.0, evidence_due_date: "sample"
+    input  outcome: "sample"
     expect ok: "true"
   end
 
@@ -94,19 +96,20 @@ Hecks.behaviors "PaymentGateway" do
   test "RunComplianceCheck sets check_id + check_type + scope" do
     tests "RunComplianceCheck", on: "ComplianceCheck"
     setup  "OnboardMerchant", merchant_id: "sample", business_name: "sample", mcc_code: "sample", contact_email: "sample", processing_rate: 1.0
-    input  merchant: 1, check_id: "sample", check_type: "sample", scope: "sample"
+    input  check_id: "sample", check_type: "sample", scope: "sample"
     expect ok: "true"
   end
 
   test "PassCheck runs" do
     tests "PassCheck", on: "ComplianceCheck"
-    input  compliance_check: 1
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
     expect ok: "true"
   end
 
   test "FailCheck sets failure_reason" do
     tests "FailCheck", on: "ComplianceCheck"
-    input  compliance_check: 1, failure_reason: "sample"
+    setup  "RunComplianceCheck", check_id: "sample", check_type: "sample", scope: "sample"
+    input  failure_reason: "sample"
     expect ok: "true"
   end
 

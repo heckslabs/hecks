@@ -12,7 +12,6 @@ Hecks.behaviors "TherapyMusic" do
   test "CompleteExercise runs" do
     tests "CompleteExercise", on: "RehabExercise"
     setup  "PrescribeExercise", exercise_id: "sample", patient_name: "sample", exercise_name: "sample", target_bpm: 1, duration_seconds: 1
-    input  rehab_exercise: 1
     expect status: "completed"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "TherapyMusic" do
   test "AddTrack sets title + artist + bpm" do
     tests "AddTrack", on: "Playlist"
     setup  "CuratePlaylist", playlist_id: "sample", name: "sample", target_bpm: 1, genre: "sample"
-    input  playlist: 1, title: "sample", artist: "sample", bpm: 1
+    input  title: "sample", artist: "sample", bpm: 1
     expect ok: "true"
   end
 
@@ -44,7 +43,7 @@ Hecks.behaviors "TherapyMusic" do
   test "RateMatch sets rating" do
     tests "RateMatch", on: "TempoMatch"
     setup  "MatchTempo", match_id: "sample", exercise_id: "sample", playlist_id: "sample", bpm_deviation: 1.0
-    input  tempo_match: 1, rating: 1.0
+    input  rating: 1.0
     expect ok: "true"
   end
 
@@ -60,7 +59,7 @@ Hecks.behaviors "TherapyMusic" do
   test "RecordMood sets mood_after" do
     tests "RecordMood", on: "SessionLog"
     setup  "LogSession", log_id: "sample", patient_name: "sample", exercise_id: "sample", playlist_id: "sample", adherence_pct: 1.0
-    input  session_log: 1, mood_after: "sample"
+    input  mood_after: "sample"
     expect mood_after: "sample"
   end
 

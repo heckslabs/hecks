@@ -12,7 +12,7 @@ Hecks.behaviors "AutoRepairShop" do
   test "UpdateMileage sets mileage" do
     tests "UpdateMileage", on: "Vehicle"
     setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
-    input  vehicle: 1, mileage: 1
+    input  mileage: 1
     expect mileage: 1
   end
 
@@ -22,27 +22,28 @@ Hecks.behaviors "AutoRepairShop" do
   test "OpenWorkOrder sets complaint" do
     tests "OpenWorkOrder", on: "WorkOrder"
     setup  "IntakeVehicle", vin: "sample", make: "sample", model: "sample", year: 1, mileage: 1, owner_name: "sample", owner_phone: "sample"
-    input  vehicle: 1, complaint: "sample"
+    input  complaint: "sample"
     expect complaint: "sample", status: "open"
   end
 
   test "DiagnoseIssue sets diagnosis" do
     tests "DiagnoseIssue", on: "WorkOrder"
-    setup  "OpenWorkOrder", vehicle: 1, complaint: "sample"
-    input  work_order: 1, diagnosis: "sample"
+    setup  "OpenWorkOrder", complaint: "sample"
+    input  diagnosis: "sample"
     expect diagnosis: "sample", status: "diagnosed"
   end
 
   test "CompleteRepair sets labor_hours" do
     tests "CompleteRepair", on: "WorkOrder"
-    input  work_order: 1, labor_hours: 1.0
+    setup  "OpenWorkOrder", complaint: "sample"
+    input  labor_hours: 1.0
     expect labor_hours: 1.0, status: "completed"
   end
 
   test "CloseWorkOrder runs" do
     tests "CloseWorkOrder", on: "WorkOrder"
-    setup  "CompleteRepair", work_order: 1, labor_hours: 1.0
-    input  work_order: 1
+    setup  "OpenWorkOrder", complaint: "sample"
+    setup  "CompleteRepair", labor_hours: 1.0
     expect status: "closed"
   end
 
@@ -58,14 +59,14 @@ Hecks.behaviors "AutoRepairShop" do
   test "IssuePart sets quantity" do
     tests "IssuePart", on: "Part"
     setup  "StockPart", part_number: "sample", name: "sample", manufacturer: "sample", quantity_on_hand: 1, unit_cost: 1.0, reorder_point: 1
-    input  part: 1, quantity: 1
+    input  quantity: 1
     expect ok: "true"
   end
 
   test "ReorderPart sets order_quantity" do
     tests "ReorderPart", on: "Part"
     setup  "StockPart", part_number: "sample", name: "sample", manufacturer: "sample", quantity_on_hand: 1, unit_cost: 1.0, reorder_point: 1
-    input  part: 1, order_quantity: 1
+    input  order_quantity: 1
     expect ok: "true"
   end
 
@@ -74,21 +75,20 @@ Hecks.behaviors "AutoRepairShop" do
 
   test "PrepareEstimate sets parts_total + labor_total + tax" do
     tests "PrepareEstimate", on: "Estimate"
-    input  work_order: 1, parts_total: 1.0, labor_total: 1.0, tax: 1.0
+    setup  "OpenWorkOrder", complaint: "sample"
+    input  parts_total: 1.0, labor_total: 1.0, tax: 1.0
     expect parts_total: 1.0, labor_total: 1.0, tax: 1.0, status: "pending"
   end
 
   test "ApproveEstimate runs" do
     tests "ApproveEstimate", on: "Estimate"
-    setup  "PrepareEstimate", work_order: 1, parts_total: 1.0, labor_total: 1.0, tax: 1.0
-    input  estimate: 1
+    setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     expect status: "approved"
   end
 
   test "DeclineEstimate runs" do
     tests "DeclineEstimate", on: "Estimate"
-    setup  "PrepareEstimate", work_order: 1, parts_total: 1.0, labor_total: 1.0, tax: 1.0
-    input  estimate: 1
+    setup  "PrepareEstimate", parts_total: 1.0, labor_total: 1.0, tax: 1.0
     expect status: "declined"
   end
 

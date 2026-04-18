@@ -5,7 +5,7 @@ Hecks.behaviors "Alan" do
 
   test "UpdateIdentity sets role" do
     tests "UpdateIdentity", on: "Identity"
-    input  identity: 1, role: "sample"
+    input  role: "sample"
     expect role: "sample"
   end
 
@@ -14,13 +14,13 @@ Hecks.behaviors "Alan" do
 
   test "RecordInsight sets note" do
     tests "RecordInsight", on: "Business"
-    input  business: 1, note: "sample"
+    input  note: "sample"
     expect notes_size: 1
   end
 
   test "AddPainPoint sets pain_point" do
     tests "AddPainPoint", on: "Business"
-    input  business: 1, pain_point: "sample"
+    input  pain_point: "sample"
     expect pain_points_size: 1
   end
 
@@ -29,7 +29,7 @@ Hecks.behaviors "Alan" do
 
   test "RecordDemoProgress sets note" do
     tests "RecordDemoProgress", on: "Demo"
-    input  demo: 1, note: "sample"
+    input  note: "sample"
     expect notes_size: 1
   end
 

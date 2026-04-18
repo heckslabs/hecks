@@ -12,24 +12,21 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "AssessSite runs" do
     tests "AssessSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    input  archaeological_site: 1
     expect status: "assessed"
   end
 
   test "ExcavateSite runs" do
     tests "ExcavateSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    setup  "AssessSite", archaeological_site: 1
-    input  archaeological_site: 1
+    setup  "AssessSite"
     expect status: "excavating"
   end
 
   test "ClearSite runs" do
     tests "ClearSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
-    setup  "AssessSite", archaeological_site: 1
-    setup  "ExcavateSite", archaeological_site: 1
-    input  archaeological_site: 1
+    setup  "AssessSite"
+    setup  "ExcavateSite"
     expect status: "cleared"
   end
 
@@ -45,7 +42,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "PreserveArtifact sets preservation_method" do
     tests "PreserveArtifact", on: "Artifact"
     setup  "CatalogArtifact", catalog_number: "sample", artifact_type: "sample", site_id: "sample", depth_found_m: 1.0, condition: "sample"
-    input  artifact: 1, preservation_method: "sample"
+    input  preservation_method: "sample"
     expect preservation_method: "sample", status: "preserved"
   end
 
@@ -61,24 +58,21 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "HaltForArchaeology runs" do
     tests "HaltForArchaeology", on: "ConstructionPhase"
     setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
-    input  construction_phase: 1
     expect status: "halted"
   end
 
   test "ResumePhase runs" do
     tests "ResumePhase", on: "ConstructionPhase"
     setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
-    setup  "HaltForArchaeology", construction_phase: 1
-    input  construction_phase: 1
+    setup  "HaltForArchaeology"
     expect status: "active"
   end
 
   test "CompletePhase runs" do
     tests "CompletePhase", on: "ConstructionPhase"
     setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
-    setup  "HaltForArchaeology", construction_phase: 1
-    setup  "ResumePhase", construction_phase: 1
-    input  construction_phase: 1
+    setup  "HaltForArchaeology"
+    setup  "ResumePhase"
     expect status: "completed"
   end
 
@@ -94,15 +88,14 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "ReviewPreservationPermit sets conditions" do
     tests "ReviewPreservationPermit", on: "PreservationPermit"
     setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
-    input  preservation_permit: 1, conditions: "sample"
+    input  conditions: "sample"
     expect conditions: "sample", status: "reviewed"
   end
 
   test "GrantPermit runs" do
     tests "GrantPermit", on: "PreservationPermit"
     setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
-    setup  "ReviewPreservationPermit", preservation_permit: 1, conditions: "sample"
-    input  preservation_permit: 1
+    setup  "ReviewPreservationPermit", conditions: "sample"
     expect status: "granted"
   end
 

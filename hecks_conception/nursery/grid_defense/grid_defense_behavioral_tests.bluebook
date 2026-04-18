@@ -12,14 +12,13 @@ Hecks.behaviors "GridDefense" do
   test "ReportVulnerability sets cve_id + severity + discovered_at" do
     tests "ReportVulnerability", on: "GridAsset"
     setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
-    input  grid_asset: 1, cve_id: "sample", severity: "sample", discovered_at: "sample"
+    input  cve_id: "sample", severity: "sample", discovered_at: "sample"
     expect vulnerabilities_size: 1
   end
 
   test "IsolateAsset runs" do
     tests "IsolateAsset", on: "GridAsset"
     setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
-    input  grid_asset: 1
     expect ok: "true"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "GridDefense" do
   test "AddIndicator sets indicator_type + value + confidence" do
     tests "AddIndicator", on: "ThreatIntel"
     setup  "IngestFeed", source: "sample"
-    input  threat_intel: 1, indicator_type: "sample", value: "sample", confidence: 1.0
+    input  indicator_type: "sample", value: "sample", confidence: 1.0
     expect indicators_size: 1
   end
 
@@ -45,25 +44,26 @@ Hecks.behaviors "GridDefense" do
   test "DetectIncident sets incident_type + severity" do
     tests "DetectIncident", on: "Incident"
     setup  "RegisterAsset", asset_id: "sample", asset_type: "sample", location: "sample", capacity_mw: 1.0
-    input  grid_asset: 1, incident_type: "sample", severity: "sample"
+    input  incident_type: "sample", severity: "sample"
     expect ok: "true"
   end
 
   test "AssignResponder sets name + role + assigned_at" do
     tests "AssignResponder", on: "Incident"
-    input  incident: 1, name: "sample", role: "sample", assigned_at: "sample"
+    setup  "DetectIncident", incident_type: "sample", severity: "sample"
+    input  name: "sample", role: "sample", assigned_at: "sample"
     expect responders_size: 1
   end
 
   test "ContainIncident runs" do
     tests "ContainIncident", on: "Incident"
-    input  incident: 1
+    setup  "DetectIncident", incident_type: "sample", severity: "sample"
     expect ok: "true"
   end
 
   test "ResolveIncident runs" do
     tests "ResolveIncident", on: "Incident"
-    input  incident: 1
+    setup  "DetectIncident", incident_type: "sample", severity: "sample"
     expect ok: "true"
   end
 
@@ -79,7 +79,7 @@ Hecks.behaviors "GridDefense" do
   test "Redistribute sets from_asset + to_asset + amount_mw" do
     tests "Redistribute", on: "LoadBalancer"
     setup  "InitiateRebalance", region: "sample"
-    input  load_balancer: 1, from_asset: "sample", to_asset: "sample", amount_mw: 1.0
+    input  from_asset: "sample", to_asset: "sample", amount_mw: 1.0
     expect redistributions_size: 1
   end
 

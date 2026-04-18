@@ -12,14 +12,13 @@ Hecks.behaviors "GroceryStore" do
   test "MarkdownProduct sets new_price" do
     tests "MarkdownProduct", on: "Product"
     setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
-    input  product: 1, new_price: 1.0
+    input  new_price: 1.0
     expect price: 1.0
   end
 
   test "PullFromShelf runs" do
     tests "PullFromShelf", on: "Product"
     setup  "StockProduct", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, expiration_date: "sample"
-    input  product: 1
     expect status: "pulled"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "GroceryStore" do
   test "UpdatePlanogram runs" do
     tests "UpdatePlanogram", on: "Aisle"
     setup  "DesignateAisle", aisle_number: "sample", category: "sample", shelf_count: 1
-    input  aisle: 1
     expect ok: "true"
   end
 
@@ -51,7 +49,7 @@ Hecks.behaviors "GroceryStore" do
   test "PlaceReorder sets sku + quantity" do
     tests "PlaceReorder", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", contact_email: "sample", delivery_schedule: "sample"
-    input  supplier: 1, sku: "sample", quantity: 1
+    input  sku: "sample", quantity: 1
     expect ok: "true"
   end
 
@@ -67,7 +65,6 @@ Hecks.behaviors "GroceryStore" do
   test "EndPromotion runs" do
     tests "EndPromotion", on: "Promotion"
     setup  "LaunchPromotion", promo_code: "sample", description: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
-    input  promotion: 1
     expect status: "ended"
   end
 
@@ -83,7 +80,6 @@ Hecks.behaviors "GroceryStore" do
   test "InvestigateShrinkage runs" do
     tests "InvestigateShrinkage", on: "ShrinkageReport"
     setup  "RecordShrinkage", report_id: "sample", sku: "sample", units_lost: 1, cause: "sample", reported_date: "sample", estimated_loss: 1.0
-    input  shrinkage_report: 1
     expect ok: "true"
   end
 

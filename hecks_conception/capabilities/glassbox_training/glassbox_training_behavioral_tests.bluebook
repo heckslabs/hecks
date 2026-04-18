@@ -37,14 +37,13 @@ Hecks.behaviors "GlassboxTraining" do
   test "ValidateExample runs" do
     tests "ValidateExample", on: "TrainingExample"
     setup  "CreateExample", input: "sample", output: "sample", category: "sample"
-    input  training_example: 1
     expect ok: "true"
   end
 
   test "ScoreQuality sets quality_score" do
     tests "ScoreQuality", on: "TrainingExample"
     setup  "CreateExample", input: "sample", output: "sample", category: "sample"
-    input  training_example: 1, quality_score: 1.0
+    input  quality_score: 1.0
     expect quality_score: 1.0
   end
 

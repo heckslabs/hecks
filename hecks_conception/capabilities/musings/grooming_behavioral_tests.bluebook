@@ -11,14 +11,13 @@ Hecks.behaviors "MusingGrooming" do
   test "KeepSelected sets keep_numbers" do
     tests "KeepSelected", on: "Session"
     setup  "StartGrooming"
-    input  session: 1, keep_numbers: 1
+    input  keep_numbers: 1
     expect ok: "true"
   end
 
   test "FinishGrooming runs" do
     tests "FinishGrooming", on: "Session"
     setup  "StartGrooming"
-    input  session: 1
     expect status: "complete"
   end
 

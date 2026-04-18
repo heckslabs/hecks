@@ -12,7 +12,6 @@ Hecks.behaviors "ReliefLogistics" do
   test "ApproveRequest runs" do
     tests "ApproveRequest", on: "SupplyRequest"
     setup  "SubmitRequest", request_id: "sample", disaster_type: "sample", location_name: "sample", urgency: "sample"
-    input  supply_request: 1
     expect status: "approved"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "ReliefLogistics" do
   test "ShipContainer runs" do
     tests "ShipContainer", on: "ShippingContainer"
     setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
-    input  shipping_container: 1
     expect status: "in_transit"
   end
 
   test "ReceiveContainer runs" do
     tests "ReceiveContainer", on: "ShippingContainer"
     setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
-    setup  "ShipContainer", shipping_container: 1
-    input  shipping_container: 1
+    setup  "ShipContainer"
     expect status: "received"
   end
 
@@ -52,7 +49,6 @@ Hecks.behaviors "ReliefLogistics" do
   test "GrantClearance runs" do
     tests "GrantClearance", on: "CustomsClearance"
     setup  "FileClearance", clearance_id: "sample", container_id: "sample", country: "sample"
-    input  customs_clearance: 1
     expect status: "cleared"
   end
 
@@ -68,7 +64,7 @@ Hecks.behaviors "ReliefLogistics" do
   test "ExecuteDistribution sets beneficiaries" do
     tests "ExecuteDistribution", on: "FieldDistribution"
     setup  "PlanDistribution", distribution_id: "sample", container_id: "sample", site_name: "sample"
-    input  field_distribution: 1, beneficiaries: 1
+    input  beneficiaries: 1
     expect beneficiaries: 1, status: "executed"
   end
 

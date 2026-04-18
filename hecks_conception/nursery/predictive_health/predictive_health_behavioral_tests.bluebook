@@ -12,14 +12,13 @@ Hecks.behaviors "PredictiveHealth" do
   test "RecordMarker sets gene_name + variant + risk_factor" do
     tests "RecordMarker", on: "GeneticProfile"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    input  genetic_profile: 1, gene_name: "sample", variant: "sample", risk_factor: 1.0
+    input  gene_name: "sample", variant: "sample", risk_factor: 1.0
     expect markers_size: 1
   end
 
   test "CompleteProfile runs" do
     tests "CompleteProfile", on: "GeneticProfile"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    input  genetic_profile: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,14 @@ Hecks.behaviors "PredictiveHealth" do
   test "AddCondition sets condition_name + weight + threshold" do
     tests "AddCondition", on: "RiskModel"
     setup  "CreateModel", model_name: "sample"
-    input  risk_model: 1, condition_name: "sample", weight: 1.0, threshold: 1.0
+    input  condition_name: "sample", weight: 1.0, threshold: 1.0
     expect conditions_size: 1
   end
 
   test "ValidateModel sets accuracy" do
     tests "ValidateModel", on: "RiskModel"
     setup  "CreateModel", model_name: "sample"
-    input  risk_model: 1, accuracy: 1.0
+    input  accuracy: 1.0
     expect ok: "true"
   end
 
@@ -52,19 +51,20 @@ Hecks.behaviors "PredictiveHealth" do
   test "FileClaim sets claimant_name + diagnosis + amount_cents" do
     tests "FileClaim", on: "InsuranceClaim"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    input  genetic_profile: 1, claimant_name: "sample", diagnosis: "sample", amount_cents: 1
+    input  claimant_name: "sample", diagnosis: "sample", amount_cents: 1
     expect ok: "true"
   end
 
   test "AttachDocument sets doc_type + reference_number" do
     tests "AttachDocument", on: "InsuranceClaim"
-    input  insurance_claim: 1, doc_type: "sample", reference_number: "sample"
+    setup  "FileClaim", claimant_name: "sample", diagnosis: "sample", amount_cents: 1
+    input  doc_type: "sample", reference_number: "sample"
     expect documents_size: 1
   end
 
   test "AdjudicateClaim runs" do
     tests "AdjudicateClaim", on: "InsuranceClaim"
-    input  insurance_claim: 1
+    setup  "FileClaim", claimant_name: "sample", diagnosis: "sample", amount_cents: 1
     expect ok: "true"
   end
 
@@ -75,19 +75,19 @@ Hecks.behaviors "PredictiveHealth" do
     tests "CalculatePremium", on: "PolicyPricing"
     setup  "CreateModel", model_name: "sample"
     setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
-    input  genetic_profile: 1, risk_model: 1
     expect ok: "true"
   end
 
   test "ApplyAdjustment sets reason + multiplier" do
     tests "ApplyAdjustment", on: "PolicyPricing"
-    input  policy_pricing: 1, reason: "sample", multiplier: 1.0
+    setup  "CalculatePremium"
+    input  reason: "sample", multiplier: 1.0
     expect adjustments_size: 1
   end
 
   test "ApprovePricing runs" do
     tests "ApprovePricing", on: "PolicyPricing"
-    input  policy_pricing: 1
+    setup  "CalculatePremium"
     expect ok: "true"
   end
 

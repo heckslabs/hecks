@@ -12,7 +12,7 @@ Hecks.behaviors "Pizzas" do
   test "AddTopping sets name + amount" do
     tests "AddTopping", on: "Pizza"
     setup  "CreatePizza", name: "sample", description: "sample"
-    input  pizza: 1, name: "sample", amount: 1
+    input  name: "sample", amount: 1
     expect name: "sample", toppings_size: 1
   end
 
@@ -28,18 +28,19 @@ Hecks.behaviors "Pizzas" do
   test "PlaceOrder sets customer_name + quantity" do
     tests "PlaceOrder", on: "Order"
     setup  "CreatePizza", name: "sample", description: "sample"
-    input  pizza: 1, customer_name: "sample", quantity: 1
+    input  customer_name: "sample", quantity: 1
     expect customer_name: "sample", status: "pending"
   end
 
   test "CancelOrder runs" do
     tests "CancelOrder", on: "Order"
-    input  order: 1
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
     expect status: "cancelled"
   end
 
   test "Pending returns matching records" do
     tests "Pending", on: "Order", kind: :query
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
     expect count: 1
   end
 

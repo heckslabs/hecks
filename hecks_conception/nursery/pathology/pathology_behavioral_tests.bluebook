@@ -12,14 +12,12 @@ Hecks.behaviors "Pathology" do
   test "ProcessSpecimen runs" do
     tests "ProcessSpecimen", on: "Specimen"
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
-    input  specimen: 1
     expect status: "processed"
   end
 
   test "RejectSpecimen runs" do
     tests "RejectSpecimen", on: "Specimen"
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
-    input  specimen: 1
     expect status: "rejected"
   end
 
@@ -29,20 +27,19 @@ Hecks.behaviors "Pathology" do
   test "OrderTest sets test_name + test_code + methodology + specimen_accession + ordered_by" do
     tests "OrderTest", on: "LabTest"
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
-    input  specimen: 1, test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    input  test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample", status: "ordered"
   end
 
   test "RunTest runs" do
     tests "RunTest", on: "LabTest"
-    setup  "OrderTest", specimen: 1, test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
-    input  lab_test: 1
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect status: "completed"
   end
 
   test "RepeatTest runs" do
     tests "RepeatTest", on: "LabTest"
-    input  lab_test: 1
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     expect status: "ordered"
   end
 
@@ -51,20 +48,21 @@ Hecks.behaviors "Pathology" do
 
   test "RecordResult sets test_name + result_value + unit + reference_range + interpretation + resulted_by + result_date" do
     tests "RecordResult", on: "TestResult"
-    input  lab_test: 1, test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    setup  "OrderTest", test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
+    input  test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
     expect test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample", status: "preliminary"
   end
 
   test "VerifyResult runs" do
     tests "VerifyResult", on: "TestResult"
-    setup  "RecordResult", lab_test: 1, test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
-    input  test_result: 1
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
     expect status: "verified"
   end
 
   test "AmendResult sets result_value + interpretation" do
     tests "AmendResult", on: "TestResult"
-    input  test_result: 1, result_value: "sample", interpretation: "sample"
+    setup  "RecordResult", test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
+    input  result_value: "sample", interpretation: "sample"
     expect result_value: "sample", interpretation: "sample"
   end
 
@@ -80,14 +78,12 @@ Hecks.behaviors "Pathology" do
   test "ApproveQualityControl runs" do
     tests "ApproveQualityControl", on: "QualityControl"
     setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
-    input  quality_control: 1
     expect status: "approved"
   end
 
   test "FailQualityControl runs" do
     tests "FailQualityControl", on: "QualityControl"
     setup  "RunQualityControl", instrument_name: "sample", control_material: "sample", expected_value: "sample", observed_value: "sample", run_date: "sample"
-    input  quality_control: 1
     expect status: "failed"
   end
 
@@ -97,14 +93,13 @@ Hecks.behaviors "Pathology" do
   test "DraftPathologyReport sets patient_name + specimen_accession + gross_description + microscopic_findings + diagnosis + pathologist_name + report_date" do
     tests "DraftPathologyReport", on: "PathologyReport"
     setup  "ReceiveSpecimen", accession_number: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample", collected_by: "sample"
-    input  specimen: 1, patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
+    input  patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
     expect patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample", status: "draft"
   end
 
   test "SignOutReport runs" do
     tests "SignOutReport", on: "PathologyReport"
-    setup  "DraftPathologyReport", specimen: 1, patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
-    input  pathology_report: 1
+    setup  "DraftPathologyReport", patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
     expect status: "final"
   end
 

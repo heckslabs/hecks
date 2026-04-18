@@ -11,14 +11,12 @@ Hecks.behaviors "DreamInterpretation" do
   test "IdentifyThemes runs" do
     tests "IdentifyThemes", on: "DreamReading"
     setup  "ReadDreamImages"
-    input  dream_reading: 1
     expect ok: "true"
   end
 
   test "SynthesizeInterpretation runs" do
     tests "SynthesizeInterpretation", on: "DreamReading"
     setup  "ReadDreamImages"
-    input  dream_reading: 1
     expect ok: "true"
   end
 
@@ -34,14 +32,12 @@ Hecks.behaviors "DreamInterpretation" do
   test "AcceptProposal runs" do
     tests "AcceptProposal", on: "DomainProposal"
     setup  "ProposeDomain", theme: "sample"
-    input  domain_proposal: 1
     expect accepted: true
   end
 
   test "DismissProposal runs" do
     tests "DismissProposal", on: "DomainProposal"
     setup  "ProposeDomain", theme: "sample"
-    input  domain_proposal: 1
     expect ok: "true"
   end
 

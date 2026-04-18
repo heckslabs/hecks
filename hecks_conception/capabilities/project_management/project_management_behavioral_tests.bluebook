@@ -12,43 +12,39 @@ Hecks.behaviors "ProjectManagement" do
   test "AssignFeature sets assignee" do
     tests "AssignFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    input  feature: 1, assignee: "sample"
+    input  assignee: "sample"
     expect assignee: "sample"
   end
 
   test "LabelFeature sets label" do
     tests "LabelFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    input  feature: 1, label: "sample"
+    input  label: "sample"
     expect labels_size: 1
   end
 
   test "StartFeature runs" do
     tests "StartFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    input  feature: 1
     expect status: "in_progress"
   end
 
   test "CompleteFeature runs" do
     tests "CompleteFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    setup  "StartFeature", feature: 1
-    input  feature: 1
+    setup  "StartFeature"
     expect status: "completed"
   end
 
   test "DeferFeature runs" do
     tests "DeferFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    input  feature: 1
     expect status: "deferred"
   end
 
   test "CancelFeature runs" do
     tests "CancelFeature", on: "Feature"
     setup  "CreateFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample", labels: "sample"
-    input  feature: 1
     expect status: "cancelled"
   end
 
@@ -64,31 +60,28 @@ Hecks.behaviors "ProjectManagement" do
   test "AddToSprint sets feature_id" do
     tests "AddToSprint", on: "Sprint"
     setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
-    input  sprint: 1, feature_id: "sample"
+    input  feature_id: "sample"
     expect status: "planning", features_size: 1
   end
 
   test "StartSprint runs" do
     tests "StartSprint", on: "Sprint"
     setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
-    input  sprint: 1
     expect status: "active"
   end
 
   test "CompleteSprint runs" do
     tests "CompleteSprint", on: "Sprint"
     setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
-    setup  "StartSprint", sprint: 1
-    input  sprint: 1
+    setup  "StartSprint"
     expect status: "completed"
   end
 
   test "ReviewSprint runs" do
     tests "ReviewSprint", on: "Sprint"
     setup  "PlanSprint", name: "sample", goal: "sample", start_date: "sample", end_date: "sample"
-    setup  "StartSprint", sprint: 1
-    setup  "CompleteSprint", sprint: 1
-    input  sprint: 1
+    setup  "StartSprint"
+    setup  "CompleteSprint"
     expect status: "reviewed"
   end
 
@@ -104,14 +97,13 @@ Hecks.behaviors "ProjectManagement" do
   test "ReorderFeature sets rank + reason" do
     tests "ReorderFeature", on: "Priority"
     setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
-    input  priority: 1, rank: 1, reason: "sample"
+    input  rank: 1, reason: "sample"
     expect rank: 1, reason: "sample"
   end
 
   test "RemoveFromBacklog runs" do
     tests "RemoveFromBacklog", on: "Priority"
     setup  "PrioritizeFeature", feature_id: "sample", rank: 1, reason: "sample"
-    input  priority: 1
     expect ok: "true"
   end
 
@@ -127,7 +119,6 @@ Hecks.behaviors "ProjectManagement" do
   test "ResolveDependency runs" do
     tests "ResolveDependency", on: "Dependency"
     setup  "RecordDependency", feature_id: "sample", blocked_by: "sample"
-    input  dependency: 1
     expect status: "resolved"
   end
 
@@ -143,22 +134,21 @@ Hecks.behaviors "ProjectManagement" do
   test "AddFeatureToMilestone sets feature_id" do
     tests "AddFeatureToMilestone", on: "Milestone"
     setup  "CreateMilestone", name: "sample", target_date: "sample"
-    input  milestone: 1, feature_id: "sample"
+    input  feature_id: "sample"
     expect features_size: 1, status: "in_progress"
   end
 
   test "CalculateProgress sets progress_pct" do
     tests "CalculateProgress", on: "Milestone"
     setup  "CreateMilestone", name: "sample", target_date: "sample"
-    input  milestone: 1, progress_pct: 1.0
+    input  progress_pct: 1.0
     expect progress_pct: 1.0
   end
 
   test "CompleteMilestone runs" do
     tests "CompleteMilestone", on: "Milestone"
     setup  "CreateMilestone", name: "sample", target_date: "sample"
-    setup  "AddFeatureToMilestone", milestone: 1, feature_id: "sample"
-    input  milestone: 1
+    setup  "AddFeatureToMilestone", feature_id: "sample"
     expect progress_pct: 100.0, status: "completed"
   end
 
@@ -174,7 +164,6 @@ Hecks.behaviors "ProjectManagement" do
   test "UnlinkFromDomain runs" do
     tests "UnlinkFromDomain", on: "DomainLink"
     setup  "LinkToDomain", feature_id: "sample", domain_name: "sample", aggregate_name: "sample", reason: "sample"
-    input  domain_link: 1
     expect ok: "true"
   end
 
@@ -190,7 +179,7 @@ Hecks.behaviors "ProjectManagement" do
   test "LinkCommit sets commit_sha" do
     tests "LinkCommit", on: "WorkLog"
     setup  "LogWork", feature_id: "sample", description: "sample", duration_minutes: 1, logged_at: "sample"
-    input  work_log: 1, commit_sha: "sample"
+    input  commit_sha: "sample"
     expect commit_sha: "sample"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "SmartFacility" do
   test "TransferResident sets room_number + care_level" do
     tests "TransferResident", on: "Resident"
     setup  "AdmitResident", resident_id: "sample", name: "sample", room_number: "sample", care_level: "sample"
-    input  resident: 1, room_number: "sample", care_level: "sample"
+    input  room_number: "sample", care_level: "sample"
     expect room_number: "sample", care_level: "sample"
   end
 
@@ -28,7 +28,7 @@ Hecks.behaviors "SmartFacility" do
   test "UpdateContent sets current_content" do
     tests "UpdateContent", on: "Display"
     setup  "InstallDisplay", display_id: "sample", location_name: "sample", content_type: "sample"
-    input  display: 1, current_content: "sample"
+    input  current_content: "sample"
     expect current_content: "sample"
   end
 
@@ -44,7 +44,6 @@ Hecks.behaviors "SmartFacility" do
   test "TriggerReminder runs" do
     tests "TriggerReminder", on: "ReminderSchedule"
     setup  "CreateSchedule", schedule_id: "sample", resident_id: "sample"
-    input  reminder_schedule: 1
     expect ok: "true"
   end
 
@@ -60,7 +59,7 @@ Hecks.behaviors "SmartFacility" do
   test "AddActivity sets name + time" do
     tests "AddActivity", on: "ActivityBoard"
     setup  "PublishBoard", board_id: "sample", date: "sample"
-    input  activity_board: 1, name: "sample", time: "sample"
+    input  name: "sample", time: "sample"
     expect ok: "true"
   end
 

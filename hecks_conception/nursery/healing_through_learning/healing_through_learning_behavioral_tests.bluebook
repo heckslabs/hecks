@@ -12,14 +12,13 @@ Hecks.behaviors "HealingThroughLearning" do
   test "AdvanceStage sets recovery_stage" do
     tests "AdvanceStage", on: "Learner"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1, recovery_stage: "sample"
+    input  recovery_stage: "sample"
     expect recovery_stage: "sample"
   end
 
   test "GraduateLearner runs" do
     tests "GraduateLearner", on: "Learner"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1
     expect status: "graduated"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "HealingThroughLearning" do
   test "PublishCurriculum runs" do
     tests "PublishCurriculum", on: "NutritionCurriculum"
     setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
-    input  nutrition_curriculum: 1
     expect status: "published"
   end
 
@@ -46,14 +44,13 @@ Hecks.behaviors "HealingThroughLearning" do
     tests "ScheduleLab", on: "CookingLab"
     setup  "DesignCurriculum", curriculum_id: "sample", title: "sample", difficulty_level: "sample"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1, nutrition_curriculum: 1, session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
+    input  session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
     expect session_id: "sample", learner: 1, curriculum: :curriculum, recipe_name: "sample", nutrition_focus: "sample", status: "scheduled"
   end
 
   test "CompleteLab runs" do
     tests "CompleteLab", on: "CookingLab"
-    setup  "ScheduleLab", learner: 1, nutrition_curriculum: 1, session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
-    input  cooking_lab: 1
+    setup  "ScheduleLab", session_id: "sample", recipe_name: "sample", nutrition_focus: "sample"
     expect status: "completed"
   end
 
@@ -63,19 +60,20 @@ Hecks.behaviors "HealingThroughLearning" do
   test "RecordBaseline sets metric_id + metric_type + baseline_value" do
     tests "RecordBaseline", on: "HealthMetric"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1, metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    input  metric_id: "sample", metric_type: "sample", baseline_value: 1.0
     expect metric_id: "sample", learner: 1, metric_type: "sample", baseline_value: 1.0, current_value: 1.0, trend: "stable"
   end
 
   test "RecordReading sets current_value + trend" do
     tests "RecordReading", on: "HealthMetric"
-    input  health_metric: 1, current_value: 1.0, trend: "sample"
+    setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
+    input  current_value: 1.0, trend: "sample"
     expect current_value: 1.0, trend: "sample"
   end
 
   test "FlagImprovement runs" do
     tests "FlagImprovement", on: "HealthMetric"
-    input  health_metric: 1
+    setup  "RecordBaseline", metric_id: "sample", metric_type: "sample", baseline_value: 1.0
     expect ok: "true"
   end
 
@@ -85,14 +83,13 @@ Hecks.behaviors "HealingThroughLearning" do
   test "InitiateCredential sets credential_id + credential_type + issuing_body" do
     tests "InitiateCredential", on: "Credential"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1, credential_id: "sample", credential_type: "sample", issuing_body: "sample"
+    input  credential_id: "sample", credential_type: "sample", issuing_body: "sample"
     expect credential_id: "sample", learner: 1, credential_type: "sample", issuing_body: "sample", status: "in_progress"
   end
 
   test "AwardCredential runs" do
     tests "AwardCredential", on: "Credential"
-    setup  "InitiateCredential", learner: 1, credential_id: "sample", credential_type: "sample", issuing_body: "sample"
-    input  credential: 1
+    setup  "InitiateCredential", credential_id: "sample", credential_type: "sample", issuing_body: "sample"
     expect status: "awarded"
   end
 
@@ -102,7 +99,7 @@ Hecks.behaviors "HealingThroughLearning" do
   test "RecordMilestone sets milestone_id + milestone_type + description + achieved_date" do
     tests "RecordMilestone", on: "RecoveryMilestone"
     setup  "EnrollLearner", learner_id: "sample", name: "sample", recovery_stage: "sample", enrollment_date: "sample"
-    input  learner: 1, milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
+    input  milestone_id: "sample", milestone_type: "sample", description: "sample", achieved_date: "sample"
     expect milestone_id: "sample", learner: 1, milestone_type: "sample", description: "sample", achieved_date: "sample"
   end
 

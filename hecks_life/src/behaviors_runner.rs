@@ -66,14 +66,37 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
     let domain: Domain = parser::parse(source_text);
     let mut rt = Runtime::boot(domain);
 
+    // The translation layer between the bluebook (refs only) and the
+    // runtime (ids). Maps an aggregate type → the id of the most
+    // recently created instance of that type in this test. Setups
+    // populate it; reference injection consumes it. No id ever leaves
+    // this scope into the test DSL or the generator.
+    let mut in_scope: HashMap<String, String> = HashMap::new();
+
+    // Pre-seed in_scope for aggregates that have no in-bluebook
+    // bootstrap command (every command requires a self-ref to its
+    // own type). Without this, those aggregates can never be
+    // referenced — the bluebook is silent on creation. The runner
+    // gives them a virgin instance at id "1" so commands can find
+    // and operate on them. This is the runner's pragmatic answer to
+    // an incomplete bluebook; lifecycle defaults aren't applied
+    // (the next dispatch will surface a clear error if they matter).
+    pre_seed_singletons(&mut rt, &mut in_scope);
+
     // Replay setup commands.
     for setup in &test.setups {
-        let attrs = to_runtime_attrs(&setup.args);
-        if let Err(e) = rt.dispatch(&setup.command, attrs) {
-            return TestRun::error(
+        let attrs = build_attrs(&setup.args, &setup.command, &rt, &in_scope);
+        match rt.dispatch(&setup.command, attrs) {
+            Ok(result) => {
+                // Setup just created (or operated on) an aggregate of
+                // this type. Stash it as the in-scope handle so
+                // subsequent commands can reference it implicitly.
+                in_scope.insert(result.aggregate_type.clone(), result.aggregate_id.clone());
+            }
+            Err(e) => return TestRun::error(
                 &test.description,
                 format!("setup `{}` failed: {}", setup.command, e),
-            );
+            ),
         }
     }
 
@@ -83,7 +106,7 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
         return run_query(&rt, test);
     }
 
-    let input_attrs = to_runtime_attrs(&test.input);
+    let input_attrs = build_attrs(&test.input, &test.tests_command, &rt, &in_scope);
     let result = rt.dispatch(&test.tests_command, input_attrs);
 
     // The expect map drives every assertion. `refused` is a special
@@ -111,11 +134,20 @@ fn run_one(source_text: &str, test: &Test) -> TestRun {
         Err(e) => return TestRun::error(&test.description, format!("dispatch failed: {}", e)),
     };
 
-    // Final-state assertions against the aggregate that was acted on.
-    let state = match rt.find(&test.on_aggregate, &result.aggregate_id) {
+    // The dispatch updates in-scope just like setup does — subsequent
+    // expects on the post-dispatch state need it.
+    in_scope.insert(result.aggregate_type.clone(), result.aggregate_id.clone());
+
+    // Final-state assertions against the aggregate the test pointed at.
+    // The id is an internal handle — we look it up via in_scope so the
+    // bluebook-layer test surface stays id-free.
+    let state_id = in_scope.get(&test.on_aggregate)
+        .cloned()
+        .unwrap_or_else(|| result.aggregate_id.clone());
+    let state = match rt.find(&test.on_aggregate, &state_id) {
         Some(s) => s,
         None => return TestRun::fail(&test.description,
-            format!("aggregate {}#{} not found after dispatch", test.on_aggregate, result.aggregate_id)),
+            format!("no in-scope {} after dispatch", test.on_aggregate)),
     };
 
     for (key, expected) in &test.expect {
@@ -180,6 +212,90 @@ fn to_runtime_attrs(args: &BTreeMap<String, String>) -> HashMap<String, Value> {
     args.iter()
         .map(|(k, v)| (k.clone(), parse_value(v)))
         .collect()
+}
+
+/// Build the attrs map for a runtime dispatch from the test DSL's
+/// reference-only world. Two layers:
+///
+/// 1. Convert the user-typed kwargs (domain attrs only — no ids).
+/// 2. For every reference declared on the command, inject the in-scope
+///    id automatically. The user never types an id; the runner looks
+///    up "the most recently created Pizza" from in_scope and provides
+///    the runtime its internal id. This is the bluebook→repository
+///    translation: above, references; below, ids.
+///
+/// If a reference can't be resolved (no in-scope aggregate of that
+/// type), the kwarg is omitted — the runtime will then either error
+/// (loud, useful failure pointing at missing setup) or singleton-create
+/// for is_create commands.
+fn build_attrs(
+    args: &BTreeMap<String, String>,
+    command_name: &str,
+    rt: &Runtime,
+    in_scope: &HashMap<String, String>,
+) -> HashMap<String, Value> {
+    let mut attrs = to_runtime_attrs(args);
+    if let Some(cmd) = find_command(rt, command_name) {
+        for r in &cmd.references {
+            // Don't overwrite if the user explicitly set this kwarg
+            // (escape hatch for advanced cases — tests usually don't).
+            if attrs.contains_key(&r.name) { continue; }
+            if let Some(id) = in_scope.get(&r.target) {
+                attrs.insert(r.name.clone(), Value::Str(id.clone()));
+            }
+        }
+    }
+    attrs
+}
+
+fn find_command<'a>(rt: &'a Runtime, name: &str) -> Option<&'a crate::ir::Command> {
+    for agg in &rt.domain.aggregates {
+        if let Some(c) = agg.commands.iter().find(|c| c.name == name) {
+            return Some(c);
+        }
+    }
+    None
+}
+
+/// For every aggregate where every command requires a self-ref to its
+/// own type, manually seed an empty AggregateState at id "1" so the
+/// reference-injection layer has something to point at. Lifecycle
+/// defaults aren't applied — that's a deliberate "test will surface
+/// the gap" choice.
+fn pre_seed_singletons(rt: &mut Runtime, in_scope: &mut HashMap<String, String>) {
+    let to_seed: Vec<String> = rt.domain.aggregates.iter()
+        .filter(|agg| agg_has_no_bootstrap(agg))
+        .map(|agg| agg.name.clone())
+        .collect();
+    for agg_name in to_seed {
+        if let Some(repo) = rt.repositories.get_mut(&agg_name) {
+            let id = "1".to_string();
+            repo.save(crate::runtime::AggregateState::new(&id));
+            in_scope.insert(agg_name, id);
+        }
+    }
+}
+
+/// True when every command on the aggregate references its own type
+/// (no command can act as a fresh-instance bootstrap from the bluebook).
+fn agg_has_no_bootstrap(agg: &crate::ir::Aggregate) -> bool {
+    if agg.commands.is_empty() { return false; }
+    let agg_snake = to_snake(&agg.name);
+    agg.commands.iter().all(|cmd| {
+        cmd.references.iter().any(|r| {
+            let target_snake = to_snake(&r.target);
+            target_snake == agg_snake || agg_snake.ends_with(&target_snake)
+        })
+    })
+}
+
+fn to_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 { out.push('_'); }
+        out.push(c.to_lowercase().next().unwrap_or(c));
+    }
+    out
 }
 
 fn parse_value(s: &str) -> Value {

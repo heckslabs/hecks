@@ -12,14 +12,14 @@ Hecks.behaviors "Distribution" do
   test "ListProduct sets sku" do
     tests "ListProduct", on: "Channel"
     setup  "RegisterChannel", name: "sample", channel_type: "sample", account_id: "sample"
-    input  channel: 1, sku: "sample"
+    input  sku: "sample"
     expect active_skus_size: 1
   end
 
   test "DelistProduct sets sku" do
     tests "DelistProduct", on: "Channel"
     setup  "RegisterChannel", name: "sample", channel_type: "sample", account_id: "sample"
-    input  channel: 1, sku: "sample"
+    input  sku: "sample"
     expect ok: "true"
   end
 
@@ -35,14 +35,12 @@ Hecks.behaviors "Distribution" do
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "SalesOrder"
     setup  "PlaceOrder", order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample"
-    input  sales_order: 1
     expect status: "fulfilled"
   end
 
   test "CancelOrder runs" do
     tests "CancelOrder", on: "SalesOrder"
     setup  "PlaceOrder", order_number: "sample", channel: "sample", customer: "sample", purchase_order_number: "sample"
-    input  sales_order: 1
     expect status: "cancelled"
   end
 

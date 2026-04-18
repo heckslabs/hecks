@@ -12,14 +12,13 @@ Hecks.behaviors "DentalPractice" do
   test "UpdateInsurance sets insurance_provider + policy_number" do
     tests "UpdateInsurance", on: "Patient"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1, insurance_provider: "sample", policy_number: "sample"
+    input  insurance_provider: "sample", policy_number: "sample"
     expect insurance_provider: "sample", policy_number: "sample"
   end
 
   test "DeactivatePatient runs" do
     tests "DeactivatePatient", on: "Patient"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1
     expect status: "inactive"
   end
 
@@ -29,14 +28,14 @@ Hecks.behaviors "DentalPractice" do
   test "PerformProcedure sets cdt_code + procedure_name + tooth_number + surface + notes" do
     tests "PerformProcedure", on: "DentalProcedure"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1, cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", notes: "sample"
     expect cdt_code: "sample", procedure_name: "sample", tooth_number: "sample", surface: "sample", status: "completed"
   end
 
   test "PlanTreatment sets cdt_code + procedure_name + tooth_number" do
     tests "PlanTreatment", on: "DentalProcedure"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1, cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    input  cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
     expect cdt_code: "sample", procedure_name: "sample", status: "planned"
   end
 
@@ -46,13 +45,14 @@ Hecks.behaviors "DentalPractice" do
   test "TakeRadiograph sets image_type + tooth_region" do
     tests "TakeRadiograph", on: "Radiograph"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1, image_type: "sample", tooth_region: "sample"
+    input  image_type: "sample", tooth_region: "sample"
     expect image_type: "sample", tooth_region: "sample"
   end
 
   test "InterpretRadiograph sets findings" do
     tests "InterpretRadiograph", on: "Radiograph"
-    input  radiograph: 1, findings: "sample"
+    setup  "TakeRadiograph", image_type: "sample", tooth_region: "sample"
+    input  findings: "sample"
     expect findings: "sample"
   end
 
@@ -62,21 +62,21 @@ Hecks.behaviors "DentalPractice" do
   test "SubmitClaim sets billed_amount" do
     tests "SubmitClaim", on: "InsuranceClaim"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  dental_procedure: 1, patient: 1, billed_amount: 1.0
+    setup  "PlanTreatment", cdt_code: "sample", procedure_name: "sample", tooth_number: "sample"
+    input  billed_amount: 1.0
     expect billed_amount: 1.0, status: "submitted"
   end
 
   test "ProcessPayment sets allowed_amount + patient_responsibility" do
     tests "ProcessPayment", on: "InsuranceClaim"
-    setup  "SubmitClaim", dental_procedure: 1, patient: 1, billed_amount: 1.0
-    input  insurance_claim: 1, allowed_amount: 1.0, patient_responsibility: 1.0
+    setup  "SubmitClaim", billed_amount: 1.0
+    input  allowed_amount: 1.0, patient_responsibility: 1.0
     expect allowed_amount: 1.0, patient_responsibility: 1.0, status: "paid"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "InsuranceClaim"
-    setup  "SubmitClaim", dental_procedure: 1, patient: 1, billed_amount: 1.0
-    input  insurance_claim: 1
+    setup  "SubmitClaim", billed_amount: 1.0
     expect status: "denied"
   end
 
@@ -86,20 +86,19 @@ Hecks.behaviors "DentalPractice" do
   test "ScheduleVisit sets appointment_date + time_slot + visit_type" do
     tests "ScheduleVisit", on: "DentalAppointment"
     setup  "RegisterPatient", first_name: "sample", last_name: "sample", date_of_birth: "sample", phone: "sample", insurance_provider: "sample", policy_number: "sample"
-    input  patient: 1, appointment_date: "sample", time_slot: "sample", visit_type: "sample"
+    input  appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     expect appointment_date: "sample", time_slot: "sample", visit_type: "sample", status: "scheduled"
   end
 
   test "ConfirmVisit runs" do
     tests "ConfirmVisit", on: "DentalAppointment"
-    setup  "ScheduleVisit", patient: 1, appointment_date: "sample", time_slot: "sample", visit_type: "sample"
-    input  dental_appointment: 1
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     expect status: "confirmed"
   end
 
   test "CancelVisit runs" do
     tests "CancelVisit", on: "DentalAppointment"
-    input  dental_appointment: 1
+    setup  "ScheduleVisit", appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     expect status: "cancelled"
   end
 

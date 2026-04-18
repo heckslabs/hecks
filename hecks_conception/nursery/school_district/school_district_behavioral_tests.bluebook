@@ -12,15 +12,13 @@ Hecks.behaviors "SchoolDistrict" do
   test "AccreditSchool runs" do
     tests "AccreditSchool", on: "School"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
-    input  school: 1
     expect status: "accredited"
   end
 
   test "CloseSchool runs" do
     tests "CloseSchool", on: "School"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
-    setup  "AccreditSchool", school: 1
-    input  school: 1
+    setup  "AccreditSchool"
     expect status: "closed"
   end
 
@@ -37,15 +35,14 @@ Hecks.behaviors "SchoolDistrict" do
     tests "EnrollStudent", on: "Student"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    input  student: 1, school: 1
     expect status: "enrolled"
   end
 
   test "PromoteStudent sets new_grade_level" do
     tests "PromoteStudent", on: "Student"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent", student: 1, school: 1
-    input  student: 1, new_grade_level: "sample"
+    setup  "EnrollStudent"
+    input  new_grade_level: "sample"
     expect ok: "true"
   end
 
@@ -53,24 +50,22 @@ Hecks.behaviors "SchoolDistrict" do
     tests "TransferStudent", on: "Student"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent", student: 1, school: 1
-    input  student: 1, school: 1
+    setup  "EnrollStudent"
     expect ok: "true"
   end
 
   test "GraduateStudent runs" do
     tests "GraduateStudent", on: "Student"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent", student: 1, school: 1
-    input  student: 1
+    setup  "EnrollStudent"
     expect status: "graduated"
   end
 
   test "WithdrawStudent sets reason" do
     tests "WithdrawStudent", on: "Student"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    setup  "EnrollStudent", student: 1, school: 1
-    input  student: 1, reason: "sample"
+    setup  "EnrollStudent"
+    input  reason: "sample"
     expect status: "withdrawn"
   end
 
@@ -80,20 +75,21 @@ Hecks.behaviors "SchoolDistrict" do
   test "HireTeacher sets name + certification_area" do
     tests "HireTeacher", on: "Teacher"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
-    input  school: 1, name: "sample", certification_area: "sample"
+    input  name: "sample", certification_area: "sample"
     expect status: "active"
   end
 
   test "AssignTeacher runs" do
     tests "AssignTeacher", on: "Teacher"
-    input  teacher: 1, course: 1
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
     expect ok: "true"
   end
 
   test "PlaceOnLeave sets reason" do
     tests "PlaceOnLeave", on: "Teacher"
-    setup  "HireTeacher", school: 1, name: "sample", certification_area: "sample"
-    input  teacher: 1, reason: "sample"
+    setup  "HireTeacher", name: "sample", certification_area: "sample"
+    input  reason: "sample"
     expect status: "on_leave"
   end
 
@@ -103,21 +99,20 @@ Hecks.behaviors "SchoolDistrict" do
   test "CreateCourse sets course_code + title + subject + max_enrollment" do
     tests "CreateCourse", on: "Course"
     setup  "OpenSchool", school_code: "sample", name: "sample", level: "sample", capacity: 1
-    input  school: 1, course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
+    input  course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1, status: "active", current_enrollment: 0
   end
 
   test "EnrollInCourse runs" do
     tests "EnrollInCourse", on: "Course"
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    input  course: 1, student: 1
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect ok: "true"
   end
 
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "Course"
-    setup  "CreateCourse", school: 1, course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
-    input  course: 1
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     expect status: "completed"
   end
 
@@ -126,22 +121,22 @@ Hecks.behaviors "SchoolDistrict" do
 
   test "RecordGrade sets letter_grade + numeric_score + semester" do
     tests "RecordGrade", on: "GradeRecord"
+    setup  "CreateCourse", course_code: "sample", title: "sample", subject: "sample", max_enrollment: 1
     setup  "RegisterStudent", name: "sample", grade_level: "sample"
-    input  student: 1, course: 1, letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    input  letter_grade: "sample", numeric_score: 1.0, semester: "sample"
     expect status: "posted"
   end
 
   test "AppealGrade sets reason" do
     tests "AppealGrade", on: "GradeRecord"
-    setup  "RecordGrade", student: 1, course: 1, letter_grade: "sample", numeric_score: 1.0, semester: "sample"
-    input  grade_record: 1, reason: "sample"
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
+    input  reason: "sample"
     expect status: "under_review"
   end
 
   test "FinalizeGrade runs" do
     tests "FinalizeGrade", on: "GradeRecord"
-    setup  "RecordGrade", student: 1, course: 1, letter_grade: "sample", numeric_score: 1.0, semester: "sample"
-    input  grade_record: 1
+    setup  "RecordGrade", letter_grade: "sample", numeric_score: 1.0, semester: "sample"
     expect status: "finalized"
   end
 

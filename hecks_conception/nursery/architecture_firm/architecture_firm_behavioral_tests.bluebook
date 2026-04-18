@@ -12,14 +12,13 @@ Hecks.behaviors "ArchitectureFirm" do
   test "AdvancePhase sets next_phase" do
     tests "AdvancePhase", on: "ArchProject"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    input  arch_project: 1, next_phase: "sample"
+    input  next_phase: "sample"
     expect phase: "sample"
   end
 
   test "CloseOutProject runs" do
     tests "CloseOutProject", on: "ArchProject"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    input  arch_project: 1
     expect phase: "closed"
   end
 
@@ -29,19 +28,20 @@ Hecks.behaviors "ArchitectureFirm" do
   test "ProduceDrawing sets title + drawing_type + scale" do
     tests "ProduceDrawing", on: "Drawing"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    input  arch_project: 1, title: "sample", drawing_type: "sample", scale: "sample"
+    input  title: "sample", drawing_type: "sample", scale: "sample"
     expect ok: "true"
   end
 
   test "ReviseDrawing sets revision_notes" do
     tests "ReviseDrawing", on: "Drawing"
-    input  drawing: 1, revision_notes: "sample"
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    input  revision_notes: "sample"
     expect ok: "true"
   end
 
   test "IssueForReview runs" do
     tests "IssueForReview", on: "Drawing"
-    input  drawing: 1
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
     expect status: "under_review"
   end
 
@@ -50,13 +50,14 @@ Hecks.behaviors "ArchitectureFirm" do
 
   test "RequestRevision sets reviewer_name + comments" do
     tests "RequestRevision", on: "Revision"
-    input  drawing: 1, reviewer_name: "sample", comments: "sample"
+    setup  "ProduceDrawing", title: "sample", drawing_type: "sample", scale: "sample"
+    input  reviewer_name: "sample", comments: "sample"
     expect ok: "true"
   end
 
   test "ApproveRevision runs" do
     tests "ApproveRevision", on: "Revision"
-    input  revision: 1
+    setup  "RequestRevision", reviewer_name: "sample", comments: "sample"
     expect status: "approved"
   end
 
@@ -66,14 +67,14 @@ Hecks.behaviors "ArchitectureFirm" do
   test "SubmitPermit sets permit_type + jurisdiction" do
     tests "SubmitPermit", on: "Permit"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    input  arch_project: 1, permit_type: "sample", jurisdiction: "sample"
+    input  permit_type: "sample", jurisdiction: "sample"
     expect status: "submitted"
   end
 
   test "ReceiveApproval sets permit_number" do
     tests "ReceiveApproval", on: "Permit"
-    setup  "SubmitPermit", arch_project: 1, permit_type: "sample", jurisdiction: "sample"
-    input  permit: 1, permit_number: "sample"
+    setup  "SubmitPermit", permit_type: "sample", jurisdiction: "sample"
+    input  permit_number: "sample"
     expect status: "approved", permit_number: "sample"
   end
 
@@ -83,13 +84,14 @@ Hecks.behaviors "ArchitectureFirm" do
   test "ScheduleVisit sets date + inspector_name" do
     tests "ScheduleVisit", on: "SiteVisit"
     setup  "AcceptProject", name: "sample", building_type: "sample", square_footage: 1.0, budget: 1.0
-    input  arch_project: 1, date: "sample", inspector_name: "sample"
+    input  date: "sample", inspector_name: "sample"
     expect ok: "true"
   end
 
   test "RecordObservations sets notes + weather_conditions" do
     tests "RecordObservations", on: "SiteVisit"
-    input  site_visit: 1, notes: "sample", weather_conditions: "sample"
+    setup  "ScheduleVisit", date: "sample", inspector_name: "sample"
+    input  notes: "sample", weather_conditions: "sample"
     expect status: "completed", notes: "sample"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "RouteOptimization" do
   test "UpdateRoadNetwork sets road_count" do
     tests "UpdateRoadNetwork", on: "MapRegion"
     setup  "DefineRegion", name: "sample", area_sq_km: 1.0, road_count: 1
-    input  map_region: 1, road_count: 1
+    input  road_count: 1
     expect road_count: 1
   end
 
@@ -28,15 +28,13 @@ Hecks.behaviors "RouteOptimization" do
   test "AssignToRoute runs" do
     tests "AssignToRoute", on: "Parcel"
     setup  "RegisterParcel", tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
-    input  parcel: 1
     expect status: "assigned"
   end
 
   test "DeliverParcel runs" do
     tests "DeliverParcel", on: "Parcel"
     setup  "RegisterParcel", tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
-    setup  "AssignToRoute", parcel: 1
-    input  parcel: 1
+    setup  "AssignToRoute"
     expect status: "delivered"
   end
 
@@ -52,7 +50,6 @@ Hecks.behaviors "RouteOptimization" do
   test "DetectCongestion runs" do
     tests "DetectCongestion", on: "TrafficCondition"
     setup  "ReportTraffic", road_segment: "sample", avg_speed_kmh: 1.0, congestion_level: 1.0, timestamp: "sample"
-    input  traffic_condition: 1
     expect status: "congested"
   end
 
@@ -68,22 +65,19 @@ Hecks.behaviors "RouteOptimization" do
   test "AdjustForTraffic runs" do
     tests "AdjustForTraffic", on: "DeliveryRoute"
     setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
-    input  delivery_route: 1
     expect ok: "true"
   end
 
   test "DispatchRoute runs" do
     tests "DispatchRoute", on: "DeliveryRoute"
     setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
-    input  delivery_route: 1
     expect status: "dispatched"
   end
 
   test "CompleteRoute runs" do
     tests "CompleteRoute", on: "DeliveryRoute"
     setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
-    setup  "DispatchRoute", delivery_route: 1
-    input  delivery_route: 1
+    setup  "DispatchRoute"
     expect status: "completed"
   end
 

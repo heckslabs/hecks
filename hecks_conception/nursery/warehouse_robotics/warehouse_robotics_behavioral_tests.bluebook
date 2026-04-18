@@ -12,30 +12,27 @@ Hecks.behaviors "WarehouseRobotics" do
   test "AssignTask runs" do
     tests "AssignTask", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    input  robot: 1
     expect status: "working"
   end
 
   test "CompleteTask sets battery_pct" do
     tests "CompleteTask", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    setup  "AssignTask", robot: 1
-    input  robot: 1, battery_pct: 1.0
+    setup  "AssignTask"
+    input  battery_pct: 1.0
     expect battery_pct: 1.0, status: "idle"
   end
 
   test "SendToCharger runs" do
     tests "SendToCharger", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    input  robot: 1
     expect status: "charging"
   end
 
   test "FinishCharging runs" do
     tests "FinishCharging", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
-    setup  "SendToCharger", robot: 1
-    input  robot: 1
+    setup  "SendToCharger"
     expect battery_pct: 100.0, status: "idle"
   end
 
@@ -51,15 +48,14 @@ Hecks.behaviors "WarehouseRobotics" do
   test "AssignToRobot sets assigned_robot" do
     tests "AssignToRobot", on: "PickList"
     setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
-    input  pick_list: 1, assigned_robot: "sample"
+    input  assigned_robot: "sample"
     expect assigned_robot: "sample", status: "assigned"
   end
 
   test "CompletePickList runs" do
     tests "CompletePickList", on: "PickList"
     setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
-    setup  "AssignToRobot", pick_list: 1, assigned_robot: "sample"
-    input  pick_list: 1
+    setup  "AssignToRobot", assigned_robot: "sample"
     expect status: "completed"
   end
 
@@ -75,7 +71,6 @@ Hecks.behaviors "WarehouseRobotics" do
   test "ExecutePath runs" do
     tests "ExecutePath", on: "NavigationPath"
     setup  "ComputePath", path_id: "sample", robot_id: "sample", from_zone: "sample", to_zone: "sample", distance_m: 1.0, estimated_seconds: 1.0
-    input  navigation_path: 1
     expect status: "executed"
   end
 
@@ -91,7 +86,6 @@ Hecks.behaviors "WarehouseRobotics" do
   test "AnalyzeBottlenecks runs" do
     tests "AnalyzeBottlenecks", on: "ThroughputMetric"
     setup  "RecordThroughput", metric_id: "sample", period: "sample", total_picks: 1, picks_per_hour: 1.0, robot_utilization_pct: 1.0
-    input  throughput_metric: 1
     expect status: "analyzed"
   end
 

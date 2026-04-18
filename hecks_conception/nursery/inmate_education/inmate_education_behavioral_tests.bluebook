@@ -12,7 +12,7 @@ Hecks.behaviors "InmateEducation" do
   test "AwardCertification sets cert_name + issued_date + issuing_body" do
     tests "AwardCertification", on: "Inmate"
     setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
-    input  inmate: 1, cert_name: "sample", issued_date: "sample", issuing_body: "sample"
+    input  cert_name: "sample", issued_date: "sample", issuing_body: "sample"
     expect certifications_size: 1
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "InmateEducation" do
   test "AddModule sets module_name + content_type + duration_minutes" do
     tests "AddModule", on: "Course"
     setup  "CreateCourse", course_name: "sample", subject: "sample"
-    input  course: 1, module_name: "sample", content_type: "sample", duration_minutes: 1
+    input  module_name: "sample", content_type: "sample", duration_minutes: 1
     expect modules_size: 1
   end
 
   test "PublishCourse runs" do
     tests "PublishCourse", on: "Course"
     setup  "CreateCourse", course_name: "sample", subject: "sample"
-    input  course: 1
     expect ok: "true"
   end
 
@@ -46,19 +45,19 @@ Hecks.behaviors "InmateEducation" do
     tests "RegisterEnrollment", on: "Enrollment"
     setup  "CreateCourse", course_name: "sample", subject: "sample"
     setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
-    input  inmate: 1, course: 1
     expect ok: "true"
   end
 
   test "SubmitAssignment sets assignment_name + score" do
     tests "SubmitAssignment", on: "Enrollment"
-    input  enrollment: 1, assignment_name: "sample", score: 1.0
+    setup  "RegisterEnrollment"
+    input  assignment_name: "sample", score: 1.0
     expect assignments_size: 1
   end
 
   test "CompleteEnrollment runs" do
     tests "CompleteEnrollment", on: "Enrollment"
-    input  enrollment: 1
+    setup  "RegisterEnrollment"
     expect ok: "true"
   end
 
@@ -67,13 +66,13 @@ Hecks.behaviors "InmateEducation" do
 
   test "RecordInfraction sets infraction_type + severity + date" do
     tests "RecordInfraction", on: "BehaviorRecord"
-    input  behavior_record: 1, infraction_type: "sample", severity: "sample", date: "sample"
+    input  infraction_type: "sample", severity: "sample", date: "sample"
     expect infractions_size: 1
   end
 
   test "AwardMerit sets merit_type + description + date" do
     tests "AwardMerit", on: "BehaviorRecord"
-    input  behavior_record: 1, merit_type: "sample", description: "sample", date: "sample"
+    input  merit_type: "sample", description: "sample", date: "sample"
     expect merits_size: 1
   end
 

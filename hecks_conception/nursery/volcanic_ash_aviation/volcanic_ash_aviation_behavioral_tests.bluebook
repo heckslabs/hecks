@@ -12,14 +12,13 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "UpdateAshColumn sets ash_column_height_km" do
     tests "UpdateAshColumn", on: "Eruption"
     setup  "ReportEruption", volcano_name: "sample", latitude: 1.0, longitude: 1.0, ash_column_height_km: 1.0, eruption_type: "sample", vei_level: "sample"
-    input  eruption: 1, ash_column_height_km: 1.0
+    input  ash_column_height_km: 1.0
     expect ash_column_height_km: 1.0
   end
 
   test "DeclareEruptionOver runs" do
     tests "DeclareEruptionOver", on: "Eruption"
     setup  "ReportEruption", volcano_name: "sample", latitude: 1.0, longitude: 1.0, ash_column_height_km: 1.0, eruption_type: "sample", vei_level: "sample"
-    input  eruption: 1
     expect status: "ended"
   end
 
@@ -35,15 +34,13 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "ForecastDispersion runs" do
     tests "ForecastDispersion", on: "AshCloud"
     setup  "TrackAshCloud", cloud_id: "sample", volcano_source: "sample", concentration_mg_m3: 1.0, altitude_min_ft: 1.0, altitude_max_ft: 1.0, area_sq_km: 1.0
-    input  ash_cloud: 1
     expect status: "forecasted"
   end
 
   test "DeclareCloudDissipated runs" do
     tests "DeclareCloudDissipated", on: "AshCloud"
     setup  "TrackAshCloud", cloud_id: "sample", volcano_source: "sample", concentration_mg_m3: 1.0, altitude_min_ft: 1.0, altitude_max_ft: 1.0, area_sq_km: 1.0
-    setup  "ForecastDispersion", ash_cloud: 1
-    input  ash_cloud: 1
+    setup  "ForecastDispersion"
     expect status: "dissipated"
   end
 
@@ -59,14 +56,13 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "ExtendRestriction sets effective_until" do
     tests "ExtendRestriction", on: "AirspaceRestriction"
     setup  "IssueRestriction", notam_id: "sample", fir_name: "sample", altitude_floor_ft: 1.0, altitude_ceiling_ft: 1.0, effective_from: "sample", effective_until: "sample"
-    input  airspace_restriction: 1, effective_until: "sample"
+    input  effective_until: "sample"
     expect effective_until: "sample"
   end
 
   test "LiftRestriction runs" do
     tests "LiftRestriction", on: "AirspaceRestriction"
     setup  "IssueRestriction", notam_id: "sample", fir_name: "sample", altitude_floor_ft: 1.0, altitude_ceiling_ft: 1.0, effective_from: "sample", effective_until: "sample"
-    input  airspace_restriction: 1
     expect status: "lifted"
   end
 
@@ -82,22 +78,20 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "RerouteAroundAsh sets rerouted_via + additional_fuel_kg" do
     tests "RerouteAroundAsh", on: "CargoFlight"
     setup  "FileCargoFlight", flight_number: "sample", origin: "sample", destination: "sample", original_route: "sample"
-    input  cargo_flight: 1, rerouted_via: "sample", additional_fuel_kg: 1.0
+    input  rerouted_via: "sample", additional_fuel_kg: 1.0
     expect rerouted_via: "sample", additional_fuel_kg: 1.0, status: "rerouted"
   end
 
   test "CancelFlight runs" do
     tests "CancelFlight", on: "CargoFlight"
     setup  "FileCargoFlight", flight_number: "sample", origin: "sample", destination: "sample", original_route: "sample"
-    input  cargo_flight: 1
     expect status: "cancelled"
   end
 
   test "ClearFlight runs" do
     tests "ClearFlight", on: "CargoFlight"
     setup  "FileCargoFlight", flight_number: "sample", origin: "sample", destination: "sample", original_route: "sample"
-    setup  "RerouteAroundAsh", cargo_flight: 1, rerouted_via: "sample", additional_fuel_kg: 1.0
-    input  cargo_flight: 1
+    setup  "RerouteAroundAsh", rerouted_via: "sample", additional_fuel_kg: 1.0
     expect status: "cleared"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "MealDelivery" do
   test "DepletItem sets quantity" do
     tests "DepletItem", on: "FoodItem"
     setup  "StockItem", item_id: "sample", name: "sample", category: "sample", quantity: 1, expiry_date: "sample", dietary_tags: "sample"
-    input  food_item: 1, quantity: 1
+    input  quantity: 1
     expect quantity: 1
   end
 
@@ -28,7 +28,6 @@ Hecks.behaviors "MealDelivery" do
   test "MarkDelivered runs" do
     tests "MarkDelivered", on: "MealPackage"
     setup  "AssembleMeal", package_id: "sample", recipient_id: "sample", dietary_type: "sample"
-    input  meal_package: 1
     expect status: "delivered"
   end
 
@@ -44,15 +43,13 @@ Hecks.behaviors "MealDelivery" do
   test "StartRun runs" do
     tests "StartRun", on: "DeliveryRun"
     setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
-    input  delivery_run: 1
     expect status: "in_progress"
   end
 
   test "FinishRun runs" do
     tests "FinishRun", on: "DeliveryRun"
     setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
-    setup  "StartRun", delivery_run: 1
-    input  delivery_run: 1
+    setup  "StartRun"
     expect status: "finished"
   end
 
@@ -68,7 +65,7 @@ Hecks.behaviors "MealDelivery" do
   test "UpdateDiet sets dietary_restriction" do
     tests "UpdateDiet", on: "Recipient"
     setup  "RegisterRecipient", recipient_id: "sample", name: "sample", address: "sample", dietary_restriction: "sample", household_size: 1
-    input  recipient: 1, dietary_restriction: "sample"
+    input  dietary_restriction: "sample"
     expect dietary_restriction: "sample"
   end
 

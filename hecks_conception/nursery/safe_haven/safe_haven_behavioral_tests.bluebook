@@ -12,7 +12,6 @@ Hecks.behaviors "SafeHaven" do
   test "ActivatePlan runs" do
     tests "ActivatePlan", on: "SafetyPlan"
     setup  "CreateSafetyPlan", plan_id: "sample", client_code: "sample", advocate_name: "sample"
-    input  safety_plan: 1
     expect status: "activated"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "SafeHaven" do
   test "LockAccounts runs" do
     tests "LockAccounts", on: "DigitalSecurity"
     setup  "AssessThreat", profile_id: "sample", client_code: "sample", threat_level: "sample"
-    input  digital_security: 1
     expect status: "secured"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "SafeHaven" do
   test "ActivateVPN runs" do
     tests "ActivateVPN", on: "LocationPrivacy"
     setup  "SetupPrivacy", privacy_id: "sample", client_code: "sample", safe_address: "sample"
-    input  location_privacy: 1
     expect vpn_status: "active"
   end
 
@@ -60,7 +57,7 @@ Hecks.behaviors "SafeHaven" do
   test "EscalateIncident sets reported_to" do
     tests "EscalateIncident", on: "IncidentLog"
     setup  "LogIncident", log_id: "sample", client_code: "sample", incident_type: "sample", description_text: "sample", date: "sample"
-    input  incident_log: 1, reported_to: "sample"
+    input  reported_to: "sample"
     expect reported_to: "sample"
   end
 

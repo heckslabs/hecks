@@ -23,22 +23,21 @@ Hecks.behaviors "Boot" do
   test "WireOrgans sets organ_count + nerve_count + law_count" do
     tests "WireOrgans", on: "Session"
     setup  "BootWithClaude"
-    input  session: 1, organ_count: 1, nerve_count: 1, law_count: 1
+    input  organ_count: 1, nerve_count: 1, law_count: 1
     expect organ_count: 1, nerve_count: 1, law_count: 1
   end
 
   test "GoLive sets started_at" do
     tests "GoLive", on: "Session"
     setup  "BootWithClaude"
-    input  session: 1, started_at: "sample"
+    input  started_at: "sample"
     expect started_at: "sample", status: "live"
   end
 
   test "EndSession runs" do
     tests "EndSession", on: "Session"
     setup  "BootWithClaude"
-    setup  "GoLive", session: 1, started_at: "sample"
-    input  session: 1
+    setup  "GoLive", started_at: "sample"
     expect status: "ended"
   end
 
@@ -53,21 +52,18 @@ Hecks.behaviors "Boot" do
   test "RecommendClaude runs" do
     tests "RecommendClaude", on: "BrainProbe"
     setup  "Probe"
-    input  brain_probe: 1
     expect recommended_engine: "claude"
   end
 
   test "RecommendSummer runs" do
     tests "RecommendSummer", on: "BrainProbe"
     setup  "Probe"
-    input  brain_probe: 1
     expect recommended_engine: "summer"
   end
 
   test "RecommendNothing runs" do
     tests "RecommendNothing", on: "BrainProbe"
     setup  "Probe"
-    input  brain_probe: 1
     expect recommended_engine: "none"
   end
 

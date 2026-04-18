@@ -12,30 +12,27 @@ Hecks.behaviors "Blog" do
   test "EditPost sets title + body + tags" do
     tests "EditPost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
-    input  post: 1, title: "sample", body: "sample", tags: "sample"
+    input  title: "sample", body: "sample", tags: "sample"
     expect title: "sample", body: "sample", tags: "sample"
   end
 
   test "PublishPost runs" do
     tests "PublishPost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
-    input  post: 1
     expect status: "published"
   end
 
   test "UnpublishPost runs" do
     tests "UnpublishPost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
-    setup  "PublishPost", post: 1
-    input  post: 1
+    setup  "PublishPost"
     expect status: "draft"
   end
 
   test "ArchivePost runs" do
     tests "ArchivePost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
-    setup  "PublishPost", post: 1
-    input  post: 1
+    setup  "PublishPost"
     expect status: "archived"
   end
 
@@ -51,15 +48,13 @@ Hecks.behaviors "Blog" do
   test "HideComment runs" do
     tests "HideComment", on: "Comment"
     setup  "LeaveComment", post_slug: "sample", author_name: "sample", body: "sample"
-    input  comment: 1
     expect status: "hidden"
   end
 
   test "RestoreComment runs" do
     tests "RestoreComment", on: "Comment"
     setup  "LeaveComment", post_slug: "sample", author_name: "sample", body: "sample"
-    setup  "HideComment", comment: 1
-    input  comment: 1
+    setup  "HideComment"
     expect status: "visible"
   end
 
@@ -75,7 +70,6 @@ Hecks.behaviors "Blog" do
   test "DeactivateAuthor runs" do
     tests "DeactivateAuthor", on: "Author"
     setup  "RegisterAuthor", name: "sample", bio: "sample"
-    input  author: 1
     expect status: "inactive"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "PoolMaintenance" do
   test "MietteizePool runs" do
     tests "MietteizePool", on: "Pool"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
-    input  pool: 1
     expect ok: "true"
   end
 
   test "OpenPool runs" do
     tests "OpenPool", on: "Pool"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
-    input  pool: 1
     expect ok: "true"
   end
 
@@ -29,13 +27,14 @@ Hecks.behaviors "PoolMaintenance" do
   test "TakeReading sets ph + free_chlorine + total_alkalinity + calcium_hardness + cya" do
     tests "TakeReading", on: "ChemicalReading"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
-    input  pool: 1, ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    input  ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
     expect ok: "true"
   end
 
   test "DoseChemicals sets chemical_name + dose_oz" do
     tests "DoseChemicals", on: "ChemicalReading"
-    input  chemical_reading: 1, chemical_name: "sample", dose_oz: 1.0
+    setup  "TakeReading", ph: 1.0, free_chlorine: 1.0, total_alkalinity: 1.0, calcium_hardness: 1.0, cya: 1.0
+    input  chemical_name: "sample", dose_oz: 1.0
     expect ok: "true"
   end
 
@@ -45,13 +44,14 @@ Hecks.behaviors "PoolMaintenance" do
   test "InstallEquipment sets equipment_type + brand + model" do
     tests "InstallEquipment", on: "PoolEquipment"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
-    input  pool: 1, equipment_type: "sample", brand: "sample", model: "sample"
+    input  equipment_type: "sample", brand: "sample", model: "sample"
     expect ok: "true"
   end
 
   test "ServiceEquipment sets service_performed" do
     tests "ServiceEquipment", on: "PoolEquipment"
-    input  pool_equipment: 1, service_performed: "sample"
+    setup  "InstallEquipment", equipment_type: "sample", brand: "sample", model: "sample"
+    input  service_performed: "sample"
     expect ok: "true"
   end
 
@@ -68,7 +68,6 @@ Hecks.behaviors "PoolMaintenance" do
     tests "AddPoolToRoute", on: "ServiceRoute"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
     setup  "BuildRoute", tech_name: "sample", route_day: "sample", pool_count: 1
-    input  service_route: 1, pool: 1
     expect ok: "true"
   end
 
@@ -78,13 +77,14 @@ Hecks.behaviors "PoolMaintenance" do
   test "OpenRepairTicket sets problem_description" do
     tests "OpenRepairTicket", on: "RepairTicket"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
-    input  pool: 1, problem_description: "sample"
+    input  problem_description: "sample"
     expect problem_description: "sample"
   end
 
   test "CompleteRepair sets diagnosis + repair_cost" do
     tests "CompleteRepair", on: "RepairTicket"
-    input  repair_ticket: 1, diagnosis: "sample", repair_cost: 1.0
+    setup  "OpenRepairTicket", problem_description: "sample"
+    input  diagnosis: "sample", repair_cost: 1.0
     expect ok: "true"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "GolfCourse" do
   test "CheckInGroup runs" do
     tests "CheckInGroup", on: "TeeTime"
     setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
-    input  tee_time: 1
     expect status: "checked_in"
   end
 
   test "CancelTeeTime runs" do
     tests "CancelTeeTime", on: "TeeTime"
     setup  "BookTeeTime", booking_id: "sample", player_name: "sample", date: "sample", time: "sample", group_size: 1, green_fee: 1.0
-    input  tee_time: 1
     expect status: "canceled"
   end
 
@@ -35,22 +33,19 @@ Hecks.behaviors "GolfCourse" do
   test "RentCart runs" do
     tests "RentCart", on: "GolfCart"
     setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
-    input  golf_cart: 1
     expect status: "rented"
   end
 
   test "ReturnCart runs" do
     tests "ReturnCart", on: "GolfCart"
     setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
-    setup  "RentCart", golf_cart: 1
-    input  golf_cart: 1
+    setup  "RentCart"
     expect status: "available"
   end
 
   test "ServiceCart runs" do
     tests "ServiceCart", on: "GolfCart"
     setup  "RegisterCart", cart_id: "sample", cart_type: "sample", seating_capacity: 1, rental_fee: 1.0
-    input  golf_cart: 1
     expect ok: "true"
   end
 
@@ -66,7 +61,7 @@ Hecks.behaviors "GolfCourse" do
   test "ReportCondition sets condition" do
     tests "ReportCondition", on: "CourseHole"
     setup  "DefineHole", hole_id: "sample", hole_number: 1, par: 1, yardage: 1, hazard_notes: "sample"
-    input  course_hole: 1, condition: "sample"
+    input  condition: "sample"
     expect condition: "sample"
   end
 
@@ -82,7 +77,6 @@ Hecks.behaviors "GolfCourse" do
   test "CompleteTask runs" do
     tests "CompleteTask", on: "GreenskeepingTask"
     setup  "ScheduleTask", task_id: "sample", task_type: "sample", area: "sample", assigned_to: "sample", scheduled_date: "sample"
-    input  greenskeeping_task: 1
     expect status: "completed"
   end
 
@@ -98,15 +92,13 @@ Hecks.behaviors "GolfCourse" do
   test "StartTournament runs" do
     tests "StartTournament", on: "GolfTournament"
     setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
-    input  golf_tournament: 1
     expect status: "in_progress"
   end
 
   test "AwardPrizes runs" do
     tests "AwardPrizes", on: "GolfTournament"
     setup  "CreateTournament", tournament_id: "sample", name: "sample", format: "sample", date: "sample", max_players: 1, entry_fee: 1.0
-    setup  "StartTournament", golf_tournament: 1
-    input  golf_tournament: 1
+    setup  "StartTournament"
     expect status: "concluded"
   end
 

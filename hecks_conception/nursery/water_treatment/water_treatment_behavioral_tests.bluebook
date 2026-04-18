@@ -12,22 +12,21 @@ Hecks.behaviors "WaterTreatment" do
   test "AdjustFlow sets target_flow_mgd" do
     tests "AdjustFlow", on: "Plant"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    input  plant: 1, target_flow_mgd: 1.0
+    input  target_flow_mgd: 1.0
     expect ok: "true"
   end
 
   test "ShutdownPlant sets reason" do
     tests "ShutdownPlant", on: "Plant"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    input  plant: 1, reason: "sample"
+    input  reason: "sample"
     expect status: "offline"
   end
 
   test "RestartPlant runs" do
     tests "RestartPlant", on: "Plant"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    setup  "ShutdownPlant", plant: 1, reason: "sample"
-    input  plant: 1
+    setup  "ShutdownPlant", reason: "sample"
     expect status: "operational"
   end
 
@@ -37,37 +36,36 @@ Hecks.behaviors "WaterTreatment" do
   test "ConfigureProcess sets stage_name + technology" do
     tests "ConfigureProcess", on: "TreatmentProcess"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    input  plant: 1, stage_name: "sample", technology: "sample"
+    input  stage_name: "sample", technology: "sample"
     expect status: "configured"
   end
 
   test "ActivateProcess runs" do
     tests "ActivateProcess", on: "TreatmentProcess"
-    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
-    input  treatment_process: 1
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
     expect status: "active"
   end
 
   test "MonitorProcess sets efficiency_percent" do
     tests "MonitorProcess", on: "TreatmentProcess"
-    input  treatment_process: 1, efficiency_percent: 1.0
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    input  efficiency_percent: 1.0
     expect ok: "true"
   end
 
   test "BypassProcess sets reason" do
     tests "BypassProcess", on: "TreatmentProcess"
-    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
-    setup  "ActivateProcess", treatment_process: 1
-    input  treatment_process: 1, reason: "sample"
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess"
+    input  reason: "sample"
     expect status: "bypassed"
   end
 
   test "RestoreProcess runs" do
     tests "RestoreProcess", on: "TreatmentProcess"
-    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
-    setup  "ActivateProcess", treatment_process: 1
-    setup  "BypassProcess", treatment_process: 1, reason: "sample"
-    input  treatment_process: 1
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess"
+    setup  "BypassProcess", reason: "sample"
     expect status: "active"
   end
 
@@ -77,30 +75,27 @@ Hecks.behaviors "WaterTreatment" do
   test "CollectSample sets sample_point" do
     tests "CollectSample", on: "WaterSample"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    input  plant: 1, sample_point: "sample"
+    input  sample_point: "sample"
     expect status: "collected"
   end
 
   test "AnalyzeSample runs" do
     tests "AnalyzeSample", on: "WaterSample"
-    setup  "CollectSample", plant: 1, sample_point: "sample"
-    input  water_sample: 1
+    setup  "CollectSample", sample_point: "sample"
     expect status: "analyzed"
   end
 
   test "ApproveSample runs" do
     tests "ApproveSample", on: "WaterSample"
-    setup  "CollectSample", plant: 1, sample_point: "sample"
-    setup  "AnalyzeSample", water_sample: 1
-    input  water_sample: 1
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
     expect status: "approved"
   end
 
   test "RejectSample runs" do
     tests "RejectSample", on: "WaterSample"
-    setup  "CollectSample", plant: 1, sample_point: "sample"
-    setup  "AnalyzeSample", water_sample: 1
-    input  water_sample: 1
+    setup  "CollectSample", sample_point: "sample"
+    setup  "AnalyzeSample"
     expect status: "rejected"
   end
 
@@ -109,21 +104,21 @@ Hecks.behaviors "WaterTreatment" do
 
   test "StartDosing sets chemical_name + dose_rate_ppm + inventory_gallons" do
     tests "StartDosing", on: "ChemicalFeed"
-    input  treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
+    setup  "ConfigureProcess", stage_name: "sample", technology: "sample"
+    input  chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
     expect status: "dosing"
   end
 
   test "AdjustDose sets new_dose_rate_ppm" do
     tests "AdjustDose", on: "ChemicalFeed"
-    setup  "StartDosing", treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
-    input  chemical_feed: 1, new_dose_rate_ppm: 1.0
+    setup  "StartDosing", chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
+    input  new_dose_rate_ppm: 1.0
     expect ok: "true"
   end
 
   test "StopDosing runs" do
     tests "StopDosing", on: "ChemicalFeed"
-    setup  "StartDosing", treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
-    input  chemical_feed: 1
+    setup  "StartDosing", chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
     expect status: "stopped"
   end
 
@@ -133,13 +128,14 @@ Hecks.behaviors "WaterTreatment" do
   test "FileReport sets reporting_period + regulatory_body" do
     tests "FileReport", on: "ComplianceReport"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
-    input  plant: 1, reporting_period: "sample", regulatory_body: "sample"
+    input  reporting_period: "sample", regulatory_body: "sample"
     expect status: "submitted"
   end
 
   test "FlagViolation sets parameter + measured_value" do
     tests "FlagViolation", on: "ComplianceReport"
-    input  compliance_report: 1, parameter: "sample", measured_value: 1.0
+    setup  "FileReport", reporting_period: "sample", regulatory_body: "sample"
+    input  parameter: "sample", measured_value: 1.0
     expect ok: "true"
   end
 

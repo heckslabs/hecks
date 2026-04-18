@@ -12,7 +12,7 @@ Hecks.behaviors "SolarOptics" do
   test "ComputeSunPath sets solar_altitude_deg + solar_azimuth_deg" do
     tests "ComputeSunPath", on: "SolarPosition"
     setup  "CalculateSolarPosition", location_name: "sample", latitude: 1.0, longitude: 1.0, date_time: "sample"
-    input  solar_position: 1, solar_altitude_deg: 1.0, solar_azimuth_deg: 1.0
+    input  solar_altitude_deg: 1.0, solar_azimuth_deg: 1.0
     expect solar_altitude_deg: 1.0, solar_azimuth_deg: 1.0
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "SolarOptics" do
   test "OptimizeTilt sets tilt_degrees" do
     tests "OptimizeTilt", on: "SolarPanel"
     setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
-    input  solar_panel: 1, tilt_degrees: 1.0
+    input  tilt_degrees: 1.0
     expect tilt_degrees: 1.0
   end
 
   test "AdjustPanel runs" do
     tests "AdjustPanel", on: "SolarPanel"
     setup  "InstallPanel", panel_id: "sample", tilt_degrees: 1.0, azimuth_degrees: 1.0, area_m2: 1.0, efficiency_pct: 1.0, peak_power_watts: 1.0
-    input  solar_panel: 1
     expect status: "optimized"
   end
 
@@ -51,14 +50,14 @@ Hecks.behaviors "SolarOptics" do
   test "CalculateShadeHours sets shade_hours_per_day" do
     tests "CalculateShadeHours", on: "ShadingAnalysis"
     setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
-    input  shading_analysis: 1, shade_hours_per_day: 1.0
+    input  shade_hours_per_day: 1.0
     expect shade_hours_per_day: 1.0
   end
 
   test "EstimateEnergyLoss sets energy_loss_pct" do
     tests "EstimateEnergyLoss", on: "ShadingAnalysis"
     setup  "AnalyzeShading", site_name: "sample", obstruction_type: "sample", obstruction_height_m: 1.0, obstruction_distance_m: 1.0
-    input  shading_analysis: 1, energy_loss_pct: 1.0
+    input  energy_loss_pct: 1.0
     expect energy_loss_pct: 1.0, status: "quantified"
   end
 
@@ -74,7 +73,7 @@ Hecks.behaviors "SolarOptics" do
   test "CalculateYield sets estimated_yield_kwh" do
     tests "CalculateYield", on: "OutputForecast"
     setup  "ForecastOutput", site_name: "sample", global_irradiance_kwh_m2: 1.0, temperature_derating_pct: 1.0, shade_derating_pct: 1.0, forecast_period: "sample"
-    input  output_forecast: 1, estimated_yield_kwh: 1.0
+    input  estimated_yield_kwh: 1.0
     expect estimated_yield_kwh: 1.0, status: "finalized"
   end
 

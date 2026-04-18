@@ -52,31 +52,30 @@ Hecks.behaviors "MietteBody" do
   test "ExtractAggregate sets aggregate_name" do
     tests "ExtractAggregate", on: "Gut"
     setup  "Ingest", raw_input: "sample"
-    input  gut: 1, aggregate_name: "sample"
+    input  aggregate_name: "sample"
     expect extracted_aggregates_size: 1, stage: "digesting"
   end
 
   test "ExtractCommand sets command_name" do
     tests "ExtractCommand", on: "Gut"
     setup  "Ingest", raw_input: "sample"
-    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
-    input  gut: 1, command_name: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    input  command_name: "sample"
     expect extracted_commands_size: 1, stage: "digesting"
   end
 
   test "ExtractEvent sets event_name" do
     tests "ExtractEvent", on: "Gut"
     setup  "Ingest", raw_input: "sample"
-    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
-    input  gut: 1, event_name: "sample"
+    setup  "ExtractAggregate", aggregate_name: "sample"
+    input  event_name: "sample"
     expect extracted_events_size: 1, stage: "digesting"
   end
 
   test "Absorb runs" do
     tests "Absorb", on: "Gut"
     setup  "Ingest", raw_input: "sample"
-    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
-    input  gut: 1
+    setup  "ExtractAggregate", aggregate_name: "sample"
     expect digestion_stage: "absorbed", stage: "absorbed"
   end
 
@@ -92,7 +91,7 @@ Hecks.behaviors "MietteBody" do
   test "GraftVerbImmunity sets noun_suffixes + adjective_suffixes + dual_words" do
     tests "GraftVerbImmunity", on: "Immunity"
     setup  "DetectThreat", threat_pattern: "sample"
-    input  immunity: 1, noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
+    input  noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
     expect noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
   end
 
@@ -105,14 +104,13 @@ Hecks.behaviors "MietteBody" do
   test "StrengthenAntibody sets pattern" do
     tests "StrengthenAntibody", on: "Immunity"
     setup  "DetectThreat", threat_pattern: "sample"
-    input  immunity: 1, pattern: "sample"
+    input  pattern: "sample"
     expect ok: "true"
   end
 
   test "Neutralize runs" do
     tests "Neutralize", on: "Immunity"
     setup  "DetectThreat", threat_pattern: "sample"
-    input  immunity: 1
     expect threats_neutralized: 1
   end
 
@@ -133,14 +131,12 @@ Hecks.behaviors "MietteBody" do
   test "Excite runs" do
     tests "Excite", on: "Mood"
     setup  "Express", state: "sample"
-    input  mood: 1
     expect creativity_level: 1, precision_level: 1, current_state: "excited"
   end
 
   test "Focus runs" do
     tests "Focus", on: "Mood"
     setup  "Express", state: "sample"
-    input  mood: 1
     expect precision_level: 1, creativity_level: 1, current_state: "focused"
   end
 
@@ -161,31 +157,28 @@ Hecks.behaviors "MietteBody" do
   test "Mature runs" do
     tests "Mature", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    input  domain_cell: 1
     expect maturity: 1, phase: "growing"
   end
 
   test "PassCheckpoint sets checkpoint_name" do
     tests "PassCheckpoint", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    setup  "Mature", domain_cell: 1
-    input  domain_cell: 1, checkpoint_name: "sample"
+    setup  "Mature"
+    input  checkpoint_name: "sample"
     expect checkpoints_passed_size: 1, phase: "validated"
   end
 
   test "Divide runs" do
     tests "Divide", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    setup  "Mature", domain_cell: 1
-    setup  "PassCheckpoint", domain_cell: 1, checkpoint_name: "sample"
-    input  domain_cell: 1
+    setup  "Mature"
+    setup  "PassCheckpoint", checkpoint_name: "sample"
     expect phase: "divided"
   end
 
   test "TriggerApoptosis runs" do
     tests "TriggerApoptosis", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
-    input  domain_cell: 1
     expect alive: false, phase: "dead"
   end
 
@@ -201,14 +194,13 @@ Hecks.behaviors "MietteBody" do
   test "SilenceCapability runs" do
     tests "SilenceCapability", on: "Gene"
     setup  "ExpressCapability", capability: "sample", level: 1.0
-    input  gene: 1
     expect expression_level: 0.0
   end
 
   test "Imprint sets source + effect" do
     tests "Imprint", on: "Gene"
     setup  "ExpressCapability", capability: "sample", level: 1.0
-    input  gene: 1, source: "sample", effect: "sample"
+    input  source: "sample", effect: "sample"
     expect epigenetic_marks_size: 1
   end
 
@@ -231,15 +223,14 @@ Hecks.behaviors "MietteBody" do
   test "AssessBalance sets balance + schema_hash" do
     tests "AssessBalance", on: "Proprioception"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
-    input  proprioception: 1, balance: "sample", schema_hash: "sample"
+    input  balance: "sample", schema_hash: "sample"
     expect balance: "sample", schema_hash: "sample", awareness: "aware"
   end
 
   test "DetectDrift runs" do
     tests "DetectDrift", on: "Proprioception"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
-    setup  "AssessBalance", proprioception: 1, balance: "sample", schema_hash: "sample"
-    input  proprioception: 1
+    setup  "AssessBalance", balance: "sample", schema_hash: "sample"
     expect awareness: "recalibrating"
   end
 

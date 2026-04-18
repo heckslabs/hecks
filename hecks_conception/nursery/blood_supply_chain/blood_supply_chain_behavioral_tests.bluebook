@@ -12,7 +12,6 @@ Hecks.behaviors "BloodSupplyChain" do
   test "TestDonation runs" do
     tests "TestDonation", on: "Donation"
     setup  "CollectDonation", donation_id: "sample", donor_name: "sample", blood_type: "sample", volume_ml: 1.0, collection_date: "sample"
-    input  donation: 1
     expect status: "tested"
   end
 
@@ -28,14 +27,13 @@ Hecks.behaviors "BloodSupplyChain" do
   test "LogTemperature sets current_temp_c" do
     tests "LogTemperature", on: "ColdStorage"
     setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
-    input  cold_storage: 1, current_temp_c: 1.0
+    input  current_temp_c: 1.0
     expect current_temp_c: 1.0
   end
 
   test "FlagBreach runs" do
     tests "FlagBreach", on: "ColdStorage"
     setup  "SetupStorage", unit_id: "sample", location_name: "sample", target_temp_c: 1.0
-    input  cold_storage: 1
     expect status: "breached"
   end
 
@@ -51,7 +49,6 @@ Hecks.behaviors "BloodSupplyChain" do
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "Transport"
     setup  "DispatchShipment", shipment_id: "sample", origin: "sample", target: "sample", blood_type: "sample", quantity_units: 1.0
-    input  transport: 1
     expect status: "delivered"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "BloodSupplyChain" do
   test "FlagShortage runs" do
     tests "FlagShortage", on: "Inventory"
     setup  "UpdateInventory", facility_name: "sample", blood_type: "sample", units_available: 1, oldest_expiry: "sample"
-    input  inventory: 1
     expect ok: "true"
   end
 

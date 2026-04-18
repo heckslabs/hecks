@@ -12,7 +12,6 @@ Hecks.behaviors "VetHousing" do
   test "ApproveApplication runs" do
     tests "ApproveApplication", on: "VeteranApplicant"
     setup  "ApplyForHousing", veteran_id: "sample", name: "sample", branch: "sample", disability_rating: "sample", income_level: "sample"
-    input  veteran_applicant: 1
     expect status: "approved"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "VetHousing" do
   test "AssignUnit runs" do
     tests "AssignUnit", on: "HousingUnit"
     setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
-    input  housing_unit: 1
     expect status: "occupied"
   end
 
   test "VacateUnit runs" do
     tests "VacateUnit", on: "HousingUnit"
     setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
-    setup  "AssignUnit", housing_unit: 1
-    input  housing_unit: 1
+    setup  "AssignUnit"
     expect status: "available"
   end
 
@@ -52,7 +49,6 @@ Hecks.behaviors "VetHousing" do
   test "EndSubsidy runs" do
     tests "EndSubsidy", on: "RentalSubsidy"
     setup  "GrantSubsidy", subsidy_id: "sample", veteran_id: "sample", unit_id: "sample", monthly_amount: 1.0, funding_source: "sample"
-    input  rental_subsidy: 1
     expect status: "ended"
   end
 
@@ -68,7 +64,6 @@ Hecks.behaviors "VetHousing" do
   test "ResolveTicket runs" do
     tests "ResolveTicket", on: "MaintenanceTicket"
     setup  "SubmitTicket", ticket_id: "sample", unit_id: "sample", issue_type: "sample", description_text: "sample", priority: "sample"
-    input  maintenance_ticket: 1
     expect status: "resolved"
   end
 

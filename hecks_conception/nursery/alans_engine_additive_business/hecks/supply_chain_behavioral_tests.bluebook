@@ -12,31 +12,28 @@ Hecks.behaviors "SupplyChain" do
   test "ApproveSupplier runs" do
     tests "ApproveSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
-    input  supplier: 1
     expect approved: "true", status: "approved"
   end
 
   test "RateSupplier sets quality_rating" do
     tests "RateSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
-    input  supplier: 1, quality_rating: 1.0
+    input  quality_rating: 1.0
     expect quality_rating: 1.0
   end
 
   test "SuspendSupplier runs" do
     tests "SuspendSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
-    setup  "ApproveSupplier", supplier: 1
-    input  supplier: 1
+    setup  "ApproveSupplier"
     expect approved: "false", status: "suspended"
   end
 
   test "RestoreSupplier runs" do
     tests "RestoreSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
-    setup  "ApproveSupplier", supplier: 1
-    setup  "SuspendSupplier", supplier: 1
-    input  supplier: 1
+    setup  "ApproveSupplier"
+    setup  "SuspendSupplier"
     expect approved: "true", status: "approved"
   end
 
@@ -52,40 +49,38 @@ Hecks.behaviors "SupplyChain" do
   test "ReceiveMaterial sets lot_number" do
     tests "ReceiveMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    input  raw_material: 1, lot_number: "sample"
+    input  lot_number: "sample"
     expect lot_number: "sample", status: "received"
   end
 
   test "InspectMaterial runs" do
     tests "InspectMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
-    input  raw_material: 1
+    setup  "ReceiveMaterial", lot_number: "sample"
     expect status: "inspecting"
   end
 
   test "AcceptMaterial sets coa_on_file" do
     tests "AcceptMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
-    setup  "InspectMaterial", raw_material: 1
-    input  raw_material: 1, coa_on_file: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  coa_on_file: "sample"
     expect coa_on_file: "sample", status: "accepted"
   end
 
   test "RejectMaterial sets reason" do
     tests "RejectMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
-    setup  "InspectMaterial", raw_material: 1
-    input  raw_material: 1, reason: "sample"
+    setup  "ReceiveMaterial", lot_number: "sample"
+    setup  "InspectMaterial"
+    input  reason: "sample"
     expect status: "rejected"
   end
 
   test "TrackLot runs" do
     tests "TrackLot", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
-    input  raw_material: 1
     expect ok: "true"
   end
 
@@ -101,33 +96,31 @@ Hecks.behaviors "SupplyChain" do
   test "ReceivePackaging sets lot_number" do
     tests "ReceivePackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
-    input  packaging_component: 1, lot_number: "sample"
+    input  lot_number: "sample"
     expect lot_number: "sample", status: "received"
   end
 
   test "InspectPackaging runs" do
     tests "InspectPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
-    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
-    input  packaging_component: 1
+    setup  "ReceivePackaging", lot_number: "sample"
     expect status: "inspecting"
   end
 
   test "AcceptPackaging runs" do
     tests "AcceptPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
-    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
-    setup  "InspectPackaging", packaging_component: 1
-    input  packaging_component: 1
+    setup  "ReceivePackaging", lot_number: "sample"
+    setup  "InspectPackaging"
     expect status: "accepted"
   end
 
   test "RejectPackaging sets reason" do
     tests "RejectPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
-    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
-    setup  "InspectPackaging", packaging_component: 1
-    input  packaging_component: 1, reason: "sample"
+    setup  "ReceivePackaging", lot_number: "sample"
+    setup  "InspectPackaging"
+    input  reason: "sample"
     expect status: "rejected"
   end
 
@@ -143,28 +136,26 @@ Hecks.behaviors "SupplyChain" do
   test "AddMaterialLine sets chemical_name + supplier + quantity_per_unit + unit + cost_per_unit" do
     tests "AddMaterialLine", on: "BillOfMaterials"
     setup  "CreateBOM", product_sku: "sample", formula_name: "sample"
-    input  bill_of_materials: 1, chemical_name: "sample", supplier: "sample", quantity_per_unit: 1.0, unit: "sample", cost_per_unit: 1.0
+    input  chemical_name: "sample", supplier: "sample", quantity_per_unit: 1.0, unit: "sample", cost_per_unit: 1.0
     expect ok: "true"
   end
 
   test "AddPackagingLine sets component_type + supplier + quantity_per_unit + cost_per_unit" do
     tests "AddPackagingLine", on: "BillOfMaterials"
     setup  "CreateBOM", product_sku: "sample", formula_name: "sample"
-    input  bill_of_materials: 1, component_type: "sample", supplier: "sample", quantity_per_unit: 1, cost_per_unit: 1.0
+    input  component_type: "sample", supplier: "sample", quantity_per_unit: 1, cost_per_unit: 1.0
     expect ok: "true"
   end
 
   test "CalculateUnitCost runs" do
     tests "CalculateUnitCost", on: "BillOfMaterials"
     setup  "CreateBOM", product_sku: "sample", formula_name: "sample"
-    input  bill_of_materials: 1
     expect ok: "true"
   end
 
   test "UpdateBOM runs" do
     tests "UpdateBOM", on: "BillOfMaterials"
     setup  "CreateBOM", product_sku: "sample", formula_name: "sample"
-    input  bill_of_materials: 1
     expect ok: "true"
   end
 
@@ -180,34 +171,30 @@ Hecks.behaviors "SupplyChain" do
   test "SubmitPurchaseOrder runs" do
     tests "SubmitPurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
-    input  purchase_order: 1
     expect status: "submitted"
   end
 
   test "ConfirmPurchaseOrder runs" do
     tests "ConfirmPurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
-    setup  "SubmitPurchaseOrder", purchase_order: 1
-    input  purchase_order: 1
+    setup  "SubmitPurchaseOrder"
     expect status: "confirmed"
   end
 
   test "ReceivePurchaseOrder runs" do
     tests "ReceivePurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
-    setup  "SubmitPurchaseOrder", purchase_order: 1
-    setup  "ConfirmPurchaseOrder", purchase_order: 1
-    input  purchase_order: 1
+    setup  "SubmitPurchaseOrder"
+    setup  "ConfirmPurchaseOrder"
     expect status: "received"
   end
 
   test "ClosePurchaseOrder runs" do
     tests "ClosePurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
-    setup  "SubmitPurchaseOrder", purchase_order: 1
-    setup  "ConfirmPurchaseOrder", purchase_order: 1
-    setup  "ReceivePurchaseOrder", purchase_order: 1
-    input  purchase_order: 1
+    setup  "SubmitPurchaseOrder"
+    setup  "ConfirmPurchaseOrder"
+    setup  "ReceivePurchaseOrder"
     expect status: "closed"
   end
 
@@ -216,31 +203,27 @@ Hecks.behaviors "SupplyChain" do
 
   test "RecordReceipt runs" do
     tests "RecordReceipt", on: "SupplierQuality"
-    input  supplier_quality: 1
     expect total_lots_received: 1
   end
 
   test "RecordRejection runs" do
     tests "RecordRejection", on: "SupplierQuality"
-    input  supplier_quality: 1
     expect lots_rejected: 1
   end
 
   test "CalculateMetrics runs" do
     tests "CalculateMetrics", on: "SupplierQuality"
-    input  supplier_quality: 1
     expect ok: "true"
   end
 
   test "FlagUnderperformer runs" do
     tests "FlagUnderperformer", on: "SupplierQuality"
-    input  supplier_quality: 1
     expect ok: "true"
   end
 
   test "IssueCorrectiveAction sets reason" do
     tests "IssueCorrectiveAction", on: "SupplierQuality"
-    input  supplier_quality: 1, reason: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 
@@ -256,28 +239,26 @@ Hecks.behaviors "SupplyChain" do
   test "LinkToBatch sets batch_id" do
     tests "LinkToBatch", on: "MaterialTraceability"
     setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
-    input  material_traceability: 1, batch_id: "sample"
+    input  batch_id: "sample"
     expect used_in_batches_size: 1
   end
 
   test "LinkToProduct sets product_sku" do
     tests "LinkToProduct", on: "MaterialTraceability"
     setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
-    input  material_traceability: 1, product_sku: "sample"
+    input  product_sku: "sample"
     expect used_in_products_size: 1
   end
 
   test "TraceForward runs" do
     tests "TraceForward", on: "MaterialTraceability"
     setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
-    input  material_traceability: 1
     expect ok: "true"
   end
 
   test "TraceBackward runs" do
     tests "TraceBackward", on: "MaterialTraceability"
     setup  "TrackInboundLot", lot_number: "sample", material_name: "sample", supplier: "sample", received_date: "sample"
-    input  material_traceability: 1
     expect ok: "true"
   end
 

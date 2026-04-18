@@ -12,14 +12,12 @@ Hecks.behaviors "Meteorology" do
   test "CalibrateInstruments runs" do
     tests "CalibrateInstruments", on: "WeatherStation"
     setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
-    input  weather_station: 1
     expect ok: "true"
   end
 
   test "DeactivateStation runs" do
     tests "DeactivateStation", on: "WeatherStation"
     setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
-    input  weather_station: 1
     expect ok: "true"
   end
 
@@ -29,13 +27,13 @@ Hecks.behaviors "Meteorology" do
   test "RecordObservation sets timestamp + temperature_c + pressure_hpa" do
     tests "RecordObservation", on: "SurfaceObservation"
     setup  "InstallStation", station_id: "sample", name: "sample", latitude: 1.0, longitude: 1.0
-    input  weather_station: 1, timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
+    input  timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
     expect ok: "true"
   end
 
   test "ValidateObservation runs" do
     tests "ValidateObservation", on: "SurfaceObservation"
-    input  surface_observation: 1
+    setup  "RecordObservation", timestamp: "sample", temperature_c: 1.0, pressure_hpa: 1.0
     expect ok: "true"
   end
 
@@ -51,14 +49,13 @@ Hecks.behaviors "Meteorology" do
   test "AmendForecast sets amendment" do
     tests "AmendForecast", on: "Forecast"
     setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
-    input  forecast: 1, amendment: "sample"
+    input  amendment: "sample"
     expect ok: "true"
   end
 
   test "VerifyForecast runs" do
     tests "VerifyForecast", on: "Forecast"
     setup  "IssueForecast", region: "sample", synopsis: "sample", valid_from: "sample", valid_to: "sample"
-    input  forecast: 1
     expect ok: "true"
   end
 
@@ -74,7 +71,7 @@ Hecks.behaviors "Meteorology" do
   test "UpdatePosition sets latitude + longitude" do
     tests "UpdatePosition", on: "PressureSystem"
     setup  "TrackSystem", system_type: "sample", central_pressure_hpa: 1.0
-    input  pressure_system: 1, latitude: 1.0, longitude: 1.0
+    input  latitude: 1.0, longitude: 1.0
     expect ok: "true"
   end
 
@@ -90,7 +87,6 @@ Hecks.behaviors "Meteorology" do
   test "CancelAlert runs" do
     tests "CancelAlert", on: "WeatherAlert"
     setup  "IssueAlert", alert_type: "sample", severity: "sample", region: "sample"
-    input  weather_alert: 1
     expect ok: "true"
   end
 

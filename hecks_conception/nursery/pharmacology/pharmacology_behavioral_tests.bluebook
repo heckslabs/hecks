@@ -12,14 +12,12 @@ Hecks.behaviors "Pharmacology" do
   test "ScreenCompound runs" do
     tests "ScreenCompound", on: "Compound"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
-    input  compound: 1
     expect ok: "true"
   end
 
   test "ShelveCompound runs" do
     tests "ShelveCompound", on: "Compound"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
-    input  compound: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,20 @@ Hecks.behaviors "Pharmacology" do
   test "InitiateTrial sets trial_id + phase + enrollment_target" do
     tests "InitiateTrial", on: "ClinicalTrial"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
-    input  compound: 1, trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  trial_id: "sample", phase: "sample", enrollment_target: 1
     expect ok: "true"
   end
 
   test "EnrollSubject sets subject_id" do
     tests "EnrollSubject", on: "ClinicalTrial"
-    input  clinical_trial: 1, subject_id: "sample"
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  subject_id: "sample"
     expect ok: "true"
   end
 
   test "ConcludeTrial runs" do
     tests "ConcludeTrial", on: "ClinicalTrial"
-    input  clinical_trial: 1
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
     expect ok: "true"
   end
 
@@ -50,13 +49,15 @@ Hecks.behaviors "Pharmacology" do
 
   test "ReportEvent sets description + severity" do
     tests "ReportEvent", on: "AdverseEvent"
-    input  clinical_trial: 1, description: "sample", severity: "sample"
+    setup  "InitiateTrial", trial_id: "sample", phase: "sample", enrollment_target: 1
+    input  description: "sample", severity: "sample"
     expect ok: "true"
   end
 
   test "AssessCausality sets assessment" do
     tests "AssessCausality", on: "AdverseEvent"
-    input  adverse_event: 1, assessment: "sample"
+    setup  "ReportEvent", description: "sample", severity: "sample"
+    input  assessment: "sample"
     expect ok: "true"
   end
 
@@ -66,13 +67,13 @@ Hecks.behaviors "Pharmacology" do
   test "FileSubmission sets agency + submission_type" do
     tests "FileSubmission", on: "RegulatorySubmission"
     setup  "RegisterCompound", compound_id: "sample", name: "sample", molecular_formula: "sample"
-    input  compound: 1, agency: "sample", submission_type: "sample"
+    input  agency: "sample", submission_type: "sample"
     expect ok: "true"
   end
 
   test "GrantApproval runs" do
     tests "GrantApproval", on: "RegulatorySubmission"
-    input  regulatory_submission: 1
+    setup  "FileSubmission", agency: "sample", submission_type: "sample"
     expect ok: "true"
   end
 

@@ -21,7 +21,7 @@ Hecks.behaviors "Memory" do
   test "RecordHit sets found + source" do
     tests "RecordHit", on: "Recall"
     setup  "RecallMemory", query: "sample"
-    input  recall: 1, found: "sample", source: "sample"
+    input  found: "sample", source: "sample"
     expect found: "sample", source: "sample"
   end
 

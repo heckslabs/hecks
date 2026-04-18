@@ -12,7 +12,6 @@ Hecks.behaviors "TerroirConservancy" do
   test "AmendProtection runs" do
     tests "AmendProtection", on: "ProtectedTerroir"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1
     expect ok: "true"
   end
 
@@ -22,13 +21,14 @@ Hecks.behaviors "TerroirConservancy" do
   test "CharacterizeSoil sets profile_id + soil_type + ph_level + mineral_composition" do
     tests "CharacterizeSoil", on: "SoilProfile"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1, profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    input  profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
     expect profile_id: "sample", terroir: :terroir, soil_type: "sample", ph_level: 1.0, mineral_composition: "sample", microbiome_diversity: "pending"
   end
 
   test "AssessMicrobiome sets microbiome_diversity" do
     tests "AssessMicrobiome", on: "SoilProfile"
-    input  soil_profile: 1, microbiome_diversity: "sample"
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
+    input  microbiome_diversity: "sample"
     expect microbiome_diversity: "sample"
   end
 
@@ -38,21 +38,19 @@ Hecks.behaviors "TerroirConservancy" do
   test "RegisterProducer sets producer_id + name + craft_type" do
     tests "RegisterProducer", on: "CraftProducer"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1, producer_id: "sample", name: "sample", craft_type: "sample"
+    input  producer_id: "sample", name: "sample", craft_type: "sample"
     expect producer_id: "sample", name: "sample", craft_type: "sample", terroir: :terroir, certification_status: "pending", status: "active"
   end
 
   test "CertifyProducer runs" do
     tests "CertifyProducer", on: "CraftProducer"
-    setup  "RegisterProducer", protected_terroir: 1, producer_id: "sample", name: "sample", craft_type: "sample"
-    input  craft_producer: 1
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     expect certification_status: "certified"
   end
 
   test "SuspendProducer runs" do
     tests "SuspendProducer", on: "CraftProducer"
-    setup  "RegisterProducer", protected_terroir: 1, producer_id: "sample", name: "sample", craft_type: "sample"
-    input  craft_producer: 1
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     expect certification_status: "suspended"
   end
 
@@ -62,13 +60,14 @@ Hecks.behaviors "TerroirConservancy" do
   test "ConductSurvey sets survey_id + survey_date + season" do
     tests "ConductSurvey", on: "SpeciesSurvey"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1, survey_id: "sample", survey_date: "sample", season: "sample"
+    input  survey_id: "sample", survey_date: "sample", season: "sample"
     expect survey_id: "sample", terroir: :terroir, survey_date: "sample", season: "sample", overall_diversity: "pending"
   end
 
   test "AssessDiversity sets overall_diversity" do
     tests "AssessDiversity", on: "SpeciesSurvey"
-    input  species_survey: 1, overall_diversity: "sample"
+    setup  "ConductSurvey", survey_id: "sample", survey_date: "sample", season: "sample"
+    input  overall_diversity: "sample"
     expect overall_diversity: "sample"
   end
 
@@ -77,22 +76,21 @@ Hecks.behaviors "TerroirConservancy" do
 
   test "DesignExperience sets experience_id + experience_type + capacity" do
     tests "DesignExperience", on: "VisitorExperience"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1, craft_producer: 1, experience_id: "sample", experience_type: "sample", capacity: 1
+    input  experience_id: "sample", experience_type: "sample", capacity: 1
     expect experience_id: "sample", terroir: :terroir, host_producer: :host_producer, experience_type: "sample", capacity: 1, status: "available"
   end
 
   test "BookExperience runs" do
     tests "BookExperience", on: "VisitorExperience"
-    setup  "DesignExperience", protected_terroir: 1, craft_producer: 1, experience_id: "sample", experience_type: "sample", capacity: 1
-    input  visitor_experience: 1
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
     expect ok: "true"
   end
 
   test "CompleteExperience runs" do
     tests "CompleteExperience", on: "VisitorExperience"
-    setup  "DesignExperience", protected_terroir: 1, craft_producer: 1, experience_id: "sample", experience_type: "sample", capacity: 1
-    input  visitor_experience: 1
+    setup  "DesignExperience", experience_id: "sample", experience_type: "sample", capacity: 1
     expect status: "completed"
   end
 
@@ -101,14 +99,17 @@ Hecks.behaviors "TerroirConservancy" do
 
   test "CreateProfile sets profile_id + vintage_season" do
     tests "CreateProfile", on: "FlavorProfile"
+    setup  "RegisterProducer", producer_id: "sample", name: "sample", craft_type: "sample"
+    setup  "CharacterizeSoil", profile_id: "sample", soil_type: "sample", ph_level: 1.0, mineral_composition: "sample"
     setup  "DesignateTerroir", terroir_id: "sample", name: "sample", region: "sample", designation_type: "sample", total_hectares: 1
-    input  protected_terroir: 1, soil_profile: 1, craft_producer: 1, profile_id: "sample", vintage_season: "sample"
+    input  profile_id: "sample", vintage_season: "sample"
     expect profile_id: "sample", vintage_season: "sample", terroir: :terroir, soil: :soil, producer: :producer, overall_character: "pending"
   end
 
   test "AssessCharacter sets overall_character" do
     tests "AssessCharacter", on: "FlavorProfile"
-    input  flavor_profile: 1, overall_character: "sample"
+    setup  "CreateProfile", profile_id: "sample", vintage_season: "sample"
+    input  overall_character: "sample"
     expect overall_character: "sample"
   end
 

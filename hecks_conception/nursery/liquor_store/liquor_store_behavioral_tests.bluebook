@@ -12,7 +12,7 @@ Hecks.behaviors "LiquorStore" do
   test "MarkdownSpirit sets sale_price" do
     tests "MarkdownSpirit", on: "Spirit"
     setup  "StockSpirit", sku: "sample", name: "sample", category: "sample", producer: "sample", region: "sample", abv: 1.0, price: 1.0, quantity: 1
-    input  spirit: 1, sale_price: 1.0
+    input  sale_price: 1.0
     expect price: 1.0
   end
 
@@ -28,7 +28,7 @@ Hecks.behaviors "LiquorStore" do
   test "ScoreVintage sets score + drinking_window" do
     tests "ScoreVintage", on: "Vintage"
     setup  "CatalogVintage", vintage_id: "sample", producer: "sample", year: 1, varietal: "sample", appellation: "sample"
-    input  vintage: 1, score: 1.0, drinking_window: "sample"
+    input  score: 1.0, drinking_window: "sample"
     expect score: 1.0, drinking_window: "sample"
   end
 
@@ -44,14 +44,12 @@ Hecks.behaviors "LiquorStore" do
   test "RegisterAttendee runs" do
     tests "RegisterAttendee", on: "Tasting"
     setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
-    input  tasting: 1
     expect ok: "true"
   end
 
   test "CancelTasting runs" do
     tests "CancelTasting", on: "Tasting"
     setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
-    input  tasting: 1
     expect status: "canceled"
   end
 
@@ -67,7 +65,7 @@ Hecks.behaviors "LiquorStore" do
   test "ReconcileCount sets discrepancies" do
     tests "ReconcileCount", on: "InventoryCount"
     setup  "PerformCount", count_id: "sample", count_date: "sample"
-    input  inventory_count: 1, discrepancies: 1
+    input  discrepancies: 1
     expect discrepancies: 1, status: "reconciled"
   end
 
@@ -83,14 +81,13 @@ Hecks.behaviors "LiquorStore" do
   test "RenewLicense sets new_expiration_date" do
     tests "RenewLicense", on: "RegulatoryCompliance"
     setup  "RegisterLicense", compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
-    input  regulatory_compliance: 1, new_expiration_date: "sample"
+    input  new_expiration_date: "sample"
     expect expiration_date: "sample"
   end
 
   test "FlagViolation runs" do
     tests "FlagViolation", on: "RegulatoryCompliance"
     setup  "RegisterLicense", compliance_id: "sample", license_type: "sample", license_number: "sample", expiration_date: "sample"
-    input  regulatory_compliance: 1
     expect status: "violation"
   end
 

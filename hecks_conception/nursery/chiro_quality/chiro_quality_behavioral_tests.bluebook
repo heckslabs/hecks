@@ -12,7 +12,6 @@ Hecks.behaviors "ChiroQuality" do
   test "CloseVisit runs" do
     tests "CloseVisit", on: "ChiroVisit"
     setup  "RecordVisit", visit_id: "sample", patient_name: "sample", chiropractor: "sample", chief_complaint: "sample", visit_date: "sample"
-    input  chiro_visit: 1
     expect status: "closed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "ChiroQuality" do
   test "CompareBaseline runs" do
     tests "CompareBaseline", on: "OutcomeMeasure"
     setup  "MeasureOutcome", measure_id: "sample", patient_name: "sample", instrument: "sample", score: 1.0, assessment_date: "sample"
-    input  outcome_measure: 1
     expect ok: "true"
   end
 
@@ -44,7 +42,7 @@ Hecks.behaviors "ChiroQuality" do
   test "UpdateEvidence sets effect_size + sample_size" do
     tests "UpdateEvidence", on: "EvidenceRecord"
     setup  "RecordEvidence", record_id: "sample", treatment_type: "sample", condition: "sample", sample_size: 1, effect_size: 1.0, evidence_level: "sample"
-    input  evidence_record: 1, effect_size: 1.0, sample_size: 1
+    input  effect_size: 1.0, sample_size: 1
     expect effect_size: 1.0, sample_size: 1
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "ChiroQuality" do
   test "ApproveReport runs" do
     tests "ApproveReport", on: "QualityReport"
     setup  "GenerateQualityReport", report_id: "sample", period: "sample", avg_outcome_score: 1.0, total_visits: 1
-    input  quality_report: 1
     expect status: "approved"
   end
 

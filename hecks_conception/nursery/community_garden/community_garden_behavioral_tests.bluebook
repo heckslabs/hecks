@@ -12,14 +12,13 @@ Hecks.behaviors "CommunityGarden" do
   test "AssignPlot sets assigned_gardener" do
     tests "AssignPlot", on: "Plot"
     setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
-    input  plot: 1, assigned_gardener: "sample"
+    input  assigned_gardener: "sample"
     expect assigned_gardener: "sample", status: "assigned"
   end
 
   test "ReleasePlot runs" do
     tests "ReleasePlot", on: "Plot"
     setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
-    input  plot: 1
     expect assigned_gardener: "", status: "available"
   end
 
@@ -35,14 +34,13 @@ Hecks.behaviors "CommunityGarden" do
   test "RenewMembership sets membership_date" do
     tests "RenewMembership", on: "Gardener"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
-    input  gardener: 1, membership_date: "sample"
+    input  membership_date: "sample"
     expect membership_date: "sample"
   end
 
   test "SuspendGardener runs" do
     tests "SuspendGardener", on: "Gardener"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
-    input  gardener: 1
     expect status: "suspended"
   end
 
@@ -58,14 +56,14 @@ Hecks.behaviors "CommunityGarden" do
   test "CheckoutTool sets borrower_name" do
     tests "CheckoutTool", on: "ToolInventory"
     setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
-    input  tool_inventory: 1, borrower_name: "sample"
+    input  borrower_name: "sample"
     expect ok: "true"
   end
 
   test "ReturnTool sets condition_on_return" do
     tests "ReturnTool", on: "ToolInventory"
     setup  "AddTool", tool_name: "sample", condition: "sample", quantity: 1, storage_location: "sample"
-    input  tool_inventory: 1, condition_on_return: "sample"
+    input  condition_on_return: "sample"
     expect condition: "sample", status: "available"
   end
 
@@ -76,13 +74,13 @@ Hecks.behaviors "CommunityGarden" do
     tests "LogHarvest", on: "Harvest"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
     setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
-    input  plot: 1, gardener: 1, gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
+    input  gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
     expect gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
   end
 
   test "DonateHarvest runs" do
     tests "DonateHarvest", on: "Harvest"
-    input  harvest: 1
+    setup  "LogHarvest", gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
     expect destination: "food_bank"
   end
 
@@ -98,14 +96,12 @@ Hecks.behaviors "CommunityGarden" do
   test "HoldEvent runs" do
     tests "HoldEvent", on: "GardenEvent"
     setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
-    input  garden_event: 1
     expect status: "completed"
   end
 
   test "CancelEvent runs" do
     tests "CancelEvent", on: "GardenEvent"
     setup  "PlanEvent", event_name: "sample", event_date: "sample", event_type: "sample", organizer: "sample", expected_attendees: 1
-    input  garden_event: 1
     expect status: "cancelled"
   end
 

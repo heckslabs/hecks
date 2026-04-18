@@ -12,7 +12,7 @@ Hecks.behaviors "HospitalAdmissions" do
   test "TriagePatient sets triage_level" do
     tests "TriagePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", insurance_id: "sample", emergency_contact: "sample", chief_complaint: "sample"
-    input  patient: 1, triage_level: "sample"
+    input  triage_level: "sample"
     expect ok: "true"
   end
 
@@ -21,13 +21,12 @@ Hecks.behaviors "HospitalAdmissions" do
 
   test "AssignBed sets patient_name" do
     tests "AssignBed", on: "Bed"
-    input  bed: 1, patient_name: "sample"
+    input  patient_name: "sample"
     expect ok: "true"
   end
 
   test "ReleaseBed runs" do
     tests "ReleaseBed", on: "Bed"
-    input  bed: 1
     expect ok: "true"
   end
 
@@ -43,7 +42,7 @@ Hecks.behaviors "HospitalAdmissions" do
   test "AttachLabResult sets test_name + result_value + reference_range" do
     tests "AttachLabResult", on: "Diagnosis"
     setup  "RecordDiagnosis", patient_name: "sample", icd_code: "sample", description: "sample", diagnosing_physician: "sample"
-    input  diagnosis: 1, test_name: "sample", result_value: "sample", reference_range: "sample"
+    input  test_name: "sample", result_value: "sample", reference_range: "sample"
     expect ok: "true"
   end
 
@@ -59,14 +58,12 @@ Hecks.behaviors "HospitalAdmissions" do
   test "ApproveDischargePlan runs" do
     tests "ApproveDischargePlan", on: "DischargeePlan"
     setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
-    input  dischargee_plan: 1
     expect ok: "true"
   end
 
   test "DischargePatient runs" do
     tests "DischargePatient", on: "DischargeePlan"
     setup  "CreateDischargePlan", patient_name: "sample", discharge_date: "sample"
-    input  dischargee_plan: 1
     expect ok: "true"
   end
 

@@ -12,14 +12,13 @@ Hecks.behaviors "SmartOT" do
   test "UpdateProgress sets progress_pct" do
     tests "UpdateProgress", on: "TherapyGoal"
     setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
-    input  therapy_goal: 1, progress_pct: 1.0
+    input  progress_pct: 1.0
     expect progress_pct: 1.0
   end
 
   test "AchieveGoal runs" do
     tests "AchieveGoal", on: "TherapyGoal"
     setup  "SetGoal", goal_id: "sample", client_name: "sample", goal_area: "sample", target_outcome: "sample"
-    input  therapy_goal: 1
     expect status: "achieved"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "SmartOT" do
   test "AdjustDevice runs" do
     tests "AdjustDevice", on: "SmartDevice"
     setup  "PairDevice", device_id: "sample", device_type: "sample", location_room: "sample", client_name: "sample"
-    input  smart_device: 1
     expect ok: "true"
   end
 
@@ -60,7 +58,7 @@ Hecks.behaviors "SmartOT" do
   test "WriteRecommendation sets recommendation" do
     tests "WriteRecommendation", on: "AdaptiveAssessment"
     setup  "RunAssessment", assessment_id: "sample", client_name: "sample", device_id: "sample", before_score: 1.0, after_score: 1.0
-    input  adaptive_assessment: 1, recommendation: "sample"
+    input  recommendation: "sample"
     expect recommendation: "sample"
   end
 

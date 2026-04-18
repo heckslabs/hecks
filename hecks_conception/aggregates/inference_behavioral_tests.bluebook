@@ -39,7 +39,7 @@ Hecks.behaviors "Inference" do
   test "ValidateOutput sets valid" do
     tests "ValidateOutput", on: "Prompt"
     setup  "RunInference", input: "sample"
-    input  prompt: 1, valid: "sample"
+    input  valid: "sample"
     expect valid: "sample"
   end
 

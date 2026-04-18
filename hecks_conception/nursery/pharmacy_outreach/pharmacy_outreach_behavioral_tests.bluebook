@@ -12,7 +12,6 @@ Hecks.behaviors "PharmacyOutreach" do
   test "RefillPrescription runs" do
     tests "RefillPrescription", on: "Prescription"
     setup  "FillPrescription", rx_number: "sample", patient_name: "sample", drug_name: "sample", refills_remaining: 1
-    input  prescription: 1
     expect status: "refilled"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "PharmacyOutreach" do
   test "SendReminder runs" do
     tests "SendReminder", on: "Reminder"
     setup  "ScheduleReminder", reminder_id: "sample", rx_number: "sample", channel: "sample", scheduled_date: "sample"
-    input  reminder: 1
     expect status: "sent"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "PharmacyOutreach" do
   test "PauseCampaign runs" do
     tests "PauseCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_name: "sample", target_segment: "sample", audience_size: 1
-    input  campaign: 1
     expect status: "paused"
   end
 

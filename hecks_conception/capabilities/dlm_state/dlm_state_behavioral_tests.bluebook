@@ -12,14 +12,13 @@ Hecks.behaviors "DLMState" do
   test "EndSession sets heartbeat_at_end" do
     tests "EndSession", on: "SessionState"
     setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
-    input  session_state: 1, heartbeat_at_end: 1
+    input  heartbeat_at_end: 1
     expect ended_at: :now, heartbeat_at_end: 1
   end
 
   test "SnapshotSession runs" do
     tests "SnapshotSession", on: "SessionState"
     setup  "StartSession", session_id: "sample", heartbeat_at_start: 1
-    input  session_state: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,12 @@ Hecks.behaviors "DLMState" do
   test "CalculateAcceleration runs" do
     tests "CalculateAcceleration", on: "GrowthTracker"
     setup  "RecordGrowth", domains_this_session: 1, aggregates_this_session: 1, commands_this_session: 1, corpus_size_now: 1
-    input  growth_tracker: 1
     expect ok: "true"
   end
 
   test "CompareToBaseline runs" do
     tests "CompareToBaseline", on: "GrowthTracker"
     setup  "RecordGrowth", domains_this_session: 1, aggregates_this_session: 1, commands_this_session: 1, corpus_size_now: 1
-    input  growth_tracker: 1
     expect ok: "true"
   end
 
@@ -51,19 +48,16 @@ Hecks.behaviors "DLMState" do
 
   test "RecordCorpusOperation runs" do
     tests "RecordCorpusOperation", on: "HonestyTracker"
-    input  honesty_tracker: 1
     expect total_operations: 1, corpus_backed: 1
   end
 
   test "RecordRefusal runs" do
     tests "RecordRefusal", on: "HonestyTracker"
-    input  honesty_tracker: 1
     expect total_operations: 1, refusals: 1
   end
 
   test "CalculateHonestyRate runs" do
     tests "CalculateHonestyRate", on: "HonestyTracker"
-    input  honesty_tracker: 1
     expect ok: "true"
   end
 
@@ -79,7 +73,6 @@ Hecks.behaviors "DLMState" do
   test "ExtractProposals runs" do
     tests "ExtractProposals", on: "DreamLog"
     setup  "LogDream", dream_id: "sample", session_id: "sample", images: "sample", strongest_synapse: "sample", proposed_domains: "sample"
-    input  dream_log: 1
     expect ok: "true"
   end
 
@@ -100,7 +93,7 @@ Hecks.behaviors "DLMState" do
   test "CompareToTarget sets target_value" do
     tests "CompareToTarget", on: "PerformanceMetric"
     setup  "RecordMetric", metric_name: "sample", value: 1.0, unit: "sample"
-    input  performance_metric: 1, target_value: 1.0
+    input  target_value: 1.0
     expect ok: "true"
   end
 
@@ -122,14 +115,12 @@ Hecks.behaviors "DLMState" do
   test "TrackPotentiation runs" do
     tests "TrackPotentiation", on: "SynapseHistory"
     setup  "SnapshotSynapses", total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
-    input  synapse_history: 1
     expect total_potentiated: 1
   end
 
   test "TrackPruning runs" do
     tests "TrackPruning", on: "SynapseHistory"
     setup  "SnapshotSynapses", total_formed: 1, total_potentiated: 1, total_pruned: 1, strongest_topic: "sample", weakest_topic: "sample"
-    input  synapse_history: 1
     expect total_pruned: 1
   end
 

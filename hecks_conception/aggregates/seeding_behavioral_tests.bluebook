@@ -12,7 +12,7 @@ Hecks.behaviors "Seeding" do
   test "CompleteSeeding sets domains_seeded" do
     tests "CompleteSeeding", on: "NurserySeed"
     setup  "StartSeeding", worker_count: 1
-    input  nursery_seed: 1, domains_seeded: 1
+    input  domains_seeded: 1
     expect domains_seeded: 1, status: "complete"
   end
 
@@ -28,7 +28,7 @@ Hecks.behaviors "Seeding" do
   test "CompleteWorker sets domains_produced" do
     tests "CompleteWorker", on: "Worker"
     setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
-    input  worker: 1, domains_produced: 1
+    input  domains_produced: 1
     expect domains_produced: 1
   end
 

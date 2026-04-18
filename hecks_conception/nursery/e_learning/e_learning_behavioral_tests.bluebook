@@ -12,14 +12,12 @@ Hecks.behaviors "ELearning" do
   test "PublishCourse runs" do
     tests "PublishCourse", on: "Course"
     setup  "CreateCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
-    input  course: 1
     expect ok: "true"
   end
 
   test "RetireCourse runs" do
     tests "RetireCourse", on: "Course"
     setup  "CreateCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
-    input  course: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,20 @@ Hecks.behaviors "ELearning" do
   test "EnrollStudent sets enrollment_id + student_email" do
     tests "EnrollStudent", on: "Enrollment"
     setup  "CreateCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
-    input  course: 1, enrollment_id: "sample", student_email: "sample"
+    input  enrollment_id: "sample", student_email: "sample"
     expect ok: "true"
   end
 
   test "UpdateProgress sets progress_pct" do
     tests "UpdateProgress", on: "Enrollment"
-    input  enrollment: 1, progress_pct: 1.0
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  progress_pct: 1.0
     expect ok: "true"
   end
 
   test "WithdrawEnrollment runs" do
     tests "WithdrawEnrollment", on: "Enrollment"
-    input  enrollment: 1
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
     expect ok: "true"
   end
 
@@ -51,19 +50,20 @@ Hecks.behaviors "ELearning" do
   test "AuthorLesson sets lesson_title + content_type + body + duration_minutes + sequence_order" do
     tests "AuthorLesson", on: "Lesson"
     setup  "CreateCourse", course_title: "sample", instructor: "sample", subject_area: "sample", difficulty_level: "sample", estimated_hours: 1
-    input  course: 1, lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    input  lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
     expect ok: "true"
   end
 
   test "UpdateLesson sets body" do
     tests "UpdateLesson", on: "Lesson"
-    input  lesson: 1, body: "sample"
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    input  body: "sample"
     expect ok: "true"
   end
 
   test "ArchiveLesson runs" do
     tests "ArchiveLesson", on: "Lesson"
-    input  lesson: 1
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
     expect ok: "true"
   end
 
@@ -72,19 +72,21 @@ Hecks.behaviors "ELearning" do
 
   test "CreateQuiz sets quiz_title + passing_score + time_limit_minutes + max_attempts" do
     tests "CreateQuiz", on: "Quiz"
-    input  lesson: 1, quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    setup  "AuthorLesson", lesson_title: "sample", content_type: "sample", body: "sample", duration_minutes: 1, sequence_order: 1
+    input  quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     expect quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
   end
 
   test "SubmitAttempt sets student_email + score" do
     tests "SubmitAttempt", on: "Quiz"
-    input  quiz: 1, student_email: "sample", score: 1
+    setup  "CreateQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
+    input  student_email: "sample", score: 1
     expect ok: "true"
   end
 
   test "SuspendQuiz runs" do
     tests "SuspendQuiz", on: "Quiz"
-    input  quiz: 1
+    setup  "CreateQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     expect ok: "true"
   end
 
@@ -93,19 +95,21 @@ Hecks.behaviors "ELearning" do
 
   test "IssueCertificate sets certificate_id + student_email + course_title + verification_code" do
     tests "IssueCertificate", on: "Certificate"
-    input  enrollment: 1, certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    setup  "EnrollStudent", enrollment_id: "sample", student_email: "sample"
+    input  certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
     expect ok: "true"
   end
 
   test "VerifyCertificate sets verification_code" do
     tests "VerifyCertificate", on: "Certificate"
-    input  certificate: 1, verification_code: "sample"
+    setup  "IssueCertificate", certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
+    input  verification_code: "sample"
     expect ok: "true"
   end
 
   test "RevokeCertificate runs" do
     tests "RevokeCertificate", on: "Certificate"
-    input  certificate: 1
+    setup  "IssueCertificate", certificate_id: "sample", student_email: "sample", course_title: "sample", verification_code: "sample"
     expect ok: "true"
   end
 

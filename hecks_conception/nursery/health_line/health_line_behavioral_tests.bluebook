@@ -12,15 +12,13 @@ Hecks.behaviors "HealthLine" do
   test "AssignToNurse runs" do
     tests "AssignToNurse", on: "IncomingCall"
     setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
-    input  incoming_call: 1
     expect status: "assigned"
   end
 
   test "EndCall runs" do
     tests "EndCall", on: "IncomingCall"
     setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
-    setup  "AssignToNurse", incoming_call: 1
-    input  incoming_call: 1
+    setup  "AssignToNurse"
     expect status: "ended"
   end
 
@@ -36,7 +34,6 @@ Hecks.behaviors "HealthLine" do
   test "RetireProtocol runs" do
     tests "RetireProtocol", on: "TriageProtocol"
     setup  "DefineProtocol", protocol_id: "sample", symptom_category: "sample"
-    input  triage_protocol: 1
     expect status: "retired"
   end
 
@@ -52,7 +49,7 @@ Hecks.behaviors "HealthLine" do
   test "FinalizeAssessment sets severity + recommendation" do
     tests "FinalizeAssessment", on: "TriageAssessment"
     setup  "PerformAssessment", assessment_id: "sample", call_id: "sample", protocol_id: "sample"
-    input  triage_assessment: 1, severity: "sample", recommendation: "sample"
+    input  severity: "sample", recommendation: "sample"
     expect severity: "sample", recommendation: "sample", status: "finalized"
   end
 
@@ -68,7 +65,6 @@ Hecks.behaviors "HealthLine" do
   test "ResolveEscalation runs" do
     tests "ResolveEscalation", on: "Escalation"
     setup  "EscalateCall", escalation_id: "sample", call_id: "sample", target_service: "sample", reason: "sample"
-    input  escalation: 1
     expect status: "resolved"
   end
 

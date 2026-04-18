@@ -21,7 +21,6 @@ Hecks.behaviors "DomainHygiene" do
   test "IdentifyGaps runs" do
     tests "IdentifyGaps", on: "QualityReport"
     setup  "AssessQuality", jsonl_path: "sample"
-    input  quality_report: 1
     expect ok: "true"
   end
 
@@ -37,7 +36,6 @@ Hecks.behaviors "DomainHygiene" do
   test "Revalidate runs" do
     tests "Revalidate", on: "Enrichment"
     setup  "EnrichDomain", domain_name: "sample", enrichment_type: "sample"
-    input  enrichment: 1
     expect ok: "true"
   end
 
@@ -53,7 +51,7 @@ Hecks.behaviors "DomainHygiene" do
   test "CompareVersions sets previous_path" do
     tests "CompareVersions", on: "TrainingHarvest"
     setup  "HarvestTrainingData", root_path: "sample", output_path: "sample"
-    input  training_harvest: 1, previous_path: "sample"
+    input  previous_path: "sample"
     expect ok: "true"
   end
 
@@ -69,28 +67,25 @@ Hecks.behaviors "DomainHygiene" do
   test "ConceiveBatch sets batch_size + topics" do
     tests "ConceiveBatch", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1
-    input  corpus_growth: 1, batch_size: 1, topics: "sample"
+    input  batch_size: 1, topics: "sample"
     expect ok: "true"
   end
 
   test "RepairFailures runs" do
     tests "RepairFailures", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1
-    input  corpus_growth: 1
     expect ok: "true"
   end
 
   test "EnrichShallow runs" do
     tests "EnrichShallow", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1
-    input  corpus_growth: 1
     expect ok: "true"
   end
 
   test "ReportGrowth runs" do
     tests "ReportGrowth", on: "CorpusGrowth"
     setup  "GrowCorpus", target_count: 1
-    input  corpus_growth: 1
     expect ok: "true"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "SurfShop" do
   test "SellBoard runs" do
     tests "SellBoard", on: "Surfboard"
     setup  "StockBoard", board_id: "sample", shaper: "sample", model: "sample", board_type: "sample", length_ft: 1.0, volume_liters: 1.0, price: 1.0
-    input  surfboard: 1
     expect status: "sold"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "SurfShop" do
   test "SellWetsuit runs" do
     tests "SellWetsuit", on: "Wetsuit"
     setup  "StockWetsuit", wetsuit_id: "sample", brand: "sample", thickness_mm: "sample", size: "sample", price: 1.0, quantity: 1
-    input  wetsuit: 1
     expect ok: "true"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "SurfShop" do
   test "ReturnGear runs" do
     tests "ReturnGear", on: "GearRental"
     setup  "RentGear", rental_id: "sample", item_type: "sample", item_id: "sample", renter_name: "sample", start_time: "sample", end_time: "sample", rate: 1.0
-    input  gear_rental: 1
     expect status: "returned"
   end
 
@@ -60,7 +57,6 @@ Hecks.behaviors "SurfShop" do
   test "ConductLesson runs" do
     tests "ConductLesson", on: "SurfLesson"
     setup  "ScheduleLesson", lesson_id: "sample", instructor_name: "sample", skill_level: "sample", max_students: 1, scheduled_date: "sample"
-    input  surf_lesson: 1
     expect status: "completed"
   end
 
@@ -76,7 +72,6 @@ Hecks.behaviors "SurfShop" do
   test "CompleteRepair runs" do
     tests "CompleteRepair", on: "DingRepair"
     setup  "AcceptRepair", repair_id: "sample", board_id: "sample", damage_type: "sample", estimated_cost: 1.0
-    input  ding_repair: 1
     expect status: "completed"
   end
 

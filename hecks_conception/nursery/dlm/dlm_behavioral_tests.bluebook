@@ -12,7 +12,6 @@ Hecks.behaviors "DLM" do
   test "ReportState runs" do
     tests "ReportState", on: "Model"
     setup  "BootModel", name: "sample"
-    input  model: 1
     expect ok: "true"
   end
 
@@ -80,7 +79,6 @@ Hecks.behaviors "DLM" do
   test "CalculateHonestyRate runs" do
     tests "CalculateHonestyRate", on: "Honesty"
     setup  "RecordHonestOperation"
-    input  honesty: 1
     expect ok: "true"
   end
 
@@ -89,25 +87,22 @@ Hecks.behaviors "DLM" do
 
   test "RecordHeartbeat runs" do
     tests "RecordHeartbeat", on: "Physiology"
-    input  physiology: 1
     expect heartbeat: 1
   end
 
   test "RecordPulse runs" do
     tests "RecordPulse", on: "Physiology"
-    input  physiology: 1
     expect pulse: 1
   end
 
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Physiology"
-    input  physiology: 1
     expect pulse: 0
   end
 
   test "GenerateDream sets dream_images" do
     tests "GenerateDream", on: "Physiology"
-    input  physiology: 1, dream_images: "sample"
+    input  dream_images: "sample"
     expect dreams_total: 1
   end
 
@@ -122,7 +117,6 @@ Hecks.behaviors "DLM" do
   test "MeasureAcceleration runs" do
     tests "MeasureAcceleration", on: "Growth"
     setup  "RecordGrowth"
-    input  growth: 1
     expect ok: "true"
   end
 

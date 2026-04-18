@@ -12,14 +12,12 @@ Hecks.behaviors "BrewingForVeterans" do
   test "AdvanceApprentice runs" do
     tests "AdvanceApprentice", on: "VeteranApprentice"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
-    input  veteran_apprentice: 1
     expect ok: "true"
   end
 
   test "GraduateApprentice runs" do
     tests "GraduateApprentice", on: "VeteranApprentice"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
-    input  veteran_apprentice: 1
     expect status: "graduated"
   end
 
@@ -35,14 +33,12 @@ Hecks.behaviors "BrewingForVeterans" do
   test "CompleteBrew runs" do
     tests "CompleteBrew", on: "BrewingCohort"
     setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
-    input  brewing_cohort: 1
     expect ok: "true"
   end
 
   test "GraduateCohort runs" do
     tests "GraduateCohort", on: "BrewingCohort"
     setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
-    input  brewing_cohort: 1
     expect status: "graduated"
   end
 
@@ -52,21 +48,19 @@ Hecks.behaviors "BrewingForVeterans" do
   test "LaunchProduct sets product_id + product_name + style + batch_number" do
     tests "LaunchProduct", on: "ProductLine"
     setup  "FormCohort", cohort_id: "sample", cohort_name: "sample", start_date: "sample", brew_master: "sample"
-    input  brewing_cohort: 1, product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
+    input  product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     expect product_id: "sample", product_name: "sample", style: "sample", producing_cohort: :producing_cohort, batch_number: "sample", status: "available"
   end
 
   test "SellProduct runs" do
     tests "SellProduct", on: "ProductLine"
-    setup  "LaunchProduct", brewing_cohort: 1, product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
-    input  product_line: 1
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     expect ok: "true"
   end
 
   test "RetireProduct runs" do
     tests "RetireProduct", on: "ProductLine"
-    setup  "LaunchProduct", brewing_cohort: 1, product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
-    input  product_line: 1
+    setup  "LaunchProduct", product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     expect status: "retired"
   end
 
@@ -82,14 +76,14 @@ Hecks.behaviors "BrewingForVeterans" do
   test "RecordSale sets total_revenue" do
     tests "RecordSale", on: "SalesRevenue"
     setup  "OpenPeriod", period: "sample"
-    input  sales_revenue: 1, total_revenue: 1.0
+    input  total_revenue: 1.0
     expect total_revenue: 1.0
   end
 
   test "AllocateRevenue sets housing_allocation + education_allocation + operations_allocation" do
     tests "AllocateRevenue", on: "SalesRevenue"
     setup  "OpenPeriod", period: "sample"
-    input  sales_revenue: 1, housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0
+    input  housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0
     expect housing_allocation: 1.0, education_allocation: 1.0, operations_allocation: 1.0, status: "allocated"
   end
 
@@ -106,15 +100,13 @@ Hecks.behaviors "BrewingForVeterans" do
     tests "AssignResident", on: "HousingUnit"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
     setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
-    input  housing_unit: 1, veteran_apprentice: 1
     expect resident: :resident, status: "occupied"
   end
 
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "HousingUnit"
     setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
-    setup  "AssignResident", housing_unit: 1, veteran_apprentice: 1
-    input  housing_unit: 1
+    setup  "AssignResident"
     expect status: "available"
   end
 
@@ -124,21 +116,19 @@ Hecks.behaviors "BrewingForVeterans" do
   test "CreatePath sets path_id + employment_goal + housing_transition + mentor_name" do
     tests "CreatePath", on: "GraduationPath"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
-    input  veteran_apprentice: 1, path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    input  path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     expect path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample", graduate: :graduate, status: "active"
   end
 
   test "AchieveMilestone runs" do
     tests "AchieveMilestone", on: "GraduationPath"
-    setup  "CreatePath", veteran_apprentice: 1, path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
-    input  graduation_path: 1
+    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     expect ok: "true"
   end
 
   test "CompletePath runs" do
     tests "CompletePath", on: "GraduationPath"
-    setup  "CreatePath", veteran_apprentice: 1, path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
-    input  graduation_path: 1
+    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     expect status: "completed"
   end
 

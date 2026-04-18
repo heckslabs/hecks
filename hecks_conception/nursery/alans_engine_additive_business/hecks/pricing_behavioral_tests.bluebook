@@ -12,14 +12,14 @@ Hecks.behaviors "Pricing" do
   test "SetChannelPrice sets channel + unit_price + margin_percent" do
     tests "SetChannelPrice", on: "PriceList"
     setup  "SetPriceList", sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
-    input  price_list: 1, channel: "sample", unit_price: 1.0, margin_percent: 1.0
+    input  channel: "sample", unit_price: 1.0, margin_percent: 1.0
     expect ok: "true"
   end
 
   test "RevisePriceList sets msrp + map_price + distributor_price + jobber_price" do
     tests "RevisePriceList", on: "PriceList"
     setup  "SetPriceList", sku: "sample", msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0, retail_margin_target: 1.0, effective_date: "sample"
-    input  price_list: 1, msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0
+    input  msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0
     expect msrp: 1.0, map_price: 1.0, distributor_price: 1.0, jobber_price: 1.0
   end
 
@@ -35,14 +35,14 @@ Hecks.behaviors "Pricing" do
   test "AddPromotionalWindow sets name + start_date + end_date + discount_percent" do
     tests "AddPromotionalWindow", on: "PricingPolicy"
     setup  "CreatePricingPolicy", name: "sample", map_enforcement_level: "sample"
-    input  pricing_policy: 1, name: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
+    input  name: "sample", start_date: "sample", end_date: "sample", discount_percent: 1.0
     expect name: "sample", status: "draft"
   end
 
   test "AddVolumeTier sets min_quantity + discount_percent + tier_name" do
     tests "AddVolumeTier", on: "PricingPolicy"
     setup  "CreatePricingPolicy", name: "sample", map_enforcement_level: "sample"
-    input  pricing_policy: 1, min_quantity: 1, discount_percent: 1.0, tier_name: "sample"
+    input  min_quantity: 1, discount_percent: 1.0, tier_name: "sample"
     expect status: "draft"
   end
 
@@ -58,14 +58,13 @@ Hecks.behaviors "Pricing" do
   test "CorrectViolation sets corrective_action" do
     tests "CorrectViolation", on: "PricingViolation"
     setup  "DetectViolation", sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
-    input  pricing_violation: 1, corrective_action: "sample"
+    input  corrective_action: "sample"
     expect corrective_action: "sample", status: "corrected"
   end
 
   test "EscalateViolation runs" do
     tests "EscalateViolation", on: "PricingViolation"
     setup  "DetectViolation", sku: "sample", channel: "sample", advertised_price: 1.0, map_price: 1.0, violation_date: "sample"
-    input  pricing_violation: 1
     expect status: "escalated"
   end
 

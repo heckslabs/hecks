@@ -12,30 +12,27 @@ Hecks.behaviors "Formulation" do
   test "AddIngredient sets chemical_name + cas_number + percentage + function + supplier" do
     tests "AddIngredient", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
-    input  formula: 1, chemical_name: "sample", cas_number: "sample", percentage: 1.0, function: "sample", supplier: "sample"
+    input  chemical_name: "sample", cas_number: "sample", percentage: 1.0, function: "sample", supplier: "sample"
     expect status: "draft"
   end
 
   test "FinalizeFormula runs" do
     tests "FinalizeFormula", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
-    input  formula: 1
     expect status: "finalized"
   end
 
   test "ReviseFormula runs" do
     tests "ReviseFormula", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
-    setup  "FinalizeFormula", formula: 1
-    input  formula: 1
+    setup  "FinalizeFormula"
     expect status: "draft"
   end
 
   test "RetireFormula runs" do
     tests "RetireFormula", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
-    setup  "FinalizeFormula", formula: 1
-    input  formula: 1
+    setup  "FinalizeFormula"
     expect status: "retired"
   end
 

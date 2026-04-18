@@ -12,7 +12,6 @@ Hecks.behaviors "DermatologyUX" do
   test "PrescribeTreatment runs" do
     tests "PrescribeTreatment", on: "SkinCondition"
     setup  "DiagnoseCondition", condition_id: "sample", patient_name: "sample", diagnosis: "sample", severity: "sample", body_area: "sample"
-    input  skin_condition: 1
     expect status: "treating"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "DermatologyUX" do
   test "CollectResponse runs" do
     tests "CollectResponse", on: "PatientSurvey"
     setup  "SendSurvey", survey_id: "sample", patient_name: "sample", condition_id: "sample"
-    input  patient_survey: 1
     expect status: "collected"
   end
 
@@ -44,7 +42,7 @@ Hecks.behaviors "DermatologyUX" do
   test "PublishInsight sets summary" do
     tests "PublishInsight", on: "TreatmentFeedback"
     setup  "AggregateFeedback", feedback_id: "sample", condition_id: "sample", treatment_type: "sample", satisfaction_score: 1.0, effectiveness_score: 1.0
-    input  treatment_feedback: 1, summary: "sample"
+    input  summary: "sample"
     expect summary: "sample"
   end
 
@@ -60,7 +58,7 @@ Hecks.behaviors "DermatologyUX" do
   test "RecordResults sets task_time_seconds + error_count" do
     tests "RecordResults", on: "UsabilityTest"
     setup  "RunUsabilityTest", test_id: "sample", feature_name: "sample", participant_id: "sample"
-    input  usability_test: 1, task_time_seconds: 1.0, error_count: 1.0
+    input  task_time_seconds: 1.0, error_count: 1.0
     expect task_time_seconds: 1.0, error_count: 1.0, status: "completed"
   end
 

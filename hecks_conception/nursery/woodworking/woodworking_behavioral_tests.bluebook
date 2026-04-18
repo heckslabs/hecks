@@ -12,24 +12,22 @@ Hecks.behaviors "Woodworking" do
   test "StartMilling runs" do
     tests "StartMilling", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    input  wood_project: 1
     expect status: "milling"
   end
 
   test "AssembleProject runs" do
     tests "AssembleProject", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling", wood_project: 1
-    input  wood_project: 1
+    setup  "StartMilling"
     expect status: "assembled"
   end
 
   test "ApplyFinish sets finish_type" do
     tests "ApplyFinish", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    setup  "StartMilling", wood_project: 1
-    setup  "AssembleProject", wood_project: 1
-    input  wood_project: 1, finish_type: "sample"
+    setup  "StartMilling"
+    setup  "AssembleProject"
+    input  finish_type: "sample"
     expect status: "finished"
   end
 
@@ -45,7 +43,7 @@ Hecks.behaviors "Woodworking" do
   test "ConsumeLumber sets board_feet_used" do
     tests "ConsumeLumber", on: "LumberStock"
     setup  "ReceiveLumber", species: "sample", grade: "sample", board_feet: 1.0, thickness_quarters: 1.0, drying_method: "sample"
-    input  lumber_stock: 1, board_feet_used: 1.0
+    input  board_feet_used: 1.0
     expect ok: "true"
   end
 
@@ -55,20 +53,20 @@ Hecks.behaviors "Woodworking" do
   test "LayOutJoint sets joint_type + part_a + part_b" do
     tests "LayOutJoint", on: "Joinery"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
-    input  wood_project: 1, joint_type: "sample", part_a: "sample", part_b: "sample"
+    input  joint_type: "sample", part_a: "sample", part_b: "sample"
     expect ok: "true"
   end
 
   test "CutJoint runs" do
     tests "CutJoint", on: "Joinery"
-    input  joinery: 1
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
     expect status: "cut"
   end
 
   test "FitJoint runs" do
     tests "FitJoint", on: "Joinery"
-    setup  "CutJoint", joinery: 1
-    input  joinery: 1
+    setup  "LayOutJoint", joint_type: "sample", part_a: "sample", part_b: "sample"
+    setup  "CutJoint"
     expect status: "fitted"
   end
 
@@ -84,7 +82,7 @@ Hecks.behaviors "Woodworking" do
   test "ApplyCoat sets coat_number" do
     tests "ApplyCoat", on: "Finish"
     setup  "MixFinish", finish_name: "sample", finish_type: "sample", coats_required: 1, cure_hours: 1
-    input  finish: 1, coat_number: 1
+    input  coat_number: 1
     expect ok: "true"
   end
 
@@ -100,15 +98,13 @@ Hecks.behaviors "Woodworking" do
   test "AcceptCommission runs" do
     tests "AcceptCommission", on: "WoodCommission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    input  wood_commission: 1
     expect status: "in_progress"
   end
 
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "WoodCommission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
-    setup  "AcceptCommission", wood_commission: 1
-    input  wood_commission: 1
+    setup  "AcceptCommission"
     expect status: "delivered"
   end
 

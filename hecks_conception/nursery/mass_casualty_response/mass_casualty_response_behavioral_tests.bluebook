@@ -12,14 +12,13 @@ Hecks.behaviors "MassCasualtyResponse" do
   test "EscalateIncident sets severity" do
     tests "EscalateIncident", on: "MassIncident"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
-    input  mass_incident: 1, severity: "sample"
+    input  severity: "sample"
     expect severity: "sample"
   end
 
   test "CloseIncident runs" do
     tests "CloseIncident", on: "MassIncident"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
-    input  mass_incident: 1
     expect status: "closed"
   end
 
@@ -29,14 +28,14 @@ Hecks.behaviors "MassCasualtyResponse" do
   test "OpenStation sets station_id + location + capacity" do
     tests "OpenStation", on: "TriageStation"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
-    input  mass_incident: 1, station_id: "sample", location: "sample", capacity: 1
+    input  station_id: "sample", location: "sample", capacity: 1
     expect station_id: "sample", location: "sample", capacity: 1, incident: :incident, current_count: 0, status: "active"
   end
 
   test "TriageCasualty sets casualty_name + triage_color + injury_summary + blood_type" do
     tests "TriageCasualty", on: "TriageStation"
-    setup  "OpenStation", mass_incident: 1, station_id: "sample", location: "sample", capacity: 1
-    input  triage_station: 1, casualty_name: "sample", triage_color: "sample", injury_summary: "sample", blood_type: "sample"
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", triage_color: "sample", injury_summary: "sample", blood_type: "sample"
     expect ok: "true"
   end
 
@@ -46,22 +45,21 @@ Hecks.behaviors "MassCasualtyResponse" do
   test "DispatchAircraft sets callsign + origin + patient_capacity" do
     tests "DispatchAircraft", on: "AirEvac"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
-    input  mass_incident: 1, callsign: "sample", origin: "sample", patient_capacity: 1
+    input  callsign: "sample", origin: "sample", patient_capacity: 1
     expect callsign: "sample", incident: :incident, origin: "sample", patient_capacity: 1, status: "en_route"
   end
 
   test "LoadPatients runs" do
     tests "LoadPatients", on: "AirEvac"
-    setup  "DispatchAircraft", mass_incident: 1, callsign: "sample", origin: "sample", patient_capacity: 1
-    input  air_evac: 1
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
     expect status: "loaded"
   end
 
   test "RouteToHospital sets destination" do
     tests "RouteToHospital", on: "AirEvac"
-    setup  "DispatchAircraft", mass_incident: 1, callsign: "sample", origin: "sample", patient_capacity: 1
-    setup  "LoadPatients", air_evac: 1
-    input  air_evac: 1, destination: "sample"
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    setup  "LoadPatients"
+    input  destination: "sample"
     expect destination: "sample", status: "airborne"
   end
 
@@ -70,14 +68,14 @@ Hecks.behaviors "MassCasualtyResponse" do
 
   test "AllocateBlood sets dispatch_id + blood_type + units_allocated" do
     tests "AllocateBlood", on: "BloodDispatch"
-    input  air_evac: 1, dispatch_id: "sample", blood_type: "sample", units_allocated: 1
+    setup  "DispatchAircraft", callsign: "sample", origin: "sample", patient_capacity: 1
+    input  dispatch_id: "sample", blood_type: "sample", units_allocated: 1
     expect dispatch_id: "sample", aircraft: :aircraft, blood_type: "sample", units_allocated: 1, status: "dispatched"
   end
 
   test "ConfirmTransfusion runs" do
     tests "ConfirmTransfusion", on: "BloodDispatch"
-    setup  "AllocateBlood", air_evac: 1, dispatch_id: "sample", blood_type: "sample", units_allocated: 1
-    input  blood_dispatch: 1
+    setup  "AllocateBlood", dispatch_id: "sample", blood_type: "sample", units_allocated: 1
     expect status: "administered"
   end
 
@@ -94,15 +92,13 @@ Hecks.behaviors "MassCasualtyResponse" do
     tests "AcceptCasualties", on: "ReceivingHospital"
     setup  "DeclareIncident", incident_id: "sample", location: "sample", severity: "sample", estimated_casualties: 1
     setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
-    input  receiving_hospital: 1, mass_incident: 1
     expect active_incident: :active_incident, status: "receiving"
   end
 
   test "ActivateTraumaTeam runs" do
     tests "ActivateTraumaTeam", on: "ReceivingHospital"
     setup  "RegisterCapacity", hospital_name: "sample", trauma_level: "sample", available_beds: 1, available_surgeons: 1
-    setup  "AcceptCasualties", receiving_hospital: 1, mass_incident: 1
-    input  receiving_hospital: 1
+    setup  "AcceptCasualties"
     expect ok: "true"
   end
 
@@ -111,13 +107,15 @@ Hecks.behaviors "MassCasualtyResponse" do
 
   test "BeginTracking sets casualty_name + blood_type + triage_color" do
     tests "BeginTracking", on: "CasualtyTracker"
-    input  triage_station: 1, casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    setup  "OpenStation", station_id: "sample", location: "sample", capacity: 1
+    input  casualty_name: "sample", blood_type: "sample", triage_color: "sample"
     expect casualty_name: "sample", blood_type: "sample", triage_color: "sample", triage_station: 1, current_phase: "triaged"
   end
 
   test "UpdatePhase sets current_phase" do
     tests "UpdatePhase", on: "CasualtyTracker"
-    input  casualty_tracker: 1, current_phase: "sample"
+    setup  "BeginTracking", casualty_name: "sample", blood_type: "sample", triage_color: "sample"
+    input  current_phase: "sample"
     expect current_phase: "sample"
   end
 

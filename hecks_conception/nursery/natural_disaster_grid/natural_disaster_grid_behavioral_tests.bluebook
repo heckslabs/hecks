@@ -12,21 +12,20 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "AssessImpact sets infrastructure_type + impact_level" do
     tests "AssessImpact", on: "DisasterEvent"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1, infrastructure_type: "sample", impact_level: "sample"
+    input  infrastructure_type: "sample", impact_level: "sample"
     expect ok: "true"
   end
 
   test "EscalateSeverity sets severity" do
     tests "EscalateSeverity", on: "DisasterEvent"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1, severity: "sample"
+    input  severity: "sample"
     expect severity: "sample"
   end
 
   test "ResolveDisaster runs" do
     tests "ResolveDisaster", on: "DisasterEvent"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1
     expect status: "resolved"
   end
 
@@ -42,22 +41,19 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "RerouteGrid runs" do
     tests "RerouteGrid", on: "GridSegment"
     setup  "RegisterSegment", segment_id: "sample", region: "sample", capacity_mw: 1.0
-    input  grid_segment: 1
     expect status: "rerouted"
   end
 
   test "FailSegment runs" do
     tests "FailSegment", on: "GridSegment"
     setup  "RegisterSegment", segment_id: "sample", region: "sample", capacity_mw: 1.0
-    input  grid_segment: 1
     expect status: "failed"
   end
 
   test "RestoreSegment runs" do
     tests "RestoreSegment", on: "GridSegment"
     setup  "RegisterSegment", segment_id: "sample", region: "sample", capacity_mw: 1.0
-    setup  "RerouteGrid", grid_segment: 1
-    input  grid_segment: 1
+    setup  "RerouteGrid"
     expect status: "online"
   end
 
@@ -73,22 +69,21 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "DetectAsh sets concentration_mg_m3" do
     tests "DetectAsh", on: "AirspaceZone"
     setup  "DefineAirspace", zone_id: "sample", region: "sample"
-    input  airspace_zone: 1, concentration_mg_m3: 1.0
+    input  concentration_mg_m3: 1.0
     expect ok: "true"
   end
 
   test "CloseAirspace sets closure_reason + affected_flights" do
     tests "CloseAirspace", on: "AirspaceZone"
     setup  "DefineAirspace", zone_id: "sample", region: "sample"
-    input  airspace_zone: 1, closure_reason: "sample", affected_flights: 1
+    input  closure_reason: "sample", affected_flights: 1
     expect closure_reason: "sample", affected_flights: 1, status: "closed"
   end
 
   test "ReopenAirspace runs" do
     tests "ReopenAirspace", on: "AirspaceZone"
     setup  "DefineAirspace", zone_id: "sample", region: "sample"
-    setup  "CloseAirspace", airspace_zone: 1, closure_reason: "sample", affected_flights: 1
-    input  airspace_zone: 1
+    setup  "CloseAirspace", closure_reason: "sample", affected_flights: 1
     expect status: "open"
   end
 
@@ -98,21 +93,19 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "ActivateEmergencyProtocol sets protocol_name + protocol_type + trigger_condition" do
     tests "ActivateEmergencyProtocol", on: "EmergencyProtocol"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1, protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
+    input  protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
     expect protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample", disaster: :disaster, status: "active"
   end
 
   test "ExecuteStep runs" do
     tests "ExecuteStep", on: "EmergencyProtocol"
-    setup  "ActivateEmergencyProtocol", disaster_event: 1, protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
-    input  emergency_protocol: 1
+    setup  "ActivateEmergencyProtocol", protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
     expect ok: "true"
   end
 
   test "CompleteProtocol runs" do
     tests "CompleteProtocol", on: "EmergencyProtocol"
-    setup  "ActivateEmergencyProtocol", disaster_event: 1, protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
-    input  emergency_protocol: 1
+    setup  "ActivateEmergencyProtocol", protocol_name: "sample", protocol_type: "sample", trigger_condition: "sample"
     expect status: "completed"
   end
 
@@ -122,21 +115,20 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "StartCascade sets chain_name" do
     tests "StartCascade", on: "CascadeChain"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1, chain_name: "sample"
+    input  chain_name: "sample"
     expect disaster: :disaster, chain_name: "sample", cascade_depth: 1, status: "cascading"
   end
 
   test "PropagateFailure sets source_system + target_system" do
     tests "PropagateFailure", on: "CascadeChain"
-    setup  "StartCascade", disaster_event: 1, chain_name: "sample"
-    input  cascade_chain: 1, source_system: "sample", target_system: "sample"
+    setup  "StartCascade", chain_name: "sample"
+    input  source_system: "sample", target_system: "sample"
     expect ok: "true"
   end
 
   test "ContainCascade runs" do
     tests "ContainCascade", on: "CascadeChain"
-    setup  "StartCascade", disaster_event: 1, chain_name: "sample"
-    input  cascade_chain: 1
+    setup  "StartCascade", chain_name: "sample"
     expect status: "contained"
   end
 
@@ -146,22 +138,20 @@ Hecks.behaviors "NaturalDisasterGrid" do
   test "CreateRecoveryPlan sets plan_name + priority_level" do
     tests "CreateRecoveryPlan", on: "RecoveryPlan"
     setup  "DeclareDisaster", event_type: "sample", location: "sample", severity: "sample", declared_at: "sample"
-    input  disaster_event: 1, plan_name: "sample", priority_level: 1
+    input  plan_name: "sample", priority_level: 1
     expect plan_name: "sample", priority_level: 1, disaster: :disaster, status: "created"
   end
 
   test "ExecuteRecovery runs" do
     tests "ExecuteRecovery", on: "RecoveryPlan"
-    setup  "CreateRecoveryPlan", disaster_event: 1, plan_name: "sample", priority_level: 1
-    input  recovery_plan: 1
+    setup  "CreateRecoveryPlan", plan_name: "sample", priority_level: 1
     expect status: "executing"
   end
 
   test "CompleteRecovery runs" do
     tests "CompleteRecovery", on: "RecoveryPlan"
-    setup  "CreateRecoveryPlan", disaster_event: 1, plan_name: "sample", priority_level: 1
-    setup  "ExecuteRecovery", recovery_plan: 1
-    input  recovery_plan: 1
+    setup  "CreateRecoveryPlan", plan_name: "sample", priority_level: 1
+    setup  "ExecuteRecovery"
     expect status: "completed"
   end
 

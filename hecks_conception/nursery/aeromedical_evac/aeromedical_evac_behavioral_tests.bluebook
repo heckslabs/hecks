@@ -13,22 +13,20 @@ Hecks.behaviors "AeromedicalEvac" do
     tests "AssignToFlight", on: "Patient"
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    input  patient: 1, flight: 1
     expect assigned_flight: 1, status: "in_transit"
   end
 
   test "EscalateCondition sets triage_level" do
     tests "EscalateCondition", on: "Patient"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    input  patient: 1, triage_level: "sample"
+    input  triage_level: "sample"
     expect triage_level: "sample"
   end
 
   test "TransferToGround runs" do
     tests "TransferToGround", on: "Patient"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    setup  "AssignToFlight", patient: 1, flight: 1
-    input  patient: 1
+    setup  "AssignToFlight"
     expect status: "handed_off"
   end
 
@@ -44,14 +42,13 @@ Hecks.behaviors "AeromedicalEvac" do
   test "DivertFlight sets destination" do
     tests "DivertFlight", on: "Flight"
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
-    input  flight: 1, destination: "sample"
+    input  destination: "sample"
     expect destination: "sample"
   end
 
   test "LandFlight runs" do
     tests "LandFlight", on: "Flight"
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
-    input  flight: 1
     expect status: "landed"
   end
 
@@ -61,19 +58,20 @@ Hecks.behaviors "AeromedicalEvac" do
   test "StartMonitoring runs" do
     tests "StartMonitoring", on: "VitalStream"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    input  patient: 1
     expect patient: 1, alarm_status: "normal"
   end
 
   test "RecordVitals sets heart_rate + spo2" do
     tests "RecordVitals", on: "VitalStream"
-    input  vital_stream: 1, heart_rate: 1, spo2: 1
+    setup  "StartMonitoring"
+    input  heart_rate: 1, spo2: 1
     expect heart_rate: 1, spo2: 1
   end
 
   test "TriggerAlarm sets alarm_status" do
     tests "TriggerAlarm", on: "VitalStream"
-    input  vital_stream: 1, alarm_status: "sample"
+    setup  "StartMonitoring"
+    input  alarm_status: "sample"
     expect alarm_status: "sample"
   end
 
@@ -84,7 +82,6 @@ Hecks.behaviors "AeromedicalEvac" do
     tests "AssignTraumaBed", on: "GroundReceiver"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
     setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
-    input  ground_receiver: 1, patient: 1
     expect expected_patient: :expected_patient, status: "prepared"
   end
 
@@ -97,7 +94,6 @@ Hecks.behaviors "AeromedicalEvac" do
   test "ActivateTraumaTeam runs" do
     tests "ActivateTraumaTeam", on: "GroundReceiver"
     setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
-    input  ground_receiver: 1
     expect status: "team_activated"
   end
 
@@ -109,22 +105,20 @@ Hecks.behaviors "AeromedicalEvac" do
     setup  "RegisterHospital", hospital_name: "sample", trauma_level: "sample", available_beds: 1
     setup  "DispatchFlight", callsign: "sample", origin: "sample", destination: "sample"
     setup  "RegisterPatient", name: "sample", blood_type: "sample", injury_classification: "sample", triage_level: "sample"
-    input  patient: 1, flight: 1, ground_receiver: 1
     expect patient: 1, flight: 1, receiver: :receiver, status: "in_progress"
   end
 
   test "VerifyTransfer sets handoff_notes" do
     tests "VerifyTransfer", on: "Handoff"
-    setup  "InitiateHandoff", patient: 1, flight: 1, ground_receiver: 1
-    input  handoff: 1, handoff_notes: "sample"
+    setup  "InitiateHandoff"
+    input  handoff_notes: "sample"
     expect handoff_notes: "sample", status: "verified"
   end
 
   test "CompleteHandoff runs" do
     tests "CompleteHandoff", on: "Handoff"
-    setup  "InitiateHandoff", patient: 1, flight: 1, ground_receiver: 1
-    setup  "VerifyTransfer", handoff: 1, handoff_notes: "sample"
-    input  handoff: 1
+    setup  "InitiateHandoff"
+    setup  "VerifyTransfer", handoff_notes: "sample"
     expect status: "complete"
   end
 

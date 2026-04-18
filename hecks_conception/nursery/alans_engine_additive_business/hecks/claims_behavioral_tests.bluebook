@@ -12,15 +12,15 @@ Hecks.behaviors "Claims" do
   test "InvestigateClaim sets investigation_notes + root_cause" do
     tests "InvestigateClaim", on: "WarrantyClaim"
     setup  "FileWarrantyClaim", claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
-    input  warranty_claim: 1, investigation_notes: "sample", root_cause: "sample"
+    input  investigation_notes: "sample", root_cause: "sample"
     expect investigation_notes: "sample", root_cause: "sample", status: "investigated"
   end
 
   test "ResolveClaim sets resolution" do
     tests "ResolveClaim", on: "WarrantyClaim"
     setup  "FileWarrantyClaim", claim_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", complaint_description: "sample"
-    setup  "InvestigateClaim", warranty_claim: 1, investigation_notes: "sample", root_cause: "sample"
-    input  warranty_claim: 1, resolution: "sample"
+    setup  "InvestigateClaim", investigation_notes: "sample", root_cause: "sample"
+    input  resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end
 
@@ -36,15 +36,14 @@ Hecks.behaviors "Claims" do
   test "ReceiveReturn sets disposition" do
     tests "ReceiveReturn", on: "ReturnAuthorization"
     setup  "IssueReturnAuthorization", rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample"
-    input  return_authorization: 1, disposition: "sample"
+    input  disposition: "sample"
     expect disposition: "sample", status: "received"
   end
 
   test "CloseReturnAuthorization runs" do
     tests "CloseReturnAuthorization", on: "ReturnAuthorization"
     setup  "IssueReturnAuthorization", rma_number: "sample", sku: "sample", lot_number: "sample", customer: "sample", return_reason_code: "sample"
-    setup  "ReceiveReturn", return_authorization: 1, disposition: "sample"
-    input  return_authorization: 1
+    setup  "ReceiveReturn", disposition: "sample"
     expect status: "closed"
   end
 
@@ -60,15 +59,14 @@ Hecks.behaviors "Claims" do
   test "InvestigateComplaint sets root_cause + capa_reference + eight_d_report" do
     tests "InvestigateComplaint", on: "CustomerComplaint"
     setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
-    input  customer_complaint: 1, root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
+    input  root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
     expect root_cause: "sample", capa_reference: "sample", eight_d_report: "sample", status: "investigated"
   end
 
   test "CloseComplaint runs" do
     tests "CloseComplaint", on: "CustomerComplaint"
     setup  "LogComplaint", complaint_number: "sample", customer: "sample", sku: "sample", lot_number: "sample", description: "sample"
-    setup  "InvestigateComplaint", customer_complaint: 1, root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
-    input  customer_complaint: 1
+    setup  "InvestigateComplaint", root_cause: "sample", capa_reference: "sample", eight_d_report: "sample"
     expect status: "closed"
   end
 

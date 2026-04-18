@@ -12,14 +12,12 @@ Hecks.behaviors "StreamingPlatform" do
   test "PublishContent runs" do
     tests "PublishContent", on: "Content"
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
-    input  content: 1
     expect ok: "true"
   end
 
   test "ArchiveContent runs" do
     tests "ArchiveContent", on: "Content"
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
-    input  content: 1
     expect ok: "true"
   end
 
@@ -35,14 +33,13 @@ Hecks.behaviors "StreamingPlatform" do
   test "AddToChannel sets content_id + position" do
     tests "AddToChannel", on: "Channel"
     setup  "CreateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
-    input  channel: 1, content_id: "sample", position: 1
+    input  content_id: "sample", position: 1
     expect ok: "true"
   end
 
   test "DeactivateChannel runs" do
     tests "DeactivateChannel", on: "Channel"
     setup  "CreateChannel", channel_name: "sample", description: "sample", curator: "sample", category: "sample"
-    input  channel: 1
     expect ok: "true"
   end
 
@@ -58,14 +55,13 @@ Hecks.behaviors "StreamingPlatform" do
   test "UpgradePlan sets plan" do
     tests "UpgradePlan", on: "Subscriber"
     setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
-    input  subscriber: 1, plan: "sample"
+    input  plan: "sample"
     expect ok: "true"
   end
 
   test "CancelSubscription runs" do
     tests "CancelSubscription", on: "Subscriber"
     setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
-    input  subscriber: 1
     expect ok: "true"
   end
 
@@ -76,19 +72,19 @@ Hecks.behaviors "StreamingPlatform" do
     tests "GenerateRecommendation", on: "Recommendation"
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
     setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
-    input  subscriber: 1, content: 1, recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
+    input  recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
     expect ok: "true"
   end
 
   test "DismissRecommendation runs" do
     tests "DismissRecommendation", on: "Recommendation"
-    input  recommendation: 1
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
     expect ok: "true"
   end
 
   test "ConvertRecommendation runs" do
     tests "ConvertRecommendation", on: "Recommendation"
-    input  recommendation: 1
+    setup  "GenerateRecommendation", recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
     expect ok: "true"
   end
 
@@ -104,14 +100,12 @@ Hecks.behaviors "StreamingPlatform" do
   test "PublishReport runs" do
     tests "PublishReport", on: "AnalyticsSnapshot"
     setup  "CaptureSnapshot", snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
-    input  analytics_snapshot: 1
     expect ok: "true"
   end
 
   test "ArchiveSnapshot runs" do
     tests "ArchiveSnapshot", on: "AnalyticsSnapshot"
     setup  "CaptureSnapshot", snapshot_id: "sample", period: "sample", total_streams: 1, unique_viewers: 1, avg_watch_minutes: 1.0
-    input  analytics_snapshot: 1
     expect ok: "true"
   end
 

@@ -37,7 +37,6 @@ Hecks.behaviors "LucidDream" do
   test "StopLucidMonitor runs" do
     tests "StopLucidMonitor", on: "LucidMonitor"
     setup  "StartLucidMonitor", log_path: "sample"
-    input  lucid_monitor: 1
     expect reporting: "stopped"
   end
 

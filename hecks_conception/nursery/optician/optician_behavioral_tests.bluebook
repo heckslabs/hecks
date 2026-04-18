@@ -12,7 +12,6 @@ Hecks.behaviors "Optician" do
   test "DiscontinueFrame runs" do
     tests "DiscontinueFrame", on: "Frame"
     setup  "StockFrame", frame_id: "sample", brand: "sample", model: "sample", material: "sample", color: "sample", price: 1.0, quantity: 1
-    input  frame: 1
     expect ok: "true"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "Optician" do
   test "ApplyCoating sets coating" do
     tests "ApplyCoating", on: "Lens"
     setup  "GrindLens", lens_id: "sample", lens_type: "sample", material: "sample", coating: "sample", sphere: 1.0, cylinder: 1.0, axis: 1, price: 1.0
-    input  lens: 1, coating: "sample"
+    input  coating: "sample"
     expect coating: "sample"
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "Optician" do
   test "ExpirePrescription runs" do
     tests "ExpirePrescription", on: "Prescription"
     setup  "RecordPrescription", prescription_id: "sample", patient_name: "sample", doctor_name: "sample", issue_date: "sample", expiration_date: "sample", right_sphere: 1.0, left_sphere: 1.0
-    input  prescription: 1
     expect status: "expired"
   end
 
@@ -60,7 +58,7 @@ Hecks.behaviors "Optician" do
   test "RecordSatisfaction sets satisfaction" do
     tests "RecordSatisfaction", on: "Fitting"
     setup  "PerformFitting", fitting_id: "sample", patient_name: "sample", frame_id: "sample"
-    input  fitting: 1, satisfaction: "sample"
+    input  satisfaction: "sample"
     expect satisfaction: "sample"
   end
 
@@ -76,7 +74,7 @@ Hecks.behaviors "Optician" do
   test "ResolveClaim sets resolution" do
     tests "ResolveClaim", on: "InsuranceClaim"
     setup  "SubmitClaim", claim_id: "sample", patient_name: "sample", insurance_provider: "sample", amount_claimed: 1.0
-    input  insurance_claim: 1, resolution: "sample"
+    input  resolution: "sample"
     expect status: "sample"
   end
 

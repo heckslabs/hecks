@@ -12,14 +12,13 @@ Hecks.behaviors "Catalog" do
   test "SetPricing sets msrp + wholesale_price" do
     tests "SetPricing", on: "Product"
     setup  "CreateProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
-    input  product: 1, msrp: 1.0, wholesale_price: 1.0
+    input  msrp: 1.0, wholesale_price: 1.0
     expect msrp: 1.0, wholesale_price: 1.0
   end
 
   test "DiscontinueProduct runs" do
     tests "DiscontinueProduct", on: "Product"
     setup  "CreateProduct", sku: "sample", name: "sample", brand: "sample", formula_name: "sample", size: "sample", upc: "sample"
-    input  product: 1
     expect status: "discontinued"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "Catalog" do
   test "AssignChannel sets channel" do
     tests "AssignChannel", on: "Brand"
     setup  "RegisterBrand", name: "sample", description: "sample"
-    input  brand: 1, channel: "sample"
+    input  channel: "sample"
     expect channels_size: 1
   end
 

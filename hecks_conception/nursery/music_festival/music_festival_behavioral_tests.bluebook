@@ -12,7 +12,6 @@ Hecks.behaviors "MusicFestival" do
   test "CloseStage runs" do
     tests "CloseStage", on: "Stage"
     setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
-    input  stage: 1
     expect status: "closed"
   end
 
@@ -22,21 +21,19 @@ Hecks.behaviors "MusicFestival" do
   test "BookArtist sets artist_name + genre + booking_fee + set_duration_minutes" do
     tests "BookArtist", on: "ArtistBooking"
     setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
-    input  stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
+    input  artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     expect artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1, status: "confirmed"
   end
 
   test "CancelBooking runs" do
     tests "CancelBooking", on: "ArtistBooking"
-    setup  "BookArtist", stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
-    input  artist_booking: 1
+    setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     expect status: "cancelled"
   end
 
   test "CompletePerformance runs" do
     tests "CompletePerformance", on: "ArtistBooking"
-    setup  "BookArtist", stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
-    input  artist_booking: 1
+    setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     expect status: "performed"
   end
 
@@ -46,14 +43,15 @@ Hecks.behaviors "MusicFestival" do
   test "SchedulePerformance sets performance_date + start_time + end_time" do
     tests "SchedulePerformance", on: "PerformanceSchedule"
     setup  "SetupStage", stage_name: "sample", capacity: 1, sound_system: "sample", location_on_grounds: "sample"
-    input  artist_booking: 1, stage: 1, performance_date: "sample", start_time: "sample", end_time: "sample"
+    setup  "BookArtist", artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
+    input  performance_date: "sample", start_time: "sample", end_time: "sample"
     expect performance_date: "sample", start_time: "sample", end_time: "sample", status: "scheduled"
   end
 
   test "ReschedulePerformance sets new_start_time + new_end_time" do
     tests "ReschedulePerformance", on: "PerformanceSchedule"
-    setup  "SchedulePerformance", artist_booking: 1, stage: 1, performance_date: "sample", start_time: "sample", end_time: "sample"
-    input  performance_schedule: 1, new_start_time: "sample", new_end_time: "sample"
+    setup  "SchedulePerformance", performance_date: "sample", start_time: "sample", end_time: "sample"
+    input  new_start_time: "sample", new_end_time: "sample"
     expect start_time: "sample", end_time: "sample"
   end
 
@@ -69,14 +67,13 @@ Hecks.behaviors "MusicFestival" do
   test "SellTickets sets quantity" do
     tests "SellTickets", on: "TicketBatch"
     setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
-    input  ticket_batch: 1, quantity: 1
+    input  quantity: 1
     expect ok: "true"
   end
 
   test "CloseTicketSales runs" do
     tests "CloseTicketSales", on: "TicketBatch"
     setup  "CreateTicketBatch", tier_name: "sample", valid_date: "sample", price: 1.0, total_quantity: 1
-    input  ticket_batch: 1
     expect status: "closed"
   end
 
@@ -92,14 +89,13 @@ Hecks.behaviors "MusicFestival" do
   test "ApproveVendor runs" do
     tests "ApproveVendor", on: "FestivalVendor"
     setup  "RegisterVendor", vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
-    input  festival_vendor: 1
     expect status: "approved"
   end
 
   test "EjectVendor sets reason" do
     tests "EjectVendor", on: "FestivalVendor"
     setup  "RegisterVendor", vendor_name: "sample", vendor_type: "sample", booth_location: "sample", booth_fee: 1.0
-    input  festival_vendor: 1, reason: "sample"
+    input  reason: "sample"
     expect status: "ejected"
   end
 

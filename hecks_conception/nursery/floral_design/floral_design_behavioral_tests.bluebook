@@ -12,15 +12,13 @@ Hecks.behaviors "FloralDesign" do
   test "AssembleArrangement runs" do
     tests "AssembleArrangement", on: "Arrangement"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
-    input  arrangement: 1
     expect status: "assembled"
   end
 
   test "ConditionArrangement runs" do
     tests "ConditionArrangement", on: "Arrangement"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
-    setup  "AssembleArrangement", arrangement: 1
-    input  arrangement: 1
+    setup  "AssembleArrangement"
     expect status: "conditioned"
   end
 
@@ -36,7 +34,6 @@ Hecks.behaviors "FloralDesign" do
   test "MarkWilted runs" do
     tests "MarkWilted", on: "FlowerStock"
     setup  "ReceiveShipment", variety: "sample", color: "sample", stem_quantity: 1, vase_life_days: 1
-    input  flower_stock: 1
     expect freshness: "wilted"
   end
 
@@ -52,7 +49,6 @@ Hecks.behaviors "FloralDesign" do
   test "FinalizeProposal runs" do
     tests "FinalizeProposal", on: "FloralEvent"
     setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
-    input  floral_event: 1
     expect status: "confirmed"
   end
 
@@ -62,13 +58,13 @@ Hecks.behaviors "FloralDesign" do
   test "ScheduleDelivery sets address + delivery_date + time_window + driver_name" do
     tests "ScheduleDelivery", on: "Delivery"
     setup  "DesignArrangement", name: "sample", style: "sample", vessel_type: "sample", stem_count: 1
-    input  arrangement: 1, address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
+    input  address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
     expect ok: "true"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "Delivery"
-    input  delivery: 1
+    setup  "ScheduleDelivery", address: "sample", delivery_date: "sample", time_window: "sample", driver_name: "sample"
     expect status: "delivered"
   end
 
@@ -78,20 +74,20 @@ Hecks.behaviors "FloralDesign" do
   test "PlanInstallation sets location + design_theme + crew_size" do
     tests "PlanInstallation", on: "FloralInstallation"
     setup  "BookEvent", event_name: "sample", venue: "sample", date: "sample", arrangement_count: 1
-    input  floral_event: 1, location: "sample", design_theme: "sample", crew_size: 1
+    input  location: "sample", design_theme: "sample", crew_size: 1
     expect ok: "true"
   end
 
   test "ExecuteInstallation runs" do
     tests "ExecuteInstallation", on: "FloralInstallation"
-    input  floral_installation: 1
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
     expect status: "installed"
   end
 
   test "StrikeInstallation runs" do
     tests "StrikeInstallation", on: "FloralInstallation"
-    setup  "ExecuteInstallation", floral_installation: 1
-    input  floral_installation: 1
+    setup  "PlanInstallation", location: "sample", design_theme: "sample", crew_size: 1
+    setup  "ExecuteInstallation"
     expect status: "struck"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "RefugeeIdentity" do
   test "CloseCase runs" do
     tests "CloseCase", on: "ResettlementCase"
     setup  "OpenCase", case_id: "sample", family_name: "sample", country_of_origin: "sample", family_size: 1, caseworker: "sample"
-    input  resettlement_case: 1
     expect status: "closed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "RefugeeIdentity" do
   test "SuspendID runs" do
     tests "SuspendID", on: "DigitalID"
     setup  "IssueDigitalID", identity_id: "sample", case_id: "sample", full_name: "sample", date_of_birth: "sample", biometric_hash: "sample"
-    input  digital_i_d: 1
     expect status: "suspended"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "RefugeeIdentity" do
   test "FlagDocument runs" do
     tests "FlagDocument", on: "DocumentRecord"
     setup  "VerifyDocument", document_id: "sample", identity_id: "sample", document_type: "sample", issuing_country: "sample", expiry_date: "sample"
-    input  document_record: 1
     expect verified_status: "flagged"
   end
 
@@ -60,7 +57,6 @@ Hecks.behaviors "RefugeeIdentity" do
   test "FulfillReferral runs" do
     tests "FulfillReferral", on: "ServiceReferral"
     setup  "MakeReferral", referral_id: "sample", case_id: "sample", service_type: "sample", provider_name: "sample"
-    input  service_referral: 1
     expect status: "fulfilled"
   end
 

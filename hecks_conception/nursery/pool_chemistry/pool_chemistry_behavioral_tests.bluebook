@@ -12,7 +12,6 @@ Hecks.behaviors "PoolChemistry" do
   test "AnalyzeChemistry runs" do
     tests "AnalyzeChemistry", on: "WaterTest"
     setup  "RecordWaterTest", test_id: "sample", pool_name: "sample", ph: 1.0, free_chlorine_ppm: 1.0, total_alkalinity_ppm: 1.0, temperature_c: 1.0, timestamp: "sample"
-    input  water_test: 1
     expect status: "analyzed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "PoolChemistry" do
   test "CalculateEquilibrium runs" do
     tests "CalculateEquilibrium", on: "ChemicalReaction"
     setup  "DefineReaction", reaction_name: "sample", reagent_a: "sample", reagent_b: "sample", product: "sample", equilibrium_constant: 1.0, rate_constant: 1.0
-    input  chemical_reaction: 1
     expect ok: "true"
   end
 
@@ -44,15 +42,13 @@ Hecks.behaviors "PoolChemistry" do
   test "ExecuteDosing runs" do
     tests "ExecuteDosing", on: "DosingPlan"
     setup  "CreateDosingPlan", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
-    input  dosing_plan: 1
     expect status: "executed"
   end
 
   test "VerifyDosing runs" do
     tests "VerifyDosing", on: "DosingPlan"
     setup  "CreateDosingPlan", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
-    setup  "ExecuteDosing", dosing_plan: 1
-    input  dosing_plan: 1
+    setup  "ExecuteDosing"
     expect status: "verified"
   end
 
@@ -68,15 +64,14 @@ Hecks.behaviors "PoolChemistry" do
   test "TreatAlgae sets treatment_applied" do
     tests "TreatAlgae", on: "AlgaeIncident"
     setup  "ReportAlgae", pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
-    input  algae_incident: 1, treatment_applied: "sample"
+    input  treatment_applied: "sample"
     expect treatment_applied: "sample", status: "treated"
   end
 
   test "ClearAlgae runs" do
     tests "ClearAlgae", on: "AlgaeIncident"
     setup  "ReportAlgae", pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
-    setup  "TreatAlgae", algae_incident: 1, treatment_applied: "sample"
-    input  algae_incident: 1
+    setup  "TreatAlgae", treatment_applied: "sample"
     expect status: "cleared"
   end
 

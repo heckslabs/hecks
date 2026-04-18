@@ -12,14 +12,13 @@ Hecks.behaviors "FireRobotics" do
   test "AddFieldReport sets reporter + observation + timestamp" do
     tests "AddFieldReport", on: "FireIncident"
     setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
-    input  fire_incident: 1, reporter: "sample", observation: "sample", timestamp: "sample"
+    input  reporter: "sample", observation: "sample", timestamp: "sample"
     expect reports_size: 1
   end
 
   test "ContainFire runs" do
     tests "ContainFire", on: "FireIncident"
     setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
-    input  fire_incident: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,13 @@ Hecks.behaviors "FireRobotics" do
   test "AddCapability sets capability_name + range_meters" do
     tests "AddCapability", on: "FireRobot"
     setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
-    input  fire_robot: 1, capability_name: "sample", range_meters: 1.0
+    input  capability_name: "sample", range_meters: 1.0
     expect capabilities_size: 1
   end
 
   test "RecallRobot runs" do
     tests "RecallRobot", on: "FireRobot"
     setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
-    input  fire_robot: 1
     expect ok: "true"
   end
 
@@ -53,19 +51,20 @@ Hecks.behaviors "FireRobotics" do
     tests "PlanMission", on: "Mission"
     setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
     setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
-    input  fire_incident: 1, fire_robot: 1, mission_type: "sample"
+    input  mission_type: "sample"
     expect ok: "true"
   end
 
   test "AddWaypoint sets lat + lng + action" do
     tests "AddWaypoint", on: "Mission"
-    input  mission: 1, lat: 1.0, lng: 1.0, action: "sample"
+    setup  "PlanMission", mission_type: "sample"
+    input  lat: 1.0, lng: 1.0, action: "sample"
     expect waypoints_size: 1
   end
 
   test "ExecuteMission runs" do
     tests "ExecuteMission", on: "Mission"
-    input  mission: 1
+    setup  "PlanMission", mission_type: "sample"
     expect ok: "true"
   end
 
@@ -76,19 +75,19 @@ Hecks.behaviors "FireRobotics" do
     tests "InitiateRescue", on: "RescueOperation"
     setup  "DeployRobot", robot_id: "sample", robot_type: "sample"
     setup  "ReportFire", incident_id: "sample", location: "sample", fire_type: "sample", severity: "sample"
-    input  fire_incident: 1, fire_robot: 1
     expect ok: "true"
   end
 
   test "RecordExtraction sets victim_id + condition + extracted_at" do
     tests "RecordExtraction", on: "RescueOperation"
-    input  rescue_operation: 1, victim_id: "sample", condition: "sample", extracted_at: "sample"
+    setup  "InitiateRescue"
+    input  victim_id: "sample", condition: "sample", extracted_at: "sample"
     expect extractions_size: 1
   end
 
   test "CompleteRescue runs" do
     tests "CompleteRescue", on: "RescueOperation"
-    input  rescue_operation: 1
+    setup  "InitiateRescue"
     expect ok: "true"
   end
 

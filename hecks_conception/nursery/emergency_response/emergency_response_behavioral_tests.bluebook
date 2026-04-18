@@ -12,7 +12,6 @@ Hecks.behaviors "EmergencyResponse" do
   test "AdmitPatient runs" do
     tests "AdmitPatient", on: "TriageCase"
     setup  "TriagePatient", case_id: "sample", patient_name: "sample", chief_complaint: "sample", acuity_level: 1
-    input  triage_case: 1
     expect status: "admitted"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "EmergencyResponse" do
   test "DispatchUnit runs" do
     tests "DispatchUnit", on: "Ambulance"
     setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
-    input  ambulance: 1
     expect status: "dispatched"
   end
 
   test "ClearUnit runs" do
     tests "ClearUnit", on: "Ambulance"
     setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
-    setup  "DispatchUnit", ambulance: 1
-    input  ambulance: 1
+    setup  "DispatchUnit"
     expect status: "available"
   end
 
@@ -52,7 +49,7 @@ Hecks.behaviors "EmergencyResponse" do
   test "UpdateETA sets eta_minutes" do
     tests "UpdateETA", on: "Route"
     setup  "CalculateRoute", route_id: "sample", unit_id: "sample", origin_address: "sample", scene_address: "sample", hospital_name: "sample"
-    input  route: 1, eta_minutes: 1.0
+    input  eta_minutes: 1.0
     expect eta_minutes: 1.0
   end
 
@@ -68,7 +65,6 @@ Hecks.behaviors "EmergencyResponse" do
   test "CompleteHandoff runs" do
     tests "CompleteHandoff", on: "Handoff"
     setup  "InitiateHandoff", handoff_id: "sample", case_id: "sample", unit_id: "sample", receiving_nurse: "sample"
-    input  handoff: 1
     expect status: "completed"
   end
 

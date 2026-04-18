@@ -12,24 +12,21 @@ Hecks.behaviors "Calligraphy" do
   test "AcceptCommission runs" do
     tests "AcceptCommission", on: "CalligraphyCommission"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    input  calligraphy_commission: 1
     expect status: "accepted"
   end
 
   test "LetterCommission runs" do
     tests "LetterCommission", on: "CalligraphyCommission"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    setup  "AcceptCommission", calligraphy_commission: 1
-    input  calligraphy_commission: 1
+    setup  "AcceptCommission"
     expect status: "lettered"
   end
 
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "CalligraphyCommission"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    setup  "AcceptCommission", calligraphy_commission: 1
-    setup  "LetterCommission", calligraphy_commission: 1
-    input  calligraphy_commission: 1
+    setup  "AcceptCommission"
+    setup  "LetterCommission"
     expect status: "delivered"
   end
 
@@ -45,7 +42,7 @@ Hecks.behaviors "Calligraphy" do
   test "PracticeScript sets duration_minutes + focus_area" do
     tests "PracticeScript", on: "Script"
     setup  "DefineScript", name: "sample", historical_period: "sample", tool_type: "sample", x_height_mm: 1.0, nib_angle_degrees: 1.0
-    input  script: 1, duration_minutes: 1, focus_area: "sample"
+    input  duration_minutes: 1, focus_area: "sample"
     expect ok: "true"
   end
 
@@ -61,7 +58,7 @@ Hecks.behaviors "Calligraphy" do
   test "TestInk sets paper_type" do
     tests "TestInk", on: "InkFormulation"
     setup  "FormulateInk", name: "sample", color: "sample", base_type: "sample", viscosity: 1.0
-    input  ink_formulation: 1, paper_type: "sample"
+    input  paper_type: "sample"
     expect ok: "true"
   end
 
@@ -71,13 +68,14 @@ Hecks.behaviors "Calligraphy" do
   test "SelectPaper sets name + finish + gsm + fiber_content" do
     tests "SelectPaper", on: "PaperSelection"
     setup  "QuoteCommission", client_name: "sample", text_content: "sample", purpose: "sample", deadline: "sample"
-    input  calligraphy_commission: 1, name: "sample", finish: "sample", gsm: 1, fiber_content: "sample"
+    input  name: "sample", finish: "sample", gsm: 1, fiber_content: "sample"
     expect ok: "true"
   end
 
   test "CutPaper sets width_inches + height_inches" do
     tests "CutPaper", on: "PaperSelection"
-    input  paper_selection: 1, width_inches: 1.0, height_inches: 1.0
+    setup  "SelectPaper", name: "sample", finish: "sample", gsm: 1, fiber_content: "sample"
+    input  width_inches: 1.0, height_inches: 1.0
     expect status: "cut"
   end
 
@@ -93,7 +91,6 @@ Hecks.behaviors "Calligraphy" do
   test "PublishPortfolio runs" do
     tests "PublishPortfolio", on: "Portfolio"
     setup  "CuratePortfolio", title: "sample", theme: "sample", piece_count: 1
-    input  portfolio: 1
     expect status: "published"
   end
 

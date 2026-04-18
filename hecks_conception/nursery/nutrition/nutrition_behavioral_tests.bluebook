@@ -12,14 +12,13 @@ Hecks.behaviors "Nutrition" do
   test "UpdateComposition sets calories_kcal" do
     tests "UpdateComposition", on: "FoodItem"
     setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
-    input  food_item: 1, calories_kcal: 1.0
+    input  calories_kcal: 1.0
     expect ok: "true"
   end
 
   test "RetireFood runs" do
     tests "RetireFood", on: "FoodItem"
     setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
-    input  food_item: 1
     expect ok: "true"
   end
 
@@ -36,14 +35,13 @@ Hecks.behaviors "Nutrition" do
     tests "AddMeal", on: "MealPlan"
     setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
     setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
-    input  meal_plan: 1, food_item: 1, meal_type: "sample", servings: 1.0
+    input  meal_type: "sample", servings: 1.0
     expect ok: "true"
   end
 
   test "FinalizePlan runs" do
     tests "FinalizePlan", on: "MealPlan"
     setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
-    input  meal_plan: 1
     expect ok: "true"
   end
 
@@ -59,14 +57,13 @@ Hecks.behaviors "Nutrition" do
   test "EvaluateProgress runs" do
     tests "EvaluateProgress", on: "DietaryGoal"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    input  dietary_goal: 1
     expect ok: "true"
   end
 
   test "AdjustTarget sets new_target" do
     tests "AdjustTarget", on: "DietaryGoal"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    input  dietary_goal: 1, new_target: 1.0
+    input  new_target: 1.0
     expect ok: "true"
   end
 
@@ -76,13 +73,13 @@ Hecks.behaviors "Nutrition" do
   test "DetectDeficiency sets nutrient + severity" do
     tests "DetectDeficiency", on: "Deficiency"
     setup  "SetGoal", goal_type: "sample", nutrient: "sample", target_value: 1.0
-    input  dietary_goal: 1, nutrient: "sample", severity: "sample"
+    input  nutrient: "sample", severity: "sample"
     expect ok: "true"
   end
 
   test "ResolveDeficiency runs" do
     tests "ResolveDeficiency", on: "Deficiency"
-    input  deficiency: 1
+    setup  "DetectDeficiency", nutrient: "sample", severity: "sample"
     expect ok: "true"
   end
 

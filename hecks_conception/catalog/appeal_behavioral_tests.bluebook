@@ -38,7 +38,6 @@ Hecks.behaviors "Appeal" do
   test "LoadDomain runs" do
     tests "LoadDomain", on: "Explorer"
     setup  "CreateProject", name: "sample", path: "sample"
-    input  project: 1
     expect ok: "true"
   end
 
@@ -57,7 +56,7 @@ Hecks.behaviors "Appeal" do
   test "OpenFile sets path + domain" do
     tests "OpenFile", on: "Explorer"
     setup  "CreateProject", name: "sample", path: "sample"
-    input  project: 1, path: "sample", domain: "sample"
+    input  path: "sample", domain: "sample"
     expect ok: "true"
   end
 
@@ -74,7 +73,7 @@ Hecks.behaviors "Appeal" do
 
   test "ByKind returns matching records" do
     tests "ByKind", on: "Explorer", kind: :query
-    setup  "InspectAggregate", aggregate_name: "sample"
+    setup  "OpenFile", path: "sample", domain: "sample"
     expect count: 1
   end
 
@@ -84,7 +83,7 @@ Hecks.behaviors "Appeal" do
   test "OpenDocument sets filename" do
     tests "OpenDocument", on: "Document"
     setup  "CreateProject", name: "sample", path: "sample"
-    input  project: 1, filename: "sample"
+    input  filename: "sample"
     expect filename: "sample"
   end
 
@@ -109,8 +108,8 @@ Hecks.behaviors "Appeal" do
 
   test "RecordChange sets action + detail" do
     tests "RecordChange", on: "Timeline"
-    setup  "EditDocument", content: "sample"
-    input  document: 1, action: "sample", detail: "sample"
+    setup  "OpenDocument", filename: "sample"
+    input  action: "sample", detail: "sample"
     expect ok: "true"
   end
 
@@ -130,7 +129,7 @@ Hecks.behaviors "Appeal" do
   test "SelectTarget sets target" do
     tests "SelectTarget", on: "Generator"
     setup  "CreateProject", name: "sample", path: "sample"
-    input  project: 1, target: "sample"
+    input  target: "sample"
     expect ok: "true"
   end
 
@@ -163,7 +162,7 @@ Hecks.behaviors "Appeal" do
   test "ApplyPattern sets pattern_name + aggregate_name + parameters" do
     tests "ApplyPattern", on: "Pattern"
     setup  "CreateProject", name: "sample", path: "sample"
-    input  project: 1, pattern_name: "sample", aggregate_name: "sample", parameters: "sample"
+    input  pattern_name: "sample", aggregate_name: "sample", parameters: "sample"
     expect ok: "true"
   end
 
@@ -634,7 +633,6 @@ Hecks.behaviors "Appeal" do
   test "ApplyToScenario runs" do
     tests "ApplyToScenario", on: "Fixture"
     setup  "CreateScenario", name: "sample"
-    input  scenario: 1
     expect ok: "true"
   end
 

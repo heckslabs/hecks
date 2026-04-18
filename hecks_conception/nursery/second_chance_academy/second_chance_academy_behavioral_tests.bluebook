@@ -12,14 +12,12 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "UpdateSkills runs" do
     tests "UpdateSkills", on: "Learner"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    input  learner: 1
     expect ok: "true"
   end
 
   test "GraduateAcademy runs" do
     tests "GraduateAcademy", on: "Learner"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    input  learner: 1
     expect status: "graduated"
   end
 
@@ -36,14 +34,12 @@ Hecks.behaviors "SecondChanceAcademy" do
     tests "CompleteCourse", on: "Course"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
     setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
-    input  course: 1, learner: 1
     expect ok: "true"
   end
 
   test "RetireCourse runs" do
     tests "RetireCourse", on: "Course"
     setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
-    input  course: 1
     expect status: "retired"
   end
 
@@ -53,23 +49,21 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "CreateQuest sets title + description + xp_reward + difficulty" do
     tests "CreateQuest", on: "Quest"
     setup  "CreateCourse", title: "sample", subject: "sample", difficulty: "sample", credit_value: 1
-    input  course: 1, title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    input  title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     expect title: "sample", description: "sample", xp_reward: 1, difficulty: "sample", related_course: :related_course, status: "available"
   end
 
   test "AcceptQuest runs" do
     tests "AcceptQuest", on: "Quest"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    setup  "CreateQuest", course: 1, title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
-    input  quest: 1, learner: 1
+    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteQuest runs" do
     tests "CompleteQuest", on: "Quest"
-    setup  "CreateQuest", course: 1, title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
-    setup  "AcceptQuest", quest: 1, learner: 1
-    input  quest: 1
+    setup  "CreateQuest", title: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "AcceptQuest"
     expect status: "completed"
   end
 
@@ -79,20 +73,19 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "IssueBadge sets name + description + issuer" do
     tests "IssueBadge", on: "Badge"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    input  learner: 1, name: "sample", description: "sample", issuer: "sample"
+    input  name: "sample", description: "sample", issuer: "sample"
     expect name: "sample", description: "sample", issuer: "sample", holder: :holder, status: "issued"
   end
 
   test "VerifyBadge runs" do
     tests "VerifyBadge", on: "Badge"
-    setup  "IssueBadge", learner: 1, name: "sample", description: "sample", issuer: "sample"
-    input  badge: 1
+    setup  "IssueBadge", name: "sample", description: "sample", issuer: "sample"
     expect status: "verified"
   end
 
   test "RevokeBadge runs" do
     tests "RevokeBadge", on: "Badge"
-    input  badge: 1
+    setup  "IssueBadge", name: "sample", description: "sample", issuer: "sample"
     expect status: "revoked"
   end
 
@@ -101,22 +94,22 @@ Hecks.behaviors "SecondChanceAcademy" do
 
   test "AwardParoleCredit sets credits_awarded" do
     tests "AwardParoleCredit", on: "ParoleCredit"
+    setup  "IssueBadge", name: "sample", description: "sample", issuer: "sample"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    input  learner: 1, badge: 1, credits_awarded: 1
+    input  credits_awarded: 1
     expect learner: 1, badge: 1, credits_awarded: 1, status: "pending_review"
   end
 
   test "ApproveCredit sets approved_by" do
     tests "ApproveCredit", on: "ParoleCredit"
-    setup  "AwardParoleCredit", learner: 1, badge: 1, credits_awarded: 1
-    input  parole_credit: 1, approved_by: "sample"
+    setup  "AwardParoleCredit", credits_awarded: 1
+    input  approved_by: "sample"
     expect approved_by: "sample", status: "approved"
   end
 
   test "DenyCredit runs" do
     tests "DenyCredit", on: "ParoleCredit"
-    setup  "AwardParoleCredit", learner: 1, badge: 1, credits_awarded: 1
-    input  parole_credit: 1
+    setup  "AwardParoleCredit", credits_awarded: 1
     expect status: "denied"
   end
 
@@ -126,22 +119,20 @@ Hecks.behaviors "SecondChanceAcademy" do
   test "MatchEmployer sets employer_name + position" do
     tests "MatchEmployer", on: "EmployerMatch"
     setup  "EnrollLearner", name: "sample", facility: "sample", sentence_end_date: "sample"
-    input  learner: 1, employer_name: "sample", position: "sample"
+    input  employer_name: "sample", position: "sample"
     expect learner: 1, employer_name: "sample", position: "sample", status: "matched"
   end
 
   test "ScheduleInterview runs" do
     tests "ScheduleInterview", on: "EmployerMatch"
-    setup  "MatchEmployer", learner: 1, employer_name: "sample", position: "sample"
-    input  employer_match: 1
+    setup  "MatchEmployer", employer_name: "sample", position: "sample"
     expect status: "interviewing"
   end
 
   test "ExtendOffer runs" do
     tests "ExtendOffer", on: "EmployerMatch"
-    setup  "MatchEmployer", learner: 1, employer_name: "sample", position: "sample"
-    setup  "ScheduleInterview", employer_match: 1
-    input  employer_match: 1
+    setup  "MatchEmployer", employer_name: "sample", position: "sample"
+    setup  "ScheduleInterview"
     expect status: "offered"
   end
 

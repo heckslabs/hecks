@@ -12,14 +12,13 @@ Hecks.behaviors "BattlefieldMedicine" do
   test "EscalateCasualty sets urgency" do
     tests "EscalateCasualty", on: "CasualtyReport"
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  casualty_report: 1, urgency: "sample"
+    input  urgency: "sample"
     expect urgency: "sample"
   end
 
   test "MarkEvacuated runs" do
     tests "MarkEvacuated", on: "CasualtyReport"
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  casualty_report: 1
     expect status: "evacuated"
   end
 
@@ -36,15 +35,13 @@ Hecks.behaviors "BattlefieldMedicine" do
     tests "AssignToCasualty", on: "MedDrone"
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    input  med_drone: 1, casualty_report: 1
     expect assigned_casualty: :assigned_casualty, status: "en_route"
   end
 
   test "CompleteMission runs" do
     tests "CompleteMission", on: "MedDrone"
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    setup  "AssignToCasualty", med_drone: 1, casualty_report: 1
-    input  med_drone: 1
+    setup  "AssignToCasualty"
     expect status: "returning"
   end
 
@@ -54,23 +51,21 @@ Hecks.behaviors "BattlefieldMedicine" do
   test "PrepareBloodDrop sets drop_id + blood_type + units" do
     tests "PrepareBloodDrop", on: "BloodDrop"
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  casualty_report: 1, drop_id: "sample", blood_type: "sample", units: 1
+    input  drop_id: "sample", blood_type: "sample", units: 1
     expect drop_id: "sample", target_casualty: :target_casualty, blood_type: "sample", units: 1, cold_chain_status: "sealed", status: "prepared"
   end
 
   test "LoadOnDrone runs" do
     tests "LoadOnDrone", on: "BloodDrop"
     setup  "LaunchDrone", drone_id: "sample", mission_type: "sample", current_location: "sample"
-    setup  "PrepareBloodDrop", casualty_report: 1, drop_id: "sample", blood_type: "sample", units: 1
-    input  blood_drop: 1, med_drone: 1
+    setup  "PrepareBloodDrop", drop_id: "sample", blood_type: "sample", units: 1
     expect carrier_drone: :carrier_drone, status: "in_transit"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "BloodDrop"
-    setup  "PrepareBloodDrop", casualty_report: 1, drop_id: "sample", blood_type: "sample", units: 1
-    setup  "LoadOnDrone", blood_drop: 1, med_drone: 1
-    input  blood_drop: 1
+    setup  "PrepareBloodDrop", drop_id: "sample", blood_type: "sample", units: 1
+    setup  "LoadOnDrone"
     expect status: "delivered"
   end
 
@@ -81,14 +76,14 @@ Hecks.behaviors "BattlefieldMedicine" do
     tests "ComputeRoute", on: "EvacRoute"
     setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
     setup  "FileCasualtyReport", report_id: "sample", casualty_name: "sample", location_grid: "sample", injury_type: "sample", urgency: "sample", blood_type: "sample"
-    input  casualty_report: 1, field_hospital: 1, route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    input  route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
     expect route_id: "sample", casualty: :casualty, destination: :destination, threat_level: "sample", distance_km: 1, eta_minutes: 1, status: "active"
   end
 
   test "RerouteOnThreat sets threat_level" do
     tests "RerouteOnThreat", on: "EvacRoute"
-    setup  "ComputeRoute", casualty_report: 1, field_hospital: 1, route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
-    input  evac_route: 1, threat_level: "sample"
+    setup  "ComputeRoute", route_id: "sample", threat_level: "sample", distance_km: 1, eta_minutes: 1
+    input  threat_level: "sample"
     expect threat_level: "sample"
   end
 
@@ -104,14 +99,12 @@ Hecks.behaviors "BattlefieldMedicine" do
   test "PrepareBay runs" do
     tests "PrepareBay", on: "FieldHospital"
     setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
-    input  field_hospital: 1
     expect ok: "true"
   end
 
   test "AdmitCasualty runs" do
     tests "AdmitCasualty", on: "FieldHospital"
     setup  "EstablishHospital", hospital_id: "sample", location_grid: "sample", surgical_bays: 1
-    input  field_hospital: 1
     expect ok: "true"
   end
 
@@ -127,7 +120,6 @@ Hecks.behaviors "BattlefieldMedicine" do
   test "UpdateEntry runs" do
     tests "UpdateEntry", on: "StatusBoard"
     setup  "InitializeBoard", board_id: "sample", operation_name: "sample"
-    input  status_board: 1
     expect ok: "true"
   end
 

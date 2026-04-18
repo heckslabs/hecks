@@ -12,29 +12,25 @@ Hecks.behaviors "AirportSecurity" do
   test "CloseCheckpoint runs" do
     tests "CloseCheckpoint", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1
     expect status: "closed"
   end
 
   test "AddLane runs" do
     tests "AddLane", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1
     expect ok: "true"
   end
 
   test "EscalateToHighAlert runs" do
     tests "EscalateToHighAlert", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1
     expect status: "high_alert"
   end
 
   test "StandDown runs" do
     tests "StandDown", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    setup  "EscalateToHighAlert", checkpoint: 1
-    input  checkpoint: 1
+    setup  "EscalateToHighAlert"
     expect status: "open"
   end
 
@@ -44,39 +40,35 @@ Hecks.behaviors "AirportSecurity" do
   test "InstallScanner sets scanner_id + scanner_type" do
     tests "InstallScanner", on: "Scanner"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
+    input  scanner_id: "sample", scanner_type: "sample"
     expect status: "installed", scans_today: 0
   end
 
   test "CalibrateScanner runs" do
     tests "CalibrateScanner", on: "Scanner"
-    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
-    input  scanner: 1
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
     expect status: "operational"
   end
 
   test "PerformScan runs" do
     tests "PerformScan", on: "Scanner"
-    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
-    setup  "CalibrateScanner", scanner: 1
-    input  scanner: 1
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
     expect ok: "true"
   end
 
   test "FlagMalfunction runs" do
     tests "FlagMalfunction", on: "Scanner"
-    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
-    setup  "CalibrateScanner", scanner: 1
-    input  scanner: 1
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
     expect status: "faulty"
   end
 
   test "RepairScanner runs" do
     tests "RepairScanner", on: "Scanner"
-    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
-    setup  "CalibrateScanner", scanner: 1
-    setup  "FlagMalfunction", scanner: 1
-    input  scanner: 1
+    setup  "InstallScanner", scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner"
+    setup  "FlagMalfunction"
     expect status: "installed"
   end
 
@@ -86,14 +78,13 @@ Hecks.behaviors "AirportSecurity" do
   test "DeployOfficer sets badge_number + name + clearance_level" do
     tests "DeployOfficer", on: "Officer"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1, badge_number: "sample", name: "sample", clearance_level: "sample"
+    input  badge_number: "sample", name: "sample", clearance_level: "sample"
     expect status: "on_duty"
   end
 
   test "RelieveOfficer runs" do
     tests "RelieveOfficer", on: "Officer"
-    setup  "DeployOfficer", checkpoint: 1, badge_number: "sample", name: "sample", clearance_level: "sample"
-    input  officer: 1
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
     expect status: "off_duty"
   end
 
@@ -102,23 +93,23 @@ Hecks.behaviors "AirportSecurity" do
 
   test "ReportIncident sets incident_type + severity + description" do
     tests "ReportIncident", on: "Incident"
+    setup  "DeployOfficer", badge_number: "sample", name: "sample", clearance_level: "sample"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
-    input  checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
+    input  incident_type: "sample", severity: "sample", description: "sample"
     expect status: "open"
   end
 
   test "InvestigateIncident runs" do
     tests "InvestigateIncident", on: "Incident"
-    setup  "ReportIncident", checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
-    input  incident: 1
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
     expect status: "investigating"
   end
 
   test "ResolveIncident sets resolution" do
     tests "ResolveIncident", on: "Incident"
-    setup  "ReportIncident", checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
-    setup  "InvestigateIncident", incident: 1
-    input  incident: 1, resolution: "sample"
+    setup  "ReportIncident", incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident"
+    input  resolution: "sample"
     expect status: "resolved"
   end
 

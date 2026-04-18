@@ -12,21 +12,20 @@ Hecks.behaviors "Electrical" do
   test "Discharge sets amps + hours" do
     tests "Discharge", on: "DCSource"
     setup  "CreateBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
-    input  d_c_source: 1, amps: 1.0, hours: 1.0
+    input  amps: 1.0, hours: 1.0
     expect ok: "true"
   end
 
   test "Charge sets amps + hours" do
     tests "Charge", on: "DCSource"
     setup  "CreateBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
-    input  d_c_source: 1, amps: 1.0, hours: 1.0
+    input  amps: 1.0, hours: 1.0
     expect ok: "true"
   end
 
   test "MeasureStateOfCharge runs" do
     tests "MeasureStateOfCharge", on: "DCSource"
     setup  "CreateBattery", name: "sample", voltage: 1.0, amp_hours: 1.0, chemistry: "sample"
-    input  d_c_source: 1
     expect ok: "true"
   end
 
@@ -42,7 +41,6 @@ Hecks.behaviors "Electrical" do
   test "CalculateAvailablePower runs" do
     tests "CalculateAvailablePower", on: "ACSource"
     setup  "CreateACSource", name: "sample", voltage: 1.0, frequency: 1.0, max_amps: 1.0, phase: "sample"
-    input  a_c_source: 1
     expect ok: "true"
   end
 
@@ -58,14 +56,14 @@ Hecks.behaviors "Electrical" do
   test "CalculateDCDraw sets ac_watts" do
     tests "CalculateDCDraw", on: "Converter"
     setup  "CreateConverter", name: "sample", conversion_type: "sample", input_voltage: 1.0, output_voltage: 1.0, max_watts: 1.0, efficiency: 1.0
-    input  converter: 1, ac_watts: 1.0
+    input  ac_watts: 1.0
     expect ok: "true"
   end
 
   test "CalculateRuntime sets ac_watts + battery_ah + battery_voltage" do
     tests "CalculateRuntime", on: "Converter"
     setup  "CreateConverter", name: "sample", conversion_type: "sample", input_voltage: 1.0, output_voltage: 1.0, max_watts: 1.0, efficiency: 1.0
-    input  converter: 1, ac_watts: 1.0, battery_ah: 1.0, battery_voltage: 1.0
+    input  ac_watts: 1.0, battery_ah: 1.0, battery_voltage: 1.0
     expect ok: "true"
   end
 
@@ -102,7 +100,6 @@ Hecks.behaviors "Electrical" do
   test "CalculateAmpDraw runs" do
     tests "CalculateAmpDraw", on: "Load"
     setup  "DefineLoad", name: "sample", watts: 1.0, voltage: 1.0, power_type: "sample", duty_cycle: 1.0
-    input  load: 1
     expect ok: "true"
   end
 
@@ -118,14 +115,13 @@ Hecks.behaviors "Electrical" do
   test "Trip sets actual_amps" do
     tests "Trip", on: "Fuse"
     setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
-    input  fuse: 1, actual_amps: 1.0
+    input  actual_amps: 1.0
     expect ok: "true"
   end
 
   test "Reset runs" do
     tests "Reset", on: "Fuse"
     setup  "SizeFuse", load_amps: 1.0, voltage: 1.0
-    input  fuse: 1
     expect ok: "true"
   end
 

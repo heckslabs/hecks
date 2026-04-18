@@ -12,15 +12,13 @@ Hecks.behaviors "WildlifeForensics" do
   test "TransferEvidence runs" do
     tests "TransferEvidence", on: "Evidence"
     setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
-    input  evidence: 1
     expect status: "in_lab"
   end
 
   test "AnalyzeEvidence runs" do
     tests "AnalyzeEvidence", on: "Evidence"
     setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
-    setup  "TransferEvidence", evidence: 1
-    input  evidence: 1
+    setup  "TransferEvidence"
     expect status: "analyzed"
   end
 
@@ -36,7 +34,6 @@ Hecks.behaviors "WildlifeForensics" do
   test "ConfirmWithDNA runs" do
     tests "ConfirmWithDNA", on: "SpeciesIdentification"
     setup  "IdentifySpecies", sample_id: "sample", identified_species: "sample", common_name: "sample", conservation_status: "sample", confidence_pct: 1.0
-    input  species_identification: 1
     expect status: "confirmed"
   end
 
@@ -52,22 +49,19 @@ Hecks.behaviors "WildlifeForensics" do
   test "LinkEvidence runs" do
     tests "LinkEvidence", on: "PoachingCase"
     setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
-    input  poaching_case: 1
     expect ok: "true"
   end
 
   test "ReferForProsecution runs" do
     tests "ReferForProsecution", on: "PoachingCase"
     setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
-    input  poaching_case: 1
     expect status: "referred"
   end
 
   test "CloseCase runs" do
     tests "CloseCase", on: "PoachingCase"
     setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
-    setup  "ReferForProsecution", poaching_case: 1
-    input  poaching_case: 1
+    setup  "ReferForProsecution"
     expect status: "closed"
   end
 
@@ -83,15 +77,15 @@ Hecks.behaviors "WildlifeForensics" do
   test "SequenceDNA sets sequence_region" do
     tests "SequenceDNA", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
-    input  d_n_a_analysis: 1, sequence_region: "sample"
+    input  sequence_region: "sample"
     expect sequence_region: "sample", status: "sequenced"
   end
 
   test "MatchDatabase sets match_confidence_pct" do
     tests "MatchDatabase", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
-    setup  "SequenceDNA", d_n_a_analysis: 1, sequence_region: "sample"
-    input  d_n_a_analysis: 1, match_confidence_pct: 1.0
+    setup  "SequenceDNA", sequence_region: "sample"
+    input  match_confidence_pct: 1.0
     expect match_confidence_pct: 1.0, status: "matched"
   end
 

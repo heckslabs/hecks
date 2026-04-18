@@ -12,7 +12,6 @@ Hecks.behaviors "DonorRecruitment" do
   test "FlagShortage runs" do
     tests "FlagShortage", on: "BloodInventory"
     setup  "UpdateStock", center_id: "sample", blood_type: "sample", units_available: 1, min_threshold: 1
-    input  blood_inventory: 1
     expect ok: "true"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "DonorRecruitment" do
   test "PauseCampaign runs" do
     tests "PauseCampaign", on: "RecruitmentCampaign"
     setup  "LaunchCampaign", campaign_id: "sample", target_blood_type: "sample", platform: "sample", budget: 1.0, target_donors: 1
-    input  recruitment_campaign: 1
     expect status: "paused"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "DonorRecruitment" do
   test "ConvertLead runs" do
     tests "ConvertLead", on: "DonorLead"
     setup  "CaptureLead", lead_id: "sample", name: "sample", blood_type: "sample", source_campaign: "sample"
-    input  donor_lead: 1
     expect status: "converted"
   end
 

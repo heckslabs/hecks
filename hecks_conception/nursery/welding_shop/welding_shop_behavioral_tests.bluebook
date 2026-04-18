@@ -13,14 +13,12 @@ Hecks.behaviors "WeldingShop" do
     tests "AssignWelder", on: "FabricationJob"
     setup  "CertifyWelder", welder_name: "sample", cert_number: "sample", process: "sample", position: "sample", expiration_date: "sample"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
-    input  fabrication_job: 1, welder_cert: 1
     expect ok: "true"
   end
 
   test "ShipJob runs" do
     tests "ShipJob", on: "FabricationJob"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
-    input  fabrication_job: 1
     expect ok: "true"
   end
 
@@ -37,7 +35,7 @@ Hecks.behaviors "WeldingShop" do
     tests "IssueMaterial", on: "MaterialStock"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
     setup  "ReceiveMaterial", material_type: "sample", grade: "sample", thickness: 1.0, quantity_lbs: 1.0, heat_number: "sample"
-    input  material_stock: 1, fabrication_job: 1, quantity_lbs: 1.0
+    input  quantity_lbs: 1.0
     expect ok: "true"
   end
 
@@ -53,7 +51,7 @@ Hecks.behaviors "WeldingShop" do
   test "RenewCertification sets new_expiration_date" do
     tests "RenewCertification", on: "WelderCert"
     setup  "CertifyWelder", welder_name: "sample", cert_number: "sample", process: "sample", position: "sample", expiration_date: "sample"
-    input  welder_cert: 1, new_expiration_date: "sample"
+    input  new_expiration_date: "sample"
     expect ok: "true"
   end
 
@@ -63,13 +61,14 @@ Hecks.behaviors "WeldingShop" do
   test "PerformInspection sets inspection_type + inspector_name" do
     tests "PerformInspection", on: "WeldInspection"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
-    input  fabrication_job: 1, inspection_type: "sample", inspector_name: "sample"
+    input  inspection_type: "sample", inspector_name: "sample"
     expect ok: "true"
   end
 
   test "RecordDefect sets defect_type + defect_location" do
     tests "RecordDefect", on: "WeldInspection"
-    input  weld_inspection: 1, defect_type: "sample", defect_location: "sample"
+    setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample"
+    input  defect_type: "sample", defect_location: "sample"
     expect ok: "true"
   end
 
@@ -79,13 +78,14 @@ Hecks.behaviors "WeldingShop" do
   test "PerformHeatTreat sets treatment_type + target_temp_f + hold_hours + ramp_rate" do
     tests "PerformHeatTreat", on: "HeatTreatment"
     setup  "AcceptJob", client_name: "sample", job_description: "sample", weld_process: "sample", base_metal: "sample"
-    input  fabrication_job: 1, treatment_type: "sample", target_temp_f: 1.0, hold_hours: 1.0, ramp_rate: 1.0
+    input  treatment_type: "sample", target_temp_f: 1.0, hold_hours: 1.0, ramp_rate: 1.0
     expect ok: "true"
   end
 
   test "RecordThermocouple sets reading_temp_f + reading_time" do
     tests "RecordThermocouple", on: "HeatTreatment"
-    input  heat_treatment: 1, reading_temp_f: 1.0, reading_time: "sample"
+    setup  "PerformHeatTreat", treatment_type: "sample", target_temp_f: 1.0, hold_hours: 1.0, ramp_rate: 1.0
+    input  reading_temp_f: 1.0, reading_time: "sample"
     expect ok: "true"
   end
 

@@ -206,17 +206,22 @@ fn cross_refs_for<'a>(agg: &Aggregate, cmd: &'a Command) -> Vec<&'a crate::ir::R
 /// self-ref id is given, but for setups we want the unambiguous
 /// bootstrap command.
 fn pick_create_command(agg: &Aggregate) -> Option<&Command> {
+    // A bootstrap command must not have a self-ref (otherwise it
+    // requires an existing entity to operate on). Cross-refs are
+    // fine — the runner resolves them from in_scope at dispatch.
+    let is_bootstrap = |c: &&Command| self_ref_for(agg, c).is_none();
+
     let prefixes = ["Create", "Define", "Place", "Register", "Open",
                     "Plan", "Spawn", "Boot", "Start", "Initialize",
                     "Seed", "Provision", "Issue"];
     for prefix in &prefixes {
         if let Some(c) = agg.commands.iter()
-            .find(|c| c.name.starts_with(prefix) && c.references.is_empty())
+            .find(|c| c.name.starts_with(prefix) && is_bootstrap(c))
         {
             return Some(c);
         }
     }
-    agg.commands.iter().find(|c| c.references.is_empty())
+    agg.commands.iter().find(is_bootstrap)
 }
 
 /// Plan a chain of commands that puts `agg` into the state `target_cmd`
@@ -380,40 +385,29 @@ fn track_produced(agg: &Aggregate, cmd: &Command, produced: &mut BTreeSet<(Strin
     }
 }
 
-/// Emit a single setup line for a command on `agg`. Includes self-ref
-/// id (always "1"), cross-ref ids, and command attribute samples.
-/// Use this for chained setups — `kwargs_inline` only handled attrs.
-fn emit_setup(agg: &Aggregate, cmd: &Command) -> String {
-    let self_ref = self_ref_for(agg, cmd);
-    let cross_refs = cross_refs_for(agg, cmd);
-    let mut pairs: Vec<(String, String)> = Vec::new();
-    if let Some(name) = &self_ref { pairs.push((name.clone(), "1".into())); }
-    for cref in &cross_refs { pairs.push((cref.name.clone(), "1".into())); }
-    for attr in &cmd.attributes {
-        pairs.push((attr.name.clone(), sample_value(&attr.attr_type)));
-    }
+/// Emit a single setup line for a command on `agg`. Reference kwargs
+/// are NOT emitted — the runner injects them from its in-scope map
+/// at dispatch time. Bluebook layer stays id-free.
+fn emit_setup(_agg: &Aggregate, cmd: &Command) -> String {
+    let pairs: Vec<(String, String)> = cmd.attributes.iter()
+        .map(|attr| (attr.name.clone(), sample_value(&attr.attr_type)))
+        .collect();
     let kvs = if pairs.is_empty() { String::new() } else { format!(", {}", join_kvs(&pairs)) };
     format!("    setup  {:?}{}", cmd.name, kvs)
 }
 
-/// Inputs for the command under test. Self-ref id first (always "1"),
-/// then cross-ref ids (each "1"), then command attrs with sample values.
+/// Inputs for the command under test. References are NOT emitted here:
+/// the bluebook layer is reference-only (no ids), and the test runner
+/// resolves references from its in-scope aggregate map at dispatch
+/// time. The user just types domain-meaningful kwargs.
 fn build_input(
     cmd: &Command,
-    self_ref: &Option<String>,
-    cross_refs: &[&crate::ir::Reference],
+    _self_ref: &Option<String>,
+    _cross_refs: &[&crate::ir::Reference],
 ) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    if let Some(name) = self_ref {
-        out.push((name.clone(), "1".into()));
-    }
-    for cref in cross_refs {
-        out.push((cref.name.clone(), "1".into()));
-    }
-    for attr in &cmd.attributes {
-        out.push((attr.name.clone(), sample_value(&attr.attr_type)));
-    }
-    out
+    cmd.attributes.iter()
+        .map(|attr| (attr.name.clone(), sample_value(&attr.attr_type)))
+        .collect()
 }
 
 /// Expectations for the command under test. Three sources merged:
@@ -508,6 +502,8 @@ fn join_kvs(pairs: &[(String, String)]) -> String {
 }
 
 /// kwargs prepended with ", " for use after a positional first arg.
+/// Domain attrs only — references are injected by the runner from
+/// its in-scope map, never typed in the test source.
 fn kwargs_inline(cmd: &Command) -> String {
     if cmd.attributes.is_empty() { return String::new(); }
     let kvs: Vec<(String, String)> = cmd.attributes.iter()

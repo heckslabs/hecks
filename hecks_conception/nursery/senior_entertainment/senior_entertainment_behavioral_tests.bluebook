@@ -12,7 +12,7 @@ Hecks.behaviors "SeniorEntertainment" do
   test "UpdateNeeds sets vision_level + hearing_level" do
     tests "UpdateNeeds", on: "SeniorResident"
     setup  "RegisterResident", resident_id: "sample", name: "sample", room_number: "sample", mobility_level: "sample"
-    input  senior_resident: 1, vision_level: "sample", hearing_level: "sample"
+    input  vision_level: "sample", hearing_level: "sample"
     expect vision_level: "sample", hearing_level: "sample"
   end
 
@@ -28,7 +28,6 @@ Hecks.behaviors "SeniorEntertainment" do
   test "CancelScreening runs" do
     tests "CancelScreening", on: "MovieScreening"
     setup  "ScheduleScreening", screening_id: "sample", movie_title: "sample", genre: "sample", date: "sample", venue: "sample", seats_available: 1
-    input  movie_screening: 1
     expect status: "cancelled"
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "SeniorEntertainment" do
   test "CancelRSVP runs" do
     tests "CancelRSVP", on: "RSVP"
     setup  "SubmitRSVP", rsvp_id: "sample", resident_id: "sample", screening_id: "sample", accessibility_needs: "sample"
-    input  r_s_v_p: 1
     expect status: "cancelled"
   end
 
@@ -60,7 +58,7 @@ Hecks.behaviors "SeniorEntertainment" do
   test "RecordAttendance sets attendees" do
     tests "RecordAttendance", on: "SocialEvent"
     setup  "PlanSocialEvent", event_id: "sample", screening_id: "sample", theme: "sample", refreshments: "sample"
-    input  social_event: 1, attendees: 1
+    input  attendees: 1
     expect attendees: 1, status: "completed"
   end
 

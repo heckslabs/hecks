@@ -12,15 +12,13 @@ Hecks.behaviors "FarmersMarket" do
   test "SuspendVendor runs" do
     tests "SuspendVendor", on: "Vendor"
     setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
-    input  vendor: 1
     expect status: "suspended"
   end
 
   test "ReinstatVendor runs" do
     tests "ReinstatVendor", on: "Vendor"
     setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
-    setup  "SuspendVendor", vendor: 1
-    input  vendor: 1
+    setup  "SuspendVendor"
     expect status: "active"
   end
 
@@ -36,7 +34,6 @@ Hecks.behaviors "FarmersMarket" do
   test "VacateStall runs" do
     tests "VacateStall", on: "Stall"
     setup  "AssignStall", stall_id: "sample", location: "sample", size: "sample", weekly_fee: 1.0, assigned_vendor_id: "sample"
-    input  stall: 1
     expect status: "vacant"
   end
 
@@ -52,7 +49,6 @@ Hecks.behaviors "FarmersMarket" do
   test "RevokePermit runs" do
     tests "RevokePermit", on: "MarketPermit"
     setup  "IssuePermit", permit_id: "sample", vendor_id: "sample", permit_type: "sample", issue_date: "sample", expiration_date: "sample"
-    input  market_permit: 1
     expect status: "revoked"
   end
 
@@ -68,7 +64,7 @@ Hecks.behaviors "FarmersMarket" do
   test "RecordResult sets result" do
     tests "RecordResult", on: "Inspection"
     setup  "ConductInspection", inspection_id: "sample", vendor_id: "sample", inspector_name: "sample", inspection_date: "sample"
-    input  inspection: 1, result: "sample"
+    input  result: "sample"
     expect result: "sample"
   end
 
@@ -84,7 +80,6 @@ Hecks.behaviors "FarmersMarket" do
   test "CloseSeason runs" do
     tests "CloseSeason", on: "MarketSeason"
     setup  "OpenSeason", season_id: "sample", name: "sample", start_date: "sample", end_date: "sample"
-    input  market_season: 1
     expect status: "closed"
   end
 

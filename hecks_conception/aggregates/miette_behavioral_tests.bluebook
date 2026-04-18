@@ -12,21 +12,21 @@ Hecks.behaviors "Miette" do
   test "Respond sets said + responded + timestamp" do
     tests "Respond", on: "Conversation"
     setup  "Greet", person_name: "sample"
-    input  conversation: 1, said: "sample", responded: "sample", timestamp: "sample"
+    input  said: "sample", responded: "sample", timestamp: "sample"
     expect turns: 1, last_exchange: { said: :said, responded: :responded, timestamp: :timestamp }
   end
 
   test "ShiftTopic sets topic" do
     tests "ShiftTopic", on: "Conversation"
     setup  "Greet", person_name: "sample"
-    input  conversation: 1, topic: "sample"
+    input  topic: "sample"
     expect topic: "sample"
   end
 
   test "Express sets mood" do
     tests "Express", on: "Conversation"
     setup  "Greet", person_name: "sample"
-    input  conversation: 1, mood: "sample"
+    input  mood: "sample"
     expect mood: "sample"
   end
 
@@ -42,14 +42,13 @@ Hecks.behaviors "Miette" do
   test "AddInsight sets observation + applies_to" do
     tests "AddInsight", on: "Memory"
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
-    input  memory: 1, observation: "sample", applies_to: "sample"
+    input  observation: "sample", applies_to: "sample"
     expect insights_size: 1
   end
 
   test "Recall runs" do
     tests "Recall", on: "Memory"
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
-    input  memory: 1
     expect recalled_count: 1
   end
 
@@ -65,14 +64,14 @@ Hecks.behaviors "Miette" do
   test "AddTrait sets trait" do
     tests "AddTrait", on: "Persona"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
-    input  persona: 1, trait: "sample"
+    input  trait: "sample"
     expect traits_size: 1
   end
 
   test "AppearInMemory sets domain_name" do
     tests "AppearInMemory", on: "Persona"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
-    input  persona: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect appears_in_size: 1
   end
 
@@ -88,7 +87,7 @@ Hecks.behaviors "Miette" do
   test "MarkFavorite sets domain_name" do
     tests "MarkFavorite", on: "NurseryAwareness"
     setup  "ConceiveDomain", domain_name: "sample"
-    input  nursery_awareness: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect favorite_domains_size: 1
   end
 

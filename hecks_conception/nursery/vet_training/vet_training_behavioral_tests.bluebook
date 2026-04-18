@@ -12,7 +12,6 @@ Hecks.behaviors "VetTraining" do
   test "GraduateVeteran runs" do
     tests "GraduateVeteran", on: "VeteranProfile"
     setup  "EnrollVeteran", veteran_id: "sample", name: "sample", branch: "sample", discharge_status: "sample"
-    input  veteran_profile: 1
     expect status: "graduated"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "VetTraining" do
   test "RetireCourse runs" do
     tests "RetireCourse", on: "Course"
     setup  "CreateCourse", course_id: "sample", title: "sample", skill_area: "sample", duration_hours: 1, difficulty: "sample"
-    input  course: 1
     expect status: "retired"
   end
 
@@ -44,14 +42,13 @@ Hecks.behaviors "VetTraining" do
   test "UpdateProgress sets progress_pct" do
     tests "UpdateProgress", on: "Enrollment"
     setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
-    input  enrollment: 1, progress_pct: 1.0
+    input  progress_pct: 1.0
     expect progress_pct: 1.0
   end
 
   test "CompleteCourse runs" do
     tests "CompleteCourse", on: "Enrollment"
     setup  "EnrollInCourse", enrollment_id: "sample", veteran_id: "sample", course_id: "sample"
-    input  enrollment: 1
     expect status: "completed"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "VetTraining" do
   test "ConfirmHire runs" do
     tests "ConfirmHire", on: "JobPlacement"
     setup  "PlaceVeteran", placement_id: "sample", veteran_id: "sample", employer_name: "sample", job_title: "sample"
-    input  job_placement: 1
     expect status: "hired"
   end
 

@@ -12,15 +12,13 @@ Hecks.behaviors "OccupationalTherapy" do
   test "ActivateClient runs" do
     tests "ActivateClient", on: "Client"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    input  client: 1
     expect status: "active"
   end
 
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    setup  "ActivateClient", client: 1
-    input  client: 1
+    setup  "ActivateClient"
     expect status: "discharged"
   end
 
@@ -36,7 +34,7 @@ Hecks.behaviors "OccupationalTherapy" do
   test "GradeActivity sets complexity" do
     tests "GradeActivity", on: "DailyLivingActivity"
     setup  "DefineActivity", name: "sample", category: "sample", complexity: "sample", instructions: "sample"
-    input  daily_living_activity: 1, complexity: "sample"
+    input  complexity: "sample"
     expect complexity: "sample"
   end
 
@@ -46,20 +44,19 @@ Hecks.behaviors "OccupationalTherapy" do
   test "RecommendAdaptation sets client_name + adaptation_type + description + location" do
     tests "RecommendAdaptation", on: "Adaptation"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    input  client: 1, client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
+    input  client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     expect client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample", status: "recommended"
   end
 
   test "ImplementAdaptation runs" do
     tests "ImplementAdaptation", on: "Adaptation"
-    setup  "RecommendAdaptation", client: 1, client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
-    input  adaptation: 1
+    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     expect status: "implemented"
   end
 
   test "EvaluateEffectiveness runs" do
     tests "EvaluateEffectiveness", on: "Adaptation"
-    input  adaptation: 1
+    setup  "RecommendAdaptation", client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     expect ok: "true"
   end
 
@@ -69,20 +66,20 @@ Hecks.behaviors "OccupationalTherapy" do
   test "EstablishGoal sets client_name + goal_description + functional_area + independence_score + target_score" do
     tests "EstablishGoal", on: "FunctionalGoal"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    input  client: 1, client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    input  client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
     expect client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1, status: "active"
   end
 
   test "MeasureProgress sets independence_score" do
     tests "MeasureProgress", on: "FunctionalGoal"
-    input  functional_goal: 1, independence_score: 1
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
+    input  independence_score: 1
     expect independence_score: 1
   end
 
   test "CompleteGoal runs" do
     tests "CompleteGoal", on: "FunctionalGoal"
-    setup  "EstablishGoal", client: 1, client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
-    input  functional_goal: 1
+    setup  "EstablishGoal", client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
     expect status: "completed"
   end
 
@@ -92,13 +89,14 @@ Hecks.behaviors "OccupationalTherapy" do
   test "WriteProgressNote sets client_name + note_date + session_summary + client_response + plan_for_next" do
     tests "WriteProgressNote", on: "ProgressNote"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
-    input  client: 1, client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    input  client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
     expect client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
   end
 
   test "AmendNote sets client_response" do
     tests "AmendNote", on: "ProgressNote"
-    input  progress_note: 1, client_response: "sample"
+    setup  "WriteProgressNote", client_name: "sample", note_date: "sample", session_summary: "sample", client_response: "sample", plan_for_next: "sample"
+    input  client_response: "sample"
     expect client_response: "sample"
   end
 

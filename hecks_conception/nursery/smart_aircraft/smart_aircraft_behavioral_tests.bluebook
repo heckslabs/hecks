@@ -12,14 +12,13 @@ Hecks.behaviors "SmartAircraft" do
   test "InstallSensor sets sensor_id + sensor_type + location" do
     tests "InstallSensor", on: "Aircraft"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  aircraft: 1, sensor_id: "sample", sensor_type: "sample", location: "sample"
+    input  sensor_id: "sample", sensor_type: "sample", location: "sample"
     expect sensors_size: 1
   end
 
   test "GroundAircraft runs" do
     tests "GroundAircraft", on: "Aircraft"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  aircraft: 1
     expect ok: "true"
   end
 
@@ -29,19 +28,19 @@ Hecks.behaviors "SmartAircraft" do
   test "ScheduleFlight sets flight_number + origin + destination" do
     tests "ScheduleFlight", on: "Flight"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  aircraft: 1, flight_number: "sample", origin: "sample", destination: "sample"
+    input  flight_number: "sample", origin: "sample", destination: "sample"
     expect ok: "true"
   end
 
   test "DepartFlight runs" do
     tests "DepartFlight", on: "Flight"
-    input  flight: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample"
     expect ok: "true"
   end
 
   test "CompleteFlight runs" do
     tests "CompleteFlight", on: "Flight"
-    input  flight: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample"
     expect ok: "true"
   end
 
@@ -51,13 +50,14 @@ Hecks.behaviors "SmartAircraft" do
   test "StartStream sets stream_id" do
     tests "StartStream", on: "SensorStream"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  aircraft: 1, stream_id: "sample"
+    input  stream_id: "sample"
     expect ok: "true"
   end
 
   test "IngestData sets sensor_id + metric + value + timestamp" do
     tests "IngestData", on: "SensorStream"
-    input  sensor_stream: 1, sensor_id: "sample", metric: "sample", value: 1.0, timestamp: "sample"
+    setup  "StartStream", stream_id: "sample"
+    input  sensor_id: "sample", metric: "sample", value: 1.0, timestamp: "sample"
     expect data_points_size: 1
   end
 
@@ -66,20 +66,22 @@ Hecks.behaviors "SmartAircraft" do
 
   test "RaiseAlert sets alert_type + severity" do
     tests "RaiseAlert", on: "MaintenanceAlert"
+    setup  "StartStream", stream_id: "sample"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample"
-    input  aircraft: 1, sensor_stream: 1, alert_type: "sample", severity: "sample"
+    input  alert_type: "sample", severity: "sample"
     expect ok: "true"
   end
 
   test "AssignTask sets task_name + estimated_hours" do
     tests "AssignTask", on: "MaintenanceAlert"
-    input  maintenance_alert: 1, task_name: "sample", estimated_hours: 1.0
+    setup  "RaiseAlert", alert_type: "sample", severity: "sample"
+    input  task_name: "sample", estimated_hours: 1.0
     expect tasks_size: 1
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "MaintenanceAlert"
-    input  maintenance_alert: 1
+    setup  "RaiseAlert", alert_type: "sample", severity: "sample"
     expect ok: "true"
   end
 

@@ -12,15 +12,13 @@ Hecks.behaviors "SkiResort" do
   test "HaltLift runs" do
     tests "HaltLift", on: "Lift"
     setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
-    input  lift: 1
     expect status: "halted"
   end
 
   test "ResumeLift runs" do
     tests "ResumeLift", on: "Lift"
     setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
-    setup  "HaltLift", lift: 1
-    input  lift: 1
+    setup  "HaltLift"
     expect status: "running"
   end
 
@@ -36,14 +34,12 @@ Hecks.behaviors "SkiResort" do
   test "GroomRun runs" do
     tests "GroomRun", on: "SkiRun"
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
-    input  ski_run: 1
     expect groomed: "true"
   end
 
   test "CloseRun runs" do
     tests "CloseRun", on: "SkiRun"
     setup  "OpenRun", run_id: "sample", name: "sample", difficulty: "sample", length_km: 1.0
-    input  ski_run: 1
     expect status: "closed"
   end
 
@@ -59,7 +55,6 @@ Hecks.behaviors "SkiResort" do
   test "SuspendPass runs" do
     tests "SuspendPass", on: "LiftPass"
     setup  "SellPass", pass_id: "sample", holder_name: "sample", pass_type: "sample", valid_from: "sample", valid_to: "sample", price: 1.0
-    input  lift_pass: 1
     expect status: "suspended"
   end
 
@@ -75,7 +70,6 @@ Hecks.behaviors "SkiResort" do
   test "ReturnEquipment runs" do
     tests "ReturnEquipment", on: "SkiRental"
     setup  "RentEquipment", rental_id: "sample", guest_name: "sample", equipment_package: "sample", boot_size: "sample", start_date: "sample", end_date: "sample", daily_rate: 1.0
-    input  ski_rental: 1
     expect status: "returned"
   end
 

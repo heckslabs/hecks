@@ -12,14 +12,13 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "CustomizeTemplate sets headline + body_copy + image_direction" do
     tests "CustomizeTemplate", on: "AdTemplate"
     setup  "GenerateTemplate", brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
-    input  ad_template: 1, headline: "sample", body_copy: "sample", image_direction: "sample"
+    input  headline: "sample", body_copy: "sample", image_direction: "sample"
     expect headline: "sample", body_copy: "sample", image_direction: "sample", status: "customized"
   end
 
   test "ApproveTemplate runs" do
     tests "ApproveTemplate", on: "AdTemplate"
     setup  "GenerateTemplate", brand: "sample", owned_word: "sample", channel: "sample", format: "sample", headline: "sample", subheadline: "sample", body_copy: "sample", proof_point: "sample", call_to_action: "sample", image_direction: "sample"
-    input  ad_template: 1
     expect status: "approved"
   end
 
@@ -35,37 +34,33 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "AssignTemplate sets template_name + placement + frequency + spend_allocation" do
     tests "AssignTemplate", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
-    input  campaign: 1, template_name: "sample", placement: "sample", frequency: "sample", spend_allocation: 1.0
+    input  template_name: "sample", placement: "sample", frequency: "sample", spend_allocation: 1.0
     expect ok: "true"
   end
 
   test "LaunchCampaign runs" do
     tests "LaunchCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
-    input  campaign: 1
     expect status: "active"
   end
 
   test "PauseCampaign runs" do
     tests "PauseCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
-    setup  "LaunchCampaign", campaign: 1
-    input  campaign: 1
+    setup  "LaunchCampaign"
     expect status: "paused"
   end
 
   test "MeasureCampaign runs" do
     tests "MeasureCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
-    input  campaign: 1
     expect ok: "true"
   end
 
   test "EndCampaign runs" do
     tests "EndCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
-    setup  "LaunchCampaign", campaign: 1
-    input  campaign: 1
+    setup  "LaunchCampaign"
     expect status: "completed"
   end
 
@@ -81,14 +76,13 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "RefineSegment sets demographics + interests" do
     tests "RefineSegment", on: "AudienceSegment"
     setup  "DefineSegment", name: "sample", brand: "sample", demographics: "sample", interests: "sample", pain_points: "sample", buying_triggers: "sample"
-    input  audience_segment: 1, demographics: "sample", interests: "sample"
+    input  demographics: "sample", interests: "sample"
     expect demographics: "sample", interests: "sample"
   end
 
   test "EstimateReach runs" do
     tests "EstimateReach", on: "AudienceSegment"
     setup  "DefineSegment", name: "sample", brand: "sample", demographics: "sample", interests: "sample", pain_points: "sample", buying_triggers: "sample"
-    input  audience_segment: 1
     expect ok: "true"
   end
 
@@ -104,7 +98,7 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "AddForbiddenTerm sets term" do
     tests "AddForbiddenTerm", on: "CreativeDirection"
     setup  "SetDirection", brand: "sample", tone_of_voice: "sample", visual_style: "sample", color_emphasis: "sample", photography_style: "sample"
-    input  creative_direction: 1, term: "sample"
+    input  term: "sample"
     expect forbidden_terms_size: 1
   end
 
@@ -120,14 +114,13 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "ScoreCopy sets performance_score" do
     tests "ScoreCopy", on: "AdCopy"
     setup  "GenerateCopy", template_name: "sample", variation: "sample", headline: "sample", body: "sample", cta: "sample"
-    input  ad_copy: 1, performance_score: 1.0
+    input  performance_score: 1.0
     expect performance_score: 1.0
   end
 
   test "SelectWinner runs" do
     tests "SelectWinner", on: "AdCopy"
     setup  "GenerateCopy", template_name: "sample", variation: "sample", headline: "sample", body: "sample", cta: "sample"
-    input  ad_copy: 1
     expect ok: "true"
   end
 
@@ -152,14 +145,12 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "AnalyzePattern runs" do
     tests "AnalyzePattern", on: "CompetitorBenchmark"
     setup  "RecordObservation", competitor: "sample", channel: "sample", observed_message: "sample", observed_positioning: "sample", observed_at: "sample"
-    input  competitor_benchmark: 1
     expect ok: "true"
   end
 
   test "IdentifyGap runs" do
     tests "IdentifyGap", on: "CompetitorBenchmark"
     setup  "RecordObservation", competitor: "sample", channel: "sample", observed_message: "sample", observed_positioning: "sample", observed_at: "sample"
-    input  competitor_benchmark: 1
     expect ok: "true"
   end
 

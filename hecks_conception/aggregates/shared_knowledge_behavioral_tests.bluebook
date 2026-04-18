@@ -12,7 +12,7 @@ Hecks.behaviors "SharedKnowledge" do
   test "WriteToStore sets being_name" do
     tests "WriteToStore", on: "KnowledgeStore"
     setup  "RegisterStore", store_name: "sample"
-    input  knowledge_store: 1, being_name: "sample"
+    input  being_name: "sample"
     expect last_written_by: "sample", record_count: 1
   end
 
@@ -28,7 +28,7 @@ Hecks.behaviors "SharedKnowledge" do
   test "ResetOnWake sets default_state" do
     tests "ResetOnWake", on: "InnerLife"
     setup  "Feel", being_name: "sample", organ: "sample", state: "sample"
-    input  inner_life: 1, default_state: "sample"
+    input  default_state: "sample"
     expect state: "sample"
   end
 

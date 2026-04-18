@@ -12,14 +12,13 @@ Hecks.behaviors "MarineNavigation" do
   test "UpdateCurrentData sets speed_knots + direction_degrees" do
     tests "UpdateCurrentData", on: "OceanCurrent"
     setup  "MeasureCurrent", name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
-    input  ocean_current: 1, speed_knots: 1.0, direction_degrees: 1.0
+    input  speed_knots: 1.0, direction_degrees: 1.0
     expect speed_knots: 1.0, direction_degrees: 1.0
   end
 
   test "DeactivateCurrent runs" do
     tests "DeactivateCurrent", on: "OceanCurrent"
     setup  "MeasureCurrent", name: "sample", speed_knots: 1.0, direction_degrees: 1.0, depth_meters: 1.0, season: "sample"
-    input  ocean_current: 1
     expect status: "stale"
   end
 
@@ -35,14 +34,13 @@ Hecks.behaviors "MarineNavigation" do
   test "EscalateStormWarning sets storm_warning" do
     tests "EscalateStormWarning", on: "WeatherForecast"
     setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
-    input  weather_forecast: 1, storm_warning: "sample"
+    input  storm_warning: "sample"
     expect storm_warning: "sample"
   end
 
   test "ExpireForecast runs" do
     tests "ExpireForecast", on: "WeatherForecast"
     setup  "IssueForecast", region: "sample", wind_speed_knots: 1.0, wave_height_meters: 1.0, visibility_nm: 1.0, storm_warning: "sample", valid_from: "sample", valid_until: "sample"
-    input  weather_forecast: 1
     expect status: "expired"
   end
 
@@ -58,22 +56,19 @@ Hecks.behaviors "MarineNavigation" do
   test "Depart runs" do
     tests "Depart", on: "Vessel"
     setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
-    input  vessel: 1
     expect status: "underway"
   end
 
   test "RefuelVessel runs" do
     tests "RefuelVessel", on: "Vessel"
     setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
-    input  vessel: 1
     expect current_fuel_tons: :fuel_capacity_tons
   end
 
   test "DockVessel runs" do
     tests "DockVessel", on: "Vessel"
     setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
-    setup  "Depart", vessel: 1
-    input  vessel: 1
+    setup  "Depart"
     expect status: "docked"
   end
 
@@ -89,29 +84,27 @@ Hecks.behaviors "MarineNavigation" do
   test "CalculateFuelEstimate sets estimated_fuel_tons + estimated_hours" do
     tests "CalculateFuelEstimate", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    input  route: 1, estimated_fuel_tons: 1.0, estimated_hours: 1.0
+    input  estimated_fuel_tons: 1.0, estimated_hours: 1.0
     expect estimated_fuel_tons: 1.0, estimated_hours: 1.0
   end
 
   test "AdjustForCurrents runs" do
     tests "AdjustForCurrents", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    input  route: 1
     expect ok: "true"
   end
 
   test "ApproveRoute runs" do
     tests "ApproveRoute", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    input  route: 1
     expect status: "approved"
   end
 
   test "RerouteForWeather sets reason" do
     tests "RerouteForWeather", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
-    setup  "ApproveRoute", route: 1
-    input  route: 1, reason: "sample"
+    setup  "ApproveRoute"
+    input  reason: "sample"
     expect status: "rerouted"
   end
 
@@ -127,14 +120,12 @@ Hecks.behaviors "MarineNavigation" do
   test "CalculateEfficiency runs" do
     tests "CalculateEfficiency", on: "FuelLog"
     setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
-    input  fuel_log: 1
     expect ok: "true"
   end
 
   test "FlagExcessiveBurn runs" do
     tests "FlagExcessiveBurn", on: "FuelLog"
     setup  "RecordFuelBurn", vessel_name: "sample", fuel_burned_tons: 1.0, distance_traveled_nm: 1.0, timestamp: "sample"
-    input  fuel_log: 1
     expect status: "flagged"
   end
 

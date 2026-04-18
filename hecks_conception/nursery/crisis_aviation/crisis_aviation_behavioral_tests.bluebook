@@ -12,14 +12,13 @@ Hecks.behaviors "CrisisAviation" do
   test "EscalateCrisis sets severity" do
     tests "EscalateCrisis", on: "CrisisEvent"
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
-    input  crisis_event: 1, severity: "sample"
+    input  severity: "sample"
     expect severity: "sample"
   end
 
   test "ResolveCrisis runs" do
     tests "ResolveCrisis", on: "CrisisEvent"
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
-    input  crisis_event: 1
     expect status: "resolved"
   end
 
@@ -29,22 +28,20 @@ Hecks.behaviors "CrisisAviation" do
   test "ActivateAsset sets callsign + aircraft_type + base_location + patient_capacity + range_nm" do
     tests "ActivateAsset", on: "FlightAsset"
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
-    input  crisis_event: 1, callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    input  callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
     expect callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1, assigned_crisis: :assigned_crisis, status: "ready"
   end
 
   test "DispatchMission runs" do
     tests "DispatchMission", on: "FlightAsset"
-    setup  "ActivateAsset", crisis_event: 1, callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
-    input  flight_asset: 1
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
     expect status: "airborne"
   end
 
   test "CompleteMission runs" do
     tests "CompleteMission", on: "FlightAsset"
-    setup  "ActivateAsset", crisis_event: 1, callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
-    setup  "DispatchMission", flight_asset: 1
-    input  flight_asset: 1
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
+    setup  "DispatchMission"
     expect status: "ready"
   end
 
@@ -60,14 +57,13 @@ Hecks.behaviors "CrisisAviation" do
   test "UpdatePowerStatus sets power_status" do
     tests "UpdatePowerStatus", on: "HospitalStatus"
     setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
-    input  hospital_status: 1, power_status: "sample"
+    input  power_status: "sample"
     expect power_status: "sample"
   end
 
   test "MarkInaccessible runs" do
     tests "MarkInaccessible", on: "HospitalStatus"
     setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
-    input  hospital_status: 1
     expect accessibility: "air_only"
   end
 
@@ -83,14 +79,12 @@ Hecks.behaviors "CrisisAviation" do
   test "DeployGenerator runs" do
     tests "DeployGenerator", on: "PowerStatus"
     setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
-    input  power_status: 1
     expect ok: "true"
   end
 
   test "RestoreSector runs" do
     tests "RestoreSector", on: "PowerStatus"
     setup  "ReportGridStatus", sector_id: "sample", region: "sample", substations_online: 1, substations_total: 1
-    input  power_status: 1
     expect grid_status: "restored"
   end
 
@@ -100,15 +94,15 @@ Hecks.behaviors "CrisisAviation" do
   test "ComputeDecision sets decision_id + rationale" do
     tests "ComputeDecision", on: "AirspaceDecision"
     setup  "ReportStatus", hospital_name: "sample", region: "sample", total_beds: 1, available_beds: 1, power_status: "sample", accessibility: "sample"
+    setup  "ActivateAsset", callsign: "sample", aircraft_type: "sample", base_location: "sample", patient_capacity: 1, range_nm: 1
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
-    input  crisis_event: 1, flight_asset: 1, hospital_status: 1, decision_id: "sample", rationale: "sample"
+    input  decision_id: "sample", rationale: "sample"
     expect decision_id: "sample", crisis: :crisis, aircraft: :aircraft, target_hospital: :target_hospital, rationale: "sample", status: "computed"
   end
 
   test "ApproveDecision runs" do
     tests "ApproveDecision", on: "AirspaceDecision"
-    setup  "ComputeDecision", crisis_event: 1, flight_asset: 1, hospital_status: 1, decision_id: "sample", rationale: "sample"
-    input  airspace_decision: 1
+    setup  "ComputeDecision", decision_id: "sample", rationale: "sample"
     expect status: "approved"
   end
 
@@ -118,21 +112,19 @@ Hecks.behaviors "CrisisAviation" do
   test "OpenQueue sets queue_id" do
     tests "OpenQueue", on: "PatientPriority"
     setup  "DeclareCrisis", event_id: "sample", crisis_type: "sample", affected_region: "sample", severity: "sample"
-    input  crisis_event: 1, queue_id: "sample"
+    input  queue_id: "sample"
     expect queue_id: "sample", crisis: :crisis, status: "active"
   end
 
   test "AddPatient runs" do
     tests "AddPatient", on: "PatientPriority"
-    setup  "OpenQueue", crisis_event: 1, queue_id: "sample"
-    input  patient_priority: 1
+    setup  "OpenQueue", queue_id: "sample"
     expect ok: "true"
   end
 
   test "DispatchTransport runs" do
     tests "DispatchTransport", on: "PatientPriority"
-    setup  "OpenQueue", crisis_event: 1, queue_id: "sample"
-    input  patient_priority: 1
+    setup  "OpenQueue", queue_id: "sample"
     expect ok: "true"
   end
 

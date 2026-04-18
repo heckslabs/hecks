@@ -12,14 +12,12 @@ Hecks.behaviors "Hospice" do
   test "RecertifyHospice runs" do
     tests "RecertifyHospice", on: "Patient"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1
     expect ok: "true"
   end
 
   test "RecordPassing runs" do
     tests "RecordPassing", on: "Patient"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1
     expect status: "deceased"
   end
 
@@ -29,19 +27,21 @@ Hecks.behaviors "Hospice" do
   test "CreateComfortPlan sets patient_name + pain_management_approach + spiritual_preferences" do
     tests "CreateComfortPlan", on: "ComfortPlan"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1, patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    input  patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     expect patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample", status: "active"
   end
 
   test "AddIntervention sets symptom + intervention + frequency" do
     tests "AddIntervention", on: "ComfortPlan"
-    input  comfort_plan: 1, symptom: "sample", intervention: "sample", frequency: "sample"
+    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    input  symptom: "sample", intervention: "sample", frequency: "sample"
     expect ok: "true"
   end
 
   test "AdjustPainManagement sets pain_management_approach" do
     tests "AdjustPainManagement", on: "ComfortPlan"
-    input  comfort_plan: 1, pain_management_approach: "sample"
+    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
+    input  pain_management_approach: "sample"
     expect pain_management_approach: "sample"
   end
 
@@ -51,19 +51,20 @@ Hecks.behaviors "Hospice" do
   test "RegisterFamilyContact sets family_contact_name + patient_name + relationship" do
     tests "RegisterFamilyContact", on: "FamilySupport"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1, family_contact_name: "sample", patient_name: "sample", relationship: "sample"
+    input  family_contact_name: "sample", patient_name: "sample", relationship: "sample"
     expect family_contact_name: "sample", patient_name: "sample", relationship: "sample", bereavement_status: "pre-loss"
   end
 
   test "ScheduleSupportSession sets session_date + session_type + counselor_name" do
     tests "ScheduleSupportSession", on: "FamilySupport"
-    input  family_support: 1, session_date: "sample", session_type: "sample", counselor_name: "sample"
+    setup  "RegisterFamilyContact", family_contact_name: "sample", patient_name: "sample", relationship: "sample"
+    input  session_date: "sample", session_type: "sample", counselor_name: "sample"
     expect ok: "true"
   end
 
   test "BeginBereavementCare runs" do
     tests "BeginBereavementCare", on: "FamilySupport"
-    input  family_support: 1
+    setup  "RegisterFamilyContact", family_contact_name: "sample", patient_name: "sample", relationship: "sample"
     expect bereavement_status: "active"
   end
 
@@ -73,13 +74,14 @@ Hecks.behaviors "Hospice" do
   test "PrescribeHospiceMedication sets patient_name + drug_name + dosage + route + purpose" do
     tests "PrescribeHospiceMedication", on: "HospiceMedication"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1, patient_name: "sample", drug_name: "sample", dosage: "sample", route: "sample", purpose: "sample"
+    input  patient_name: "sample", drug_name: "sample", dosage: "sample", route: "sample", purpose: "sample"
     expect patient_name: "sample", drug_name: "sample", dosage: "sample", route: "sample", purpose: "sample", status: "active"
   end
 
   test "TitrateDosage sets dosage" do
     tests "TitrateDosage", on: "HospiceMedication"
-    input  hospice_medication: 1, dosage: "sample"
+    setup  "PrescribeHospiceMedication", patient_name: "sample", drug_name: "sample", dosage: "sample", route: "sample", purpose: "sample"
+    input  dosage: "sample"
     expect dosage: "sample"
   end
 
@@ -89,14 +91,14 @@ Hecks.behaviors "Hospice" do
   test "ScheduleHospiceVisit sets patient_name + visitor_name + visitor_role + visit_date" do
     tests "ScheduleHospiceVisit", on: "HospiceVisit"
     setup  "AdmitToHospice", name: "sample", date_of_birth: "sample", terminal_diagnosis: "sample", prognosis: "sample", advance_directive: "sample"
-    input  patient: 1, patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
+    input  patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
     expect patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample", status: "scheduled"
   end
 
   test "CompleteHospiceVisit sets pain_score + notes" do
     tests "CompleteHospiceVisit", on: "HospiceVisit"
-    setup  "ScheduleHospiceVisit", patient: 1, patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
-    input  hospice_visit: 1, pain_score: 1, notes: "sample"
+    setup  "ScheduleHospiceVisit", patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
+    input  pain_score: 1, notes: "sample"
     expect pain_score: 1, notes: "sample", status: "completed"
   end
 

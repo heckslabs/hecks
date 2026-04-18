@@ -21,7 +21,6 @@ Hecks.behaviors "Chemistry" do
   test "Decompose runs" do
     tests "Decompose", on: "Compound"
     setup  "Synthesize", formula: "sample", name: "sample", elements: "sample"
-    input  compound: 1
     expect ok: "true"
   end
 
@@ -37,14 +36,13 @@ Hecks.behaviors "Chemistry" do
   test "Catalyze sets catalyst" do
     tests "Catalyze", on: "Reaction"
     setup  "React", equation: "sample", reactants: "sample", products: "sample"
-    input  reaction: 1, catalyst: "sample"
+    input  catalyst: "sample"
     expect catalyst: "sample"
   end
 
   test "Reverse runs" do
     tests "Reverse", on: "Reaction"
     setup  "React", equation: "sample", reactants: "sample", products: "sample"
-    input  reaction: 1
     expect status: "reversed"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "Chemistry" do
   test "Break runs" do
     tests "Break", on: "Bond"
     setup  "Form", atom_a: "sample", atom_b: "sample", bond_type: "sample"
-    input  bond: 1
     expect status: "broken"
   end
 
@@ -76,7 +73,6 @@ Hecks.behaviors "Chemistry" do
   test "Precipitate runs" do
     tests "Precipitate", on: "Solution"
     setup  "Dissolve", solvent: "sample", solutes: "sample"
-    input  solution: 1
     expect ok: "true"
   end
 

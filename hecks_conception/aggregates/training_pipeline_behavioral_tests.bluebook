@@ -21,7 +21,6 @@ Hecks.behaviors "TrainingPipeline" do
   test "SplitDataset runs" do
     tests "SplitDataset", on: "DataPrep"
     setup  "PrepareData", format: "sample"
-    input  data_prep: 1
     expect ok: "true"
   end
 
@@ -46,14 +45,13 @@ Hecks.behaviors "TrainingPipeline" do
   test "RecordEpoch sets loss" do
     tests "RecordEpoch", on: "FineTune"
     setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
-    input  fine_tune: 1, loss: 1.0
+    input  loss: 1.0
     expect loss: 1.0
   end
 
   test "CompleteFineTune runs" do
     tests "CompleteFineTune", on: "FineTune"
     setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
-    input  fine_tune: 1
     expect status: "complete"
   end
 

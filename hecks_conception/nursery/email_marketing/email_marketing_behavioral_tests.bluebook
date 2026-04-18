@@ -12,14 +12,13 @@ Hecks.behaviors "EmailMarketing" do
   test "AddSubscriber sets email + first_name" do
     tests "AddSubscriber", on: "SubscriberList"
     setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
-    input  subscriber_list: 1, email: "sample", first_name: "sample"
+    input  email: "sample", first_name: "sample"
     expect ok: "true"
   end
 
   test "ArchiveList runs" do
     tests "ArchiveList", on: "SubscriberList"
     setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
-    input  subscriber_list: 1
     expect ok: "true"
   end
 
@@ -29,19 +28,20 @@ Hecks.behaviors "EmailMarketing" do
   test "DesignCampaign sets campaign_name + subject_line + from_address + template_id" do
     tests "DesignCampaign", on: "EmailCampaign"
     setup  "CreateList", list_name: "sample", description: "sample", opt_in_method: "sample"
-    input  subscriber_list: 1, campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
+    input  campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
     expect ok: "true"
   end
 
   test "ScheduleCampaign sets send_at" do
     tests "ScheduleCampaign", on: "EmailCampaign"
-    input  email_campaign: 1, send_at: "sample"
+    setup  "DesignCampaign", campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
+    input  send_at: "sample"
     expect ok: "true"
   end
 
   test "CancelCampaign runs" do
     tests "CancelCampaign", on: "EmailCampaign"
-    input  email_campaign: 1
+    setup  "DesignCampaign", campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
     expect ok: "true"
   end
 
@@ -50,19 +50,21 @@ Hecks.behaviors "EmailMarketing" do
 
   test "DispatchSend sets send_id + recipient_email" do
     tests "DispatchSend", on: "Send"
-    input  email_campaign: 1, send_id: "sample", recipient_email: "sample"
+    setup  "DesignCampaign", campaign_name: "sample", subject_line: "sample", from_address: "sample", template_id: "sample"
+    input  send_id: "sample", recipient_email: "sample"
     expect ok: "true"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "Send"
-    input  send: 1
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
     expect ok: "true"
   end
 
   test "MarkFailed sets failure_reason" do
     tests "MarkFailed", on: "Send"
-    input  send: 1, failure_reason: "sample"
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    input  failure_reason: "sample"
     expect ok: "true"
   end
 
@@ -71,19 +73,20 @@ Hecks.behaviors "EmailMarketing" do
 
   test "RecordOpen sets event_id + recipient_email + user_agent + geo_region" do
     tests "RecordOpen", on: "OpenEvent"
-    input  send: 1, event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    input  event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     expect ok: "true"
   end
 
   test "FlagBotOpen runs" do
     tests "FlagBotOpen", on: "OpenEvent"
-    input  open_event: 1
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     expect ok: "true"
   end
 
   test "AggregateOpens runs" do
     tests "AggregateOpens", on: "OpenEvent"
-    input  open_event: 1
+    setup  "RecordOpen", event_id: "sample", recipient_email: "sample", user_agent: "sample", geo_region: "sample"
     expect ok: "true"
   end
 
@@ -92,19 +95,21 @@ Hecks.behaviors "EmailMarketing" do
 
   test "RecordBounce sets bounce_id + recipient_email + bounce_type + smtp_code" do
     tests "RecordBounce", on: "Bounce"
-    input  send: 1, bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
+    setup  "DispatchSend", send_id: "sample", recipient_email: "sample"
+    input  bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
     expect ok: "true"
   end
 
   test "ClassifyBounce sets bounce_type" do
     tests "ClassifyBounce", on: "Bounce"
-    input  bounce: 1, bounce_type: "sample"
+    setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
+    input  bounce_type: "sample"
     expect ok: "true"
   end
 
   test "SuppressAddress runs" do
     tests "SuppressAddress", on: "Bounce"
-    input  bounce: 1
+    setup  "RecordBounce", bounce_id: "sample", recipient_email: "sample", bounce_type: "sample", smtp_code: "sample"
     expect ok: "true"
   end
 

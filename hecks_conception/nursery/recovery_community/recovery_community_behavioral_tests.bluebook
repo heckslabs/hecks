@@ -12,14 +12,12 @@ Hecks.behaviors "RecoveryCommunity" do
   test "LogDay runs" do
     tests "LogDay", on: "RecoveryJourney"
     setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
-    input  recovery_journey: 1
     expect ok: "true"
   end
 
   test "AwardMilestone runs" do
     tests "AwardMilestone", on: "RecoveryJourney"
     setup  "StartJourney", member_id: "sample", name: "sample", program_type: "sample"
-    input  recovery_journey: 1
     expect ok: "true"
   end
 
@@ -35,7 +33,6 @@ Hecks.behaviors "RecoveryCommunity" do
   test "JoinGroup runs" do
     tests "JoinGroup", on: "PeerGroup"
     setup  "CreateGroup", group_id: "sample", group_name: "sample", facilitator: "sample", max_members: 1, meeting_schedule: "sample"
-    input  peer_group: 1
     expect ok: "true"
   end
 
@@ -51,14 +48,12 @@ Hecks.behaviors "RecoveryCommunity" do
   test "ApprovePost runs" do
     tests "ApprovePost", on: "CommunityPost"
     setup  "CreatePost", post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
-    input  community_post: 1
     expect status: "published"
   end
 
   test "RemovePost runs" do
     tests "RemovePost", on: "CommunityPost"
     setup  "CreatePost", post_id: "sample", author_id: "sample", content: "sample", topic: "sample"
-    input  community_post: 1
     expect status: "removed"
   end
 
@@ -74,7 +69,6 @@ Hecks.behaviors "RecoveryCommunity" do
   test "ReviewFlag runs" do
     tests "ReviewFlag", on: "SafetyFlag"
     setup  "RaiseFlag", flag_id: "sample", post_id: "sample", reason: "sample", severity: "sample"
-    input  safety_flag: 1
     expect status: "reviewed"
   end
 

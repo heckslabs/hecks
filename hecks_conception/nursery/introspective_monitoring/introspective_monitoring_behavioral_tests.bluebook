@@ -12,14 +12,13 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "TagTheme sets symbol" do
     tests "TagTheme", on: "DreamJournal"
     setup  "RecordDream", title: "sample", narrative: "sample", vividness: 1
-    input  dream_journal: 1, symbol: "sample"
+    input  symbol: "sample"
     expect ok: "true"
   end
 
   test "FadeDream runs" do
     tests "FadeDream", on: "DreamJournal"
     setup  "RecordDream", title: "sample", narrative: "sample", vividness: 1
-    input  dream_journal: 1
     expect clarity: "fading"
   end
 
@@ -35,14 +34,12 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "FlagAnomaly runs" do
     tests "FlagAnomaly", on: "HeartbeatSnapshot"
     setup  "RecordHeartbeat", bpm: 1, rhythm: "sample", variability: 1
-    input  heartbeat_snapshot: 1
     expect ok: "true"
   end
 
   test "ArchiveSnapshot runs" do
     tests "ArchiveSnapshot", on: "HeartbeatSnapshot"
     setup  "RecordHeartbeat", bpm: 1, rhythm: "sample", variability: 1
-    input  heartbeat_snapshot: 1
     expect ok: "true"
   end
 
@@ -58,14 +55,13 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "ShiftMood sets new_mood" do
     tests "ShiftMood", on: "MoodReading"
     setup  "LogMood", mood: "sample", intensity: 1, fatigue_level: 1
-    input  mood_reading: 1, new_mood: "sample"
+    input  new_mood: "sample"
     expect mood: "sample"
   end
 
   test "ResolveMood runs" do
     tests "ResolveMood", on: "MoodReading"
     setup  "LogMood", mood: "sample", intensity: 1, fatigue_level: 1
-    input  mood_reading: 1
     expect status: "resolved"
   end
 
@@ -81,15 +77,15 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "RecordFinding sets finding" do
     tests "RecordFinding", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
-    input  self_inquiry: 1, finding: "sample"
+    input  finding: "sample"
     expect finding: "sample", status: "answered"
   end
 
   test "CorrelateSignals sets left_signal + right_signal" do
     tests "CorrelateSignals", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
-    setup  "RecordFinding", self_inquiry: 1, finding: "sample"
-    input  self_inquiry: 1, left_signal: "sample", right_signal: "sample"
+    setup  "RecordFinding", finding: "sample"
+    input  left_signal: "sample", right_signal: "sample"
     expect ok: "true"
   end
 
@@ -105,14 +101,12 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "Deepen runs" do
     tests "Deepen", on: "Awareness"
     setup  "SynthesizeAwareness", summary: "sample", dominant_theme: "sample", clarity_score: 1
-    input  awareness: 1
     expect ok: "true"
   end
 
   test "Expire runs" do
     tests "Expire", on: "Awareness"
     setup  "SynthesizeAwareness", summary: "sample", dominant_theme: "sample", clarity_score: 1
-    input  awareness: 1
     expect status: "stale"
   end
 

@@ -12,14 +12,14 @@ Hecks.behaviors "CompostLoop" do
   test "PlantCrop sets crop_name + planted_date + nutrient_needs" do
     tests "PlantCrop", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", gardener: "sample"
-    input  garden_plot: 1, crop_name: "sample", planted_date: "sample", nutrient_needs: "sample"
+    input  crop_name: "sample", planted_date: "sample", nutrient_needs: "sample"
     expect crops_size: 1
   end
 
   test "HarvestCrop sets crop_name" do
     tests "HarvestCrop", on: "GardenPlot"
     setup  "AssignPlot", plot_id: "sample", gardener: "sample"
-    input  garden_plot: 1, crop_name: "sample"
+    input  crop_name: "sample"
     expect ok: "true"
   end
 
@@ -35,7 +35,7 @@ Hecks.behaviors "CompostLoop" do
   test "RecordCollection sets date + weight_kg + contamination_pct" do
     tests "RecordCollection", on: "WasteStream"
     setup  "RegisterStream", source: "sample", waste_type: "sample"
-    input  waste_stream: 1, date: "sample", weight_kg: 1.0, contamination_pct: 1.0
+    input  date: "sample", weight_kg: 1.0, contamination_pct: 1.0
     expect collections_size: 1
   end
 
@@ -45,19 +45,20 @@ Hecks.behaviors "CompostLoop" do
   test "StartBatch sets batch_id" do
     tests "StartBatch", on: "CompostBatch"
     setup  "RegisterStream", source: "sample", waste_type: "sample"
-    input  waste_stream: 1, batch_id: "sample"
+    input  batch_id: "sample"
     expect ok: "true"
   end
 
   test "RecordReading sets day + temperature_c + moisture_pct + carbon_nitrogen_ratio" do
     tests "RecordReading", on: "CompostBatch"
-    input  compost_batch: 1, day: 1, temperature_c: 1.0, moisture_pct: 1.0, carbon_nitrogen_ratio: 1.0
+    setup  "StartBatch", batch_id: "sample"
+    input  day: 1, temperature_c: 1.0, moisture_pct: 1.0, carbon_nitrogen_ratio: 1.0
     expect readings_size: 1
   end
 
   test "CureBatch runs" do
     tests "CureBatch", on: "CompostBatch"
-    input  compost_batch: 1
+    setup  "StartBatch", batch_id: "sample"
     expect ok: "true"
   end
 
@@ -67,13 +68,15 @@ Hecks.behaviors "CompostLoop" do
   test "ApplyAmendment sets application_date + volume_liters" do
     tests "ApplyAmendment", on: "SoilAmendment"
     setup  "AssignPlot", plot_id: "sample", gardener: "sample"
-    input  compost_batch: 1, garden_plot: 1, application_date: "sample", volume_liters: 1.0
+    setup  "StartBatch", batch_id: "sample"
+    input  application_date: "sample", volume_liters: 1.0
     expect ok: "true"
   end
 
   test "MeasureNutrient sets nutrient + concentration_ppm" do
     tests "MeasureNutrient", on: "SoilAmendment"
-    input  soil_amendment: 1, nutrient: "sample", concentration_ppm: 1.0
+    setup  "ApplyAmendment", application_date: "sample", volume_liters: 1.0
+    input  nutrient: "sample", concentration_ppm: 1.0
     expect nutrients_size: 1
   end
 

@@ -12,14 +12,13 @@ Hecks.behaviors "DisasterRelief" do
   test "EscalateIncident sets severity_level" do
     tests "EscalateIncident", on: "Incident"
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
-    input  incident: 1, severity_level: "sample"
+    input  severity_level: "sample"
     expect severity_level: "sample"
   end
 
   test "CloseIncident runs" do
     tests "CloseIncident", on: "Incident"
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
-    input  incident: 1
     expect status: "closed"
   end
 
@@ -29,20 +28,19 @@ Hecks.behaviors "DisasterRelief" do
   test "OpenShelter sets shelter_name + address + capacity" do
     tests "OpenShelter", on: "Shelter"
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
-    input  incident: 1, shelter_name: "sample", address: "sample", capacity: 1
+    input  shelter_name: "sample", address: "sample", capacity: 1
     expect shelter_name: "sample", address: "sample", capacity: 1, current_occupancy: 0, status: "open"
   end
 
   test "RegisterEvacuee runs" do
     tests "RegisterEvacuee", on: "Shelter"
-    setup  "OpenShelter", incident: 1, shelter_name: "sample", address: "sample", capacity: 1
-    input  shelter: 1
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
     expect ok: "true"
   end
 
   test "CloseShelter runs" do
     tests "CloseShelter", on: "Shelter"
-    input  shelter: 1
+    setup  "OpenShelter", shelter_name: "sample", address: "sample", capacity: 1
     expect status: "closed"
   end
 
@@ -58,14 +56,13 @@ Hecks.behaviors "DisasterRelief" do
   test "DeployVolunteer sets assigned_location" do
     tests "DeployVolunteer", on: "ReliefVolunteer"
     setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
-    input  relief_volunteer: 1, assigned_location: "sample"
+    input  assigned_location: "sample"
     expect assigned_location: "sample", deployment_status: "deployed"
   end
 
   test "ReleaseVolunteer runs" do
     tests "ReleaseVolunteer", on: "ReliefVolunteer"
     setup  "RegisterVolunteer", name: "sample", skills: "sample", phone: "sample"
-    input  relief_volunteer: 1
     expect deployment_status: "available", assigned_location: ""
   end
 
@@ -81,14 +78,13 @@ Hecks.behaviors "DisasterRelief" do
   test "DispatchSupply sets destination + quantity_shipped" do
     tests "DispatchSupply", on: "ReliefSupply"
     setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
-    input  relief_supply: 1, destination: "sample", quantity_shipped: 1
+    input  destination: "sample", quantity_shipped: 1
     expect ok: "true"
   end
 
   test "RequestResupply runs" do
     tests "RequestResupply", on: "ReliefSupply"
     setup  "ReceiveSupply", supply_name: "sample", category: "sample", quantity: 1, warehouse_location: "sample"
-    input  relief_supply: 1
     expect ok: "true"
   end
 
@@ -98,14 +94,14 @@ Hecks.behaviors "DisasterRelief" do
   test "OrderEvacuation sets evacuation_zone + order_date + transport_method + destination" do
     tests "OrderEvacuation", on: "Evacuation"
     setup  "DeclareIncident", incident_name: "sample", incident_type: "sample", declared_date: "sample", affected_area: "sample", severity_level: "sample"
-    input  incident: 1, evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    input  evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
     expect evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample", status: "ordered", people_evacuated: 0
   end
 
   test "ExecuteEvacuation sets people_evacuated" do
     tests "ExecuteEvacuation", on: "Evacuation"
-    setup  "OrderEvacuation", incident: 1, evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
-    input  evacuation: 1, people_evacuated: 1
+    setup  "OrderEvacuation", evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
+    input  people_evacuated: 1
     expect people_evacuated: 1, status: "completed"
   end
 

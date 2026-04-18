@@ -12,7 +12,6 @@ Hecks.behaviors "SpecimenTransport" do
   test "ReleaseSpecimen runs" do
     tests "ReleaseSpecimen", on: "LabSpecimen"
     setup  "PrepareSpecimen", specimen_id: "sample", patient_id: "sample", specimen_type: "sample", required_temp_c: 1.0, priority: "sample"
-    input  lab_specimen: 1
     expect status: "released"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "SpecimenTransport" do
   test "PickUpShipment runs" do
     tests "PickUpShipment", on: "ColdShipment"
     setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
-    input  cold_shipment: 1
     expect status: "in_transit"
   end
 
   test "DeliverShipment runs" do
     tests "DeliverShipment", on: "ColdShipment"
     setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
-    setup  "PickUpShipment", cold_shipment: 1
-    input  cold_shipment: 1
+    setup  "PickUpShipment"
     expect status: "delivered"
   end
 
@@ -52,14 +49,12 @@ Hecks.behaviors "SpecimenTransport" do
   test "TransferCustody runs" do
     tests "TransferCustody", on: "CustodyRecord"
     setup  "StartCustody", record_id: "sample", specimen_id: "sample"
-    input  custody_record: 1
     expect ok: "true"
   end
 
   test "CloseCustody runs" do
     tests "CloseCustody", on: "CustodyRecord"
     setup  "StartCustody", record_id: "sample", specimen_id: "sample"
-    input  custody_record: 1
     expect status: "closed"
   end
 
@@ -75,7 +70,7 @@ Hecks.behaviors "SpecimenTransport" do
   test "FinalizeAudit sets compliance_score + findings" do
     tests "FinalizeAudit", on: "QualityAudit"
     setup  "RunAudit", audit_id: "sample", shipment_id: "sample", auditor: "sample"
-    input  quality_audit: 1, compliance_score: 1.0, findings: "sample"
+    input  compliance_score: 1.0, findings: "sample"
     expect compliance_score: 1.0, findings: "sample", status: "finalized"
   end
 

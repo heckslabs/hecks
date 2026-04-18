@@ -12,15 +12,13 @@ Hecks.behaviors "RestaurantReservations" do
   test "MarkOccupied runs" do
     tests "MarkOccupied", on: "DiningTable"
     setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
-    input  dining_table: 1
     expect status: "occupied"
   end
 
   test "ClearTable runs" do
     tests "ClearTable", on: "DiningTable"
     setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
-    setup  "MarkOccupied", dining_table: 1
-    input  dining_table: 1
+    setup  "MarkOccupied"
     expect status: "available"
   end
 
@@ -36,14 +34,12 @@ Hecks.behaviors "RestaurantReservations" do
   test "CancelReservation runs" do
     tests "CancelReservation", on: "Reservation"
     setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
-    input  reservation: 1
     expect status: "cancelled"
   end
 
   test "MarkNoShow runs" do
     tests "MarkNoShow", on: "Reservation"
     setup  "BookReservation", guest_name: "sample", phone_number: "sample", reservation_date: "sample", time_slot: "sample", party_size: 1, special_requests: "sample"
-    input  reservation: 1
     expect status: "no_show"
   end
 
@@ -59,14 +55,12 @@ Hecks.behaviors "RestaurantReservations" do
   test "NotifyParty runs" do
     tests "NotifyParty", on: "Waitlist"
     setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
-    input  waitlist: 1
     expect status: "notified"
   end
 
   test "RemoveFromWaitlist runs" do
     tests "RemoveFromWaitlist", on: "Waitlist"
     setup  "AddToWaitlist", party_name: "sample", party_size: 1, quoted_wait_time: "sample"
-    input  waitlist: 1
     expect status: "removed"
   end
 
@@ -76,14 +70,13 @@ Hecks.behaviors "RestaurantReservations" do
   test "SeatParty sets server_name + covers" do
     tests "SeatParty", on: "Seating"
     setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
-    input  dining_table: 1, server_name: "sample", covers: 1
+    input  server_name: "sample", covers: 1
     expect server_name: "sample", covers: 1, status: "seated"
   end
 
   test "CloseSeating runs" do
     tests "CloseSeating", on: "Seating"
-    setup  "SeatParty", dining_table: 1, server_name: "sample", covers: 1
-    input  seating: 1
+    setup  "SeatParty", server_name: "sample", covers: 1
     expect status: "closed"
   end
 

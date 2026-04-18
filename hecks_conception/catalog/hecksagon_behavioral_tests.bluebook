@@ -314,14 +314,13 @@ Hecks.behaviors "Hecksagon" do
   test "WireDependency sets target_domain" do
     tests "WireDependency", on: "DomainDeclaration"
     setup  "DeclareDomain", name: "sample"
-    input  domain_declaration: 1, target_domain: "sample"
+    input  target_domain: "sample"
     expect listens_to_size: 1
   end
 
   test "SilenceDomain runs" do
     tests "SilenceDomain", on: "DomainDeclaration"
     setup  "DeclareDomain", name: "sample"
-    input  domain_declaration: 1
     expect expressed: "false"
   end
 

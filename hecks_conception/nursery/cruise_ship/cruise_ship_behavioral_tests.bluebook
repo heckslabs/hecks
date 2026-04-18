@@ -13,21 +13,18 @@ Hecks.behaviors "CruiseShip" do
     tests "AssignPassenger", on: "Cabin"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
     setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
-    input  cabin: 1, passenger: 1
     expect ok: "true"
   end
 
   test "InspectCabin runs" do
     tests "InspectCabin", on: "Cabin"
     setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
-    input  cabin: 1
     expect status: "inspected"
   end
 
   test "CleanCabin runs" do
     tests "CleanCabin", on: "Cabin"
     setup  "PrepareCabin", cabin_number: "sample", deck: "sample", category: "sample", max_occupancy: 1
-    input  cabin: 1
     expect status: "available"
   end
 
@@ -43,39 +40,34 @@ Hecks.behaviors "CruiseShip" do
   test "EmbarkPassenger runs" do
     tests "EmbarkPassenger", on: "Passenger"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    input  passenger: 1
     expect status: "embarked"
   end
 
   test "CompleteMusterDrill runs" do
     tests "CompleteMusterDrill", on: "Passenger"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    input  passenger: 1
     expect muster_status: "completed"
   end
 
   test "ClearForShoreLeave runs" do
     tests "ClearForShoreLeave", on: "Passenger"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    setup  "EmbarkPassenger", passenger: 1
-    input  passenger: 1
+    setup  "EmbarkPassenger"
     expect status: "ashore"
   end
 
   test "ReturnOnboard runs" do
     tests "ReturnOnboard", on: "Passenger"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    setup  "EmbarkPassenger", passenger: 1
-    setup  "ClearForShoreLeave", passenger: 1
-    input  passenger: 1
+    setup  "EmbarkPassenger"
+    setup  "ClearForShoreLeave"
     expect status: "embarked"
   end
 
   test "DisembarkPassenger runs" do
     tests "DisembarkPassenger", on: "Passenger"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    setup  "EmbarkPassenger", passenger: 1
-    input  passenger: 1
+    setup  "EmbarkPassenger"
     expect status: "disembarked"
   end
 
@@ -91,15 +83,13 @@ Hecks.behaviors "CruiseShip" do
   test "ArriveAtPort runs" do
     tests "ArriveAtPort", on: "PortOfCall"
     setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
-    input  port_of_call: 1
     expect status: "in_port"
   end
 
   test "DepartPort runs" do
     tests "DepartPort", on: "PortOfCall"
     setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
-    setup  "ArriveAtPort", port_of_call: 1
-    input  port_of_call: 1
+    setup  "ArriveAtPort"
     expect status: "departed"
   end
 
@@ -109,14 +99,14 @@ Hecks.behaviors "CruiseShip" do
   test "CreateExcursion sets excursion_name + description + capacity + price_cents" do
     tests "CreateExcursion", on: "Excursion"
     setup  "SchedulePort", port_name: "sample", country: "sample", arrival_time: "sample", departure_time: "sample"
-    input  port_of_call: 1, excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
+    input  excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
     expect excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1, status: "open", booked_count: 0
   end
 
   test "BookExcursion runs" do
     tests "BookExcursion", on: "Excursion"
     setup  "CheckInPassenger", booking_id: "sample", name: "sample", nationality: "sample", embarkation_port: "sample"
-    input  excursion: 1, passenger: 1
+    setup  "CreateExcursion", excursion_name: "sample", description: "sample", capacity: 1, price_cents: 1
     expect ok: "true"
   end
 

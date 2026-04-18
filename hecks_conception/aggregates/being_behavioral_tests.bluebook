@@ -12,35 +12,35 @@ Hecks.behaviors "Being" do
   test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
     tests "GraftDomain", on: "Being"
     setup  "CreateBeing", name: "sample", vision: "sample"
-    input  being: 1, domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
     expect organs_size: 1, active_count: 1
   end
 
   test "ShedDomain sets domain_name" do
     tests "ShedDomain", on: "Being"
     setup  "CreateBeing", name: "sample", vision: "sample"
-    input  being: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "ExpressDomain sets domain_name" do
     tests "ExpressDomain", on: "Being"
     setup  "CreateBeing", name: "sample", vision: "sample"
-    input  being: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "SilenceDomain sets domain_name" do
     tests "SilenceDomain", on: "Being"
     setup  "CreateBeing", name: "sample", vision: "sample"
-    input  being: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect active_count: 1
   end
 
   test "UpgradeOrgan sets domain_name + new_version" do
     tests "UpgradeOrgan", on: "Being"
     setup  "CreateBeing", name: "sample", vision: "sample"
-    input  being: 1, domain_name: "sample", new_version: "sample"
+    input  domain_name: "sample", new_version: "sample"
     expect ok: "true"
   end
 
@@ -56,14 +56,12 @@ Hecks.behaviors "Being" do
   test "SeverNerve runs" do
     tests "SeverNerve", on: "Nerve"
     setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
-    input  nerve: 1
     expect active: false
   end
 
   test "RestoreNerve runs" do
     tests "RestoreNerve", on: "Nerve"
     setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
-    input  nerve: 1
     expect active: true
   end
 
@@ -81,13 +79,12 @@ Hecks.behaviors "Being" do
 
   test "CheckOrgans runs" do
     tests "CheckOrgans", on: "OrganMonitor"
-    input  organ_monitor: 1
     expect checks: 1, last_checked_at: :now
   end
 
   test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
     tests "ReportOrganPulse", on: "OrganMonitor"
-    input  organ_monitor: 1, domain_name: "sample", event_count: "sample", last_event_at: "sample"
+    input  domain_name: "sample", event_count: "sample", last_event_at: "sample"
     expect organ_status_size: 1
   end
 
@@ -96,19 +93,18 @@ Hecks.behaviors "Being" do
 
   test "RecordSession runs" do
     tests "RecordSession", on: "Identity"
-    input  identity: 1
     expect sessions: 1
   end
 
   test "RememberPerson sets persona_name" do
     tests "RememberPerson", on: "Identity"
-    input  identity: 1, persona_name: "sample"
+    input  persona_name: "sample"
     expect personas_known_size: 1
   end
 
   test "EncodeIdentityMemory sets memory" do
     tests "EncodeIdentityMemory", on: "Identity"
-    input  identity: 1, memory: "sample"
+    input  memory: "sample"
     expect memories_size: 1
   end
 
@@ -133,14 +129,13 @@ Hecks.behaviors "Being" do
   test "UpdateMember sets version + aggregate_count + command_count + fixture_count" do
     tests "UpdateMember", on: "Member"
     setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
-    input  member: 1, version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    input  version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
   end
 
   test "RetireMember runs" do
     tests "RetireMember", on: "Member"
     setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
-    input  member: 1
     expect status: "retired"
   end
 
@@ -156,7 +151,6 @@ Hecks.behaviors "Being" do
   test "RecordAddition runs" do
     tests "RecordAddition", on: "FamilyIndex"
     setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
-    input  family_index: 1
     expect total_members: 1
   end
 
@@ -181,7 +175,7 @@ Hecks.behaviors "Being" do
   test "RecordDiscovery sets discovered" do
     tests "RecordDiscovery", on: "Discovery"
     setup  "ScanForMembers", scan_paths: "sample"
-    input  discovery: 1, discovered: 1
+    input  discovered: 1
     expect discovered: 1
   end
 
@@ -197,7 +191,7 @@ Hecks.behaviors "Being" do
   test "ReadPreviousSession sets session_id" do
     tests "ReadPreviousSession", on: "MindStream"
     setup  "Think", thought: "sample", depth: "sample", engine_used: "sample"
-    input  mind_stream: 1, session_id: "sample"
+    input  session_id: "sample"
     expect session_id: "sample"
   end
 

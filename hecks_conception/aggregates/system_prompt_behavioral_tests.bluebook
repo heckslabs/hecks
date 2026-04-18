@@ -21,7 +21,6 @@ Hecks.behaviors "SystemPrompt" do
   test "WritePrompt runs" do
     tests "WritePrompt", on: "Prompt"
     setup  "AssemblePrompt", organ_count: 1
-    input  prompt: 1
     expect ok: "true"
   end
 

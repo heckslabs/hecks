@@ -12,15 +12,13 @@ Hecks.behaviors "TeletherapyPlatform" do
   test "StartSession runs" do
     tests "StartSession", on: "TherapySession"
     setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
-    input  therapy_session: 1
     expect status: "in_progress"
   end
 
   test "EndSession runs" do
     tests "EndSession", on: "TherapySession"
     setup  "ScheduleSession", session_id: "sample", client_name: "sample", therapist_name: "sample", session_type: "sample", scheduled_time: "sample"
-    setup  "StartSession", therapy_session: 1
-    input  therapy_session: 1
+    setup  "StartSession"
     expect status: "completed"
   end
 
@@ -36,14 +34,12 @@ Hecks.behaviors "TeletherapyPlatform" do
   test "StartRecording runs" do
     tests "StartRecording", on: "VideoRoom"
     setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
-    input  video_room: 1
     expect recording_status: "recording"
   end
 
   test "CloseRoom runs" do
     tests "CloseRoom", on: "VideoRoom"
     setup  "CreateRoom", room_id: "sample", session_id: "sample", stream_url: "sample"
-    input  video_room: 1
     expect status: "closed"
   end
 
@@ -59,7 +55,6 @@ Hecks.behaviors "TeletherapyPlatform" do
   test "DeactivateClient runs" do
     tests "DeactivateClient", on: "ClientAccount"
     setup  "RegisterClient", client_id: "sample", name: "sample", insurance_provider: "sample"
-    input  client_account: 1
     expect status: "inactive"
   end
 
@@ -75,7 +70,6 @@ Hecks.behaviors "TeletherapyPlatform" do
   test "MarkPaid runs" do
     tests "MarkPaid", on: "BillingRecord"
     setup  "CreateInvoice", invoice_id: "sample", session_id: "sample", client_id: "sample", amount: 1.0
-    input  billing_record: 1
     expect status: "paid"
   end
 

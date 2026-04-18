@@ -12,14 +12,13 @@ Hecks.behaviors "LocksmithService" do
   test "ArriveOnSite runs" do
     tests "ArriveOnSite", on: "ServiceCall"
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
-    input  service_call: 1
     expect ok: "true"
   end
 
   test "CompleteService sets total_charge" do
     tests "CompleteService", on: "ServiceCall"
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
-    input  service_call: 1, total_charge: 1.0
+    input  total_charge: 1.0
     expect ok: "true"
   end
 
@@ -29,19 +28,20 @@ Hecks.behaviors "LocksmithService" do
   test "InstallLock sets lock_type + brand + grade + location" do
     tests "InstallLock", on: "Lock"
     setup  "DispatchLocksmith", customer_name: "sample", address: "sample", service_type: "sample", urgency: "sample"
-    input  service_call: 1, lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
     expect ok: "true"
   end
 
   test "RekeyLock runs" do
     tests "RekeyLock", on: "Lock"
-    input  lock: 1
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
     expect ok: "true"
   end
 
   test "ReplaceLock sets new_brand + new_grade" do
     tests "ReplaceLock", on: "Lock"
-    input  lock: 1, new_brand: "sample", new_grade: "sample"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  new_brand: "sample", new_grade: "sample"
     expect ok: "true"
   end
 
@@ -50,13 +50,15 @@ Hecks.behaviors "LocksmithService" do
 
   test "CutKeys sets key_type + quantity + blank_code" do
     tests "CutKeys", on: "KeyOrder"
-    input  lock: 1, key_type: "sample", quantity: 1, blank_code: "sample"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  key_type: "sample", quantity: 1, blank_code: "sample"
     expect ok: "true"
   end
 
   test "ProgramTransponder sets vehicle_make + vehicle_year" do
     tests "ProgramTransponder", on: "KeyOrder"
-    input  key_order: 1, vehicle_make: "sample", vehicle_year: "sample"
+    setup  "CutKeys", key_type: "sample", quantity: 1, blank_code: "sample"
+    input  vehicle_make: "sample", vehicle_year: "sample"
     expect ok: "true"
   end
 
@@ -65,13 +67,14 @@ Hecks.behaviors "LocksmithService" do
 
   test "ProgramCode sets code_name + code_value + access_level" do
     tests "ProgramCode", on: "AccessCode"
-    input  lock: 1, code_name: "sample", code_value: "sample", access_level: "sample"
+    setup  "InstallLock", lock_type: "sample", brand: "sample", grade: "sample", location: "sample"
+    input  code_name: "sample", code_value: "sample", access_level: "sample"
     expect ok: "true"
   end
 
   test "RevokeCode runs" do
     tests "RevokeCode", on: "AccessCode"
-    input  access_code: 1
+    setup  "ProgramCode", code_name: "sample", code_value: "sample", access_level: "sample"
     expect ok: "true"
   end
 

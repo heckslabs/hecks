@@ -12,14 +12,13 @@ Hecks.behaviors "FireSprinkler" do
   test "ActivateSystem runs" do
     tests "ActivateSystem", on: "SprinklerSystem"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    input  sprinkler_system: 1
     expect ok: "true"
   end
 
   test "ShutDownSystem sets reason" do
     tests "ShutDownSystem", on: "SprinklerSystem"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    input  sprinkler_system: 1, reason: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 
@@ -29,13 +28,14 @@ Hecks.behaviors "FireSprinkler" do
   test "DefineZone sets zone_name + floor + head_count + occupancy_type" do
     tests "DefineZone", on: "Zone"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    input  sprinkler_system: 1, zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
+    input  zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
     expect ok: "true"
   end
 
   test "AdjustHeadCount sets new_head_count" do
     tests "AdjustHeadCount", on: "Zone"
-    input  zone: 1, new_head_count: 1
+    setup  "DefineZone", zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
+    input  new_head_count: 1
     expect ok: "true"
   end
 
@@ -44,13 +44,15 @@ Hecks.behaviors "FireSprinkler" do
 
   test "InstallHead sets head_type + k_factor + temp_rating_f + orientation" do
     tests "InstallHead", on: "SprinklerHead"
-    input  zone: 1, head_type: "sample", k_factor: 1.0, temp_rating_f: 1, orientation: "sample"
+    setup  "DefineZone", zone_name: "sample", floor: "sample", head_count: 1, occupancy_type: "sample"
+    input  head_type: "sample", k_factor: 1.0, temp_rating_f: 1, orientation: "sample"
     expect ok: "true"
   end
 
   test "ReplaceHead sets replacement_reason" do
     tests "ReplaceHead", on: "SprinklerHead"
-    input  sprinkler_head: 1, replacement_reason: "sample"
+    setup  "InstallHead", head_type: "sample", k_factor: 1.0, temp_rating_f: 1, orientation: "sample"
+    input  replacement_reason: "sample"
     expect ok: "true"
   end
 
@@ -60,19 +62,20 @@ Hecks.behaviors "FireSprinkler" do
   test "PerformInspection sets inspection_type + inspector_name + inspection_date" do
     tests "PerformInspection", on: "SprinklerInspection"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    input  sprinkler_system: 1, inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
+    input  inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
     expect ok: "true"
   end
 
   test "RecordDeficiency sets deficiencies" do
     tests "RecordDeficiency", on: "SprinklerInspection"
-    input  sprinkler_inspection: 1, deficiencies: "sample"
+    setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
+    input  deficiencies: "sample"
     expect ok: "true"
   end
 
   test "IssueComplianceCert runs" do
     tests "IssueComplianceCert", on: "SprinklerInspection"
-    input  sprinkler_inspection: 1
+    setup  "PerformInspection", inspection_type: "sample", inspector_name: "sample", inspection_date: "sample"
     expect ok: "true"
   end
 
@@ -82,13 +85,13 @@ Hecks.behaviors "FireSprinkler" do
   test "TrackRequirement sets ahj_name + requirement + due_date" do
     tests "TrackRequirement", on: "ComplianceRecord"
     setup  "DesignSystem", building_name: "sample", address: "sample", system_type: "sample", pipe_material: "sample", design_density_gpm: 1.0
-    input  sprinkler_system: 1, ahj_name: "sample", requirement: "sample", due_date: "sample"
+    input  ahj_name: "sample", requirement: "sample", due_date: "sample"
     expect ok: "true"
   end
 
   test "MarkCompliant runs" do
     tests "MarkCompliant", on: "ComplianceRecord"
-    input  compliance_record: 1
+    setup  "TrackRequirement", ahj_name: "sample", requirement: "sample", due_date: "sample"
     expect ok: "true"
   end
 

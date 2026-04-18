@@ -12,7 +12,6 @@ Hecks.behaviors "SpeechMedia" do
   test "CompleteExercise runs" do
     tests "CompleteExercise", on: "TherapyExercise"
     setup  "PrescribeExercise", exercise_id: "sample", client_name: "sample", exercise_type: "sample", target_sound: "sample", repetitions: 1
-    input  therapy_exercise: 1
     expect status: "completed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "SpeechMedia" do
   test "AnalyzeRecording runs" do
     tests "AnalyzeRecording", on: "RecordedSession"
     setup  "RecordSession", recording_id: "sample", client_name: "sample", session_date: "sample", duration_minutes: 1.0, file_path: "sample"
-    input  recorded_session: 1
     expect status: "analyzed"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "SpeechMedia" do
   test "ShareClip runs" do
     tests "ShareClip", on: "ProgressAudio"
     setup  "CreateProgressClip", clip_id: "sample", client_name: "sample", milestone: "sample", before_path: "sample", after_path: "sample"
-    input  progress_audio: 1
     expect ok: "true"
   end
 
@@ -60,7 +57,6 @@ Hecks.behaviors "SpeechMedia" do
   test "PublishEpisode runs" do
     tests "PublishEpisode", on: "PodcastEpisode"
     setup  "ProduceEpisode", episode_id: "sample", title: "sample", topic: "sample", duration_minutes: 1.0
-    input  podcast_episode: 1
     expect status: "published"
   end
 

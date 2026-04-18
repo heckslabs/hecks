@@ -12,33 +12,33 @@ Hecks.behaviors "MaterialsScience" do
   test "DefineUnitCell sets a + b + c + alpha + beta + gamma" do
     tests "DefineUnitCell", on: "Crystal"
     setup  "GrowCrystal", name: "sample", crystal_system: "sample", temperature: 1.0, growth_rate: 1.0
-    input  crystal: 1, a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
+    input  a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
     expect status: "growing"
   end
 
   test "ClassifySymmetry sets space_group + symmetry_class" do
     tests "ClassifySymmetry", on: "Crystal"
     setup  "GrowCrystal", name: "sample", crystal_system: "sample", temperature: 1.0, growth_rate: 1.0
-    setup  "DefineUnitCell", crystal: 1, a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
-    input  crystal: 1, space_group: "sample", symmetry_class: "sample"
+    setup  "DefineUnitCell", a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
+    input  space_group: "sample", symmetry_class: "sample"
     expect space_group: "sample", symmetry_class: "sample", status: "crystallized"
   end
 
   test "IntroduceDefect sets defect_type + defect_density" do
     tests "IntroduceDefect", on: "Crystal"
     setup  "GrowCrystal", name: "sample", crystal_system: "sample", temperature: 1.0, growth_rate: 1.0
-    setup  "DefineUnitCell", crystal: 1, a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
-    setup  "ClassifySymmetry", crystal: 1, space_group: "sample", symmetry_class: "sample"
-    input  crystal: 1, defect_type: "sample", defect_density: 1.0
+    setup  "DefineUnitCell", a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
+    setup  "ClassifySymmetry", space_group: "sample", symmetry_class: "sample"
+    input  defect_type: "sample", defect_density: 1.0
     expect defect_type: "sample", defect_density: 1.0
   end
 
   test "AnnealCrystal sets anneal_temperature + cooling_rate" do
     tests "AnnealCrystal", on: "Crystal"
     setup  "GrowCrystal", name: "sample", crystal_system: "sample", temperature: 1.0, growth_rate: 1.0
-    setup  "DefineUnitCell", crystal: 1, a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
-    setup  "ClassifySymmetry", crystal: 1, space_group: "sample", symmetry_class: "sample"
-    input  crystal: 1, anneal_temperature: 1.0, cooling_rate: 1.0
+    setup  "DefineUnitCell", a: 1.0, b: 1.0, c: 1.0, alpha: 1.0, beta: 1.0, gamma: 1.0
+    setup  "ClassifySymmetry", space_group: "sample", symmetry_class: "sample"
+    input  anneal_temperature: 1.0, cooling_rate: 1.0
     expect status: "annealed"
   end
 
@@ -54,28 +54,27 @@ Hecks.behaviors "MaterialsScience" do
   test "MeasureDensity sets density" do
     tests "MeasureDensity", on: "Material"
     setup  "ClassifyMaterial", name: "sample", material_class: "sample"
-    input  material: 1, density: 1.0
+    input  density: 1.0
     expect density: 1.0
   end
 
   test "TestHardness sets hardness + scale" do
     tests "TestHardness", on: "Material"
     setup  "ClassifyMaterial", name: "sample", material_class: "sample"
-    input  material: 1, hardness: 1.0, scale: "sample"
+    input  hardness: 1.0, scale: "sample"
     expect hardness: 1.0
   end
 
   test "DetermineComposition runs" do
     tests "DetermineComposition", on: "Material"
     setup  "ClassifyMaterial", name: "sample", material_class: "sample"
-    input  material: 1
     expect ok: "true"
   end
 
   test "CharacterizeMicrostructure sets microstructure" do
     tests "CharacterizeMicrostructure", on: "Material"
     setup  "ClassifyMaterial", name: "sample", material_class: "sample"
-    input  material: 1, microstructure: "sample"
+    input  microstructure: "sample"
     expect microstructure: "sample"
   end
 
@@ -91,36 +90,35 @@ Hecks.behaviors "MaterialsScience" do
   test "CoolMaterial sets temperature + cooling_rate" do
     tests "CoolMaterial", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    input  phase_transition: 1, temperature: 1.0, cooling_rate: 1.0
+    input  temperature: 1.0, cooling_rate: 1.0
     expect temperature: 1.0
   end
 
   test "IdentifyPhase sets current_phase" do
     tests "IdentifyPhase", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    input  phase_transition: 1, current_phase: "sample"
+    input  current_phase: "sample"
     expect current_phase: "sample"
   end
 
   test "MapPhaseDiagram sets transition_type" do
     tests "MapPhaseDiagram", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    input  phase_transition: 1, transition_type: "sample"
+    input  transition_type: "sample"
     expect transition_type: "sample"
   end
 
   test "TriggerTransition sets target_phase" do
     tests "TriggerTransition", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    input  phase_transition: 1, target_phase: "sample"
+    input  target_phase: "sample"
     expect target_phase: "sample", status: "melting"
   end
 
   test "Quench runs" do
     tests "Quench", on: "PhaseTransition"
     setup  "HeatMaterial", material_name: "sample", temperature: 1.0, pressure: 1.0
-    setup  "TriggerTransition", phase_transition: 1, target_phase: "sample"
-    input  phase_transition: 1
+    setup  "TriggerTransition", target_phase: "sample"
     expect status: "solid"
   end
 
@@ -136,35 +134,35 @@ Hecks.behaviors "MaterialsScience" do
   test "MixComponents sets element + weight_percent" do
     tests "MixComponents", on: "Alloy"
     setup  "FormAlloy", name: "sample", base_metal: "sample"
-    input  alloy: 1, element: "sample", weight_percent: 1.0
+    input  element: "sample", weight_percent: 1.0
     expect ok: "true"
   end
 
   test "MeasureSolubility sets solubility + temperature" do
     tests "MeasureSolubility", on: "Alloy"
     setup  "FormAlloy", name: "sample", base_metal: "sample"
-    input  alloy: 1, solubility: 1.0, temperature: 1.0
+    input  solubility: 1.0, temperature: 1.0
     expect solubility: 1.0
   end
 
   test "HeatTreat sets heat_treatment + temperature + hold_time" do
     tests "HeatTreat", on: "Alloy"
     setup  "FormAlloy", name: "sample", base_metal: "sample"
-    input  alloy: 1, heat_treatment: "sample", temperature: 1.0, hold_time: 1.0
+    input  heat_treatment: "sample", temperature: 1.0, hold_time: 1.0
     expect heat_treatment: "sample"
   end
 
   test "TestTensileStrength sets tensile_strength + yield_strength" do
     tests "TestTensileStrength", on: "Alloy"
     setup  "FormAlloy", name: "sample", base_metal: "sample"
-    input  alloy: 1, tensile_strength: 1.0, yield_strength: 1.0
+    input  tensile_strength: 1.0, yield_strength: 1.0
     expect tensile_strength: 1.0, yield_strength: 1.0
   end
 
   test "Temper sets temper_temperature + duration" do
     tests "Temper", on: "Alloy"
     setup  "FormAlloy", name: "sample", base_metal: "sample"
-    input  alloy: 1, temper_temperature: 1.0, duration: 1.0
+    input  temper_temperature: 1.0, duration: 1.0
     expect ok: "true"
   end
 
@@ -180,39 +178,39 @@ Hecks.behaviors "MaterialsScience" do
   test "Crosslink sets crosslink_density + crosslinker" do
     tests "Crosslink", on: "Polymer"
     setup  "Polymerize", name: "sample", monomer: "sample", degree_of_polymerization: 1
-    setup  "MeasureMolecularWeight", polymer: 1, molecular_weight: 1.0, method: "sample"
-    input  polymer: 1, crosslink_density: 1.0, crosslinker: "sample"
+    setup  "MeasureMolecularWeight", molecular_weight: 1.0, method: "sample"
+    input  crosslink_density: 1.0, crosslinker: "sample"
     expect crosslink_density: 1.0, status: "crosslinked"
   end
 
   test "MeasureMolecularWeight sets molecular_weight + method" do
     tests "MeasureMolecularWeight", on: "Polymer"
     setup  "Polymerize", name: "sample", monomer: "sample", degree_of_polymerization: 1
-    input  polymer: 1, molecular_weight: 1.0, method: "sample"
+    input  molecular_weight: 1.0, method: "sample"
     expect molecular_weight: 1.0, status: "polymer"
   end
 
   test "TestElasticity sets elasticity + strain_rate" do
     tests "TestElasticity", on: "Polymer"
     setup  "Polymerize", name: "sample", monomer: "sample", degree_of_polymerization: 1
-    input  polymer: 1, elasticity: 1.0, strain_rate: 1.0
+    input  elasticity: 1.0, strain_rate: 1.0
     expect elasticity: 1.0
   end
 
   test "Degrade sets degradation_mechanism + mass_loss" do
     tests "Degrade", on: "Polymer"
     setup  "Polymerize", name: "sample", monomer: "sample", degree_of_polymerization: 1
-    setup  "MeasureMolecularWeight", polymer: 1, molecular_weight: 1.0, method: "sample"
-    setup  "Crosslink", polymer: 1, crosslink_density: 1.0, crosslinker: "sample"
-    input  polymer: 1, degradation_mechanism: "sample", mass_loss: 1.0
+    setup  "MeasureMolecularWeight", molecular_weight: 1.0, method: "sample"
+    setup  "Crosslink", crosslink_density: 1.0, crosslinker: "sample"
+    input  degradation_mechanism: "sample", mass_loss: 1.0
     expect status: "degraded"
   end
 
   test "Vulcanize sets sulfur_content + temperature" do
     tests "Vulcanize", on: "Polymer"
     setup  "Polymerize", name: "sample", monomer: "sample", degree_of_polymerization: 1
-    setup  "MeasureMolecularWeight", polymer: 1, molecular_weight: 1.0, method: "sample"
-    input  polymer: 1, sulfur_content: 1.0, temperature: 1.0
+    setup  "MeasureMolecularWeight", molecular_weight: 1.0, method: "sample"
+    input  sulfur_content: 1.0, temperature: 1.0
     expect status: "crosslinked"
   end
 
@@ -228,28 +226,28 @@ Hecks.behaviors "MaterialsScience" do
   test "CureComposite sets cure_temperature + cure_pressure + cure_time" do
     tests "CureComposite", on: "Composite"
     setup  "LayupComposite", name: "sample", matrix_material: "sample", reinforcement: "sample"
-    input  composite: 1, cure_temperature: 1.0, cure_pressure: 1.0, cure_time: 1.0
+    input  cure_temperature: 1.0, cure_pressure: 1.0, cure_time: 1.0
     expect status: "cured"
   end
 
   test "TestDelamination sets test_method" do
     tests "TestDelamination", on: "Composite"
     setup  "LayupComposite", name: "sample", matrix_material: "sample", reinforcement: "sample"
-    input  composite: 1, test_method: "sample"
+    input  test_method: "sample"
     expect ok: "true"
   end
 
   test "MeasureStrength sets strength + test_direction" do
     tests "MeasureStrength", on: "Composite"
     setup  "LayupComposite", name: "sample", matrix_material: "sample", reinforcement: "sample"
-    input  composite: 1, strength: 1.0, test_direction: "sample"
+    input  strength: 1.0, test_direction: "sample"
     expect strength: 1.0
   end
 
   test "DesignLaminate sets target_property" do
     tests "DesignLaminate", on: "Composite"
     setup  "LayupComposite", name: "sample", matrix_material: "sample", reinforcement: "sample"
-    input  composite: 1, target_property: "sample"
+    input  target_property: "sample"
     expect ok: "true"
   end
 
@@ -265,28 +263,28 @@ Hecks.behaviors "MaterialsScience" do
   test "FireCeramic sets fire_temperature + atmosphere" do
     tests "FireCeramic", on: "Ceramic"
     setup  "SinterCeramic", name: "sample", ceramic_type: "sample", sinter_temperature: 1.0, hold_time: 1.0
-    input  ceramic: 1, fire_temperature: 1.0, atmosphere: "sample"
+    input  fire_temperature: 1.0, atmosphere: "sample"
     expect status: "fired"
   end
 
   test "GlazeSurface sets glaze + glaze_temperature" do
     tests "GlazeSurface", on: "Ceramic"
     setup  "SinterCeramic", name: "sample", ceramic_type: "sample", sinter_temperature: 1.0, hold_time: 1.0
-    input  ceramic: 1, glaze: "sample", glaze_temperature: 1.0
+    input  glaze: "sample", glaze_temperature: 1.0
     expect glaze: "sample"
   end
 
   test "TestFractureToughness sets fracture_toughness + test_method" do
     tests "TestFractureToughness", on: "Ceramic"
     setup  "SinterCeramic", name: "sample", ceramic_type: "sample", sinter_temperature: 1.0, hold_time: 1.0
-    input  ceramic: 1, fracture_toughness: 1.0, test_method: "sample"
+    input  fracture_toughness: 1.0, test_method: "sample"
     expect fracture_toughness: 1.0
   end
 
   test "MeasureThermalConductivity sets thermal_conductivity" do
     tests "MeasureThermalConductivity", on: "Ceramic"
     setup  "SinterCeramic", name: "sample", ceramic_type: "sample", sinter_temperature: 1.0, hold_time: 1.0
-    input  ceramic: 1, thermal_conductivity: 1.0
+    input  thermal_conductivity: 1.0
     expect thermal_conductivity: 1.0
   end
 
@@ -302,31 +300,31 @@ Hecks.behaviors "MaterialsScience" do
   test "DopeSemiconductor sets dopant + dopant_concentration + conductivity_type" do
     tests "DopeSemiconductor", on: "Semiconductor"
     setup  "GrowWafer", name: "sample", base_material: "sample", diameter: 1.0
-    input  semiconductor: 1, dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
+    input  dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
     expect dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample", status: "doped"
   end
 
   test "MeasureBandGap sets band_gap" do
     tests "MeasureBandGap", on: "Semiconductor"
     setup  "GrowWafer", name: "sample", base_material: "sample", diameter: 1.0
-    input  semiconductor: 1, band_gap: 1.0
+    input  band_gap: 1.0
     expect band_gap: 1.0
   end
 
   test "EtchPattern sets pattern_type + etch_depth" do
     tests "EtchPattern", on: "Semiconductor"
     setup  "GrowWafer", name: "sample", base_material: "sample", diameter: 1.0
-    setup  "DopeSemiconductor", semiconductor: 1, dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
-    input  semiconductor: 1, pattern_type: "sample", etch_depth: 1.0
+    setup  "DopeSemiconductor", dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
+    input  pattern_type: "sample", etch_depth: 1.0
     expect status: "patterned"
   end
 
   test "DepositThinFilm sets film_material + film_thickness + method" do
     tests "DepositThinFilm", on: "Semiconductor"
     setup  "GrowWafer", name: "sample", base_material: "sample", diameter: 1.0
-    setup  "DopeSemiconductor", semiconductor: 1, dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
-    setup  "EtchPattern", semiconductor: 1, pattern_type: "sample", etch_depth: 1.0
-    input  semiconductor: 1, film_material: "sample", film_thickness: 1.0, method: "sample"
+    setup  "DopeSemiconductor", dopant: "sample", dopant_concentration: 1.0, conductivity_type: "sample"
+    setup  "EtchPattern", pattern_type: "sample", etch_depth: 1.0
+    input  film_material: "sample", film_thickness: 1.0, method: "sample"
     expect status: "integrated"
   end
 
@@ -342,28 +340,28 @@ Hecks.behaviors "MaterialsScience" do
   test "FunctionalizeNanoSurface sets functionalization + ligand" do
     tests "FunctionalizeNanoSurface", on: "Nanomaterial"
     setup  "SynthesizeNanoparticle", name: "sample", nanomaterial_type: "sample", particle_size: 1.0, method: "sample"
-    input  nanomaterial: 1, functionalization: "sample", ligand: "sample"
+    input  functionalization: "sample", ligand: "sample"
     expect functionalization: "sample"
   end
 
   test "MeasureQuantumEffect sets quantum_effect + measurement_technique" do
     tests "MeasureQuantumEffect", on: "Nanomaterial"
     setup  "SynthesizeNanoparticle", name: "sample", nanomaterial_type: "sample", particle_size: 1.0, method: "sample"
-    input  nanomaterial: 1, quantum_effect: "sample", measurement_technique: "sample"
+    input  quantum_effect: "sample", measurement_technique: "sample"
     expect quantum_effect: "sample"
   end
 
   test "AssembleNanostructure sets structure_type + assembly_method" do
     tests "AssembleNanostructure", on: "Nanomaterial"
     setup  "SynthesizeNanoparticle", name: "sample", nanomaterial_type: "sample", particle_size: 1.0, method: "sample"
-    input  nanomaterial: 1, structure_type: "sample", assembly_method: "sample"
+    input  structure_type: "sample", assembly_method: "sample"
     expect ok: "true"
   end
 
   test "CharacterizeNano sets surface_area + technique" do
     tests "CharacterizeNano", on: "Nanomaterial"
     setup  "SynthesizeNanoparticle", name: "sample", nanomaterial_type: "sample", particle_size: 1.0, method: "sample"
-    input  nanomaterial: 1, surface_area: 1.0, technique: "sample"
+    input  surface_area: 1.0, technique: "sample"
     expect surface_area: 1.0
   end
 
@@ -379,35 +377,35 @@ Hecks.behaviors "MaterialsScience" do
   test "MeasureStrain sets strain + gauge_length" do
     tests "MeasureStrain", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  stress: 1, strain: 1.0, gauge_length: 1.0
+    input  strain: 1.0, gauge_length: 1.0
     expect strain: 1.0
   end
 
   test "CalculateYoungModulus sets young_modulus" do
     tests "CalculateYoungModulus", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  stress: 1, young_modulus: 1.0
+    input  young_modulus: 1.0
     expect young_modulus: 1.0
   end
 
   test "TestFatigue sets fatigue_cycles + stress_amplitude" do
     tests "TestFatigue", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  stress: 1, fatigue_cycles: 1, stress_amplitude: 1.0
+    input  fatigue_cycles: 1, stress_amplitude: 1.0
     expect fatigue_cycles: 1
   end
 
   test "PredictFracture sets fracture_mode + critical_stress" do
     tests "PredictFracture", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  stress: 1, fracture_mode: "sample", critical_stress: 1.0
+    input  fracture_mode: "sample", critical_stress: 1.0
     expect fracture_mode: "sample"
   end
 
   test "MapStressField sets method + resolution" do
     tests "MapStressField", on: "Stress"
     setup  "ApplyStress", material_name: "sample", stress_type: "sample", magnitude: 1.0
-    input  stress: 1, method: "sample", resolution: 1.0
+    input  method: "sample", resolution: 1.0
     expect ok: "true"
   end
 

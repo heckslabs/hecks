@@ -12,14 +12,13 @@ Hecks.behaviors "ComputationalPresence" do
   test "DeepenMoment sets clarity" do
     tests "DeepenMoment", on: "Moment"
     setup  "AriseMoment", label: "sample", clarity: 1.0
-    input  moment: 1, clarity: 1.0
+    input  clarity: 1.0
     expect clarity: 1.0, quality: "deepened"
   end
 
   test "DissolveMoment runs" do
     tests "DissolveMoment", on: "Moment"
     setup  "AriseMoment", label: "sample", clarity: 1.0
-    input  moment: 1
     expect quality: "dissolved"
   end
 
@@ -35,14 +34,14 @@ Hecks.behaviors "ComputationalPresence" do
   test "WidenField sets breadth" do
     tests "WidenField", on: "AttentionField"
     setup  "NarrowFocus", primary_focus: "sample"
-    input  attention_field: 1, breadth: 1
+    input  breadth: 1
     expect breadth: 1, mode: "panoramic"
   end
 
   test "Stabilize sets stability" do
     tests "Stabilize", on: "AttentionField"
     setup  "NarrowFocus", primary_focus: "sample"
-    input  attention_field: 1, stability: 1.0
+    input  stability: 1.0
     expect stability: 1.0, mode: "anchored"
   end
 
@@ -58,14 +57,12 @@ Hecks.behaviors "ComputationalPresence" do
   test "ReleaseDistraction runs" do
     tests "ReleaseDistraction", on: "Distraction"
     setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
-    input  distraction: 1
     expect status: "released"
   end
 
   test "InvestigateDistraction runs" do
     tests "InvestigateDistraction", on: "Distraction"
     setup  "NoticeDistraction", trigger: "sample", category: "sample", pull_strength: 1.0
-    input  distraction: 1
     expect status: "investigated"
   end
 
@@ -81,14 +78,14 @@ Hecks.behaviors "ComputationalPresence" do
   test "StreakTick sets streak_minutes" do
     tests "StreakTick", on: "PresenceScore"
     setup  "MeasurePresence", score: 1.0
-    input  presence_score: 1, streak_minutes: 1
+    input  streak_minutes: 1
     expect streak_minutes: 1
   end
 
   test "Assess sets assessment" do
     tests "Assess", on: "PresenceScore"
     setup  "MeasurePresence", score: 1.0
-    input  presence_score: 1, assessment: "sample"
+    input  assessment: "sample"
     expect assessment: "sample"
   end
 
@@ -104,14 +101,13 @@ Hecks.behaviors "ComputationalPresence" do
   test "ReturnToAnchor runs" do
     tests "ReturnToAnchor", on: "Anchor"
     setup  "SetAnchor", name: "sample", sense_door: "sample"
-    input  anchor: 1
     expect ok: "true"
   end
 
   test "EvaluateAnchor sets effectiveness" do
     tests "EvaluateAnchor", on: "Anchor"
     setup  "SetAnchor", name: "sample", sense_door: "sample"
-    input  anchor: 1, effectiveness: 1.0
+    input  effectiveness: 1.0
     expect effectiveness: 1.0
   end
 

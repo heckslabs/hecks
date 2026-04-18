@@ -12,24 +12,21 @@ Hecks.behaviors "AnimalGenetics" do
   test "OrderDNATest runs" do
     tests "OrderDNATest", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
-    input  animal_profile: 1
     expect status: "testing"
   end
 
   test "MakeAvailable runs" do
     tests "MakeAvailable", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
-    setup  "OrderDNATest", animal_profile: 1
-    input  animal_profile: 1
+    setup  "OrderDNATest"
     expect status: "available"
   end
 
   test "AdoptAnimal runs" do
     tests "AdoptAnimal", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
-    setup  "OrderDNATest", animal_profile: 1
-    setup  "MakeAvailable", animal_profile: 1
-    input  animal_profile: 1
+    setup  "OrderDNATest"
+    setup  "MakeAvailable"
     expect status: "adopted"
   end
 
@@ -45,7 +42,7 @@ Hecks.behaviors "AnimalGenetics" do
   test "IdentifyBreeds sets primary_breed_result + secondary_breed_result + breed_confidence_pct" do
     tests "IdentifyBreeds", on: "DNAProfile"
     setup  "ProcessDNASample", animal_name: "sample", sample_id: "sample"
-    input  d_n_a_profile: 1, primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
+    input  primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0
     expect primary_breed_result: "sample", secondary_breed_result: "sample", breed_confidence_pct: 1.0, status: "identified"
   end
 
@@ -61,7 +58,7 @@ Hecks.behaviors "AnimalGenetics" do
   test "RecommendPrevention sets preventive_action" do
     tests "RecommendPrevention", on: "HealthPredisposition"
     setup  "ScreenForConditions", animal_name: "sample", condition_name: "sample", risk_probability: 1.0, severity: "sample"
-    input  health_predisposition: 1, preventive_action: "sample"
+    input  preventive_action: "sample"
     expect preventive_action: "sample", status: "recommended"
   end
 
@@ -77,7 +74,6 @@ Hecks.behaviors "AnimalGenetics" do
   test "ApproveMatch runs" do
     tests "ApproveMatch", on: "AdoptionMatch"
     setup  "GenerateMatch", animal_name: "sample", adopter_name: "sample", compatibility_score: 1.0, match_factors: "sample"
-    input  adoption_match: 1
     expect status: "approved"
   end
 

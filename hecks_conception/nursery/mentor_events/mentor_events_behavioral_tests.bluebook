@@ -12,7 +12,6 @@ Hecks.behaviors "MentorEvents" do
   test "CloseMatch runs" do
     tests "CloseMatch", on: "MentorMatch"
     setup  "CreateMatch", match_id: "sample", mentor_name: "sample", mentee_name: "sample", focus_area: "sample", start_date: "sample"
-    input  mentor_match: 1
     expect status: "closed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "MentorEvents" do
   test "CancelEvent runs" do
     tests "CancelEvent", on: "GroupEvent"
     setup  "PlanEvent", event_id: "sample", event_name: "sample", venue: "sample", date: "sample", capacity: 1
-    input  group_event: 1
     expect status: "cancelled"
   end
 
@@ -53,7 +51,6 @@ Hecks.behaviors "MentorEvents" do
   test "PublishImpact runs" do
     tests "PublishImpact", on: "ImpactReport"
     setup  "MeasureImpact", report_id: "sample", match_id: "sample", academic_improvement: 1.0, confidence_score: 1.0, period: "sample"
-    input  impact_report: 1
     expect status: "published"
   end
 

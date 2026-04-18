@@ -12,14 +12,14 @@ Hecks.behaviors "Discovery" do
   test "AddMember sets domain_name" do
     tests "AddMember", on: "DomainCluster"
     setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
-    input  domain_cluster: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect member_domains_size: 1, member_count: 1
   end
 
   test "RecalculateCohesion sets cohesion_score" do
     tests "RecalculateCohesion", on: "DomainCluster"
     setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
-    input  domain_cluster: 1, cohesion_score: 1.0
+    input  cohesion_score: 1.0
     expect cohesion_score: 1.0
   end
 
@@ -35,14 +35,14 @@ Hecks.behaviors "Discovery" do
   test "RecordOccurrence sets domain_name" do
     tests "RecordOccurrence", on: "PrimitivePattern"
     setup  "ExtractPrimitive", pattern_name: "sample", description: "sample", structural_signature: "sample"
-    input  primitive_pattern: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect example_domains_size: 1, occurrence_count: 1
   end
 
   test "RefineSignature sets structural_signature + aggregate_template_count + command_template_count" do
     tests "RefineSignature", on: "PrimitivePattern"
     setup  "ExtractPrimitive", pattern_name: "sample", description: "sample", structural_signature: "sample"
-    input  primitive_pattern: 1, structural_signature: "sample", aggregate_template_count: 1, command_template_count: 1
+    input  structural_signature: "sample", aggregate_template_count: 1, command_template_count: 1
     expect structural_signature: "sample", aggregate_template_count: 1, command_template_count: 1
   end
 

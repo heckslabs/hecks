@@ -12,7 +12,7 @@ Hecks.behaviors "Planetarium" do
   test "UpdatePosition sets right_ascension_hr + declination_deg" do
     tests "UpdatePosition", on: "CelestialBody"
     setup  "CatalogBody", name: "sample", body_type: "sample", right_ascension_hr: 1.0, declination_deg: 1.0, apparent_magnitude: 1.0, constellation: "sample"
-    input  celestial_body: 1, right_ascension_hr: 1.0, declination_deg: 1.0
+    input  right_ascension_hr: 1.0, declination_deg: 1.0
     expect right_ascension_hr: 1.0, declination_deg: 1.0
   end
 
@@ -28,15 +28,13 @@ Hecks.behaviors "Planetarium" do
   test "CalibrateProjector runs" do
     tests "CalibrateProjector", on: "Projector"
     setup  "InstallProjector", projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
-    input  projector: 1
     expect status: "calibrated"
   end
 
   test "ActivateProjector runs" do
     tests "ActivateProjector", on: "Projector"
     setup  "InstallProjector", projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
-    setup  "CalibrateProjector", projector: 1
-    input  projector: 1
+    setup  "CalibrateProjector"
     expect status: "active"
   end
 
@@ -52,15 +50,13 @@ Hecks.behaviors "Planetarium" do
   test "RehearsalShow runs" do
     tests "RehearsalShow", on: "Show"
     setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    input  show: 1
     expect status: "rehearsed"
   end
 
   test "PublishShow runs" do
     tests "PublishShow", on: "Show"
     setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
-    setup  "RehearsalShow", show: 1
-    input  show: 1
+    setup  "RehearsalShow"
     expect status: "published"
   end
 
@@ -76,14 +72,12 @@ Hecks.behaviors "Planetarium" do
   test "SellTicket runs" do
     tests "SellTicket", on: "ShowSchedule"
     setup  "ScheduleShow", show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
-    input  show_schedule: 1
     expect ok: "true"
   end
 
   test "CancelShow runs" do
     tests "CancelShow", on: "ShowSchedule"
     setup  "ScheduleShow", show_title: "sample", show_date: "sample", show_time: "sample", capacity: 1
-    input  show_schedule: 1
     expect status: "cancelled"
   end
 

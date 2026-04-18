@@ -12,7 +12,7 @@ Hecks.behaviors "SmartGrocery" do
   test "AddNutrient sets nutrient_name + amount + unit + daily_value_pct" do
     tests "AddNutrient", on: "Product"
     setup  "StockProduct", name: "sample", category: "sample", price_cents: 1
-    input  product: 1, nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
+    input  nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
     expect nutrients_size: 1
   end
 
@@ -28,14 +28,14 @@ Hecks.behaviors "SmartGrocery" do
   test "AddRestriction sets restriction_type + severity" do
     tests "AddRestriction", on: "DietaryProfile"
     setup  "CreateProfile", customer_name: "sample", calorie_target: 1
-    input  dietary_profile: 1, restriction_type: "sample", severity: "sample"
+    input  restriction_type: "sample", severity: "sample"
     expect restrictions_size: 1
   end
 
   test "SetGoal sets nutrient_name + target_amount + unit" do
     tests "SetGoal", on: "DietaryProfile"
     setup  "CreateProfile", customer_name: "sample", calorie_target: 1
-    input  dietary_profile: 1, nutrient_name: "sample", target_amount: 1.0, unit: "sample"
+    input  nutrient_name: "sample", target_amount: 1.0, unit: "sample"
     expect goals_size: 1
   end
 
@@ -45,19 +45,20 @@ Hecks.behaviors "SmartGrocery" do
   test "GeneratePlan sets week_start" do
     tests "GeneratePlan", on: "MealPlan"
     setup  "CreateProfile", customer_name: "sample", calorie_target: 1
-    input  dietary_profile: 1, week_start: "sample"
+    input  week_start: "sample"
     expect ok: "true"
   end
 
   test "AddMeal sets day + meal_type + recipe_name + calories" do
     tests "AddMeal", on: "MealPlan"
-    input  meal_plan: 1, day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
+    setup  "GeneratePlan", week_start: "sample"
+    input  day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
     expect meals_size: 1
   end
 
   test "ApprovePlan runs" do
     tests "ApprovePlan", on: "MealPlan"
-    input  meal_plan: 1
+    setup  "GeneratePlan", week_start: "sample"
     expect ok: "true"
   end
 
@@ -66,19 +67,20 @@ Hecks.behaviors "SmartGrocery" do
 
   test "GenerateList runs" do
     tests "GenerateList", on: "ShoppingList"
-    input  meal_plan: 1
+    setup  "GeneratePlan", week_start: "sample"
     expect ok: "true"
   end
 
   test "AddItem sets product_name + quantity + aisle" do
     tests "AddItem", on: "ShoppingList"
-    input  shopping_list: 1, product_name: "sample", quantity: 1, aisle: "sample"
+    setup  "GenerateList"
+    input  product_name: "sample", quantity: 1, aisle: "sample"
     expect items_size: 1
   end
 
   test "Checkout runs" do
     tests "Checkout", on: "ShoppingList"
-    input  shopping_list: 1
+    setup  "GenerateList"
     expect ok: "true"
   end
 

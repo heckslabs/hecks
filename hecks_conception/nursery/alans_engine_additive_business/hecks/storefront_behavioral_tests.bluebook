@@ -12,28 +12,26 @@ Hecks.behaviors "Storefront" do
   test "ConfigureBrand sets tagline + theme" do
     tests "ConfigureBrand", on: "StorefrontSite"
     setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
-    input  storefront_site: 1, tagline: "sample", theme: "sample"
+    input  tagline: "sample", theme: "sample"
     expect tagline: "sample", theme: "sample"
   end
 
   test "SetTheme sets theme" do
     tests "SetTheme", on: "StorefrontSite"
     setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
-    input  storefront_site: 1, theme: "sample"
+    input  theme: "sample"
     expect theme: "sample"
   end
 
   test "EnableBrand runs" do
     tests "EnableBrand", on: "StorefrontSite"
     setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
-    input  storefront_site: 1
     expect active: "true"
   end
 
   test "DisableBrand runs" do
     tests "DisableBrand", on: "StorefrontSite"
     setup  "LaunchStorefront", brand: "sample", domain_name: "sample", tagline: "sample", theme: "sample"
-    input  storefront_site: 1
     expect active: "false"
   end
 
@@ -49,36 +47,34 @@ Hecks.behaviors "Storefront" do
   test "EnrichWithScience sets test_results + benefits" do
     tests "EnrichWithScience", on: "ProductListing"
     setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
-    input  product_listing: 1, specifications: "sample_specification", test_results: "sample", benefits: "sample"
+    input  specifications: "sample_specification", test_results: "sample", benefits: "sample"
     expect specifications: "sample_specification", test_results: "sample", benefits: "sample"
   end
 
   test "SetFeatured sets featured" do
     tests "SetFeatured", on: "ProductListing"
     setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
-    input  product_listing: 1, featured: "sample"
+    input  featured: "sample"
     expect featured: "sample"
   end
 
   test "UpdateStock sets in_stock" do
     tests "UpdateStock", on: "ProductListing"
     setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
-    input  product_listing: 1, in_stock: "sample"
+    input  in_stock: "sample"
     expect in_stock: "sample"
   end
 
   test "PublishListing runs" do
     tests "PublishListing", on: "ProductListing"
     setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
-    input  product_listing: 1
     expect status: "published"
   end
 
   test "UnpublishListing runs" do
     tests "UnpublishListing", on: "ProductListing"
     setup  "CreateListing", sku: "sample", name: "sample", brand: "sample", description: "sample", price: 1.0
-    setup  "PublishListing", product_listing: 1
-    input  product_listing: 1
+    setup  "PublishListing"
     expect status: "unpublished"
   end
 
@@ -94,28 +90,27 @@ Hecks.behaviors "Storefront" do
   test "RemoveFromCart sets sku" do
     tests "RemoveFromCart", on: "ShoppingCart"
     setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
-    input  shopping_cart: 1, sku: "sample"
+    input  sku: "sample"
     expect ok: "true"
   end
 
   test "UpdateQuantity sets sku + quantity" do
     tests "UpdateQuantity", on: "ShoppingCart"
     setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
-    input  shopping_cart: 1, sku: "sample", quantity: 1
+    input  sku: "sample", quantity: 1
     expect ok: "true"
   end
 
   test "CalculateSubtotal runs" do
     tests "CalculateSubtotal", on: "ShoppingCart"
     setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
-    input  shopping_cart: 1
     expect ok: "true"
   end
 
   test "ApplyDiscount sets discount_amount + reason" do
     tests "ApplyDiscount", on: "ShoppingCart"
     setup  "AddToCart", session_id: "sample", sku: "sample", name: "sample", quantity: 1, unit_price: 1.0
-    input  shopping_cart: 1, discount_amount: 1.0, reason: "sample"
+    input  discount_amount: 1.0, reason: "sample"
     expect ok: "true"
   end
 
@@ -131,45 +126,40 @@ Hecks.behaviors "Storefront" do
   test "ConfirmPayment runs" do
     tests "ConfirmPayment", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
-    input  order: 1
     expect status: "confirmed"
   end
 
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
-    setup  "ConfirmPayment", order: 1
-    input  order: 1
+    setup  "ConfirmPayment"
     expect status: "fulfilling"
   end
 
   test "ShipOrder runs" do
     tests "ShipOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
-    setup  "ConfirmPayment", order: 1
-    setup  "FulfillOrder", order: 1
-    input  order: 1
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
     expect status: "shipped"
   end
 
   test "DeliverOrder runs" do
     tests "DeliverOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
-    setup  "ConfirmPayment", order: 1
-    setup  "FulfillOrder", order: 1
-    setup  "ShipOrder", order: 1
-    input  order: 1
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
+    setup  "ShipOrder"
     expect status: "delivered"
   end
 
   test "RequestReturn runs" do
     tests "RequestReturn", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample", customer_email: "sample", shipping_address: "sample", subtotal: 1.0, tax: 1.0, shipping: 1.0, total: 1.0
-    setup  "ConfirmPayment", order: 1
-    setup  "FulfillOrder", order: 1
-    setup  "ShipOrder", order: 1
-    setup  "DeliverOrder", order: 1
-    input  order: 1
+    setup  "ConfirmPayment"
+    setup  "FulfillOrder"
+    setup  "ShipOrder"
+    setup  "DeliverOrder"
     expect status: "returned"
   end
 
@@ -185,28 +175,27 @@ Hecks.behaviors "Storefront" do
   test "RecordPurchase sets order_number + amount" do
     tests "RecordPurchase", on: "CustomerAccount"
     setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
-    input  customer_account: 1, order_number: "sample", amount: 1.0
+    input  order_number: "sample", amount: 1.0
     expect ok: "true"
   end
 
   test "IdentifyPersona sets persona_segment" do
     tests "IdentifyPersona", on: "CustomerAccount"
     setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
-    input  customer_account: 1, persona_segment: "sample"
+    input  persona_segment: "sample"
     expect persona_segment: "sample"
   end
 
   test "RecommendProducts runs" do
     tests "RecommendProducts", on: "CustomerAccount"
     setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
-    input  customer_account: 1
     expect ok: "true"
   end
 
   test "CalculateLifetimeValue sets lifetime_value" do
     tests "CalculateLifetimeValue", on: "CustomerAccount"
     setup  "CreateAccount", email: "sample", name: "sample", vehicle_type: "sample"
-    input  customer_account: 1, lifetime_value: 1.0
+    input  lifetime_value: 1.0
     expect lifetime_value: 1.0
   end
 
@@ -222,21 +211,19 @@ Hecks.behaviors "Storefront" do
   test "PersonalizeByVehicle sets vehicle_type" do
     tests "PersonalizeByVehicle", on: "ProductRecommendation"
     setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
-    input  product_recommendation: 1, vehicle_type: "sample"
+    input  vehicle_type: "sample"
     expect ok: "true"
   end
 
   test "PersonalizeByHistory runs" do
     tests "PersonalizeByHistory", on: "ProductRecommendation"
     setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
-    input  product_recommendation: 1
     expect ok: "true"
   end
 
   test "DisplayRecommendation runs" do
     tests "DisplayRecommendation", on: "ProductRecommendation"
     setup  "GenerateRecommendation", customer_email: "sample", persona_match: "sample"
-    input  product_recommendation: 1
     expect ok: "true"
   end
 
@@ -252,21 +239,19 @@ Hecks.behaviors "Storefront" do
   test "LinkToLabData runs" do
     tests "LinkToLabData", on: "ScienceContent"
     setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
-    input  science_content: 1
     expect ok: "true"
   end
 
   test "CreateComparisonChart sets comparison_to_competitor" do
     tests "CreateComparisonChart", on: "ScienceContent"
     setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
-    input  science_content: 1, comparison_to_competitor: "sample"
+    input  comparison_to_competitor: "sample"
     expect comparison_to_competitor: "sample"
   end
 
   test "PublishContent runs" do
     tests "PublishContent", on: "ScienceContent"
     setup  "GenerateScienceContent", product_sku: "sample", tribology_summary: "sample", test_results_summary: "sample", how_it_works: "sample"
-    input  science_content: 1
     expect ok: "true"
   end
 
@@ -282,21 +267,19 @@ Hecks.behaviors "Storefront" do
   test "DisplayReviews runs" do
     tests "DisplayReviews", on: "ReviewIntegration"
     setup  "ImportReviews", product_sku: "sample"
-    input  review_integration: 1
     expect ok: "true"
   end
 
   test "HighlightBestReview runs" do
     tests "HighlightBestReview", on: "ReviewIntegration"
     setup  "ImportReviews", product_sku: "sample"
-    input  review_integration: 1
     expect ok: "true"
   end
 
   test "RespondToReview sets review_text + response" do
     tests "RespondToReview", on: "ReviewIntegration"
     setup  "ImportReviews", product_sku: "sample"
-    input  review_integration: 1, review_text: "sample", response: "sample"
+    input  review_text: "sample", response: "sample"
     expect ok: "true"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "HospitalIT" do
   test "AddEntry sets entry_type + content + author" do
     tests "AddEntry", on: "PatientRecord"
     setup  "CreateRecord", medical_record_number: "sample", patient_name: "sample", department: "sample"
-    input  patient_record: 1, entry_type: "sample", content: "sample", author: "sample"
+    input  entry_type: "sample", content: "sample", author: "sample"
     expect ok: "true"
   end
 
@@ -28,14 +28,13 @@ Hecks.behaviors "HospitalIT" do
   test "CheckHealth sets cpu_pct + memory_pct" do
     tests "CheckHealth", on: "Server"
     setup  "DeployServer", hostname: "sample", role: "sample"
-    input  server: 1, cpu_pct: 1.0, memory_pct: 1.0
+    input  cpu_pct: 1.0, memory_pct: 1.0
     expect cpu_pct: 1.0, memory_pct: 1.0
   end
 
   test "TakeOffline runs" do
     tests "TakeOffline", on: "Server"
     setup  "DeployServer", hostname: "sample", role: "sample"
-    input  server: 1
     expect status: "offline"
   end
 
@@ -51,15 +50,14 @@ Hecks.behaviors "HospitalIT" do
   test "FinishBackup sets storage_path + size_gb" do
     tests "FinishBackup", on: "Backup"
     setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
-    input  backup: 1, storage_path: "sample", size_gb: 1.0
+    input  storage_path: "sample", size_gb: 1.0
     expect storage_path: "sample", size_gb: 1.0, status: "completed"
   end
 
   test "RestoreBackup runs" do
     tests "RestoreBackup", on: "Backup"
     setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
-    setup  "FinishBackup", backup: 1, storage_path: "sample", size_gb: 1.0
-    input  backup: 1
+    setup  "FinishBackup", storage_path: "sample", size_gb: 1.0
     expect status: "restored"
   end
 
@@ -75,7 +73,6 @@ Hecks.behaviors "HospitalIT" do
   test "ActivatePlan runs" do
     tests "ActivatePlan", on: "RecoveryPlan"
     setup  "DefinePlan", plan_name: "sample", tier: "sample", rto_hours: 1.0, rpo_hours: 1.0
-    input  recovery_plan: 1
     expect status: "active"
   end
 

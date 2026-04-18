@@ -12,7 +12,6 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "DocumentLifeCycle runs" do
     tests "DocumentLifeCycle", on: "PestSpecies"
     setup  "IdentifySpecies", scientific_name: "sample", common_name: "sample", order: "sample", family: "sample", life_cycle_days: 1, habitat_preference: "sample"
-    input  pest_species: 1
     expect status: "documented"
   end
 
@@ -28,15 +27,13 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "AssessInfestation runs" do
     tests "AssessInfestation", on: "Infestation"
     setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
-    input  infestation: 1
     expect status: "assessed"
   end
 
   test "ResolveInfestation runs" do
     tests "ResolveInfestation", on: "Infestation"
     setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
-    setup  "AssessInfestation", infestation: 1
-    input  infestation: 1
+    setup  "AssessInfestation"
     expect status: "resolved"
   end
 
@@ -52,15 +49,14 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "ApplyTreatment runs" do
     tests "ApplyTreatment", on: "Treatment"
     setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
-    input  treatment: 1
     expect status: "applied"
   end
 
   test "EvaluateEffectiveness sets effectiveness_pct" do
     tests "EvaluateEffectiveness", on: "Treatment"
     setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
-    setup  "ApplyTreatment", treatment: 1
-    input  treatment: 1, effectiveness_pct: 1.0
+    setup  "ApplyTreatment"
+    input  effectiveness_pct: 1.0
     expect effectiveness_pct: 1.0, status: "evaluated"
   end
 
@@ -76,7 +72,6 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "RecommendRotation runs" do
     tests "RecommendRotation", on: "ResistanceProfile"
     setup  "RecordResistance", pest_species: "sample", active_ingredient: "sample", resistance_mechanism: "sample", resistance_level_pct: 1.0, first_detected: "sample"
-    input  resistance_profile: 1
     expect status: "rotation_advised"
   end
 
@@ -92,14 +87,13 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "EscalateTier sets intervention_tier" do
     tests "EscalateTier", on: "IPMPlan"
     setup  "CreateIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
-    input  i_p_m_plan: 1, intervention_tier: "sample"
+    input  intervention_tier: "sample"
     expect intervention_tier: "sample"
   end
 
   test "ReviewIPMPlan runs" do
     tests "ReviewIPMPlan", on: "IPMPlan"
     setup  "CreateIPMPlan", site_address: "sample", target_pest: "sample", prevention_measures: "sample", monitoring_method: "sample"
-    input  i_p_m_plan: 1
     expect ok: "true"
   end
 

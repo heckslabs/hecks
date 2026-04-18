@@ -12,22 +12,19 @@ Hecks.behaviors "AssistedLiving" do
   test "ActivateResident runs" do
     tests "ActivateResident", on: "Resident"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    input  resident: 1
     expect status: "active"
   end
 
   test "TransferResident runs" do
     tests "TransferResident", on: "Resident"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    input  resident: 1
     expect status: "transferred"
   end
 
   test "DischargeResident runs" do
     tests "DischargeResident", on: "Resident"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    setup  "ActivateResident", resident: 1
-    input  resident: 1
+    setup  "ActivateResident"
     expect status: "discharged"
   end
 
@@ -37,13 +34,13 @@ Hecks.behaviors "AssistedLiving" do
   test "AssignRoom sets room_number + floor + room_type + occupant_name" do
     tests "AssignRoom", on: "Room"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    input  resident: 1, room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
+    input  room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
     expect room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample", status: "occupied"
   end
 
   test "VacateRoom runs" do
     tests "VacateRoom", on: "Room"
-    input  room: 1
+    setup  "AssignRoom", room_number: "sample", floor: "sample", room_type: "sample", occupant_name: "sample"
     expect status: "available", occupant_name: ""
   end
 
@@ -53,19 +50,20 @@ Hecks.behaviors "AssistedLiving" do
   test "CreateCarePlan sets resident_name + created_date + dietary_needs" do
     tests "CreateCarePlan", on: "CarePlan"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    input  resident: 1, resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    input  resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     expect resident_name: "sample", created_date: "sample", dietary_needs: "sample", status: "active"
   end
 
   test "AddCareTask sets description + frequency + assigned_to + time_of_day" do
     tests "AddCareTask", on: "CarePlan"
-    input  care_plan: 1, description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
+    setup  "CreateCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
+    input  description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
     expect ok: "true"
   end
 
   test "ReviewCarePlan runs" do
     tests "ReviewCarePlan", on: "CarePlan"
-    input  care_plan: 1
+    setup  "CreateCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     expect ok: "true"
   end
 
@@ -81,7 +79,7 @@ Hecks.behaviors "AssistedLiving" do
   test "EnrollInActivity sets resident_name" do
     tests "EnrollInActivity", on: "Activity"
     setup  "ScheduleActivity", name: "sample", activity_type: "sample", scheduled_time: "sample", location: "sample", capacity: 1
-    input  activity: 1, resident_name: "sample"
+    input  resident_name: "sample"
     expect ok: "true"
   end
 
@@ -91,19 +89,20 @@ Hecks.behaviors "AssistedLiving" do
   test "CreateMedicationSchedule sets resident_name" do
     tests "CreateMedicationSchedule", on: "MedicationSchedule"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
-    input  resident: 1, resident_name: "sample"
+    input  resident_name: "sample"
     expect resident_name: "sample", status: "active"
   end
 
   test "AddScheduledDose sets drug_name + dosage + time_of_day" do
     tests "AddScheduledDose", on: "MedicationSchedule"
-    input  medication_schedule: 1, drug_name: "sample", dosage: "sample", time_of_day: "sample"
+    setup  "CreateMedicationSchedule", resident_name: "sample"
+    input  drug_name: "sample", dosage: "sample", time_of_day: "sample"
     expect ok: "true"
   end
 
   test "ConfirmAdministration runs" do
     tests "ConfirmAdministration", on: "MedicationSchedule"
-    input  medication_schedule: 1
+    setup  "CreateMedicationSchedule", resident_name: "sample"
     expect ok: "true"
   end
 

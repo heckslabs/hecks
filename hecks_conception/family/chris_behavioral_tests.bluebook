@@ -5,7 +5,7 @@ Hecks.behaviors "Chris" do
 
   test "UpdateRole sets role" do
     tests "UpdateRole", on: "Identity"
-    input  identity: 1, role: "sample"
+    input  role: "sample"
     expect role: "sample"
   end
 
@@ -48,7 +48,7 @@ Hecks.behaviors "Chris" do
   test "AddNote sets note" do
     tests "AddNote", on: "Person"
     setup  "AddPerson", name: "sample", relationship: "sample", context: "sample"
-    input  person: 1, note: "sample"
+    input  note: "sample"
     expect notes_size: 1
   end
 
@@ -57,7 +57,7 @@ Hecks.behaviors "Chris" do
 
   test "RecordMilestone sets name + date + status" do
     tests "RecordMilestone", on: "Embryonaut"
-    input  embryonaut: 1, name: "sample", date: "sample", status: "sample"
+    input  name: "sample", date: "sample", status: "sample"
     expect milestones_size: 1
   end
 

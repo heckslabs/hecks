@@ -12,15 +12,14 @@ Hecks.behaviors "FilmProduction" do
   test "StartPrincipalPhotography sets start_date" do
     tests "StartPrincipalPhotography", on: "Production"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
-    input  production: 1, start_date: "sample"
+    input  start_date: "sample"
     expect status: "shooting", start_date: "sample"
   end
 
   test "WrapProduction runs" do
     tests "WrapProduction", on: "Production"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
-    setup  "StartPrincipalPhotography", production: 1, start_date: "sample"
-    input  production: 1
+    setup  "StartPrincipalPhotography", start_date: "sample"
     expect status: "post_production"
   end
 
@@ -30,20 +29,22 @@ Hecks.behaviors "FilmProduction" do
   test "SlateScene sets scene_number + location + time_of_day" do
     tests "SlateScene", on: "Scene"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
-    input  production: 1, scene_number: 1, location: "sample", time_of_day: "sample"
+    input  scene_number: 1, location: "sample", time_of_day: "sample"
     expect ok: "true"
   end
 
   test "PrintScene sets take_number" do
     tests "PrintScene", on: "Scene"
-    input  scene: 1, take_number: 1
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    input  take_number: 1
     expect status: "in_progress"
   end
 
   test "MarkSceneFinal sets final_take" do
     tests "MarkSceneFinal", on: "Scene"
-    setup  "PrintScene", scene: 1, take_number: 1
-    input  scene: 1, final_take: 1
+    setup  "SlateScene", scene_number: 1, location: "sample", time_of_day: "sample"
+    setup  "PrintScene", take_number: 1
+    input  final_take: 1
     expect status: "finalized"
   end
 
@@ -53,13 +54,14 @@ Hecks.behaviors "FilmProduction" do
   test "HireCrew sets name + role + department + day_rate" do
     tests "HireCrew", on: "CrewMember"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
-    input  production: 1, name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    input  name: "sample", role: "sample", department: "sample", day_rate: 1.0
     expect ok: "true"
   end
 
   test "ReassignDepartment sets new_department" do
     tests "ReassignDepartment", on: "CrewMember"
-    input  crew_member: 1, new_department: "sample"
+    setup  "HireCrew", name: "sample", role: "sample", department: "sample", day_rate: 1.0
+    input  new_department: "sample"
     expect department: "sample"
   end
 
@@ -68,17 +70,16 @@ Hecks.behaviors "FilmProduction" do
 
   test "CheckOutEquipment sets checked_out_by" do
     tests "CheckOutEquipment", on: "Equipment"
-    setup  "CheckOutEquipment", equipment: 1, checked_out_by: "sample"
-    setup  "ReturnEquipment", equipment: 1
-    input  equipment: 1, checked_out_by: "sample"
+    setup  "CheckOutEquipment", checked_out_by: "sample"
+    setup  "ReturnEquipment"
+    input  checked_out_by: "sample"
     expect status: "in_use"
   end
 
   test "ReturnEquipment runs" do
     tests "ReturnEquipment", on: "Equipment"
-    setup  "ReturnEquipment", equipment: 1
-    setup  "CheckOutEquipment", equipment: 1, checked_out_by: "sample"
-    input  equipment: 1
+    setup  "ReturnEquipment"
+    setup  "CheckOutEquipment", checked_out_by: "sample"
     expect status: "available"
   end
 
@@ -88,13 +89,14 @@ Hecks.behaviors "FilmProduction" do
   test "AllocateBudget sets department + category + amount" do
     tests "AllocateBudget", on: "BudgetLine"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
-    input  production: 1, department: "sample", category: "sample", amount: 1.0
+    input  department: "sample", category: "sample", amount: 1.0
     expect ok: "true"
   end
 
   test "RecordExpense sets amount + vendor" do
     tests "RecordExpense", on: "BudgetLine"
-    input  budget_line: 1, amount: 1.0, vendor: "sample"
+    setup  "AllocateBudget", department: "sample", category: "sample", amount: 1.0
+    input  amount: 1.0, vendor: "sample"
     expect ok: "true"
   end
 

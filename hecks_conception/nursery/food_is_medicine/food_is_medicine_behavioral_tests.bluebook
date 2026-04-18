@@ -12,14 +12,13 @@ Hecks.behaviors "FoodIsMedicine" do
   test "AdjustPrescription sets diagnosis" do
     tests "AdjustPrescription", on: "FoodPrescription"
     setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
-    input  food_prescription: 1, diagnosis: "sample"
+    input  diagnosis: "sample"
     expect diagnosis: "sample"
   end
 
   test "CompletePrescription runs" do
     tests "CompletePrescription", on: "FoodPrescription"
     setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
-    input  food_prescription: 1
     expect status: "completed"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "FoodIsMedicine" do
   test "ReportHarvest runs" do
     tests "ReportHarvest", on: "FarmAllocation"
     setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
-    input  farm_allocation: 1
     expect status: "harvested"
   end
 
@@ -43,7 +41,6 @@ Hecks.behaviors "FoodIsMedicine" do
     tests "LinkToTarget", on: "FarmAllocation"
     setup  "ComputeDemand", region: "sample", period: "sample"
     setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
-    input  farm_allocation: 1, nutrient_target: 1
     expect target: :target
   end
 
@@ -59,7 +56,6 @@ Hecks.behaviors "FoodIsMedicine" do
   test "MatchSupply runs" do
     tests "MatchSupply", on: "NutrientTarget"
     setup  "ComputeDemand", region: "sample", period: "sample"
-    input  nutrient_target: 1
     expect status: "matched"
   end
 
@@ -69,22 +65,20 @@ Hecks.behaviors "FoodIsMedicine" do
   test "PlanRoute sets route_id + food_bank_name + delivery_date" do
     tests "PlanRoute", on: "DistributionRoute"
     setup  "CommitFarm", farm_name: "sample", region: "sample", season: "sample", acres_committed: 1
-    input  farm_allocation: 1, route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    input  route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
     expect route_id: "sample", source_farm: :source_farm, food_bank_name: "sample", delivery_date: "sample", status: "planned"
   end
 
   test "DispatchDelivery runs" do
     tests "DispatchDelivery", on: "DistributionRoute"
-    setup  "PlanRoute", farm_allocation: 1, route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
-    input  distribution_route: 1
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
     expect status: "in_transit"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "DistributionRoute"
-    setup  "PlanRoute", farm_allocation: 1, route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
-    setup  "DispatchDelivery", distribution_route: 1
-    input  distribution_route: 1
+    setup  "PlanRoute", route_id: "sample", food_bank_name: "sample", delivery_date: "sample"
+    setup  "DispatchDelivery"
     expect status: "delivered"
   end
 
@@ -94,19 +88,20 @@ Hecks.behaviors "FoodIsMedicine" do
   test "RecordBaseline sets patient_name + baseline_status" do
     tests "RecordBaseline", on: "PatientOutcome"
     setup  "IssuePrescription", prescription_id: "sample", patient_name: "sample", diagnosis: "sample", prescribing_clinician: "sample"
-    input  food_prescription: 1, patient_name: "sample", baseline_status: "sample"
+    input  patient_name: "sample", baseline_status: "sample"
     expect patient_name: "sample", prescription: :prescription, baseline_status: "sample", current_status: "sample", trend: "stable"
   end
 
   test "RecordCheckpoint sets current_status + trend" do
     tests "RecordCheckpoint", on: "PatientOutcome"
-    input  patient_outcome: 1, current_status: "sample", trend: "sample"
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
+    input  current_status: "sample", trend: "sample"
     expect current_status: "sample", trend: "sample"
   end
 
   test "FlagImprovement runs" do
     tests "FlagImprovement", on: "PatientOutcome"
-    input  patient_outcome: 1
+    setup  "RecordBaseline", patient_name: "sample", baseline_status: "sample"
     expect ok: "true"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "FoodBank" do
   test "SortDonation runs" do
     tests "SortDonation", on: "Donation"
     setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
-    input  donation: 1
     expect status: "sorted"
   end
 
   test "DiscardExpired runs" do
     tests "DiscardExpired", on: "Donation"
     setup  "AcceptDonation", donor_name: "sample", donation_date: "sample", food_category: "sample", weight_pounds: 1.0, expiration_date: "sample"
-    input  donation: 1
     expect status: "discarded"
   end
 
@@ -35,22 +33,21 @@ Hecks.behaviors "FoodBank" do
   test "AllocateItem sets quantity" do
     tests "AllocateItem", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    input  inventory: 1, quantity: 1
+    input  quantity: 1
     expect status: "allocated"
   end
 
   test "DepletItem sets quantity" do
     tests "DepletItem", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    setup  "AllocateItem", inventory: 1, quantity: 1
-    input  inventory: 1, quantity: 1
+    setup  "AllocateItem", quantity: 1
+    input  quantity: 1
     expect status: "depleted"
   end
 
   test "FlagLowStock runs" do
     tests "FlagLowStock", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
-    input  inventory: 1
     expect status: "low"
   end
 
@@ -66,15 +63,14 @@ Hecks.behaviors "FoodBank" do
   test "ConductDistribution sets households_served + total_weight_distributed" do
     tests "ConductDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
-    input  distribution: 1, households_served: 1, total_weight_distributed: 1.0
+    input  households_served: 1, total_weight_distributed: 1.0
     expect households_served: 1, total_weight_distributed: 1.0, status: "completed"
   end
 
   test "ReportDistribution runs" do
     tests "ReportDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
-    setup  "ConductDistribution", distribution: 1, households_served: 1, total_weight_distributed: 1.0
-    input  distribution: 1
+    setup  "ConductDistribution", households_served: 1, total_weight_distributed: 1.0
     expect status: "reported"
   end
 
@@ -90,7 +86,7 @@ Hecks.behaviors "FoodBank" do
   test "LogVolunteerHours sets hours_served" do
     tests "LogVolunteerHours", on: "FoodBankVolunteer"
     setup  "RegisterVolunteer", name: "sample", phone: "sample", availability: "sample"
-    input  food_bank_volunteer: 1, hours_served: 1
+    input  hours_served: 1
     expect hours_served: 1
   end
 
@@ -106,7 +102,6 @@ Hecks.behaviors "FoodBank" do
   test "RecordPickup runs" do
     tests "RecordPickup", on: "FoodBankRecipient"
     setup  "EnrollRecipient", household_name: "sample", household_size: 1, address: "sample", dietary_restrictions: "sample", enrollment_date: "sample"
-    input  food_bank_recipient: 1
     expect ok: "true"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "Awareness" do
   test "ReleaseAttention runs" do
     tests "ReleaseAttention", on: "Attention"
     setup  "AttendTo", target: "sample", intensity: 1.0
-    input  attention: 1
     expect intensity: 0
   end
 
@@ -46,7 +45,6 @@ Hecks.behaviors "Awareness" do
   test "AbandonIntention runs" do
     tests "AbandonIntention", on: "Intention"
     setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
-    input  intention: 1
     expect strength: 0
   end
 
@@ -71,7 +69,7 @@ Hecks.behaviors "Awareness" do
   test "ReflectOnObservation sets insight" do
     tests "ReflectOnObservation", on: "Witness"
     setup  "Observe", observing: "sample"
-    input  witness: 1, insight: "sample"
+    input  insight: "sample"
     expect meta_level: 2, insight: "sample"
   end
 
@@ -87,7 +85,7 @@ Hecks.behaviors "Awareness" do
   test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
     tests "RecordMusing", on: "Musing"
     setup  "MuseOnState", trigger: "sample"
-    input  musing: 1, sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
+    input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
     expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
   end
 
@@ -112,7 +110,7 @@ Hecks.behaviors "Awareness" do
   test "HighlightDomain sets domain_name + aggregate_name + relevance" do
     tests "HighlightDomain", on: "DomainAwareness"
     setup  "IdentifyRelatedDomains", topic: "sample"
-    input  domain_awareness: 1, domain_name: "sample", aggregate_name: "sample", relevance: "sample"
+    input  domain_name: "sample", aggregate_name: "sample", relevance: "sample"
     expect ok: "true"
   end
 

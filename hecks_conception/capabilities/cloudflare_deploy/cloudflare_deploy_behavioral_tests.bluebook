@@ -28,7 +28,7 @@ Hecks.behaviors "CloudflareDeploy" do
   test "WireApiCalls sets api_base_url" do
     tests "WireApiCalls", on: "PagesSite"
     setup  "GenerateSite"
-    input  pages_site: 1, api_base_url: "sample"
+    input  api_base_url: "sample"
     expect api_base_url: "sample"
   end
 
@@ -85,7 +85,7 @@ Hecks.behaviors "CloudflareDeploy" do
     setup  "ApplyMigrations"
     setup  "DeployWorker"
     setup  "DeployPages"
-    input  deployment: 1, worker_url: "sample", pages_url: "sample"
+    input  worker_url: "sample", pages_url: "sample"
     expect worker_url: "sample", pages_url: "sample", status: "live"
   end
 

@@ -12,63 +12,56 @@ Hecks.behaviors "Actions" do
   test "ReviewWithCourt runs" do
     tests "ReviewWithCourt", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    input  action_plan: 1
     expect status: "reviewed"
   end
 
   test "Execute runs" do
     tests "Execute", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    setup  "ReviewWithCourt", action_plan: 1
-    input  action_plan: 1
+    setup  "ReviewWithCourt"
     expect status: "executed"
   end
 
   test "CompleteStep runs" do
     tests "CompleteStep", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    input  action_plan: 1
     expect steps_completed: 1
   end
 
   test "TestReverse runs" do
     tests "TestReverse", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    setup  "ReviewWithCourt", action_plan: 1
-    setup  "Execute", action_plan: 1
-    input  action_plan: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
     expect status: "reverse_tested"
   end
 
   test "ReExecute runs" do
     tests "ReExecute", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    setup  "ReviewWithCourt", action_plan: 1
-    setup  "Execute", action_plan: 1
-    setup  "TestReverse", action_plan: 1
-    input  action_plan: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
     expect status: "confirmed"
   end
 
   test "Verify runs" do
     tests "Verify", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    setup  "ReviewWithCourt", action_plan: 1
-    setup  "Execute", action_plan: 1
-    setup  "TestReverse", action_plan: 1
-    setup  "ReExecute", action_plan: 1
-    input  action_plan: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    setup  "ReExecute"
     expect status: "verified"
   end
 
   test "Reverse runs" do
     tests "Reverse", on: "ActionPlan"
     setup  "Conceive", name: "sample", description: "sample", rationale: "sample", action_bluebook_path: "sample", steps_total: 1
-    setup  "ReviewWithCourt", action_plan: 1
-    setup  "Execute", action_plan: 1
-    setup  "TestReverse", action_plan: 1
-    setup  "ReExecute", action_plan: 1
-    input  action_plan: 1
+    setup  "ReviewWithCourt"
+    setup  "Execute"
+    setup  "TestReverse"
+    setup  "ReExecute"
     expect steps_completed: 0, status: "reversed"
   end
 

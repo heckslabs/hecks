@@ -12,7 +12,6 @@ Hecks.behaviors "IceCreamParlor" do
   test "RetireFlavor runs" do
     tests "RetireFlavor", on: "Flavor"
     setup  "CreateFlavor", flavor_id: "sample", name: "sample", base: "sample", description: "sample", dairy_free: "sample"
-    input  flavor: 1
     expect available: "false"
   end
 
@@ -28,14 +27,12 @@ Hecks.behaviors "IceCreamParlor" do
   test "DepleteBatch runs" do
     tests "DepleteBatch", on: "Batch"
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    input  batch: 1
     expect status: "depleted"
   end
 
   test "DiscardBatch runs" do
     tests "DiscardBatch", on: "Batch"
     setup  "ChurnBatch", batch_id: "sample", flavor_id: "sample", volume_liters: 1.0, churned_date: "sample", expiration_date: "sample"
-    input  batch: 1
     expect status: "discarded"
   end
 
@@ -51,7 +48,7 @@ Hecks.behaviors "IceCreamParlor" do
   test "ReorderTopping sets reorder_amount" do
     tests "ReorderTopping", on: "Topping"
     setup  "StockTopping", topping_id: "sample", name: "sample", category: "sample", price_per_serving: 1.0, quantity_on_hand: 1
-    input  topping: 1, reorder_amount: 1
+    input  reorder_amount: 1
     expect ok: "true"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "IceCreamParlor" do
   test "HandOffServing runs" do
     tests "HandOffServing", on: "Serving"
     setup  "PrepareServing", serving_id: "sample", cone_type: "sample", scoops: 1
-    input  serving: 1
     expect status: "served"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "GlassInstaller" do
   test "ConfirmOrder runs" do
     tests "ConfirmOrder", on: "GlassOrder"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    input  glass_order: 1
     expect ok: "true"
   end
 
   test "CancelOrder runs" do
     tests "CancelOrder", on: "GlassOrder"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    input  glass_order: 1
     expect ok: "true"
   end
 
@@ -29,13 +27,13 @@ Hecks.behaviors "GlassInstaller" do
   test "TakeMeasurements sets width_inches + height_inches + depth_inches + opening_type" do
     tests "TakeMeasurements", on: "FieldMeasurement"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    input  glass_order: 1, width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
+    input  width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
     expect ok: "true"
   end
 
   test "VerifyMeasurements runs" do
     tests "VerifyMeasurements", on: "FieldMeasurement"
-    input  field_measurement: 1
+    setup  "TakeMeasurements", width_inches: 1.0, height_inches: 1.0, depth_inches: 1.0, opening_type: "sample"
     expect ok: "true"
   end
 
@@ -45,19 +43,21 @@ Hecks.behaviors "GlassInstaller" do
   test "ScheduleInstall sets installer_name + install_date" do
     tests "ScheduleInstall", on: "Installation"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    input  glass_order: 1, installer_name: "sample", install_date: "sample"
+    input  installer_name: "sample", install_date: "sample"
     expect ok: "true"
   end
 
   test "CompleteInstall sets sealant_type" do
     tests "CompleteInstall", on: "Installation"
-    input  installation: 1, sealant_type: "sample"
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  sealant_type: "sample"
     expect ok: "true"
   end
 
   test "ReportBreakage sets breakage_cause" do
     tests "ReportBreakage", on: "Installation"
-    input  installation: 1, breakage_cause: "sample"
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  breakage_cause: "sample"
     expect ok: "true"
   end
 
@@ -67,13 +67,14 @@ Hecks.behaviors "GlassInstaller" do
   test "IssueWarranty sets warranty_type + duration_years + coverage" do
     tests "IssueWarranty", on: "GlassWarranty"
     setup  "PlaceOrder", customer_name: "sample", glass_type: "sample", application: "sample", quantity: 1
-    input  glass_order: 1, warranty_type: "sample", duration_years: 1, coverage: "sample"
+    input  warranty_type: "sample", duration_years: 1, coverage: "sample"
     expect ok: "true"
   end
 
   test "FileSealFailure sets failure_description" do
     tests "FileSealFailure", on: "GlassWarranty"
-    input  glass_warranty: 1, failure_description: "sample"
+    setup  "IssueWarranty", warranty_type: "sample", duration_years: 1, coverage: "sample"
+    input  failure_description: "sample"
     expect ok: "true"
   end
 

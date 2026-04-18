@@ -12,14 +12,13 @@ Hecks.behaviors "Cryptography" do
   test "RevokeKey sets revocation_reason" do
     tests "RevokeKey", on: "KeyPair"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  key_pair: 1, revocation_reason: "sample"
+    input  revocation_reason: "sample"
     expect ok: "true"
   end
 
   test "RotateKey runs" do
     tests "RotateKey", on: "KeyPair"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  key_pair: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,12 @@ Hecks.behaviors "Cryptography" do
   test "BenchmarkCipher runs" do
     tests "BenchmarkCipher", on: "Cipher"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
-    input  cipher: 1
     expect ok: "true"
   end
 
   test "DeprecateCipher runs" do
     tests "DeprecateCipher", on: "Cipher"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
-    input  cipher: 1
     expect ok: "true"
   end
 
@@ -53,13 +50,13 @@ Hecks.behaviors "Cryptography" do
     tests "EncryptMessage", on: "EncryptedMessage"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  key_pair: 1, cipher: 1, plaintext: "sample"
+    input  plaintext: "sample"
     expect ok: "true"
   end
 
   test "DecryptMessage runs" do
     tests "DecryptMessage", on: "EncryptedMessage"
-    input  encrypted_message: 1
+    setup  "EncryptMessage", plaintext: "sample"
     expect ok: "true"
   end
 
@@ -69,13 +66,13 @@ Hecks.behaviors "Cryptography" do
   test "SignMessage sets message_hash + hash_algorithm" do
     tests "SignMessage", on: "DigitalSignature"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  key_pair: 1, message_hash: "sample", hash_algorithm: "sample"
+    input  message_hash: "sample", hash_algorithm: "sample"
     expect ok: "true"
   end
 
   test "VerifySignature runs" do
     tests "VerifySignature", on: "DigitalSignature"
-    input  digital_signature: 1
+    setup  "SignMessage", message_hash: "sample", hash_algorithm: "sample"
     expect ok: "true"
   end
 
@@ -85,19 +82,20 @@ Hecks.behaviors "Cryptography" do
   test "IssueCertificate sets subject + valid_from + valid_to" do
     tests "IssueCertificate", on: "Certificate"
     setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
-    input  key_pair: 1, subject: "sample", valid_from: "sample", valid_to: "sample"
+    input  subject: "sample", valid_from: "sample", valid_to: "sample"
     expect ok: "true"
   end
 
   test "RenewCertificate runs" do
     tests "RenewCertificate", on: "Certificate"
-    input  certificate: 1
+    setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
     expect ok: "true"
   end
 
   test "RevokeCertificate sets reason" do
     tests "RevokeCertificate", on: "Certificate"
-    input  certificate: 1, reason: "sample"
+    setup  "IssueCertificate", subject: "sample", valid_from: "sample", valid_to: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 

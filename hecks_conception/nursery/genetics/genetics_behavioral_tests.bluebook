@@ -12,14 +12,12 @@ Hecks.behaviors "Genetics" do
   test "ExtractDna runs" do
     tests "ExtractDna", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
-    input  specimen: 1
     expect ok: "true"
   end
 
   test "DiscardSpecimen runs" do
     tests "DiscardSpecimen", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
-    input  specimen: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,19 @@ Hecks.behaviors "Genetics" do
   test "SubmitSequence sets accession + sequencing_method + length_bp" do
     tests "SubmitSequence", on: "DnaSequence"
     setup  "CollectSpecimen", specimen_id: "sample", organism: "sample", tissue_type: "sample"
-    input  specimen: 1, accession: "sample", sequencing_method: "sample", length_bp: 1
+    input  accession: "sample", sequencing_method: "sample", length_bp: 1
     expect ok: "true"
   end
 
   test "AlignSequence runs" do
     tests "AlignSequence", on: "DnaSequence"
-    input  dna_sequence: 1
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
     expect ok: "true"
   end
 
   test "AnnotateFeatures runs" do
     tests "AnnotateFeatures", on: "DnaSequence"
-    input  dna_sequence: 1
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
     expect ok: "true"
   end
 
@@ -50,13 +48,15 @@ Hecks.behaviors "Genetics" do
 
   test "CallVariant sets mutation_type + position" do
     tests "CallVariant", on: "Mutation"
-    input  dna_sequence: 1, mutation_type: "sample", position: 1
+    setup  "SubmitSequence", accession: "sample", sequencing_method: "sample", length_bp: 1
+    input  mutation_type: "sample", position: 1
     expect ok: "true"
   end
 
   test "ClassifyPathogenicity sets classification" do
     tests "ClassifyPathogenicity", on: "Mutation"
-    input  mutation: 1, classification: "sample"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  classification: "sample"
     expect ok: "true"
   end
 
@@ -72,14 +72,13 @@ Hecks.behaviors "Genetics" do
   test "AddRelative sets individual_id + relationship" do
     tests "AddRelative", on: "Pedigree"
     setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
-    input  pedigree: 1, individual_id: "sample", relationship: "sample"
+    input  individual_id: "sample", relationship: "sample"
     expect ok: "true"
   end
 
   test "TraceInheritance runs" do
     tests "TraceInheritance", on: "Pedigree"
     setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
-    input  pedigree: 1
     expect ok: "true"
   end
 
@@ -88,7 +87,8 @@ Hecks.behaviors "Genetics" do
 
   test "PublishFindings sets title + journal" do
     tests "PublishFindings", on: "Publication"
-    input  mutation: 1, title: "sample", journal: "sample"
+    setup  "CallVariant", mutation_type: "sample", position: 1
+    input  title: "sample", journal: "sample"
     expect ok: "true"
   end
 

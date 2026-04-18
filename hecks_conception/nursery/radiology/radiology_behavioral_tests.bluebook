@@ -12,7 +12,6 @@ Hecks.behaviors "Radiology" do
   test "ScreenForContraindications runs" do
     tests "ScreenForContraindications", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
-    input  patient: 1
     expect ok: "true"
   end
 
@@ -22,21 +21,19 @@ Hecks.behaviors "Radiology" do
   test "PlaceScanOrder sets patient_name + ordering_physician + modality + body_part + clinical_indication + urgency" do
     tests "PlaceScanOrder", on: "ScanOrder"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
-    input  patient: 1, patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    input  patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     expect patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample", status: "ordered"
   end
 
   test "PerformScan runs" do
     tests "PerformScan", on: "ScanOrder"
-    setup  "PlaceScanOrder", patient: 1, patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
-    input  scan_order: 1
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     expect status: "completed"
   end
 
   test "CancelScanOrder runs" do
     tests "CancelScanOrder", on: "ScanOrder"
-    setup  "PlaceScanOrder", patient: 1, patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
-    input  scan_order: 1
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     expect status: "cancelled"
   end
 
@@ -45,21 +42,22 @@ Hecks.behaviors "Radiology" do
 
   test "DraftReport sets patient_name + modality + findings + impression + radiologist_name + report_date" do
     tests "DraftReport", on: "RadiologyReport"
+    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
-    input  patient: 1, scan_order: 1, patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    input  patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
     expect patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample", status: "draft"
   end
 
   test "FinalizeReport runs" do
     tests "FinalizeReport", on: "RadiologyReport"
-    setup  "DraftReport", patient: 1, scan_order: 1, patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
-    input  radiology_report: 1
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
     expect status: "final"
   end
 
   test "AddendReport sets findings" do
     tests "AddendReport", on: "RadiologyReport"
-    input  radiology_report: 1, findings: "sample"
+    setup  "DraftReport", patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
+    input  findings: "sample"
     expect findings: "sample"
   end
 
@@ -75,14 +73,13 @@ Hecks.behaviors "Radiology" do
   test "CalibrateEquipment sets last_calibration_date" do
     tests "CalibrateEquipment", on: "ImagingEquipment"
     setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
-    input  imaging_equipment: 1, last_calibration_date: "sample"
+    input  last_calibration_date: "sample"
     expect last_calibration_date: "sample"
   end
 
   test "TakeOffline runs" do
     tests "TakeOffline", on: "ImagingEquipment"
     setup  "RegisterEquipment", equipment_name: "sample", modality: "sample", serial_number: "sample", last_calibration_date: "sample"
-    input  imaging_equipment: 1
     expect status: "offline"
   end
 
@@ -92,14 +89,13 @@ Hecks.behaviors "Radiology" do
   test "ReceiveReferral sets referring_physician + patient_name + clinical_question + preferred_modality" do
     tests "ReceiveReferral", on: "Referral"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
-    input  patient: 1, referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
+    input  referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
     expect referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample", status: "received"
   end
 
   test "FulfillReferral runs" do
     tests "FulfillReferral", on: "Referral"
-    setup  "ReceiveReferral", patient: 1, referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
-    input  referral: 1
+    setup  "ReceiveReferral", referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
     expect status: "fulfilled"
   end
 

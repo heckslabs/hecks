@@ -15,19 +15,19 @@ Hecks.behaviors "DomainCrossover" do
   test "BreedDomain sets name + vision + aggregates_from_each" do
     tests "BreedDomain", on: "Offspring"
     setup  "SelectPair", min_similarity: 1.0, max_similarity: 1.0
-    input  parent_pair: 1, name: "sample", vision: "sample", aggregates_from_each: 1
+    input  name: "sample", vision: "sample", aggregates_from_each: 1
     expect ok: "true"
   end
 
   test "ValidateOffspring runs" do
     tests "ValidateOffspring", on: "Offspring"
-    input  offspring: 1
+    setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
     expect ok: "true"
   end
 
   test "EnrichOffspring runs" do
     tests "EnrichOffspring", on: "Offspring"
-    input  offspring: 1
+    setup  "BreedDomain", name: "sample", vision: "sample", aggregates_from_each: 1
     expect ok: "true"
   end
 
@@ -43,7 +43,6 @@ Hecks.behaviors "DomainCrossover" do
   test "AssessGeneration runs" do
     tests "AssessGeneration", on: "Generation"
     setup  "RunGeneration", pair_count: 1
-    input  generation: 1
     expect ok: "true"
   end
 

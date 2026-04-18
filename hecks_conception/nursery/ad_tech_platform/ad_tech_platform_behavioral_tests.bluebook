@@ -12,14 +12,12 @@ Hecks.behaviors "AdTechPlatform" do
   test "PauseCampaign runs" do
     tests "PauseCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
-    input  campaign: 1
     expect ok: "true"
   end
 
   test "EndCampaign runs" do
     tests "EndCampaign", on: "Campaign"
     setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
-    input  campaign: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,19 @@ Hecks.behaviors "AdTechPlatform" do
   test "ServeImpression sets impression_id + placement_id + creative_id + user_segment + bid_price" do
     tests "ServeImpression", on: "Impression"
     setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
-    input  campaign: 1, impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    input  impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
     expect ok: "true"
   end
 
   test "MarkViewable runs" do
     tests "MarkViewable", on: "Impression"
-    input  impression: 1
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
     expect ok: "true"
   end
 
   test "FlagFraudulent runs" do
     tests "FlagFraudulent", on: "Impression"
-    input  impression: 1
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
     expect ok: "true"
   end
 
@@ -50,19 +48,21 @@ Hecks.behaviors "AdTechPlatform" do
 
   test "RecordClick sets click_id + landing_url + referrer + cost" do
     tests "RecordClick", on: "Click"
-    input  impression: 1, click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    setup  "ServeImpression", impression_id: "sample", placement_id: "sample", creative_id: "sample", user_segment: "sample", bid_price: 1.0
+    input  click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
     expect ok: "true"
   end
 
   test "ValidateClick runs" do
     tests "ValidateClick", on: "Click"
-    input  click: 1
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
     expect ok: "true"
   end
 
   test "DisputeClick sets dispute_reason" do
     tests "DisputeClick", on: "Click"
-    input  click: 1, dispute_reason: "sample"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    input  dispute_reason: "sample"
     expect ok: "true"
   end
 
@@ -71,19 +71,21 @@ Hecks.behaviors "AdTechPlatform" do
 
   test "TrackConversion sets conversion_id + conversion_type + value + attribution_model" do
     tests "TrackConversion", on: "Conversion"
-    input  click: 1, conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    setup  "RecordClick", click_id: "sample", landing_url: "sample", referrer: "sample", cost: 1.0
+    input  conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
     expect ok: "true"
   end
 
   test "AdjustAttribution sets attribution_model" do
     tests "AdjustAttribution", on: "Conversion"
-    input  conversion: 1, attribution_model: "sample"
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
+    input  attribution_model: "sample"
     expect ok: "true"
   end
 
   test "VoidConversion runs" do
     tests "VoidConversion", on: "Conversion"
-    input  conversion: 1
+    setup  "TrackConversion", conversion_id: "sample", conversion_type: "sample", value: 1.0, attribution_model: "sample"
     expect ok: "true"
   end
 
@@ -93,19 +95,20 @@ Hecks.behaviors "AdTechPlatform" do
   test "AllocateBudget sets budget_id + allocated_amount + period" do
     tests "AllocateBudget", on: "Budget"
     setup  "LaunchCampaign", campaign_id: "sample", advertiser_name: "sample", objective: "sample", target_audience: "sample", daily_budget: 1.0, total_budget: 1.0
-    input  campaign: 1, budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    input  budget_id: "sample", allocated_amount: 1.0, period: "sample"
     expect ok: "true"
   end
 
   test "DeductSpend sets amount" do
     tests "DeductSpend", on: "Budget"
-    input  budget: 1, amount: 1.0
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
+    input  amount: 1.0
     expect ok: "true"
   end
 
   test "ExhaustBudget runs" do
     tests "ExhaustBudget", on: "Budget"
-    input  budget: 1
+    setup  "AllocateBudget", budget_id: "sample", allocated_amount: 1.0, period: "sample"
     expect ok: "true"
   end
 

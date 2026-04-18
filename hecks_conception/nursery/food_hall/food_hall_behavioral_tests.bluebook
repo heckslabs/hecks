@@ -12,7 +12,6 @@ Hecks.behaviors "FoodHall" do
   test "OffboardVendor runs" do
     tests "OffboardVendor", on: "FoodVendor"
     setup  "OnboardVendor", vendor_id: "sample", business_name: "sample", cuisine_type: "sample", contact_name: "sample"
-    input  food_vendor: 1
     expect status: "offboarded"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "FoodHall" do
   test "TerminateLease runs" do
     tests "TerminateLease", on: "FoodStall"
     setup  "LeaseStall", stall_id: "sample", location: "sample", monthly_rent: 1.0, vendor_id: "sample"
-    input  food_stall: 1
     expect status: "vacant"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "FoodHall" do
   test "UpdateMenu runs" do
     tests "UpdateMenu", on: "HallMenu"
     setup  "PublishMenu", menu_id: "sample", vendor_id: "sample"
-    input  hall_menu: 1
     expect ok: "true"
   end
 
@@ -60,14 +57,13 @@ Hecks.behaviors "FoodHall" do
   test "ReserveSeats sets seats_needed" do
     tests "ReserveSeats", on: "SeatingArea"
     setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
-    input  seating_area: 1, seats_needed: 1
+    input  seats_needed: 1
     expect ok: "true"
   end
 
   test "CloseSeating runs" do
     tests "CloseSeating", on: "SeatingArea"
     setup  "OpenSeating", area_id: "sample", name: "sample", total_seats: 1
-    input  seating_area: 1
     expect status: "closed"
   end
 
@@ -83,14 +79,12 @@ Hecks.behaviors "FoodHall" do
   test "HostEvent runs" do
     tests "HostEvent", on: "CulinaryEvent"
     setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
-    input  culinary_event: 1
     expect status: "completed"
   end
 
   test "CancelEvent runs" do
     tests "CancelEvent", on: "CulinaryEvent"
     setup  "ScheduleEvent", event_id: "sample", name: "sample", event_type: "sample", date: "sample", capacity: 1, ticket_price: 1.0
-    input  culinary_event: 1
     expect status: "canceled"
   end
 

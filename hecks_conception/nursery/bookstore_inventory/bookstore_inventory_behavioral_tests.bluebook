@@ -12,14 +12,13 @@ Hecks.behaviors "BookstoreInventory" do
   test "ReplenishStock sets additional_copies" do
     tests "ReplenishStock", on: "Book"
     setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
-    input  book: 1, additional_copies: 1
+    input  additional_copies: 1
     expect ok: "true"
   end
 
   test "MarkOutOfPrint runs" do
     tests "MarkOutOfPrint", on: "Book"
     setup  "CatalogBook", isbn: "sample", title: "sample", author_name: "sample", genre: "sample", price: 1.0, quantity_on_hand: 1
-    input  book: 1
     expect status: "out_of_print"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "BookstoreInventory" do
   test "ScheduleSigning sets event_date" do
     tests "ScheduleSigning", on: "Author"
     setup  "RegisterAuthor", name: "sample", biography: "sample"
-    input  author: 1, event_date: "sample"
+    input  event_date: "sample"
     expect ok: "true"
   end
 
@@ -51,14 +50,13 @@ Hecks.behaviors "BookstoreInventory" do
   test "ShelveBook sets isbn + copies" do
     tests "ShelveBook", on: "Shelf"
     setup  "AssignShelf", section: "sample", label: "sample", capacity: 1
-    input  shelf: 1, isbn: "sample", copies: 1
+    input  isbn: "sample", copies: 1
     expect ok: "true"
   end
 
   test "ClearShelf runs" do
     tests "ClearShelf", on: "Shelf"
     setup  "AssignShelf", section: "sample", label: "sample", capacity: 1
-    input  shelf: 1
     expect current_count: 0
   end
 
@@ -74,14 +72,12 @@ Hecks.behaviors "BookstoreInventory" do
   test "FulfillOrder runs" do
     tests "FulfillOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample"
-    input  order: 1
     expect status: "fulfilled"
   end
 
   test "CancelOrder runs" do
     tests "CancelOrder", on: "Order"
     setup  "PlaceOrder", order_number: "sample", customer_name: "sample"
-    input  order: 1
     expect status: "canceled"
   end
 
@@ -97,14 +93,14 @@ Hecks.behaviors "BookstoreInventory" do
   test "InspectReturn sets condition" do
     tests "InspectReturn", on: "Return"
     setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
-    input  return: 1, condition: "sample"
+    input  condition: "sample"
     expect condition: "sample"
   end
 
   test "ResolveReturn sets resolution" do
     tests "ResolveReturn", on: "Return"
     setup  "InitiateReturn", return_id: "sample", order_number: "sample", isbn: "sample", reason: "sample"
-    input  return: 1, resolution: "sample"
+    input  resolution: "sample"
     expect resolution: "sample"
   end
 

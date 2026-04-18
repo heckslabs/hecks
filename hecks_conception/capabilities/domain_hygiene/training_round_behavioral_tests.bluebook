@@ -12,7 +12,6 @@ Hecks.behaviors "TrainingRound" do
   test "CompleteRound runs" do
     tests "CompleteRound", on: "Round"
     setup  "StartRound", round_number: 1, growth_target: 1, min_reference_pct: 1.0, min_policy_pct: 1.0
-    input  round: 1
     expect ok: "true"
   end
 
@@ -57,7 +56,6 @@ Hecks.behaviors "TrainingRound" do
   test "Evaluate runs" do
     tests "Evaluate", on: "Decision"
     setup  "StartRound", round_number: 1, growth_target: 1, min_reference_pct: 1.0, min_policy_pct: 1.0
-    input  round: 1
     expect ok: "true"
   end
 

@@ -12,22 +12,20 @@ Hecks.behaviors "UrbanForestry" do
   test "AssessHealth sets health_rating" do
     tests "AssessHealth", on: "Tree"
     setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
-    input  tree: 1, health_rating: "sample"
+    input  health_rating: "sample"
     expect health_rating: "sample"
   end
 
   test "FlagForRemoval runs" do
     tests "FlagForRemoval", on: "Tree"
     setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
-    input  tree: 1
     expect status: "removal_pending"
   end
 
   test "RemoveTree runs" do
     tests "RemoveTree", on: "Tree"
     setup  "InventoryTree", species: "sample", common_name: "sample", dbh_cm: 1.0, height_m: 1.0, canopy_spread_m: 1.0
-    setup  "FlagForRemoval", tree: 1
-    input  tree: 1
+    setup  "FlagForRemoval"
     expect status: "removed"
   end
 
@@ -43,15 +41,13 @@ Hecks.behaviors "UrbanForestry" do
   test "ApprovePlan runs" do
     tests "ApprovePlan", on: "PlantingPlan"
     setup  "CreatePlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
-    input  planting_plan: 1
     expect status: "approved"
   end
 
   test "ExecutePlanting runs" do
     tests "ExecutePlanting", on: "PlantingPlan"
     setup  "CreatePlantingPlan", name: "sample", site_address: "sample", tree_count: 1, primary_species: "sample", spacing_m: 1.0, season: "sample"
-    setup  "ApprovePlan", planting_plan: 1
-    input  planting_plan: 1
+    setup  "ApprovePlan"
     expect status: "planted"
   end
 
@@ -67,14 +63,13 @@ Hecks.behaviors "UrbanForestry" do
   test "CompleteMaintenance runs" do
     tests "CompleteMaintenance", on: "MaintenanceSchedule"
     setup  "ScheduleMaintenance", tree_species: "sample", maintenance_type: "sample", frequency: "sample", next_due_date: "sample", assigned_crew: "sample"
-    input  maintenance_schedule: 1
     expect status: "completed"
   end
 
   test "RescheduleMaintenance sets next_due_date" do
     tests "RescheduleMaintenance", on: "MaintenanceSchedule"
     setup  "ScheduleMaintenance", tree_species: "sample", maintenance_type: "sample", frequency: "sample", next_due_date: "sample", assigned_crew: "sample"
-    input  maintenance_schedule: 1, next_due_date: "sample"
+    input  next_due_date: "sample"
     expect next_due_date: "sample"
   end
 
@@ -90,23 +85,20 @@ Hecks.behaviors "UrbanForestry" do
   test "ReviewPermit runs" do
     tests "ReviewPermit", on: "TreePermit"
     setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
-    input  tree_permit: 1
     expect status: "reviewed"
   end
 
   test "ApprovePermit runs" do
     tests "ApprovePermit", on: "TreePermit"
     setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
-    setup  "ReviewPermit", tree_permit: 1
-    input  tree_permit: 1
+    setup  "ReviewPermit"
     expect status: "approved"
   end
 
   test "DenyPermit runs" do
     tests "DenyPermit", on: "TreePermit"
     setup  "ApplyForPermit", permit_type: "sample", tree_species: "sample", site_address: "sample", applicant: "sample", justification: "sample"
-    setup  "ReviewPermit", tree_permit: 1
-    input  tree_permit: 1
+    setup  "ReviewPermit"
     expect status: "denied"
   end
 

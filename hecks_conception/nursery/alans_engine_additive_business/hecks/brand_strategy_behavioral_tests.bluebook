@@ -12,14 +12,14 @@ Hecks.behaviors "BrandStrategy" do
   test "AnalyzeCompetitor sets competitor + competitor_position" do
     tests "AnalyzeCompetitor", on: "BrandPosition"
     setup  "DefineBrandPosition", brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
-    input  brand_position: 1, competitor: "sample", competitor_position: "sample"
+    input  competitor: "sample", competitor_position: "sample"
     expect competitor: "sample", competitor_position: "sample"
   end
 
   test "CraftMessage sets channel + headline + proof_point + call_to_action" do
     tests "CraftMessage", on: "BrandPosition"
     setup  "DefineBrandPosition", brand: "sample", owned_word: "sample", target_customer: "sample", differentiator: "sample"
-    input  brand_position: 1, channel: "sample", headline: "sample", proof_point: "sample", call_to_action: "sample"
+    input  channel: "sample", headline: "sample", proof_point: "sample", call_to_action: "sample"
     expect ok: "true"
   end
 
@@ -35,14 +35,13 @@ Hecks.behaviors "BrandStrategy" do
   test "MeasureCampaign sets actual_result" do
     tests "MeasureCampaign", on: "Campaign"
     setup  "LaunchCampaign", name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample"
-    input  campaign: 1, actual_result: "sample"
+    input  actual_result: "sample"
     expect actual_result: "sample"
   end
 
   test "EndCampaign runs" do
     tests "EndCampaign", on: "Campaign"
     setup  "LaunchCampaign", name: "sample", brand: "sample", channel: "sample", budget: 1.0, target_audience: "sample", kpi: "sample"
-    input  campaign: 1
     expect status: "completed"
   end
 
@@ -58,7 +57,6 @@ Hecks.behaviors "BrandStrategy" do
   test "RespondToReview runs" do
     tests "RespondToReview", on: "CustomerReview"
     setup  "CaptureReview", product_sku: "sample", channel: "sample", rating: 1, review_text: "sample", verified_purchase: "sample"
-    input  customer_review: 1
     expect responded: "true"
   end
 

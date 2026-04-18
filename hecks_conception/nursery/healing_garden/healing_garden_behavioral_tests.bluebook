@@ -12,7 +12,6 @@ Hecks.behaviors "HealingGarden" do
   test "UpdatePlan runs" do
     tests "UpdatePlan", on: "ComfortPlan"
     setup  "CreateComfortPlan", plan_id: "sample", patient_name: "sample", primary_nurse: "sample"
-    input  comfort_plan: 1
     expect ok: "true"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "HealingGarden" do
   test "HarvestPlot runs" do
     tests "HarvestPlot", on: "GardenPlot"
     setup  "PlantPlot", plot_id: "sample", garden_name: "sample", plant_type: "sample", therapeutic_purpose: "sample", season: "sample"
-    input  garden_plot: 1
     expect status: "harvested"
   end
 
@@ -44,7 +42,7 @@ Hecks.behaviors "HealingGarden" do
   test "RecordMoodAfter sets mood_after" do
     tests "RecordMoodAfter", on: "GardenVisit"
     setup  "LogGardenVisit", visit_id: "sample", patient_name: "sample", plot_id: "sample", activity: "sample", duration_minutes: 1.0, mood_before: "sample"
-    input  garden_visit: 1, mood_after: "sample"
+    input  mood_after: "sample"
     expect mood_after: "sample"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "HealingGarden" do
   test "CompleteShift runs" do
     tests "CompleteShift", on: "VolunteerShift"
     setup  "ScheduleShift", shift_id: "sample", volunteer_name: "sample", garden_name: "sample", date: "sample", hours: 1.0
-    input  volunteer_shift: 1
     expect status: "completed"
   end
 

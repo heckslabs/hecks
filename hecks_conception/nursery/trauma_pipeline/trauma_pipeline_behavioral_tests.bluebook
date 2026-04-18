@@ -12,22 +12,20 @@ Hecks.behaviors "TraumaPipeline" do
   test "UpdateETA sets estimated_arrival_minutes" do
     tests "UpdateETA", on: "TraumaCall"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
-    input  trauma_call: 1, estimated_arrival_minutes: 1
+    input  estimated_arrival_minutes: 1
     expect estimated_arrival_minutes: 1
   end
 
   test "ArriveAtBay runs" do
     tests "ArriveAtBay", on: "TraumaCall"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
-    input  trauma_call: 1
     expect status: "arrived"
   end
 
   test "CloseCall runs" do
     tests "CloseCall", on: "TraumaCall"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
-    setup  "ArriveAtBay", trauma_call: 1
-    input  trauma_call: 1
+    setup  "ArriveAtBay"
     expect status: "closed"
   end
 
@@ -43,23 +41,20 @@ Hecks.behaviors "TraumaPipeline" do
   test "ReserveUnit runs" do
     tests "ReserveUnit", on: "BloodUnit"
     setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
-    input  blood_unit: 1
     expect status: "reserved"
   end
 
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "BloodUnit"
     setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
-    setup  "ReserveUnit", blood_unit: 1
-    input  blood_unit: 1
+    setup  "ReserveUnit"
     expect status: "available"
   end
 
   test "TransfuseUnit runs" do
     tests "TransfuseUnit", on: "BloodUnit"
     setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
-    setup  "ReserveUnit", blood_unit: 1
-    input  blood_unit: 1
+    setup  "ReserveUnit"
     expect status: "transfused"
   end
 
@@ -69,27 +64,26 @@ Hecks.behaviors "TraumaPipeline" do
   test "DeployBloodCourier sets courier_id + origin + destination" do
     tests "DeployBloodCourier", on: "ColdTransport"
     setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
-    input  blood_unit: 1, courier_id: "sample", origin: "sample", destination: "sample"
+    input  courier_id: "sample", origin: "sample", destination: "sample"
     expect blood_unit: 1, courier_id: "sample", origin: "sample", destination: "sample", status: "in_transit"
   end
 
   test "RecordTemperature sets temperature" do
     tests "RecordTemperature", on: "ColdTransport"
-    input  cold_transport: 1, temperature: 1.0
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
+    input  temperature: 1.0
     expect temperature: 1.0
   end
 
   test "FlagTempBreach runs" do
     tests "FlagTempBreach", on: "ColdTransport"
-    setup  "DeployBloodCourier", blood_unit: 1, courier_id: "sample", origin: "sample", destination: "sample"
-    input  cold_transport: 1
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
     expect status: "breached"
   end
 
   test "DeliverBlood runs" do
     tests "DeliverBlood", on: "ColdTransport"
-    setup  "DeployBloodCourier", blood_unit: 1, courier_id: "sample", origin: "sample", destination: "sample"
-    input  cold_transport: 1
+    setup  "DeployBloodCourier", courier_id: "sample", origin: "sample", destination: "sample"
     expect status: "delivered"
   end
 
@@ -106,15 +100,13 @@ Hecks.behaviors "TraumaPipeline" do
     tests "AssignCall", on: "TraumaBay"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
     setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
-    input  trauma_bay: 1, trauma_call: 1
     expect active_call: :active_call, status: "assigned"
   end
 
   test "ReleaseBay runs" do
     tests "ReleaseBay", on: "TraumaBay"
     setup  "PrepareBay", bay_number: "sample", trauma_level: "sample"
-    setup  "AssignCall", trauma_bay: 1, trauma_call: 1
-    input  trauma_bay: 1
+    setup  "AssignCall"
     expect status: "available"
   end
 
@@ -125,21 +117,19 @@ Hecks.behaviors "TraumaPipeline" do
     tests "MatchBloodType", on: "CrossMatch"
     setup  "RegisterUnit", blood_type: "sample", product_type: "sample", donation_id: "sample", expiration_date: "sample"
     setup  "DispatchTrauma", incident_type: "sample", location: "sample", severity: "sample", blood_type_needed: "sample", estimated_arrival_minutes: 1
-    input  trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample"
+    input  patient_blood_type: "sample", donor_blood_type: "sample"
     expect trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample", status: "tested"
   end
 
   test "ApproveMatch runs" do
     tests "ApproveMatch", on: "CrossMatch"
-    setup  "MatchBloodType", trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample"
-    input  cross_match: 1
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
     expect result: "compatible", status: "approved"
   end
 
   test "RejectMatch runs" do
     tests "RejectMatch", on: "CrossMatch"
-    setup  "MatchBloodType", trauma_call: 1, blood_unit: 1, patient_blood_type: "sample", donor_blood_type: "sample"
-    input  cross_match: 1
+    setup  "MatchBloodType", patient_blood_type: "sample", donor_blood_type: "sample"
     expect result: "incompatible", status: "rejected"
   end
 

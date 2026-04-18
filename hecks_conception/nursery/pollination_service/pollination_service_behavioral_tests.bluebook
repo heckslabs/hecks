@@ -12,22 +12,20 @@ Hecks.behaviors "PollinationService" do
   test "InspectHive sets health_rating" do
     tests "InspectHive", on: "Hive"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
-    input  hive: 1, health_rating: "sample"
+    input  health_rating: "sample"
     expect health_rating: "sample"
   end
 
   test "DeployForPollination runs" do
     tests "DeployForPollination", on: "Hive"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
-    input  hive: 1
     expect status: "deployed"
   end
 
   test "ReturnFromField runs" do
     tests "ReturnFromField", on: "Hive"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
-    setup  "DeployForPollination", hive: 1
-    input  hive: 1
+    setup  "DeployForPollination"
     expect status: "active"
   end
 
@@ -43,15 +41,13 @@ Hecks.behaviors "PollinationService" do
   test "RequestPollination runs" do
     tests "RequestPollination", on: "CropField"
     setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
-    input  crop_field: 1
     expect status: "requested"
   end
 
   test "ConfirmPollination runs" do
     tests "ConfirmPollination", on: "CropField"
     setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
-    setup  "RequestPollination", crop_field: 1
-    input  crop_field: 1
+    setup  "RequestPollination"
     expect status: "pollinating"
   end
 
@@ -67,15 +63,13 @@ Hecks.behaviors "PollinationService" do
   test "ActivateSchedule runs" do
     tests "ActivateSchedule", on: "PollinationSchedule"
     setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
-    input  pollination_schedule: 1
     expect status: "active"
   end
 
   test "CompleteSchedule runs" do
     tests "CompleteSchedule", on: "PollinationSchedule"
     setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
-    setup  "ActivateSchedule", pollination_schedule: 1
-    input  pollination_schedule: 1
+    setup  "ActivateSchedule"
     expect status: "completed"
   end
 
@@ -91,7 +85,7 @@ Hecks.behaviors "PollinationService" do
   test "AnalyzeEffectiveness sets pollination_effectiveness" do
     tests "AnalyzeEffectiveness", on: "YieldReport"
     setup  "RecordYield", field_name: "sample", crop_type: "sample", yield_tons: 1.0, yield_per_hectare: 1.0
-    input  yield_report: 1, pollination_effectiveness: 1.0
+    input  pollination_effectiveness: 1.0
     expect pollination_effectiveness: 1.0, status: "analyzed"
   end
 

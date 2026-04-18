@@ -12,7 +12,6 @@ Hecks.behaviors "DonorRegistry" do
   test "DeactivateDonor runs" do
     tests "DeactivateDonor", on: "DonorProfile"
     setup  "RegisterDonor", donor_id: "sample", name: "sample", blood_type: "sample"
-    input  donor_profile: 1
     expect status: "inactive"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "DonorRegistry" do
   test "ConfirmMatch runs" do
     tests "ConfirmMatch", on: "RecipientMatch"
     setup  "FindMatch", match_id: "sample", donor_id: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: 1.0
-    input  recipient_match: 1
     expect status: "confirmed"
   end
 
@@ -44,7 +42,6 @@ Hecks.behaviors "DonorRegistry" do
   test "ConfirmArrival runs" do
     tests "ConfirmArrival", on: "OrganTransport"
     setup  "ArrangeTransport", transport_id: "sample", match_id: "sample", origin_hospital: "sample", dest_hospital: "sample", max_hours: 1.0
-    input  organ_transport: 1
     expect status: "delivered"
   end
 
@@ -60,7 +57,6 @@ Hecks.behaviors "DonorRegistry" do
   test "ProcessPayment runs" do
     tests "ProcessPayment", on: "Settlement"
     setup  "CreateSettlement", settlement_id: "sample", match_id: "sample", procurement_cost: 1.0, transport_cost: 1.0
-    input  settlement: 1
     expect status: "paid"
   end
 

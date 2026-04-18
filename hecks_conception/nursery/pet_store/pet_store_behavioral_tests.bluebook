@@ -12,14 +12,13 @@ Hecks.behaviors "PetStore" do
   test "VaccinateAnimal sets vaccine_name" do
     tests "VaccinateAnimal", on: "Animal"
     setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
-    input  animal: 1, vaccine_name: "sample"
+    input  vaccine_name: "sample"
     expect ok: "true"
   end
 
   test "QuarantineAnimal runs" do
     tests "QuarantineAnimal", on: "Animal"
     setup  "IntakeAnimal", animal_id: "sample", species: "sample", breed: "sample", name: "sample", age_months: 1, price: 1.0
-    input  animal: 1
     expect status: "quarantined"
   end
 
@@ -35,7 +34,7 @@ Hecks.behaviors "PetStore" do
   test "ReorderSupply sets reorder_quantity" do
     tests "ReorderSupply", on: "Supply"
     setup  "StockSupply", sku: "sample", name: "sample", category: "sample", price: 1.0, quantity: 1, pet_type: "sample"
-    input  supply: 1, reorder_quantity: 1
+    input  reorder_quantity: 1
     expect ok: "true"
   end
 
@@ -51,15 +50,13 @@ Hecks.behaviors "PetStore" do
   test "ApproveAdoption runs" do
     tests "ApproveAdoption", on: "Adoption"
     setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
-    input  adoption: 1
     expect status: "approved"
   end
 
   test "FinalizeAdoption runs" do
     tests "FinalizeAdoption", on: "Adoption"
     setup  "SubmitAdoptionApplication", adoption_id: "sample", animal_id: "sample", adopter_name: "sample", adopter_phone: "sample", adoption_fee: 1.0
-    setup  "ApproveAdoption", adoption: 1
-    input  adoption: 1
+    setup  "ApproveAdoption"
     expect status: "finalized"
   end
 
@@ -75,7 +72,6 @@ Hecks.behaviors "PetStore" do
   test "CompleteGrooming runs" do
     tests "CompleteGrooming", on: "GroomingAppointment"
     setup  "BookGrooming", appointment_id: "sample", pet_name: "sample", owner_name: "sample", service_type: "sample", scheduled_time: "sample", price: 1.0
-    input  grooming_appointment: 1
     expect status: "completed"
   end
 

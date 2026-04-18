@@ -12,14 +12,13 @@ Hecks.behaviors "DistilleryMedia" do
   test "AddIngredient sets name + quantity_kg" do
     tests "AddIngredient", on: "Spirit"
     setup  "CreateSpirit", name: "sample", spirit_type: "sample"
-    input  spirit: 1, name: "sample", quantity_kg: 1.0
+    input  name: "sample", quantity_kg: 1.0
     expect name: "sample", ingredients_size: 1
   end
 
   test "ApproveDistillation runs" do
     tests "ApproveDistillation", on: "Spirit"
     setup  "CreateSpirit", name: "sample", spirit_type: "sample"
-    input  spirit: 1
     expect ok: "true"
   end
 
@@ -29,13 +28,14 @@ Hecks.behaviors "DistilleryMedia" do
   test "FillBarrel sets barrel_type" do
     tests "FillBarrel", on: "BarrelAging"
     setup  "CreateSpirit", name: "sample", spirit_type: "sample"
-    input  spirit: 1, barrel_type: "sample"
+    input  barrel_type: "sample"
     expect ok: "true"
   end
 
   test "SampleBarrel sets flavor_profile + score" do
     tests "SampleBarrel", on: "BarrelAging"
-    input  barrel_aging: 1, flavor_profile: "sample", score: 1
+    setup  "FillBarrel", barrel_type: "sample"
+    input  flavor_profile: "sample", score: 1
     expect ok: "true"
   end
 
@@ -51,14 +51,13 @@ Hecks.behaviors "DistilleryMedia" do
   test "AddSegment sets segment_title + duration_minutes + segment_type" do
     tests "AddSegment", on: "Episode"
     setup  "PlanEpisode", title: "sample", topic: "sample"
-    input  episode: 1, segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    input  segment_title: "sample", duration_minutes: 1, segment_type: "sample"
     expect segments_size: 1
   end
 
   test "PublishEpisode runs" do
     tests "PublishEpisode", on: "Episode"
     setup  "PlanEpisode", title: "sample", topic: "sample"
-    input  episode: 1
     expect ok: "true"
   end
 
@@ -68,19 +67,20 @@ Hecks.behaviors "DistilleryMedia" do
   test "ScheduleTasting sets host" do
     tests "ScheduleTasting", on: "TastingSession"
     setup  "CreateSpirit", name: "sample", spirit_type: "sample"
-    input  spirit: 1, host: "sample"
+    input  host: "sample"
     expect ok: "true"
   end
 
   test "InviteGuest sets name + expertise" do
     tests "InviteGuest", on: "TastingSession"
-    input  tasting_session: 1, name: "sample", expertise: "sample"
+    setup  "ScheduleTasting", host: "sample"
+    input  name: "sample", expertise: "sample"
     expect guests_size: 1
   end
 
   test "RecordSession runs" do
     tests "RecordSession", on: "TastingSession"
-    input  tasting_session: 1
+    setup  "ScheduleTasting", host: "sample"
     expect ok: "true"
   end
 
@@ -90,13 +90,13 @@ Hecks.behaviors "DistilleryMedia" do
   test "ProposeDeal sets sponsor_name + deal_value_cents" do
     tests "ProposeDeal", on: "Sponsorship"
     setup  "CreateSpirit", name: "sample", spirit_type: "sample"
-    input  spirit: 1, sponsor_name: "sample", deal_value_cents: 1
+    input  sponsor_name: "sample", deal_value_cents: 1
     expect ok: "true"
   end
 
   test "ApproveDeal runs" do
     tests "ApproveDeal", on: "Sponsorship"
-    input  sponsorship: 1
+    setup  "ProposeDeal", sponsor_name: "sample", deal_value_cents: 1
     expect ok: "true"
   end
 

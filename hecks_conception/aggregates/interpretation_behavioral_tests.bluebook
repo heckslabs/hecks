@@ -12,14 +12,14 @@ Hecks.behaviors "Interpretation" do
   test "ExtractTheme sets recurring_theme" do
     tests "ExtractTheme", on: "DreamInterpretation"
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
-    input  dream_interpretation: 1, recurring_theme: "sample"
+    input  recurring_theme: "sample"
     expect recurring_theme: "sample"
   end
 
   test "ProposeDomainFromDream sets proposed_domain" do
     tests "ProposeDomainFromDream", on: "DreamInterpretation"
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
-    input  dream_interpretation: 1, proposed_domain: "sample"
+    input  proposed_domain: "sample"
     expect proposed_domain: "sample"
   end
 
@@ -35,29 +35,27 @@ Hecks.behaviors "Interpretation" do
   test "ReportFinding sets kind + subject + detail" do
     tests "ReportFinding", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    input  process: 1, kind: "sample", subject: "sample", detail: "sample"
+    input  kind: "sample", subject: "sample", detail: "sample"
     expect findings_size: 1
   end
 
   test "CompleteProcess runs" do
     tests "CompleteProcess", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    input  process: 1
     expect status: "completed"
   end
 
   test "FailProcess sets reason" do
     tests "FailProcess", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    input  process: 1, reason: "sample"
+    input  reason: "sample"
     expect status: "failed"
   end
 
   test "AbsorbFindings runs" do
     tests "AbsorbFindings", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
-    setup  "CompleteProcess", process: 1
-    input  process: 1
+    setup  "CompleteProcess"
     expect status: "absorbed"
   end
 
@@ -97,21 +95,18 @@ Hecks.behaviors "Interpretation" do
   test "AcceptProposal runs" do
     tests "AcceptProposal", on: "Proposal"
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
-    input  proposal: 1
     expect accepted: "yes"
   end
 
   test "DeferProposal runs" do
     tests "DeferProposal", on: "Proposal"
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
-    input  proposal: 1
     expect accepted: "deferred"
   end
 
   test "DismissProposal runs" do
     tests "DismissProposal", on: "Proposal"
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
-    input  proposal: 1
     expect accepted: "dismissed"
   end
 

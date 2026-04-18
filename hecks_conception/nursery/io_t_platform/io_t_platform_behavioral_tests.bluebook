@@ -12,14 +12,12 @@ Hecks.behaviors "IoTPlatform" do
   test "SuspendDevice runs" do
     tests "SuspendDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
-    input  device: 1
     expect ok: "true"
   end
 
   test "DeregisterDevice runs" do
     tests "DeregisterDevice", on: "Device"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
-    input  device: 1
     expect ok: "true"
   end
 
@@ -29,19 +27,20 @@ Hecks.behaviors "IoTPlatform" do
   test "AttachSensor sets sensor_id + sensor_type + unit + min_range + max_range" do
     tests "AttachSensor", on: "Sensor"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
-    input  device: 1, sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
     expect ok: "true"
   end
 
   test "CalibrateSensor sets offset + scale_factor" do
     tests "CalibrateSensor", on: "Sensor"
-    input  sensor: 1, offset: 1.0, scale_factor: 1.0
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  offset: 1.0, scale_factor: 1.0
     expect ok: "true"
   end
 
   test "DetachSensor runs" do
     tests "DetachSensor", on: "Sensor"
-    input  sensor: 1
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
     expect ok: "true"
   end
 
@@ -50,19 +49,20 @@ Hecks.behaviors "IoTPlatform" do
 
   test "IngestReading sets reading_id + value + timestamp" do
     tests "IngestReading", on: "Reading"
-    input  sensor: 1, reading_id: "sample", value: 1.0, timestamp: "sample"
+    setup  "AttachSensor", sensor_id: "sample", sensor_type: "sample", unit: "sample", min_range: 1.0, max_range: 1.0
+    input  reading_id: "sample", value: 1.0, timestamp: "sample"
     expect ok: "true"
   end
 
   test "ValidateReading runs" do
     tests "ValidateReading", on: "Reading"
-    input  reading: 1
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
     expect ok: "true"
   end
 
   test "FlagAnomaly runs" do
     tests "FlagAnomaly", on: "Reading"
-    input  reading: 1
+    setup  "IngestReading", reading_id: "sample", value: 1.0, timestamp: "sample"
     expect ok: "true"
   end
 
@@ -72,19 +72,19 @@ Hecks.behaviors "IoTPlatform" do
   test "RaiseAlert sets alert_id + severity + condition + message" do
     tests "RaiseAlert", on: "Alert"
     setup  "RegisterDevice", device_id: "sample", device_type: "sample", firmware_version: "sample", location: "sample"
-    input  device: 1, alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
+    input  alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
     expect ok: "true"
   end
 
   test "AcknowledgeAlert runs" do
     tests "AcknowledgeAlert", on: "Alert"
-    input  alert: 1
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
     expect ok: "true"
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "Alert"
-    input  alert: 1
+    setup  "RaiseAlert", alert_id: "sample", severity: "sample", condition: "sample", message: "sample"
     expect ok: "true"
   end
 
@@ -100,14 +100,13 @@ Hecks.behaviors "IoTPlatform" do
   test "ApplyUpdate sets device_id" do
     tests "ApplyUpdate", on: "FirmwareUpdate"
     setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
-    input  firmware_update: 1, device_id: "sample"
+    input  device_id: "sample"
     expect ok: "true"
   end
 
   test "RollbackUpdate runs" do
     tests "RollbackUpdate", on: "FirmwareUpdate"
     setup  "PublishUpdate", update_id: "sample", version: "sample", target_device_type: "sample", package_size_kb: 1, release_notes: "sample"
-    input  firmware_update: 1
     expect ok: "true"
   end
 

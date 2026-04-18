@@ -12,7 +12,7 @@ Hecks.behaviors "Console" do
   test "RecordMessage sets message" do
     tests "RecordMessage", on: "Session"
     setup  "StartSession", continuing: "sample"
-    input  session: 1, message: "sample"
+    input  message: "sample"
     expect history_size: 1, message_count: 1
   end
 
@@ -21,19 +21,16 @@ Hecks.behaviors "Console" do
 
   test "ToggleActivity runs" do
     tests "ToggleActivity", on: "Layout"
-    input  layout: 1
     expect ok: "true"
   end
 
   test "StartThinking runs" do
     tests "StartThinking", on: "Layout"
-    input  layout: 1
     expect thinking: "yes"
   end
 
   test "StopThinking runs" do
     tests "StopThinking", on: "Layout"
-    input  layout: 1
     expect thinking: "no"
   end
 
@@ -58,37 +55,35 @@ Hecks.behaviors "Console" do
   test "LoadSpeakerMemory sets bluebook_path + known + context" do
     tests "LoadSpeakerMemory", on: "Speaker"
     setup  "TalkWith", name: "sample"
-    input  speaker: 1, bluebook_path: "sample", known: "sample", context: "sample"
+    input  bluebook_path: "sample", known: "sample", context: "sample"
     expect bluebook_path: "sample", known: "sample", context: "sample"
   end
 
   test "LearnAboutSpeaker sets observation" do
     tests "LearnAboutSpeaker", on: "Speaker"
     setup  "TalkWith", name: "sample"
-    input  speaker: 1, observation: "sample"
+    input  observation: "sample"
     expect ok: "true"
   end
 
   test "RequestCreatorAccess runs" do
     tests "RequestCreatorAccess", on: "Speaker"
     setup  "TalkWith", name: "sample"
-    input  speaker: 1
     expect status: "authenticating"
   end
 
   test "AuthenticateCreator sets passcode" do
     tests "AuthenticateCreator", on: "Speaker"
     setup  "TalkWith", name: "sample"
-    setup  "RequestCreatorAccess", speaker: 1
-    input  speaker: 1, passcode: "sample"
+    setup  "RequestCreatorAccess"
+    input  passcode: "sample"
     expect name: "", context: "", status: "dismissed"
   end
 
   test "RejectAccess runs" do
     tests "RejectAccess", on: "Speaker"
     setup  "TalkWith", name: "sample"
-    setup  "RequestCreatorAccess", speaker: 1
-    input  speaker: 1
+    setup  "RequestCreatorAccess"
     expect status: "active"
   end
 

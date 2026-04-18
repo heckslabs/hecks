@@ -15,7 +15,7 @@ Hecks.behaviors "DeclarativeTraining" do
   test "ExtractPair sets domain_name" do
     tests "ExtractPair", on: "TrainingPair"
     setup  "HarvestCorpus", root_path: "sample"
-    input  corpus: 1, domain_name: "sample"
+    input  domain_name: "sample"
     expect ok: "true"
   end
 
@@ -24,7 +24,7 @@ Hecks.behaviors "DeclarativeTraining" do
 
   test "EmitTrainingSet sets output_path" do
     tests "EmitTrainingSet", on: "TrainingSet"
-    input  training_set: 1, output_path: "sample"
+    input  output_path: "sample"
     expect ok: "true"
   end
 

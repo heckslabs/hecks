@@ -12,7 +12,6 @@ Hecks.behaviors "OrthoticsFund" do
   test "PrescribeDevice runs" do
     tests "PrescribeDevice", on: "PodiatryPatient"
     setup  "AssessPatient", patient_id: "sample", name: "sample", diagnosis: "sample", foot_type: "sample"
-    input  podiatry_patient: 1
     expect status: "prescribed"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "OrthoticsFund" do
   test "FabricateDevice runs" do
     tests "FabricateDevice", on: "CustomDevice"
     setup  "DesignDevice", device_id: "sample", patient_id: "sample", device_type: "sample", cost: 1.0
-    input  custom_device: 1
     expect status: "fabricated"
   end
 
@@ -44,14 +42,13 @@ Hecks.behaviors "OrthoticsFund" do
   test "RecordPledge sets amount" do
     tests "RecordPledge", on: "FundingCampaign"
     setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
-    input  funding_campaign: 1, amount: 1.0
+    input  amount: 1.0
     expect ok: "true"
   end
 
   test "CloseCampaign runs" do
     tests "CloseCampaign", on: "FundingCampaign"
     setup  "LaunchCampaign", campaign_id: "sample", patient_id: "sample", goal_amount: 1.0
-    input  funding_campaign: 1
     expect status: "closed"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "OrthoticsFund" do
   test "ConfirmReceipt runs" do
     tests "ConfirmReceipt", on: "Disbursement"
     setup  "ReleaseFunds", disbursement_id: "sample", campaign_id: "sample", device_id: "sample", amount: 1.0
-    input  disbursement: 1
     expect status: "confirmed"
   end
 

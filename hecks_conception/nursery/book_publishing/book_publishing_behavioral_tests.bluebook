@@ -12,14 +12,13 @@ Hecks.behaviors "BookPublishing" do
   test "AcceptManuscript runs" do
     tests "AcceptManuscript", on: "Manuscript"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1
     expect status: "accepted"
   end
 
   test "RejectManuscript sets rejection_reason" do
     tests "RejectManuscript", on: "Manuscript"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1, rejection_reason: "sample"
+    input  rejection_reason: "sample"
     expect status: "rejected"
   end
 
@@ -29,19 +28,21 @@ Hecks.behaviors "BookPublishing" do
   test "AssignEditor sets pass_type + editor_name" do
     tests "AssignEditor", on: "EditorialPass"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1, pass_type: "sample", editor_name: "sample"
+    input  pass_type: "sample", editor_name: "sample"
     expect ok: "true"
   end
 
   test "CompletePass sets change_count" do
     tests "CompletePass", on: "EditorialPass"
-    input  editorial_pass: 1, change_count: 1
+    setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    input  change_count: 1
     expect status: "completed", change_count: 1
   end
 
   test "RequestRevision sets revision_notes" do
     tests "RequestRevision", on: "EditorialPass"
-    input  editorial_pass: 1, revision_notes: "sample"
+    setup  "AssignEditor", pass_type: "sample", editor_name: "sample"
+    input  revision_notes: "sample"
     expect ok: "true"
   end
 
@@ -51,13 +52,13 @@ Hecks.behaviors "BookPublishing" do
   test "BriefDesigner sets designer_name + art_style" do
     tests "BriefDesigner", on: "CoverDesign"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1, designer_name: "sample", art_style: "sample"
+    input  designer_name: "sample", art_style: "sample"
     expect ok: "true"
   end
 
   test "ApproveCover runs" do
     tests "ApproveCover", on: "CoverDesign"
-    input  cover_design: 1
+    setup  "BriefDesigner", designer_name: "sample", art_style: "sample"
     expect status: "approved"
   end
 
@@ -67,13 +68,14 @@ Hecks.behaviors "BookPublishing" do
   test "OrderPrintRun sets quantity + binding_type + paper_stock" do
     tests "OrderPrintRun", on: "PrintRun"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1, quantity: 1, binding_type: "sample", paper_stock: "sample"
+    input  quantity: 1, binding_type: "sample", paper_stock: "sample"
     expect ok: "true"
   end
 
   test "ReceiveShipment sets received_quantity" do
     tests "ReceiveShipment", on: "PrintRun"
-    input  print_run: 1, received_quantity: 1
+    setup  "OrderPrintRun", quantity: 1, binding_type: "sample", paper_stock: "sample"
+    input  received_quantity: 1
     expect status: "received"
   end
 
@@ -83,13 +85,14 @@ Hecks.behaviors "BookPublishing" do
   test "SetUpRoyalty sets advance_paid + royalty_rate" do
     tests "SetUpRoyalty", on: "RoyaltyAccount"
     setup  "SubmitManuscript", title: "sample", genre: "sample", author_name: "sample", word_count: 1
-    input  manuscript: 1, advance_paid: 1.0, royalty_rate: 1.0
+    input  advance_paid: 1.0, royalty_rate: 1.0
     expect ok: "true"
   end
 
   test "RecordSales sets units_sold + revenue" do
     tests "RecordSales", on: "RoyaltyAccount"
-    input  royalty_account: 1, units_sold: 1, revenue: 1.0
+    setup  "SetUpRoyalty", advance_paid: 1.0, royalty_rate: 1.0
+    input  units_sold: 1, revenue: 1.0
     expect ok: "true"
   end
 

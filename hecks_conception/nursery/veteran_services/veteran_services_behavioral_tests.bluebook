@@ -12,7 +12,7 @@ Hecks.behaviors "VeteranServices" do
   test "UpdateDisabilityRating sets disability_rating" do
     tests "UpdateDisabilityRating", on: "Veteran"
     setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
-    input  veteran: 1, disability_rating: "sample"
+    input  disability_rating: "sample"
     expect disability_rating: "sample"
   end
 
@@ -22,33 +22,32 @@ Hecks.behaviors "VeteranServices" do
   test "FileClaim sets veteran_name + benefit_type + filing_date + description" do
     tests "FileClaim", on: "BenefitClaim"
     setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
-    input  veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    input  veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     expect veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample", status: "filed"
   end
 
   test "SubmitEvidence sets document_name + document_type" do
     tests "SubmitEvidence", on: "BenefitClaim"
-    input  benefit_claim: 1, document_name: "sample", document_type: "sample"
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
+    input  document_name: "sample", document_type: "sample"
     expect ok: "true"
   end
 
   test "ApproveClaim runs" do
     tests "ApproveClaim", on: "BenefitClaim"
-    setup  "FileClaim", veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
-    input  benefit_claim: 1
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     expect status: "approved"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "BenefitClaim"
-    setup  "FileClaim", veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
-    input  benefit_claim: 1
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     expect status: "denied"
   end
 
   test "AppealClaim runs" do
     tests "AppealClaim", on: "BenefitClaim"
-    input  benefit_claim: 1
+    setup  "FileClaim", veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     expect status: "appealed"
   end
 
@@ -64,7 +63,6 @@ Hecks.behaviors "VeteranServices" do
   test "AssignVeteran runs" do
     tests "AssignVeteran", on: "VeteranCounselor"
     setup  "HireCounselor", name: "sample", specialty: "sample", license_number: "sample"
-    input  veteran_counselor: 1
     expect ok: "true"
   end
 
@@ -80,14 +78,13 @@ Hecks.behaviors "VeteranServices" do
   test "EnrollVeteran runs" do
     tests "EnrollVeteran", on: "ServiceProgram"
     setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
-    input  service_program: 1
     expect ok: "true"
   end
 
   test "ConductSession sets topic + facilitator + attendees" do
     tests "ConductSession", on: "ServiceProgram"
     setup  "LaunchProgram", program_name: "sample", program_type: "sample", eligibility_criteria: "sample", capacity: 1
-    input  service_program: 1, topic: "sample", facilitator: "sample", attendees: 1
+    input  topic: "sample", facilitator: "sample", attendees: 1
     expect ok: "true"
   end
 
@@ -97,20 +94,21 @@ Hecks.behaviors "VeteranServices" do
   test "ReportCrisis sets veteran_name + crisis_type + reported_date" do
     tests "ReportCrisis", on: "CrisisIntervention"
     setup  "RegisterVeteran", name: "sample", service_branch: "sample", discharge_status: "sample", service_dates: "sample", disability_rating: "sample"
-    input  veteran: 1, veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    input  veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
     expect veteran_name: "sample", crisis_type: "sample", reported_date: "sample", status: "reported"
   end
 
   test "RespondToCrisis sets responder_name" do
     tests "RespondToCrisis", on: "CrisisIntervention"
-    setup  "ReportCrisis", veteran: 1, veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
-    input  crisis_intervention: 1, responder_name: "sample"
+    setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    input  responder_name: "sample"
     expect responder_name: "sample", status: "responding"
   end
 
   test "ResolveCrisis sets resolution" do
     tests "ResolveCrisis", on: "CrisisIntervention"
-    input  crisis_intervention: 1, resolution: "sample"
+    setup  "ReportCrisis", veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
+    input  resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "BrainTraining" do
   test "LaunchExperiment runs" do
     tests "LaunchExperiment", on: "CognitiveExperiment"
     setup  "DesignExperiment", experiment_id: "sample", researcher: "sample", cognitive_domain: "sample", protocol: "sample"
-    input  cognitive_experiment: 1
     expect status: "active"
   end
 
@@ -28,7 +27,6 @@ Hecks.behaviors "BrainTraining" do
   test "PlayGame runs" do
     tests "PlayGame", on: "BrainGame"
     setup  "CreateGame", game_id: "sample", name: "sample", cognitive_target: "sample", difficulty: "sample", levels: 1
-    input  brain_game: 1
     expect ok: "true"
   end
 
@@ -44,7 +42,7 @@ Hecks.behaviors "BrainTraining" do
   test "CalculateComposite sets composite_score" do
     tests "CalculateComposite", on: "CognitiveScore"
     setup  "RecordScore", score_id: "sample", participant_id: "sample", game_id: "sample", accuracy: 1.0, reaction_time_ms: 1.0
-    input  cognitive_score: 1, composite_score: 1.0
+    input  composite_score: 1.0
     expect composite_score: 1.0
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "BrainTraining" do
   test "AdjustPlan runs" do
     tests "AdjustPlan", on: "TrainingPlan"
     setup  "CreateTrainingPlan", plan_id: "sample", participant_id: "sample"
-    input  training_plan: 1
     expect ok: "true"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "GreenFacility" do
   test "DischargeResident runs" do
     tests "DischargeResident", on: "FacilityResident"
     setup  "AdmitResident", resident_id: "sample", name: "sample", unit_number: "sample", care_plan: "sample"
-    input  facility_resident: 1
     expect status: "discharged"
   end
 
@@ -28,14 +27,13 @@ Hecks.behaviors "GreenFacility" do
   test "ReadOutput sets current_output_kw" do
     tests "ReadOutput", on: "WindTurbine"
     setup  "InstallTurbine", turbine_id: "sample", model: "sample", rated_kw: 1.0
-    input  wind_turbine: 1, current_output_kw: 1.0
+    input  current_output_kw: 1.0
     expect current_output_kw: 1.0
   end
 
   test "TakeOffline runs" do
     tests "TakeOffline", on: "WindTurbine"
     setup  "InstallTurbine", turbine_id: "sample", model: "sample", rated_kw: 1.0
-    input  wind_turbine: 1
     expect status: "offline"
   end
 
@@ -51,7 +49,7 @@ Hecks.behaviors "GreenFacility" do
   test "CalculateOffset sets grid_offset_kwh" do
     tests "CalculateOffset", on: "EnergyLedger"
     setup  "RecordMonth", ledger_id: "sample", month: "sample", produced_kwh: 1.0, consumed_kwh: 1.0
-    input  energy_ledger: 1, grid_offset_kwh: 1.0
+    input  grid_offset_kwh: 1.0
     expect grid_offset_kwh: 1.0
   end
 
@@ -67,7 +65,6 @@ Hecks.behaviors "GreenFacility" do
   test "ShareReport runs" do
     tests "ShareReport", on: "CostSavingsReport"
     setup  "GenerateSavingsReport", report_id: "sample", period: "sample", energy_savings_usd: 1.0, carbon_offset_tons: 1.0
-    input  cost_savings_report: 1
     expect status: "shared"
   end
 

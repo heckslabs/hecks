@@ -12,14 +12,13 @@ Hecks.behaviors "InsuranceClaims" do
   test "RenewPolicy sets new_premium + new_expiration_date" do
     tests "RenewPolicy", on: "PolicyHolder"
     setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
-    input  policy_holder: 1, new_premium: 1.0, new_expiration_date: "sample"
+    input  new_premium: 1.0, new_expiration_date: "sample"
     expect premium: 1.0, expiration_date: "sample"
   end
 
   test "LapsePolicy runs" do
     tests "LapsePolicy", on: "PolicyHolder"
     setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
-    input  policy_holder: 1
     expect status: "lapsed"
   end
 
@@ -29,19 +28,20 @@ Hecks.behaviors "InsuranceClaims" do
   test "FileClaim sets claim_number + incident_date + incident_description + claimed_amount" do
     tests "FileClaim", on: "Claim"
     setup  "IssuePolicy", name: "sample", policy_number: "sample", coverage_type: "sample", premium: 1.0, deductible: 1.0, effective_date: "sample", expiration_date: "sample"
-    input  policy_holder: 1, claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
     expect claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0, status: "filed"
   end
 
   test "ApproveClaim runs" do
     tests "ApproveClaim", on: "Claim"
-    input  claim: 1
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
     expect status: "approved"
   end
 
   test "DenyClaim sets denial_reason" do
     tests "DenyClaim", on: "Claim"
-    input  claim: 1, denial_reason: "sample"
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  denial_reason: "sample"
     expect status: "denied"
   end
 
@@ -50,14 +50,15 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "AssignAdjuster sets adjuster_name" do
     tests "AssignAdjuster", on: "AdjusterAssignment"
-    input  claim: 1, adjuster_name: "sample"
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  adjuster_name: "sample"
     expect adjuster_name: "sample", status: "assigned"
   end
 
   test "SubmitAssessment sets findings + assessed_amount" do
     tests "SubmitAssessment", on: "AdjusterAssignment"
-    setup  "AssignAdjuster", claim: 1, adjuster_name: "sample"
-    input  adjuster_assignment: 1, findings: "sample", assessed_amount: 1.0
+    setup  "AssignAdjuster", adjuster_name: "sample"
+    input  findings: "sample", assessed_amount: 1.0
     expect findings: "sample", assessed_amount: 1.0, status: "assessed"
   end
 
@@ -66,21 +67,20 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "OfferSettlement sets settlement_amount + payment_method" do
     tests "OfferSettlement", on: "Settlement"
-    input  claim: 1, settlement_amount: 1.0, payment_method: "sample"
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  settlement_amount: 1.0, payment_method: "sample"
     expect settlement_amount: 1.0, payment_method: "sample", status: "offered"
   end
 
   test "AcceptSettlement runs" do
     tests "AcceptSettlement", on: "Settlement"
-    setup  "OfferSettlement", claim: 1, settlement_amount: 1.0, payment_method: "sample"
-    input  settlement: 1
+    setup  "OfferSettlement", settlement_amount: 1.0, payment_method: "sample"
     expect status: "accepted"
   end
 
   test "RejectSettlement runs" do
     tests "RejectSettlement", on: "Settlement"
-    setup  "OfferSettlement", claim: 1, settlement_amount: 1.0, payment_method: "sample"
-    input  settlement: 1
+    setup  "OfferSettlement", settlement_amount: 1.0, payment_method: "sample"
     expect status: "rejected"
   end
 
@@ -89,14 +89,15 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "FileAppeal sets reason + supporting_documents" do
     tests "FileAppeal", on: "Appeal"
-    input  claim: 1, reason: "sample", supporting_documents: "sample"
+    setup  "FileClaim", claim_number: "sample", incident_date: "sample", incident_description: "sample", claimed_amount: 1.0
+    input  reason: "sample", supporting_documents: "sample"
     expect reason: "sample", supporting_documents: "sample", status: "filed"
   end
 
   test "ReviewAppeal sets resolution" do
     tests "ReviewAppeal", on: "Appeal"
-    setup  "FileAppeal", claim: 1, reason: "sample", supporting_documents: "sample"
-    input  appeal: 1, resolution: "sample"
+    setup  "FileAppeal", reason: "sample", supporting_documents: "sample"
+    input  resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "NutritionApp" do
   test "AdjustPlan sets daily_calories" do
     tests "AdjustPlan", on: "MealPlan"
     setup  "CreateMealPlan", plan_id: "sample", user_name: "sample", goal: "sample", daily_calories: 1
-    input  meal_plan: 1, daily_calories: 1
+    input  daily_calories: 1
     expect daily_calories: 1
   end
 
@@ -28,7 +28,7 @@ Hecks.behaviors "NutritionApp" do
   test "LogFood sets food_name + calories" do
     tests "LogFood", on: "FoodLog"
     setup  "StartDailyLog", log_id: "sample", user_name: "sample", date: "sample"
-    input  food_log: 1, food_name: "sample", calories: 1
+    input  food_name: "sample", calories: 1
     expect ok: "true"
   end
 
@@ -44,7 +44,7 @@ Hecks.behaviors "NutritionApp" do
   test "ResolveProduct sets product_name + calories + serving_size_g" do
     tests "ResolveProduct", on: "BarcodeScan"
     setup  "ScanBarcode", scan_id: "sample", barcode: "sample"
-    input  barcode_scan: 1, product_name: "sample", calories: 1, serving_size_g: 1.0
+    input  product_name: "sample", calories: 1, serving_size_g: 1.0
     expect product_name: "sample", calories: 1, serving_size_g: 1.0, status: "resolved"
   end
 
@@ -60,7 +60,7 @@ Hecks.behaviors "NutritionApp" do
   test "UpdateActual sets actual_amount" do
     tests "UpdateActual", on: "NutrientGoal"
     setup  "SetGoal", goal_id: "sample", user_name: "sample", nutrient: "sample", target_amount: 1.0, unit: "sample"
-    input  nutrient_goal: 1, actual_amount: 1.0
+    input  actual_amount: 1.0
     expect actual_amount: 1.0
   end
 

@@ -12,21 +12,18 @@ Hecks.behaviors "CloudTraining" do
   test "MonitorJob runs" do
     tests "MonitorJob", on: "TrainingJob"
     setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
-    input  training_job: 1
     expect ok: "true"
   end
 
   test "CompleteJob runs" do
     tests "CompleteJob", on: "TrainingJob"
     setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
-    input  training_job: 1
     expect ok: "true"
   end
 
   test "CancelJob runs" do
     tests "CancelJob", on: "TrainingJob"
     setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
-    input  training_job: 1
     expect ok: "true"
   end
 
@@ -42,7 +39,7 @@ Hecks.behaviors "CloudTraining" do
   test "UploadData sets remote_path" do
     tests "UploadData", on: "DataUpload"
     setup  "StageData", local_path: "sample"
-    input  data_upload: 1, remote_path: "sample"
+    input  remote_path: "sample"
     expect ok: "true"
   end
 
@@ -58,14 +55,13 @@ Hecks.behaviors "CloudTraining" do
   test "ConvertToOllama sets ollama_model_name" do
     tests "ConvertToOllama", on: "AdapterDownload"
     setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
-    input  adapter_download: 1, ollama_model_name: "sample"
+    input  ollama_model_name: "sample"
     expect ok: "true"
   end
 
   test "DeploySummer runs" do
     tests "DeploySummer", on: "AdapterDownload"
     setup  "DownloadAdapter", remote_path: "sample", local_path: "sample"
-    input  adapter_download: 1
     expect ok: "true"
   end
 
@@ -75,7 +71,6 @@ Hecks.behaviors "CloudTraining" do
   test "RecordCost runs" do
     tests "RecordCost", on: "CostTracker"
     setup  "SubmitJob", provider: "sample", gpu_type: "sample", base_model: "sample", iterations: 1, learning_rate: 1.0
-    input  training_job: 1
     expect ok: "true"
   end
 

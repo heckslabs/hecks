@@ -12,15 +12,13 @@ Hecks.behaviors "EcoProtectedZone" do
   test "CloseZone runs" do
     tests "CloseZone", on: "ProtectedArea"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
-    input  protected_area: 1
     expect status: "closed"
   end
 
   test "ReopenZone runs" do
     tests "ReopenZone", on: "ProtectedArea"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
-    setup  "CloseZone", protected_area: 1
-    input  protected_area: 1
+    setup  "CloseZone"
     expect status: "active"
   end
 
@@ -36,21 +34,19 @@ Hecks.behaviors "EcoProtectedZone" do
   test "TrackVisitor sets latitude + longitude" do
     tests "TrackVisitor", on: "Visitor"
     setup  "RegisterVisitor", name: "sample", nationality: "sample"
-    input  visitor: 1, latitude: 1.0, longitude: 1.0
+    input  latitude: 1.0, longitude: 1.0
     expect ok: "true"
   end
 
   test "EvacuateVisitors runs" do
     tests "EvacuateVisitors", on: "Visitor"
     setup  "RegisterVisitor", name: "sample", nationality: "sample"
-    input  visitor: 1
     expect status: "evacuated"
   end
 
   test "CheckOutVisitor runs" do
     tests "CheckOutVisitor", on: "Visitor"
     setup  "RegisterVisitor", name: "sample", nationality: "sample"
-    input  visitor: 1
     expect status: "checked_out"
   end
 
@@ -66,14 +62,14 @@ Hecks.behaviors "EcoProtectedZone" do
   test "RecordSighting sets latitude + longitude + count" do
     tests "RecordSighting", on: "WildlifeSpecies"
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
-    input  wildlife_species: 1, latitude: 1.0, longitude: 1.0, count: 1
+    input  latitude: 1.0, longitude: 1.0, count: 1
     expect ok: "true"
   end
 
   test "UpdateConservationStatus sets conservation_status" do
     tests "UpdateConservationStatus", on: "WildlifeSpecies"
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
-    input  wildlife_species: 1, conservation_status: "sample"
+    input  conservation_status: "sample"
     expect conservation_status: "sample"
   end
 
@@ -84,27 +80,26 @@ Hecks.behaviors "EcoProtectedZone" do
     tests "OpenForensicCase", on: "ForensicCase"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
-    input  wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    input  case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", species: :species, area: :area, status: "open"
   end
 
   test "MatchDNA runs" do
     tests "MatchDNA", on: "ForensicCase"
-    setup  "OpenForensicCase", wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
-    input  forensic_case: 1
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     expect ok: "true"
   end
 
   test "IdentifySuspect sets suspect_description" do
     tests "IdentifySuspect", on: "ForensicCase"
-    input  forensic_case: 1, suspect_description: "sample"
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    input  suspect_description: "sample"
     expect suspect_description: "sample"
   end
 
   test "CloseCase runs" do
     tests "CloseCase", on: "ForensicCase"
-    setup  "OpenForensicCase", wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
-    input  forensic_case: 1
+    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     expect status: "closed"
   end
 
@@ -114,28 +109,28 @@ Hecks.behaviors "EcoProtectedZone" do
   test "DefineHazardZone sets zone_name + hazard_type" do
     tests "DefineHazardZone", on: "HazardZone"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
-    input  protected_area: 1, zone_name: "sample", hazard_type: "sample"
+    input  zone_name: "sample", hazard_type: "sample"
     expect zone_name: "sample", hazard_type: "sample", area: :area, alert_level: "normal", status: "monitored"
   end
 
   test "RaiseAlert sets alert_level" do
     tests "RaiseAlert", on: "HazardZone"
-    setup  "DefineHazardZone", protected_area: 1, zone_name: "sample", hazard_type: "sample"
-    input  hazard_zone: 1, alert_level: "sample"
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    input  alert_level: "sample"
     expect alert_level: "sample", status: "alert"
   end
 
   test "LowerAlert runs" do
     tests "LowerAlert", on: "HazardZone"
-    setup  "DefineHazardZone", protected_area: 1, zone_name: "sample", hazard_type: "sample"
-    setup  "RaiseAlert", hazard_zone: 1, alert_level: "sample"
-    input  hazard_zone: 1
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    setup  "RaiseAlert", alert_level: "sample"
     expect alert_level: "normal", status: "monitored"
   end
 
   test "RecordSeismicActivity sets magnitude + depth_km" do
     tests "RecordSeismicActivity", on: "HazardZone"
-    input  hazard_zone: 1, magnitude: 1.0, depth_km: 1.0
+    setup  "DefineHazardZone", zone_name: "sample", hazard_type: "sample"
+    input  magnitude: 1.0, depth_km: 1.0
     expect ok: "true"
   end
 
@@ -146,21 +141,19 @@ Hecks.behaviors "EcoProtectedZone" do
     tests "IssuePermit", on: "Permit"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
     setup  "RegisterVisitor", name: "sample", nationality: "sample"
-    input  visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
+    input  permit_type: "sample", valid_from: "sample", valid_until: "sample"
     expect visitor: 1, area: :area, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
   end
 
   test "RevokePermit runs" do
     tests "RevokePermit", on: "Permit"
-    setup  "IssuePermit", visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
-    input  permit: 1
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     expect status: "revoked"
   end
 
   test "ExpirePermit runs" do
     tests "ExpirePermit", on: "Permit"
-    setup  "IssuePermit", visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
-    input  permit: 1
+    setup  "IssuePermit", permit_type: "sample", valid_from: "sample", valid_until: "sample"
     expect status: "expired"
   end
 

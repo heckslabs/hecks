@@ -12,21 +12,18 @@ Hecks.behaviors "ElderCare" do
   test "SuspendServices runs" do
     tests "SuspendServices", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1
     expect status: "suspended"
   end
 
   test "ResumeServices runs" do
     tests "ResumeServices", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1
     expect status: "active"
   end
 
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1
     expect status: "discharged"
   end
 
@@ -42,7 +39,6 @@ Hecks.behaviors "ElderCare" do
   test "AssignToClient runs" do
     tests "AssignToClient", on: "Caregiver"
     setup  "HireCaregiver", name: "sample", certification: "sample", phone: "sample", years_experience: 1, specialty: "sample"
-    input  caregiver: 1
     expect ok: "true"
   end
 
@@ -53,20 +49,20 @@ Hecks.behaviors "ElderCare" do
     tests "CreateSchedule", on: "CareSchedule"
     setup  "HireCaregiver", name: "sample", certification: "sample", phone: "sample", years_experience: 1, specialty: "sample"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1, caregiver: 1, client_name: "sample", caregiver_name: "sample", week_starting: "sample"
+    input  client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     expect client_name: "sample", caregiver_name: "sample", week_starting: "sample", status: "active"
   end
 
   test "AddVisitToSchedule sets day_of_week + start_time + end_time + visit_type" do
     tests "AddVisitToSchedule", on: "CareSchedule"
-    input  care_schedule: 1, day_of_week: "sample", start_time: "sample", end_time: "sample", visit_type: "sample"
+    setup  "CreateSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
+    input  day_of_week: "sample", start_time: "sample", end_time: "sample", visit_type: "sample"
     expect ok: "true"
   end
 
   test "CancelSchedule runs" do
     tests "CancelSchedule", on: "CareSchedule"
-    setup  "CreateSchedule", client: 1, caregiver: 1, client_name: "sample", caregiver_name: "sample", week_starting: "sample"
-    input  care_schedule: 1
+    setup  "CreateSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     expect status: "cancelled"
   end
 
@@ -76,20 +72,19 @@ Hecks.behaviors "ElderCare" do
   test "AddMedication sets client_name + medication_name + dosage + frequency + prescriber" do
     tests "AddMedication", on: "ElderMedication"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1, client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
+    input  client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
     expect client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample", status: "active"
   end
 
   test "AdministerMedication runs" do
     tests "AdministerMedication", on: "ElderMedication"
-    setup  "AddMedication", client: 1, client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
-    input  elder_medication: 1
+    setup  "AddMedication", client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
     expect ok: "true"
   end
 
   test "DiscontinueMedication runs" do
     tests "DiscontinueMedication", on: "ElderMedication"
-    input  elder_medication: 1
+    setup  "AddMedication", client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
     expect status: "discontinued"
   end
 
@@ -99,13 +94,14 @@ Hecks.behaviors "ElderCare" do
   test "ConductAssessment sets client_name + assessment_date + mobility_score + cognitive_score + nutrition_score + assessor_name" do
     tests "ConductAssessment", on: "WellnessAssessment"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
-    input  client: 1, client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
+    input  client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
     expect client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample", risk_flags: "none"
   end
 
   test "FlagRisks sets risk_flags" do
     tests "FlagRisks", on: "WellnessAssessment"
-    input  wellness_assessment: 1, risk_flags: "sample"
+    setup  "ConductAssessment", client_name: "sample", assessment_date: "sample", mobility_score: 1, cognitive_score: 1, nutrition_score: 1, assessor_name: "sample"
+    input  risk_flags: "sample"
     expect risk_flags: "sample"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "WaterMicrobiology" do
   test "AnalyzeSample runs" do
     tests "AnalyzeSample", on: "WaterSample"
     setup  "CollectSample", sample_id: "sample", source_type: "sample", collection_point: "sample", temperature_c: 1.0, ph: 1.0, turbidity_ntu: 1.0
-    input  water_sample: 1
     expect status: "analyzed"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "WaterMicrobiology" do
   test "IdentifyOrganism sets pathogenicity" do
     tests "IdentifyOrganism", on: "MicrobialCulture"
     setup  "CultureSample", sample_id: "sample", organism_name: "sample", colony_count_cfu: 1, gram_stain: "sample"
-    input  microbial_culture: 1, pathogenicity: "sample"
+    input  pathogenicity: "sample"
     expect pathogenicity: "sample", status: "identified"
   end
 
@@ -44,15 +43,13 @@ Hecks.behaviors "WaterMicrobiology" do
   test "InvestigateSource runs" do
     tests "InvestigateSource", on: "ContaminationEvent"
     setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
-    input  contamination_event: 1
     expect status: "investigated"
   end
 
   test "ResolveContamination runs" do
     tests "ResolveContamination", on: "ContaminationEvent"
     setup  "DeclareContamination", event_id: "sample", contaminant: "sample", concentration: 1.0, severity: "sample", source_hypothesis: "sample"
-    setup  "InvestigateSource", contamination_event: 1
-    input  contamination_event: 1
+    setup  "InvestigateSource"
     expect status: "resolved"
   end
 
@@ -68,15 +65,13 @@ Hecks.behaviors "WaterMicrobiology" do
   test "ActivateProtocol runs" do
     tests "ActivateProtocol", on: "TreatmentProtocol"
     setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
-    input  treatment_protocol: 1
     expect status: "active"
   end
 
   test "VerifyTreatment runs" do
     tests "VerifyTreatment", on: "TreatmentProtocol"
     setup  "DesignProtocol", protocol_name: "sample", treatment_method: "sample", dose_mg_l: 1.0, contact_time_min: 1.0, target_log_reduction: 1.0
-    setup  "ActivateProtocol", treatment_protocol: 1
-    input  treatment_protocol: 1
+    setup  "ActivateProtocol"
     expect status: "verified"
   end
 

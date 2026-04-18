@@ -12,21 +12,21 @@ Hecks.behaviors "Tribology" do
   test "MeasureRoughness sets ra + rz + rq" do
     tests "MeasureRoughness", on: "Surface"
     setup  "CharacterizeSurface", name: "sample", material: "sample", hardness: 1.0, elastic_modulus: 1.0, surface_energy: 1.0
-    input  surface: 1, ra: 1.0, rz: 1.0, rq: 1.0
+    input  ra: 1.0, rz: 1.0, rq: 1.0
     expect ok: "true"
   end
 
   test "MapTopography sets scan_area_mm2 + resolution_um" do
     tests "MapTopography", on: "Surface"
     setup  "CharacterizeSurface", name: "sample", material: "sample", hardness: 1.0, elastic_modulus: 1.0, surface_energy: 1.0
-    input  surface: 1, scan_area_mm2: 1.0, resolution_um: 1.0
+    input  scan_area_mm2: 1.0, resolution_um: 1.0
     expect ok: "true"
   end
 
   test "AnalyzeMicrostructure sets method + grain_size_um" do
     tests "AnalyzeMicrostructure", on: "Surface"
     setup  "CharacterizeSurface", name: "sample", material: "sample", hardness: 1.0, elastic_modulus: 1.0, surface_energy: 1.0
-    input  surface: 1, method: "sample", grain_size_um: 1.0
+    input  method: "sample", grain_size_um: 1.0
     expect ok: "true"
   end
 
@@ -42,28 +42,28 @@ Hecks.behaviors "Tribology" do
   test "CalculateCoefficient sets friction_force + normal_force" do
     tests "CalculateCoefficient", on: "Friction"
     setup  "MeasureFriction", name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
-    input  friction: 1, friction_force: 1.0, normal_force: 1.0
+    input  friction_force: 1.0, normal_force: 1.0
     expect ok: "true"
   end
 
   test "ClassifyFrictionRegime sets regime" do
     tests "ClassifyFrictionRegime", on: "Friction"
     setup  "MeasureFriction", name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
-    input  friction: 1, regime: "sample"
+    input  regime: "sample"
     expect regime: "sample"
   end
 
   test "MapStribeckCurve sets speed_range_min + speed_range_max + viscosity" do
     tests "MapStribeckCurve", on: "Friction"
     setup  "MeasureFriction", name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
-    input  friction: 1, speed_range_min: 1.0, speed_range_max: 1.0, viscosity: 1.0
+    input  speed_range_min: 1.0, speed_range_max: 1.0, viscosity: 1.0
     expect ok: "true"
   end
 
   test "ReduceFriction sets method + target_cof" do
     tests "ReduceFriction", on: "Friction"
     setup  "MeasureFriction", name: "sample", surface_a: "sample", surface_b: "sample", normal_load: 1.0, sliding_speed: 1.0
-    input  friction: 1, method: "sample", target_cof: 1.0
+    input  method: "sample", target_cof: 1.0
     expect ok: "true"
   end
 
@@ -79,21 +79,21 @@ Hecks.behaviors "Tribology" do
   test "ClassifyWearMechanism sets mechanism" do
     tests "ClassifyWearMechanism", on: "Wear"
     setup  "MeasureWear", name: "sample", test_method: "sample"
-    input  wear: 1, mechanism: "sample"
+    input  mechanism: "sample"
     expect mechanism: "sample", status: "classified"
   end
 
   test "PredictWearRate sets load + sliding_distance + hardness + wear_coefficient" do
     tests "PredictWearRate", on: "Wear"
     setup  "MeasureWear", name: "sample", test_method: "sample"
-    input  wear: 1, load: 1.0, sliding_distance: 1.0, hardness: 1.0, wear_coefficient: 1.0
+    input  load: 1.0, sliding_distance: 1.0, hardness: 1.0, wear_coefficient: 1.0
     expect ok: "true"
   end
 
   test "AnalyzeWearDebris sets particle_size_um + morphology + composition" do
     tests "AnalyzeWearDebris", on: "Wear"
     setup  "MeasureWear", name: "sample", test_method: "sample"
-    input  wear: 1, particle_size_um: 1.0, morphology: "sample", composition: "sample"
+    input  particle_size_um: 1.0, morphology: "sample", composition: "sample"
     expect ok: "true"
   end
 
@@ -109,35 +109,35 @@ Hecks.behaviors "Tribology" do
   test "MeasureViscosity sets kinematic_40c + kinematic_100c" do
     tests "MeasureViscosity", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
-    input  lubricant: 1, kinematic_40c: 1.0, kinematic_100c: 1.0
+    input  kinematic_40c: 1.0, kinematic_100c: 1.0
     expect ok: "true"
   end
 
   test "CalculateViscosityIndex sets kinematic_40c + kinematic_100c" do
     tests "CalculateViscosityIndex", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
-    input  lubricant: 1, kinematic_40c: 1.0, kinematic_100c: 1.0
+    input  kinematic_40c: 1.0, kinematic_100c: 1.0
     expect ok: "true"
   end
 
   test "TestPourPoint sets pour_point_c" do
     tests "TestPourPoint", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
-    input  lubricant: 1, pour_point_c: 1.0
+    input  pour_point_c: 1.0
     expect pour_point_c: 1.0, status: "tested"
   end
 
   test "TestFlashPoint sets flash_point_c" do
     tests "TestFlashPoint", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
-    input  lubricant: 1, flash_point_c: 1.0
+    input  flash_point_c: 1.0
     expect flash_point_c: 1.0, status: "tested"
   end
 
   test "AnalyzeFilmThickness sets film_thickness_nm + temperature_c + load_n" do
     tests "AnalyzeFilmThickness", on: "Lubricant"
     setup  "FormulateLubricant", name: "sample", base_oil_type: "sample", sae_grade: "sample"
-    input  lubricant: 1, film_thickness_nm: 1.0, temperature_c: 1.0, load_n: 1.0
+    input  film_thickness_nm: 1.0, temperature_c: 1.0, load_n: 1.0
     expect ok: "true"
   end
 
@@ -153,21 +153,21 @@ Hecks.behaviors "Tribology" do
   test "CalculateFilmParameter sets min_film_thickness + composite_roughness" do
     tests "CalculateFilmParameter", on: "LubricationRegime"
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
-    input  lubrication_regime: 1, min_film_thickness: 1.0, composite_roughness: 1.0
+    input  min_film_thickness: 1.0, composite_roughness: 1.0
     expect ok: "true"
   end
 
   test "TransitionRegime sets from_regime + to_regime + cause" do
     tests "TransitionRegime", on: "LubricationRegime"
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
-    input  lubrication_regime: 1, from_regime: "sample", to_regime: "sample", cause: "sample"
+    input  from_regime: "sample", to_regime: "sample", cause: "sample"
     expect regime_type: "sample", status: "transitioned"
   end
 
   test "OptimizeRegime sets target_regime + method" do
     tests "OptimizeRegime", on: "LubricationRegime"
     setup  "IdentifyRegime", name: "sample", lambda_ratio: 1.0
-    input  lubrication_regime: 1, target_regime: "sample", method: "sample"
+    input  target_regime: "sample", method: "sample"
     expect status: "optimized"
   end
 
@@ -183,21 +183,21 @@ Hecks.behaviors "Tribology" do
   test "MeasureEffectiveness sets test_method + effectiveness" do
     tests "MeasureEffectiveness", on: "AdditiveAction"
     setup  "DescribeAction", name: "sample", additive_type: "sample"
-    input  additive_action: 1, test_method: "sample", effectiveness: 1.0
+    input  test_method: "sample", effectiveness: 1.0
     expect effectiveness: 1.0
   end
 
   test "TestSynergy sets other_additive + combined_effect + individual_sum" do
     tests "TestSynergy", on: "AdditiveAction"
     setup  "DescribeAction", name: "sample", additive_type: "sample"
-    input  additive_action: 1, other_additive: "sample", combined_effect: 1.0, individual_sum: 1.0
+    input  other_additive: "sample", combined_effect: 1.0, individual_sum: 1.0
     expect ok: "true"
   end
 
   test "DetectAntagonism sets other_additive + performance_loss" do
     tests "DetectAntagonism", on: "AdditiveAction"
     setup  "DescribeAction", name: "sample", additive_type: "sample"
-    input  additive_action: 1, other_additive: "sample", performance_loss: 1.0
+    input  other_additive: "sample", performance_loss: 1.0
     expect ok: "true"
   end
 
@@ -213,21 +213,21 @@ Hecks.behaviors "Tribology" do
   test "ModelHertzianContact sets load" do
     tests "ModelHertzianContact", on: "ContactMechanics"
     setup  "CalculateContactPressure", name: "sample", contact_type: "sample", load: 1.0, radius_a: 1.0, radius_b: 1.0, modulus_a: 1.0, modulus_b: 1.0
-    input  contact_mechanics: 1, load: 1.0
+    input  load: 1.0
     expect ok: "true"
   end
 
   test "PredictDeformation sets yield_strength + applied_load" do
     tests "PredictDeformation", on: "ContactMechanics"
     setup  "CalculateContactPressure", name: "sample", contact_type: "sample", load: 1.0, radius_a: 1.0, radius_b: 1.0, modulus_a: 1.0, modulus_b: 1.0
-    input  contact_mechanics: 1, yield_strength: 1.0, applied_load: 1.0
+    input  yield_strength: 1.0, applied_load: 1.0
     expect ok: "true"
   end
 
   test "AnalyzeStressField sets max_pressure + poisson_ratio" do
     tests "AnalyzeStressField", on: "ContactMechanics"
     setup  "CalculateContactPressure", name: "sample", contact_type: "sample", load: 1.0, radius_a: 1.0, radius_b: 1.0, modulus_a: 1.0, modulus_b: 1.0
-    input  contact_mechanics: 1, max_pressure: 1.0, poisson_ratio: 1.0
+    input  max_pressure: 1.0, poisson_ratio: 1.0
     expect ok: "true"
   end
 
@@ -243,22 +243,22 @@ Hecks.behaviors "Tribology" do
   test "RecordResult sets parameter + value + unit" do
     tests "RecordResult", on: "TribologicalTest"
     setup  "RunTest", name: "sample", test_standard: "sample", apparatus: "sample"
-    input  tribological_test: 1, parameter: "sample", value: 1.0, unit: "sample"
+    input  parameter: "sample", value: 1.0, unit: "sample"
     expect status: "completed"
   end
 
   test "CompareToBaseline sets baseline_value + specification_limit" do
     tests "CompareToBaseline", on: "TribologicalTest"
     setup  "RunTest", name: "sample", test_standard: "sample", apparatus: "sample"
-    input  tribological_test: 1, baseline_value: 1.0, specification_limit: 1.0
+    input  baseline_value: 1.0, specification_limit: 1.0
     expect ok: "true"
   end
 
   test "GenerateReport sets report_format" do
     tests "GenerateReport", on: "TribologicalTest"
     setup  "RunTest", name: "sample", test_standard: "sample", apparatus: "sample"
-    setup  "RecordResult", tribological_test: 1, parameter: "sample", value: 1.0, unit: "sample"
-    input  tribological_test: 1, report_format: "sample"
+    setup  "RecordResult", parameter: "sample", value: 1.0, unit: "sample"
+    input  report_format: "sample"
     expect status: "reported"
   end
 
@@ -274,21 +274,21 @@ Hecks.behaviors "Tribology" do
   test "CalculateMinimumFilm sets speed + load + viscosity + reduced_radius" do
     tests "CalculateMinimumFilm", on: "FilmThickness"
     setup  "MeasureFilmThickness", name: "sample", method: "sample", thickness_nm: 1.0
-    input  film_thickness: 1, speed: 1.0, load: 1.0, viscosity: 1.0, reduced_radius: 1.0
+    input  speed: 1.0, load: 1.0, viscosity: 1.0, reduced_radius: 1.0
     expect status: "calculated"
   end
 
   test "PredictFilmFailure sets failure_mode + critical_load" do
     tests "PredictFilmFailure", on: "FilmThickness"
     setup  "MeasureFilmThickness", name: "sample", method: "sample", thickness_nm: 1.0
-    input  film_thickness: 1, failure_mode: "sample", critical_load: 1.0
+    input  failure_mode: "sample", critical_load: 1.0
     expect status: "at_risk"
   end
 
   test "OptimizeFilm sets target_thickness_nm + method" do
     tests "OptimizeFilm", on: "FilmThickness"
     setup  "MeasureFilmThickness", name: "sample", method: "sample", thickness_nm: 1.0
-    input  film_thickness: 1, target_thickness_nm: 1.0, method: "sample"
+    input  target_thickness_nm: 1.0, method: "sample"
     expect status: "optimized"
   end
 
@@ -304,21 +304,21 @@ Hecks.behaviors "Tribology" do
   test "MeasureHeatDissipation sets heat_dissipation_rate + coolant_flow" do
     tests "MeasureHeatDissipation", on: "ThermalBehavior"
     setup  "CalculateFlashTemperature", name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
-    input  thermal_behavior: 1, heat_dissipation_rate: 1.0, coolant_flow: 1.0
+    input  heat_dissipation_rate: 1.0, coolant_flow: 1.0
     expect heat_dissipation_rate: 1.0
   end
 
   test "PredictThermalBreakdown sets operating_temp_c + oxidation_onset_c" do
     tests "PredictThermalBreakdown", on: "ThermalBehavior"
     setup  "CalculateFlashTemperature", name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
-    input  thermal_behavior: 1, operating_temp_c: 1.0, oxidation_onset_c: 1.0
+    input  operating_temp_c: 1.0, oxidation_onset_c: 1.0
     expect ok: "true"
   end
 
   test "ModelTemperatureDistribution sets boundary_conditions + heat_source_watts" do
     tests "ModelTemperatureDistribution", on: "ThermalBehavior"
     setup  "CalculateFlashTemperature", name: "sample", friction_coefficient: 1.0, load: 1.0, sliding_speed: 1.0, thermal_conductivity: 1.0
-    input  thermal_behavior: 1, boundary_conditions: "sample", heat_source_watts: 1.0
+    input  boundary_conditions: "sample", heat_source_watts: 1.0
     expect ok: "true"
   end
 
@@ -334,21 +334,21 @@ Hecks.behaviors "Tribology" do
   test "MeasureTreatmentEffect sets friction_reduction + hardness_increase" do
     tests "MeasureTreatmentEffect", on: "SurfaceTreatment"
     setup  "ApplyTreatment", name: "sample", treatment_type: "sample", thickness_um: 1.0
-    input  surface_treatment: 1, friction_reduction: 1.0, hardness_increase: 1.0
+    input  friction_reduction: 1.0, hardness_increase: 1.0
     expect friction_reduction: 1.0, hardness_increase: 1.0, status: "validated"
   end
 
   test "TestCoatingAdhesion sets critical_load_n + failure_mode" do
     tests "TestCoatingAdhesion", on: "SurfaceTreatment"
     setup  "ApplyTreatment", name: "sample", treatment_type: "sample", thickness_um: 1.0
-    input  surface_treatment: 1, critical_load_n: 1.0, failure_mode: "sample"
+    input  critical_load_n: 1.0, failure_mode: "sample"
     expect ok: "true"
   end
 
   test "PredictCoatingLife sets operating_load + operating_speed + estimated_hours" do
     tests "PredictCoatingLife", on: "SurfaceTreatment"
     setup  "ApplyTreatment", name: "sample", treatment_type: "sample", thickness_um: 1.0
-    input  surface_treatment: 1, operating_load: 1.0, operating_speed: 1.0, estimated_hours: 1.0
+    input  operating_load: 1.0, operating_speed: 1.0, estimated_hours: 1.0
     expect ok: "true"
   end
 

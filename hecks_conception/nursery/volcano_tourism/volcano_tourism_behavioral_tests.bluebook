@@ -12,14 +12,14 @@ Hecks.behaviors "VolcanoTourism" do
   test "RecordSeismic sets magnitude + depth_km + timestamp" do
     tests "RecordSeismic", on: "Volcano"
     setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
-    input  volcano: 1, magnitude: 1.0, depth_km: 1.0, timestamp: "sample"
+    input  magnitude: 1.0, depth_km: 1.0, timestamp: "sample"
     expect readings_size: 1
   end
 
   test "UpdateAlertLevel sets alert_level" do
     tests "UpdateAlertLevel", on: "Volcano"
     setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
-    input  volcano: 1, alert_level: "sample"
+    input  alert_level: "sample"
     expect ok: "true"
   end
 
@@ -35,14 +35,13 @@ Hecks.behaviors "VolcanoTourism" do
   test "AddRoom sets room_number + room_type + rate_cents" do
     tests "AddRoom", on: "HotelProperty"
     setup  "RegisterHotel", name: "sample", distance_km: 1.0
-    input  hotel_property: 1, room_number: "sample", room_type: "sample", rate_cents: 1
+    input  room_number: "sample", room_type: "sample", rate_cents: 1
     expect rooms_size: 1
   end
 
   test "CloseHotel runs" do
     tests "CloseHotel", on: "HotelProperty"
     setup  "RegisterHotel", name: "sample", distance_km: 1.0
-    input  hotel_property: 1
     expect ok: "true"
   end
 
@@ -53,19 +52,20 @@ Hecks.behaviors "VolcanoTourism" do
     tests "DesignPackage", on: "TourPackage"
     setup  "RegisterHotel", name: "sample", distance_km: 1.0
     setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
-    input  volcano: 1, hotel_property: 1, package_name: "sample", price_cents: 1
+    input  package_name: "sample", price_cents: 1
     expect ok: "true"
   end
 
   test "AddActivity sets activity_name + duration_hours + risk_level" do
     tests "AddActivity", on: "TourPackage"
-    input  tour_package: 1, activity_name: "sample", duration_hours: 1.0, risk_level: "sample"
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
+    input  activity_name: "sample", duration_hours: 1.0, risk_level: "sample"
     expect activities_size: 1
   end
 
   test "ActivatePackage runs" do
     tests "ActivatePackage", on: "TourPackage"
-    input  tour_package: 1
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
     expect ok: "true"
   end
 
@@ -74,13 +74,14 @@ Hecks.behaviors "VolcanoTourism" do
 
   test "BookTour sets guest_name + party_size" do
     tests "BookTour", on: "Booking"
-    input  tour_package: 1, guest_name: "sample", party_size: 1
+    setup  "DesignPackage", package_name: "sample", price_cents: 1
+    input  guest_name: "sample", party_size: 1
     expect ok: "true"
   end
 
   test "CancelBooking runs" do
     tests "CancelBooking", on: "Booking"
-    input  booking: 1
+    setup  "BookTour", guest_name: "sample", party_size: 1
     expect ok: "true"
   end
 
@@ -91,19 +92,20 @@ Hecks.behaviors "VolcanoTourism" do
     tests "PreparePlan", on: "EvacuationPlan"
     setup  "RegisterVolcano", name: "sample", elevation_m: 1.0
     setup  "RegisterHotel", name: "sample", distance_km: 1.0
-    input  hotel_property: 1, volcano: 1, plan_name: "sample"
+    input  plan_name: "sample"
     expect ok: "true"
   end
 
   test "AddRoute sets route_name + distance_km + capacity" do
     tests "AddRoute", on: "EvacuationPlan"
-    input  evacuation_plan: 1, route_name: "sample", distance_km: 1.0, capacity: 1
+    setup  "PreparePlan", plan_name: "sample"
+    input  route_name: "sample", distance_km: 1.0, capacity: 1
     expect routes_size: 1
   end
 
   test "ActivateEvacuation runs" do
     tests "ActivateEvacuation", on: "EvacuationPlan"
-    input  evacuation_plan: 1
+    setup  "PreparePlan", plan_name: "sample"
     expect ok: "true"
   end
 

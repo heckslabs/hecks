@@ -21,28 +21,27 @@ Hecks.behaviors "Conception" do
   test "FormAggregate sets aggregate_name" do
     tests "FormAggregate", on: "Gestation"
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
-    input  gestation: 1, aggregate_name: "sample"
+    input  aggregate_name: "sample"
     expect aggregates_size: 1
   end
 
   test "FormCommand sets command_name" do
     tests "FormCommand", on: "Gestation"
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
-    input  gestation: 1, command_name: "sample"
+    input  command_name: "sample"
     expect commands_size: 1
   end
 
   test "FormPolicy sets policy_name" do
     tests "FormPolicy", on: "Gestation"
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
-    input  gestation: 1, policy_name: "sample"
+    input  policy_name: "sample"
     expect policies_size: 1
   end
 
   test "Contract runs" do
     tests "Contract", on: "Gestation"
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
-    input  gestation: 1
     expect contractions: 1
   end
 
@@ -58,21 +57,20 @@ Hecks.behaviors "Conception" do
   test "CheckParity sets parity" do
     tests "CheckParity", on: "Labor"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
-    input  labor: 1, parity: "sample"
+    input  parity: "sample"
     expect parity: "sample"
   end
 
   test "PassLabor runs" do
     tests "PassLabor", on: "Labor"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
-    input  labor: 1
     expect valid: "yes"
   end
 
   test "FailLabor sets errors" do
     tests "FailLabor", on: "Labor"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
-    input  labor: 1, errors: "sample"
+    input  errors: "sample"
     expect errors: "sample", valid: "no"
   end
 
@@ -88,14 +86,12 @@ Hecks.behaviors "Conception" do
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    input  delivery: 1
     expect ok: "true"
   end
 
   test "IndexInNursery runs" do
     tests "IndexInNursery", on: "Delivery"
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    input  delivery: 1
     expect indexed: "yes"
   end
 
@@ -111,14 +107,13 @@ Hecks.behaviors "Conception" do
   test "DeclareHealthy runs" do
     tests "DeclareHealthy", on: "Postpartum"
     setup  "CheckHealth", domain_name: "sample"
-    input  postpartum: 1
     expect healthy: "yes"
   end
 
   test "FlagConcern sets concern" do
     tests "FlagConcern", on: "Postpartum"
     setup  "CheckHealth", domain_name: "sample"
-    input  postpartum: 1, concern: "sample"
+    input  concern: "sample"
     expect healthy: "concern"
   end
 
@@ -134,33 +129,30 @@ Hecks.behaviors "Conception" do
   test "FindArchetype runs" do
     tests "FindArchetype", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
-    input  development: 1
     expect status: "matched"
   end
 
   test "PlanDevelopment sets target_vector" do
     tests "PlanDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
-    setup  "FindArchetype", development: 1
-    input  development: 1, target_vector: 1.0
+    setup  "FindArchetype"
+    input  target_vector: 1.0
     expect target_vector: 1.0, status: "planned"
   end
 
   test "DevelopDomain runs" do
     tests "DevelopDomain", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
-    setup  "FindArchetype", development: 1
-    setup  "PlanDevelopment", development: 1, target_vector: 1.0
-    input  development: 1
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
     expect status: "developed"
   end
 
   test "RejectDevelopment runs" do
     tests "RejectDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
-    setup  "FindArchetype", development: 1
-    setup  "PlanDevelopment", development: 1, target_vector: 1.0
-    input  development: 1
+    setup  "FindArchetype"
+    setup  "PlanDevelopment", target_vector: 1.0
     expect status: "rejected"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "CampingOutfitter" do
   test "SellGear runs" do
     tests "SellGear", on: "CampingGear"
     setup  "StockGear", sku: "sample", name: "sample", category: "sample", brand: "sample", weight_kg: 1.0, price: 1.0, quantity: 1
-    input  camping_gear: 1
     expect ok: "true"
   end
 
@@ -28,14 +27,13 @@ Hecks.behaviors "CampingOutfitter" do
   test "ReturnGear runs" do
     tests "ReturnGear", on: "GearRental"
     setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
-    input  gear_rental: 1
     expect status: "returned"
   end
 
   test "ChargeLateFee sets fee_amount" do
     tests "ChargeLateFee", on: "GearRental"
     setup  "RentGear", rental_id: "sample", sku: "sample", renter_name: "sample", start_date: "sample", return_date: "sample", rental_fee: 1.0
-    input  gear_rental: 1, fee_amount: 1.0
+    input  fee_amount: 1.0
     expect ok: "true"
   end
 
@@ -51,7 +49,6 @@ Hecks.behaviors "CampingOutfitter" do
   test "DistributeMap runs" do
     tests "DistributeMap", on: "TrailMap"
     setup  "StockMap", map_id: "sample", trail_name: "sample", region: "sample", difficulty: "sample", distance_km: 1.0, copies_on_hand: 1
-    input  trail_map: 1
     expect ok: "true"
   end
 
@@ -67,14 +64,12 @@ Hecks.behaviors "CampingOutfitter" do
   test "ConductTrip runs" do
     tests "ConductTrip", on: "GuidedTrip"
     setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
-    input  guided_trip: 1
     expect status: "completed"
   end
 
   test "CancelTrip runs" do
     tests "CancelTrip", on: "GuidedTrip"
     setup  "ScheduleTrip", trip_id: "sample", guide_name: "sample", destination: "sample", date: "sample", max_participants: 1, price_per_person: 1.0
-    input  guided_trip: 1
     expect status: "canceled"
   end
 
@@ -90,7 +85,6 @@ Hecks.behaviors "CampingOutfitter" do
   test "CancelReservation runs" do
     tests "CancelReservation", on: "CampsiteReservation"
     setup  "BookCampsite", reservation_id: "sample", campsite_name: "sample", guest_name: "sample", check_in: "sample", check_out: "sample", total_fee: 1.0
-    input  campsite_reservation: 1
     expect status: "canceled"
   end
 

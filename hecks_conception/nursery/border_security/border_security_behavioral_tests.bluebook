@@ -12,14 +12,13 @@ Hecks.behaviors "BorderSecurity" do
   test "RunAnalysis sets test_type + result + confidence" do
     tests "RunAnalysis", on: "ForensicSample"
     setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
-    input  forensic_sample: 1, test_type: "sample", result: "sample", confidence: 1.0
+    input  test_type: "sample", result: "sample", confidence: 1.0
     expect analyses_size: 1
   end
 
   test "FinalizeReport runs" do
     tests "FinalizeReport", on: "ForensicSample"
     setup  "CollectSample", sample_id: "sample", sample_type: "sample", collector: "sample"
-    input  forensic_sample: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,13 @@ Hecks.behaviors "BorderSecurity" do
   test "AddCargoItem sets description + quantity + declared_value_cents" do
     tests "AddCargoItem", on: "Shipment"
     setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  shipment: 1, description: "sample", quantity: 1, declared_value_cents: 1
+    input  description: "sample", quantity: 1, declared_value_cents: 1
     expect items_size: 1
   end
 
   test "ClearShipment runs" do
     tests "ClearShipment", on: "Shipment"
     setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  shipment: 1
     expect ok: "true"
   end
 
@@ -52,19 +50,20 @@ Hecks.behaviors "BorderSecurity" do
   test "RaiseAlert sets alert_level + reason" do
     tests "RaiseAlert", on: "RiskAlert"
     setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  shipment: 1, alert_level: "sample", reason: "sample"
+    input  alert_level: "sample", reason: "sample"
     expect ok: "true"
   end
 
   test "AssignAction sets action_type + assigned_to" do
     tests "AssignAction", on: "RiskAlert"
-    input  risk_alert: 1, action_type: "sample", assigned_to: "sample"
+    setup  "RaiseAlert", alert_level: "sample", reason: "sample"
+    input  action_type: "sample", assigned_to: "sample"
     expect actions_size: 1
   end
 
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "RiskAlert"
-    input  risk_alert: 1
+    setup  "RaiseAlert", alert_level: "sample", reason: "sample"
     expect ok: "true"
   end
 
@@ -74,19 +73,20 @@ Hecks.behaviors "BorderSecurity" do
   test "ScheduleInspection sets inspector" do
     tests "ScheduleInspection", on: "Inspection"
     setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
-    input  shipment: 1, inspector: "sample"
+    input  inspector: "sample"
     expect ok: "true"
   end
 
   test "RecordFinding sets finding_type + severity + description" do
     tests "RecordFinding", on: "Inspection"
-    input  inspection: 1, finding_type: "sample", severity: "sample", description: "sample"
+    setup  "ScheduleInspection", inspector: "sample"
+    input  finding_type: "sample", severity: "sample", description: "sample"
     expect findings_size: 1
   end
 
   test "CompleteInspection runs" do
     tests "CompleteInspection", on: "Inspection"
-    input  inspection: 1
+    setup  "ScheduleInspection", inspector: "sample"
     expect ok: "true"
   end
 

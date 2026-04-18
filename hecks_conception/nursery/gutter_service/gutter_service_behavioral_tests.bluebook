@@ -12,7 +12,7 @@ Hecks.behaviors "GutterService" do
   test "AssessDrainage sets drainage_notes" do
     tests "AssessDrainage", on: "GutterProperty"
     setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
-    input  gutter_property: 1, drainage_notes: "sample"
+    input  drainage_notes: "sample"
     expect ok: "true"
   end
 
@@ -22,13 +22,13 @@ Hecks.behaviors "GutterService" do
   test "TakeMeasurements sets run_length_feet + drop_per_foot + miter_count + gutter_profile" do
     tests "TakeMeasurements", on: "GutterMeasurement"
     setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
-    input  gutter_property: 1, run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    input  run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
     expect ok: "true"
   end
 
   test "CalculateMaterials runs" do
     tests "CalculateMaterials", on: "GutterMeasurement"
-    input  gutter_measurement: 1
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
     expect ok: "true"
   end
 
@@ -37,13 +37,14 @@ Hecks.behaviors "GutterService" do
 
   test "OrderMaterial sets material_type + gauge + color + coil_footage" do
     tests "OrderMaterial", on: "GutterMaterial"
-    input  gutter_measurement: 1, material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
+    setup  "TakeMeasurements", run_length_feet: 1.0, drop_per_foot: 1.0, miter_count: 1, gutter_profile: "sample"
+    input  material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
     expect ok: "true"
   end
 
   test "FabricateGutter runs" do
     tests "FabricateGutter", on: "GutterMaterial"
-    input  gutter_material: 1
+    setup  "OrderMaterial", material_type: "sample", gauge: "sample", color: "sample", coil_footage: 1.0
     expect ok: "true"
   end
 
@@ -53,19 +54,21 @@ Hecks.behaviors "GutterService" do
   test "ScheduleInstall sets installer_name + install_date" do
     tests "ScheduleInstall", on: "GutterInstallation"
     setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
-    input  gutter_property: 1, installer_name: "sample", install_date: "sample"
+    input  installer_name: "sample", install_date: "sample"
     expect ok: "true"
   end
 
   test "HangGutters sets hangers_used" do
     tests "HangGutters", on: "GutterInstallation"
-    input  gutter_installation: 1, hangers_used: 1
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  hangers_used: 1
     expect ok: "true"
   end
 
   test "ConnectDownspouts sets downspout_count" do
     tests "ConnectDownspouts", on: "GutterInstallation"
-    input  gutter_installation: 1, downspout_count: 1
+    setup  "ScheduleInstall", installer_name: "sample", install_date: "sample"
+    input  downspout_count: 1
     expect ok: "true"
   end
 
@@ -75,13 +78,14 @@ Hecks.behaviors "GutterService" do
   test "ScheduleCleaning sets service_date" do
     tests "ScheduleCleaning", on: "GutterCleaning"
     setup  "SurveyProperty", owner_name: "sample", address: "sample", roofline_feet: 1.0, existing_gutter_condition: "sample"
-    input  gutter_property: 1, service_date: "sample"
+    input  service_date: "sample"
     expect ok: "true"
   end
 
   test "PerformCleaning sets debris_type + condition_notes" do
     tests "PerformCleaning", on: "GutterCleaning"
-    input  gutter_cleaning: 1, debris_type: "sample", condition_notes: "sample"
+    setup  "ScheduleCleaning", service_date: "sample"
+    input  debris_type: "sample", condition_notes: "sample"
     expect ok: "true"
   end
 

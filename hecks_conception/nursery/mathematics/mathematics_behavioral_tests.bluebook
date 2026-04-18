@@ -12,35 +12,34 @@ Hecks.behaviors "Mathematics" do
   test "AddNumbers sets addend" do
     tests "AddNumbers", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
-    input  number: 1, addend: "sample"
+    input  addend: "sample"
     expect ok: "true"
   end
 
   test "MultiplyNumbers sets multiplier" do
     tests "MultiplyNumbers", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
-    input  number: 1, multiplier: "sample"
+    input  multiplier: "sample"
     expect ok: "true"
   end
 
   test "ComputeGCD sets other" do
     tests "ComputeGCD", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
-    input  number: 1, other: "sample"
+    input  other: "sample"
     expect ok: "true"
   end
 
   test "FindPrime runs" do
     tests "FindPrime", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
-    input  number: 1
     expect prime: "true"
   end
 
   test "ClassifyNumber sets parity" do
     tests "ClassifyNumber", on: "Number"
     setup  "DefineNumber", value: "sample", number_type: "sample"
-    input  number: 1, parity: "sample"
+    input  parity: "sample"
     expect parity: "sample"
   end
 
@@ -56,35 +55,35 @@ Hecks.behaviors "Mathematics" do
   test "UniteSet sets other_set" do
     tests "UniteSet", on: "MathSet"
     setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
-    input  math_set: 1, other_set: "sample"
+    input  other_set: "sample"
     expect ok: "true"
   end
 
   test "IntersectSet sets other_set" do
     tests "IntersectSet", on: "MathSet"
     setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
-    input  math_set: 1, other_set: "sample"
+    input  other_set: "sample"
     expect ok: "true"
   end
 
   test "ComputeComplement sets universal_set" do
     tests "ComputeComplement", on: "MathSet"
     setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
-    input  math_set: 1, universal_set: "sample"
+    input  universal_set: "sample"
     expect ok: "true"
   end
 
   test "CheckMembership sets element" do
     tests "CheckMembership", on: "MathSet"
     setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
-    input  math_set: 1, element: "sample"
+    input  element: "sample"
     expect ok: "true"
   end
 
   test "MapElements sets function_name" do
     tests "MapElements", on: "MathSet"
     setup  "DefineSet", name: "sample", elements: "sample", set_type: "sample"
-    input  math_set: 1, function_name: "sample"
+    input  function_name: "sample"
     expect ok: "true"
   end
 
@@ -100,35 +99,33 @@ Hecks.behaviors "Mathematics" do
   test "ComposeFunction sets inner_function" do
     tests "ComposeFunction", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    input  math_function: 1, inner_function: "sample"
+    input  inner_function: "sample"
     expect ok: "true"
   end
 
   test "FindInverse runs" do
     tests "FindInverse", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    input  math_function: 1
     expect ok: "true"
   end
 
   test "EvaluateAt sets input" do
     tests "EvaluateAt", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    input  math_function: 1, input: "sample"
+    input  input: "sample"
     expect ok: "true"
   end
 
   test "DetermineContinuity sets point" do
     tests "DetermineContinuity", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    input  math_function: 1, point: "sample"
+    input  point: "sample"
     expect continuous: "true"
   end
 
   test "ClassifyFunction runs" do
     tests "ClassifyFunction", on: "MathFunction"
     setup  "DefineFunction", name: "sample", domain_set: "sample", codomain_set: "sample", rule: "sample"
-    input  math_function: 1
     expect ok: "true"
   end
 
@@ -144,28 +141,24 @@ Hecks.behaviors "Mathematics" do
   test "SimplifyExpression runs" do
     tests "SimplifyExpression", on: "Expression"
     setup  "DefineExpression", notation: "sample", expression_type: "sample"
-    input  expression: 1
     expect simplified: "true"
   end
 
   test "FactorPolynomial runs" do
     tests "FactorPolynomial", on: "Expression"
     setup  "DefineExpression", notation: "sample", expression_type: "sample"
-    input  expression: 1
     expect ok: "true"
   end
 
   test "FindRoots runs" do
     tests "FindRoots", on: "Expression"
     setup  "DefineExpression", notation: "sample", expression_type: "sample"
-    input  expression: 1
     expect ok: "true"
   end
 
   test "ExpandExpression runs" do
     tests "ExpandExpression", on: "Expression"
     setup  "DefineExpression", notation: "sample", expression_type: "sample"
-    input  expression: 1
     expect ok: "true"
   end
 
@@ -181,15 +174,13 @@ Hecks.behaviors "Mathematics" do
   test "SolveEquation runs" do
     tests "SolveEquation", on: "Equation"
     setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
-    input  equation: 1
     expect status: "solved"
   end
 
   test "VerifyEquation runs" do
     tests "VerifyEquation", on: "Equation"
     setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
-    setup  "SolveEquation", equation: 1
-    input  equation: 1
+    setup  "SolveEquation"
     expect status: "verified"
   end
 
@@ -205,14 +196,12 @@ Hecks.behaviors "Mathematics" do
   test "VerifyAxioms runs" do
     tests "VerifyAxioms", on: "AlgebraicStructure"
     setup  "DefineGroup", name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
-    input  algebraic_structure: 1
     expect axioms_satisfied: "true"
   end
 
   test "DetermineCommutativity runs" do
     tests "DetermineCommutativity", on: "AlgebraicStructure"
     setup  "DefineGroup", name: "sample", underlying_set: "sample", operations: "sample", identity_element: "sample"
-    input  algebraic_structure: 1
     expect ok: "true"
   end
 
@@ -228,35 +217,33 @@ Hecks.behaviors "Mathematics" do
   test "MeasureAngle sets vertex + edge_a + edge_b" do
     tests "MeasureAngle", on: "Shape"
     setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
-    input  shape: 1, vertex: "sample", edge_a: "sample", edge_b: "sample"
+    input  vertex: "sample", edge_a: "sample", edge_b: "sample"
     expect ok: "true"
   end
 
   test "CalculateArea runs" do
     tests "CalculateArea", on: "Shape"
     setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
-    input  shape: 1
     expect ok: "true"
   end
 
   test "CalculatePerimeter runs" do
     tests "CalculatePerimeter", on: "Shape"
     setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
-    input  shape: 1
     expect ok: "true"
   end
 
   test "TransformShape sets transformation_type + parameters" do
     tests "TransformShape", on: "Shape"
     setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
-    input  shape: 1, transformation_type: "sample", parameters: "sample"
+    input  transformation_type: "sample", parameters: "sample"
     expect ok: "true"
   end
 
   test "ProveCongruence sets other_shape + method" do
     tests "ProveCongruence", on: "Shape"
     setup  "ConstructShape", name: "sample", shape_type: "sample", dimension: 1
-    input  shape: 1, other_shape: "sample", method: "sample"
+    input  other_shape: "sample", method: "sample"
     expect congruent_to: "sample"
   end
 
@@ -272,14 +259,13 @@ Hecks.behaviors "Mathematics" do
   test "ComposeTransformation sets other_transformation" do
     tests "ComposeTransformation", on: "Transformation"
     setup  "DefineTransformation", name: "sample", transformation_type: "sample", matrix_representation: "sample"
-    input  transformation: 1, other_transformation: "sample"
+    input  other_transformation: "sample"
     expect ok: "true"
   end
 
   test "FindFixedPoints runs" do
     tests "FindFixedPoints", on: "Transformation"
     setup  "DefineTransformation", name: "sample", transformation_type: "sample", matrix_representation: "sample"
-    input  transformation: 1
     expect ok: "true"
   end
 
@@ -295,7 +281,6 @@ Hecks.behaviors "Mathematics" do
   test "CheckLimitExistence runs" do
     tests "CheckLimitExistence", on: "Limit"
     setup  "ComputeLimit", function_name: "sample", point: "sample", direction: "sample"
-    input  limit: 1
     expect exists: "true"
   end
 
@@ -311,21 +296,19 @@ Hecks.behaviors "Mathematics" do
   test "ApplyChainRule runs" do
     tests "ApplyChainRule", on: "Derivative"
     setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
-    input  derivative: 1
     expect method: "chain_rule"
   end
 
   test "FindExtremum runs" do
     tests "FindExtremum", on: "Derivative"
     setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
-    input  derivative: 1
     expect ok: "true"
   end
 
   test "ComputePartialDerivative sets hold_constant" do
     tests "ComputePartialDerivative", on: "Derivative"
     setup  "Differentiate", function_name: "sample", variable: "sample", order: 1
-    input  derivative: 1, hold_constant: "sample"
+    input  hold_constant: "sample"
     expect ok: "true"
   end
 
@@ -341,14 +324,13 @@ Hecks.behaviors "Mathematics" do
   test "ApplySubstitution sets substitution" do
     tests "ApplySubstitution", on: "Integral"
     setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
-    input  integral: 1, substitution: "sample"
+    input  substitution: "sample"
     expect method: "substitution"
   end
 
   test "EvaluateDefiniteIntegral runs" do
     tests "EvaluateDefiniteIntegral", on: "Integral"
     setup  "Integrate", function_name: "sample", variable: "sample", integral_type: "sample"
-    input  integral: 1
     expect ok: "true"
   end
 
@@ -364,14 +346,13 @@ Hecks.behaviors "Mathematics" do
   test "TestConvergence sets test_method" do
     tests "TestConvergence", on: "Series"
     setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
-    input  series: 1, test_method: "sample"
+    input  test_method: "sample"
     expect ok: "true"
   end
 
   test "ComputeSum runs" do
     tests "ComputeSum", on: "Series"
     setup  "ExpandSeries", name: "sample", general_term: "sample", series_type: "sample"
-    input  series: 1
     expect ok: "true"
   end
 
@@ -387,49 +368,44 @@ Hecks.behaviors "Mathematics" do
   test "MultiplyMatrices sets other_matrix" do
     tests "MultiplyMatrices", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1, other_matrix: "sample"
+    input  other_matrix: "sample"
     expect ok: "true"
   end
 
   test "FindDeterminant runs" do
     tests "FindDeterminant", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1
     expect ok: "true"
   end
 
   test "SolveSystem sets constants" do
     tests "SolveSystem", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1, constants: "sample"
+    input  constants: "sample"
     expect ok: "true"
   end
 
   test "ComputeEigenvalues runs" do
     tests "ComputeEigenvalues", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1
     expect ok: "true"
   end
 
   test "TransposeMatrix runs" do
     tests "TransposeMatrix", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1
     expect ok: "true"
   end
 
   test "InvertMatrix runs" do
     tests "InvertMatrix", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1
     expect ok: "true"
   end
 
   test "ReduceMatrix runs" do
     tests "ReduceMatrix", on: "Matrix"
     setup  "DefineMatrix", name: "sample", rows: 1, columns: 1, entries: "sample"
-    input  matrix: 1
     expect ok: "true"
   end
 
@@ -445,28 +421,27 @@ Hecks.behaviors "Mathematics" do
   test "AddVectors sets other_vector" do
     tests "AddVectors", on: "Vector"
     setup  "DefineVector", name: "sample", components: "sample", dimension: 1
-    input  vector: 1, other_vector: "sample"
+    input  other_vector: "sample"
     expect ok: "true"
   end
 
   test "ComputeDotProduct sets other_vector" do
     tests "ComputeDotProduct", on: "Vector"
     setup  "DefineVector", name: "sample", components: "sample", dimension: 1
-    input  vector: 1, other_vector: "sample"
+    input  other_vector: "sample"
     expect ok: "true"
   end
 
   test "ComputeCrossProduct sets other_vector" do
     tests "ComputeCrossProduct", on: "Vector"
     setup  "DefineVector", name: "sample", components: "sample", dimension: 1
-    input  vector: 1, other_vector: "sample"
+    input  other_vector: "sample"
     expect ok: "true"
   end
 
   test "NormalizeVector runs" do
     tests "NormalizeVector", on: "Vector"
     setup  "DefineVector", name: "sample", components: "sample", dimension: 1
-    input  vector: 1
     expect normalized: "true"
   end
 
@@ -482,21 +457,20 @@ Hecks.behaviors "Mathematics" do
   test "CalculateProbability runs" do
     tests "CalculateProbability", on: "ProbabilityEvent"
     setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
-    input  probability_event: 1
     expect ok: "true"
   end
 
   test "ApplyBayesTheorem sets prior + likelihood + evidence" do
     tests "ApplyBayesTheorem", on: "ProbabilityEvent"
     setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
-    input  probability_event: 1, prior: 1.0, likelihood: 1.0, evidence: 1.0
+    input  prior: 1.0, likelihood: 1.0, evidence: 1.0
     expect ok: "true"
   end
 
   test "ComputeConditionalProbability sets given_event" do
     tests "ComputeConditionalProbability", on: "ProbabilityEvent"
     setup  "DefineEvent", name: "sample", sample_space: "sample", outcomes: "sample"
-    input  probability_event: 1, given_event: "sample"
+    input  given_event: "sample"
     expect ok: "true"
   end
 
@@ -512,21 +486,19 @@ Hecks.behaviors "Mathematics" do
   test "ComputeExpectedValue runs" do
     tests "ComputeExpectedValue", on: "Distribution"
     setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
-    input  distribution: 1
     expect ok: "true"
   end
 
   test "SampleDistribution sets count" do
     tests "SampleDistribution", on: "Distribution"
     setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
-    input  distribution: 1, count: 1
+    input  count: 1
     expect ok: "true"
   end
 
   test "ComputeVariance runs" do
     tests "ComputeVariance", on: "Distribution"
     setup  "DefineDistribution", name: "sample", distribution_type: "sample", parameters: "sample"
-    input  distribution: 1
     expect ok: "true"
   end
 
@@ -542,21 +514,19 @@ Hecks.behaviors "Mathematics" do
   test "NegateProposition runs" do
     tests "NegateProposition", on: "Proposition"
     setup  "DefineProposition", statement: "sample", proposition_type: "sample"
-    input  proposition: 1
     expect ok: "true"
   end
 
   test "CheckValidity runs" do
     tests "CheckValidity", on: "Proposition"
     setup  "DefineProposition", statement: "sample", proposition_type: "sample"
-    input  proposition: 1
     expect ok: "true"
   end
 
   test "ApplyInference sets rule + premises" do
     tests "ApplyInference", on: "Proposition"
     setup  "DefineProposition", statement: "sample", proposition_type: "sample"
-    input  proposition: 1, rule: "sample", premises: "sample"
+    input  rule: "sample", premises: "sample"
     expect ok: "true"
   end
 
@@ -572,22 +542,20 @@ Hecks.behaviors "Mathematics" do
   test "AddProofStep sets statement + justification" do
     tests "AddProofStep", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
-    input  proof: 1, statement: "sample", justification: "sample"
+    input  statement: "sample", justification: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteProof runs" do
     tests "CompleteProof", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
-    input  proof: 1
     expect status: "complete"
   end
 
   test "VerifyProof runs" do
     tests "VerifyProof", on: "Proof"
     setup  "ConstructProof", theorem: "sample", proof_method: "sample"
-    setup  "CompleteProof", proof: 1
-    input  proof: 1
+    setup  "CompleteProof"
     expect status: "verified"
   end
 
@@ -603,35 +571,33 @@ Hecks.behaviors "Mathematics" do
   test "CheckTopologicalContinuity sets map_name" do
     tests "CheckTopologicalContinuity", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    input  topological_space: 1, map_name: "sample"
+    input  map_name: "sample"
     expect ok: "true"
   end
 
   test "ClassifySurface sets genus" do
     tests "ClassifySurface", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    input  topological_space: 1, genus: 1
+    input  genus: 1
     expect ok: "true"
   end
 
   test "FindHomeomorphism sets target_space" do
     tests "FindHomeomorphism", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    input  topological_space: 1, target_space: "sample"
+    input  target_space: "sample"
     expect ok: "true"
   end
 
   test "ComputeEulerCharacteristic runs" do
     tests "ComputeEulerCharacteristic", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    input  topological_space: 1
     expect ok: "true"
   end
 
   test "DetermineCompactness runs" do
     tests "DetermineCompactness", on: "TopologicalSpace"
     setup  "DefineSpace", name: "sample", point_set: "sample", topology: "sample"
-    input  topological_space: 1
     expect ok: "true"
   end
 

@@ -12,14 +12,13 @@ Hecks.behaviors "Hydrology" do
   test "ClassifyLandUse sets land_use_dominant" do
     tests "ClassifyLandUse", on: "Watershed"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    input  watershed: 1, land_use_dominant: "sample"
+    input  land_use_dominant: "sample"
     expect ok: "true"
   end
 
   test "UpdateBoundary runs" do
     tests "UpdateBoundary", on: "Watershed"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    input  watershed: 1
     expect ok: "true"
   end
 
@@ -29,19 +28,19 @@ Hecks.behaviors "Hydrology" do
   test "InstallGauge sets gauge_id + stream_name" do
     tests "InstallGauge", on: "StreamGauge"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    input  watershed: 1, gauge_id: "sample", stream_name: "sample"
+    input  gauge_id: "sample", stream_name: "sample"
     expect ok: "true"
   end
 
   test "CalibrateGauge runs" do
     tests "CalibrateGauge", on: "StreamGauge"
-    input  stream_gauge: 1
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
     expect ok: "true"
   end
 
   test "RemoveGauge runs" do
     tests "RemoveGauge", on: "StreamGauge"
-    input  stream_gauge: 1
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
     expect ok: "true"
   end
 
@@ -50,13 +49,14 @@ Hecks.behaviors "Hydrology" do
 
   test "RecordDischarge sets measurement_date + stage_m + discharge_cms" do
     tests "RecordDischarge", on: "FlowMeasurement"
-    input  stream_gauge: 1, measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
+    setup  "InstallGauge", gauge_id: "sample", stream_name: "sample"
+    input  measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
     expect ok: "true"
   end
 
   test "ValidateMeasurement runs" do
     tests "ValidateMeasurement", on: "FlowMeasurement"
-    input  flow_measurement: 1
+    setup  "RecordDischarge", measurement_date: "sample", stage_m: 1.0, discharge_cms: 1.0
     expect ok: "true"
   end
 
@@ -66,19 +66,20 @@ Hecks.behaviors "Hydrology" do
   test "BuildModel sets model_id + scenario_name" do
     tests "BuildModel", on: "FloodModel"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    input  watershed: 1, model_id: "sample", scenario_name: "sample"
+    input  model_id: "sample", scenario_name: "sample"
     expect ok: "true"
   end
 
   test "RunSimulation sets return_period_years" do
     tests "RunSimulation", on: "FloodModel"
-    input  flood_model: 1, return_period_years: 1
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
+    input  return_period_years: 1
     expect ok: "true"
   end
 
   test "PublishFloodMap runs" do
     tests "PublishFloodMap", on: "FloodModel"
-    input  flood_model: 1
+    setup  "BuildModel", model_id: "sample", scenario_name: "sample"
     expect ok: "true"
   end
 
@@ -88,19 +89,20 @@ Hecks.behaviors "Hydrology" do
   test "DrillWell sets well_id + depth_m" do
     tests "DrillWell", on: "MonitoringWell"
     setup  "DelineateWatershed", watershed_id: "sample", name: "sample", area_km2: 1.0
-    input  watershed: 1, well_id: "sample", depth_m: 1.0
+    input  well_id: "sample", depth_m: 1.0
     expect ok: "true"
   end
 
   test "MeasureWaterLevel sets depth_to_water_m" do
     tests "MeasureWaterLevel", on: "MonitoringWell"
-    input  monitoring_well: 1, depth_to_water_m: 1.0
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
+    input  depth_to_water_m: 1.0
     expect ok: "true"
   end
 
   test "SampleGroundwater runs" do
     tests "SampleGroundwater", on: "MonitoringWell"
-    input  monitoring_well: 1
+    setup  "DrillWell", well_id: "sample", depth_m: 1.0
     expect ok: "true"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "SpeechTherapy" do
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
-    input  client: 1
     expect status: "discharged"
   end
 
@@ -22,20 +21,20 @@ Hecks.behaviors "SpeechTherapy" do
   test "SetGoal sets client_name + goal_area + description + target_criterion + baseline_score" do
     tests "SetGoal", on: "TherapyGoal"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
-    input  client: 1, client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    input  client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
     expect client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1, current_score: 1, status: "in_progress"
   end
 
   test "UpdateProgress sets current_score" do
     tests "UpdateProgress", on: "TherapyGoal"
-    input  therapy_goal: 1, current_score: 1
+    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
+    input  current_score: 1
     expect current_score: 1
   end
 
   test "AchieveGoal runs" do
     tests "AchieveGoal", on: "TherapyGoal"
-    setup  "SetGoal", client: 1, client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
-    input  therapy_goal: 1
+    setup  "SetGoal", client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
     expect status: "achieved"
   end
 
@@ -45,14 +44,14 @@ Hecks.behaviors "SpeechTherapy" do
   test "ScheduleSession sets client_name + pathologist_name + session_date + session_type" do
     tests "ScheduleSession", on: "TherapySession"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
-    input  client: 1, client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
+    input  client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
     expect client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample", status: "scheduled"
   end
 
   test "CompleteSession sets notes" do
     tests "CompleteSession", on: "TherapySession"
-    setup  "ScheduleSession", client: 1, client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
-    input  therapy_session: 1, notes: "sample"
+    setup  "ScheduleSession", client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
+    input  notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
@@ -68,7 +67,7 @@ Hecks.behaviors "SpeechTherapy" do
   test "ModifyExercise sets difficulty + instructions" do
     tests "ModifyExercise", on: "Exercise"
     setup  "CreateExercise", name: "sample", target_skill: "sample", difficulty: "sample", instructions: "sample", modality: "sample"
-    input  exercise: 1, difficulty: "sample", instructions: "sample"
+    input  difficulty: "sample", instructions: "sample"
     expect difficulty: "sample", instructions: "sample"
   end
 
@@ -78,13 +77,14 @@ Hecks.behaviors "SpeechTherapy" do
   test "AdministerAssessment sets client_name + assessment_tool + assessment_date" do
     tests "AdministerAssessment", on: "SpeechAssessment"
     setup  "EnrollClient", name: "sample", date_of_birth: "sample", referral_source: "sample", primary_disorder: "sample"
-    input  client: 1, client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+    input  client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
     expect client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
   end
 
   test "ScoreAssessment sets composite_score + severity_rating" do
     tests "ScoreAssessment", on: "SpeechAssessment"
-    input  speech_assessment: 1, composite_score: 1, severity_rating: "sample"
+    setup  "AdministerAssessment", client_name: "sample", assessment_tool: "sample", assessment_date: "sample"
+    input  composite_score: 1, severity_rating: "sample"
     expect composite_score: 1, severity_rating: "sample"
   end
 

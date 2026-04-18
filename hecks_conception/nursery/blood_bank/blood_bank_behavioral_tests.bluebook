@@ -12,24 +12,22 @@ Hecks.behaviors "BloodBank" do
   test "ScreenDonor runs" do
     tests "ScreenDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    input  donor: 1
     expect eligibility_status: "screened"
   end
 
   test "DeferDonor sets reason + deferral_until" do
     tests "DeferDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    setup  "ScreenDonor", donor: 1
-    input  donor: 1, reason: "sample", deferral_until: "sample"
+    setup  "ScreenDonor"
+    input  reason: "sample", deferral_until: "sample"
     expect eligibility_status: "deferred"
   end
 
   test "ReinstateDonor runs" do
     tests "ReinstateDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    setup  "ScreenDonor", donor: 1
-    setup  "DeferDonor", donor: 1, reason: "sample", deferral_until: "sample"
-    input  donor: 1
+    setup  "ScreenDonor"
+    setup  "DeferDonor", reason: "sample", deferral_until: "sample"
     expect eligibility_status: "eligible"
   end
 
@@ -39,14 +37,13 @@ Hecks.behaviors "BloodBank" do
   test "CollectDonation sets volume_ml" do
     tests "CollectDonation", on: "Donation"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
-    input  donor: 1, volume_ml: 1.0
+    input  volume_ml: 1.0
     expect status: "collected"
   end
 
   test "ProcessDonation runs" do
     tests "ProcessDonation", on: "Donation"
-    setup  "CollectDonation", donor: 1, volume_ml: 1.0
-    input  donation: 1
+    setup  "CollectDonation", volume_ml: 1.0
     expect status: "processed"
   end
 
@@ -55,37 +52,38 @@ Hecks.behaviors "BloodBank" do
 
   test "LabelUnit sets blood_type + component + expiry_date" do
     tests "LabelUnit", on: "BloodUnit"
-    input  donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "CollectDonation", volume_ml: 1.0
+    input  blood_type: "sample", component: "sample", expiry_date: "sample"
     expect status: "quarantined"
   end
 
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "BloodUnit"
-    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
-    input  blood_unit: 1
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
     expect status: "available"
   end
 
   test "CrossmatchUnit sets patient_id" do
     tests "CrossmatchUnit", on: "BloodUnit"
-    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit", blood_unit: 1
-    input  blood_unit: 1, patient_id: "sample"
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "ReleaseUnit"
+    input  patient_id: "sample"
     expect status: "crossmatched"
   end
 
   test "IssueUnit sets hospital_name" do
     tests "IssueUnit", on: "BloodUnit"
-    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
-    setup  "ReleaseUnit", blood_unit: 1
-    setup  "CrossmatchUnit", blood_unit: 1, patient_id: "sample"
-    input  blood_unit: 1, hospital_name: "sample"
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "ReleaseUnit"
+    setup  "CrossmatchUnit", patient_id: "sample"
+    input  hospital_name: "sample"
     expect status: "issued"
   end
 
   test "DiscardUnit sets reason" do
     tests "DiscardUnit", on: "BloodUnit"
-    input  blood_unit: 1, reason: "sample"
+    setup  "LabelUnit", blood_type: "sample", component: "sample", expiry_date: "sample"
+    input  reason: "sample"
     expect status: "discarded"
   end
 
@@ -94,14 +92,15 @@ Hecks.behaviors "BloodBank" do
 
   test "PerformTest sets test_type" do
     tests "PerformTest", on: "TestResult"
-    input  donation: 1, test_type: "sample"
+    setup  "CollectDonation", volume_ml: 1.0
+    input  test_type: "sample"
     expect status: "pending"
   end
 
   test "RecordResult sets result" do
     tests "RecordResult", on: "TestResult"
-    setup  "PerformTest", donation: 1, test_type: "sample"
-    input  test_result: 1, result: "sample"
+    setup  "PerformTest", test_type: "sample"
+    input  result: "sample"
     expect status: "completed"
   end
 

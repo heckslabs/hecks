@@ -12,14 +12,13 @@ Hecks.behaviors "Security" do
   test "VerifySecret sets candidate" do
     tests "VerifySecret", on: "HashedSecret"
     setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
-    input  hashed_secret: 1, candidate: "sample"
+    input  candidate: "sample"
     expect ok: "true"
   end
 
   test "RejectSecret runs" do
     tests "RejectSecret", on: "HashedSecret"
     setup  "StoreSecret", name: "sample", plaintext: "sample", owner: "sample"
-    input  hashed_secret: 1
     expect ok: "true"
   end
 
@@ -35,14 +34,12 @@ Hecks.behaviors "Security" do
   test "GrantAccess runs" do
     tests "GrantAccess", on: "AccessGate"
     setup  "RequestAccess", protected_context: "sample"
-    input  access_gate: 1
     expect status: "granted"
   end
 
   test "DenyAccess runs" do
     tests "DenyAccess", on: "AccessGate"
     setup  "RequestAccess", protected_context: "sample"
-    input  access_gate: 1
     expect status: "denied"
   end
 

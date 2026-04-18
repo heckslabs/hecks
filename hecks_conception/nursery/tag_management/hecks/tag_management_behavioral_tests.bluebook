@@ -12,14 +12,13 @@ Hecks.behaviors "TagManagement" do
   test "UpdateContainerName sets name" do
     tests "UpdateContainerName", on: "Container"
     setup  "CreateContainer", name: "sample", domain: "sample", container_id: "sample"
-    input  container: 1, name: "sample"
+    input  name: "sample"
     expect name: "sample"
   end
 
   test "ArchiveContainer runs" do
     tests "ArchiveContainer", on: "Container"
     setup  "CreateContainer", name: "sample", domain: "sample", container_id: "sample"
-    input  container: 1
     expect status: "archived"
   end
 
@@ -35,50 +34,48 @@ Hecks.behaviors "TagManagement" do
   test "ConfigureTag sets key + value" do
     tests "ConfigureTag", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1, key: "sample", value: "sample"
+    input  key: "sample", value: "sample"
     expect ok: "true"
   end
 
   test "SetCustomHtml sets custom_html" do
     tests "SetCustomHtml", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1, custom_html: "sample"
+    input  custom_html: "sample"
     expect custom_html: "sample"
   end
 
   test "AssignTrigger sets trigger_name" do
     tests "AssignTrigger", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1, trigger_name: "sample"
+    input  trigger_name: "sample"
     expect trigger_name: "sample"
   end
 
   test "SetFiringOrder sets firing_order" do
     tests "SetFiringOrder", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1, firing_order: 1
+    input  firing_order: 1
     expect firing_order: 1
   end
 
   test "RequireConsent sets consent_required" do
     tests "RequireConsent", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1, consent_required: "sample"
+    input  consent_required: "sample"
     expect consent_required: "sample"
   end
 
   test "PauseTag runs" do
     tests "PauseTag", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    input  tag: 1
     expect status: "paused"
   end
 
   test "ResumeTag runs" do
     tests "ResumeTag", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
-    setup  "PauseTag", tag: 1
-    input  tag: 1
+    setup  "PauseTag"
     expect status: "draft"
   end
 
@@ -94,14 +91,14 @@ Hecks.behaviors "TagManagement" do
   test "AddCondition sets variable_name + operator + value" do
     tests "AddCondition", on: "Trigger"
     setup  "CreateTrigger", name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
-    input  trigger: 1, variable_name: "sample", operator: "sample", value: "sample"
+    input  variable_name: "sample", operator: "sample", value: "sample"
     expect ok: "true"
   end
 
   test "RemoveCondition sets variable_name" do
     tests "RemoveCondition", on: "Trigger"
     setup  "CreateTrigger", name: "sample", trigger_type: "sample", container_id: "sample", description: "sample"
-    input  trigger: 1, variable_name: "sample"
+    input  variable_name: "sample"
     expect ok: "true"
   end
 
@@ -117,14 +114,14 @@ Hecks.behaviors "TagManagement" do
   test "UpdateSelector sets selector" do
     tests "UpdateSelector", on: "Variable"
     setup  "CreateVariable", name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
-    input  variable: 1, selector: "sample"
+    input  selector: "sample"
     expect selector: "sample"
   end
 
   test "SetFormat sets format" do
     tests "SetFormat", on: "Variable"
     setup  "CreateVariable", name: "sample", variable_type: "sample", container_id: "sample", selector: "sample", default_value: "sample"
-    input  variable: 1, format: "sample"
+    input  format: "sample"
     expect format: "sample"
   end
 
@@ -140,31 +137,27 @@ Hecks.behaviors "TagManagement" do
   test "SubmitVersion runs" do
     tests "SubmitVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
-    input  version: 1
     expect status: "submitted"
   end
 
   test "ApproveVersion runs" do
     tests "ApproveVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
-    setup  "SubmitVersion", version: 1
-    input  version: 1
+    setup  "SubmitVersion"
     expect status: "approved"
   end
 
   test "PublishVersion runs" do
     tests "PublishVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
-    setup  "SubmitVersion", version: 1
-    setup  "ApproveVersion", version: 1
-    input  version: 1
+    setup  "SubmitVersion"
+    setup  "ApproveVersion"
     expect status: "published"
   end
 
   test "RestoreVersion runs" do
     tests "RestoreVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
-    input  version: 1
     expect status: "published"
   end
 

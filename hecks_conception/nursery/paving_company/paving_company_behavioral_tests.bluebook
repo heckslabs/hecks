@@ -12,14 +12,12 @@ Hecks.behaviors "PavingCompany" do
   test "AwardContract runs" do
     tests "AwardContract", on: "PavingProject"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1
     expect ok: "true"
   end
 
   test "CloseProject runs" do
     tests "CloseProject", on: "PavingProject"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1
     expect ok: "true"
   end
 
@@ -29,13 +27,14 @@ Hecks.behaviors "PavingCompany" do
   test "DesignMix sets mix_designation + binder_grade + target_temp_f" do
     tests "DesignMix", on: "AsphaltMix"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1, mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
+    input  mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
     expect ok: "true"
   end
 
   test "OrderFromPlant sets tons_needed" do
     tests "OrderFromPlant", on: "AsphaltMix"
-    input  asphalt_mix: 1, tons_needed: 1.0
+    setup  "DesignMix", mix_designation: "sample", binder_grade: "sample", target_temp_f: 1.0
+    input  tons_needed: 1.0
     expect ok: "true"
   end
 
@@ -45,13 +44,14 @@ Hecks.behaviors "PavingCompany" do
   test "MobilizeEquipment sets equipment_type + make + model" do
     tests "MobilizeEquipment", on: "PavingEquipment"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1, equipment_type: "sample", make: "sample", model: "sample"
+    input  equipment_type: "sample", make: "sample", model: "sample"
     expect ok: "true"
   end
 
   test "LogMaintenance sets maintenance_type" do
     tests "LogMaintenance", on: "PavingEquipment"
-    input  paving_equipment: 1, maintenance_type: "sample"
+    setup  "MobilizeEquipment", equipment_type: "sample", make: "sample", model: "sample"
+    input  maintenance_type: "sample"
     expect ok: "true"
   end
 
@@ -61,13 +61,13 @@ Hecks.behaviors "PavingCompany" do
   test "EvaluateWeather sets forecast_date + high_temp_f + low_temp_f + precipitation_chance" do
     tests "EvaluateWeather", on: "WeatherWindow"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1, forecast_date: "sample", high_temp_f: 1.0, low_temp_f: 1.0, precipitation_chance: 1.0
+    input  forecast_date: "sample", high_temp_f: 1.0, low_temp_f: 1.0, precipitation_chance: 1.0
     expect ok: "true"
   end
 
   test "PostponeForWeather runs" do
     tests "PostponeForWeather", on: "WeatherWindow"
-    input  weather_window: 1
+    setup  "EvaluateWeather", forecast_date: "sample", high_temp_f: 1.0, low_temp_f: 1.0, precipitation_chance: 1.0
     expect ok: "true"
   end
 
@@ -77,13 +77,14 @@ Hecks.behaviors "PavingCompany" do
   test "TakeCore sets core_density + air_voids_pct" do
     tests "TakeCore", on: "CuringRecord"
     setup  "SurveyJobSite", client_name: "sample", location: "sample", project_type: "sample", area_sqft: 1.0, thickness_inches: 1.0
-    input  paving_project: 1, core_density: 1.0, air_voids_pct: 1.0
+    input  core_density: 1.0, air_voids_pct: 1.0
     expect ok: "true"
   end
 
   test "RecordCureTime sets cure_hours" do
     tests "RecordCureTime", on: "CuringRecord"
-    input  curing_record: 1, cure_hours: 1
+    setup  "TakeCore", core_density: 1.0, air_voids_pct: 1.0
+    input  cure_hours: 1
     expect ok: "true"
   end
 

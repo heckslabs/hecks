@@ -12,14 +12,14 @@ Hecks.behaviors "Heki" do
   test "AppendRecord sets attrs" do
     tests "AppendRecord", on: "Store"
     setup  "CreateStore", name: "sample", path: "sample"
-    input  store: 1, attrs: "sample"
+    input  attrs: "sample"
     expect record_count: 1, status: "active"
   end
 
   test "UpsertSingleton sets attrs" do
     tests "UpsertSingleton", on: "Store"
     setup  "CreateStore", name: "sample", path: "sample"
-    input  store: 1, attrs: "sample"
+    input  attrs: "sample"
     expect status: "active"
   end
 
@@ -35,14 +35,13 @@ Hecks.behaviors "Heki" do
   test "ReadRecord sets store_name" do
     tests "ReadRecord", on: "Record"
     setup  "WriteRecord", store_name: "sample", payload: "sample"
-    input  record: 1, store_name: "sample"
+    input  store_name: "sample"
     expect ok: "true"
   end
 
   test "DeleteRecord runs" do
     tests "DeleteRecord", on: "Record"
     setup  "WriteRecord", store_name: "sample", payload: "sample"
-    input  record: 1
     expect ok: "true"
   end
 
@@ -58,14 +57,14 @@ Hecks.behaviors "Heki" do
   test "ValidateRecord sets record" do
     tests "ValidateRecord", on: "Schema"
     setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
-    input  schema: 1, record: "sample"
+    input  record: "sample"
     expect ok: "true"
   end
 
   test "RejectRecord sets reason" do
     tests "RejectRecord", on: "Schema"
     setup  "DefineSchema", store_name: "sample", fields: "sample_fielddef", required_fields: "sample"
-    input  schema: 1, reason: "sample"
+    input  reason: "sample"
     expect ok: "true"
   end
 
@@ -81,14 +80,12 @@ Hecks.behaviors "Heki" do
   test "VerifyChecksum runs" do
     tests "VerifyChecksum", on: "Integrity"
     setup  "ComputeChecksum", store_name: "sample", payload: "sample"
-    input  integrity: 1
     expect verified: "true"
   end
 
   test "ReportCorruption runs" do
     tests "ReportCorruption", on: "Integrity"
     setup  "ComputeChecksum", store_name: "sample", payload: "sample"
-    input  integrity: 1
     expect verified: "false"
   end
 

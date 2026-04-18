@@ -12,7 +12,6 @@ Hecks.behaviors "LabAutomation" do
   test "AcceptSpecimen runs" do
     tests "AcceptSpecimen", on: "Specimen"
     setup  "CollectSpecimen", specimen_id: "sample", patient_name: "sample", specimen_type: "sample", collection_date: "sample"
-    input  specimen: 1
     expect status: "accepted"
   end
 
@@ -28,14 +27,12 @@ Hecks.behaviors "LabAutomation" do
   test "AdvanceStage runs" do
     tests "AdvanceStage", on: "TestPipeline"
     setup  "TriggerPipeline", pipeline_id: "sample", specimen_id: "sample", test_type: "sample"
-    input  test_pipeline: 1
     expect ok: "true"
   end
 
   test "FinishPipeline runs" do
     tests "FinishPipeline", on: "TestPipeline"
     setup  "TriggerPipeline", pipeline_id: "sample", specimen_id: "sample", test_type: "sample"
-    input  test_pipeline: 1
     expect status: "finished"
   end
 
@@ -51,7 +48,7 @@ Hecks.behaviors "LabAutomation" do
   test "AmendResult sets value + interpretation" do
     tests "AmendResult", on: "LabResult"
     setup  "PublishResult", result_id: "sample", specimen_id: "sample", test_type: "sample", value: "sample", reference_range: "sample", interpretation: "sample"
-    input  lab_result: 1, value: "sample", interpretation: "sample"
+    input  value: "sample", interpretation: "sample"
     expect value: "sample", interpretation: "sample"
   end
 
@@ -67,7 +64,6 @@ Hecks.behaviors "LabAutomation" do
   test "PassCheck runs" do
     tests "PassCheck", on: "QualityCheck"
     setup  "RunQualityCheck", check_id: "sample", equipment_name: "sample", check_type: "sample"
-    input  quality_check: 1
     expect status: "passed"
   end
 

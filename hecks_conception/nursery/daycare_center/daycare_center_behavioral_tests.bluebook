@@ -12,14 +12,13 @@ Hecks.behaviors "DaycareCenter" do
   test "TransferClassroom sets new_classroom" do
     tests "TransferClassroom", on: "Child"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
-    input  child: 1, new_classroom: "sample"
+    input  new_classroom: "sample"
     expect classroom: "sample"
   end
 
   test "WithdrawChild runs" do
     tests "WithdrawChild", on: "Child"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
-    input  child: 1
     expect status: "withdrawn"
   end
 
@@ -35,7 +34,6 @@ Hecks.behaviors "DaycareCenter" do
   test "RevokePickupAuth runs" do
     tests "RevokePickupAuth", on: "Guardian"
     setup  "RegisterGuardian", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", relationship: "sample"
-    input  guardian: 1
     expect pickup_authorized: "no"
   end
 
@@ -45,21 +43,21 @@ Hecks.behaviors "DaycareCenter" do
   test "CheckInChild sets attendance_date + check_in_time + checked_in_by" do
     tests "CheckInChild", on: "DailyAttendance"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
-    input  child: 1, attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
+    input  attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
     expect attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample", status: "present"
   end
 
   test "CheckOutChild sets check_out_time + checked_out_by" do
     tests "CheckOutChild", on: "DailyAttendance"
-    setup  "CheckInChild", child: 1, attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
-    input  daily_attendance: 1, check_out_time: "sample", checked_out_by: "sample"
+    setup  "CheckInChild", attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
+    input  check_out_time: "sample", checked_out_by: "sample"
     expect check_out_time: "sample", checked_out_by: "sample", status: "departed"
   end
 
   test "MarkAbsent sets attendance_date + reason" do
     tests "MarkAbsent", on: "DailyAttendance"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
-    input  child: 1, attendance_date: "sample", reason: "sample"
+    input  attendance_date: "sample", reason: "sample"
     expect attendance_date: "sample", status: "absent"
   end
 
@@ -75,7 +73,7 @@ Hecks.behaviors "DaycareCenter" do
   test "SubstituteMeal sets meal_type + replacement + dietary_notes" do
     tests "SubstituteMeal", on: "MealPlan"
     setup  "PlanMeals", meal_date: "sample", classroom: "sample", breakfast: "sample", lunch: "sample", snack: "sample"
-    input  meal_plan: 1, meal_type: "sample", replacement: "sample", dietary_notes: "sample"
+    input  meal_type: "sample", replacement: "sample", dietary_notes: "sample"
     expect dietary_notes: "sample"
   end
 
@@ -85,21 +83,19 @@ Hecks.behaviors "DaycareCenter" do
   test "FileIncident sets incident_date + incident_time + description + severity + action_taken" do
     tests "FileIncident", on: "IncidentReport"
     setup  "EnrollChild", first_name: "sample", last_name: "sample", date_of_birth: "sample", allergies: "sample", classroom: "sample"
-    input  child: 1, incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
+    input  incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
     expect incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample", status: "filed", guardian_notified: "no"
   end
 
   test "NotifyGuardian runs" do
     tests "NotifyGuardian", on: "IncidentReport"
-    setup  "FileIncident", child: 1, incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
-    input  incident_report: 1
+    setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
     expect guardian_notified: "yes"
   end
 
   test "CloseIncident runs" do
     tests "CloseIncident", on: "IncidentReport"
-    setup  "FileIncident", child: 1, incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
-    input  incident_report: 1
+    setup  "FileIncident", incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
     expect status: "closed"
   end
 

@@ -12,14 +12,12 @@ Hecks.behaviors "YouthMentoring" do
   test "ClearBackgroundCheck runs" do
     tests "ClearBackgroundCheck", on: "Mentor"
     setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
-    input  mentor: 1
     expect background_check_status: "cleared", status: "active"
   end
 
   test "DeactivateMentor runs" do
     tests "DeactivateMentor", on: "Mentor"
     setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
-    input  mentor: 1
     expect status: "inactive"
   end
 
@@ -35,7 +33,6 @@ Hecks.behaviors "YouthMentoring" do
   test "GraduateMentee runs" do
     tests "GraduateMentee", on: "Mentee"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
-    input  mentee: 1
     expect status: "graduated"
   end
 
@@ -46,14 +43,13 @@ Hecks.behaviors "YouthMentoring" do
     tests "CreateMatch", on: "MentorMatch"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
     setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
-    input  mentor: 1, mentee: 1, mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    input  mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     expect mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample", status: "active"
   end
 
   test "CloseMatch runs" do
     tests "CloseMatch", on: "MentorMatch"
-    setup  "CreateMatch", mentor: 1, mentee: 1, mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
-    input  mentor_match: 1
+    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     expect status: "closed"
   end
 
@@ -62,14 +58,15 @@ Hecks.behaviors "YouthMentoring" do
 
   test "ScheduleMeeting sets mentor_name + mentee_name + meeting_date + location + activity" do
     tests "ScheduleMeeting", on: "MentoringMeeting"
-    input  mentor_match: 1, mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
+    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    input  mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     expect mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample", status: "scheduled"
   end
 
   test "LogMeeting sets notes" do
     tests "LogMeeting", on: "MentoringMeeting"
-    setup  "ScheduleMeeting", mentor_match: 1, mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
-    input  mentoring_meeting: 1, notes: "sample"
+    setup  "ScheduleMeeting", mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
+    input  notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
@@ -79,20 +76,20 @@ Hecks.behaviors "YouthMentoring" do
   test "SetDevelopmentGoal sets mentee_name + goal_area + description + target_date" do
     tests "SetDevelopmentGoal", on: "DevelopmentGoal"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
-    input  mentee: 1, mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    input  mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     expect mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample", status: "active"
   end
 
   test "RecordMilestone sets description + achieved_date" do
     tests "RecordMilestone", on: "DevelopmentGoal"
-    input  development_goal: 1, description: "sample", achieved_date: "sample"
+    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
+    input  description: "sample", achieved_date: "sample"
     expect ok: "true"
   end
 
   test "CompleteGoal runs" do
     tests "CompleteGoal", on: "DevelopmentGoal"
-    setup  "SetDevelopmentGoal", mentee: 1, mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
-    input  development_goal: 1
+    setup  "SetDevelopmentGoal", mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     expect status: "completed"
   end
 

@@ -12,7 +12,6 @@ Hecks.behaviors "GeologicalMining" do
   test "ClassifyFormation runs" do
     tests "ClassifyFormation", on: "GeologicalFormation"
     setup  "MapFormation", name: "sample", rock_type: "sample", geological_age: "sample", depth_m: 1.0, thickness_m: 1.0, mineralization: "sample"
-    input  geological_formation: 1
     expect status: "classified"
   end
 
@@ -28,7 +27,7 @@ Hecks.behaviors "GeologicalMining" do
   test "UpgradeResource sets grade_pct + estimated_tonnage" do
     tests "UpgradeResource", on: "OreBody"
     setup  "DelineateOreBody", name: "sample", mineral: "sample", grade_pct: 1.0, estimated_tonnage: 1.0, depth_m: 1.0
-    input  ore_body: 1, grade_pct: 1.0, estimated_tonnage: 1.0
+    input  grade_pct: 1.0, estimated_tonnage: 1.0
     expect grade_pct: 1.0, estimated_tonnage: 1.0, status: "measured"
   end
 
@@ -44,7 +43,6 @@ Hecks.behaviors "GeologicalMining" do
   test "SubmitForAssay runs" do
     tests "SubmitForAssay", on: "DrillCore"
     setup  "LogDrillCore", hole_id: "sample", from_m: 1.0, to_m: 1.0, lithology: "sample", recovery_pct: 1.0
-    input  drill_core: 1
     expect status: "submitted"
   end
 
@@ -60,7 +58,6 @@ Hecks.behaviors "GeologicalMining" do
   test "ValidateQC runs" do
     tests "ValidateQC", on: "AssayResult"
     setup  "RecordAssayResult", sample_id: "sample", hole_id: "sample", element: "sample", concentration_ppm: 1.0, grade_pct: 1.0, lab_name: "sample"
-    input  assay_result: 1
     expect status: "validated"
   end
 
@@ -76,15 +73,13 @@ Hecks.behaviors "GeologicalMining" do
   test "ApproveExtraction runs" do
     tests "ApproveExtraction", on: "ExtractionPlan"
     setup  "DesignExtractionPlan", name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
-    input  extraction_plan: 1
     expect status: "approved"
   end
 
   test "BeginExtraction runs" do
     tests "BeginExtraction", on: "ExtractionPlan"
     setup  "DesignExtractionPlan", name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
-    setup  "ApproveExtraction", extraction_plan: 1
-    input  extraction_plan: 1
+    setup  "ApproveExtraction"
     expect status: "extracting"
   end
 

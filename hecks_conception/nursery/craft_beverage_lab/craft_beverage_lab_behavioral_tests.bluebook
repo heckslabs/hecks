@@ -12,15 +12,14 @@ Hecks.behaviors "CraftBeverageLab" do
   test "StartExperiment runs" do
     tests "StartExperiment", on: "Experiment"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
-    input  experiment: 1
     expect status: "running"
   end
 
   test "ConcludeExperiment sets conclusion" do
     tests "ConcludeExperiment", on: "Experiment"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
-    setup  "StartExperiment", experiment: 1
-    input  experiment: 1, conclusion: "sample"
+    setup  "StartExperiment"
+    input  conclusion: "sample"
     expect conclusion: "sample", status: "concluded"
   end
 
@@ -36,22 +35,20 @@ Hecks.behaviors "CraftBeverageLab" do
   test "PitchYeast runs" do
     tests "PitchYeast", on: "YeastCulture"
     setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
-    input  yeast_culture: 1
     expect status: "fermenting"
   end
 
   test "RecordFermentation sets gravity + temperature + ph" do
     tests "RecordFermentation", on: "YeastCulture"
     setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
-    input  yeast_culture: 1, gravity: 1.0, temperature: 1.0, ph: 1.0
+    input  gravity: 1.0, temperature: 1.0, ph: 1.0
     expect ok: "true"
   end
 
   test "CompleteFermentation runs" do
     tests "CompleteFermentation", on: "YeastCulture"
     setup  "CultivateYeast", strain_name: "sample", species: "sample", optimal_temperature: 1.0
-    setup  "PitchYeast", yeast_culture: 1
-    input  yeast_culture: 1
+    setup  "PitchYeast"
     expect status: "complete"
   end
 
@@ -67,15 +64,14 @@ Hecks.behaviors "CraftBeverageLab" do
   test "ExecuteRoast runs" do
     tests "ExecuteRoast", on: "RoastProfile"
     setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
-    input  roast_profile: 1
     expect status: "roasting"
   end
 
   test "CompleteRoast sets drop_temperature + total_time_seconds" do
     tests "CompleteRoast", on: "RoastProfile"
     setup  "CreateProfile", bean_origin: "sample", roast_level: "sample", charge_temperature: 1.0
-    setup  "ExecuteRoast", roast_profile: 1
-    input  roast_profile: 1, drop_temperature: 1.0, total_time_seconds: 1
+    setup  "ExecuteRoast"
+    input  drop_temperature: 1.0, total_time_seconds: 1
     expect drop_temperature: 1.0, total_time_seconds: 1, status: "profiled"
   end
 
@@ -85,13 +81,13 @@ Hecks.behaviors "CraftBeverageLab" do
   test "AnalyzeFlavorCompounds sets compound_name + chemical_family + concentration_ppm + source + aroma_descriptor" do
     tests "AnalyzeFlavorCompounds", on: "FlavorCompound"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
-    input  experiment: 1, compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
+    input  compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
     expect experiment: 1, compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
   end
 
   test "CompareCompounds runs" do
     tests "CompareCompounds", on: "FlavorCompound"
-    input  flavor_compound: 1
+    setup  "AnalyzeFlavorCompounds", compound_name: "sample", chemical_family: "sample", concentration_ppm: 1.0, source: "sample", aroma_descriptor: "sample"
     expect ok: "true"
   end
 
@@ -101,22 +97,20 @@ Hecks.behaviors "CraftBeverageLab" do
   test "ConveneSensoryPanel sets panel_name + panelist_count" do
     tests "ConveneSensoryPanel", on: "SensoryPanel"
     setup  "DesignExperiment", title: "sample", experiment_type: "sample", hypothesis: "sample"
-    input  experiment: 1, panel_name: "sample", panelist_count: 1
+    input  panel_name: "sample", panelist_count: 1
     expect panel_name: "sample", panelist_count: 1, experiment: 1, status: "convened"
   end
 
   test "CompareSensoryPanel runs" do
     tests "CompareSensoryPanel", on: "SensoryPanel"
-    setup  "ConveneSensoryPanel", experiment: 1, panel_name: "sample", panelist_count: 1
-    input  sensory_panel: 1
+    setup  "ConveneSensoryPanel", panel_name: "sample", panelist_count: 1
     expect status: "compared"
   end
 
   test "PublishResults runs" do
     tests "PublishResults", on: "SensoryPanel"
-    setup  "ConveneSensoryPanel", experiment: 1, panel_name: "sample", panelist_count: 1
-    setup  "CompareSensoryPanel", sensory_panel: 1
-    input  sensory_panel: 1
+    setup  "ConveneSensoryPanel", panel_name: "sample", panelist_count: 1
+    setup  "CompareSensoryPanel"
     expect status: "published"
   end
 
@@ -132,22 +126,20 @@ Hecks.behaviors "CraftBeverageLab" do
   test "ReserveEquipment runs" do
     tests "ReserveEquipment", on: "LabEquipment"
     setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
-    input  lab_equipment: 1
     expect status: "reserved"
   end
 
   test "ReleaseEquipment runs" do
     tests "ReleaseEquipment", on: "LabEquipment"
     setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
-    setup  "ReserveEquipment", lab_equipment: 1
-    input  lab_equipment: 1
+    setup  "ReserveEquipment"
     expect status: "available"
   end
 
   test "CalibrateEquipment sets last_calibration" do
     tests "CalibrateEquipment", on: "LabEquipment"
     setup  "RegisterEquipment", name: "sample", equipment_type: "sample"
-    input  lab_equipment: 1, last_calibration: "sample"
+    input  last_calibration: "sample"
     expect last_calibration: "sample"
   end
 

@@ -12,23 +12,20 @@ Hecks.behaviors "CompostSeasonalBeings" do
   test "Execute runs" do
     tests "Execute", on: "Action"
     setup  "Plan", action_name: "sample", rationale: "sample"
-    input  action: 1
     expect status: "executed"
   end
 
   test "Verify runs" do
     tests "Verify", on: "Action"
     setup  "Plan", action_name: "sample", rationale: "sample"
-    setup  "Execute", action: 1
-    input  action: 1
+    setup  "Execute"
     expect status: "verified"
   end
 
   test "Reverse runs" do
     tests "Reverse", on: "Action"
     setup  "Plan", action_name: "sample", rationale: "sample"
-    setup  "Execute", action: 1
-    input  action: 1
+    setup  "Execute"
     expect status: "reversed"
   end
 
@@ -44,14 +41,13 @@ Hecks.behaviors "CompostSeasonalBeings" do
   test "SnapshotBefore sets before_snapshot" do
     tests "SnapshotBefore", on: "Composting"
     setup  "Compost", name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
-    input  composting: 1, before_snapshot: "sample"
+    input  before_snapshot: "sample"
     expect before_snapshot: "sample"
   end
 
   test "Restore runs" do
     tests "Restore", on: "Composting"
     setup  "Compost", name: "sample", kind: "sample", reason_absorbed: "sample", absorbed_by: "sample", files_removed: "sample", files_modified: "sample"
-    input  composting: 1
     expect ok: "true"
   end
 

@@ -12,24 +12,21 @@ Hecks.behaviors "CakeDecorating" do
   test "ConfirmOrder runs" do
     tests "ConfirmOrder", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    input  cake_order: 1
     expect status: "confirmed"
   end
 
   test "StartBaking runs" do
     tests "StartBaking", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    setup  "ConfirmOrder", cake_order: 1
-    input  cake_order: 1
+    setup  "ConfirmOrder"
     expect status: "baking"
   end
 
   test "CompleteOrder runs" do
     tests "CompleteOrder", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    setup  "ConfirmOrder", cake_order: 1
-    setup  "StartBaking", cake_order: 1
-    input  cake_order: 1
+    setup  "ConfirmOrder"
+    setup  "StartBaking"
     expect status: "completed"
   end
 
@@ -39,13 +36,13 @@ Hecks.behaviors "CakeDecorating" do
   test "ProposeFlav sets cake_flavor + filling + frosting" do
     tests "ProposeFlav", on: "FlavorProfile"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    input  cake_order: 1, cake_flavor: "sample", filling: "sample", frosting: "sample"
+    input  cake_flavor: "sample", filling: "sample", frosting: "sample"
     expect ok: "true"
   end
 
   test "ApproveFlavor runs" do
     tests "ApproveFlavor", on: "FlavorProfile"
-    input  flavor_profile: 1
+    setup  "ProposeFlav", cake_flavor: "sample", filling: "sample", frosting: "sample"
     expect status: "approved"
   end
 
@@ -55,13 +52,14 @@ Hecks.behaviors "CakeDecorating" do
   test "ScheduleTasting sets date + client_name + sample_count" do
     tests "ScheduleTasting", on: "Tasting"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    input  cake_order: 1, date: "sample", client_name: "sample", sample_count: 1
+    input  date: "sample", client_name: "sample", sample_count: 1
     expect ok: "true"
   end
 
   test "ConductTasting sets preferred_flavor" do
     tests "ConductTasting", on: "Tasting"
-    input  tasting: 1, preferred_flavor: "sample"
+    setup  "ScheduleTasting", date: "sample", client_name: "sample", sample_count: 1
+    input  preferred_flavor: "sample"
     expect status: "completed"
   end
 
@@ -77,14 +75,13 @@ Hecks.behaviors "CakeDecorating" do
   test "ConsumeIngredient sets quantity_used" do
     tests "ConsumeIngredient", on: "IngredientStock"
     setup  "StockIngredient", ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
-    input  ingredient_stock: 1, quantity_used: 1.0
+    input  quantity_used: 1.0
     expect ok: "true"
   end
 
   test "FlagLowStock runs" do
     tests "FlagLowStock", on: "IngredientStock"
     setup  "StockIngredient", ingredient_name: "sample", category: "sample", quantity: 1.0, unit: "sample"
-    input  ingredient_stock: 1
     expect ok: "true"
   end
 
@@ -94,13 +91,13 @@ Hecks.behaviors "CakeDecorating" do
   test "ScheduleCakeDelivery sets address + delivery_date + time_window + handler_name" do
     tests "ScheduleCakeDelivery", on: "CakeDelivery"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
-    input  cake_order: 1, address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
+    input  address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
     expect ok: "true"
   end
 
   test "CompleteCakeDelivery runs" do
     tests "CompleteCakeDelivery", on: "CakeDelivery"
-    input  cake_delivery: 1
+    setup  "ScheduleCakeDelivery", address: "sample", delivery_date: "sample", time_window: "sample", handler_name: "sample"
     expect status: "delivered"
   end
 

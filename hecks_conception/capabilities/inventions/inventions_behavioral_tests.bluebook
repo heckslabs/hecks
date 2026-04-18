@@ -18,21 +18,20 @@ Hecks.behaviors "Inventions" do
   test "Develop sets prior_art" do
     tests "Develop", on: "Invention"
     setup  "Propose", title: "sample", description: "sample", novelty: "sample"
-    input  invention: 1, prior_art: "sample"
+    input  prior_art: "sample"
     expect prior_art: "sample", status: "developed"
   end
 
   test "File sets filed_date" do
     tests "File", on: "Invention"
     setup  "Propose", title: "sample", description: "sample", novelty: "sample"
-    input  invention: 1, filed_date: "sample"
+    input  filed_date: "sample"
     expect filed_date: "sample", status: "filed"
   end
 
   test "Dismiss runs" do
     tests "Dismiss", on: "Invention"
     setup  "Propose", title: "sample", description: "sample", novelty: "sample"
-    input  invention: 1
     expect status: "dismissed"
   end
 
@@ -47,7 +46,6 @@ Hecks.behaviors "Inventions" do
   test "FinishGrooming runs" do
     tests "FinishGrooming", on: "Grooming"
     setup  "StartGrooming"
-    input  grooming: 1
     expect status: "complete"
   end
 

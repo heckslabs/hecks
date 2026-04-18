@@ -12,15 +12,14 @@ Hecks.behaviors "FashionDesign" do
   test "FinalizeCollection sets piece_count" do
     tests "FinalizeCollection", on: "Collection"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
-    input  collection: 1, piece_count: 1
+    input  piece_count: 1
     expect status: "finalized", piece_count: 1
   end
 
   test "ShowCollection runs" do
     tests "ShowCollection", on: "Collection"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
-    setup  "FinalizeCollection", collection: 1, piece_count: 1
-    input  collection: 1
+    setup  "FinalizeCollection", piece_count: 1
     expect status: "shown"
   end
 
@@ -30,20 +29,20 @@ Hecks.behaviors "FashionDesign" do
   test "DraftGarment sets name + garment_type + fabric" do
     tests "DraftGarment", on: "Garment"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
-    input  collection: 1, name: "sample", garment_type: "sample", fabric: "sample"
+    input  name: "sample", garment_type: "sample", fabric: "sample"
     expect ok: "true"
   end
 
   test "SewMuslin runs" do
     tests "SewMuslin", on: "Garment"
-    input  garment: 1
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
     expect status: "muslin"
   end
 
   test "ProduceGarment runs" do
     tests "ProduceGarment", on: "Garment"
-    setup  "SewMuslin", garment: 1
-    input  garment: 1
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    setup  "SewMuslin"
     expect status: "produced"
   end
 
@@ -52,13 +51,14 @@ Hecks.behaviors "FashionDesign" do
 
   test "DraftPattern sets name + piece_count" do
     tests "DraftPattern", on: "Pattern"
-    input  garment: 1, name: "sample", piece_count: 1
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    input  name: "sample", piece_count: 1
     expect ok: "true"
   end
 
   test "GradePattern runs" do
     tests "GradePattern", on: "Pattern"
-    input  pattern: 1
+    setup  "DraftPattern", name: "sample", piece_count: 1
     expect status: "graded"
   end
 
@@ -67,13 +67,15 @@ Hecks.behaviors "FashionDesign" do
 
   test "ScheduleFitting sets model_name + date" do
     tests "ScheduleFitting", on: "Fitting"
-    input  garment: 1, model_name: "sample", date: "sample"
+    setup  "DraftGarment", name: "sample", garment_type: "sample", fabric: "sample"
+    input  model_name: "sample", date: "sample"
     expect ok: "true"
   end
 
   test "RecordAdjustments sets notes" do
     tests "RecordAdjustments", on: "Fitting"
-    input  fitting: 1, notes: "sample"
+    setup  "ScheduleFitting", model_name: "sample", date: "sample"
+    input  notes: "sample"
     expect status: "adjusted", notes: "sample"
   end
 
@@ -83,13 +85,13 @@ Hecks.behaviors "FashionDesign" do
   test "PlanShow sets venue + date" do
     tests "PlanShow", on: "RunwayShow"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
-    input  collection: 1, venue: "sample", date: "sample"
+    input  venue: "sample", date: "sample"
     expect ok: "true"
   end
 
   test "RehearsShow runs" do
     tests "RehearsShow", on: "RunwayShow"
-    input  runway_show: 1
+    setup  "PlanShow", venue: "sample", date: "sample"
     expect status: "rehearsed"
   end
 

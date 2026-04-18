@@ -12,30 +12,27 @@ Hecks.behaviors "CognitiveSupport" do
   test "AssignCall runs" do
     tests "AssignCall", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
-    input  agent: 1
     expect status: "on_call"
   end
 
   test "CompleteCall sets fatigue_score + cognitive_load_pct" do
     tests "CompleteCall", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
-    setup  "AssignCall", agent: 1
-    input  agent: 1, fatigue_score: 1.0, cognitive_load_pct: 1.0
+    setup  "AssignCall"
+    input  fatigue_score: 1.0, cognitive_load_pct: 1.0
     expect fatigue_score: 1.0, cognitive_load_pct: 1.0, status: "available"
   end
 
   test "SendOnBreak runs" do
     tests "SendOnBreak", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
-    input  agent: 1
     expect status: "on_break"
   end
 
   test "ReturnFromBreak runs" do
     tests "ReturnFromBreak", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
-    setup  "SendOnBreak", agent: 1
-    input  agent: 1
+    setup  "SendOnBreak"
     expect fatigue_score: 0.0, cognitive_load_pct: 0.0, status: "available"
   end
 
@@ -51,7 +48,6 @@ Hecks.behaviors "CognitiveSupport" do
   test "DetectOverload runs" do
     tests "DetectOverload", on: "WorkloadMetric"
     setup  "RecordWorkload", metric_name: "sample", queue_depth: 1, avg_handle_time_sec: 1.0, avg_wait_time_sec: 1.0, service_level_pct: 1.0, timestamp: "sample"
-    input  workload_metric: 1
     expect status: "overloaded"
   end
 
@@ -67,7 +63,7 @@ Hecks.behaviors "CognitiveSupport" do
   test "RecommendBreak sets recommendation" do
     tests "RecommendBreak", on: "FatigueAssessment"
     setup  "AssessFatigue", agent_name: "sample", reaction_time_ms: 1.0, error_rate_pct: 1.0, alertness_score: 1.0, assessment_time: "sample"
-    input  fatigue_assessment: 1, recommendation: "sample"
+    input  recommendation: "sample"
     expect recommendation: "sample", status: "recommended"
   end
 
@@ -83,15 +79,13 @@ Hecks.behaviors "CognitiveSupport" do
   test "StartBreak runs" do
     tests "StartBreak", on: "BreakSchedule"
     setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
-    input  break_schedule: 1
     expect status: "in_progress"
   end
 
   test "EndBreak runs" do
     tests "EndBreak", on: "BreakSchedule"
     setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
-    setup  "StartBreak", break_schedule: 1
-    input  break_schedule: 1
+    setup  "StartBreak"
     expect status: "completed"
   end
 

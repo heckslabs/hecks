@@ -12,7 +12,6 @@ Hecks.behaviors "MiettePhone" do
   test "RevokeSession runs" do
     tests "RevokeSession", on: "Gate"
     setup  "Authenticate", pin: "sample"
-    input  gate: 1
     expect locked: "true"
   end
 
@@ -27,14 +26,14 @@ Hecks.behaviors "MiettePhone" do
   test "SendMessage sets content" do
     tests "SendMessage", on: "Conversation"
     setup  "StartConversation"
-    input  conversation: 1, content: "sample"
+    input  content: "sample"
     expect ok: "true"
   end
 
   test "ReceiveReply sets content + latency_ms" do
     tests "ReceiveReply", on: "Conversation"
     setup  "StartConversation"
-    input  conversation: 1, content: "sample", latency_ms: 1
+    input  content: "sample", latency_ms: 1
     expect ok: "true"
   end
 
@@ -50,7 +49,7 @@ Hecks.behaviors "MiettePhone" do
   test "RelayMessage sets content" do
     tests "RelayMessage", on: "InferenceProxy"
     setup  "StartConversation"
-    input  conversation: 1, content: "sample"
+    input  content: "sample"
     expect ok: "true"
   end
 
@@ -65,14 +64,12 @@ Hecks.behaviors "MiettePhone" do
   test "RenderChat runs" do
     tests "RenderChat", on: "ChatScreen"
     setup  "StartConversation"
-    input  conversation: 1
     expect ok: "true"
   end
 
   test "StreamResponse runs" do
     tests "StreamResponse", on: "ChatScreen"
     setup  "StartConversation"
-    input  conversation: 1
     expect ok: "true"
   end
 

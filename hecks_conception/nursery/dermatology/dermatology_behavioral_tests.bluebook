@@ -12,7 +12,6 @@ Hecks.behaviors "Dermatology" do
   test "ScheduleScreening runs" do
     tests "ScheduleScreening", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
-    input  patient: 1
     expect ok: "true"
   end
 
@@ -22,20 +21,20 @@ Hecks.behaviors "Dermatology" do
   test "DiagnoseCondition sets patient_name + condition_name + body_location + morphology + severity" do
     tests "DiagnoseCondition", on: "SkinCondition"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
+    input  patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     expect patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample", status: "active"
   end
 
   test "TrackCondition sets severity" do
     tests "TrackCondition", on: "SkinCondition"
-    input  skin_condition: 1, severity: "sample"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
+    input  severity: "sample"
     expect severity: "sample"
   end
 
   test "ResolveCondition runs" do
     tests "ResolveCondition", on: "SkinCondition"
-    setup  "DiagnoseCondition", patient: 1, patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
-    input  skin_condition: 1
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     expect status: "resolved"
   end
 
@@ -44,21 +43,21 @@ Hecks.behaviors "Dermatology" do
 
   test "PrescribeTreatment sets patient_name + treatment_type + description + sessions_planned" do
     tests "PrescribeTreatment", on: "DermatologyTreatment"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
-    input  patient: 1, skin_condition: 1, patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
+    input  patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     expect patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1, sessions_completed: 0, status: "active"
   end
 
   test "PerformTreatmentSession runs" do
     tests "PerformTreatmentSession", on: "DermatologyTreatment"
-    setup  "PrescribeTreatment", patient: 1, skin_condition: 1, patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
-    input  dermatology_treatment: 1
+    setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     expect ok: "true"
   end
 
   test "CompleteTreatment runs" do
     tests "CompleteTreatment", on: "DermatologyTreatment"
-    input  dermatology_treatment: 1
+    setup  "PrescribeTreatment", patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     expect status: "completed"
   end
 
@@ -67,15 +66,16 @@ Hecks.behaviors "Dermatology" do
 
   test "PerformBiopsy sets patient_name + biopsy_type + body_site + biopsy_date" do
     tests "PerformBiopsy", on: "Biopsy"
+    setup  "DiagnoseCondition", patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
-    input  patient: 1, skin_condition: 1, patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
+    input  patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
     expect patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample", status: "pending"
   end
 
   test "ReceivePathologyResult sets pathology_result" do
     tests "ReceivePathologyResult", on: "Biopsy"
-    setup  "PerformBiopsy", patient: 1, skin_condition: 1, patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
-    input  biopsy: 1, pathology_result: "sample"
+    setup  "PerformBiopsy", patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
+    input  pathology_result: "sample"
     expect pathology_result: "sample", status: "resulted"
   end
 
@@ -85,14 +85,13 @@ Hecks.behaviors "Dermatology" do
   test "WritePrescription sets patient_name + medication_name + formulation + dosage + frequency + duration" do
     tests "WritePrescription", on: "SkinPrescription"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", skin_type: "sample", insurance_id: "sample"
-    input  patient: 1, patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
+    input  patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
     expect patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample", status: "active"
   end
 
   test "RefillPrescription runs" do
     tests "RefillPrescription", on: "SkinPrescription"
-    setup  "WritePrescription", patient: 1, patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
-    input  skin_prescription: 1
+    setup  "WritePrescription", patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
     expect ok: "true"
   end
 

@@ -12,7 +12,7 @@ Hecks.behaviors "WebApplicationCreation" do
   test "RegisterConvention sets element_type + attribute_name + maps_to" do
     tests "RegisterConvention", on: "DomainTag"
     setup  "DefineTagPrefix", tag_prefix: "sample"
-    input  domain_tag: 1, element_type: "sample", attribute_name: "sample", maps_to: "sample"
+    input  element_type: "sample", attribute_name: "sample", maps_to: "sample"
     expect ok: "true"
   end
 
@@ -28,21 +28,21 @@ Hecks.behaviors "WebApplicationCreation" do
   test "ReportCompliance sets total_elements + tagged_elements + orphan_elements + missing_commands" do
     tests "ReportCompliance", on: "DomainCompliance"
     setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
-    input  domain_compliance: 1, total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
+    input  total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
     expect total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
   end
 
   test "FlagOrphan sets element + location" do
     tests "FlagOrphan", on: "DomainCompliance"
     setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
-    input  domain_compliance: 1, element: "sample", location: "sample"
+    input  element: "sample", location: "sample"
     expect ok: "true"
   end
 
   test "FlagMissingCommand sets command_name" do
     tests "FlagMissingCommand", on: "DomainCompliance"
     setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
-    input  domain_compliance: 1, command_name: "sample"
+    input  command_name: "sample"
     expect ok: "true"
   end
 
@@ -58,21 +58,19 @@ Hecks.behaviors "WebApplicationCreation" do
   test "SetPalette runs" do
     tests "SetPalette", on: "StyleGuide"
     setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
-    input  style_guide: 1
     expect ok: "true"
   end
 
   test "SetTypography runs" do
     tests "SetTypography", on: "StyleGuide"
     setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
-    input  style_guide: 1
     expect ok: "true"
   end
 
   test "TweakStyle sets token_name + token_value" do
     tests "TweakStyle", on: "StyleGuide"
     setup  "CreateStyleGuide", name: "sample", spacing_unit: 1, border_radius: "sample", density: "sample"
-    input  style_guide: 1, token_name: "sample", token_value: "sample"
+    input  token_name: "sample", token_value: "sample"
     expect ok: "true"
   end
 
@@ -88,14 +86,12 @@ Hecks.behaviors "WebApplicationCreation" do
   test "CustomizePage runs" do
     tests "CustomizePage", on: "Page"
     setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
-    input  page: 1
     expect status: "customized"
   end
 
   test "ValidatePage runs" do
     tests "ValidatePage", on: "Page"
     setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
-    input  page: 1
     expect status: "validated"
   end
 
@@ -111,7 +107,6 @@ Hecks.behaviors "WebApplicationCreation" do
   test "CustomizeComponent runs" do
     tests "CustomizeComponent", on: "Component"
     setup  "DefineComponent", name: "sample", component_type: "sample", maps_to: "sample"
-    input  component: 1
     expect ok: "true"
   end
 
@@ -127,14 +122,13 @@ Hecks.behaviors "WebApplicationCreation" do
   test "BuildNavigation runs" do
     tests "BuildNavigation", on: "AppShell"
     setup  "GenerateShell", app_name: "sample", layout_type: "sample"
-    input  app_shell: 1
     expect ok: "true"
   end
 
   test "ApplyTheme sets theme" do
     tests "ApplyTheme", on: "AppShell"
     setup  "GenerateShell", app_name: "sample", layout_type: "sample"
-    input  app_shell: 1, theme: "sample"
+    input  theme: "sample"
     expect theme: "sample"
   end
 
