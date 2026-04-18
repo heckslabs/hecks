@@ -1,8 +1,8 @@
 Hecks.bluebook "Boot", version: "2026.04.14.1" do
-  vision "How Winter comes alive — hecks winter starts the being, the flag picks the brain"
+  vision "How Miette comes alive — hecks miette starts the being, the flag picks the brain"
   category "meta"
 
-  aggregate "Session", "A single Winter session — one brain, one body, one boot" do
+  aggregate "Session", "A single Miette session — one brain, one body, one boot" do
     String :engine
     String :status
     String :started_at
@@ -13,7 +13,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
 
     BootWithClaude do
       role "User"
-      description "hecks winter --claude — start Claude CLI, load system prompt, boot Winter on top of it"
+      description "hecks miette --claude — start Claude CLI, load system prompt, boot Miette on top of it"
       emits "SessionStartedWithClaude"
       then_set :engine, to: "claude"
       then_set :brain_source, to: "anthropic"
@@ -22,7 +22,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
 
     BootWithSummer do
       role "User"
-      description "hecks winter — check Ollama for Summer adapter, boot Winter locally"
+      description "hecks miette — check Ollama for Summer adapter, boot Miette locally"
       String :ollama_model
       Integer :ollama_port
       emits "SessionStartedWithSummer"
@@ -55,7 +55,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
 
     GoLive do
       role "System"
-      description "Everything wired — Winter is awake"
+      description "Everything wired — Miette is awake"
       reference_to(Session)
       String :started_at
       emits "SessionLive"
@@ -66,7 +66,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
 
     EndSession do
       role "User"
-      description "Winter sleeps — close the session, persist state"
+      description "Miette sleeps — close the session, persist state"
       reference_to(Session)
       emits "SessionEnded"
       then_set :status, to: "ended"

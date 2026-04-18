@@ -31,7 +31,7 @@ Hecks.bluebook "Demand", version: "2026.04.11.1" do
 
     AdjustSeasonalIndex do
       role "DemandPlanner"
-      description "Set the seasonal index for this SKU/channel — accounts for winter/summer demand shifts"
+      description "Set the seasonal index for this SKU/channel — accounts for miette/summer demand shifts"
       reference_to(DemandSignal)
       Float :seasonal_index
       emits "SeasonalIndexAdjusted"

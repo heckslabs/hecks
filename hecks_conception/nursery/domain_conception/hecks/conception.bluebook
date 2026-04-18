@@ -205,9 +205,9 @@ Hecks.bluebook "Conception", version: "2026.04.14.1" do
   fixture "ConceptionRule", rule_name: "HasVision", description: "Every domain needs a vision statement — why it exists", check_type: "vision present", severity: "blocking"
 
   # Example conception logs
-  fixture "ConceptionLog", domain_name: "Pizzas", conceived_by: "Winter", conceived_at: "2026-04-01", fixture_count: 8, gap_count: 0, verdict: "viable"
+  fixture "ConceptionLog", domain_name: "Pizzas", conceived_by: "Miette", conceived_at: "2026-04-01", fixture_count: 8, gap_count: 0, verdict: "viable"
   fixture "ConceptionLog", domain_name: "AmbulanceDispatch", conceived_by: "Summer", conceived_at: "2026-04-10", fixture_count: 0, gap_count: 1, verdict: "incomplete"
-  fixture "ConceptionLog", domain_name: "DomainCompression", conceived_by: "Winter", conceived_at: "2026-04-14", fixture_count: 12, gap_count: 0, verdict: "viable"
+  fixture "ConceptionLog", domain_name: "DomainCompression", conceived_by: "Miette", conceived_at: "2026-04-14", fixture_count: 12, gap_count: 0, verdict: "viable"
 
   # Example blueprint at various stages
   fixture "Blueprint", domain_name: "Pizzas", vision: "Pizza ordering domain", category: "business", aggregate_count: 2, command_count: 5, fixture_count: 8, port_count: 1, actor_count: 2, policy_count: 1, completeness: "sealed", gaps: []

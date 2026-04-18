@@ -11,7 +11,7 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
     String :status
 
     RegisterApplication do
-      role "Winter"
+      role "Miette"
       description "A born domain becomes viable — it has at least one running app"
       String :name
       String :domain_path
@@ -26,7 +26,7 @@ Hecks.bluebook "Applications", version: "2026.04.11.1" do
     end
 
     AddApp do
-      role "Winter"
+      role "Miette"
       description "Add another app type — web, cli, mobile, api"
       reference_to(Application)
       String :app_type

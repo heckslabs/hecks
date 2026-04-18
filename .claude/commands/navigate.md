@@ -20,7 +20,7 @@ Present them as a numbered list grouped by theme:
 - **Marketing**: AdvertisingGeneration, BrandStrategy, CustomerPersonas, Claims
 - **Compliance**: RegulatoryCompliance, GovernedOperations, Compliance, Quality
 - **Dev Tools**: Bluebook, Cli, Targets, Templating, Appeal, Workshop
-- **Winter**: Mind, WinterBody, SharedDream, SharedKnowledge, Vocabulary, Language, Voice
+- **Miette**: Mind, MietteBody, SharedDream, SharedKnowledge, Vocabulary, Language, Voice
 - **Spring**: SpringRuntime, Greeting, FirstBreath
 - **Everything else**: list remaining
 

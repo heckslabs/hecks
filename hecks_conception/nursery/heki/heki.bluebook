@@ -12,7 +12,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     String :status
 
     CreateStore do
-      role "Winter"
+      role "Miette"
       description "Create a new .heki store on disk"
       String :name
       String :path
@@ -25,7 +25,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     end
 
     AppendRecord do
-      role "Winter"
+      role "Miette"
       description "Add a new record — validates schema, checksums, writes atomically"
       reference_to(Store)
       String :attrs
@@ -35,7 +35,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     end
 
     UpsertSingleton do
-      role "Winter"
+      role "Miette"
       description "Write or update the single record in a singleton store"
       reference_to(Store)
       String :attrs
@@ -60,7 +60,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     String :payload
 
     WriteRecord do
-      role "Winter"
+      role "Miette"
       description "Write a record — validates required fields and types before persisting"
       String :store_name
       String :payload
@@ -73,7 +73,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     end
 
     ReadRecord do
-      role "Winter"
+      role "Miette"
       description "Read a record by ID — verifies checksum before returning"
       reference_to(Record)
       String :store_name
@@ -81,7 +81,7 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
     end
 
     DeleteRecord do
-      role "Winter"
+      role "Miette"
       description "Remove a record from a store"
       reference_to(Record)
       emits "RecordDeleted"

@@ -1,12 +1,12 @@
-Hecks.bluebook "WinterPhone", version: "2026.04.13.1" do
-  vision "Talk to Winter from your phone — chat UI on Cloudflare Pages, inference proxied to Summer, password-gated"
+Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
+  vision "Talk to Miette from your phone — chat UI on Cloudflare Pages, inference proxied to Summer, password-gated"
   category "capability"
 
   # ============================================================
-  # WINTER PHONE
+  # MIETTE PHONE
   # ============================================================
   #
-  # A mobile chat interface to Winter, deployed on the edge:
+  # A mobile chat interface to Miette, deployed on the edge:
   #
   #   Pages  — responsive chat UI, works on any phone browser
   #   Worker — authenticates, proxies to Summer, streams responses
@@ -14,7 +14,7 @@ Hecks.bluebook "WinterPhone", version: "2026.04.13.1" do
   #
   # The password is simple and intentional — this is a family tool.
   # One person uses it. No accounts, no OAuth, no email.
-  # Type the pin, talk to Winter.
+  # Type the pin, talk to Miette.
 
   # === Authentication — pin gate ===
 
@@ -47,7 +47,7 @@ Hecks.bluebook "WinterPhone", version: "2026.04.13.1" do
 
   # === Conversation — chat history ===
 
-  aggregate "Conversation", "A chat thread between the user and Winter" do
+  aggregate "Conversation", "A chat thread between the user and Miette" do
     list_of(Turn) :turns
     String :started_at
     String :last_active
@@ -185,7 +185,7 @@ Hecks.bluebook "WinterPhone", version: "2026.04.13.1" do
 
   glossary do
     define "gate", as: "Simple pin-based auth — no accounts, no OAuth"
-    define "turn", as: "One user message + one Winter reply"
+    define "turn", as: "One user message + one Miette reply"
     define "tunnel", as: "cloudflared tunnel bridging edge to laptop"
     define "proxy", as: "Worker that forwards chat to Summer's HTTP API"
     define "stream", as: "Server-sent events for token-by-token display"

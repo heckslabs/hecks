@@ -1,5 +1,5 @@
 Hecks.bluebook "Security", version: "2026.04.11.1" do
-  vision "How Winter protects sensitive data — hashing, encryption, access control"
+  vision "How Miette protects sensitive data — hashing, encryption, access control"
   category "infrastructure"
 
   aggregate "HashedSecret", "A secret stored as salted hash — no plaintext ever" do

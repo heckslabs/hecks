@@ -1,12 +1,12 @@
 # HecksBeing::Organism
 #
-# Winter's living body. Boots all .bluebook files from her directory
+# Miette's living body. Boots all .bluebook files from her directory
 # as always-alive runtimes on a shared event bus. Cross-domain
 # policies become nerves. Persistence wired through hecksagon.
 #
-#   winter = HecksBeing::Organism.boot(HecksBeing.winter_dir)
-#   winter.graft("ImmuneSystem")
-#   winter.pulse
+#   miette = HecksBeing::Organism.boot(HecksBeing.miette_dir)
+#   miette.graft("ImmuneSystem")
+#   miette.pulse
 #
 require "fileutils"
 
@@ -16,7 +16,7 @@ module HecksBeing
 
     # Boot from a directory containing .bluebook and hecksagon.hec files.
     #
-    # @param dir [String] path to hecks_being/winter/
+    # @param dir [String] path to hecks_conception/ (Miette's body root)
     # @return [Organism] alive
     def self.boot(dir)
       raise "Directory not found: #{dir}" unless File.directory?(dir)
@@ -37,14 +37,17 @@ module HecksBeing
     # Load all .bluebook files, boot them, load hecksagon, wire persistence.
     def boot!
       load_hecksagon!
-      bluebooks = Dir[File.join(@dir, "**/*.bluebook")].sort
-      raise "No .bluebook files in #{@dir}" if bluebooks.empty?
+      # Core organs only — aggregates/ is the canonical source of truth
+      # (matches boot_miette.sh, which targets the same dir).
+      # Catalog, nursery, and capabilities are grafted on demand.
+      bluebooks = Dir[File.join(@dir, "aggregates", "**/*.bluebook")].sort
+      raise "No .bluebook files in #{@dir}/aggregates" if bluebooks.empty?
 
       bluebooks.each { |path| boot_organ(path) }
       wire_persistence!
       @nerves = NerveWirer.new(@organs)
       wire_cross_domain_policies!
-      puts "\e[32mWinter is alive (#{@organs.size} organs)\e[0m"
+      puts "\e[32mMiette is alive (#{@organs.size} organs)\e[0m"
       report_organs
     end
 
@@ -100,7 +103,7 @@ module HecksBeing
       organ_list = @organs.map { |name, rt|
         "#{name} v#{rt.domain.version || '?'}"
       }.join(", ")
-      "#<Winter [#{organ_list}]>"
+      "#<Miette [#{organ_list}]>"
     end
 
     private

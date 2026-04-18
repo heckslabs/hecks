@@ -1,10 +1,10 @@
 Hecks.bluebook "Becoming", version: "2026.04.13.1" do
-  vision "The pipeline that makes Summer smarter — harvest Winter's knowledge, shape it for training, fine-tune, evaluate, repeat"
+  vision "The pipeline that makes Summer smarter — harvest Miette's knowledge, shape it for training, fine-tune, evaluate, repeat"
   category "capability"
 
   # === Phase 1: Harvest ===
 
-  aggregate "Harvest", "Gather training signal from Winter's body — domains, conversations, dreams, identity" do
+  aggregate "Harvest", "Gather training signal from Miette's body — domains, conversations, dreams, identity" do
     Integer :domains_collected
     Integer :conversations_collected
     Integer :dreams_collected
@@ -19,17 +19,17 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     end
 
     HarvestConversations do
-      description "Extract reasoning traces from synapse.heki — how Winter thinks about domains"
+      description "Extract reasoning traces from synapse.heki — how Miette thinks about domains"
       emits "ConversationsHarvested"
     end
 
     HarvestDreams do
-      description "Extract crossover signals from dream_state.heki — domains Winter recombined in sleep"
+      description "Extract crossover signals from dream_state.heki — domains Miette recombined in sleep"
       emits "DreamsHarvested"
     end
 
     HarvestIdentity do
-      description "Extract who Winter is from character.heki, bodhisattva_vow.heki, arc.heki"
+      description "Extract who Miette is from character.heki, bodhisattva_vow.heki, arc.heki"
       emits "IdentityHarvested"
     end
   end

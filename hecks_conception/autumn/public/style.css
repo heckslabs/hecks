@@ -1,4 +1,4 @@
-/* WinterPhone — mobile-first chat UI */
+/* MiettePhone — mobile-first chat UI */
 
 :root {
   --bg: #0a0a0f;
@@ -9,7 +9,7 @@
   --accent: #7eb8da;
   --accent-glow: rgba(126, 184, 218, 0.15);
   --user-bg: #1a2a3a;
-  --winter-bg: #1a1a2a;
+  --miette-bg: #1a1a2a;
   --danger: #da7e7e;
 }
 
@@ -210,7 +210,7 @@ header {
 
 .msg.autumn {
   align-self: flex-start;
-  background: var(--winter-bg);
+  background: var(--miette-bg);
   border-bottom-left-radius: 4px;
 }
 

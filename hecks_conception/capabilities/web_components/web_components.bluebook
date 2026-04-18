@@ -767,7 +767,7 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   synthwave, retro, cyberpunk, valentine, halloween,
   #   garden, forest, aqua, lofi, pastel, fantasy,
   #   wireframe, black, luxury, dracula, cmyk, autumn,
-  #   business, acid, lemonade, night, coffee, winter, dim, nord, sunset
+  #   business, acid, lemonade, night, coffee, miette, dim, nord, sunset
 
   fixture "Theme", name: "default", daisy_theme: "dark"
   fixture "Theme", name: "light", daisy_theme: "light"

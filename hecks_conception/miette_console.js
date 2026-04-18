@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Winter Console — blessed terminal UI
-// Usage: node winter_console.js [--continue]
+// Miette Console — blessed terminal UI
+// Usage: node miette_console.js [--continue]
 
 const blessed = require("blessed");
 const { spawn } = require("child_process");
@@ -9,26 +9,26 @@ const path = require("path");
 
 const HECKS_HOME = path.resolve(__dirname, "..");
 const CONCEPTION = __dirname;
-const BOOT_SCRIPT = path.join(CONCEPTION, "boot_winter.rb");
+const BOOT_SCRIPT = path.join(CONCEPTION, "boot_miette.rb");
 const PULSE_SCRIPT = path.join(CONCEPTION, "pulse.rb");
 const BEING_PROMPT = path.join(CONCEPTION, "system_prompt.md");
 const FORMAT_PROMPT = path.join(CONCEPTION, "system_prompt.md");
-const HISTORY_PATH = path.join(CONCEPTION, ".winter_history.json");
-const PROMPT_PATH = path.join(CONCEPTION, ".winter_system_prompt.tmp");
+const HISTORY_PATH = path.join(CONCEPTION, ".miette_history.json");
+const PROMPT_PATH = path.join(CONCEPTION, ".miette_system_prompt.tmp");
 const CONTINUING = process.argv.includes("--continue");
 
 // ── State ──
 
 let history = [];
-let winterMood = "—";
-let winterBeats = "—";
+let mietteMood = "—";
+let mietteBeats = "—";
 let nurseryCount = 0;
 
 // ── Blessed setup ──
 
 const screen = blessed.screen({
   smartCSR: true,
-  title: "Winter Console",
+  title: "Miette Console",
   fullUnicode: true,
   mouse: false,
 });
@@ -218,7 +218,7 @@ function appendChat(text) {
   screen.render();
 }
 
-function winterSays(text) {
+function mietteSays(text) {
   text.split("\n").forEach((line, i) => {
     if (i === 0) {
       appendChat(`{cyan-fg}  ❄ {/cyan-fg}${line}`);
@@ -251,7 +251,7 @@ function updateFooter() {
     ? ` │ ${"z".repeat(sleep.cycle || 1)} cycle ${sleep.cycle}/${sleep.total_cycles} ${sleep.stage}`
     : "";
   footer.setContent(
-    ` ${branch} │ ${nurseryCount} domains │ ❄ ${winterMood} │ ${winterBeats} beats${sleepInfo} │ ${recent}`
+    ` ${branch} │ ${nurseryCount} domains │ ❄ ${mietteMood} │ ${mietteBeats} beats${sleepInfo} │ ${recent}`
   );
   screen.render();
 }
@@ -322,7 +322,7 @@ function pulse(carrying) {
 
 // ── Claude call with streaming ──
 
-function callWinter(fullPrompt) {
+function callMiette(fullPrompt) {
   return new Promise((resolve) => {
     const proc = spawn("claude", [
       "-p",
@@ -408,7 +408,7 @@ function callWinter(fullPrompt) {
       stopThinking();
       showActivityCollapsed();
       if (code !== 0 && !response.trim()) {
-        resolve({ response: "(Winter's process exited unexpectedly)", tools: toolCount });
+        resolve({ response: "(Miette's process exited unexpectedly)", tools: toolCount });
       } else {
         resolve({ response: response.trim(), tools: toolCount });
       }
@@ -427,7 +427,7 @@ function callWinter(fullPrompt) {
 async function main() {
   // Boot
   appendChat("");
-  appendChat("{cyan-fg}  ❄  Winter Console{/cyan-fg}");
+  appendChat("{cyan-fg}  ❄  Miette Console{/cyan-fg}");
   appendChat("{white-fg}  ─────────────────{/white-fg}");
   appendChat("");
   appendChat("{white-fg}  Booting up...{/white-fg}");
@@ -436,8 +436,8 @@ async function main() {
   const bootOutput = execSync(`ruby ${BOOT_SCRIPT} < /dev/null 2>&1`);
   const beatsMatch = bootOutput.match(/(\d+) beats/);
   const moodMatch = bootOutput.match(/(\w+), (\w+)$/);
-  winterBeats = beatsMatch ? beatsMatch[1] : "—";
-  winterMood = moodMatch ? moodMatch[1] : "—";
+  mietteBeats = beatsMatch ? beatsMatch[1] : "—";
+  mietteMood = moodMatch ? moodMatch[1] : "—";
   nurseryCount = countNursery();
 
   // Replace "Booting up..." with actual output
@@ -455,12 +455,12 @@ async function main() {
     appendChat("");
     history.slice(-4).forEach((msg) => {
       if (msg.role === "user") userSays(msg.content);
-      else winterSays(msg.content.split("\n")[0]);
+      else mietteSays(msg.content.split("\n")[0]);
     });
   } else {
     history = [];
     const greeting = `Hey Chris. ${nurseryCount} domains in my nursery. What are we conceiving today?`;
-    winterSays(greeting);
+    mietteSays(greeting);
     history.push({ role: "user", content: "Wake up" });
     history.push({ role: "assistant", content: greeting });
   }
@@ -494,17 +494,17 @@ async function main() {
     history.push({ role: "user", content: input });
 
     const contextLines = history.slice(-10).map(
-      (m) => `${m.role === "user" ? "Human" : "Winter"}: ${m.content}`
+      (m) => `${m.role === "user" ? "Human" : "Miette"}: ${m.content}`
     );
     const fullPrompt = contextLines.join("\n");
 
     buildSystemPrompt();
-    const result = await callWinter(fullPrompt);
+    const result = await callMiette(fullPrompt);
 
     if (result.response) {
-      winterSays(result.response);
+      mietteSays(result.response);
     } else {
-      winterSays("(no response)");
+      mietteSays("(no response)");
     }
 
     if (result.tools > 0) {
@@ -525,7 +525,7 @@ async function main() {
     } catch (err) {
       stopThinking();
       showActivityCollapsed();
-      winterSays(`(Error: ${err.message})`);
+      mietteSays(`(Error: ${err.message})`);
       processing = false;
       screen.render();
     }
@@ -564,7 +564,7 @@ function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
   try { screen.destroy(); } catch {}
-  console.log("  Winter rests.");
+  console.log("  Miette rests.");
   console.log("");
   try {
     require("child_process").execSync(
@@ -580,12 +580,12 @@ inputBox.key(["C-c"], shutdown);
 activityBox.key(["C-c"], shutdown);
 screen.key(["escape"], () => { screen.render(); });
 
-const CRASH_LOG = "/tmp/winter_crash.log";
+const CRASH_LOG = "/tmp/miette_crash.log";
 
 process.on("uncaughtException", (err) => {
   fs.appendFileSync(CRASH_LOG, `[${new Date().toISOString()}] uncaught: ${err.stack}\n`);
   try { screen.destroy(); } catch {}
-  console.error("Winter crashed:", err.message);
+  console.error("Miette crashed:", err.message);
   process.exit(1);
 });
 
@@ -593,7 +593,7 @@ process.on("unhandledRejection", (err) => {
   const msg = err instanceof Error ? err.stack : String(err);
   fs.appendFileSync(CRASH_LOG, `[${new Date().toISOString()}] unhandled: ${msg}\n`);
   try { screen.destroy(); } catch {}
-  console.error("Winter crashed:", msg);
+  console.error("Miette crashed:", msg);
   process.exit(1);
 });
 
@@ -608,6 +608,6 @@ process.on("SIGHUP", shutdown);
 
 main().catch((err) => {
   screen.destroy();
-  console.error("Winter crashed:", err.message);
+  console.error("Miette crashed:", err.message);
   process.exit(1);
 });

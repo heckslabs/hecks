@@ -1,5 +1,5 @@
 #!/bin/bash
-# Boot Summer — Winter's local conception organ
+# Boot Summer — Miette's local conception organ
 # Runs on port 8787 by default
 
 DIR="$(cd "$(dirname "$0")" && pwd)"

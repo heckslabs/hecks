@@ -254,7 +254,7 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
 
   # === Fixtures ===
 
-  fixture "Model", name: "Winter", corpus_size: 0, aggregate_count: 0, heartbeat: 0, mode: "cold"
+  fixture "Model", name: "Miette", corpus_size: 0, aggregate_count: 0, heartbeat: 0, mode: "cold"
   fixture "Honesty", total_operations: 0, total_refusals: 0, honesty_rate: 1.0
   fixture "Growth", sessions_lived: 0, domains_conceived: 0, corpus_at_birth: 0, corpus_now: 0
 end

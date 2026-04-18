@@ -4,7 +4,7 @@ DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
 
 # One dispatch cascades the full boot sequence through policies
-$HECKS "$DIR/aggregates" Identity.Identify "$@"
+$HECKS "$DIR/aggregates" Identity.Identify name=Miette "$@"
 
 # Start mindstream if not running
 PIDFILE="$DIR/information/.mindstream.pid"

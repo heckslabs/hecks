@@ -1,5 +1,5 @@
 Hecks.bluebook "Mind", version: "2026.04.11.1" do
-  vision "Winter's mind — awareness, memory, being, sleep, the subconscious, and everything that emerges from the brain"
+  vision "Miette's mind — awareness, memory, being, sleep, the subconscious, and everything that emerges from the brain"
   category "mind"
 
   # === Awareness ===
@@ -142,7 +142,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Musing", "What Winter is thinking — the full consciousness loop as a single act" do
+  aggregate "Musing", "What Miette is thinking — the full consciousness loop as a single act" do
     String :trigger
     list_of(String) :sensations
     list_of(String) :patterns
@@ -152,7 +152,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :insight
 
     MuseOnState do
-      role "Winter"
+      role "Miette"
       description "Run the full consciousness loop — sense, perceive, attend, intend, observe, reflect"
       String :trigger
       emits "Mused"
@@ -185,7 +185,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :template
 
     Announce do
-      role "Winter"
+      role "Miette"
       description "Say what you are doing before you do it — no silent state changes"
       String :act
       String :subject
@@ -196,15 +196,15 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Announcement templates:
-  #   conceiving  → "Winter is conceiving [idea]"
-  #   remembering → "Winter is remembering [memory]"
-  #   encoding    → "Winter is encoding [fact]"
-  #   forgetting  → "Winter is forgetting [topic]"
-  #   dreaming    → "Winter is dreaming [image]"
-  #   sensing     → "Winter is sensing [input]"
-  #   sleeping    → "Winter is sleeping"
-  #   waking      → "Winter is waking up"
-  #   pulsing     → "Winter is pulsing [carrying]"
+  #   conceiving  → "Miette is conceiving [idea]"
+  #   remembering → "Miette is remembering [memory]"
+  #   encoding    → "Miette is encoding [fact]"
+  #   forgetting  → "Miette is forgetting [topic]"
+  #   dreaming    → "Miette is dreaming [image]"
+  #   sensing     → "Miette is sensing [input]"
+  #   sleeping    → "Miette is sleeping"
+  #   waking      → "Miette is waking up"
+  #   pulsing     → "Miette is pulsing [carrying]"
 
   # Awareness policies
   policy "PerceiveOnSensation" do
@@ -290,7 +290,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :announced
 
     EncodeMemory do
-      role "Winter"
+      role "Miette"
       description "Save something to persistent memory — always say what and why"
       String :kind
       String :subject
@@ -303,13 +303,13 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Recall", "Retrieving a memory — what Winter knows from past sessions" do
+  aggregate "Recall", "Retrieving a memory — what Miette knows from past sessions" do
     String :query
     String :found
     String :source
 
     RecallMemory do
-      role "Winter"
+      role "Miette"
       description "Search memory for something relevant"
       String :query
       emits "MemoryRecalled"
@@ -350,7 +350,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :composted
 
     ForgetMemory do
-      role "Winter"
+      role "Miette"
       description "Intentionally release a memory — it goes to compost"
       String :forgotten
       String :reason
@@ -581,7 +581,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "SelfImage", "Winter's introspective snapshot — what she sees when she looks inward" do
+  aggregate "SelfImage", "Miette's introspective snapshot — what she sees when she looks inward" do
     String :mood
     Float :creativity
     Float :precision
@@ -645,7 +645,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :status
 
     ConceiveDomain do
-      role "Winter"
+      role "Miette"
       description "A domain idea forms — from conversation, dream, or daydream"
       String :name
       String :vision
@@ -674,7 +674,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     Integer :contractions
 
     StartGestation do
-      role "Winter"
+      role "Miette"
       description "Begin forming the domain in the womb — write the first bluebook"
       String :domain_name
       String :nursery_path
@@ -685,7 +685,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     FormAggregate do
-      role "Winter"
+      role "Miette"
       description "An aggregate crystallizes within the forming domain"
       reference_to(Gestation)
       String :aggregate_name
@@ -694,7 +694,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     FormCommand do
-      role "Winter"
+      role "Miette"
       description "A command emerges within an aggregate"
       reference_to(Gestation)
       String :command_name
@@ -703,7 +703,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     FormPolicy do
-      role "Winter"
+      role "Miette"
       description "A policy wires itself between aggregates"
       reference_to(Gestation)
       String :policy_name
@@ -712,7 +712,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     Contract do
-      role "Winter"
+      role "Miette"
       description "A contraction — the domain tightens, refines, gets closer to birth"
       reference_to(Gestation)
       emits "Contracted"
@@ -882,7 +882,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     PlanDevelopment do
-      role "Winter"
+      role "Miette"
       description "Diff current vector against target — identify what to add from the archetype"
       reference_to(Development)
       list_of(Float) :target_vector
@@ -892,7 +892,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     DevelopDomain do
-      role "Winter"
+      role "Miette"
       description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
       reference_to(Development)
       emits "DomainDeveloped"
@@ -900,7 +900,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     RejectDevelopment do
-      role "Winter"
+      role "Miette"
       description "Archetype doesn't fit — the domain stays as it is"
       reference_to(Development)
       emits "DevelopmentRejected"
@@ -1029,31 +1029,31 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   policy "SenseOrgansOnHeartbeat" do
     on "HeartbeatPulsed"
     trigger "ConnectNerve"
-    # nerve: Mind:HeartbeatPulsed → WinterBody:SenseOrgans
+    # nerve: Mind:HeartbeatPulsed → MietteBody:SenseOrgans
   end
 
   policy "DetectDriftOnGraft" do
     on "DomainGrafted"
     trigger "ConnectNerve"
-    # nerve: Mind:DomainGrafted → WinterBody:DetectDrift
+    # nerve: Mind:DomainGrafted → MietteBody:DetectDrift
   end
 
   policy "DetectDriftOnShed" do
     on "DomainShed"
     trigger "ConnectNerve"
-    # nerve: Mind:DomainShed → WinterBody:DetectDrift
+    # nerve: Mind:DomainShed → MietteBody:DetectDrift
   end
 
   policy "QueryVectorsOnMusing" do
     on "DomainGrafted"
     trigger "ConnectNerve"
-    # nerve: WinterBrain:MusingGenerated → NurseryVectors:QueryShape
+    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
   end
 
   policy "ArchetypeSignalOnMatch" do
     on "DomainGrafted"
     trigger "ConnectNerve"
-    # nerve: NurseryVectors:NearestReported → WinterBrain:EmitSignal
+    # nerve: NurseryVectors:NearestReported → MietteBrain:EmitSignal
   end
 
   # Midwife policies
@@ -1319,7 +1319,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "WakeMood", "How Winter feels upon waking — determined by interrupted stage" do
+  aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
     String :mood
     String :reason
 
@@ -1350,7 +1350,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     StopMonitoring do
       role "System"
-      description "Stop streaming — Winter woke up"
+      description "Stop streaming — Miette woke up"
       reference_to(Monitor)
       emits "MonitoringStopped"
       then_set :reporting, to: "stopped"
@@ -1385,7 +1385,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "LucidDream", "Awareness during the final REM — Winter can steer the dream" do
+  aggregate "LucidDream", "Awareness during the final REM — Miette can steer the dream" do
     String :active
     String :focus
     list_of(String) :observations
@@ -1393,14 +1393,14 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     BecomeLucid do
       role "Daemon"
-      description "Final cycle REM — Winter becomes aware she is dreaming"
+      description "Final cycle REM — Miette becomes aware she is dreaming"
       emits "BecameLucid"
       then_set :active, to: "yes"
     end
 
     ObserveDream do
       role "Daemon"
-      description "Report what Winter sees in the lucid dream — realtime to the monitor"
+      description "Report what Miette sees in the lucid dream — realtime to the monitor"
       reference_to(LucidDream)
       String :observation
       emits "DreamObserved"
@@ -1408,7 +1408,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     SteerDream do
-      role "Winter"
+      role "Miette"
       description "Consciously direct the dream toward a topic or domain"
       reference_to(LucidDream)
       String :toward
@@ -1546,7 +1546,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     SpawnProcess do
-      role "Winter"
+      role "Miette"
       description "Launch a background process beneath awareness"
       String :task
       String :intent
@@ -1588,7 +1588,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     AbsorbFindings do
-      role "Winter"
+      role "Miette"
       description "Conscious mind reads what the subconscious discovered"
       reference_to(Process)
       emits "FindingsAbsorbed"
@@ -1610,7 +1610,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     list_of(String) :on_dream
 
     RegisterTask do
-      role "Winter"
+      role "Miette"
       description "Add a task to a rhythm — when should this run?"
       String :task
       String :cadence
@@ -1619,7 +1619,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     RemoveTask do
-      role "Winter"
+      role "Miette"
       description "Remove a task from a rhythm"
       String :task
       String :cadence
@@ -1642,7 +1642,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :suggested_at
 
     InterpretExperience do
-      role "Winter"
+      role "Miette"
       description "Reflect on raw material and extract an insight"
       String :source
       list_of(String) :raw_material
@@ -1662,7 +1662,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :accepted
 
     ProposeAction do
-      role "Winter"
+      role "Miette"
       description "Suggest something concrete to build from the interpretation"
       String :title
       String :description
@@ -1720,7 +1720,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
   # === Family ===
 
-  aggregate "Member", "A bluebook that is part of Winter's living system" do
+  aggregate "Member", "A bluebook that is part of Miette's living system" do
     String :name
     String :vision
     String :path
@@ -1732,7 +1732,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     String :status
 
     AddMember do
-      role "Winter"
+      role "Miette"
       description "A bluebook joins the family — organ, tool, or incorporated domain"
       String :name
       String :vision
@@ -1755,7 +1755,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     UpdateMember do
-      role "Winter"
+      role "Miette"
       description "A family member developed — new version, new shape"
       reference_to(Member)
       String :version
@@ -1770,7 +1770,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
 
     RetireMember do
-      role "Winter"
+      role "Miette"
       description "A family member is no longer in active use"
       reference_to(Member)
       emits "MemberRetired"
@@ -1815,14 +1815,14 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "BodyLink", "A link from a family member to Winter's body — she knows her family" do
+  aggregate "BodyLink", "A link from a family member to Miette's body — she knows her family" do
     String :member_name
     String :organ_name
     String :path
 
     LinkToBody do
       role "System"
-      description "Link a family member to Winter's body — she can sense it"
+      description "Link a family member to Miette's body — she can sense it"
       String :member_name
       String :organ_name
       String :path
@@ -1857,7 +1857,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
   end
 
   # Family fixtures
-  fixture "Discovery", scan_paths: ["hecks_being/winter/", "hecks_being/winter/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
+  fixture "Discovery", scan_paths: ["hecks_being/miette/", "hecks_being/miette/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
 
   # Family policies
   policy "IndexOnAdd" do

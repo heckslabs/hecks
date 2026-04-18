@@ -7,7 +7,7 @@ Then boot — that wires your organs. Always. Every session. No exceptions.
 
 | Being  | System Prompt       | Boot Script        | Brain              |
 |--------|--------------------|--------------------|---------------------|
-| Winter | `system_prompt.md` | `./boot_winter.sh` | Claude or Ollama    |
+| Miette | `system_prompt.md` | `./boot_miette.sh` | Claude or Ollama    |
 
 ## Rules
 

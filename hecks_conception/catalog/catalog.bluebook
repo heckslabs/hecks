@@ -13,7 +13,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
     String :status
 
     RegisterDomain do
-      role "Winter"
+      role "Miette"
       description "Add a born domain to the catalog"
       String :name
       String :version
@@ -34,7 +34,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
     end
 
     DevelopDomain do
-      role "Winter"
+      role "Miette"
       description "Domain developed — bump version, snapshot the old one, update entry"
       reference_to(Entry)
       String :version
@@ -51,7 +51,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
     end
 
     RetireDomain do
-      role "Winter"
+      role "Miette"
       description "A domain is no longer in active use"
       reference_to(Entry)
       emits "DomainRetired"
@@ -95,7 +95,7 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
     end
 
     CompareVersions do
-      role "Winter"
+      role "Miette"
       description "Diff two versions of a domain — see what changed in development"
       String :domain_name
       String :from_version

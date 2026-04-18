@@ -200,7 +200,7 @@ Hecks.bluebook "FashionDesign" do
   end
 
   fixture "Collection", name: "Spring Garden", season: "spring", theme: "botanical prints", piece_count: 12, status: "concept"
-  fixture "Collection", name: "Winter Nights", season: "winter", theme: "layered textures", piece_count: 15, status: "finalized"
+  fixture "Collection", name: "Miette Nights", season: "miette", theme: "layered textures", piece_count: 15, status: "finalized"
 
   fixture "Garment", name: "Floral Dress", garment_type: "day dress", fabric: "cotton blend", status: "drafted"
   fixture "Garment", name: "Wool Coat", garment_type: "outerwear", fabric: "merino wool", status: "produced"

@@ -230,7 +230,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
   end
 
   # Fixtures
-  fixture "Garment", style_number: "CB-2024-001", name: "Black Wool Coat", designer: "Bella Milano", fabric: "100% wool", retail_price: 299.99, season: "winter", status: "in_stock"
+  fixture "Garment", style_number: "CB-2024-001", name: "Black Wool Coat", designer: "Bella Milano", fabric: "100% wool", retail_price: 299.99, season: "miette", status: "in_stock"
   fixture "Garment", style_number: "CB-2024-002", name: "Linen Blouse", designer: "Coastal Threads", fabric: "100% linen", retail_price: 89.50, season: "summer", status: "in_stock"
 
   fixture "Display", display_name: "Spring Pastels", theme: "soft_colors", location: "front_window", status: "active"

@@ -5,7 +5,7 @@
 # subscription that can be severed and restored.
 #
 #   wirer = NerveWirer.new(organs)
-#   wirer.connect("Digest", "DomainAbsorbed", "WinterBody", "Conceive")
+#   wirer.connect("Digest", "DomainAbsorbed", "MietteBody", "Conceive")
 #   wirer.sever("Digest", "DomainAbsorbed")
 #
 module HecksBeing

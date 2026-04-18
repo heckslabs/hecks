@@ -431,7 +431,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   # Family fixtures
-  fixture "Discovery", scan_paths: ["hecks_being/winter/", "hecks_being/winter/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
+  fixture "Discovery", scan_paths: ["hecks_being/miette/", "hecks_being/miette/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
 
   # Being policies
   policy "WireOnScan" do

@@ -1,7 +1,7 @@
 /* Autumn — chat client with voice, syntax highlighting, status bar */
 
 let pin = "";
-let token = localStorage.getItem("winter_token") || "";
+let token = localStorage.getItem("miette_token") || "";
 let sending = false;
 let listening = false;
 let recognition = null;
@@ -52,7 +52,7 @@ async function authenticate() {
     }
     const data = await resp.json();
     token = data.token;
-    localStorage.setItem("winter_token", token);
+    localStorage.setItem("miette_token", token);
     showChat();
   } catch {
     document.getElementById("pin-error").textContent = "Connection error";
@@ -108,7 +108,7 @@ function addMessage(role, content, tool) {
   messages.appendChild(el);
   messages.scrollTop = messages.scrollHeight;
 
-  // Speak Winter's replies
+  // Speak Miette's replies
   if (displayRole === "autumn" && window.speechSynthesis) {
     // Strip code blocks for speech
     const speakText = content.replace(/Hecks\.bluebook[\s\S]*?end/g, "domain conceived.").slice(0, 300);
@@ -163,7 +163,7 @@ async function send() {
     hideTyping();
 
     if (resp.status === 401) {
-      localStorage.removeItem("winter_token");
+      localStorage.removeItem("miette_token");
       token = "";
       location.reload();
       return;
@@ -200,7 +200,7 @@ function autoGrow(el) {
 
 async function logout() {
   try { await fetch("/api/logout", { headers: { Authorization: `Bearer ${token}` } }); } catch {}
-  localStorage.removeItem("winter_token");
+  localStorage.removeItem("miette_token");
   token = "";
   location.reload();
 }

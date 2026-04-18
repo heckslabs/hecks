@@ -31,12 +31,12 @@ Hecks.bluebook "PoolMaintenance" do
       emits "PoolRegistered"
     end
 
-    WinterizePool do
+    MietteizePool do
       role "Service Tech"
-      goal "Prepare the pool for winter shutdown"
+      goal "Prepare the pool for miette shutdown"
       description "Lower water, blow lines, add antifreeze, and cover"
       reference_to(Pool)
-      emits "PoolWinterized"
+      emits "PoolMietteized"
     end
 
     OpenPool do
@@ -199,9 +199,9 @@ Hecks.bluebook "PoolMaintenance" do
     trigger "OpenRepairTicket"
   end
 
-  policy "WinterizeOnSeason" do
+  policy "MietteizeOnSeason" do
     on "RepairCompleted"
-    trigger "WinterizePool"
+    trigger "MietteizePool"
   end
 
   fixture "Pool", owner_name: "Smith Family", address: "123 Oak Street, Phoenix, AZ 85001", pool_type: "in-ground", gallons: 15000.0, surface_type: "plaster", sanitizer_type: "chlorine"

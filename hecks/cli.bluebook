@@ -245,7 +245,7 @@ Hecks.bluebook "Cli", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "WinterCommand", definition: "Wake Winter — living domain organism" do
+  aggregate "MietteCommand", definition: "Wake Miette — living domain organism" do
 
     command "Wake" do
       attribute :action, String

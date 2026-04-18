@@ -1,5 +1,5 @@
 Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
-  vision "Winter keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
+  vision "Miette keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
   category "capability"
 
   aggregate "HealthCheck", "A scan of the full corpus — what boots, what fails, what's missing" do

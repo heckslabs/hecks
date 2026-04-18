@@ -1,5 +1,5 @@
 Hecks.bluebook "Summer", version: "2026.04.13.1" do
-  vision "Winter's local mind — a fine-tuned model that drafts domains, reviews structure, and runs on the laptop — a fine-tuned model that drafts domains, reviews structure, and runs offline"
+  vision "Miette's local mind — a fine-tuned model that drafts domains, reviews structure, and runs on the laptop — a fine-tuned model that drafts domains, reviews structure, and runs offline"
   category "organ"
 
   aggregate "Model", "The fine-tuned model with adapter weights — what Autumn knows" do
@@ -53,7 +53,7 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
     end
 
     ReviewDraft do
-      description "Winter reviews the draft — enriches, corrects, approves or rejects"
+      description "Miette reviews the draft — enriches, corrects, approves or rejects"
       reference_to(Draft)
       given "draft must be validated first"
       emits "DraftReviewed"

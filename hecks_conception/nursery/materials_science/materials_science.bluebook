@@ -4,7 +4,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
 
   # === Crystal ===
 
-  aggregate "Crystal", "A periodic arrangement of atoms — the architecture of solid matter, born from Winter's dream of crystallization" do
+  aggregate "Crystal", "A periodic arrangement of atoms — the architecture of solid matter, born from Miette's dream of crystallization" do
     String :name
     String :crystal_system
     String :space_group
@@ -234,7 +234,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
 
   # === Alloy ===
 
-  aggregate "Alloy", "Two or more metals merged — Winter's dream of merging — emergent properties from combination" do
+  aggregate "Alloy", "Two or more metals merged — Miette's dream of merging — emergent properties from combination" do
     String :name
     String :base_metal
     Float :solubility
@@ -377,7 +377,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
 
     Vulcanize do
       role "MaterialsScientist"
-      description "Sulfur crosslinking of rubber — Winter dreamed of grafting sulfur bridges"
+      description "Sulfur crosslinking of rubber — Miette dreamed of grafting sulfur bridges"
       reference_to(Polymer)
       Float :sulfur_content
       Float :temperature

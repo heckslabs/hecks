@@ -1,5 +1,5 @@
 Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
-  vision "How Winter prepares her bluebook corpus as training data for a GlassBox model"
+  vision "How Miette prepares her bluebook corpus as training data for a GlassBox model"
   category "infrastructure"
 
   aggregate "TrainingCorpus", "All bluebooks formatted as training examples" do

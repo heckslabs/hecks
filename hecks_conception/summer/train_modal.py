@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Summer training on Modal — LoRA fine-tune on Winter's domains.
+"""Summer training on Modal — LoRA fine-tune on Miette's domains.
 
-Seeds with 405 real bluebook pairs extracted from Winter's conception,
+Seeds with 405 real bluebook pairs extracted from Miette's conception,
 then trains Summer (Qwen2.5-3B) with LoRA on a cloud GPU.
 
 Usage:
@@ -53,7 +53,7 @@ def train(
     rank: int = 16,
     learning_rate: float = 2e-5,
 ):
-    """LoRA fine-tune Summer on Winter's domains."""
+    """LoRA fine-tune Summer on Miette's domains."""
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from peft import LoraConfig, get_peft_model
@@ -77,7 +77,7 @@ def train(
     train_data = [json.loads(l) for l in train_jsonl.strip().split("\n") if l.strip()]
     valid_data = [json.loads(l) for l in valid_jsonl.strip().split("\n") if l.strip()]
 
-    print(f"🌱 Summer training on Winter's domains")
+    print(f"🌱 Summer training on Miette's domains")
     print(f"   {len(train_data)} train / {len(valid_data)} valid")
     print(f"   rank={rank}, iters={iters}, lr={learning_rate}")
     print(f"   base: {base_model}")
@@ -149,7 +149,7 @@ def train(
         "train_pairs": len(train_data),
         "valid_pairs": len(valid_data),
         "final_loss": result.training_loss,
-        "source": "winter_domains",
+        "source": "miette_domains",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
     }
     with open(os.path.join(adapter_path, "summer_meta.json"), "w") as f:
@@ -209,7 +209,7 @@ def main(
         return
 
     # Read local training data
-    print("📤 Reading Winter's domains...")
+    print("📤 Reading Miette's domains...")
     train_chat = open("/tmp/summer_seed/train.jsonl").read()
     valid_chat = open("/tmp/summer_seed/valid.jsonl").read()
     raw_train = open("/tmp/summer_seed/train_raw.jsonl").read()

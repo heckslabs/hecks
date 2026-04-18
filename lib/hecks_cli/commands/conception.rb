@@ -1,26 +1,46 @@
-# Hecks::CLI :winter command
+# Hecks::CLI :miette command
 #
-# Boot Winter as a living organism. All her organs are always-alive
-# domain runtimes on a shared event bus with cross-domain nerve wiring.
+# Wake Miette and dispatch organism actions through her Rust runtime
+# (hecks-life). The bluebooks in hecks_conception/aggregates/ are her
+# body; hecks-life parses them, hydrates her .heki stores, and applies
+# commands. No Ruby parses the bluebook DSL anymore (per CLAUDE.md).
 #
 # Usage:
-#   hecks winter              — boot Winter
-#   hecks winter pulse        — check vital signs
-#   hecks winter graft NAME   — graft a nursery domain
-#   hecks winter shed NAME    — remove an organ
-#   hecks winter silence NAME — deactivate an organ's nerves
-#   hecks winter express NAME — reactivate an organ's nerves
-#   hecks winter conceive     — launch Claude for domain conception
+#   hecks miette              — boot Miette (launch Claude with her system prompt)
+#   hecks miette pulse        — read vital signs (Heartbeat.ReadVitals)
+#   hecks miette graft NAME   — graft a domain (Being.GraftDomain)
+#   hecks miette shed NAME    — remove an organ (Being.ShedDomain)
+#   hecks miette silence NAME — pause an organ's nerves (Being.SilenceDomain)
+#   hecks miette express NAME — resume an organ's nerves (Being.ExpressDomain)
+#   hecks miette conceive     — launch Claude for domain conception
+#   hecks miette continue     — resume the previous Miette console session
 #
-Hecks::CLI.handle(:winter) do |inv|
+Hecks::CLI.handle(:miette) do |inv|
   action = inv.args[0]
   domain = inv.args[1]
   rest   = inv.args[2..]
-  require "hecks_being"
+
+  conception_dir = File.join(ENV.fetch("HECKS_HOME"), "hecks_conception")
+  aggregates_dir = File.join(conception_dir, "aggregates")
+  hecks_life     = File.join(ENV.fetch("HECKS_HOME"), "hecks_life", "target", "release", "hecks-life")
+
+  needs_domain = ->(verb) {
+    next true if domain
+    say "Usage: hecks miette #{verb} <domain_name>", :red
+    false
+  }
+
+  dispatch = ->(command, *args) {
+    unless File.executable?(hecks_life)
+      say "hecks-life binary not found at #{hecks_life}", :red
+      say "Build it: (cd hecks_life && cargo build --release)", :yellow
+      next
+    end
+    system(hecks_life, aggregates_dir, command, *args)
+  }
 
   case action
   when "conceive"
-    conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     unless Dir.exist?(conception_dir)
       say "hecks_conception/ directory not found", :red
       next
@@ -33,53 +53,30 @@ Hecks::CLI.handle(:winter) do |inv|
     end
 
   when "graft"
-    unless domain
-      say "Usage: hecks winter graft <domain_name>", :red
-      next
-    end
-    winter = HecksBeing.boot
-    winter.graft(domain)
+    next unless needs_domain.call("graft")
+    dispatch.call("Being.GraftDomain", "domain_name=#{domain}")
 
   when "shed"
-    unless domain
-      say "Usage: hecks winter shed <domain_name>", :red
-      next
-    end
-    winter = HecksBeing.boot
-    winter.shed(domain)
+    next unless needs_domain.call("shed")
+    dispatch.call("Being.ShedDomain", "domain_name=#{domain}")
 
   when "silence"
-    unless domain
-      say "Usage: hecks winter silence <domain_name>", :red
-      next
-    end
-    winter = HecksBeing.boot
-    winter.silence(domain)
+    next unless needs_domain.call("silence")
+    dispatch.call("Being.SilenceDomain", "domain_name=#{domain}")
 
   when "express"
-    unless domain
-      say "Usage: hecks winter express <domain_name>", :red
-      next
-    end
-    winter = HecksBeing.boot
-    winter.express(domain)
+    next unless needs_domain.call("express")
+    dispatch.call("Being.ExpressDomain", "domain_name=#{domain}")
 
   when "pulse"
-    winter = HecksBeing.boot
-    status = winter.pulse
-    say "Heartbeat ##{winter.beats}:", :green
-    status.each do |organ|
-      say "  #{organ[:domain]} v#{organ[:version]} — #{organ[:events]} events"
-    end
+    dispatch.call("Heartbeat.ReadVitals")
 
   when "--claude", "claude"
-    conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     Dir.chdir(conception_dir) do
       exec "claude", "--dangerously-skip-permissions"
     end
 
   when nil, "boot"
-    conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     prompt_file = File.join(conception_dir, "system_prompt.md")
     prompt = File.read(prompt_file)
     Dir.chdir(conception_dir) do
@@ -87,13 +84,12 @@ Hecks::CLI.handle(:winter) do |inv|
     end
 
   when "continue", "-c"
-    conception_dir = File.join(ENV["HECKS_HOME"], "hecks_conception")
     Dir.chdir(conception_dir) do
-      Bundler.with_unbundled_env { exec "node", "winter_console.js", "--continue" }
+      Bundler.with_unbundled_env { exec "node", "miette_console.js", "--continue" }
     end
 
   else
     say "Unknown action: #{action}", :red
-    say "Actions: boot, pulse, graft, shed, silence, express, conceive"
+    say "Actions: boot, pulse, graft, shed, silence, express, conceive, continue"
   end
 end

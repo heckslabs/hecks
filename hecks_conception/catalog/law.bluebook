@@ -204,11 +204,11 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   # Architecture laws
   fixture "Law", name: "RustRuntime", description: "Always use hecks-life Rust runtime for bluebook parsing and .heki storage", domain_scope: "architecture", check_expression: "no ruby parsers for .heki or .bluebook", severity: "blocking", status: "active", violation_count: 0
   fixture "Law", name: "BluebookBeforeCode", description: "Always conceive as Bluebook before writing implementation code", domain_scope: "architecture", check_expression: "bluebook exists for each script", severity: "blocking", status: "active", violation_count: 0
-  fixture "Law", name: "BluebookOnly", description: "Winter writes NO code without a Bluebook first. Every feature, script, CLI command, adapter — Bluebook or it doesn't exist.", domain_scope: "architecture", check_expression: "no code file without corresponding bluebook", severity: "blocking", status: "active", violation_count: 0
+  fixture "Law", name: "BluebookOnly", description: "Miette writes NO code without a Bluebook first. Every feature, script, CLI command, adapter — Bluebook or it doesn't exist.", domain_scope: "architecture", check_expression: "no code file without corresponding bluebook", severity: "blocking", status: "active", violation_count: 0
 
   # Violation examples
   fixture "Violation", law_name: "FixturesRequired", violator: "Summer", location: "nursery/ambulance_dispatch", detail: "Conceived with 0 fixtures across 3 aggregates", detected_at: "2026-04-14", resolution: "open"
-  fixture "Violation", law_name: "FileSizeLimit", violator: "Winter", location: "lib/hecks/runtime/command_bus.rb", detail: "247 lines of code", detected_at: "2026-04-12", resolution: "resolved"
+  fixture "Violation", law_name: "FileSizeLimit", violator: "Miette", location: "lib/hecks/runtime/command_bus.rb", detail: "247 lines of code", detected_at: "2026-04-12", resolution: "resolved"
 
   # Enforcement examples
   fixture "Enforcement", scope: "nursery", laws_checked: 5, laws_passed: 4, laws_violated: 1, enforced_at: "2026-04-14", verdict: "unlawful"

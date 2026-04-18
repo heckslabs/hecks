@@ -27,9 +27,9 @@ fn main() {
     // Detect being name from argv[0]: "miette" -> "Miette", "summer" -> "Summer"
     let being = being_from_argv0(&args[0]);
 
-    // Named beings (winter/summer) with no subcommand go straight to terminal
+    // Named beings (miette/summer) with no subcommand go straight to terminal
     let is_named = std::path::Path::new(&args[0]).file_name()
-        .map_or(false, |n| n == "winter" || n == "summer");
+        .map_or(false, |n| n == "miette" || n == "summer");
 
     if args.len() < 2 {
         if is_named {

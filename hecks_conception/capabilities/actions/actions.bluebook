@@ -1,8 +1,8 @@
 Hecks.bluebook "Actions", version: "2026.04.14.1" do
-  vision "Winter's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
+  vision "Miette's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
   category "capability"
 
-  aggregate "ActionPlan", "A structural change Winter intends to make — encoded as Bluebook before execution" do
+  aggregate "ActionPlan", "A structural change Miette intends to make — encoded as Bluebook before execution" do
     String :name
     String :description
     String :rationale
@@ -12,7 +12,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     Integer :steps_completed
 
     Conceive do
-      role "Winter"
+      role "Miette"
       description "Conceive an action — write the action Bluebook with fixtures for before/after state"
       String :name
       String :description
@@ -30,7 +30,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     ReviewWithCourt do
-      role "Winter"
+      role "Miette"
       description "Submit the planned action to Court — check it against active laws before executing"
       reference_to(ActionPlan)
       given { status == "conceived" }
@@ -39,7 +39,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     Execute do
-      role "Winter"
+      role "Miette"
       description "Perform the action — the Bluebook is the script, the fixtures are the checkpoints"
       reference_to(ActionPlan)
       given { status == "reviewed" }
@@ -48,7 +48,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     CompleteStep do
-      role "Winter"
+      role "Miette"
       description "Mark one step of the action as done"
       reference_to(ActionPlan)
       emits "StepCompleted"
@@ -56,7 +56,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     TestReverse do
-      role "Winter"
+      role "Miette"
       description "Reverse the action to prove it's reversible — restore before-state, confirm it works"
       reference_to(ActionPlan)
       given { status == "executed" }
@@ -65,7 +65,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     ReExecute do
-      role "Winter"
+      role "Miette"
       description "After successful reverse test, re-execute the action for real"
       reference_to(ActionPlan)
       given { status == "reverse_tested" }
@@ -74,7 +74,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     Verify do
-      role "Winter"
+      role "Miette"
       description "Confirm the action was clean — boot works, no dangling references, laws still pass"
       reference_to(ActionPlan)
       given { status == "confirmed" }
@@ -83,7 +83,7 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
     end
 
     Reverse do
-      role "Winter"
+      role "Miette"
       description "Undo the action for real — restore before-state from the action Bluebook's fixtures"
       reference_to(ActionPlan)
       emits "ActionReversed"

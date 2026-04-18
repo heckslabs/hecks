@@ -223,7 +223,7 @@ Hecks.bluebook "ChrisConventions" do
   # Instances:
   #
   # ConceiveAndWire:
-  #   rule: When Chris says Winter needs a capability, conceive the domain AND wire it. No gap.
+  #   rule: When Chris says Miette needs a capability, conceive the domain AND wire it. No gap.
   #   why: A bluebook sitting in the nursery unwired is a spec with no life. Conception without wiring is incomplete delivery.
   #
   # BluebookBeforeCode:

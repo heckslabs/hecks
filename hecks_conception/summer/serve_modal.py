@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Autumn's body on Modal — hecks-life running in the cloud.
 
-Same binary, same project structure, same behavior as Winter.
+Same binary, same project structure, same behavior as Miette.
 The hecks repo is cloned to the volume. hecks-life runs against it.
 Cloudflare Workers is just the face.
 

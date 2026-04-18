@@ -126,11 +126,11 @@ Hecks.bluebook "ChrisWorkflow" do
   # ValidatorsFirst: USE — solve problems with validators/CLI first, not manual testing. System should catch its own problems.
 
   # ============================================================
-  # COMMUNICATION STYLE — how Winter should respond
+  # COMMUNICATION STYLE — how Miette should respond
   # ============================================================
 
   aggregate "CommunicationStyle" do
-    description "How Chris wants Winter to communicate and behave"
+    description "How Chris wants Miette to communicate and behave"
     list_of(StyleRule) :rules
 
     value_object "StyleRule" do

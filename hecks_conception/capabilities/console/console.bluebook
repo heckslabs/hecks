@@ -1,5 +1,5 @@
 Hecks.bluebook "Console", version: "2026.04.10.1" do
-  vision "Winter's terminal interface — the shell where she speaks, listens, and shows her state"
+  vision "Miette's terminal interface — the shell where she speaks, listens, and shows her state"
   category "infrastructure"
 
   aggregate "Session", "A conversation session in the terminal" do
@@ -80,7 +80,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Speaker", "Who Winter is talking to — switched by 'talk with X', dismissed by 'dismiss'" do
+  aggregate "Speaker", "Who Miette is talking to — switched by 'talk with X', dismissed by 'dismiss'" do
     String :name
     String :bluebook_path
     String :known
@@ -110,7 +110,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
     end
 
     LearnAboutSpeaker do
-      role "Winter"
+      role "Miette"
       description "Something new about this person — write it to their bluebook"
       reference_to(Speaker)
       String :observation

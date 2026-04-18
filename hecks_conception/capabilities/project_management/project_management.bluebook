@@ -1,5 +1,5 @@
 Hecks.bluebook "ProjectManagement", version: "2026.04.11.1" do
-  vision "Replaces Linear for Chris — features are domain-aware, stored in heki, queryable by Winter"
+  vision "Replaces Linear for Chris — features are domain-aware, stored in heki, queryable by Miette"
   category "infrastructure"
 
   aggregate "Feature", "A thing to build — replaces Linear issues, linked to bluebook domains" do

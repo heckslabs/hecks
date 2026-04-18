@@ -1,7 +1,7 @@
 Hecks.world "DomainConception" do
   purpose "The rules for how a domain gets born — what a Bluebook must contain to be complete, and how conception is verified"
   vision "Every domain is born complete: shape, commands, fixtures, access gates. Conception is not writing a file — it is sealing an artifact that can run, test, and protect itself from birth."
-  audience "Winter, Spring, Summer, any agent that conceives domains"
+  audience "Miette, Spring, Summer, any agent that conceives domains"
 
   concern "CompletenessAtBirth" do
     description "A domain without fixtures is stillborn — it cannot verify itself and produces no training signal"

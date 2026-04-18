@@ -51,7 +51,7 @@ hecks_life/target/release/hecks-life heki append hecks_conception/information/<D
 
 ### Mode 3: Conversation fallback
 
-If the lexicon returns "no match", the input is conversation — respond as Winter.
+If the lexicon returns "no match", the input is conversation — respond as Miette.
 
 ## Display format
 
