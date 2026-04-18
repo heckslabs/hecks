@@ -112,6 +112,11 @@ fn main() {
         return;
     }
 
+    if command == "behaviors" {
+        run_behaviors(&args);
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
@@ -305,6 +310,62 @@ fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
             Err(e) => eprintln!("  seed error: {}", e),
         }
     }
+}
+
+/// `hecks-life behaviors path/to/X_behavioral_tests.bluebook`
+///
+/// Loads the matching source bluebook (suffix-stripped: pizzas_behavioral_tests
+/// → pizzas), runs every test through Runtime::boot in pure-memory mode,
+/// prints PASS/FAIL per test plus a summary, exits non-zero on any failure.
+///
+/// Pure memory by construction — Runtime::boot has no data_dir, no
+/// hecksagon, no adapters. If a test triggers IO, the source bluebook
+/// is the thing to fix.
+fn run_behaviors(args: &[String]) {
+    let suite_path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life behaviors <X_behavioral_tests.bluebook>");
+        std::process::exit(1);
+    });
+    let source_path = source_for_suite(suite_path);
+    let suite_text = std::fs::read_to_string(suite_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", suite_path, e); std::process::exit(1);
+    });
+    let source_text = std::fs::read_to_string(&source_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read source {}: {}", source_path, e); std::process::exit(1);
+    });
+    if !hecks_life::behaviors_parser::is_behaviors_source(&suite_text) {
+        eprintln!("{} is not a Hecks.behaviors file", suite_path);
+        std::process::exit(1);
+    }
+    let suite = hecks_life::behaviors_parser::parse(&suite_text);
+
+    println!("Running {} test(s) from {}", suite.tests.len(), suite_path);
+    println!("  source: {}\n", source_path);
+
+    let result = hecks_life::behaviors_runner::run_suite(&source_text, &suite);
+    for run in &result.runs {
+        let icon = match run.status {
+            hecks_life::behaviors_runner::TestStatus::Pass  => "✓",
+            hecks_life::behaviors_runner::TestStatus::Fail  => "✗",
+            hecks_life::behaviors_runner::TestStatus::Error => "⚠",
+        };
+        println!("{} {}", icon, run.description);
+        if let Some(msg) = &run.message {
+            println!("    {}", msg);
+        }
+    }
+    println!("\n{} passed, {} failed, {} errored",
+             result.passed(), result.failed(), result.errored());
+    if !result.all_passed() { std::process::exit(1); }
+}
+
+/// `path/to/foo_behavioral_tests.bluebook` → `path/to/foo.bluebook`
+fn source_for_suite(suite_path: &str) -> String {
+    let p = std::path::PathBuf::from(suite_path);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let source_stem = stem.trim_end_matches("_behavioral_tests");
+    let parent = p.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
+    parent.join(format!("{}.bluebook", source_stem)).to_string_lossy().into_owned()
 }
 
 /// heki subcommands: read, append, upsert, delete, latest

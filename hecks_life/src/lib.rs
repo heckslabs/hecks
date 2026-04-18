@@ -19,3 +19,4 @@ pub mod behaviors_ir;
 pub mod behaviors_parser;
 pub mod behaviors_dump;
 pub mod behaviors_conceiver;
+pub mod behaviors_runner;
