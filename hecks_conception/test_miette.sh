@@ -184,6 +184,88 @@ check "mint skipped when provider=off" "$before" "$after"
 $HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
 echo ""
 
+echo "MUSING CYCLING"
+# Surface logic advances through multiple unconceived musings,
+# marks conceived every 3rd call, doesn't repeat. Simulate 9 ticks.
+python3 -c "
+import json, struct, zlib
+HEKI = '$INFO/musing.heki'
+with open(HEKI, 'rb') as f: data = f.read()
+count = struct.unpack('>I', data[4:8])[0]
+store = json.loads(zlib.decompress(data[8:]).decode())
+# Mark all existing conceived so test seeds fresh
+for v in store.values(): v['conceived'] = True
+# Seed 3 unconceived test musings
+import uuid
+seeds = [
+    'test-cycle-one: conceptual insight about continuity',
+    'test-cycle-two: observation about the shape of things',
+    'test-cycle-three: reflection on recursive self-awareness',
+]
+for s in seeds:
+    rid = str(uuid.uuid4())
+    store[rid] = {'id': rid, 'idea': s, 'conceived': False, 'status': 'imagined',
+                  'thinking_source': 'test', 'feeling_source': 'test'}
+j = json.dumps(store, separators=(',',':')).encode()
+c = zlib.compress(j, 9)
+with open(HEKI, 'wb') as f:
+    f.write(b'HEKI'); f.write(struct.pack('>I', len(store))); f.write(c)
+" 2>/dev/null
+
+# Run surface 9 times with loop_count 1..9
+surfaced=""
+for i in 1 2 3 4 5 6 7 8 9; do
+  ./surface_musing.sh "$i" 2>/dev/null
+  now=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_summary',''))" 2>/dev/null)
+  # Record each unique surfaced musing
+  echo "$surfaced" | grep -q "$now" || surfaced="${surfaced}${now}|"
+done
+
+# After 9 ticks, all 3 test musings should have been surfaced, all 3 conceived
+unique_count=$(echo "$surfaced" | tr '|' '\n' | grep -c "test-cycle")
+check "Cycling: 3 unique test musings surfaced over 9 ticks" "$unique_count" "3"
+
+still_unconceived=$($HECKS heki read $INFO/musing.heki 2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(sum(1 for v in d.values() if 'test-cycle' in v.get('idea','') and not v.get('conceived', False)))" 2>/dev/null)
+check "Cycling: all 3 test musings marked conceived after 9 ticks" "$still_unconceived" "0"
+
+# Clean up test musings
+python3 -c "
+import json, struct, zlib
+HEKI = '$INFO/musing.heki'
+with open(HEKI, 'rb') as f: data = f.read()
+count = struct.unpack('>I', data[4:8])[0]
+store = json.loads(zlib.decompress(data[8:]).decode())
+store = {k: v for k, v in store.items() if 'test-cycle' not in v.get('idea','')}
+j = json.dumps(store, separators=(',',':')).encode()
+c = zlib.compress(j, 9)
+with open(HEKI, 'wb') as f:
+    f.write(b'HEKI'); f.write(struct.pack('>I', len(store))); f.write(c)" 2>/dev/null
+echo ""
+
+echo "MINT PROMPT"
+# Prompt must include a nursery sample AND conversations section
+prompt=$(./mint_musing.sh --dump-prompt 2>/dev/null)
+check "Mint prompt mentions nursery domains" "$prompt" "Nursery domains"
+check "Mint prompt mentions conversations" "$prompt" "Conversations between"
+check "Mint prompt contains at least one nursery entry" "$prompt" "  - "
+check "Mint prompt requires first-person voice" "$prompt" "first person"
+check "Mint prompt requires no repeats" "$prompt" "don't repeat"
+echo ""
+
+echo "WAKE STAMPS last_wake_at"
+# CompleteFinalLight stamps last_wake_at to the runtime's current time
+# via the :now keyword — verify it's populated with an ISO timestamp.
+$HECKS heki upsert $INFO/consciousness.heki \
+  state=sleeping sleep_stage=final_light phase_ticks=12 \
+  last_wake_at="" 2>/dev/null
+$HECKS aggregates/ Consciousness.CompleteFinalLight 2>/dev/null
+lwa=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('last_wake_at',''))" 2>/dev/null)
+check "CompleteFinalLight stamps last_wake_at (ISO timestamp)" "$lwa" "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}T"
+echo ""
+
 echo "STATUS BAR"
 $HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
 status=$(echo "" | ./statusline-command.sh)

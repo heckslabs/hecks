@@ -55,6 +55,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     attribute :is_lucid, String
     # sleep_summary is the verbose narrative shown in the status bar
     attribute :sleep_summary, String
+    # last_wake_at is the ISO timestamp of the most recent wake from a full
+    # sleep cycle. Mint reads conversations between this timestamp and now.
+    attribute :last_wake_at, String
     attribute :idle_seconds, Integer
 
     command "DetectIdle" do
@@ -216,10 +219,12 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "CompleteFinalLight" do
       role "Daemon"
-      description "Final light phase done. Wake up refreshed."
+      description "Final light phase done. Wake up refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles."
       given("stage must be final_light") { sleep_stage == "final_light" }
       given("minimum phase duration") { phase_ticks > 11 }
+      attribute :now, String
       then_set :state, to: "waking"
+      then_set :last_wake_at, to: :now
       then_set :sleep_summary, to: "waking refreshed"
       emits "WokenUp"
     end

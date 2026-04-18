@@ -104,52 +104,13 @@ except Exception:
   # state and call MintMusing with curated ideas.
 
   if [ "$state" != "sleeping" ]; then
-    # Surface ONE unconceived real-musing into the status bar, then mark
-    # it conceived so it won't surface again. Old musings don't repeat —
-    # the pool refreshes from Claude minting (or stays quiet until it does).
-    thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, re, sys
-def is_real_musing(s):
-    # Skip tag-shaped entries (e.g. awareness_pulse, rust_heartbeat,
-    # always_wander, independence) — those are topics/signals, not
-    # actual musings. A real musing has sentence shape.
-    s = (s or '').strip()
-    if len(s) < 20: return False
-    if not re.search(r'[ —\-:.?!]', s): return False
-    if re.fullmatch(r'[a-z][a-z0-9_]*', s): return False
-    return True
-try:
-    d = json.load(sys.stdin)
-    unconceived = [v.get('idea','').strip() for v in d.values()
-                   if is_real_musing(v.get('idea','')) and not v.get('conceived', False)]
-    if unconceived:
-        # Oldest unconceived first (FIFO) so freshly-minted ideas show
-        # in the order they were minted.
-        print(unconceived[0][:80])
-except Exception:
-    pass
-" 2>/dev/null)
-    if [ -n "$thought" ]; then
-      $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
-      # Mark conceived only every 3rd tick (~30s on screen) so each
-      # musing has time to be read before the pool advances. Without
-      # this, 12 musings drain in 2 minutes and the bar goes empty.
-      if [ "$((loop_count % 3))" = "0" ]; then
-        "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
-      fi
-    else
-      $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="" 2>/dev/null
-    fi
+    # Surface one musing to the status bar; advance the pool every 3rd
+    # tick. Extracted so tests can simulate cycling deterministically.
+    "$DIR/surface_musing.sh" "$loop_count" 2>/dev/null
 
-    # The musing stream runs continuously (state changes every tick;
-    # mindstream events accumulate). MINTING happens every 5 minutes
-    # (~30 ticks) — Claude reads what's accumulated since the last mint
-    # and picks ONE great musing (or skip).
-    #
-    # Provider selected by ClaudeAssist:
-    #   "claude" (default) — Anthropic API if ANTHROPIC_API_KEY set, else `claude -p` CLI
-    #   "local"            — ollama (model + url from world.hec)
-    #   "off"              — no minting
+    # Minting happens every ~5 min. Claude reads the conversations
+    # since last wake + a random nursery sample + current state, and
+    # mints ONE genuinely new musing or skips (the overwhelming default).
     if [ "$((RANDOM % 30))" = "0" ]; then
       "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
     fi

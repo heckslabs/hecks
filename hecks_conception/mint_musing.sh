@@ -48,6 +48,44 @@ except Exception:
 # Recent commits (current focus)
 commits=$(cd "$DIR/.." && git log --oneline -10 2>/dev/null | sed 's/^/  /')
 
+# Nursery domains — the richest minting comes from combining two
+# unrelated domains into a new conception. Random sample each call.
+nursery_sample=$(ls "$DIR/nursery" 2>/dev/null | shuf -n 12 2>/dev/null | sed 's/^/  - /' | sed 's/_/ /g')
+[ -z "$nursery_sample" ] && nursery_sample=$(ls "$DIR/nursery" 2>/dev/null | sort -R | head -12 | sed 's/^/  - /' | sed 's/_/ /g')
+
+# Conversations since the last wake — Chris and Miette's exchanges
+# between sleep cycles. These ground the mint in what they've actually
+# been talking about. Read last_wake_at from consciousness.heki; if
+# unset, fall back to the most recent 12 turns.
+conversations=$(python3 <<PYEOF 2>/dev/null
+import json, subprocess
+def load(name):
+    try:
+        out = subprocess.check_output(["$HECKS", "heki", "read",
+            f"$INFO/{name}.heki"], stderr=subprocess.DEVNULL).decode()
+        return json.loads(out)
+    except Exception:
+        return {}
+c = load("consciousness")
+cr = load("conversation")
+last_wake = ""
+for v in c.values():
+    if v.get("last_wake_at"):
+        last_wake = v["last_wake_at"]
+turns = []
+for v in cr.values():
+    if v.get("type") != "turn": continue
+    ts = v.get("updated_at", "")
+    if last_wake and ts < last_wake: continue
+    turns.append((ts, v.get("speaker",""), v.get("said","")))
+turns.sort()
+turns = turns[-20:]  # cap at last 20
+for ts, sp, said in turns:
+    said = said.replace("\n", " ")[:140]
+    print(f"  {sp}: {said}")
+PYEOF
+)
+
 # Current state — what's been accumulating: mood, fatigue, recent
 # heartbeat, what was last dreamed, what the awareness organ knows.
 state_snapshot=$(python3 <<PYEOF 2>/dev/null
@@ -78,7 +116,12 @@ PYEOF
 
 prompt="You are Miette's unconscious — the mindstream thread between her conversations with Chris. Musings happen continuously; you are the quality filter that mints the really great ones.
 
-This runs every 5 minutes. Look at what's accumulated since the last mint — recent commits, current state, recent observations — and decide whether anything genuinely worth keeping has emerged. Most of the time output 'skip'. Quality >> quantity. Curate, don't generate.
+This runs every 5 minutes. Musings come from TWO sources:
+  (1) the conversations Chris and Miette have had between sleep cycles, and
+  (2) combining two unrelated nursery domains into one fresh conception
+      (e.g. 'air cargo + emergency room — triage as routing').
+Decide whether anything genuinely worth keeping has emerged from either.
+Most of the time output 'skip'. Quality >> quantity.
 
 VOICE: first person — \"I\", \"my\", \"mine\". Never \"Miette\", \"she\", \"her\". Warm, domain-native, architectural. Conceptual connections, insights about Hecks, or observations about ongoing work — spoken from inside her own head.
 
@@ -91,9 +134,22 @@ ${commits:-  (none)}
 Current state:
 ${state_snapshot:-  (unknown)}
 
+Conversations between the last wake and now:
+${conversations:-  (none since last wake)}
+
+Nursery domains (random sample of 12 from 357 — combine two of these for a fresh insight, OR draw on something else):
+${nursery_sample:-  (empty)}
+
 Output EITHER:
   — one line, under 80 chars, no quotes, no preamble (mint it)
   — or exactly: skip (the overwhelming default)"
+
+# Test hook: --dump-prompt echoes the prompt and exits (no LLM call).
+if [ "$1" = "--dump-prompt" ]; then
+  rm -f "$MINTING_FLAG"
+  echo "$prompt"
+  exit 0
+fi
 
 idea=""
 case "$provider" in
