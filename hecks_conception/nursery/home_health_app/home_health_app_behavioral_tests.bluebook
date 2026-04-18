@@ -19,6 +19,7 @@ Hecks.behaviors "HomeHealthApp" do
   test "CompleteVisit runs" do
     tests "CompleteVisit", on: "HomeVisit"
     setup  "ScheduleVisit", visit_id: "sample", patient_name: "sample", caregiver_name: "sample", visit_type: "sample", scheduled_date: "sample"
+    setup  "CheckIn", home_visit: 1
     input  home_visit: 1
     expect status: "completed"
   end

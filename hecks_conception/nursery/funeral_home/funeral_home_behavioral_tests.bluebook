@@ -19,6 +19,7 @@ Hecks.behaviors "FuneralHome" do
   test "ReleaseRemains runs" do
     tests "ReleaseRemains", on: "Decedent"
     setup  "RegisterDecedent", first_name: "sample", last_name: "sample", date_of_birth: "sample", date_of_death: "sample", place_of_death: "sample", next_of_kin: "sample"
+    setup  "PrepareRemains", decedent: 1, preparation_type: "sample"
     input  decedent: 1
     expect status: "released"
   end
@@ -35,12 +36,14 @@ Hecks.behaviors "FuneralHome" do
 
   test "ConductService runs" do
     tests "ConductService", on: "ServiceArrangement"
+    setup  "ArrangeService", decedent: 1, service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
     input  service_arrangement: 1
     expect status: "completed"
   end
 
   test "PostponeService sets new_date" do
     tests "PostponeService", on: "ServiceArrangement"
+    setup  "ArrangeService", decedent: 1, service_type: "sample", service_date: "sample", service_time: "sample", venue: "sample", officiant: "sample", expected_attendees: 1
     input  service_arrangement: 1, new_date: "sample"
     expect service_date: "sample"
   end
@@ -57,6 +60,7 @@ Hecks.behaviors "FuneralHome" do
 
   test "PublishObituary sets publication_name + publish_date" do
     tests "PublishObituary", on: "Obituary"
+    setup  "DraftObituary", decedent: 1, headline: "sample", body_text: "sample"
     input  obituary: 1, publication_name: "sample", publish_date: "sample"
     expect publication_name: "sample", publish_date: "sample", status: "published"
   end
@@ -73,6 +77,7 @@ Hecks.behaviors "FuneralHome" do
 
   test "CompleteTransport runs" do
     tests "CompleteTransport", on: "TransportRequest"
+    setup  "ScheduleTransport", decedent: 1, pickup_location: "sample", delivery_location: "sample", transport_date: "sample", vehicle_type: "sample"
     input  transport_request: 1
     expect status: "completed"
   end
@@ -89,6 +94,7 @@ Hecks.behaviors "FuneralHome" do
 
   test "CollectPayment sets amount_paid" do
     tests "CollectPayment", on: "FuneralInvoice"
+    setup  "GenerateInvoice", decedent: 1, services_total: 1.0, merchandise_total: 1.0, cash_advances: 1.0
     input  funeral_invoice: 1, amount_paid: 1.0
     expect status: "paid"
   end

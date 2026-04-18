@@ -19,6 +19,7 @@ Hecks.behaviors "InteriorDesign" do
   test "ApproveConcept runs" do
     tests "ApproveConcept", on: "DesignProject"
     setup  "ScopeProject", name: "sample", space_type: "sample", style_direction: "sample", budget: 1.0
+    setup  "PresentConcept", design_project: 1
     input  design_project: 1
     expect status: "approved"
   end
@@ -88,6 +89,7 @@ Hecks.behaviors "InteriorDesign" do
 
   test "ResolvePunchList sets punch_list" do
     tests "ResolvePunchList", on: "Installation"
+    setup  "CompleteInstallation", installation: 1
     input  installation: 1, punch_list: "sample"
     expect status: "resolved"
   end

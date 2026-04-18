@@ -19,6 +19,7 @@ Hecks.behaviors "HealthLine" do
   test "EndCall runs" do
     tests "EndCall", on: "IncomingCall"
     setup  "ReceiveCall", call_id: "sample", caller_name: "sample", phone_number: "sample", chief_complaint: "sample"
+    setup  "AssignToNurse", incoming_call: 1
     input  incoming_call: 1
     expect status: "ended"
   end

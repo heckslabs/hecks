@@ -19,6 +19,7 @@ Hecks.behaviors "CakeDecorating" do
   test "StartBaking runs" do
     tests "StartBaking", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    setup  "ConfirmOrder", cake_order: 1
     input  cake_order: 1
     expect status: "baking"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "CakeDecorating" do
   test "CompleteOrder runs" do
     tests "CompleteOrder", on: "CakeOrder"
     setup  "PlaceOrder", client_name: "sample", occasion: "sample", tier_count: 1, servings: 1, delivery_date: "sample"
+    setup  "ConfirmOrder", cake_order: 1
+    setup  "StartBaking", cake_order: 1
     input  cake_order: 1
     expect status: "completed"
   end

@@ -26,6 +26,7 @@ Hecks.behaviors "ElevatorPhysics" do
   test "ArriveAtFloor runs" do
     tests "ArriveAtFloor", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
+    setup  "MoveToFloor", elevator_car: 1, current_floor: 1
     input  elevator_car: 1
     expect status: "idle"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "ElevatorPhysics" do
   test "EmergencyStop runs" do
     tests "EmergencyStop", on: "ElevatorCar"
     setup  "InstallCar", car_id: "sample", car_weight_kg: 1.0, max_load_kg: 1.0
+    setup  "MoveToFloor", elevator_car: 1, current_floor: 1
     input  elevator_car: 1
     expect status: "emergency"
   end
@@ -102,6 +104,7 @@ Hecks.behaviors "ElevatorPhysics" do
   test "ValidateSafety runs" do
     tests "ValidateSafety", on: "LoadCalculation"
     setup  "CalculateForces", calculation_id: "sample", total_load_kg: 1.0
+    setup  "DetermineMotorRequirements", load_calculation: 1, motor_torque_nm: 1.0, power_required_kw: 1.0
     input  load_calculation: 1
     expect status: "validated"
   end
@@ -125,6 +128,7 @@ Hecks.behaviors "ElevatorPhysics" do
   test "CertifyElevator runs" do
     tests "CertifyElevator", on: "SafetyInspection"
     setup  "ConductInspection", inspection_id: "sample", elevator_id: "sample", inspector_name: "sample", inspection_date: "sample"
+    setup  "RecordFindings", safety_inspection: 1, findings: "sample"
     input  safety_inspection: 1
     expect status: "certified"
   end

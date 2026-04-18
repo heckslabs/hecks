@@ -73,8 +73,8 @@ Hecks.behaviors "PredictiveHealth" do
 
   test "CalculatePremium runs" do
     tests "CalculatePremium", on: "PolicyPricing"
-    setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
     setup  "CreateModel", model_name: "sample"
+    setup  "SubmitSample", patient_id: "sample", ethnicity: "sample"
     input  genetic_profile: 1, risk_model: 1
     expect ok: "true"
   end

@@ -19,6 +19,7 @@ Hecks.behaviors "PublicLibrary" do
   test "ShelveBook runs" do
     tests "ShelveBook", on: "Book"
     setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    setup  "CatalogBook", book: 1, dewey_decimal: "sample"
     input  book: 1
     expect status: "available"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "PublicLibrary" do
   test "WithdrawBook sets reason" do
     tests "WithdrawBook", on: "Book"
     setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
+    setup  "CatalogBook", book: 1, dewey_decimal: "sample"
+    setup  "ShelveBook", book: 1
     input  book: 1, reason: "sample"
     expect status: "withdrawn"
   end
@@ -49,6 +52,7 @@ Hecks.behaviors "PublicLibrary" do
   test "ReinstatePatron runs" do
     tests "ReinstatePatron", on: "Patron"
     setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    setup  "SuspendPatron", patron: 1
     input  patron: 1
     expect status: "active"
   end
@@ -58,26 +62,29 @@ Hecks.behaviors "PublicLibrary" do
 
   test "CheckOutBook sets due_date" do
     tests "CheckOutBook", on: "Loan"
-    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
     setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
     input  book: 1, patron: 1, due_date: "sample"
     expect status: "active"
   end
 
   test "ReturnBook runs" do
     tests "ReturnBook", on: "Loan"
+    setup  "CheckOutBook", book: 1, patron: 1, due_date: "sample"
     input  loan: 1
     expect status: "returned"
   end
 
   test "RenewLoan sets new_due_date" do
     tests "RenewLoan", on: "Loan"
+    setup  "CheckOutBook", book: 1, patron: 1, due_date: "sample"
     input  loan: 1, new_due_date: "sample"
     expect ok: "true"
   end
 
   test "MarkOverdue runs" do
     tests "MarkOverdue", on: "Loan"
+    setup  "CheckOutBook", book: 1, patron: 1, due_date: "sample"
     input  loan: 1
     expect status: "overdue"
   end
@@ -87,29 +94,30 @@ Hecks.behaviors "PublicLibrary" do
 
   test "PlaceHold runs" do
     tests "PlaceHold", on: "Hold"
-    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
     setup  "RegisterPatron", name: "sample", email: "sample", membership_type: "sample"
+    setup  "AcquireBook", isbn: "sample", title: "sample", author: "sample", genre: "sample", copies_available: 1
     input  book: 1, patron: 1
     expect status: "pending"
   end
 
   test "FulfillHold runs" do
     tests "FulfillHold", on: "Hold"
-    setup  "PlaceHold"
+    setup  "PlaceHold", book: 1, patron: 1
     input  hold: 1
     expect status: "ready"
   end
 
   test "CheckOutHeld runs" do
     tests "CheckOutHeld", on: "Hold"
-    setup  "PlaceHold"
+    setup  "PlaceHold", book: 1, patron: 1
+    setup  "FulfillHold", hold: 1
     input  hold: 1
     expect status: "completed"
   end
 
   test "CancelHold runs" do
     tests "CancelHold", on: "Hold"
-    setup  "PlaceHold"
+    setup  "PlaceHold", book: 1, patron: 1
     input  hold: 1
     expect status: "cancelled"
   end
@@ -126,6 +134,7 @@ Hecks.behaviors "PublicLibrary" do
 
   test "PayFine sets paid_cents" do
     tests "PayFine", on: "Fine"
+    setup  "AssessFine", patron: 1, loan: 1, amount_cents: 1, reason: "sample"
     input  fine: 1, paid_cents: 1
     expect status: "paid"
   end

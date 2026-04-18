@@ -28,14 +28,14 @@ Hecks.behaviors "Radiology" do
 
   test "PerformScan runs" do
     tests "PerformScan", on: "ScanOrder"
-    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "PlaceScanOrder", patient: 1, patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     input  scan_order: 1
     expect status: "completed"
   end
 
   test "CancelScanOrder runs" do
     tests "CancelScanOrder", on: "ScanOrder"
-    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
+    setup  "PlaceScanOrder", patient: 1, patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     input  scan_order: 1
     expect status: "cancelled"
   end
@@ -46,21 +46,19 @@ Hecks.behaviors "Radiology" do
   test "DraftReport sets patient_name + modality + findings + impression + radiologist_name + report_date" do
     tests "DraftReport", on: "RadiologyReport"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", allergies: "sample", pregnancy_status: "sample"
-    setup  "PlaceScanOrder", patient_name: "sample", ordering_physician: "sample", modality: "sample", body_part: "sample", clinical_indication: "sample", urgency: "sample"
     input  patient: 1, scan_order: 1, patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
     expect patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample", status: "draft"
   end
 
   test "FinalizeReport runs" do
     tests "FinalizeReport", on: "RadiologyReport"
-    setup  "AddendReport", findings: "sample"
+    setup  "DraftReport", patient: 1, scan_order: 1, patient_name: "sample", modality: "sample", findings: "sample", impression: "sample", radiologist_name: "sample", report_date: "sample"
     input  radiology_report: 1
     expect status: "final"
   end
 
   test "AddendReport sets findings" do
     tests "AddendReport", on: "RadiologyReport"
-    setup  "AddendReport", findings: "sample"
     input  radiology_report: 1, findings: "sample"
     expect findings: "sample"
   end
@@ -100,6 +98,7 @@ Hecks.behaviors "Radiology" do
 
   test "FulfillReferral runs" do
     tests "FulfillReferral", on: "Referral"
+    setup  "ReceiveReferral", patient: 1, referring_physician: "sample", patient_name: "sample", clinical_question: "sample", preferred_modality: "sample"
     input  referral: 1
     expect status: "fulfilled"
   end

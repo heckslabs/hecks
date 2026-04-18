@@ -19,6 +19,7 @@ Hecks.behaviors "AnimalShelter" do
   test "MarkAdopted runs" do
     tests "MarkAdopted", on: "Animal"
     setup  "IntakeAnimal", name: "sample", species: "sample", breed: "sample", age_estimate: "sample", sex: "sample", temperament: "sample"
+    setup  "MakeAvailable", animal: 1
     input  animal: 1
     expect status: "adopted"
   end
@@ -35,12 +36,15 @@ Hecks.behaviors "AnimalShelter" do
 
   test "ApproveAdoption runs" do
     tests "ApproveAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", animal: 1, animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
     input  adoption: 1
     expect status: "approved"
   end
 
   test "FinalizeAdoption runs" do
     tests "FinalizeAdoption", on: "Adoption"
+    setup  "SubmitAdoptionApplication", animal: 1, animal_name: "sample", adopter_name: "sample", adoption_date: "sample", adoption_fee: "sample"
+    setup  "ApproveAdoption", adoption: 1
     input  adoption: 1
     expect status: "finalized"
   end
@@ -57,14 +61,13 @@ Hecks.behaviors "AnimalShelter" do
 
   test "ReturnFromFoster runs" do
     tests "ReturnFromFoster", on: "FosterPlacement"
-    setup  "PlaceInFoster", animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
+    setup  "PlaceInFoster", animal: 1, animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
     input  foster_placement: 1
     expect status: "returned"
   end
 
   test "ExtendFoster sets expected_return_date" do
     tests "ExtendFoster", on: "FosterPlacement"
-    setup  "PlaceInFoster", animal_name: "sample", foster_parent_name: "sample", start_date: "sample", expected_return_date: "sample", reason: "sample"
     input  foster_placement: 1, expected_return_date: "sample"
     expect expected_return_date: "sample"
   end
@@ -81,14 +84,13 @@ Hecks.behaviors "AnimalShelter" do
 
   test "AdministerVaccination runs" do
     tests "AdministerVaccination", on: "ShelterMedicalRecord"
-    setup  "CreateMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
     input  shelter_medical_record: 1
     expect vaccination_status: "complete"
   end
 
   test "PerformSpayNeuter runs" do
     tests "PerformSpayNeuter", on: "ShelterMedicalRecord"
-    setup  "CreateMedicalRecord", animal_name: "sample", record_date: "sample", veterinarian: "sample"
+    setup  "CreateMedicalRecord", animal: 1, animal_name: "sample", record_date: "sample", veterinarian: "sample"
     input  shelter_medical_record: 1
     expect spay_neuter_status: "completed"
   end

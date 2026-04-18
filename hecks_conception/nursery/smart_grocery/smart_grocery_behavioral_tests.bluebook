@@ -11,7 +11,7 @@ Hecks.behaviors "SmartGrocery" do
 
   test "AddNutrient sets nutrient_name + amount + unit + daily_value_pct" do
     tests "AddNutrient", on: "Product"
-    setup  "AddNutrient", nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
+    setup  "StockProduct", name: "sample", category: "sample", price_cents: 1
     input  product: 1, nutrient_name: "sample", amount: 1.0, unit: "sample", daily_value_pct: 1.0
     expect nutrients_size: 1
   end
@@ -51,14 +51,12 @@ Hecks.behaviors "SmartGrocery" do
 
   test "AddMeal sets day + meal_type + recipe_name + calories" do
     tests "AddMeal", on: "MealPlan"
-    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
     input  meal_plan: 1, day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
     expect meals_size: 1
   end
 
   test "ApprovePlan runs" do
     tests "ApprovePlan", on: "MealPlan"
-    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
     input  meal_plan: 1
     expect ok: "true"
   end
@@ -68,21 +66,18 @@ Hecks.behaviors "SmartGrocery" do
 
   test "GenerateList runs" do
     tests "GenerateList", on: "ShoppingList"
-    setup  "AddMeal", day: "sample", meal_type: "sample", recipe_name: "sample", calories: 1
     input  meal_plan: 1
     expect ok: "true"
   end
 
   test "AddItem sets product_name + quantity + aisle" do
     tests "AddItem", on: "ShoppingList"
-    setup  "AddItem", product_name: "sample", quantity: 1, aisle: "sample"
     input  shopping_list: 1, product_name: "sample", quantity: 1, aisle: "sample"
     expect items_size: 1
   end
 
   test "Checkout runs" do
     tests "Checkout", on: "ShoppingList"
-    setup  "AddItem", product_name: "sample", quantity: 1, aisle: "sample"
     input  shopping_list: 1
     expect ok: "true"
   end

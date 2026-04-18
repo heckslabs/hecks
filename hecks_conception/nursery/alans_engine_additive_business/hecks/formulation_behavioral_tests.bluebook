@@ -26,6 +26,7 @@ Hecks.behaviors "Formulation" do
   test "ReviseFormula runs" do
     tests "ReviseFormula", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "FinalizeFormula", formula: 1
     input  formula: 1
     expect status: "draft"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "Formulation" do
   test "RetireFormula runs" do
     tests "RetireFormula", on: "Formula"
     setup  "CreateFormula", name: "sample", brand: "sample", product_type: "sample"
+    setup  "FinalizeFormula", formula: 1
     input  formula: 1
     expect status: "retired"
   end

@@ -51,6 +51,7 @@ Hecks.behaviors "MealDelivery" do
   test "FinishRun runs" do
     tests "FinishRun", on: "DeliveryRun"
     setup  "PlanRun", run_id: "sample", courier_name: "sample", date: "sample", total_miles: 1.0
+    setup  "StartRun", delivery_run: 1
     input  delivery_run: 1
     expect status: "finished"
   end

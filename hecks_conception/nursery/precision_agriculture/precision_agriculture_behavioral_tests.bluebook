@@ -28,14 +28,12 @@ Hecks.behaviors "PrecisionAgriculture" do
 
   test "AddPrediction sets hour + temp_c + precip_mm + wind_kph" do
     tests "AddPrediction", on: "Forecast"
-    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
     input  forecast: 1, hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
     expect predictions_size: 1
   end
 
   test "PublishForecast runs" do
     tests "PublishForecast", on: "Forecast"
-    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
     input  forecast: 1
     expect ok: "true"
   end
@@ -62,21 +60,18 @@ Hecks.behaviors "PrecisionAgriculture" do
   test "DraftPlan sets water_gallons" do
     tests "DraftPlan", on: "IrrigationPlan"
     setup  "PlantField", field_name: "sample", crop: "sample", acres: 1.0
-    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
     input  crop_field: 1, forecast: 1, water_gallons: 1.0
     expect ok: "true"
   end
 
   test "AddZone sets zone_name + gallons_per_day" do
     tests "AddZone", on: "IrrigationPlan"
-    setup  "AddZone", zone_name: "sample", gallons_per_day: 1.0
     input  irrigation_plan: 1, zone_name: "sample", gallons_per_day: 1.0
     expect zones_size: 1
   end
 
   test "ActivatePlan runs" do
     tests "ActivatePlan", on: "IrrigationPlan"
-    setup  "AddZone", zone_name: "sample", gallons_per_day: 1.0
     input  irrigation_plan: 1
     expect ok: "true"
   end
@@ -87,7 +82,6 @@ Hecks.behaviors "PrecisionAgriculture" do
   test "PlanHarvest sets target_date + crew_size" do
     tests "PlanHarvest", on: "HarvestSchedule"
     setup  "PlantField", field_name: "sample", crop: "sample", acres: 1.0
-    setup  "AddPrediction", hour: "sample", temp_c: 1.0, precip_mm: 1.0, wind_kph: 1.0
     input  crop_field: 1, forecast: 1, target_date: "sample", crew_size: 1
     expect ok: "true"
   end

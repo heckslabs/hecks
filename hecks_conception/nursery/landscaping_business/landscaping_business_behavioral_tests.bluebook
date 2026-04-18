@@ -28,14 +28,12 @@ Hecks.behaviors "LandscapingBusiness" do
 
   test "ApproveDesign runs" do
     tests "ApproveDesign", on: "LandscapeDesign"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
     input  landscape_design: 1
     expect ok: "true"
   end
 
   test "ReviseDesign sets revision_notes" do
     tests "ReviseDesign", on: "LandscapeDesign"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
     input  landscape_design: 1, revision_notes: "sample"
     expect ok: "true"
   end
@@ -45,7 +43,6 @@ Hecks.behaviors "LandscapingBusiness" do
 
   test "SelectPlant sets species + common_name + size + placement_zone + quantity" do
     tests "SelectPlant", on: "Planting"
-    setup  "CreateDesign", design_name: "sample", style: "sample", budget: 1.0
     input  landscape_design: 1, species: "sample", common_name: "sample", size: "sample", placement_zone: "sample", quantity: 1
     expect ok: "true"
   end

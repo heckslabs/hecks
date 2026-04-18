@@ -51,8 +51,8 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "SubmitProposal sets proposal_id + cover_letter + proposed_rate + estimated_days" do
     tests "SubmitProposal", on: "Proposal"
-    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     input  gig: 1, freelancer: 1, proposal_id: "sample", cover_letter: "sample", proposed_rate: 1.0, estimated_days: 1
     expect ok: "true"
   end
@@ -74,22 +74,20 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "CreateContract sets contract_id + total_amount + start_date + end_date" do
     tests "CreateContract", on: "Contract"
-    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     setup  "RegisterFreelancer", freelancer_id: "sample", name: "sample", email: "sample", headline: "sample", hourly_rate: 1.0
+    setup  "PostGig", gig_title: "sample", description: "sample", category: "sample", budget: 1.0, deadline: "sample"
     input  gig: 1, freelancer: 1, contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     expect contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
   end
 
   test "CompleteMilestone sets milestone_title" do
     tests "CompleteMilestone", on: "Contract"
-    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     input  contract: 1, milestone_title: "sample"
     expect ok: "true"
   end
 
   test "TerminateContract runs" do
     tests "TerminateContract", on: "Contract"
-    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     input  contract: 1
     expect ok: "true"
   end
@@ -99,7 +97,6 @@ Hecks.behaviors "FreelanceMarketplace" do
 
   test "ReleasePayment sets payment_id + amount + payment_method" do
     tests "ReleasePayment", on: "Payment"
-    setup  "CreateContract", contract_id: "sample", total_amount: 1.0, start_date: "sample", end_date: "sample"
     input  contract: 1, payment_id: "sample", amount: 1.0, payment_method: "sample"
     expect ok: "true"
   end

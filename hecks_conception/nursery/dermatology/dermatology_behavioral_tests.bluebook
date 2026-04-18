@@ -34,6 +34,7 @@ Hecks.behaviors "Dermatology" do
 
   test "ResolveCondition runs" do
     tests "ResolveCondition", on: "SkinCondition"
+    setup  "DiagnoseCondition", patient: 1, patient_name: "sample", condition_name: "sample", body_location: "sample", morphology: "sample", severity: "sample"
     input  skin_condition: 1
     expect status: "resolved"
   end
@@ -50,6 +51,7 @@ Hecks.behaviors "Dermatology" do
 
   test "PerformTreatmentSession runs" do
     tests "PerformTreatmentSession", on: "DermatologyTreatment"
+    setup  "PrescribeTreatment", patient: 1, skin_condition: 1, patient_name: "sample", treatment_type: "sample", description: "sample", sessions_planned: 1
     input  dermatology_treatment: 1
     expect ok: "true"
   end
@@ -72,6 +74,7 @@ Hecks.behaviors "Dermatology" do
 
   test "ReceivePathologyResult sets pathology_result" do
     tests "ReceivePathologyResult", on: "Biopsy"
+    setup  "PerformBiopsy", patient: 1, skin_condition: 1, patient_name: "sample", biopsy_type: "sample", body_site: "sample", biopsy_date: "sample"
     input  biopsy: 1, pathology_result: "sample"
     expect pathology_result: "sample", status: "resulted"
   end
@@ -88,6 +91,7 @@ Hecks.behaviors "Dermatology" do
 
   test "RefillPrescription runs" do
     tests "RefillPrescription", on: "SkinPrescription"
+    setup  "WritePrescription", patient: 1, patient_name: "sample", medication_name: "sample", formulation: "sample", dosage: "sample", frequency: "sample", duration: "sample"
     input  skin_prescription: 1
     expect ok: "true"
   end

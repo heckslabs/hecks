@@ -86,6 +86,7 @@ Hecks.behaviors "Cosmology" do
   test "EvolveStar runs" do
     tests "EvolveStar", on: "Star"
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", star: 1, luminosity: 1.0, spectral_class: "sample"
     input  star: 1
     expect status: "giant"
   end
@@ -93,6 +94,8 @@ Hecks.behaviors "Cosmology" do
   test "ExhaustFuel runs" do
     tests "ExhaustFuel", on: "Star"
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", star: 1, luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar", star: 1
     input  star: 1
     expect fuel_remaining: 0.0, status: "exhausted"
   end
@@ -100,6 +103,9 @@ Hecks.behaviors "Cosmology" do
   test "CollapseStar runs" do
     tests "CollapseStar", on: "Star"
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", star: 1, luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar", star: 1
+    setup  "ExhaustFuel", star: 1
     input  star: 1
     expect status: "collapsed"
   end
@@ -107,6 +113,10 @@ Hecks.behaviors "Cosmology" do
   test "GoSupernova runs" do
     tests "GoSupernova", on: "Star"
     setup  "FormStar", name: "sample", mass: 1.0, temperature: 1.0
+    setup  "IgniteFusion", star: 1, luminosity: 1.0, spectral_class: "sample"
+    setup  "EvolveStar", star: 1
+    setup  "ExhaustFuel", star: 1
+    setup  "CollapseStar", star: 1
     input  star: 1
     expect status: "remnant"
   end
@@ -250,6 +260,7 @@ Hecks.behaviors "Cosmology" do
   test "CalculateRecombination sets recombination_redshift" do
     tests "CalculateRecombination", on: "BigBang"
     setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", big_bang: 1, nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
     input  big_bang: 1, recombination_redshift: 1.0
     expect recombination_redshift: 1.0, status: "recombination"
   end
@@ -257,6 +268,8 @@ Hecks.behaviors "Cosmology" do
   test "TraceStructureFormation runs" do
     tests "TraceStructureFormation", on: "BigBang"
     setup  "ModelInflation", name: "sample", inflation_duration: 1.0
+    setup  "SimulateNucleosynthesis", big_bang: 1, nucleosynthesis_temperature: 1.0, helium_fraction: 1.0
+    setup  "CalculateRecombination", big_bang: 1, recombination_redshift: 1.0
     input  big_bang: 1
     expect status: "structure_formation"
   end

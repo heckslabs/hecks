@@ -74,7 +74,7 @@ Hecks.behaviors "Appeal" do
 
   test "ByKind returns matching records" do
     tests "ByKind", on: "Explorer", kind: :query
-    setup  "OpenFile", path: "sample", domain: "sample"
+    setup  "InspectAggregate", aggregate_name: "sample"
     expect count: 1
   end
 
@@ -109,7 +109,7 @@ Hecks.behaviors "Appeal" do
 
   test "RecordChange sets action + detail" do
     tests "RecordChange", on: "Timeline"
-    setup  "OpenDocument", filename: "sample"
+    setup  "EditDocument", content: "sample"
     input  document: 1, action: "sample", detail: "sample"
     expect ok: "true"
   end
@@ -195,16 +195,20 @@ Hecks.behaviors "Appeal" do
 
   test "VerifyAdditions runs" do
     tests "VerifyAdditions", on: "Feature"
+    setup  "PlanFeature"
+    setup  "BuildFeature"
     expect status: "planned"
   end
 
   test "BuildFeature runs" do
     tests "BuildFeature", on: "Feature"
+    setup  "PlanFeature"
     expect status: "building"
   end
 
   test "CompleteFeature runs" do
     tests "CompleteFeature", on: "Feature"
+    setup  "PlanFeature"
     expect status: "done"
   end
 

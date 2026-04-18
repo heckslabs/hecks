@@ -72,6 +72,7 @@ Hecks.behaviors "CinemaAudio" do
   test "VerifyCalibration runs" do
     tests "VerifyCalibration", on: "Calibration"
     setup  "RunCalibration", auditorium_name: "sample", calibration_type: "sample", target_spl_db: 1.0
+    setup  "ApplyCorrection", calibration: 1, correction_db: 1.0
     input  calibration: 1
     expect status: "verified"
   end
@@ -95,6 +96,7 @@ Hecks.behaviors "CinemaAudio" do
   test "PlaySoundtrack runs" do
     tests "PlaySoundtrack", on: "Soundtrack"
     setup  "LoadSoundtrack", title: "sample", format: "sample", channel_count: 1, dynamic_range_db: 1.0
+    setup  "MapChannels", soundtrack: 1
     input  soundtrack: 1
     expect status: "playing"
   end

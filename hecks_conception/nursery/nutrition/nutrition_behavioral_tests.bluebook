@@ -34,8 +34,8 @@ Hecks.behaviors "Nutrition" do
 
   test "AddMeal sets meal_type + servings" do
     tests "AddMeal", on: "MealPlan"
-    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
     setup  "CatalogFood", name: "sample", food_group: "sample", serving_size_g: 1.0, calories_kcal: 1.0
+    setup  "CreatePlan", plan_name: "sample", duration_days: 1, target_calories: 1.0
     input  meal_plan: 1, food_item: 1, meal_type: "sample", servings: 1.0
     expect ok: "true"
   end

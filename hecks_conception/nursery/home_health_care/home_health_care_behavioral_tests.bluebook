@@ -51,20 +51,22 @@ Hecks.behaviors "HomeHealthCare" do
 
   test "ScheduleVisit sets patient_name + caregiver_name + visit_date + visit_type" do
     tests "ScheduleVisit", on: "Visit"
-    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
     setup  "RegisterCaregiver", name: "sample", credential: "sample", phone: "sample", availability: "sample", max_visits_per_day: 1
+    setup  "EnrollPatient", name: "sample", address: "sample", primary_diagnosis: "sample", physician_name: "sample"
     input  patient: 1, caregiver: 1, patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     expect patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample", status: "scheduled"
   end
 
   test "CompleteVisit sets notes" do
     tests "CompleteVisit", on: "Visit"
+    setup  "ScheduleVisit", patient: 1, caregiver: 1, patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     input  visit: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
   test "CancelVisit runs" do
     tests "CancelVisit", on: "Visit"
+    setup  "ScheduleVisit", patient: 1, caregiver: 1, patient_name: "sample", caregiver_name: "sample", visit_date: "sample", visit_type: "sample"
     input  visit: 1
     expect status: "cancelled"
   end
@@ -81,6 +83,7 @@ Hecks.behaviors "HomeHealthCare" do
 
   test "AdministerMedication runs" do
     tests "AdministerMedication", on: "Medication"
+    setup  "PrescribeMedication", patient: 1, patient_name: "sample", drug_name: "sample", dosage: "sample", frequency: "sample", route: "sample", prescriber: "sample"
     input  medication: 1
     expect ok: "true"
   end

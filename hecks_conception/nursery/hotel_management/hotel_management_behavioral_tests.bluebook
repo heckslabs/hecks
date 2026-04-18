@@ -19,6 +19,7 @@ Hecks.behaviors "HotelManagement" do
   test "ReleaseRoom runs" do
     tests "ReleaseRoom", on: "Room"
     setup  "AddRoom", room_number: "sample", room_type: "sample", floor: 1, nightly_rate: 1.0, max_occupancy: 1
+    setup  "BlockRoom", room: 1
     input  room: 1
     expect status: "available"
   end
@@ -35,12 +36,14 @@ Hecks.behaviors "HotelManagement" do
 
   test "ExtendStay sets additional_nights" do
     tests "ExtendStay", on: "GuestStay"
+    setup  "CheckInGuest", room: 1, guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     input  guest_stay: 1, additional_nights: 1
     expect ok: "true"
   end
 
   test "CheckOutGuest runs" do
     tests "CheckOutGuest", on: "GuestStay"
+    setup  "CheckInGuest", room: 1, guest_name: "sample", email: "sample", check_in_date: "sample", check_out_date: "sample", nights: 1
     input  guest_stay: 1
     expect status: "checked_out"
   end
@@ -57,12 +60,15 @@ Hecks.behaviors "HotelManagement" do
 
   test "CompleteHousekeeping runs" do
     tests "CompleteHousekeeping", on: "HousekeepingTask"
+    setup  "AssignHousekeeping", room: 1, task_type: "sample", priority: "sample", assigned_to: "sample"
     input  housekeeping_task: 1
     expect status: "completed"
   end
 
   test "InspectRoom runs" do
     tests "InspectRoom", on: "HousekeepingTask"
+    setup  "AssignHousekeeping", room: 1, task_type: "sample", priority: "sample", assigned_to: "sample"
+    setup  "CompleteHousekeeping", housekeeping_task: 1
     input  housekeeping_task: 1
     expect status: "inspected"
   end
@@ -78,14 +84,14 @@ Hecks.behaviors "HotelManagement" do
 
   test "PostCharge sets description + amount + category" do
     tests "PostCharge", on: "Folio"
-    setup  "OpenFolio"
+    setup  "OpenFolio", guest_stay: 1
     input  folio: 1, description: "sample", amount: 1.0, category: "sample"
     expect ok: "true"
   end
 
   test "SettleFolio runs" do
     tests "SettleFolio", on: "Folio"
-    setup  "OpenFolio"
+    setup  "OpenFolio", guest_stay: 1
     input  folio: 1
     expect status: "settled"
   end

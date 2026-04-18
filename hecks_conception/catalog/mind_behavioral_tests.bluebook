@@ -351,14 +351,14 @@ Hecks.behaviors "Mind" do
 
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
-    setup  "RegisterBirth"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     input  delivery: 1
     expect ok: "true"
   end
 
   test "IndexInNursery runs" do
     tests "IndexInNursery", on: "Delivery"
-    setup  "RegisterBirth"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     input  delivery: 1
     expect indexed: "yes"
   end
@@ -405,6 +405,7 @@ Hecks.behaviors "Mind" do
   test "PlanDevelopment sets target_vector" do
     tests "PlanDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
     input  development: 1, target_vector: 1.0
     expect target_vector: 1.0, status: "planned"
   end
@@ -412,6 +413,8 @@ Hecks.behaviors "Mind" do
   test "DevelopDomain runs" do
     tests "DevelopDomain", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
+    setup  "PlanDevelopment", development: 1, target_vector: 1.0
     input  development: 1
     expect status: "developed"
   end
@@ -419,6 +422,8 @@ Hecks.behaviors "Mind" do
   test "RejectDevelopment runs" do
     tests "RejectDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
+    setup  "PlanDevelopment", development: 1, target_vector: 1.0
     input  development: 1
     expect status: "rejected"
   end
@@ -454,6 +459,7 @@ Hecks.behaviors "Mind" do
 
   test "DissipateFatigue sets cycles_completed" do
     tests "DissipateFatigue", on: "Fatigue"
+    setup  "AccumulateFatigue", fatigue: 1
     input  fatigue: 1, cycles_completed: 1
     expect level: 0, pulses_since_sleep: 0, state: "alert"
   end
@@ -474,6 +480,7 @@ Hecks.behaviors "Mind" do
 
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Consciousness"
+    setup  "EnterDaydream"
     expect state: "sleeping"
   end
 
@@ -489,14 +496,17 @@ Hecks.behaviors "Mind" do
 
   test "WakeUp runs" do
     tests "WakeUp", on: "Consciousness"
-    setup  "DetectIdle", idle_seconds: 1
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
     input  consciousness: 1
     expect state: "waking"
   end
 
   test "BecomeAttentive runs" do
     tests "BecomeAttentive", on: "Consciousness"
-    setup  "DetectIdle", idle_seconds: 1
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "WakeUp", consciousness: 1
     input  consciousness: 1
     expect state: "attentive"
   end
@@ -529,6 +539,7 @@ Hecks.behaviors "Mind" do
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "SleepCycle"
     setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    setup  "AdvanceStage", sleep_cycle: 1, stage: "sample", rem_intensity: 1
     input  sleep_cycle: 1
     expect stage: "light"
   end
@@ -681,6 +692,7 @@ Hecks.behaviors "Mind" do
   test "AbsorbFindings runs" do
     tests "AbsorbFindings", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    setup  "CompleteProcess", process: 1
     input  process: 1
     expect status: "absorbed"
   end

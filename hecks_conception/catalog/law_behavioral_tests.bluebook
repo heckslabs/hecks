@@ -26,6 +26,7 @@ Hecks.behaviors "Law" do
   test "Reinstate runs" do
     tests "Reinstate", on: "Law"
     setup  "Enact", name: "sample", description: "sample", domain_scope: "sample", check_expression: "sample", severity: "sample"
+    setup  "Suspend", law: 1
     input  law: 1
     expect status: "active"
   end

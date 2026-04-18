@@ -19,6 +19,7 @@ Hecks.behaviors "BedAndBreakfast" do
   test "VacateRoom runs" do
     tests "VacateRoom", on: "GuestRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", max_guests: 1, nightly_rate: 1.0
+    setup  "OccupyRoom", guest_room: 1
     input  guest_room: 1
     expect status: "needs_cleaning"
   end

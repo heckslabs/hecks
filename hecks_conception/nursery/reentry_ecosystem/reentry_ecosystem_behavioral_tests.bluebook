@@ -35,12 +35,14 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "CompleteModule runs" do
     tests "CompleteModule", on: "EducationTrack"
+    setup  "EnrollInTrack", reentry_case: 1, track_id: "sample", track_type: "sample", institution: "sample"
     input  education_track: 1
     expect ok: "true"
   end
 
   test "GraduateTrack runs" do
     tests "GraduateTrack", on: "EducationTrack"
+    setup  "EnrollInTrack", reentry_case: 1, track_id: "sample", track_type: "sample", institution: "sample"
     input  education_track: 1
     expect status: "graduated"
   end
@@ -57,14 +59,14 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "RecordStabilityCheck runs" do
     tests "RecordStabilityCheck", on: "HousingMatch"
-    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    setup  "PlaceInHousing", reentry_case: 1, match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
     input  housing_match: 1
     expect ok: "true"
   end
 
   test "UpgradeHousing sets housing_type + address" do
     tests "UpgradeHousing", on: "HousingMatch"
-    setup  "PlaceInHousing", match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
+    setup  "PlaceInHousing", reentry_case: 1, match_id: "sample", housing_type: "sample", address: "sample", landlord_name: "sample"
     input  housing_match: 1, housing_type: "sample", address: "sample"
     expect housing_type: "sample", address: "sample"
   end
@@ -81,7 +83,7 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "RecordRetention runs" do
     tests "RecordRetention", on: "EmploymentBridge"
-    setup  "PlaceInJob", bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
+    setup  "PlaceInJob", reentry_case: 1, bridge_id: "sample", employer_name: "sample", job_title: "sample", start_date: "sample"
     input  employment_bridge: 1
     expect ok: "true"
   end
@@ -98,12 +100,14 @@ Hecks.behaviors "ReentryEcosystem" do
 
   test "FileExpungement runs" do
     tests "FileExpungement", on: "LegalSupport"
+    setup  "AssignAttorney", reentry_case: 1, support_id: "sample", legal_need: "sample", attorney_name: "sample"
     input  legal_support: 1
     expect ok: "true"
   end
 
   test "ResolveLegalMatter runs" do
     tests "ResolveLegalMatter", on: "LegalSupport"
+    setup  "AssignAttorney", reentry_case: 1, support_id: "sample", legal_need: "sample", attorney_name: "sample"
     input  legal_support: 1
     expect status: "resolved"
   end

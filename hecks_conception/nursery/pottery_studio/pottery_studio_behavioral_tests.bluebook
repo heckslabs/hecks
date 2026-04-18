@@ -19,6 +19,7 @@ Hecks.behaviors "PotteryStudio" do
   test "BisqueFire runs" do
     tests "BisqueFire", on: "Piece"
     setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece", piece: 1
     input  piece: 1
     expect status: "bisqued"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "PotteryStudio" do
   test "GlazePiece sets glaze_name" do
     tests "GlazePiece", on: "Piece"
     setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece", piece: 1
+    setup  "BisqueFire", piece: 1
     input  piece: 1, glaze_name: "sample"
     expect status: "glazed"
   end
@@ -33,6 +36,9 @@ Hecks.behaviors "PotteryStudio" do
   test "GlazeFire runs" do
     tests "GlazeFire", on: "Piece"
     setup  "ThrowPiece", name: "sample", form: "sample", clay_body: "sample", weight_kg: 1.0
+    setup  "TrimPiece", piece: 1
+    setup  "BisqueFire", piece: 1
+    setup  "GlazePiece", piece: 1, glaze_name: "sample"
     input  piece: 1
     expect status: "finished"
   end
@@ -55,6 +61,7 @@ Hecks.behaviors "PotteryStudio" do
 
   test "CompleteFiring runs" do
     tests "CompleteFiring", on: "Firing"
+    setup  "StartFiring", firing: 1
     input  firing: 1
     expect status: "completed"
   end
@@ -102,7 +109,7 @@ Hecks.behaviors "PotteryStudio" do
 
   test "OpenExhibition runs" do
     tests "OpenExhibition", on: "Exhibition"
-    setup  "OpenExhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     input  exhibition: 1
     expect status: "open"
   end

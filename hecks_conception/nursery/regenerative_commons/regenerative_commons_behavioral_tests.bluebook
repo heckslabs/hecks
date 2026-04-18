@@ -28,12 +28,14 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "ReportHarvest runs" do
     tests "ReportHarvest", on: "FarmPlot"
+    setup  "AssignPlot", common_land: 1, plot_id: "sample", steward_name: "sample", current_crop: "sample"
     input  farm_plot: 1
     expect ok: "true"
   end
 
   test "RecordSoilHealth sets soil_health_score" do
     tests "RecordSoilHealth", on: "FarmPlot"
+    setup  "AssignPlot", common_land: 1, plot_id: "sample", steward_name: "sample", current_crop: "sample"
     input  farm_plot: 1, soil_health_score: "sample"
     expect soil_health_score: "sample"
   end
@@ -50,12 +52,15 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "BeginRestoration runs" do
     tests "BeginRestoration", on: "ConservationZone"
+    setup  "DesignateZone", common_land: 1, zone_id: "sample", ecosystem_type: "sample", acres: 1
     input  conservation_zone: 1
     expect restoration_status: "in_progress"
   end
 
   test "CompleteRestoration runs" do
     tests "CompleteRestoration", on: "ConservationZone"
+    setup  "DesignateZone", common_land: 1, zone_id: "sample", ecosystem_type: "sample", acres: 1
+    setup  "BeginRestoration", conservation_zone: 1
     input  conservation_zone: 1
     expect restoration_status: "completed"
   end
@@ -71,6 +76,7 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "DistributeToFoodBank runs" do
     tests "DistributeToFoodBank", on: "HarvestAllocation"
+    setup  "AllocateHarvest", farm_plot: 1, allocation_id: "sample", season: "sample", total_yield_lbs: 1
     input  harvest_allocation: 1
     expect status: "distributed"
   end
@@ -102,7 +108,7 @@ Hecks.behaviors "RegenerativeCommons" do
 
   test "LogContribution runs" do
     tests "LogContribution", on: "CommunityMember"
-    setup  "RegisterMember", member_id: "sample", name: "sample", role_type: "sample"
+    setup  "RegisterMember", common_land: 1, member_id: "sample", name: "sample", role_type: "sample"
     input  community_member: 1
     expect ok: "true"
   end

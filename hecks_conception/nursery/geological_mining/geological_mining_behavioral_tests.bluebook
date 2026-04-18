@@ -83,6 +83,7 @@ Hecks.behaviors "GeologicalMining" do
   test "BeginExtraction runs" do
     tests "BeginExtraction", on: "ExtractionPlan"
     setup  "DesignExtractionPlan", name: "sample", ore_body_name: "sample", extraction_method: "sample", planned_tonnage: 1.0, strip_ratio: 1.0, cost_per_ton: 1.0
+    setup  "ApproveExtraction", extraction_plan: 1
     input  extraction_plan: 1
     expect status: "extracting"
   end

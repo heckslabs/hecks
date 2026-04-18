@@ -66,8 +66,8 @@ Hecks.behaviors "PoolMaintenance" do
 
   test "AddPoolToRoute runs" do
     tests "AddPoolToRoute", on: "ServiceRoute"
-    setup  "AddPoolToRoute"
     setup  "RegisterPool", owner_name: "sample", address: "sample", pool_type: "sample", gallons: 1.0, surface_type: "sample", sanitizer_type: "sample"
+    setup  "BuildRoute", tech_name: "sample", route_day: "sample", pool_count: 1
     input  service_route: 1, pool: 1
     expect ok: "true"
   end
@@ -84,7 +84,6 @@ Hecks.behaviors "PoolMaintenance" do
 
   test "CompleteRepair sets diagnosis + repair_cost" do
     tests "CompleteRepair", on: "RepairTicket"
-    setup  "OpenRepairTicket", problem_description: "sample"
     input  repair_ticket: 1, diagnosis: "sample", repair_cost: 1.0
     expect ok: "true"
   end

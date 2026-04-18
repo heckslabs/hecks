@@ -33,7 +33,7 @@
 //! Hand-write those.
 
 use crate::behaviors_ir::TestSuite;
-use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, Query};
+use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, Query, Transition};
 use std::collections::BTreeSet;
 
 /// Generate the full text of a `_behavioral_tests.bluebook` for `source`.
@@ -75,7 +75,11 @@ pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> St
 }
 
 /// One test per command. Composes setup → input → expect from the
-/// command's IR, the aggregate's IR, and the lifecycle index.
+/// command's IR, the aggregate's IR, and the lifecycle index. Setup
+/// chains follow `given` preconditions and lifecycle from_states
+/// recursively (depth-capped) so a test for a command guarded by
+/// `given { status == "executed" }` first runs the command that
+/// transitions to "executed".
 fn command_test(
     domain: &Domain,
     agg: &Aggregate,
@@ -87,13 +91,24 @@ fn command_test(
 
     let mut setups: Vec<String> = Vec::new();
 
-    // Self-ref → create an entity of the same aggregate first.
-    if self_ref.is_some() {
+    // Plan a setup chain that satisfies preconditions on the SAME
+    // aggregate. Each step is a command on `agg` whose effect moves
+    // us closer to the state the test command requires.
+    let chain = plan_setup_chain(agg, cmd, 5, &mut Vec::new());
+    for chain_cmd in &chain {
+        setups.push(emit_setup(agg, chain_cmd));
+    }
+
+    // If we still need a self-ref (e.g. the chain didn't already
+    // create the entity), add a baseline create at the front. A chain
+    // command "creates the entity" if it can run without a self-ref —
+    // that's how the runtime distinguishes bootstrap from operate-on.
+    // (Name-prefix check would miss commands like `Ingest` that boot
+    // an aggregate without using a Create/Add/etc. prefix.)
+    let chain_creates_entity = chain.iter().any(|c| self_ref_for(agg, c).is_none());
+    if self_ref.is_some() && !chain_creates_entity {
         if let Some(create) = pick_create_command(agg) {
-            // Don't recurse: if the create itself has cross-refs,
-            // we'd need a deeper plan. Common case is plain Create*.
-            setups.push(format!("    setup  {:?}{}",
-                create.name, kwargs_inline(create)));
+            setups.insert(0, emit_setup(agg, create));
         }
     }
 
@@ -101,8 +116,7 @@ fn command_test(
     for cref in &cross_refs {
         if let Some(target_agg) = domain.aggregates.iter().find(|a| a.name == cref.target) {
             if let Some(create) = pick_create_command(target_agg) {
-                setups.push(format!("    setup  {:?}{}",
-                    create.name, kwargs_inline(create)));
+                setups.insert(0, emit_setup(target_agg, create));
             }
         }
     }
@@ -176,19 +190,210 @@ fn cross_refs_for<'a>(agg: &Aggregate, cmd: &'a Command) -> Vec<&'a crate::ir::R
 }
 
 /// Pick a setup command for `agg`. Preference order:
-///   1. Create-style by name (Create*, Place*, Register*, Open*, Add*)
+///   1. A bootstrap-verb command (Create/Define/Place/Register/Open/
+///      Plan/Spawn/Boot/Start) WITH NO references — this is the cleanest
+///      "make a fresh instance" signal.
 ///   2. Any command with no references (treats the aggregate as a
-///      singleton and creates id "1" via the runtime's default path)
+///      singleton and creates id "1" via the runtime's default path).
 /// Falls back to None if every command needs a reference — at that
-/// point the aggregate has no reachable bootstrap and the auto-gen
-/// can't help.
+/// point the aggregate has no in-bluebook bootstrap and auto-gen
+/// can't help (the user needs to add a Create command, or the test
+/// must seed via fixtures).
+///
+/// Note: "Add" is intentionally NOT a bootstrap prefix here. `AddTopping`
+/// adds to an existing pizza; it's not a create. Same for `AddRule`,
+/// `AddComponent`, etc. The runtime treats them as create when no
+/// self-ref id is given, but for setups we want the unambiguous
+/// bootstrap command.
 fn pick_create_command(agg: &Aggregate) -> Option<&Command> {
-    for prefix in &["Create", "Place", "Register", "Open", "Add"] {
-        if let Some(c) = agg.commands.iter().find(|c| c.name.starts_with(prefix)) {
+    let prefixes = ["Create", "Define", "Place", "Register", "Open",
+                    "Plan", "Spawn", "Boot", "Start", "Initialize",
+                    "Seed", "Provision", "Issue"];
+    for prefix in &prefixes {
+        if let Some(c) = agg.commands.iter()
+            .find(|c| c.name.starts_with(prefix) && c.references.is_empty())
+        {
             return Some(c);
         }
     }
     agg.commands.iter().find(|c| c.references.is_empty())
+}
+
+/// Plan a chain of commands that puts `agg` into the state `target_cmd`
+/// requires. Preconditions come from two sources:
+///   • `target_cmd.givens` — equality predicates like `status == "X"`
+///   • The aggregate's lifecycle — if `target_cmd` is a transition
+///     with from_state ≠ default, we need to be in from_state.
+///
+/// For each precondition, find a command that produces it (then_set
+/// or transition to that value), recurse on its preconditions, then
+/// emit the chain in correct order.
+///
+/// Returns commands in execution order. Empty when no preconditions
+/// are unmet OR when no producing command exists (the test will
+/// surface a real gap to the user).
+///
+/// `depth` budgets recursion. `visited` carries (cmd_name) to prevent
+/// cycles when commands mutually depend.
+fn plan_setup_chain<'a>(
+    agg: &'a Aggregate,
+    target_cmd: &'a Command,
+    depth: usize,
+    visited: &mut Vec<&'a str>,
+) -> Vec<&'a Command> {
+    if depth == 0 { return Vec::new(); }
+    if visited.contains(&target_cmd.name.as_str()) { return Vec::new(); }
+    visited.push(target_cmd.name.as_str());
+    let mut chain: Vec<&Command> = Vec::new();
+    let mut produced: BTreeSet<(String, String)> = BTreeSet::new();
+
+    for (field, value) in collect_preconditions(agg, target_cmd) {
+        // Already satisfied by an earlier step in this chain?
+        if produced.contains(&(field.clone(), value.clone())) { continue; }
+        // Lifecycle default makes some preconditions trivially true.
+        if let Some(lc) = &agg.lifecycle {
+            if lc.field == field && lc.default == value { continue; }
+        }
+        let Some(producer) = find_producer(agg, &field, &value) else { continue; };
+        // Recurse: producer may itself have preconditions.
+        let sub_chain = plan_setup_chain(agg, producer, depth - 1, visited);
+        for sub in sub_chain {
+            if !chain.iter().any(|c| c.name == sub.name) {
+                chain.push(sub);
+                track_produced(agg, sub, &mut produced);
+            }
+        }
+        if !chain.iter().any(|c| c.name == producer.name) {
+            chain.push(producer);
+            track_produced(agg, producer, &mut produced);
+        }
+    }
+
+    visited.pop();
+    chain
+}
+
+/// Equality preconditions on the same aggregate that `cmd` requires.
+/// Returns (field, expected_value) pairs, deduplicated.
+fn collect_preconditions(agg: &Aggregate, cmd: &Command) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
+
+    // From givens: parse `<field> == "<value>"` patterns.
+    for g in &cmd.givens {
+        if let Some(pair) = parse_equality(&g.expression) {
+            if seen.insert(pair.clone()) { out.push(pair); }
+        }
+    }
+
+    // From lifecycle transitions involving this command. A command can
+    // have multiple transitions (e.g. one from null, one from
+    // "reversed"). If ANY transition has no from_state, the command
+    // can fire from default — no precondition needed. Only require
+    // from_state when EVERY transition for this command requires one,
+    // and then take the first from_state as the satisfiable choice.
+    if let Some(lc) = &agg.lifecycle {
+        let cmd_transitions: Vec<&Transition> = lc.transitions.iter()
+            .filter(|t| t.command == cmd.name)
+            .collect();
+        if !cmd_transitions.is_empty()
+            && cmd_transitions.iter().all(|t| t.from_state.is_some())
+        {
+            if let Some(t) = cmd_transitions.first() {
+                if let Some(from) = &t.from_state {
+                    let pair = (lc.field.clone(), from.clone());
+                    if seen.insert(pair.clone()) { out.push(pair); }
+                }
+            }
+        }
+    }
+
+    out
+}
+
+/// Parse `field == "value"` (or `field == :value`) into (field, value).
+/// Returns None for shapes the planner can't reason about.
+fn parse_equality(expr: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = expr.splitn(2, "==").collect();
+    if parts.len() != 2 { return None; }
+    let field = parts[0].trim().to_string();
+    if field.is_empty() || !field.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    let raw = parts[1].trim().trim_end_matches('}').trim();
+    // Quoted string
+    if raw.starts_with('"') {
+        let end = raw[1..].find('"')? + 1;
+        return Some((field, raw[1..end].to_string()));
+    }
+    // Bare symbol :value
+    if let Some(sym) = raw.strip_prefix(':') {
+        let end = sym.find(|c: char| !c.is_alphanumeric() && c != '_')
+            .unwrap_or(sym.len());
+        return Some((field, sym[..end].to_string()));
+    }
+    None
+}
+
+/// Find a command on `agg` that puts `field` to `value`. Two sources:
+///   • a then_set mutation `to: "value"` on this field
+///   • a lifecycle transition with this field's to_state == value
+fn find_producer<'a>(agg: &'a Aggregate, field: &str, value: &str) -> Option<&'a Command> {
+    // Mutation match
+    let by_mutation = agg.commands.iter().find(|c| {
+        c.mutations.iter().any(|m| {
+            matches!(m.operation, MutationOp::Set)
+                && m.field == field
+                && (m.value == value
+                    || m.value == format!("\"{}\"", value)
+                    || m.value.trim_matches('"') == value)
+        })
+    });
+    if by_mutation.is_some() { return by_mutation; }
+
+    // Lifecycle transition match
+    if let Some(lc) = &agg.lifecycle {
+        if lc.field == field {
+            if let Some(t) = lc.transitions.iter().find(|t| t.to_state == value) {
+                return agg.commands.iter().find(|c| c.name == t.command);
+            }
+        }
+    }
+
+    None
+}
+
+/// Track what fields a command produces (after it runs successfully).
+fn track_produced(agg: &Aggregate, cmd: &Command, produced: &mut BTreeSet<(String, String)>) {
+    for m in &cmd.mutations {
+        if let MutationOp::Set = m.operation {
+            let val = m.value.trim_matches('"').to_string();
+            produced.insert((m.field.clone(), val));
+        }
+    }
+    if let Some(lc) = &agg.lifecycle {
+        for t in &lc.transitions {
+            if t.command == cmd.name {
+                produced.insert((lc.field.clone(), t.to_state.clone()));
+            }
+        }
+    }
+}
+
+/// Emit a single setup line for a command on `agg`. Includes self-ref
+/// id (always "1"), cross-ref ids, and command attribute samples.
+/// Use this for chained setups — `kwargs_inline` only handled attrs.
+fn emit_setup(agg: &Aggregate, cmd: &Command) -> String {
+    let self_ref = self_ref_for(agg, cmd);
+    let cross_refs = cross_refs_for(agg, cmd);
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    if let Some(name) = &self_ref { pairs.push((name.clone(), "1".into())); }
+    for cref in &cross_refs { pairs.push((cref.name.clone(), "1".into())); }
+    for attr in &cmd.attributes {
+        pairs.push((attr.name.clone(), sample_value(&attr.attr_type)));
+    }
+    let kvs = if pairs.is_empty() { String::new() } else { format!(", {}", join_kvs(&pairs)) };
+    format!("    setup  {:?}{}", cmd.name, kvs)
 }
 
 /// Inputs for the command under test. Self-ref id first (always "1"),
@@ -329,15 +534,20 @@ fn quote_string(s: &str) -> String { format!("{:?}", s) }
 
 /// Resolve a mutation's source-token value into the sample value the
 /// runtime would actually store. Strings/numbers come through as-is;
-/// `:symbol` is treated as a reference to a command attribute and
-/// resolved to that attribute's sample value (matching what the
-/// runtime stores when dispatched with synthesized inputs).
+/// `:symbol` is treated as a reference to either a command attribute
+/// (resolved to its sample value) or a command reference (resolved to
+/// the cross-ref id "1" — same id the synthesized input passes).
 fn resolve_mutation_value(raw: &str, cmd: &Command) -> String {
     let trimmed = raw.trim();
-    if let Some(attr_name) = trimmed.strip_prefix(':') {
-        // Bare symbol → reference to a command attr.
-        if let Some(attr) = cmd.attributes.iter().find(|a| a.name == attr_name) {
+    if let Some(name) = trimmed.strip_prefix(':') {
+        if let Some(attr) = cmd.attributes.iter().find(|a| a.name == name) {
             return sample_value(&attr.attr_type);
+        }
+        // Reference (cross-ref or self-ref): synthesized input passes
+        // "1" for every reference; the runtime stores that id on the
+        // aggregate's <ref_name> field.
+        if cmd.references.iter().any(|r| r.name == name) {
+            return "1".into();
         }
     }
     raw.to_string()

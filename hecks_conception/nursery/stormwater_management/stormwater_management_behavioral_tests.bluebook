@@ -88,6 +88,7 @@ Hecks.behaviors "StormwaterManagement" do
   test "IssueViolation runs" do
     tests "IssueViolation", on: "ComplianceReport"
     setup  "FileComplianceReport", watershed_name: "sample", permit_number: "sample", max_discharge_cms: 1.0, actual_discharge_cms: 1.0, report_date: "sample"
+    setup  "EvaluateCompliance", compliance_report: 1, compliance_status: "sample"
     input  compliance_report: 1
     expect status: "violation"
   end

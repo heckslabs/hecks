@@ -19,6 +19,7 @@ Hecks.behaviors "FilmProduction" do
   test "WrapProduction runs" do
     tests "WrapProduction", on: "Production"
     setup  "GreenLightProduction", title: "sample", genre: "sample", total_budget: 1.0
+    setup  "StartPrincipalPhotography", production: 1, start_date: "sample"
     input  production: 1
     expect status: "post_production"
   end
@@ -41,6 +42,7 @@ Hecks.behaviors "FilmProduction" do
 
   test "MarkSceneFinal sets final_take" do
     tests "MarkSceneFinal", on: "Scene"
+    setup  "PrintScene", scene: 1, take_number: 1
     input  scene: 1, final_take: 1
     expect status: "finalized"
   end
@@ -66,12 +68,16 @@ Hecks.behaviors "FilmProduction" do
 
   test "CheckOutEquipment sets checked_out_by" do
     tests "CheckOutEquipment", on: "Equipment"
+    setup  "CheckOutEquipment", equipment: 1, checked_out_by: "sample"
+    setup  "ReturnEquipment", equipment: 1
     input  equipment: 1, checked_out_by: "sample"
     expect status: "in_use"
   end
 
   test "ReturnEquipment runs" do
     tests "ReturnEquipment", on: "Equipment"
+    setup  "ReturnEquipment", equipment: 1
+    setup  "CheckOutEquipment", equipment: 1, checked_out_by: "sample"
     input  equipment: 1
     expect status: "available"
   end

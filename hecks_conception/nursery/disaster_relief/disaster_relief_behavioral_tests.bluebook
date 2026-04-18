@@ -35,14 +35,13 @@ Hecks.behaviors "DisasterRelief" do
 
   test "RegisterEvacuee runs" do
     tests "RegisterEvacuee", on: "Shelter"
-    setup  "RegisterEvacuee"
+    setup  "OpenShelter", incident: 1, shelter_name: "sample", address: "sample", capacity: 1
     input  shelter: 1
     expect ok: "true"
   end
 
   test "CloseShelter runs" do
     tests "CloseShelter", on: "Shelter"
-    setup  "RegisterEvacuee"
     input  shelter: 1
     expect status: "closed"
   end
@@ -105,6 +104,7 @@ Hecks.behaviors "DisasterRelief" do
 
   test "ExecuteEvacuation sets people_evacuated" do
     tests "ExecuteEvacuation", on: "Evacuation"
+    setup  "OrderEvacuation", incident: 1, evacuation_zone: "sample", order_date: "sample", transport_method: "sample", destination: "sample"
     input  evacuation: 1, people_evacuated: 1
     expect people_evacuated: 1, status: "completed"
   end

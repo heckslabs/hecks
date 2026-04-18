@@ -28,12 +28,14 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "ReportSurvivorFound runs" do
     tests "ReportSurvivorFound", on: "SearchFleet"
+    setup  "DeployFleet", disaster_event: 1, fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     input  search_fleet: 1
     expect ok: "true"
   end
 
   test "RecallFleet runs" do
     tests "RecallFleet", on: "SearchFleet"
+    setup  "DeployFleet", disaster_event: 1, fleet_id: "sample", drone_count: 1, deployment_zone: "sample"
     input  search_fleet: 1
     expect status: "recalled"
   end
@@ -50,6 +52,7 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "ExecuteDrop runs" do
     tests "ExecuteDrop", on: "SupplyDrop"
+    setup  "PlanDrop", disaster_event: 1, drop_id: "sample", supply_type: "sample", target_location: "sample", delivery_method: "sample"
     input  supply_drop: 1
     expect status: "delivered"
   end
@@ -66,12 +69,14 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "ReroutePower runs" do
     tests "ReroutePower", on: "GridResponse"
+    setup  "ActivateGridResponse", disaster_event: 1, response_id: "sample", grid_sector: "sample", affected_substations: 1
     input  grid_response: 1
     expect ok: "true"
   end
 
   test "RestoreGrid runs" do
     tests "RestoreGrid", on: "GridResponse"
+    setup  "ActivateGridResponse", disaster_event: 1, response_id: "sample", grid_sector: "sample", affected_substations: 1
     input  grid_response: 1
     expect status: "restored"
   end
@@ -88,12 +93,14 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "AuthorizeDroneFleet runs" do
     tests "AuthorizeDroneFleet", on: "AirspaceControl"
+    setup  "DeclareRestriction", disaster_event: 1, control_id: "sample", restricted_zone: "sample"
     input  airspace_control: 1
     expect ok: "true"
   end
 
   test "LiftRestriction runs" do
     tests "LiftRestriction", on: "AirspaceControl"
+    setup  "DeclareRestriction", disaster_event: 1, control_id: "sample", restricted_zone: "sample"
     input  airspace_control: 1
     expect status: "open"
   end
@@ -110,14 +117,14 @@ Hecks.behaviors "DisasterAutonomy" do
 
   test "RegisterSurvivor runs" do
     tests "RegisterSurvivor", on: "SurvivorRegistry"
-    setup  "RegisterSurvivor"
+    setup  "OpenRegistry", disaster_event: 1, registry_id: "sample"
     input  survivor_registry: 1
     expect ok: "true"
   end
 
   test "MarkRescued runs" do
     tests "MarkRescued", on: "SurvivorRegistry"
-    setup  "RegisterSurvivor"
+    setup  "OpenRegistry", disaster_event: 1, registry_id: "sample"
     input  survivor_registry: 1
     expect ok: "true"
   end

@@ -11,14 +11,14 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   test "AddElement sets element + percentage" do
     tests "AddElement", on: "Alloy"
-    setup  "AddElement", element: "sample", percentage: 1.0
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  alloy: 1, element: "sample", percentage: 1.0
     expect compositions_size: 1
   end
 
   test "ByHardness returns matching records" do
     tests "ByHardness", on: "Alloy", kind: :query
-    setup  "AddElement", element: "sample", percentage: 1.0
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     expect count: 1
   end
 
@@ -27,7 +27,7 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   test "ChargeFurnace sets volume_kg" do
     tests "ChargeFurnace", on: "SmeltBatch"
-    setup  "AddElement", element: "sample", percentage: 1.0
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  alloy: 1, volume_kg: 1.0
     expect ok: "true"
   end
@@ -49,7 +49,7 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   test "SketchDesign sets title + style" do
     tests "SketchDesign", on: "JewelryDesign"
-    setup  "AddElement", element: "sample", percentage: 1.0
+    setup  "FormulatAlloy", name: "sample", carbon_content: 1.0, target_hardness: 1.0
     input  alloy: 1, title: "sample", style: "sample"
     expect ok: "true"
   end
@@ -77,14 +77,12 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   test "CompleteCasting runs" do
     tests "CompleteCasting", on: "CastingOrder"
-    setup  "CreateCastingOrder", quantity: 1
     input  casting_order: 1
     expect ok: "true"
   end
 
   test "ReportDefect sets defect_type + severity" do
     tests "ReportDefect", on: "CastingOrder"
-    setup  "CreateCastingOrder", quantity: 1
     input  casting_order: 1, defect_type: "sample", severity: "sample"
     expect ok: "true"
   end
@@ -100,14 +98,14 @@ Hecks.behaviors "ArtisanMetalworks" do
 
   test "AddPiece sets piece_title + price_cents" do
     tests "AddPiece", on: "Showcase"
-    setup  "AddPiece", piece_title: "sample", price_cents: 1
+    setup  "PlanShowcase", name: "sample", venue: "sample"
     input  showcase: 1, piece_title: "sample", price_cents: 1
     expect pieces_size: 1
   end
 
   test "SellPiece sets piece_title" do
     tests "SellPiece", on: "Showcase"
-    setup  "AddPiece", piece_title: "sample", price_cents: 1
+    setup  "PlanShowcase", name: "sample", venue: "sample"
     input  showcase: 1, piece_title: "sample"
     expect ok: "true"
   end

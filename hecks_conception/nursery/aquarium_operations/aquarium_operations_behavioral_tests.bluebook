@@ -19,6 +19,7 @@ Hecks.behaviors "AquariumOperations" do
   test "ActivateTank runs" do
     tests "ActivateTank", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle", tank: 1
     input  tank: 1
     expect status: "active"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "AquariumOperations" do
   test "QuarantineTank runs" do
     tests "QuarantineTank", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle", tank: 1
+    setup  "ActivateTank", tank: 1
     input  tank: 1
     expect status: "quarantined"
   end
@@ -33,6 +36,9 @@ Hecks.behaviors "AquariumOperations" do
   test "ClearTankQuarantine runs" do
     tests "ClearTankQuarantine", on: "Tank"
     setup  "SetupTank", tank_id: "sample", name: "sample", water_type: "sample", volume_gallons: 1.0, max_species: 1
+    setup  "TestWaterCycle", tank: 1
+    setup  "ActivateTank", tank: 1
+    setup  "QuarantineTank", tank: 1
     input  tank: 1
     expect status: "active"
   end
@@ -92,12 +98,14 @@ Hecks.behaviors "AquariumOperations" do
 
   test "ApproveReading runs" do
     tests "ApproveReading", on: "WaterQualityReading"
+    setup  "RecordReading", tank: 1, temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
     input  water_quality_reading: 1
     expect status: "approved"
   end
 
   test "FlagAnomaly sets parameter" do
     tests "FlagAnomaly", on: "WaterQualityReading"
+    setup  "RecordReading", tank: 1, temperature_f: 1.0, ph: 1.0, ammonia_ppm: 1.0, nitrate_ppm: 1.0, salinity_ppt: 1.0
     input  water_quality_reading: 1, parameter: "sample"
     expect status: "flagged"
   end
@@ -129,14 +137,15 @@ Hecks.behaviors "AquariumOperations" do
 
   test "CloseExhibit sets reason" do
     tests "CloseExhibit", on: "Exhibit"
-    setup  "OpenExhibit", name: "sample", theme: "sample", tank_count: 1
+    setup  "OpenExhibit", tank: 1, name: "sample", theme: "sample", tank_count: 1
     input  exhibit: 1, reason: "sample"
     expect status: "closed"
   end
 
   test "ReopenExhibit runs" do
     tests "ReopenExhibit", on: "Exhibit"
-    setup  "OpenExhibit", name: "sample", theme: "sample", tank_count: 1
+    setup  "OpenExhibit", tank: 1, name: "sample", theme: "sample", tank_count: 1
+    setup  "CloseExhibit", exhibit: 1, reason: "sample"
     input  exhibit: 1
     expect status: "open"
   end

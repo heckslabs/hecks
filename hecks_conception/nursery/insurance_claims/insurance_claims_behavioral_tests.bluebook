@@ -56,6 +56,7 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "SubmitAssessment sets findings + assessed_amount" do
     tests "SubmitAssessment", on: "AdjusterAssignment"
+    setup  "AssignAdjuster", claim: 1, adjuster_name: "sample"
     input  adjuster_assignment: 1, findings: "sample", assessed_amount: 1.0
     expect findings: "sample", assessed_amount: 1.0, status: "assessed"
   end
@@ -71,12 +72,14 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "AcceptSettlement runs" do
     tests "AcceptSettlement", on: "Settlement"
+    setup  "OfferSettlement", claim: 1, settlement_amount: 1.0, payment_method: "sample"
     input  settlement: 1
     expect status: "accepted"
   end
 
   test "RejectSettlement runs" do
     tests "RejectSettlement", on: "Settlement"
+    setup  "OfferSettlement", claim: 1, settlement_amount: 1.0, payment_method: "sample"
     input  settlement: 1
     expect status: "rejected"
   end
@@ -92,6 +95,7 @@ Hecks.behaviors "InsuranceClaims" do
 
   test "ReviewAppeal sets resolution" do
     tests "ReviewAppeal", on: "Appeal"
+    setup  "FileAppeal", claim: 1, reason: "sample", supporting_documents: "sample"
     input  appeal: 1, resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end

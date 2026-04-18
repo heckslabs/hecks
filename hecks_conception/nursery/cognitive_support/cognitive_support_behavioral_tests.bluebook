@@ -19,6 +19,7 @@ Hecks.behaviors "CognitiveSupport" do
   test "CompleteCall sets fatigue_score + cognitive_load_pct" do
     tests "CompleteCall", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    setup  "AssignCall", agent: 1
     input  agent: 1, fatigue_score: 1.0, cognitive_load_pct: 1.0
     expect fatigue_score: 1.0, cognitive_load_pct: 1.0, status: "available"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "CognitiveSupport" do
   test "ReturnFromBreak runs" do
     tests "ReturnFromBreak", on: "Agent"
     setup  "RegisterAgent", name: "sample", skill_level: "sample", shift_start: "sample"
+    setup  "SendOnBreak", agent: 1
     input  agent: 1
     expect fatigue_score: 0.0, cognitive_load_pct: 0.0, status: "available"
   end
@@ -88,6 +90,7 @@ Hecks.behaviors "CognitiveSupport" do
   test "EndBreak runs" do
     tests "EndBreak", on: "BreakSchedule"
     setup  "ScheduleBreak", agent_name: "sample", break_type: "sample", duration_minutes: 1, scheduled_time: "sample"
+    setup  "StartBreak", break_schedule: 1
     input  break_schedule: 1
     expect status: "completed"
   end

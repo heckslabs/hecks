@@ -81,6 +81,7 @@ Hecks.behaviors "ClothingBoutique" do
   test "CloseOutCollection runs" do
     tests "CloseOutCollection", on: "SeasonalCollection"
     setup  "PlanCollection", season_name: "sample", year: "sample", theme: "sample"
+    setup  "LaunchCollection", seasonal_collection: 1
     input  seasonal_collection: 1
     expect status: "closed"
   end

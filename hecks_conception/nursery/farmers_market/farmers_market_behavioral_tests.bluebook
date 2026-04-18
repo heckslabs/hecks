@@ -19,6 +19,7 @@ Hecks.behaviors "FarmersMarket" do
   test "ReinstatVendor runs" do
     tests "ReinstatVendor", on: "Vendor"
     setup  "RegisterVendor", vendor_id: "sample", farm_name: "sample", contact_name: "sample", contact_phone: "sample", product_type: "sample"
+    setup  "SuspendVendor", vendor: 1
     input  vendor: 1
     expect status: "active"
   end

@@ -60,22 +60,31 @@ Hecks.behaviors "CloudflareDeploy" do
 
   test "ApplyMigrations runs" do
     tests "ApplyMigrations", on: "Deployment"
+    setup  "ProvisionD1", database_name: "sample"
     expect status: "migrated"
   end
 
   test "DeployWorker runs" do
     tests "DeployWorker", on: "Deployment"
+    setup  "ProvisionD1", database_name: "sample"
+    setup  "ApplyMigrations"
     expect status: "api_live"
   end
 
   test "DeployPages runs" do
     tests "DeployPages", on: "Deployment"
+    setup  "ProvisionD1", database_name: "sample"
+    setup  "ApplyMigrations"
+    setup  "DeployWorker"
     expect status: "ui_live"
   end
 
   test "MarkLive sets worker_url + pages_url" do
     tests "MarkLive", on: "Deployment"
     setup  "ProvisionD1", database_name: "sample"
+    setup  "ApplyMigrations"
+    setup  "DeployWorker"
+    setup  "DeployPages"
     input  deployment: 1, worker_url: "sample", pages_url: "sample"
     expect worker_url: "sample", pages_url: "sample", status: "live"
   end

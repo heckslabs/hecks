@@ -19,6 +19,7 @@ Hecks.behaviors "Inbox" do
   test "ActOnMessage runs" do
     tests "ActOnMessage", on: "Message"
     setup  "PostMessage", body: "sample", priority: "sample"
+    setup  "AcknowledgeMessage", message: 1
     input  message: 1
     expect status: "done"
   end

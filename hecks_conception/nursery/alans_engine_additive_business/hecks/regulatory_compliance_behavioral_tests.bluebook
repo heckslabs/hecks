@@ -49,6 +49,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "ScheduleDeadline sets due_date" do
     tests "ScheduleDeadline", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
     input  compliance_obligation: 1, due_date: "sample"
     expect due_date: "sample", status: "scheduled"
   end
@@ -56,6 +57,8 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "MarkComplete runs" do
     tests "MarkComplete", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
+    setup  "ScheduleDeadline", compliance_obligation: 1, due_date: "sample"
     input  compliance_obligation: 1
     expect status: "completed"
   end
@@ -63,6 +66,8 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "FlagOverdue runs" do
     tests "FlagOverdue", on: "ComplianceObligation"
     setup  "IdentifyObligation", jurisdiction: "sample", regulation_code: "sample", obligation: "sample", frequency: "sample"
+    setup  "AssignResponsibility", compliance_obligation: 1, responsible_party: "sample"
+    setup  "ScheduleDeadline", compliance_obligation: 1, due_date: "sample"
     input  compliance_obligation: 1
     expect status: "overdue"
   end
@@ -93,6 +98,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "ApproveSDS sets approved_date" do
     tests "ApproveSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
     input  safety_data_sheet: 1, approved_date: "sample"
     expect approved_date: "sample", status: "approved"
   end
@@ -100,6 +106,8 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "PublishSDS runs" do
     tests "PublishSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
+    setup  "ApproveSDS", safety_data_sheet: 1, approved_date: "sample"
     input  safety_data_sheet: 1
     expect status: "published"
   end
@@ -107,6 +115,9 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "ReviseSDS runs" do
     tests "ReviseSDS", on: "SafetyDataSheet"
     setup  "DraftSDS", formula_name: "sample", ghs_classification: "sample"
+    setup  "ReviewSDS", safety_data_sheet: 1, reviewer: "sample"
+    setup  "ApproveSDS", safety_data_sheet: 1, approved_date: "sample"
+    setup  "PublishSDS", safety_data_sheet: 1
     input  safety_data_sheet: 1
     expect sds_version: 1, sections_complete: 0, status: "drafting"
   end
@@ -130,6 +141,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "CorrectLabel runs" do
     tests "CorrectLabel", on: "LabelCompliance"
     setup  "AuditLabel", product_sku: "sample", jurisdiction: "sample", required_elements: "sample_labelelement"
+    setup  "IdentifyGap", label_compliance: 1
     input  label_compliance: 1, required_elements: "sample_labelelement"
     expect required_elements: "sample_labelelement", status: "corrected"
   end
@@ -160,6 +172,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "ValidatePackaging runs" do
     tests "ValidatePackaging", on: "HazmatShipping"
     setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    setup  "GenerateShippingPaper", hazmat_shipping: 1
     input  hazmat_shipping: 1
     expect status: "validated"
   end
@@ -167,6 +180,8 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "CertifyCompliance runs" do
     tests "CertifyCompliance", on: "HazmatShipping"
     setup  "ClassifyShipment", product_sku: "sample", un_number: "sample", proper_shipping_name: "sample", hazard_class: "sample", packing_group: "sample", special_provisions: "sample"
+    setup  "GenerateShippingPaper", hazmat_shipping: 1
+    setup  "ValidatePackaging", hazmat_shipping: 1
     input  hazmat_shipping: 1
     expect status: "certified"
   end
@@ -190,6 +205,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "FileReport runs" do
     tests "FileReport", on: "EnvironmentalReport"
     setup  "CalculateVOC", reporting_period: "sample", jurisdiction: "sample", voc_content: 1.0, voc_limit: 1.0
+    setup  "PrepareReport", environmental_report: 1, waste_generated: 1.0, disposal_method: "sample"
     input  environmental_report: 1
     expect filed: "true", status: "filed"
   end
@@ -257,6 +273,7 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "PlanResponse sets action_required" do
     tests "PlanResponse", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
     input  regulatory_change: 1, action_required: "sample"
     expect action_required: "sample", status: "planned"
   end
@@ -264,6 +281,8 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "ImplementChange runs" do
     tests "ImplementChange", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
+    setup  "PlanResponse", regulatory_change: 1, action_required: "sample"
     input  regulatory_change: 1
     expect status: "implemented"
   end
@@ -271,6 +290,9 @@ Hecks.behaviors "RegulatoryCompliance" do
   test "VerifyCompliance runs" do
     tests "VerifyCompliance", on: "RegulatoryChange"
     setup  "DetectChange", jurisdiction: "sample", regulation_code: "sample", change_description: "sample", effective_date: "sample"
+    setup  "AssessImpact", regulatory_change: 1, impact_assessment: "sample"
+    setup  "PlanResponse", regulatory_change: 1, action_required: "sample"
+    setup  "ImplementChange", regulatory_change: 1
     input  regulatory_change: 1
     expect status: "verified"
   end

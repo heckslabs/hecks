@@ -26,6 +26,7 @@ Hecks.behaviors "PollinationService" do
   test "ReturnFromField runs" do
     tests "ReturnFromField", on: "Hive"
     setup  "RegisterHive", hive_id: "sample", population_estimate: 1, queen_status: "sample", honey_stores_kg: 1.0
+    setup  "DeployForPollination", hive: 1
     input  hive: 1
     expect status: "active"
   end
@@ -49,6 +50,7 @@ Hecks.behaviors "PollinationService" do
   test "ConfirmPollination runs" do
     tests "ConfirmPollination", on: "CropField"
     setup  "RegisterField", name: "sample", crop_type: "sample", area_hectares: 1.0, bloom_start: "sample", bloom_end: "sample", hives_needed: 1
+    setup  "RequestPollination", crop_field: 1
     input  crop_field: 1
     expect status: "pollinating"
   end
@@ -72,6 +74,7 @@ Hecks.behaviors "PollinationService" do
   test "CompleteSchedule runs" do
     tests "CompleteSchedule", on: "PollinationSchedule"
     setup  "CreateSchedule", schedule_name: "sample", field_name: "sample", hive_id: "sample", start_date: "sample", end_date: "sample", hive_count: 1
+    setup  "ActivateSchedule", pollination_schedule: 1
     input  pollination_schedule: 1
     expect status: "completed"
   end

@@ -35,6 +35,7 @@ Hecks.behaviors "EmergencyResponse" do
   test "ClearUnit runs" do
     tests "ClearUnit", on: "Ambulance"
     setup  "RegisterUnit", unit_id: "sample", crew_lead: "sample", location_name: "sample"
+    setup  "DispatchUnit", ambulance: 1
     input  ambulance: 1
     expect status: "available"
   end

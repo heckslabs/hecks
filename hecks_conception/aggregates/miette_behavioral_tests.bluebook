@@ -41,14 +41,14 @@ Hecks.behaviors "Miette" do
 
   test "AddInsight sets observation + applies_to" do
     tests "AddInsight", on: "Memory"
-    setup  "AddInsight", observation: "sample", applies_to: "sample"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     input  memory: 1, observation: "sample", applies_to: "sample"
     expect insights_size: 1
   end
 
   test "Recall runs" do
     tests "Recall", on: "Memory"
-    setup  "AddInsight", observation: "sample", applies_to: "sample"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     input  memory: 1
     expect recalled_count: 1
   end
@@ -64,14 +64,14 @@ Hecks.behaviors "Miette" do
 
   test "AddTrait sets trait" do
     tests "AddTrait", on: "Persona"
-    setup  "AddTrait", trait: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  persona: 1, trait: "sample"
     expect traits_size: 1
   end
 
   test "AppearInMemory sets domain_name" do
     tests "AppearInMemory", on: "Persona"
-    setup  "AddTrait", trait: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  persona: 1, domain_name: "sample"
     expect appears_in_size: 1
   end

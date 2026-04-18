@@ -108,7 +108,7 @@ Hecks.behaviors "Becoming" do
 
   test "PrepareSplit runs" do
     tests "PrepareSplit", on: "Train"
-    setup  "AddChainOfThought"
+    setup  "GenerateNegatives"
     input  shape: 1
     expect ok: "true"
   end

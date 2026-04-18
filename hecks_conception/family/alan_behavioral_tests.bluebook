@@ -14,14 +14,12 @@ Hecks.behaviors "Alan" do
 
   test "RecordInsight sets note" do
     tests "RecordInsight", on: "Business"
-    setup  "AddPainPoint", pain_point: "sample"
     input  business: 1, note: "sample"
     expect notes_size: 1
   end
 
   test "AddPainPoint sets pain_point" do
     tests "AddPainPoint", on: "Business"
-    setup  "AddPainPoint", pain_point: "sample"
     input  business: 1, pain_point: "sample"
     expect pain_points_size: 1
   end

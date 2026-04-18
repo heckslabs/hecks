@@ -51,8 +51,8 @@ Hecks.behaviors "Cryptography" do
 
   test "EncryptMessage sets plaintext" do
     tests "EncryptMessage", on: "EncryptedMessage"
-    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     setup  "RegisterCipher", cipher_name: "sample", cipher_type: "sample", block_size_bits: 1
+    setup  "GenerateKeyPair", algorithm: "sample", key_length_bits: 1, owner: "sample"
     input  key_pair: 1, cipher: 1, plaintext: "sample"
     expect ok: "true"
   end

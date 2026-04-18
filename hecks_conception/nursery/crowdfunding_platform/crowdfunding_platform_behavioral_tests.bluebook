@@ -51,8 +51,8 @@ Hecks.behaviors "CrowdfundingPlatform" do
 
   test "MakePledge sets pledge_id + amount + reward_tier" do
     tests "MakePledge", on: "Pledge"
-    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
     setup  "RegisterBacker", backer_id: "sample", name: "sample", email: "sample", payment_method: "sample"
+    setup  "LaunchCampaign", campaign_title: "sample", creator_name: "sample", description: "sample", funding_goal: 1.0, deadline: "sample"
     input  campaign: 1, backer: 1, pledge_id: "sample", amount: 1.0, reward_tier: "sample"
     expect ok: "true"
   end

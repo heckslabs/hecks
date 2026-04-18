@@ -50,7 +50,7 @@ Hecks.behaviors "GroceryStore" do
 
   test "PlaceReorder sets sku + quantity" do
     tests "PlaceReorder", on: "Supplier"
-    setup  "PlaceReorder", sku: "sample", quantity: 1
+    setup  "RegisterSupplier", name: "sample", contact_email: "sample", delivery_schedule: "sample"
     input  supplier: 1, sku: "sample", quantity: 1
     expect ok: "true"
   end

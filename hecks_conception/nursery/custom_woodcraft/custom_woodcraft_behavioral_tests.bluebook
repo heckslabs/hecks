@@ -51,22 +51,20 @@ Hecks.behaviors "CustomWoodcraft" do
 
   test "CreateWorkOrder sets craftsman" do
     tests "CreateWorkOrder", on: "WorkOrder"
-    setup  "MillLog", species: "sample", board_feet: 1.0
     setup  "DesignPiece", name: "sample", style: "sample"
+    setup  "MillLog", species: "sample", board_feet: 1.0
     input  lumber: 1, furniture_design: 1, craftsman: "sample"
     expect craftsman: "sample"
   end
 
   test "CompleteStep sets step_name" do
     tests "CompleteStep", on: "WorkOrder"
-    setup  "CreateWorkOrder", craftsman: "sample"
     input  work_order: 1, step_name: "sample"
     expect ok: "true"
   end
 
   test "FinishPiece runs" do
     tests "FinishPiece", on: "WorkOrder"
-    setup  "CreateWorkOrder", craftsman: "sample"
     input  work_order: 1
     expect ok: "true"
   end

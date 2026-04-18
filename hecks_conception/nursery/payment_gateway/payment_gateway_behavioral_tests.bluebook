@@ -57,14 +57,12 @@ Hecks.behaviors "PaymentGateway" do
 
   test "DisburseSettlement runs" do
     tests "DisburseSettlement", on: "Settlement"
-    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     input  settlement: 1
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "Settlement"
-    setup  "CreateSettlement", settlement_id: "sample", gross_amount: 1.0, fees: 1.0, period: "sample"
     input  settlement: 1, hold_reason: "sample"
     expect ok: "true"
   end

@@ -51,6 +51,7 @@ Hecks.behaviors "FoodDistribution" do
   test "CompleteDelivery runs" do
     tests "CompleteDelivery", on: "DeliveryRoute"
     setup  "PlanRoute", route_id: "sample", driver_name: "sample", total_miles: 1.0
+    setup  "StartDelivery", delivery_route: 1
     input  delivery_route: 1
     expect status: "completed"
   end

@@ -51,7 +51,6 @@ Hecks.behaviors "ConcretePour" do
 
   test "InspectReinforcement sets inspection_result" do
     tests "InspectReinforcement", on: "Reinforcement"
-    setup  "PlaceRebar", rebar_size: "sample", spacing: "sample", coverage_inches: 1.0
     input  reinforcement: 1, inspection_result: "sample"
     expect ok: "true"
   end

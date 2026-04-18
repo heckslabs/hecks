@@ -60,7 +60,7 @@ Hecks.behaviors "Optometry" do
 
   test "DispenseLenses runs" do
     tests "DispenseLenses", on: "LensOrder"
-    setup  "PlaceLensOrder", patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
+    setup  "PlaceLensOrder", patient: 1, lens_prescription: 1, patient_name: "sample", lens_type: "sample", frame_style: "sample", coating: "sample", order_date: "sample"
     input  lens_order: 1
     expect status: "dispensed"
   end
@@ -77,6 +77,7 @@ Hecks.behaviors "Optometry" do
 
   test "CompleteFollowUp sets outcome_notes" do
     tests "CompleteFollowUp", on: "FollowUp"
+    setup  "ScheduleFollowUp", patient: 1, patient_name: "sample", reason: "sample", scheduled_date: "sample"
     input  follow_up: 1, outcome_notes: "sample"
     expect outcome_notes: "sample", status: "completed"
   end

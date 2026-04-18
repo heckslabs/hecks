@@ -35,7 +35,6 @@ Hecks.behaviors "RefugeeResettlement" do
 
   test "UpdateMedicalNeeds sets medical_needs" do
     tests "UpdateMedicalNeeds", on: "FamilyMember"
-    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
     input  family_member: 1, medical_needs: "sample"
     expect medical_needs: "sample"
   end
@@ -52,6 +51,7 @@ Hecks.behaviors "RefugeeResettlement" do
 
   test "DeliverService runs" do
     tests "DeliverService", on: "ResettlementService"
+    setup  "ScheduleService", resettlement_case: 1, service_name: "sample", service_category: "sample", provider: "sample", case_number: "sample", scheduled_date: "sample"
     input  resettlement_service: 1
     expect status: "delivered"
   end
@@ -89,21 +89,19 @@ Hecks.behaviors "RefugeeResettlement" do
 
   test "BeginJobSearch sets family_member_name + desired_field + language_proficiency" do
     tests "BeginJobSearch", on: "EmploymentAssistance"
-    setup  "RegisterFamilyMember", name: "sample", date_of_birth: "sample", relationship: "sample", language_spoken: "sample", medical_needs: "sample", case_number: "sample"
     input  family_member: 1, family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
     expect family_member_name: "sample", desired_field: "sample", language_proficiency: "sample", resume_status: "not_started", placement_status: "searching"
   end
 
   test "PrepareResume runs" do
     tests "PrepareResume", on: "EmploymentAssistance"
-    setup  "PlaceInJob", employer_name: "sample"
     input  employment_assistance: 1
     expect resume_status: "complete"
   end
 
   test "PlaceInJob sets employer_name" do
     tests "PlaceInJob", on: "EmploymentAssistance"
-    setup  "PlaceInJob", employer_name: "sample"
+    setup  "BeginJobSearch", family_member: 1, family_member_name: "sample", desired_field: "sample", language_proficiency: "sample"
     input  employment_assistance: 1, employer_name: "sample"
     expect employer_name: "sample", placement_status: "placed"
   end

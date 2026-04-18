@@ -44,6 +44,7 @@ Hecks.behaviors "DynamicProjection" do
   test "RegeneratePage runs" do
     tests "RegeneratePage", on: "PageProjection"
     setup  "ProjectPage", aggregate_name: "sample", bluebook_path: "sample"
+    setup  "FlagStale", page_projection: 1
     input  page_projection: 1
     expect status: "current"
   end

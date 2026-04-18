@@ -35,14 +35,12 @@ Hecks.behaviors "Hospice" do
 
   test "AddIntervention sets symptom + intervention + frequency" do
     tests "AddIntervention", on: "ComfortPlan"
-    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     input  comfort_plan: 1, symptom: "sample", intervention: "sample", frequency: "sample"
     expect ok: "true"
   end
 
   test "AdjustPainManagement sets pain_management_approach" do
     tests "AdjustPainManagement", on: "ComfortPlan"
-    setup  "CreateComfortPlan", patient_name: "sample", pain_management_approach: "sample", spiritual_preferences: "sample"
     input  comfort_plan: 1, pain_management_approach: "sample"
     expect pain_management_approach: "sample"
   end
@@ -59,14 +57,12 @@ Hecks.behaviors "Hospice" do
 
   test "ScheduleSupportSession sets session_date + session_type + counselor_name" do
     tests "ScheduleSupportSession", on: "FamilySupport"
-    setup  "RegisterFamilyContact", family_contact_name: "sample", patient_name: "sample", relationship: "sample"
     input  family_support: 1, session_date: "sample", session_type: "sample", counselor_name: "sample"
     expect ok: "true"
   end
 
   test "BeginBereavementCare runs" do
     tests "BeginBereavementCare", on: "FamilySupport"
-    setup  "RegisterFamilyContact", family_contact_name: "sample", patient_name: "sample", relationship: "sample"
     input  family_support: 1
     expect bereavement_status: "active"
   end
@@ -99,6 +95,7 @@ Hecks.behaviors "Hospice" do
 
   test "CompleteHospiceVisit sets pain_score + notes" do
     tests "CompleteHospiceVisit", on: "HospiceVisit"
+    setup  "ScheduleHospiceVisit", patient: 1, patient_name: "sample", visitor_name: "sample", visitor_role: "sample", visit_date: "sample"
     input  hospice_visit: 1, pain_score: 1, notes: "sample"
     expect pain_score: 1, notes: "sample", status: "completed"
   end

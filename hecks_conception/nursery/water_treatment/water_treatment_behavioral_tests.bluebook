@@ -26,6 +26,7 @@ Hecks.behaviors "WaterTreatment" do
   test "RestartPlant runs" do
     tests "RestartPlant", on: "Plant"
     setup  "ActivatePlant", plant_id: "sample", name: "sample", capacity_mgd: 1.0
+    setup  "ShutdownPlant", plant: 1, reason: "sample"
     input  plant: 1
     expect status: "operational"
   end
@@ -42,6 +43,7 @@ Hecks.behaviors "WaterTreatment" do
 
   test "ActivateProcess runs" do
     tests "ActivateProcess", on: "TreatmentProcess"
+    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
     input  treatment_process: 1
     expect status: "active"
   end
@@ -54,12 +56,17 @@ Hecks.behaviors "WaterTreatment" do
 
   test "BypassProcess sets reason" do
     tests "BypassProcess", on: "TreatmentProcess"
+    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess", treatment_process: 1
     input  treatment_process: 1, reason: "sample"
     expect status: "bypassed"
   end
 
   test "RestoreProcess runs" do
     tests "RestoreProcess", on: "TreatmentProcess"
+    setup  "ConfigureProcess", plant: 1, stage_name: "sample", technology: "sample"
+    setup  "ActivateProcess", treatment_process: 1
+    setup  "BypassProcess", treatment_process: 1, reason: "sample"
     input  treatment_process: 1
     expect status: "active"
   end
@@ -76,18 +83,23 @@ Hecks.behaviors "WaterTreatment" do
 
   test "AnalyzeSample runs" do
     tests "AnalyzeSample", on: "WaterSample"
+    setup  "CollectSample", plant: 1, sample_point: "sample"
     input  water_sample: 1
     expect status: "analyzed"
   end
 
   test "ApproveSample runs" do
     tests "ApproveSample", on: "WaterSample"
+    setup  "CollectSample", plant: 1, sample_point: "sample"
+    setup  "AnalyzeSample", water_sample: 1
     input  water_sample: 1
     expect status: "approved"
   end
 
   test "RejectSample runs" do
     tests "RejectSample", on: "WaterSample"
+    setup  "CollectSample", plant: 1, sample_point: "sample"
+    setup  "AnalyzeSample", water_sample: 1
     input  water_sample: 1
     expect status: "rejected"
   end
@@ -103,12 +115,14 @@ Hecks.behaviors "WaterTreatment" do
 
   test "AdjustDose sets new_dose_rate_ppm" do
     tests "AdjustDose", on: "ChemicalFeed"
+    setup  "StartDosing", treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
     input  chemical_feed: 1, new_dose_rate_ppm: 1.0
     expect ok: "true"
   end
 
   test "StopDosing runs" do
     tests "StopDosing", on: "ChemicalFeed"
+    setup  "StartDosing", treatment_process: 1, chemical_name: "sample", dose_rate_ppm: 1.0, inventory_gallons: 1.0
     input  chemical_feed: 1
     expect status: "stopped"
   end

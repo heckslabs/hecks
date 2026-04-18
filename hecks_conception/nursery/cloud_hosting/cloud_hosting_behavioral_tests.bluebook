@@ -33,14 +33,12 @@ Hecks.behaviors "CloudHosting" do
 
   test "RollbackDeployment runs" do
     tests "RollbackDeployment", on: "Deployment"
-    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
     input  deployment: 1
     expect ok: "true"
   end
 
   test "FinalizeDeployment runs" do
     tests "FinalizeDeployment", on: "Deployment"
-    setup  "CreateDeployment", deploy_id: "sample", artifact_url: "sample", version_tag: "sample", strategy: "sample"
     input  deployment: 1
     expect ok: "true"
   end

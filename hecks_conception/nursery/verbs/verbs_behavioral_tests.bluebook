@@ -77,18 +77,21 @@ Hecks.behaviors "Verbs" do
 
   test "AcceptVerb sets word + reason" do
     tests "AcceptVerb", on: "Validation"
+    setup  "ValidateCommandVerb", word: "sample"
     input  word: "sample", reason: "sample"
     expect verdict: "accepted"
   end
 
   test "RejectVerb sets word + reason" do
     tests "RejectVerb", on: "Validation"
+    setup  "ValidateCommandVerb", word: "sample"
     input  word: "sample", reason: "sample"
     expect verdict: "rejected"
   end
 
   test "RequestHumanReview sets word + reason" do
     tests "RequestHumanReview", on: "Validation"
+    setup  "ValidateCommandVerb", word: "sample"
     input  word: "sample", reason: "sample"
     expect verdict: "pending_review"
   end

@@ -51,22 +51,21 @@ Hecks.behaviors "ElderCare" do
 
   test "CreateSchedule sets client_name + caregiver_name + week_starting" do
     tests "CreateSchedule", on: "CareSchedule"
-    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
     setup  "HireCaregiver", name: "sample", certification: "sample", phone: "sample", years_experience: 1, specialty: "sample"
+    setup  "EnrollClient", name: "sample", date_of_birth: "sample", address: "sample", primary_need: "sample", emergency_contact: "sample"
     input  client: 1, caregiver: 1, client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     expect client_name: "sample", caregiver_name: "sample", week_starting: "sample", status: "active"
   end
 
   test "AddVisitToSchedule sets day_of_week + start_time + end_time + visit_type" do
     tests "AddVisitToSchedule", on: "CareSchedule"
-    setup  "CreateSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     input  care_schedule: 1, day_of_week: "sample", start_time: "sample", end_time: "sample", visit_type: "sample"
     expect ok: "true"
   end
 
   test "CancelSchedule runs" do
     tests "CancelSchedule", on: "CareSchedule"
-    setup  "CreateSchedule", client_name: "sample", caregiver_name: "sample", week_starting: "sample"
+    setup  "CreateSchedule", client: 1, caregiver: 1, client_name: "sample", caregiver_name: "sample", week_starting: "sample"
     input  care_schedule: 1
     expect status: "cancelled"
   end
@@ -83,14 +82,13 @@ Hecks.behaviors "ElderCare" do
 
   test "AdministerMedication runs" do
     tests "AdministerMedication", on: "ElderMedication"
-    setup  "AddMedication", client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
+    setup  "AddMedication", client: 1, client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
     input  elder_medication: 1
     expect ok: "true"
   end
 
   test "DiscontinueMedication runs" do
     tests "DiscontinueMedication", on: "ElderMedication"
-    setup  "AddMedication", client_name: "sample", medication_name: "sample", dosage: "sample", frequency: "sample", prescriber: "sample"
     input  elder_medication: 1
     expect status: "discontinued"
   end

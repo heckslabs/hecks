@@ -51,6 +51,7 @@ Hecks.behaviors "DaycareCenter" do
 
   test "CheckOutChild sets check_out_time + checked_out_by" do
     tests "CheckOutChild", on: "DailyAttendance"
+    setup  "CheckInChild", child: 1, attendance_date: "sample", check_in_time: "sample", checked_in_by: "sample"
     input  daily_attendance: 1, check_out_time: "sample", checked_out_by: "sample"
     expect check_out_time: "sample", checked_out_by: "sample", status: "departed"
   end
@@ -90,12 +91,14 @@ Hecks.behaviors "DaycareCenter" do
 
   test "NotifyGuardian runs" do
     tests "NotifyGuardian", on: "IncidentReport"
+    setup  "FileIncident", child: 1, incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
     input  incident_report: 1
     expect guardian_notified: "yes"
   end
 
   test "CloseIncident runs" do
     tests "CloseIncident", on: "IncidentReport"
+    setup  "FileIncident", child: 1, incident_date: "sample", incident_time: "sample", description: "sample", severity: "sample", action_taken: "sample"
     input  incident_report: 1
     expect status: "closed"
   end

@@ -78,14 +78,12 @@ Hecks.behaviors "ELearning" do
 
   test "SubmitAttempt sets student_email + score" do
     tests "SubmitAttempt", on: "Quiz"
-    setup  "CreateQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     input  quiz: 1, student_email: "sample", score: 1
     expect ok: "true"
   end
 
   test "SuspendQuiz runs" do
     tests "SuspendQuiz", on: "Quiz"
-    setup  "CreateQuiz", quiz_title: "sample", passing_score: 1, time_limit_minutes: 1, max_attempts: 1
     input  quiz: 1
     expect ok: "true"
   end

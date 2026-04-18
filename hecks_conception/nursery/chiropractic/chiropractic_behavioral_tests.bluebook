@@ -19,6 +19,7 @@ Hecks.behaviors "Chiropractic" do
   test "DeactivatePatient runs" do
     tests "DeactivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", chief_complaint: "sample", insurance_id: "sample"
+    setup  "ActivatePatient", patient: 1
     input  patient: 1
     expect status: "inactive"
   end
@@ -51,6 +52,7 @@ Hecks.behaviors "Chiropractic" do
 
   test "InterpretImaging sets findings" do
     tests "InterpretImaging", on: "ImagingStudy"
+    setup  "OrderImaging", patient: 1, patient_name: "sample", imaging_type: "sample", body_region: "sample", order_date: "sample"
     input  imaging_study: 1, findings: "sample"
     expect findings: "sample", status: "interpreted"
   end
@@ -67,14 +69,13 @@ Hecks.behaviors "Chiropractic" do
 
   test "RecordCompletedVisit runs" do
     tests "RecordCompletedVisit", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
+    setup  "CreateTreatmentPlan", patient: 1, patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     input  treatment_plan: 1
     expect ok: "true"
   end
 
   test "CloseTreatmentPlan runs" do
     tests "CloseTreatmentPlan", on: "TreatmentPlan"
-    setup  "CreateTreatmentPlan", patient_name: "sample", diagnosis: "sample", planned_visits: 1, frequency: "sample"
     input  treatment_plan: 1
     expect status: "closed"
   end
@@ -91,14 +92,13 @@ Hecks.behaviors "Chiropractic" do
 
   test "SubmitInsuranceClaim runs" do
     tests "SubmitInsuranceClaim", on: "Invoice"
-    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
     input  invoice: 1
     expect insurance_claim_status: "submitted"
   end
 
   test "RecordPayment runs" do
     tests "RecordPayment", on: "Invoice"
-    setup  "CreateInvoice", patient_name: "sample", service_date: "sample", total_amount: 1.0
+    setup  "CreateInvoice", patient: 1, patient_name: "sample", service_date: "sample", total_amount: 1.0
     input  invoice: 1
     expect payment_status: "paid"
   end

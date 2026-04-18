@@ -19,6 +19,7 @@ Hecks.behaviors "CourierDelivery" do
   test "LoadParcel runs" do
     tests "LoadParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", parcel: 1, hub_code: "sample"
     input  parcel: 1
     expect status: "loaded"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "CourierDelivery" do
   test "DispatchParcel runs" do
     tests "DispatchParcel", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", parcel: 1, hub_code: "sample"
+    setup  "LoadParcel", parcel: 1
     input  parcel: 1
     expect status: "in_transit"
   end
@@ -33,6 +36,9 @@ Hecks.behaviors "CourierDelivery" do
   test "AttemptDelivery runs" do
     tests "AttemptDelivery", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", parcel: 1, hub_code: "sample"
+    setup  "LoadParcel", parcel: 1
+    setup  "DispatchParcel", parcel: 1
     input  parcel: 1
     expect status: "attempted"
   end
@@ -40,6 +46,9 @@ Hecks.behaviors "CourierDelivery" do
   test "MarkDelivered runs" do
     tests "MarkDelivered", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", parcel: 1, hub_code: "sample"
+    setup  "LoadParcel", parcel: 1
+    setup  "DispatchParcel", parcel: 1
     input  parcel: 1
     expect status: "delivered"
   end
@@ -47,6 +56,10 @@ Hecks.behaviors "CourierDelivery" do
   test "ReturnToSender sets reason" do
     tests "ReturnToSender", on: "Parcel"
     setup  "AcceptParcel", tracking_code: "sample", sender_address: "sample", recipient_address: "sample", weight_kg: 1.0
+    setup  "SortParcel", parcel: 1, hub_code: "sample"
+    setup  "LoadParcel", parcel: 1
+    setup  "DispatchParcel", parcel: 1
+    setup  "AttemptDelivery", parcel: 1
     input  parcel: 1, reason: "sample"
     expect status: "returned"
   end
@@ -70,6 +83,7 @@ Hecks.behaviors "CourierDelivery" do
   test "CompleteRoute runs" do
     tests "CompleteRoute", on: "Route"
     setup  "PlanRoute", zone: "sample", stop_count: 1
+    setup  "StartRoute", route: 1
     input  route: 1
     expect status: "completed"
   end
@@ -93,6 +107,7 @@ Hecks.behaviors "CourierDelivery" do
   test "CheckOutDriver runs" do
     tests "CheckOutDriver", on: "Driver"
     setup  "RegisterDriver", employee_id: "sample", name: "sample", license_class: "sample"
+    setup  "CheckInDriver", driver: 1
     input  driver: 1
     expect status: "available"
   end

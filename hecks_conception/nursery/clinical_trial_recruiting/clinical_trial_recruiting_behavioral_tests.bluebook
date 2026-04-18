@@ -35,14 +35,12 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
 
   test "AddCriterion sets criterion_type + description" do
     tests "AddCriterion", on: "TrialProtocol"
-    setup  "AddCriterion", criterion_type: "sample", description: "sample"
     input  trial_protocol: 1, criterion_type: "sample", description: "sample"
     expect criteria_size: 1
   end
 
   test "ApproveProtocol runs" do
     tests "ApproveProtocol", on: "TrialProtocol"
-    setup  "AddCriterion", criterion_type: "sample", description: "sample"
     input  trial_protocol: 1
     expect ok: "true"
   end
@@ -69,7 +67,6 @@ Hecks.behaviors "ClinicalTrialRecruiting" do
   test "MatchParticipant sets match_score" do
     tests "MatchParticipant", on: "MatchResult"
     setup  "RegisterParticipant", participant_name: "sample", age: 1, availability: "sample"
-    setup  "AddCriterion", criterion_type: "sample", description: "sample"
     input  freelance_participant: 1, trial_protocol: 1, match_score: 1.0
     expect ok: "true"
   end

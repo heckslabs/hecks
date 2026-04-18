@@ -50,14 +50,14 @@ Hecks.behaviors "DistilleryMedia" do
 
   test "AddSegment sets segment_title + duration_minutes + segment_type" do
     tests "AddSegment", on: "Episode"
-    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    setup  "PlanEpisode", title: "sample", topic: "sample"
     input  episode: 1, segment_title: "sample", duration_minutes: 1, segment_type: "sample"
     expect segments_size: 1
   end
 
   test "PublishEpisode runs" do
     tests "PublishEpisode", on: "Episode"
-    setup  "AddSegment", segment_title: "sample", duration_minutes: 1, segment_type: "sample"
+    setup  "PlanEpisode", title: "sample", topic: "sample"
     input  episode: 1
     expect ok: "true"
   end

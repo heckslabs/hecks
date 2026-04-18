@@ -34,12 +34,14 @@ Hecks.behaviors "VeteranServices" do
 
   test "ApproveClaim runs" do
     tests "ApproveClaim", on: "BenefitClaim"
+    setup  "FileClaim", veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     input  benefit_claim: 1
     expect status: "approved"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "BenefitClaim"
+    setup  "FileClaim", veteran: 1, veteran_name: "sample", benefit_type: "sample", filing_date: "sample", description: "sample"
     input  benefit_claim: 1
     expect status: "denied"
   end
@@ -101,6 +103,7 @@ Hecks.behaviors "VeteranServices" do
 
   test "RespondToCrisis sets responder_name" do
     tests "RespondToCrisis", on: "CrisisIntervention"
+    setup  "ReportCrisis", veteran: 1, veteran_name: "sample", crisis_type: "sample", reported_date: "sample"
     input  crisis_intervention: 1, responder_name: "sample"
     expect responder_name: "sample", status: "responding"
   end

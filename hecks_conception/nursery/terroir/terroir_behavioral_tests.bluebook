@@ -35,7 +35,6 @@ Hecks.behaviors "Terroir" do
 
   test "AddVineRow sets row_number + vine_count + rootstock" do
     tests "AddVineRow", on: "Vineyard"
-    setup  "AddVineRow", row_number: 1, vine_count: 1, rootstock: "sample"
     input  vineyard: 1, row_number: 1, vine_count: 1, rootstock: "sample"
     expect vines_size: 1
   end
@@ -45,14 +44,12 @@ Hecks.behaviors "Terroir" do
 
   test "StartHarvest sets harvest_date + brix" do
     tests "StartHarvest", on: "Harvest"
-    setup  "AddVineRow", row_number: 1, vine_count: 1, rootstock: "sample"
     input  vineyard: 1, harvest_date: "sample", brix: 1.0
     expect ok: "true"
   end
 
   test "AddLot sets lot_number + weight_kg + quality_grade" do
     tests "AddLot", on: "Harvest"
-    setup  "AddLot", lot_number: "sample", weight_kg: 1.0, quality_grade: "sample"
     input  harvest: 1, lot_number: "sample", weight_kg: 1.0, quality_grade: "sample"
     expect lots_size: 1
   end
@@ -62,7 +59,6 @@ Hecks.behaviors "Terroir" do
 
   test "StartFermentation sets vessel_type + yeast_strain" do
     tests "StartFermentation", on: "Fermentation"
-    setup  "AddLot", lot_number: "sample", weight_kg: 1.0, quality_grade: "sample"
     input  harvest: 1, vessel_type: "sample", yeast_strain: "sample"
     expect ok: "true"
   end

@@ -74,8 +74,8 @@ Hecks.behaviors "StreamingPlatform" do
 
   test "GenerateRecommendation sets recommendation_id + algorithm + relevance_score + reason" do
     tests "GenerateRecommendation", on: "Recommendation"
-    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
     setup  "IngestContent", content_id: "sample", title: "sample", genre: "sample", duration_seconds: 1, content_rating: "sample"
+    setup  "EnrollSubscriber", subscriber_id: "sample", email: "sample", plan: "sample", payment_method: "sample"
     input  subscriber: 1, content: 1, recommendation_id: "sample", algorithm: "sample", relevance_score: 1.0, reason: "sample"
     expect ok: "true"
   end

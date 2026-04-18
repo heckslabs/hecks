@@ -90,14 +90,12 @@ Hecks.behaviors "SubstanceRecovery" do
 
   test "AddGroupMember sets client_name + joined_date" do
     tests "AddGroupMember", on: "SupportGroup"
-    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     input  support_group: 1, client_name: "sample", joined_date: "sample"
     expect ok: "true"
   end
 
   test "RecordAttendance runs" do
     tests "RecordAttendance", on: "SupportGroup"
-    setup  "CreateSupportGroup", group_name: "sample", meeting_day: "sample", meeting_time: "sample", facilitator_name: "sample", max_members: 1
     input  support_group: 1
     expect ok: "true"
   end

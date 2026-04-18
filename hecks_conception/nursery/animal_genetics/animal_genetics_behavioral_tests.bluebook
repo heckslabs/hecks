@@ -19,6 +19,7 @@ Hecks.behaviors "AnimalGenetics" do
   test "MakeAvailable runs" do
     tests "MakeAvailable", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    setup  "OrderDNATest", animal_profile: 1
     input  animal_profile: 1
     expect status: "available"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "AnimalGenetics" do
   test "AdoptAnimal runs" do
     tests "AdoptAnimal", on: "AnimalProfile"
     setup  "IntakeAnimal", name: "sample", species: "sample", primary_breed: "sample", age_years: 1.0, temperament: "sample"
+    setup  "OrderDNATest", animal_profile: 1
+    setup  "MakeAvailable", animal_profile: 1
     input  animal_profile: 1
     expect status: "adopted"
   end

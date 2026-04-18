@@ -51,6 +51,7 @@ Hecks.behaviors "PoolChemistry" do
   test "VerifyDosing runs" do
     tests "VerifyDosing", on: "DosingPlan"
     setup  "CreateDosingPlan", pool_name: "sample", chemical_name: "sample", current_level: 1.0, target_level: 1.0, dose_amount_ml: 1.0, dosing_method: "sample"
+    setup  "ExecuteDosing", dosing_plan: 1
     input  dosing_plan: 1
     expect status: "verified"
   end
@@ -74,6 +75,7 @@ Hecks.behaviors "PoolChemistry" do
   test "ClearAlgae runs" do
     tests "ClearAlgae", on: "AlgaeIncident"
     setup  "ReportAlgae", pool_name: "sample", algae_type: "sample", severity: "sample", cause: "sample"
+    setup  "TreatAlgae", algae_incident: 1, treatment_applied: "sample"
     input  algae_incident: 1
     expect status: "cleared"
   end

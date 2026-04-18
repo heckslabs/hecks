@@ -28,14 +28,12 @@ Hecks.behaviors "RoastScience" do
 
   test "AddCurvePoint sets time_seconds + temp_c + phase" do
     tests "AddCurvePoint", on: "RoastProfile"
-    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
     input  roast_profile: 1, time_seconds: 1, temp_c: 1.0, phase: "sample"
     expect curve_points_size: 1
   end
 
   test "ApproveProfile runs" do
     tests "ApproveProfile", on: "RoastProfile"
-    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
     input  roast_profile: 1
     expect ok: "true"
   end
@@ -45,7 +43,6 @@ Hecks.behaviors "RoastScience" do
 
   test "StartBatch sets batch_number + weight_kg" do
     tests "StartBatch", on: "RoastBatch"
-    setup  "AddCurvePoint", time_seconds: 1, temp_c: 1.0, phase: "sample"
     input  roast_profile: 1, batch_number: "sample", weight_kg: 1.0
     expect ok: "true"
   end
@@ -73,14 +70,12 @@ Hecks.behaviors "RoastScience" do
 
   test "SetParameter sets param_name + value + unit" do
     tests "SetParameter", on: "BrewRecipe"
-    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
     input  brew_recipe: 1, param_name: "sample", value: 1.0, unit: "sample"
     expect parameters_size: 1
   end
 
   test "PublishRecipe runs" do
     tests "PublishRecipe", on: "BrewRecipe"
-    setup  "CreateRecipe", recipe_name: "sample", brew_method: "sample"
     input  brew_recipe: 1
     expect ok: "true"
   end

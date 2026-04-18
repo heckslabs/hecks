@@ -19,6 +19,7 @@ Hecks.behaviors "AmbulanceDispatch" do
   test "ReturnToService runs" do
     tests "ReturnToService", on: "AmbulanceUnit"
     setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    setup  "MarkOutOfService", ambulance_unit: 1
     input  ambulance_unit: 1
     expect status: "available"
   end
@@ -58,6 +59,7 @@ Hecks.behaviors "AmbulanceDispatch" do
 
   test "EndShift runs" do
     tests "EndShift", on: "CrewAssignment"
+    setup  "AssignCrew", ambulance_unit: 1, paramedic_lead: "sample", emt_partner: "sample", shift_start: "sample", shift_end: "sample"
     input  crew_assignment: 1
     expect status: "off_duty"
   end
@@ -67,20 +69,23 @@ Hecks.behaviors "AmbulanceDispatch" do
 
   test "DispatchUnit sets dispatched_at" do
     tests "DispatchUnit", on: "DispatchRecord"
-    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
     setup  "ActivateUnit", unit_number: "sample", station: "sample", equipment_level: "sample", mileage: 1
+    setup  "ReceiveCall", caller_name: "sample", caller_phone: "sample", location: "sample", nature_of_emergency: "sample", received_at: "sample"
     input  emergency_call: 1, ambulance_unit: 1, dispatched_at: "sample"
     expect dispatched_at: "sample", status: "dispatched"
   end
 
   test "ArriveOnScene sets on_scene_at" do
     tests "ArriveOnScene", on: "DispatchRecord"
+    setup  "DispatchUnit", emergency_call: 1, ambulance_unit: 1, dispatched_at: "sample"
     input  dispatch_record: 1, on_scene_at: "sample"
     expect on_scene_at: "sample", status: "on_scene"
   end
 
   test "TransportPatient sets transport_started_at" do
     tests "TransportPatient", on: "DispatchRecord"
+    setup  "DispatchUnit", emergency_call: 1, ambulance_unit: 1, dispatched_at: "sample"
+    setup  "ArriveOnScene", dispatch_record: 1, on_scene_at: "sample"
     input  dispatch_record: 1, transport_started_at: "sample"
     expect transport_started_at: "sample", status: "transporting"
   end
@@ -104,6 +109,7 @@ Hecks.behaviors "AmbulanceDispatch" do
   test "LiftDiversion runs" do
     tests "LiftDiversion", on: "HospitalDestination"
     setup  "RegisterHospital", hospital_name: "sample", address: "sample", ed_beds_available: 1, trauma_level: "sample"
+    setup  "DeclareDiversion", hospital_destination: 1
     input  hospital_destination: 1
     expect diversion_status: "open"
   end

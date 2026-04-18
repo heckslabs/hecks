@@ -299,6 +299,7 @@ Hecks.behaviors "Physics" do
   test "CollapseWavefunction sets measured_value" do
     tests "CollapseWavefunction", on: "QuantumState"
     setup  "PrepareState", name: "sample", system_type: "sample", num_qubits: 1
+    setup  "SuperposeStates", quantum_state: 1
     input  quantum_state: 1, measured_value: 1.0
     expect coherent: "false", status: "collapsed"
   end

@@ -72,6 +72,7 @@ Hecks.behaviors "ArchitectureFirm" do
 
   test "ReceiveApproval sets permit_number" do
     tests "ReceiveApproval", on: "Permit"
+    setup  "SubmitPermit", arch_project: 1, permit_type: "sample", jurisdiction: "sample"
     input  permit: 1, permit_number: "sample"
     expect status: "approved", permit_number: "sample"
   end

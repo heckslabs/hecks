@@ -19,6 +19,7 @@ Hecks.behaviors "OccupationalTherapy" do
   test "DischargeClient runs" do
     tests "DischargeClient", on: "Client"
     setup  "ReferClient", name: "sample", date_of_birth: "sample", condition: "sample", functional_level: "sample"
+    setup  "ActivateClient", client: 1
     input  client: 1
     expect status: "discharged"
   end
@@ -51,6 +52,7 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "ImplementAdaptation runs" do
     tests "ImplementAdaptation", on: "Adaptation"
+    setup  "RecommendAdaptation", client: 1, client_name: "sample", adaptation_type: "sample", description: "sample", location: "sample"
     input  adaptation: 1
     expect status: "implemented"
   end
@@ -79,6 +81,7 @@ Hecks.behaviors "OccupationalTherapy" do
 
   test "CompleteGoal runs" do
     tests "CompleteGoal", on: "FunctionalGoal"
+    setup  "EstablishGoal", client: 1, client_name: "sample", goal_description: "sample", functional_area: "sample", independence_score: 1, target_score: 1
     input  functional_goal: 1
     expect status: "completed"
   end

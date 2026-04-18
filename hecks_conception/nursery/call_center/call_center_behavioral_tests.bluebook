@@ -11,8 +11,8 @@ Hecks.behaviors "CallCenter" do
 
   test "AssignToAgent runs" do
     tests "AssignToAgent", on: "Ticket"
-    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     setup  "HireAgent", name: "sample", skill_level: "sample"
+    setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
     input  ticket: 1, agent: 1
     expect status: "assigned"
   end
@@ -20,6 +20,7 @@ Hecks.behaviors "CallCenter" do
   test "BeginWork runs" do
     tests "BeginWork", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent", ticket: 1, agent: 1
     input  ticket: 1
     expect status: "in_progress"
   end
@@ -27,6 +28,8 @@ Hecks.behaviors "CallCenter" do
   test "ResolveTicket sets resolution_note" do
     tests "ResolveTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent", ticket: 1, agent: 1
+    setup  "BeginWork", ticket: 1
     input  ticket: 1, resolution_note: "sample"
     expect status: "resolved"
   end
@@ -34,6 +37,9 @@ Hecks.behaviors "CallCenter" do
   test "CloseTicket runs" do
     tests "CloseTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent", ticket: 1, agent: 1
+    setup  "BeginWork", ticket: 1
+    setup  "ResolveTicket", ticket: 1, resolution_note: "sample"
     input  ticket: 1
     expect status: "closed"
   end
@@ -41,6 +47,9 @@ Hecks.behaviors "CallCenter" do
   test "ReopenTicket sets reason" do
     tests "ReopenTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent", ticket: 1, agent: 1
+    setup  "BeginWork", ticket: 1
+    setup  "ResolveTicket", ticket: 1, resolution_note: "sample"
     input  ticket: 1, reason: "sample"
     expect status: "open"
   end
@@ -48,6 +57,8 @@ Hecks.behaviors "CallCenter" do
   test "EscalateTicket sets reason" do
     tests "EscalateTicket", on: "Ticket"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "AssignToAgent", ticket: 1, agent: 1
+    setup  "BeginWork", ticket: 1
     input  ticket: 1, reason: "sample"
     expect priority: "urgent"
   end
@@ -63,8 +74,8 @@ Hecks.behaviors "CallCenter" do
 
   test "AssignTicket runs" do
     tests "AssignTicket", on: "Agent"
-    setup  "HireAgent", name: "sample", skill_level: "sample"
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "HireAgent", name: "sample", skill_level: "sample"
     input  agent: 1, ticket: 1
     expect ok: "true"
   end
@@ -79,6 +90,7 @@ Hecks.behaviors "CallCenter" do
   test "ReturnFromBreak runs" do
     tests "ReturnFromBreak", on: "Agent"
     setup  "HireAgent", name: "sample", skill_level: "sample"
+    setup  "SetAgentBreak", agent: 1
     input  agent: 1
     expect status: "available"
   end
@@ -94,8 +106,8 @@ Hecks.behaviors "CallCenter" do
 
   test "EnqueueTicket runs" do
     tests "EnqueueTicket", on: "Queue"
-    setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     setup  "OpenTicket", subject: "sample", description: "sample", priority: "sample", channel: "sample"
+    setup  "CreateQueue", queue_name: "sample", skill_group: "sample", max_wait_seconds: 1
     input  queue: 1, ticket: 1
     expect ok: "true"
   end

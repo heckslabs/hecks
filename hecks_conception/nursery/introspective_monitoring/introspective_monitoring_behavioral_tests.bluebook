@@ -88,6 +88,7 @@ Hecks.behaviors "IntrospectiveMonitoring" do
   test "CorrelateSignals sets left_signal + right_signal" do
     tests "CorrelateSignals", on: "SelfInquiry"
     setup  "PoseQuestion", question: "sample", domain_focus: "sample"
+    setup  "RecordFinding", self_inquiry: 1, finding: "sample"
     input  self_inquiry: 1, left_signal: "sample", right_signal: "sample"
     expect ok: "true"
   end

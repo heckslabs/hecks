@@ -51,14 +51,12 @@ Hecks.behaviors "FabricToRunway" do
 
   test "AddPatternPiece sets piece_name + fabric_yards" do
     tests "AddPatternPiece", on: "Pattern"
-    setup  "AddPatternPiece", piece_name: "sample", fabric_yards: 1.0
     input  pattern: 1, piece_name: "sample", fabric_yards: 1.0
     expect pieces_size: 1
   end
 
   test "FinalizePattern runs" do
     tests "FinalizePattern", on: "Pattern"
-    setup  "AddPatternPiece", piece_name: "sample", fabric_yards: 1.0
     input  pattern: 1
     expect ok: "true"
   end
@@ -75,14 +73,12 @@ Hecks.behaviors "FabricToRunway" do
 
   test "AddLook sets look_number + garment_name + model_name" do
     tests "AddLook", on: "RunwayShow"
-    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
     input  runway_show: 1, look_number: 1, garment_name: "sample", model_name: "sample"
     expect looks_size: 1
   end
 
   test "ExecuteShow runs" do
     tests "ExecuteShow", on: "RunwayShow"
-    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
     input  runway_show: 1
     expect ok: "true"
   end

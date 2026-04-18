@@ -35,6 +35,7 @@ Hecks.behaviors "WineVineyard" do
 
   test "CrushGrapes runs" do
     tests "CrushGrapes", on: "Vintage"
+    setup  "HarvestGrapes", vineyard: 1, year: 1, grape_variety: "sample", tons_harvested: 1.0, brix_at_harvest: 1.0, ph_at_harvest: 1.0
     input  vintage: 1
     expect status: "crushed"
   end
@@ -56,12 +57,14 @@ Hecks.behaviors "WineVineyard" do
 
   test "PunchDownCap runs" do
     tests "PunchDownCap", on: "Fermentation"
+    setup  "StartFermentation", vintage: 1, vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
     input  fermentation: 1
     expect ok: "true"
   end
 
   test "RackWine runs" do
     tests "RackWine", on: "Fermentation"
+    setup  "StartFermentation", vintage: 1, vessel_type: "sample", vessel_id: "sample", volume_liters: 1.0, yeast_strain: "sample", temperature_celsius: 1.0
     input  fermentation: 1
     expect status: "aging"
   end
@@ -77,12 +80,15 @@ Hecks.behaviors "WineVineyard" do
 
   test "LabelBottles sets label_name" do
     tests "LabelBottles", on: "BottlingRun"
+    setup  "BottleWine", fermentation: 1, bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
     input  bottling_run: 1, label_name: "sample"
     expect label_name: "sample", status: "labeled"
   end
 
   test "ReleaseForSale runs" do
     tests "ReleaseForSale", on: "BottlingRun"
+    setup  "BottleWine", fermentation: 1, bottle_count: 1, bottle_date: "sample", alcohol_percent: 1.0, closure_type: "sample"
+    setup  "LabelBottles", bottling_run: 1, label_name: "sample"
     input  bottling_run: 1
     expect status: "released"
   end

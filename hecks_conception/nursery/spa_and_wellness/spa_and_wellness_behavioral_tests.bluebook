@@ -27,7 +27,7 @@ Hecks.behaviors "SpaAndWellness" do
 
   test "AddSpecialty sets treatment_type" do
     tests "AddSpecialty", on: "Therapist"
-    setup  "AddSpecialty", treatment_type: "sample"
+    setup  "OnboardTherapist", therapist_id: "sample", name: "sample", license_number: "sample"
     input  therapist: 1, treatment_type: "sample"
     expect ok: "true"
   end
@@ -51,6 +51,7 @@ Hecks.behaviors "SpaAndWellness" do
   test "ReleaseRoom runs" do
     tests "ReleaseRoom", on: "SpaRoom"
     setup  "PrepareRoom", room_id: "sample", name: "sample", room_type: "sample", capacity: 1
+    setup  "OccupyRoom", spa_room: 1
     input  spa_room: 1
     expect status: "available"
   end

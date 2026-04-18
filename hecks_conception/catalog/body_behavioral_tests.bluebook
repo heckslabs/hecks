@@ -42,6 +42,7 @@ Hecks.behaviors "MietteBody" do
   test "ExtractCommand sets command_name" do
     tests "ExtractCommand", on: "Gut"
     setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
     input  gut: 1, command_name: "sample"
     expect extracted_commands_size: 1, stage: "digesting"
   end
@@ -49,6 +50,7 @@ Hecks.behaviors "MietteBody" do
   test "ExtractEvent sets event_name" do
     tests "ExtractEvent", on: "Gut"
     setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
     input  gut: 1, event_name: "sample"
     expect extracted_events_size: 1, stage: "digesting"
   end
@@ -56,6 +58,7 @@ Hecks.behaviors "MietteBody" do
   test "Absorb runs" do
     tests "Absorb", on: "Gut"
     setup  "Ingest", raw_input: "sample"
+    setup  "ExtractAggregate", gut: 1, aggregate_name: "sample"
     input  gut: 1
     expect digestion_stage: "absorbed", stage: "absorbed"
   end
@@ -145,6 +148,7 @@ Hecks.behaviors "MietteBody" do
   test "PassCheckpoint sets checkpoint_name" do
     tests "PassCheckpoint", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
+    setup  "Mature", domain_cell: 1
     input  domain_cell: 1, checkpoint_name: "sample"
     expect checkpoints_passed_size: 1, phase: "validated"
   end
@@ -152,6 +156,8 @@ Hecks.behaviors "MietteBody" do
   test "Divide runs" do
     tests "Divide", on: "DomainCell"
     setup  "Conceive", domain_name: "sample"
+    setup  "Mature", domain_cell: 1
+    setup  "PassCheckpoint", domain_cell: 1, checkpoint_name: "sample"
     input  domain_cell: 1
     expect phase: "divided"
   end
@@ -197,6 +203,7 @@ Hecks.behaviors "MietteBody" do
 
   test "SenseLimb sets organ_name + expressed + record_count + load" do
     tests "SenseLimb", on: "Proprioception"
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  organ_name: "sample", expressed: "sample", record_count: 1, load: "sample"
     expect limbs_size: 1, awareness: "sensing"
   end
@@ -211,6 +218,7 @@ Hecks.behaviors "MietteBody" do
   test "DetectDrift runs" do
     tests "DetectDrift", on: "Proprioception"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    setup  "AssessBalance", proprioception: 1, balance: "sample", schema_hash: "sample"
     input  proprioception: 1
     expect awareness: "recalibrating"
   end

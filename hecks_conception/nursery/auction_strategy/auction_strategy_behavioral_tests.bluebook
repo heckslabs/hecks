@@ -19,6 +19,7 @@ Hecks.behaviors "AuctionStrategy" do
   test "AwardAuction runs" do
     tests "AwardAuction", on: "Auction"
     setup  "CreateAuction", name: "sample", item_description: "sample", auction_type: "sample", reserve_price: 1.0, start_time: "sample", end_time: "sample"
+    setup  "CloseAuction", auction: 1
     input  auction: 1
     expect status: "awarded"
   end

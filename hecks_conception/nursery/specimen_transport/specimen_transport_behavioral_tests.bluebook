@@ -35,6 +35,7 @@ Hecks.behaviors "SpecimenTransport" do
   test "DeliverShipment runs" do
     tests "DeliverShipment", on: "ColdShipment"
     setup  "CreateShipment", shipment_id: "sample", carrier: "sample", origin_lab: "sample", dest_lab: "sample", target_temp_c: 1.0
+    setup  "PickUpShipment", cold_shipment: 1
     input  cold_shipment: 1
     expect status: "delivered"
   end

@@ -35,6 +35,7 @@ Hecks.behaviors "Pathology" do
 
   test "RunTest runs" do
     tests "RunTest", on: "LabTest"
+    setup  "OrderTest", specimen: 1, test_name: "sample", test_code: "sample", methodology: "sample", specimen_accession: "sample", ordered_by: "sample"
     input  lab_test: 1
     expect status: "completed"
   end
@@ -56,6 +57,7 @@ Hecks.behaviors "Pathology" do
 
   test "VerifyResult runs" do
     tests "VerifyResult", on: "TestResult"
+    setup  "RecordResult", lab_test: 1, test_name: "sample", result_value: "sample", unit: "sample", reference_range: "sample", interpretation: "sample", resulted_by: "sample", result_date: "sample"
     input  test_result: 1
     expect status: "verified"
   end
@@ -101,6 +103,7 @@ Hecks.behaviors "Pathology" do
 
   test "SignOutReport runs" do
     tests "SignOutReport", on: "PathologyReport"
+    setup  "DraftPathologyReport", specimen: 1, patient_name: "sample", specimen_accession: "sample", gross_description: "sample", microscopic_findings: "sample", diagnosis: "sample", pathologist_name: "sample", report_date: "sample"
     input  pathology_report: 1
     expect status: "final"
   end

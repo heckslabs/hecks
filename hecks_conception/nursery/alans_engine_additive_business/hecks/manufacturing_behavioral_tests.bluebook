@@ -19,6 +19,7 @@ Hecks.behaviors "Manufacturing" do
   test "ShipOrder runs" do
     tests "ShipOrder", on: "ManufacturingOrder"
     setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    setup  "ConfirmProduction", manufacturing_order: 1
     input  manufacturing_order: 1
     expect status: "shipped"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "Manufacturing" do
   test "ReceiveOrder sets actual_delivery + lot_number + certificate_of_analysis" do
     tests "ReceiveOrder", on: "ManufacturingOrder"
     setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    setup  "ConfirmProduction", manufacturing_order: 1
+    setup  "ShipOrder", manufacturing_order: 1
     input  manufacturing_order: 1, actual_delivery: "sample", lot_number: "sample", certificate_of_analysis: "sample"
     expect actual_delivery: "sample", lot_number: "sample", certificate_of_analysis: "sample", status: "received"
   end
@@ -33,6 +36,8 @@ Hecks.behaviors "Manufacturing" do
   test "RejectOrder sets reason" do
     tests "RejectOrder", on: "ManufacturingOrder"
     setup  "PlaceManufacturingOrder", order_number: "sample", manufacturer: "sample", formula_name: "sample", quantity: 1, unit: "sample", requested_delivery: "sample"
+    setup  "ConfirmProduction", manufacturing_order: 1
+    setup  "ShipOrder", manufacturing_order: 1
     input  manufacturing_order: 1, reason: "sample"
     expect status: "rejected"
   end

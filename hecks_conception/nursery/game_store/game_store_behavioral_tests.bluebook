@@ -42,6 +42,7 @@ Hecks.behaviors "GameStore" do
   test "ConcludeTournament runs" do
     tests "ConcludeTournament", on: "Tournament"
     setup  "CreateTournament", tournament_id: "sample", game_title: "sample", format: "sample", max_players: 1, entry_fee: 1.0, date: "sample"
+    setup  "LaunchTournament", tournament: 1
     input  tournament: 1
     expect status: "concluded"
   end

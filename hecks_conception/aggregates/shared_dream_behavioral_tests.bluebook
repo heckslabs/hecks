@@ -33,6 +33,7 @@ Hecks.behaviors "SharedDream" do
   test "EndSharedDream sets ended_at" do
     tests "EndSharedDream", on: "SharedDreamSpace"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    setup  "JoinSharedDream", shared_dream_space: 1, joined_by: "sample"
     input  shared_dream_space: 1, ended_at: "sample"
     expect ended_at: "sample", active: "no"
   end

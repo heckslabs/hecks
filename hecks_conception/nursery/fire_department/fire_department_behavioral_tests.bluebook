@@ -28,42 +28,56 @@ Hecks.behaviors "FireDepartment" do
 
   test "DispatchApparatus runs" do
     tests "DispatchApparatus", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "RegisterApparatus", station: 1, unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     input  apparatus: 1
     expect status: "dispatched"
   end
 
   test "ArriveOnScene runs" do
     tests "ArriveOnScene", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "RegisterApparatus", station: 1, unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus", apparatus: 1
     input  apparatus: 1
     expect status: "on_scene"
   end
 
   test "EngageOperations runs" do
     tests "EngageOperations", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "RegisterApparatus", station: 1, unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus", apparatus: 1
+    setup  "ArriveOnScene", apparatus: 1
     input  apparatus: 1
     expect status: "operating"
   end
 
   test "BeginOverhaul runs" do
     tests "BeginOverhaul", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "RegisterApparatus", station: 1, unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus", apparatus: 1
+    setup  "ArriveOnScene", apparatus: 1
+    setup  "EngageOperations", apparatus: 1
     input  apparatus: 1
     expect status: "overhauling"
   end
 
   test "ClearScene runs" do
     tests "ClearScene", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "RegisterApparatus", station: 1, unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus", apparatus: 1
+    setup  "ArriveOnScene", apparatus: 1
+    setup  "EngageOperations", apparatus: 1
+    setup  "BeginOverhaul", apparatus: 1
     input  apparatus: 1
     expect status: "returning"
   end
 
   test "ReturnToStation runs" do
     tests "ReturnToStation", on: "Apparatus"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
+    setup  "DispatchApparatus", apparatus: 1
+    setup  "ArriveOnScene", apparatus: 1
+    setup  "EngageOperations", apparatus: 1
+    setup  "BeginOverhaul", apparatus: 1
+    setup  "ClearScene", apparatus: 1
     input  apparatus: 1
     expect status: "in_service"
   end
@@ -80,7 +94,6 @@ Hecks.behaviors "FireDepartment" do
   test "AssignCall runs" do
     tests "AssignCall", on: "EmergencyCall"
     setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
-    setup  "RegisterApparatus", unit_id: "sample", apparatus_type: "sample", water_capacity_gallons: 1.0
     input  emergency_call: 1, apparatus: 1
     expect status: "dispatched"
   end
@@ -88,6 +101,7 @@ Hecks.behaviors "FireDepartment" do
   test "FileReport sets report_summary" do
     tests "FileReport", on: "EmergencyCall"
     setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
+    setup  "AssignCall", emergency_call: 1, apparatus: 1
     input  emergency_call: 1, report_summary: "sample"
     expect status: "reported"
   end
@@ -95,6 +109,8 @@ Hecks.behaviors "FireDepartment" do
   test "CloseCall runs" do
     tests "CloseCall", on: "EmergencyCall"
     setup  "ReceiveCall", call_type: "sample", address: "sample", priority: "sample"
+    setup  "AssignCall", emergency_call: 1, apparatus: 1
+    setup  "FileReport", emergency_call: 1, report_summary: "sample"
     input  emergency_call: 1
     expect status: "closed"
   end

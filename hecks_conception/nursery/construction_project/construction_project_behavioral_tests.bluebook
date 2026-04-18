@@ -35,12 +35,15 @@ Hecks.behaviors "ConstructionProject" do
 
   test "IssuePermit sets permit_number + issued_date + expiration_date" do
     tests "IssuePermit", on: "BuildingPermit"
+    setup  "ApplyForPermit", site: 1, permit_type: "sample"
     input  building_permit: 1, permit_number: "sample", issued_date: "sample", expiration_date: "sample"
     expect permit_number: "sample", issued_date: "sample", expiration_date: "sample", status: "issued"
   end
 
   test "RevokePermit runs" do
     tests "RevokePermit", on: "BuildingPermit"
+    setup  "ApplyForPermit", site: 1, permit_type: "sample"
+    setup  "IssuePermit", building_permit: 1, permit_number: "sample", issued_date: "sample", expiration_date: "sample"
     input  building_permit: 1
     expect status: "revoked"
   end
@@ -57,12 +60,14 @@ Hecks.behaviors "ConstructionProject" do
 
   test "IssueChangeOrder sets adjustment_amount + change_description" do
     tests "IssueChangeOrder", on: "SubcontractorAgreement"
+    setup  "HireSubcontractor", site: 1, company_name: "sample", trade: "sample", contract_value: 1.0, start_date: "sample", end_date: "sample"
     input  subcontractor_agreement: 1, adjustment_amount: 1.0, change_description: "sample"
     expect ok: "true"
   end
 
   test "TerminateSubcontractor runs" do
     tests "TerminateSubcontractor", on: "SubcontractorAgreement"
+    setup  "HireSubcontractor", site: 1, company_name: "sample", trade: "sample", contract_value: 1.0, start_date: "sample", end_date: "sample"
     input  subcontractor_agreement: 1
     expect status: "terminated"
   end
@@ -79,12 +84,14 @@ Hecks.behaviors "ConstructionProject" do
 
   test "ReceiveMaterials runs" do
     tests "ReceiveMaterials", on: "MaterialOrder"
+    setup  "OrderMaterials", site: 1, supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
     input  material_order: 1
     expect status: "received"
   end
 
   test "RejectDelivery runs" do
     tests "RejectDelivery", on: "MaterialOrder"
+    setup  "OrderMaterials", site: 1, supplier: "sample", material_type: "sample", quantity: 1, unit: "sample", total_cost: 1.0
     input  material_order: 1
     expect status: "rejected"
   end
@@ -101,6 +108,7 @@ Hecks.behaviors "ConstructionProject" do
 
   test "RecordResult sets inspector_name + result + deficiencies" do
     tests "RecordResult", on: "SiteInspection"
+    setup  "ScheduleInspection", site: 1, building_permit: 1, inspection_type: "sample", inspection_date: "sample"
     input  site_inspection: 1, inspector_name: "sample", result: "sample", deficiencies: "sample"
     expect inspector_name: "sample", result: "sample", deficiencies: "sample", status: "completed"
   end

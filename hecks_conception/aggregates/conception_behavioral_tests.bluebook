@@ -87,14 +87,14 @@ Hecks.behaviors "Conception" do
 
   test "RegisterBirth runs" do
     tests "RegisterBirth", on: "Delivery"
-    setup  "RegisterBirth"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     input  delivery: 1
     expect ok: "true"
   end
 
   test "IndexInNursery runs" do
     tests "IndexInNursery", on: "Delivery"
-    setup  "RegisterBirth"
+    setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     input  delivery: 1
     expect indexed: "yes"
   end
@@ -141,6 +141,7 @@ Hecks.behaviors "Conception" do
   test "PlanDevelopment sets target_vector" do
     tests "PlanDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
     input  development: 1, target_vector: 1.0
     expect target_vector: 1.0, status: "planned"
   end
@@ -148,6 +149,8 @@ Hecks.behaviors "Conception" do
   test "DevelopDomain runs" do
     tests "DevelopDomain", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
+    setup  "PlanDevelopment", development: 1, target_vector: 1.0
     input  development: 1
     expect status: "developed"
   end
@@ -155,6 +158,8 @@ Hecks.behaviors "Conception" do
   test "RejectDevelopment runs" do
     tests "RejectDevelopment", on: "Development"
     setup  "ComputeVector", domain_name: "sample"
+    setup  "FindArchetype", development: 1
+    setup  "PlanDevelopment", development: 1, target_vector: 1.0
     input  development: 1
     expect status: "rejected"
   end

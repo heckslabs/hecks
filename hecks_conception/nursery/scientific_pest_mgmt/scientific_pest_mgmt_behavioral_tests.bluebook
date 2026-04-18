@@ -35,6 +35,7 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "ResolveInfestation runs" do
     tests "ResolveInfestation", on: "Infestation"
     setup  "ReportInfestation", site_address: "sample", pest_species: "sample", severity: "sample", estimated_population: 1, affected_area: "sample"
+    setup  "AssessInfestation", infestation: 1
     input  infestation: 1
     expect status: "resolved"
   end
@@ -58,6 +59,7 @@ Hecks.behaviors "ScientificPestMgmt" do
   test "EvaluateEffectiveness sets effectiveness_pct" do
     tests "EvaluateEffectiveness", on: "Treatment"
     setup  "PrescribeTreatment", treatment_name: "sample", method: "sample", active_ingredient: "sample", concentration_pct: 1.0, target_life_stage: "sample"
+    setup  "ApplyTreatment", treatment: 1
     input  treatment: 1, effectiveness_pct: 1.0
     expect effectiveness_pct: 1.0, status: "evaluated"
   end

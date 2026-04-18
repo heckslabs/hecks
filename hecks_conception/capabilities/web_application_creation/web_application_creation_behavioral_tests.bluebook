@@ -11,7 +11,7 @@ Hecks.behaviors "WebApplicationCreation" do
 
   test "RegisterConvention sets element_type + attribute_name + maps_to" do
     tests "RegisterConvention", on: "DomainTag"
-    setup  "RegisterConvention", element_type: "sample", attribute_name: "sample", maps_to: "sample"
+    setup  "DefineTagPrefix", tag_prefix: "sample"
     input  domain_tag: 1, element_type: "sample", attribute_name: "sample", maps_to: "sample"
     expect ok: "true"
   end

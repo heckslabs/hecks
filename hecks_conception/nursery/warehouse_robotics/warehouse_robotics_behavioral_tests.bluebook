@@ -19,6 +19,7 @@ Hecks.behaviors "WarehouseRobotics" do
   test "CompleteTask sets battery_pct" do
     tests "CompleteTask", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "AssignTask", robot: 1
     input  robot: 1, battery_pct: 1.0
     expect battery_pct: 1.0, status: "idle"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "WarehouseRobotics" do
   test "FinishCharging runs" do
     tests "FinishCharging", on: "Robot"
     setup  "ActivateRobot", robot_id: "sample", robot_type: "sample", max_payload_kg: 1.0, current_zone: "sample"
+    setup  "SendToCharger", robot: 1
     input  robot: 1
     expect battery_pct: 100.0, status: "idle"
   end
@@ -56,6 +58,7 @@ Hecks.behaviors "WarehouseRobotics" do
   test "CompletePickList runs" do
     tests "CompletePickList", on: "PickList"
     setup  "GeneratePickList", list_id: "sample", order_id: "sample", item_count: 1, priority: "sample"
+    setup  "AssignToRobot", pick_list: 1, assigned_robot: "sample"
     input  pick_list: 1
     expect status: "completed"
   end

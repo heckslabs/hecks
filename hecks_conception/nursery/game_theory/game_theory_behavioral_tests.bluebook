@@ -35,14 +35,12 @@ Hecks.behaviors "GameTheory" do
 
   test "ComputeBestResponse runs" do
     tests "ComputeBestResponse", on: "Strategy"
-    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
     input  strategy: 1
     expect ok: "true"
   end
 
   test "EliminateDominated runs" do
     tests "EliminateDominated", on: "Strategy"
-    setup  "RegisterStrategy", player_id: "sample", strategy_type: "sample"
     input  strategy: 1
     expect ok: "true"
   end

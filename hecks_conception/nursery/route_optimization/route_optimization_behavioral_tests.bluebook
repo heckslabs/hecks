@@ -35,6 +35,7 @@ Hecks.behaviors "RouteOptimization" do
   test "DeliverParcel runs" do
     tests "DeliverParcel", on: "Parcel"
     setup  "RegisterParcel", tracking_id: "sample", weight_kg: 1.0, destination_address: "sample", priority: "sample", delivery_window: "sample"
+    setup  "AssignToRoute", parcel: 1
     input  parcel: 1
     expect status: "delivered"
   end
@@ -81,6 +82,7 @@ Hecks.behaviors "RouteOptimization" do
   test "CompleteRoute runs" do
     tests "CompleteRoute", on: "DeliveryRoute"
     setup  "OptimizeRoute", name: "sample", courier_name: "sample", stop_count: 1, total_distance_km: 1.0, estimated_hours: 1.0
+    setup  "DispatchRoute", delivery_route: 1
     input  delivery_route: 1
     expect status: "completed"
   end

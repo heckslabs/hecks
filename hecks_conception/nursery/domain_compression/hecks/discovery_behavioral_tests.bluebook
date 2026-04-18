@@ -11,14 +11,14 @@ Hecks.behaviors "Discovery" do
 
   test "AddMember sets domain_name" do
     tests "AddMember", on: "DomainCluster"
-    setup  "AddMember", domain_name: "sample"
+    setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
     input  domain_cluster: 1, domain_name: "sample"
     expect member_domains_size: 1, member_count: 1
   end
 
   test "RecalculateCohesion sets cohesion_score" do
     tests "RecalculateCohesion", on: "DomainCluster"
-    setup  "AddMember", domain_name: "sample"
+    setup  "DiscoverClusters", cluster_name: "sample", pattern_signature: "sample", cohesion_score: 1.0
     input  domain_cluster: 1, cohesion_score: 1.0
     expect cohesion_score: 1.0
   end

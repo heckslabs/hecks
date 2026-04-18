@@ -35,14 +35,12 @@ Hecks.behaviors "FinancialFreedom" do
 
   test "AddIncomeSource sets source_type + amount + frequency" do
     tests "AddIncomeSource", on: "FinancialProfile"
-    setup  "CreateProfile"
     input  financial_profile: 1, source_type: "sample", amount: 1.0, frequency: "sample"
     expect income_sources_size: 1
   end
 
   test "RecordDebt sets creditor + amount_owed + interest_rate" do
     tests "RecordDebt", on: "FinancialProfile"
-    setup  "CreateProfile"
     input  financial_profile: 1, creditor: "sample", amount_owed: 1.0, interest_rate: 1.0
     expect debts_size: 1
   end
@@ -53,21 +51,18 @@ Hecks.behaviors "FinancialFreedom" do
   test "PrepareTaxReturn sets tax_year + filing_status" do
     tests "PrepareTaxReturn", on: "TaxReturn"
     setup  "OpenCase", case_id: "sample", intake_date: "sample", safety_plan: "sample"
-    setup  "CreateProfile"
     input  survivor_case: 1, financial_profile: 1, tax_year: "sample", filing_status: "sample"
     expect ok: "true"
   end
 
   test "AddDeduction sets deduction_type + amount + documentation" do
     tests "AddDeduction", on: "TaxReturn"
-    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
     input  tax_return: 1, deduction_type: "sample", amount: 1.0, documentation: "sample"
     expect deductions_size: 1
   end
 
   test "FileReturn runs" do
     tests "FileReturn", on: "TaxReturn"
-    setup  "AddDeduction", deduction_type: "sample", amount: 1.0, documentation: "sample"
     input  tax_return: 1
     expect ok: "true"
   end

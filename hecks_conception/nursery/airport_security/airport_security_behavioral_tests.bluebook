@@ -33,6 +33,7 @@ Hecks.behaviors "AirportSecurity" do
   test "StandDown runs" do
     tests "StandDown", on: "Checkpoint"
     setup  "OpenCheckpoint", checkpoint_id: "sample", terminal: "sample", lane_count: 1, throughput_per_hour: 1
+    setup  "EscalateToHighAlert", checkpoint: 1
     input  checkpoint: 1
     expect status: "open"
   end
@@ -49,24 +50,32 @@ Hecks.behaviors "AirportSecurity" do
 
   test "CalibrateScanner runs" do
     tests "CalibrateScanner", on: "Scanner"
+    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
     input  scanner: 1
     expect status: "operational"
   end
 
   test "PerformScan runs" do
     tests "PerformScan", on: "Scanner"
+    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner", scanner: 1
     input  scanner: 1
     expect ok: "true"
   end
 
   test "FlagMalfunction runs" do
     tests "FlagMalfunction", on: "Scanner"
+    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner", scanner: 1
     input  scanner: 1
     expect status: "faulty"
   end
 
   test "RepairScanner runs" do
     tests "RepairScanner", on: "Scanner"
+    setup  "InstallScanner", checkpoint: 1, scanner_id: "sample", scanner_type: "sample"
+    setup  "CalibrateScanner", scanner: 1
+    setup  "FlagMalfunction", scanner: 1
     input  scanner: 1
     expect status: "installed"
   end
@@ -83,6 +92,7 @@ Hecks.behaviors "AirportSecurity" do
 
   test "RelieveOfficer runs" do
     tests "RelieveOfficer", on: "Officer"
+    setup  "DeployOfficer", checkpoint: 1, badge_number: "sample", name: "sample", clearance_level: "sample"
     input  officer: 1
     expect status: "off_duty"
   end
@@ -99,12 +109,15 @@ Hecks.behaviors "AirportSecurity" do
 
   test "InvestigateIncident runs" do
     tests "InvestigateIncident", on: "Incident"
+    setup  "ReportIncident", checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
     input  incident: 1
     expect status: "investigating"
   end
 
   test "ResolveIncident sets resolution" do
     tests "ResolveIncident", on: "Incident"
+    setup  "ReportIncident", checkpoint: 1, officer: 1, incident_type: "sample", severity: "sample", description: "sample"
+    setup  "InvestigateIncident", incident: 1
     input  incident: 1, resolution: "sample"
     expect status: "resolved"
   end

@@ -19,6 +19,7 @@ Hecks.behaviors "TrainScheduling" do
   test "DispatchTrain runs" do
     tests "DispatchTrain", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService", train: 1
     input  train: 1
     expect status: "running"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "TrainScheduling" do
   test "ArriveAtStation runs" do
     tests "ArriveAtStation", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService", train: 1
+    setup  "DispatchTrain", train: 1
     input  train: 1
     expect status: "at_station"
   end
@@ -33,6 +36,9 @@ Hecks.behaviors "TrainScheduling" do
   test "DepartStation runs" do
     tests "DepartStation", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService", train: 1
+    setup  "DispatchTrain", train: 1
+    setup  "ArriveAtStation", train: 1
     input  train: 1
     expect status: "running"
   end
@@ -40,6 +46,9 @@ Hecks.behaviors "TrainScheduling" do
   test "TerminateService runs" do
     tests "TerminateService", on: "Train"
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "PrepareForService", train: 1
+    setup  "DispatchTrain", train: 1
+    setup  "ArriveAtStation", train: 1
     input  train: 1
     expect status: "terminated"
   end
@@ -62,8 +71,8 @@ Hecks.behaviors "TrainScheduling" do
 
   test "AssignTrainToRoute runs" do
     tests "AssignTrainToRoute", on: "Route"
-    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "DefineRoute", route_code: "sample", origin_station: "sample", destination_station: "sample", stop_count: 1, distance_km: 1.0
     input  route: 1, train: 1
     expect ok: "true"
   end
@@ -79,8 +88,8 @@ Hecks.behaviors "TrainScheduling" do
 
   test "AllocatePlatform runs" do
     tests "AllocatePlatform", on: "Platform"
-    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
     setup  "ActivateTrain", train_number: "sample", service_type: "sample", car_count: 1, seat_capacity: 1
+    setup  "OpenPlatform", station_name: "sample", platform_number: 1, length_meters: 1.0
     input  platform: 1, train: 1
     expect status: "occupied"
   end
@@ -104,6 +113,7 @@ Hecks.behaviors "TrainScheduling" do
 
   test "ResolveDelay runs" do
     tests "ResolveDelay", on: "Delay"
+    setup  "ReportDelay", train: 1, cause: "sample", delay_minutes: 1
     input  delay: 1
     expect status: "resolved"
   end

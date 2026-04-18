@@ -18,8 +18,9 @@ Hecks.behaviors "PostOffice" do
 
   test "SortMail runs" do
     tests "SortMail", on: "MailPiece"
-    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
     setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    setup  "CancelMail", mail_piece: 1
     input  mail_piece: 1, carrier_route: 1
     expect status: "sorted"
   end
@@ -27,6 +28,8 @@ Hecks.behaviors "PostOffice" do
   test "SequenceMail runs" do
     tests "SequenceMail", on: "MailPiece"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    setup  "CancelMail", mail_piece: 1
+    setup  "SortMail", mail_piece: 1, carrier_route: 1
     input  mail_piece: 1
     expect status: "sequenced"
   end
@@ -34,6 +37,9 @@ Hecks.behaviors "PostOffice" do
   test "DeliverMail runs" do
     tests "DeliverMail", on: "MailPiece"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    setup  "CancelMail", mail_piece: 1
+    setup  "SortMail", mail_piece: 1, carrier_route: 1
+    setup  "SequenceMail", mail_piece: 1
     input  mail_piece: 1
     expect status: "delivered"
   end
@@ -41,6 +47,9 @@ Hecks.behaviors "PostOffice" do
   test "ReturnUndeliverable sets reason" do
     tests "ReturnUndeliverable", on: "MailPiece"
     setup  "AcceptMail", mail_class: "sample", sender_address: "sample", recipient_address: "sample"
+    setup  "CancelMail", mail_piece: 1
+    setup  "SortMail", mail_piece: 1, carrier_route: 1
+    setup  "SequenceMail", mail_piece: 1
     input  mail_piece: 1, reason: "sample"
     expect status: "returned"
   end
@@ -64,6 +73,7 @@ Hecks.behaviors "PostOffice" do
   test "ResumeRoute runs" do
     tests "ResumeRoute", on: "CarrierRoute"
     setup  "DefineRoute", route_code: "sample", zip_code: "sample", stop_count: 1, route_type: "sample"
+    setup  "SuspendRoute", carrier_route: 1, reason: "sample"
     input  carrier_route: 1
     expect status: "active"
   end
@@ -87,6 +97,7 @@ Hecks.behaviors "PostOffice" do
   test "ReturnCarrier runs" do
     tests "ReturnCarrier", on: "Carrier"
     setup  "HireCarrier", employee_id: "sample", name: "sample", carrier_type: "sample"
+    setup  "DispatchCarrier", carrier: 1
     input  carrier: 1
     expect status: "available"
   end
@@ -110,6 +121,7 @@ Hecks.behaviors "PostOffice" do
   test "OutForDelivery runs" do
     tests "OutForDelivery", on: "Package"
     setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    setup  "ScanPackage", package: 1, facility_code: "sample"
     input  package: 1
     expect status: "out_for_delivery"
   end
@@ -117,6 +129,8 @@ Hecks.behaviors "PostOffice" do
   test "DeliverPackage runs" do
     tests "DeliverPackage", on: "Package"
     setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    setup  "ScanPackage", package: 1, facility_code: "sample"
+    setup  "OutForDelivery", package: 1
     input  package: 1
     expect status: "delivered"
   end
@@ -124,6 +138,8 @@ Hecks.behaviors "PostOffice" do
   test "HoldForPickup runs" do
     tests "HoldForPickup", on: "Package"
     setup  "AcceptPackage", weight_lbs: 1.0, service_level: "sample", destination: "sample"
+    setup  "ScanPackage", package: 1, facility_code: "sample"
+    setup  "OutForDelivery", package: 1
     input  package: 1
     expect status: "held"
   end

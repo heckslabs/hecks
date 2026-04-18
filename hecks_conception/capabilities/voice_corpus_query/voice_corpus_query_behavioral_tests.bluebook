@@ -19,6 +19,7 @@ Hecks.behaviors "VoiceCorpusQuery" do
   test "SearchCorpus runs" do
     tests "SearchCorpus", on: "VoiceQuery"
     setup  "ReceiveQuery", transcript: "sample"
+    setup  "ParseIntent", voice_query: 1, intent: "sample"
     input  voice_query: 1, matched_domains: "sample_domainmatch"
     expect matched_domains: "sample_domainmatch", status: "searched"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "VoiceCorpusQuery" do
   test "FormulateAnswer sets answer" do
     tests "FormulateAnswer", on: "VoiceQuery"
     setup  "ReceiveQuery", transcript: "sample"
+    setup  "ParseIntent", voice_query: 1, intent: "sample"
+    setup  "SearchCorpus", voice_query: 1, matched_domains: "sample_domainmatch"
     input  voice_query: 1, answer: "sample"
     expect answer: "sample", status: "answered"
   end
@@ -33,6 +36,9 @@ Hecks.behaviors "VoiceCorpusQuery" do
   test "SpeakAnswer sets spoken_at" do
     tests "SpeakAnswer", on: "VoiceQuery"
     setup  "ReceiveQuery", transcript: "sample"
+    setup  "ParseIntent", voice_query: 1, intent: "sample"
+    setup  "SearchCorpus", voice_query: 1, matched_domains: "sample_domainmatch"
+    setup  "FormulateAnswer", voice_query: 1, answer: "sample"
     input  voice_query: 1, spoken_at: "sample"
     expect spoken_at: "sample", status: "spoken"
   end
@@ -71,21 +77,22 @@ Hecks.behaviors "VoiceCorpusQuery" do
 
   test "AddSource sets source" do
     tests "AddSource", on: "CorpusAnswer"
-    setup  "AddSource", source: "sample"
+    setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
     input  corpus_answer: 1, source: "sample"
     expect status: "pending", sources_size: 1
   end
 
   test "SimplifyForSpeech sets answer_text" do
     tests "SimplifyForSpeech", on: "CorpusAnswer"
-    setup  "AddSource", source: "sample"
+    setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
     input  corpus_answer: 1, answer_text: "sample"
     expect answer_text: "sample", status: "simplified"
   end
 
   test "DeliverAnswer runs" do
     tests "DeliverAnswer", on: "CorpusAnswer"
-    setup  "AddSource", source: "sample"
+    setup  "ComposeAnswer", query_id: "sample", answer_text: "sample", sources: "sample", confidence: 1.0
+    setup  "SimplifyForSpeech", corpus_answer: 1, answer_text: "sample"
     input  corpus_answer: 1
     expect spoken: "yes", status: "delivered"
   end

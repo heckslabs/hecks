@@ -11,14 +11,14 @@ Hecks.behaviors "PerishableRescue" do
 
   test "AddItem sets food_type + weight_kg + expiry_date + temp_requirement_c" do
     tests "AddItem", on: "FoodDonation"
-    setup  "AddItem", food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
     input  food_donation: 1, food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
     expect items_size: 1
   end
 
   test "ApproveDonation runs" do
     tests "ApproveDonation", on: "FoodDonation"
-    setup  "AddItem", food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
     input  food_donation: 1
     expect ok: "true"
   end
@@ -51,21 +51,19 @@ Hecks.behaviors "PerishableRescue" do
 
   test "ScheduleDistribution sets site_name + distribution_date" do
     tests "ScheduleDistribution", on: "Distribution"
-    setup  "AddItem", food_type: "sample", weight_kg: 1.0, expiry_date: "sample", temp_requirement_c: 1.0
+    setup  "ReceiveDonation", donor_name: "sample", donation_date: "sample"
     input  food_donation: 1, site_name: "sample", distribution_date: "sample"
     expect ok: "true"
   end
 
   test "RegisterRecipient sets family_id + family_size + dietary_needs" do
     tests "RegisterRecipient", on: "Distribution"
-    setup  "RegisterRecipient", family_id: "sample", family_size: 1, dietary_needs: "sample"
     input  distribution: 1, family_id: "sample", family_size: 1, dietary_needs: "sample"
     expect recipients_size: 1
   end
 
   test "ExecuteDistribution runs" do
     tests "ExecuteDistribution", on: "Distribution"
-    setup  "RegisterRecipient", family_id: "sample", family_size: 1, dietary_needs: "sample"
     input  distribution: 1
     expect ok: "true"
   end

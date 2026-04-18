@@ -51,20 +51,23 @@ Hecks.behaviors "OrganDonation" do
 
   test "PerformMatch sets donor_name + recipient_name + organ_name + compatibility_score" do
     tests "PerformMatch", on: "OrganMatch"
-    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
     setup  "ListRecipient", name: "sample", blood_type: "sample", tissue_type: "sample", organ_needed: "sample", urgency_level: "sample", listing_date: "sample"
+    setup  "RegisterDonor", name: "sample", blood_type: "sample", tissue_type: "sample", hospital: "sample", cause_of_death: "sample", consent_status: "sample"
     input  donor: 1, recipient: 1, donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     expect donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample", status: "pending_crossmatch"
   end
 
   test "RecordCrossmatch sets crossmatch_result" do
     tests "RecordCrossmatch", on: "OrganMatch"
+    setup  "PerformMatch", donor: 1, recipient: 1, donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
     input  organ_match: 1, crossmatch_result: "sample"
     expect crossmatch_result: "sample", status: "crossmatched"
   end
 
   test "AcceptMatch runs" do
     tests "AcceptMatch", on: "OrganMatch"
+    setup  "PerformMatch", donor: 1, recipient: 1, donor_name: "sample", recipient_name: "sample", organ_name: "sample", compatibility_score: "sample"
+    setup  "RecordCrossmatch", organ_match: 1, crossmatch_result: "sample"
     input  organ_match: 1
     expect status: "accepted"
   end
@@ -80,6 +83,7 @@ Hecks.behaviors "OrganDonation" do
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "OrganTransport"
+    setup  "DispatchOrgan", organ_match: 1, organ_name: "sample", origin_hospital: "sample", destination_hospital: "sample", transport_method: "sample", departure_time: "sample", estimated_arrival: "sample"
     input  organ_transport: 1
     expect status: "delivered"
   end

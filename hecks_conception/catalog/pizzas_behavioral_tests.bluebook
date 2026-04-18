@@ -34,14 +34,12 @@ Hecks.behaviors "Pizzas" do
 
   test "CancelOrder runs" do
     tests "CancelOrder", on: "Order"
-    setup  "PlaceOrder", customer_name: "sample", quantity: 1
     input  order: 1
     expect status: "cancelled"
   end
 
   test "Pending returns matching records" do
     tests "Pending", on: "Order", kind: :query
-    setup  "PlaceOrder", customer_name: "sample", quantity: 1
     expect count: 1
   end
 

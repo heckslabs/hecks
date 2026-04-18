@@ -26,6 +26,7 @@ Hecks.behaviors "WarehouseManagement" do
   test "ReopenLocation runs" do
     tests "ReopenLocation", on: "Location"
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "CloseLocation", location: 1, reason: "sample"
     input  location: 1
     expect status: "empty"
   end
@@ -48,8 +49,9 @@ Hecks.behaviors "WarehouseManagement" do
 
   test "StowPallet runs" do
     tests "StowPallet", on: "Pallet"
-    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
     setup  "CreateLocation", aisle: "sample", rack: "sample", shelf: "sample", zone: "sample", capacity: 1
+    setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet", pallet: 1
     input  pallet: 1, location: 1
     expect status: "stowed"
   end
@@ -57,6 +59,8 @@ Hecks.behaviors "WarehouseManagement" do
   test "PickPallet runs" do
     tests "PickPallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet", pallet: 1
+    setup  "StowPallet", pallet: 1, location: 1
     input  pallet: 1
     expect status: "picked"
   end
@@ -64,6 +68,9 @@ Hecks.behaviors "WarehouseManagement" do
   test "StagePallet runs" do
     tests "StagePallet", on: "Pallet"
     setup  "ReceivePallet", pallet_id: "sample", sku: "sample", quantity: 1
+    setup  "InspectPallet", pallet: 1
+    setup  "StowPallet", pallet: 1, location: 1
+    setup  "PickPallet", pallet: 1
     input  pallet: 1
     expect status: "staged"
   end
@@ -96,14 +103,15 @@ Hecks.behaviors "WarehouseManagement" do
 
   test "LoadShipment runs" do
     tests "LoadShipment", on: "Shipment"
-    setup  "CreateShipment", carrier: "sample", destination: "sample"
+    setup  "CreateShipment", pick_list: 1, carrier: "sample", destination: "sample"
     input  shipment: 1
     expect status: "loaded"
   end
 
   test "DispatchShipment runs" do
     tests "DispatchShipment", on: "Shipment"
-    setup  "CreateShipment", carrier: "sample", destination: "sample"
+    setup  "CreateShipment", pick_list: 1, carrier: "sample", destination: "sample"
+    setup  "LoadShipment", shipment: 1
     input  shipment: 1
     expect status: "dispatched"
   end

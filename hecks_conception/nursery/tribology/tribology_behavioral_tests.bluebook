@@ -257,6 +257,7 @@ Hecks.behaviors "Tribology" do
   test "GenerateReport sets report_format" do
     tests "GenerateReport", on: "TribologicalTest"
     setup  "RunTest", name: "sample", test_standard: "sample", apparatus: "sample"
+    setup  "RecordResult", tribological_test: 1, parameter: "sample", value: 1.0, unit: "sample"
     input  tribological_test: 1, report_format: "sample"
     expect status: "reported"
   end

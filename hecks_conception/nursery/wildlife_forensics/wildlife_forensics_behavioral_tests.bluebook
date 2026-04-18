@@ -19,6 +19,7 @@ Hecks.behaviors "WildlifeForensics" do
   test "AnalyzeEvidence runs" do
     tests "AnalyzeEvidence", on: "Evidence"
     setup  "CollectEvidence", evidence_id: "sample", evidence_type: "sample", location_found: "sample", collected_by: "sample", timestamp: "sample"
+    setup  "TransferEvidence", evidence: 1
     input  evidence: 1
     expect status: "analyzed"
   end
@@ -65,6 +66,7 @@ Hecks.behaviors "WildlifeForensics" do
   test "CloseCase runs" do
     tests "CloseCase", on: "PoachingCase"
     setup  "OpenCase", case_number: "sample", location: "sample", species_involved: "sample", method_used: "sample", lead_investigator: "sample"
+    setup  "ReferForProsecution", poaching_case: 1
     input  poaching_case: 1
     expect status: "closed"
   end
@@ -88,6 +90,7 @@ Hecks.behaviors "WildlifeForensics" do
   test "MatchDatabase sets match_confidence_pct" do
     tests "MatchDatabase", on: "DNAAnalysis"
     setup  "ExtractDNA", analysis_id: "sample", evidence_id: "sample", extraction_method: "sample"
+    setup  "SequenceDNA", d_n_a_analysis: 1, sequence_region: "sample"
     input  d_n_a_analysis: 1, match_confidence_pct: 1.0
     expect match_confidence_pct: 1.0, status: "matched"
   end

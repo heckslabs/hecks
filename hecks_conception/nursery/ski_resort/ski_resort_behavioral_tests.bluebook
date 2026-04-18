@@ -19,6 +19,7 @@ Hecks.behaviors "SkiResort" do
   test "ResumeLift runs" do
     tests "ResumeLift", on: "Lift"
     setup  "ActivateLift", lift_id: "sample", name: "sample", lift_type: "sample", capacity_per_chair: 1, vertical_rise_ft: 1
+    setup  "HaltLift", lift: 1
     input  lift: 1
     expect status: "running"
   end

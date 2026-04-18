@@ -34,8 +34,8 @@ Hecks.behaviors "MarinaManagement" do
 
   test "AssignToSlip runs" do
     tests "AssignToSlip", on: "Vessel"
-    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
     setup  "OpenSlip", slip_number: "sample", length_feet: 1.0, beam_feet: 1.0, dock_section: "sample", power_hookup: "sample", monthly_rate: 1.0
+    setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
     input  vessel: 1, slip: 1
     expect status: "docked"
   end
@@ -43,6 +43,7 @@ Hecks.behaviors "MarinaManagement" do
   test "RecordDeparture runs" do
     tests "RecordDeparture", on: "Vessel"
     setup  "RegisterVessel", vessel_name: "sample", registration_number: "sample", vessel_type: "sample", length_overall: 1.0, draft_feet: 1.0, owner_name: "sample", owner_phone: "sample"
+    setup  "AssignToSlip", vessel: 1, slip: 1
     input  vessel: 1
     expect status: "at_sea"
   end
@@ -59,12 +60,14 @@ Hecks.behaviors "MarinaManagement" do
 
   test "CompleteMaintenance runs" do
     tests "CompleteMaintenance", on: "MaintenanceJob"
+    setup  "ScheduleMaintenance", vessel: 1, job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
     input  maintenance_job: 1
     expect status: "completed"
   end
 
   test "CancelMaintenance runs" do
     tests "CancelMaintenance", on: "MaintenanceJob"
+    setup  "ScheduleMaintenance", vessel: 1, job_type: "sample", description: "sample", scheduled_date: "sample", estimated_cost: 1.0
     input  maintenance_job: 1
     expect status: "cancelled"
   end

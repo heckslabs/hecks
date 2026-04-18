@@ -71,14 +71,14 @@ Hecks.behaviors "Genetics" do
 
   test "AddRelative sets individual_id + relationship" do
     tests "AddRelative", on: "Pedigree"
-    setup  "AddRelative", individual_id: "sample", relationship: "sample"
+    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
     input  pedigree: 1, individual_id: "sample", relationship: "sample"
     expect ok: "true"
   end
 
   test "TraceInheritance runs" do
     tests "TraceInheritance", on: "Pedigree"
-    setup  "AddRelative", individual_id: "sample", relationship: "sample"
+    setup  "BuildPedigree", family_id: "sample", proband_id: "sample"
     input  pedigree: 1
     expect ok: "true"
   end

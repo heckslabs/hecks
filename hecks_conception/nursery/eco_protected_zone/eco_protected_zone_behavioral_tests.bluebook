@@ -19,6 +19,7 @@ Hecks.behaviors "EcoProtectedZone" do
   test "ReopenZone runs" do
     tests "ReopenZone", on: "ProtectedArea"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "CloseZone", protected_area: 1
     input  protected_area: 1
     expect status: "active"
   end
@@ -81,29 +82,28 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "OpenForensicCase sets case_number + evidence_type + dna_sample_id" do
     tests "OpenForensicCase", on: "ForensicCase"
-    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "CatalogSpecies", common_name: "sample", scientific_name: "sample", conservation_status: "sample", estimated_population: 1, primary_habitat: "sample"
     input  wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     expect case_number: "sample", evidence_type: "sample", dna_sample_id: "sample", species: :species, area: :area, status: "open"
   end
 
   test "MatchDNA runs" do
     tests "MatchDNA", on: "ForensicCase"
-    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    setup  "OpenForensicCase", wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     input  forensic_case: 1
     expect ok: "true"
   end
 
   test "IdentifySuspect sets suspect_description" do
     tests "IdentifySuspect", on: "ForensicCase"
-    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     input  forensic_case: 1, suspect_description: "sample"
     expect suspect_description: "sample"
   end
 
   test "CloseCase runs" do
     tests "CloseCase", on: "ForensicCase"
-    setup  "OpenForensicCase", case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
+    setup  "OpenForensicCase", wildlife_species: 1, protected_area: 1, case_number: "sample", evidence_type: "sample", dna_sample_id: "sample"
     input  forensic_case: 1
     expect status: "closed"
   end
@@ -120,12 +120,15 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "RaiseAlert sets alert_level" do
     tests "RaiseAlert", on: "HazardZone"
+    setup  "DefineHazardZone", protected_area: 1, zone_name: "sample", hazard_type: "sample"
     input  hazard_zone: 1, alert_level: "sample"
     expect alert_level: "sample", status: "alert"
   end
 
   test "LowerAlert runs" do
     tests "LowerAlert", on: "HazardZone"
+    setup  "DefineHazardZone", protected_area: 1, zone_name: "sample", hazard_type: "sample"
+    setup  "RaiseAlert", hazard_zone: 1, alert_level: "sample"
     input  hazard_zone: 1
     expect alert_level: "normal", status: "monitored"
   end
@@ -141,20 +144,22 @@ Hecks.behaviors "EcoProtectedZone" do
 
   test "IssuePermit sets permit_type + valid_from + valid_until" do
     tests "IssuePermit", on: "Permit"
-    setup  "RegisterVisitor", name: "sample", nationality: "sample"
     setup  "DesignateArea", name: "sample", protection_level: "sample", area_sq_km: 1.0
+    setup  "RegisterVisitor", name: "sample", nationality: "sample"
     input  visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
-    expect visitor: :visitor, area: :area, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
+    expect visitor: 1, area: :area, permit_type: "sample", valid_from: "sample", valid_until: "sample", status: "active"
   end
 
   test "RevokePermit runs" do
     tests "RevokePermit", on: "Permit"
+    setup  "IssuePermit", visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
     input  permit: 1
     expect status: "revoked"
   end
 
   test "ExpirePermit runs" do
     tests "ExpirePermit", on: "Permit"
+    setup  "IssuePermit", visitor: 1, protected_area: 1, permit_type: "sample", valid_from: "sample", valid_until: "sample"
     input  permit: 1
     expect status: "expired"
   end

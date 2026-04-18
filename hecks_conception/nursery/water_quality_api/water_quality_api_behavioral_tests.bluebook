@@ -66,22 +66,20 @@ Hecks.behaviors "WaterQualityAPI" do
 
   test "ConfigureFeed sets feed_name + frequency_seconds" do
     tests "ConfigureFeed", on: "DataFeed"
-    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
     setup  "CreateEndpoint", endpoint_path: "sample", description: "sample", rate_limit: 1
+    setup  "RegisterPlant", plant_name: "sample", capacity_gallons: 1.0
     input  treatment_plant: 1, a_p_i_endpoint: 1, feed_name: "sample", frequency_seconds: 1
     expect ok: "true"
   end
 
   test "AddTransform sets source_field + target_field + transform_type" do
     tests "AddTransform", on: "DataFeed"
-    setup  "AddTransform", source_field: "sample", target_field: "sample", transform_type: "sample"
     input  data_feed: 1, source_field: "sample", target_field: "sample", transform_type: "sample"
     expect transformations_size: 1
   end
 
   test "ActivateFeed runs" do
     tests "ActivateFeed", on: "DataFeed"
-    setup  "AddTransform", source_field: "sample", target_field: "sample", transform_type: "sample"
     input  data_feed: 1
     expect ok: "true"
   end

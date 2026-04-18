@@ -35,12 +35,14 @@ Hecks.behaviors "FarmManagement" do
 
   test "AdvanceGrowthStage sets growth_stage" do
     tests "AdvanceGrowthStage", on: "CropCycle"
+    setup  "StartCropCycle", field: 1, crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
     input  crop_cycle: 1, growth_stage: "sample"
     expect growth_stage: "sample"
   end
 
   test "RecordCropLoss sets loss_reason" do
     tests "RecordCropLoss", on: "CropCycle"
+    setup  "StartCropCycle", field: 1, crop_variety: "sample", planting_date: "sample", days_to_maturity: 1
     input  crop_cycle: 1, loss_reason: "sample"
     expect status: "damaged"
   end
@@ -57,12 +59,14 @@ Hecks.behaviors "FarmManagement" do
 
   test "AdjustVolume sets new_volume" do
     tests "AdjustVolume", on: "IrrigationSchedule"
+    setup  "SetIrrigation", field: 1, method: "sample", frequency: "sample", volume_gallons: 1.0
     input  irrigation_schedule: 1, new_volume: 1.0
     expect volume_gallons: 1.0
   end
 
   test "SuspendIrrigation runs" do
     tests "SuspendIrrigation", on: "IrrigationSchedule"
+    setup  "SetIrrigation", field: 1, method: "sample", frequency: "sample", volume_gallons: 1.0
     input  irrigation_schedule: 1
     expect status: "suspended"
   end

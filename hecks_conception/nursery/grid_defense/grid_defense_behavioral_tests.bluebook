@@ -34,7 +34,7 @@ Hecks.behaviors "GridDefense" do
 
   test "AddIndicator sets indicator_type + value + confidence" do
     tests "AddIndicator", on: "ThreatIntel"
-    setup  "AddIndicator", indicator_type: "sample", value: "sample", confidence: 1.0
+    setup  "IngestFeed", source: "sample"
     input  threat_intel: 1, indicator_type: "sample", value: "sample", confidence: 1.0
     expect indicators_size: 1
   end

@@ -58,14 +58,12 @@ Hecks.behaviors "RepatriationFlights" do
 
   test "AddLeg sets origin + destination + duration_hours" do
     tests "AddLeg", on: "FlightPlan"
-    setup  "AddLeg", origin: "sample", destination: "sample", duration_hours: 1.0
     input  flight_plan: 1, origin: "sample", destination: "sample", duration_hours: 1.0
     expect legs_size: 1
   end
 
   test "ConfirmFlight runs" do
     tests "ConfirmFlight", on: "FlightPlan"
-    setup  "AddLeg", origin: "sample", destination: "sample", duration_hours: 1.0
     input  flight_plan: 1
     expect ok: "true"
   end
@@ -81,7 +79,7 @@ Hecks.behaviors "RepatriationFlights" do
 
   test "AddService sets service_type + provider" do
     tests "AddService", on: "ReceptionCenter"
-    setup  "AddService", service_type: "sample", provider: "sample"
+    setup  "SetupCenter", center_name: "sample", location: "sample", capacity: 1
     input  reception_center: 1, service_type: "sample", provider: "sample"
     expect services_size: 1
   end

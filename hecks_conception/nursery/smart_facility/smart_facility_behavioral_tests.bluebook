@@ -59,7 +59,7 @@ Hecks.behaviors "SmartFacility" do
 
   test "AddActivity sets name + time" do
     tests "AddActivity", on: "ActivityBoard"
-    setup  "AddActivity", name: "sample", time: "sample"
+    setup  "PublishBoard", board_id: "sample", date: "sample"
     input  activity_board: 1, name: "sample", time: "sample"
     expect ok: "true"
   end

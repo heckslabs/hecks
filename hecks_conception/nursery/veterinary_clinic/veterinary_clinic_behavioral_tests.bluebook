@@ -51,12 +51,15 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "CheckInPatient runs" do
     tests "CheckInPatient", on: "Appointment"
+    setup  "ScheduleAppointment", pet: 1, appointment_date: "sample", time_slot: "sample", reason: "sample"
     input  appointment: 1
     expect status: "checked_in"
   end
 
   test "CompleteAppointment sets notes" do
     tests "CompleteAppointment", on: "Appointment"
+    setup  "ScheduleAppointment", pet: 1, appointment_date: "sample", time_slot: "sample", reason: "sample"
+    setup  "CheckInPatient", appointment: 1
     input  appointment: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end
@@ -73,6 +76,7 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "ExpireVaccination runs" do
     tests "ExpireVaccination", on: "Vaccination"
+    setup  "AdministerVaccine", pet: 1, vaccine_name: "sample", lot_number: "sample", expiration_date: "sample"
     input  vaccination: 1
     expect status: "expired"
   end
@@ -95,6 +99,7 @@ Hecks.behaviors "VeterinaryClinic" do
 
   test "DiscontinueMedication runs" do
     tests "DiscontinueMedication", on: "Prescription"
+    setup  "PrescribeMedication", pet: 1, medication_name: "sample", dosage: "sample", frequency: "sample", refills_remaining: 1
     input  prescription: 1
     expect status: "discontinued"
   end

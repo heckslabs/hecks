@@ -58,12 +58,15 @@ Hecks.behaviors "PrintShop" do
 
   test "StartPressRun runs" do
     tests "StartPressRun", on: "PressSchedule"
+    setup  "SchedulePress", print_job: 1, press_name: "sample", scheduled_date: "sample", start_time: "sample", end_time: "sample"
     input  press_schedule: 1
     expect status: "running"
   end
 
   test "HaltPress sets halt_reason" do
     tests "HaltPress", on: "PressSchedule"
+    setup  "SchedulePress", print_job: 1, press_name: "sample", scheduled_date: "sample", start_time: "sample", end_time: "sample"
+    setup  "StartPressRun", press_schedule: 1
     input  press_schedule: 1, halt_reason: "sample"
     expect status: "halted"
   end
@@ -80,12 +83,14 @@ Hecks.behaviors "PrintShop" do
 
   test "ApproveProof runs" do
     tests "ApproveProof", on: "ProofCycle"
+    setup  "SendProof", print_job: 1, proof_file: "sample", revision_number: 1
     input  proof_cycle: 1
     expect status: "approved"
   end
 
   test "RequestRevision sets customer_feedback" do
     tests "RequestRevision", on: "ProofCycle"
+    setup  "SendProof", print_job: 1, proof_file: "sample", revision_number: 1
     input  proof_cycle: 1, customer_feedback: "sample"
     expect customer_feedback: "sample", status: "revision_needed"
   end
@@ -102,12 +107,15 @@ Hecks.behaviors "PrintShop" do
 
   test "ShipOrder sets tracking_number" do
     tests "ShipOrder", on: "DeliveryOrder"
+    setup  "ScheduleDelivery", print_job: 1, delivery_address: "sample", delivery_date: "sample", box_count: 1, carrier: "sample"
     input  delivery_order: 1, tracking_number: "sample"
     expect tracking_number: "sample", status: "shipped"
   end
 
   test "ConfirmDelivery runs" do
     tests "ConfirmDelivery", on: "DeliveryOrder"
+    setup  "ScheduleDelivery", print_job: 1, delivery_address: "sample", delivery_date: "sample", box_count: 1, carrier: "sample"
+    setup  "ShipOrder", delivery_order: 1, tracking_number: "sample"
     input  delivery_order: 1
     expect status: "delivered"
   end

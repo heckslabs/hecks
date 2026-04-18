@@ -26,6 +26,7 @@ Hecks.behaviors "Court" do
   test "RuleInnocent runs" do
     tests "RuleInnocent", on: "Case"
     setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    setup  "Hear", case: 1, laws_applicable: 1
     input  case: 1
     expect ruling: "innocent", status: "closed"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "Court" do
   test "RuleGuilty runs" do
     tests "RuleGuilty", on: "Case"
     setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    setup  "Hear", case: 1, laws_applicable: 1
     input  case: 1
     expect ruling: "guilty", status: "closed"
   end
@@ -40,6 +42,8 @@ Hecks.behaviors "Court" do
   test "Appeal runs" do
     tests "Appeal", on: "Case"
     setup  "File", action_type: "sample", actor: "sample", target: "sample", detail: "sample", occurred_at: "sample"
+    setup  "Hear", case: 1, laws_applicable: 1
+    setup  "RuleInnocent", case: 1
     input  case: 1
     expect status: "appealed"
   end

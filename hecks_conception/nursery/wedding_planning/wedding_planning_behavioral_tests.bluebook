@@ -35,12 +35,14 @@ Hecks.behaviors "WeddingPlanning" do
 
   test "PayVendor sets amount" do
     tests "PayVendor", on: "VendorContract"
+    setup  "BookVendor", wedding: 1, vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
     input  vendor_contract: 1, amount: 1.0
     expect ok: "true"
   end
 
   test "CancelVendor runs" do
     tests "CancelVendor", on: "VendorContract"
+    setup  "BookVendor", wedding: 1, vendor_name: "sample", service_type: "sample", contract_amount: 1.0, deposit_paid: 1.0
     input  vendor_contract: 1
     expect status: "cancelled"
   end
@@ -79,6 +81,7 @@ Hecks.behaviors "WeddingPlanning" do
 
   test "RecordRSVP sets rsvp_status + meal_preference" do
     tests "RecordRSVP", on: "GuestListEntry"
+    setup  "InviteGuest", wedding: 1, guest_name: "sample", email: "sample", party_size: 1
     input  guest_list_entry: 1, rsvp_status: "sample", meal_preference: "sample"
     expect rsvp_status: "sample", meal_preference: "sample"
   end

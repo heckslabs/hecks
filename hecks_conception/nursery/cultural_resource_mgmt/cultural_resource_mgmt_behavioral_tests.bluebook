@@ -19,6 +19,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "ExcavateSite runs" do
     tests "ExcavateSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite", archaeological_site: 1
     input  archaeological_site: 1
     expect status: "excavating"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "ClearSite runs" do
     tests "ClearSite", on: "ArchaeologicalSite"
     setup  "DiscoverSite", site_id: "sample", location: "sample", era_period: "sample", significance_level: "sample"
+    setup  "AssessSite", archaeological_site: 1
+    setup  "ExcavateSite", archaeological_site: 1
     input  archaeological_site: 1
     expect status: "cleared"
   end
@@ -65,6 +68,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "ResumePhase runs" do
     tests "ResumePhase", on: "ConstructionPhase"
     setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    setup  "HaltForArchaeology", construction_phase: 1
     input  construction_phase: 1
     expect status: "active"
   end
@@ -72,6 +76,8 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "CompletePhase runs" do
     tests "CompletePhase", on: "ConstructionPhase"
     setup  "PlanPhase", phase_name: "sample", project_name: "sample", area: "sample", start_date: "sample", end_date: "sample"
+    setup  "HaltForArchaeology", construction_phase: 1
+    setup  "ResumePhase", construction_phase: 1
     input  construction_phase: 1
     expect status: "completed"
   end
@@ -95,6 +101,7 @@ Hecks.behaviors "CulturalResourceMgmt" do
   test "GrantPermit runs" do
     tests "GrantPermit", on: "PreservationPermit"
     setup  "ApplyForPreservationPermit", permit_number: "sample", site_id: "sample", applicant: "sample", permit_type: "sample"
+    setup  "ReviewPreservationPermit", preservation_permit: 1, conditions: "sample"
     input  preservation_permit: 1
     expect status: "granted"
   end

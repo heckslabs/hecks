@@ -26,6 +26,7 @@ Hecks.behaviors "AssistedLiving" do
   test "DischargeResident runs" do
     tests "DischargeResident", on: "Resident"
     setup  "AdmitResident", name: "sample", date_of_birth: "sample", emergency_contact: "sample", medical_conditions: "sample", mobility_level: "sample"
+    setup  "ActivateResident", resident: 1
     input  resident: 1
     expect status: "discharged"
   end
@@ -58,14 +59,12 @@ Hecks.behaviors "AssistedLiving" do
 
   test "AddCareTask sets description + frequency + assigned_to + time_of_day" do
     tests "AddCareTask", on: "CarePlan"
-    setup  "CreateCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     input  care_plan: 1, description: "sample", frequency: "sample", assigned_to: "sample", time_of_day: "sample"
     expect ok: "true"
   end
 
   test "ReviewCarePlan runs" do
     tests "ReviewCarePlan", on: "CarePlan"
-    setup  "CreateCarePlan", resident_name: "sample", created_date: "sample", dietary_needs: "sample"
     input  care_plan: 1
     expect ok: "true"
   end
@@ -98,14 +97,12 @@ Hecks.behaviors "AssistedLiving" do
 
   test "AddScheduledDose sets drug_name + dosage + time_of_day" do
     tests "AddScheduledDose", on: "MedicationSchedule"
-    setup  "CreateMedicationSchedule", resident_name: "sample"
     input  medication_schedule: 1, drug_name: "sample", dosage: "sample", time_of_day: "sample"
     expect ok: "true"
   end
 
   test "ConfirmAdministration runs" do
     tests "ConfirmAdministration", on: "MedicationSchedule"
-    setup  "CreateMedicationSchedule", resident_name: "sample"
     input  medication_schedule: 1
     expect ok: "true"
   end

@@ -35,6 +35,7 @@ Hecks.behaviors "ReliefLogistics" do
   test "ReceiveContainer runs" do
     tests "ReceiveContainer", on: "ShippingContainer"
     setup  "LoadContainer", container_id: "sample", request_id: "sample", origin_port: "sample", dest_port: "sample", weight_tons: 1.0
+    setup  "ShipContainer", shipping_container: 1
     input  shipping_container: 1
     expect status: "received"
   end

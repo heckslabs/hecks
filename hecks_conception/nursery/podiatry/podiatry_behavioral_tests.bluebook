@@ -28,6 +28,7 @@ Hecks.behaviors "Podiatry" do
 
   test "ResolveCondition runs" do
     tests "ResolveCondition", on: "FootCondition"
+    setup  "DiagnoseCondition", patient: 1, patient_name: "sample", condition_name: "sample", affected_foot: "sample", severity: "sample", onset_date: "sample"
     input  foot_condition: 1
     expect status: "resolved"
   end
@@ -44,6 +45,7 @@ Hecks.behaviors "Podiatry" do
 
   test "FitOrthotic runs" do
     tests "FitOrthotic", on: "Orthotic"
+    setup  "OrderOrthotic", patient: 1, foot_condition: 1, patient_name: "sample", orthotic_type: "sample", material: "sample", corrections: "sample", order_date: "sample"
     input  orthotic: 1
     expect status: "fitted"
   end
@@ -66,6 +68,7 @@ Hecks.behaviors "Podiatry" do
 
   test "CompleteProcedure sets notes" do
     tests "CompleteProcedure", on: "FootProcedure"
+    setup  "ScheduleProcedure", patient: 1, foot_condition: 1, patient_name: "sample", procedure_name: "sample", procedure_date: "sample", anesthesia_type: "sample"
     input  foot_procedure: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end
@@ -82,6 +85,7 @@ Hecks.behaviors "Podiatry" do
 
   test "CompleteFollowUp sets wound_status + notes" do
     tests "CompleteFollowUp", on: "PodiatryFollowUp"
+    setup  "ScheduleFollowUp", patient: 1, patient_name: "sample", reason: "sample", scheduled_date: "sample"
     input  podiatry_follow_up: 1, wound_status: "sample", notes: "sample"
     expect wound_status: "sample", notes: "sample", status: "completed"
   end

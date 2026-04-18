@@ -35,6 +35,7 @@ Hecks.behaviors "VetHousing" do
   test "VacateUnit runs" do
     tests "VacateUnit", on: "HousingUnit"
     setup  "ListUnit", unit_id: "sample", address: "sample", bedrooms: 1, monthly_rent: 1.0
+    setup  "AssignUnit", housing_unit: 1
     input  housing_unit: 1
     expect status: "available"
   end

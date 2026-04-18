@@ -11,35 +11,35 @@ Hecks.behaviors "Mathematics" do
 
   test "AddNumbers sets addend" do
     tests "AddNumbers", on: "Number"
-    setup  "AddNumbers", addend: "sample"
+    setup  "DefineNumber", value: "sample", number_type: "sample"
     input  number: 1, addend: "sample"
     expect ok: "true"
   end
 
   test "MultiplyNumbers sets multiplier" do
     tests "MultiplyNumbers", on: "Number"
-    setup  "AddNumbers", addend: "sample"
+    setup  "DefineNumber", value: "sample", number_type: "sample"
     input  number: 1, multiplier: "sample"
     expect ok: "true"
   end
 
   test "ComputeGCD sets other" do
     tests "ComputeGCD", on: "Number"
-    setup  "AddNumbers", addend: "sample"
+    setup  "DefineNumber", value: "sample", number_type: "sample"
     input  number: 1, other: "sample"
     expect ok: "true"
   end
 
   test "FindPrime runs" do
     tests "FindPrime", on: "Number"
-    setup  "AddNumbers", addend: "sample"
+    setup  "DefineNumber", value: "sample", number_type: "sample"
     input  number: 1
     expect prime: "true"
   end
 
   test "ClassifyNumber sets parity" do
     tests "ClassifyNumber", on: "Number"
-    setup  "AddNumbers", addend: "sample"
+    setup  "DefineNumber", value: "sample", number_type: "sample"
     input  number: 1, parity: "sample"
     expect parity: "sample"
   end
@@ -188,6 +188,7 @@ Hecks.behaviors "Mathematics" do
   test "VerifyEquation runs" do
     tests "VerifyEquation", on: "Equation"
     setup  "DefineEquation", left_side: "sample", right_side: "sample", equation_type: "sample"
+    setup  "SolveEquation", equation: 1
     input  equation: 1
     expect status: "verified"
   end
@@ -443,28 +444,28 @@ Hecks.behaviors "Mathematics" do
 
   test "AddVectors sets other_vector" do
     tests "AddVectors", on: "Vector"
-    setup  "AddVectors", other_vector: "sample"
+    setup  "DefineVector", name: "sample", components: "sample", dimension: 1
     input  vector: 1, other_vector: "sample"
     expect ok: "true"
   end
 
   test "ComputeDotProduct sets other_vector" do
     tests "ComputeDotProduct", on: "Vector"
-    setup  "AddVectors", other_vector: "sample"
+    setup  "DefineVector", name: "sample", components: "sample", dimension: 1
     input  vector: 1, other_vector: "sample"
     expect ok: "true"
   end
 
   test "ComputeCrossProduct sets other_vector" do
     tests "ComputeCrossProduct", on: "Vector"
-    setup  "AddVectors", other_vector: "sample"
+    setup  "DefineVector", name: "sample", components: "sample", dimension: 1
     input  vector: 1, other_vector: "sample"
     expect ok: "true"
   end
 
   test "NormalizeVector runs" do
     tests "NormalizeVector", on: "Vector"
-    setup  "AddVectors", other_vector: "sample"
+    setup  "DefineVector", name: "sample", components: "sample", dimension: 1
     input  vector: 1
     expect normalized: "true"
   end
@@ -570,21 +571,22 @@ Hecks.behaviors "Mathematics" do
 
   test "AddProofStep sets statement + justification" do
     tests "AddProofStep", on: "Proof"
-    setup  "AddProofStep", statement: "sample", justification: "sample"
+    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
     input  proof: 1, statement: "sample", justification: "sample"
     expect status: "in_progress"
   end
 
   test "CompleteProof runs" do
     tests "CompleteProof", on: "Proof"
-    setup  "AddProofStep", statement: "sample", justification: "sample"
+    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
     input  proof: 1
     expect status: "complete"
   end
 
   test "VerifyProof runs" do
     tests "VerifyProof", on: "Proof"
-    setup  "AddProofStep", statement: "sample", justification: "sample"
+    setup  "ConstructProof", theorem: "sample", proof_method: "sample"
+    setup  "CompleteProof", proof: 1
     input  proof: 1
     expect status: "verified"
   end

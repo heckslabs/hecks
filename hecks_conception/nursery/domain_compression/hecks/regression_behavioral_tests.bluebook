@@ -33,6 +33,7 @@ Hecks.behaviors "Regression" do
   test "MarkPassing runs" do
     tests "MarkPassing", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
+    setup  "RunRegression", regression_suite: 1
     input  regression_suite: 1
     expect last_run_status: "passing"
   end
@@ -40,6 +41,7 @@ Hecks.behaviors "Regression" do
   test "MarkFailing runs" do
     tests "MarkFailing", on: "RegressionSuite"
     setup  "CreateSuite", suite_name: "sample"
+    setup  "RunRegression", regression_suite: 1
     input  regression_suite: 1
     expect last_run_status: "failing"
   end

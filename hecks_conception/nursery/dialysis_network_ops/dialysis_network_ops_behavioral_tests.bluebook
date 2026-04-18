@@ -19,6 +19,7 @@ Hecks.behaviors "DialysisNetworkOps" do
   test "EndTreatment runs" do
     tests "EndTreatment", on: "DialysisMachine"
     setup  "RegisterMachine", machine_id: "sample", model: "sample", center_name: "sample"
+    setup  "StartTreatment", dialysis_machine: 1
     input  dialysis_machine: 1
     expect status: "online"
   end
@@ -65,6 +66,7 @@ Hecks.behaviors "DialysisNetworkOps" do
   test "ResolveAlert runs" do
     tests "ResolveAlert", on: "RemoteAlert"
     setup  "RaiseAlert", alert_id: "sample", machine_id: "sample", alert_type: "sample", severity: "sample", message: "sample"
+    setup  "AcknowledgeAlert", remote_alert: 1
     input  remote_alert: 1
     expect status: "resolved"
   end

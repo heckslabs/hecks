@@ -51,20 +51,22 @@ Hecks.behaviors "PropertyManagement" do
 
   test "SignLease sets start_date + end_date + monthly_rent + security_deposit" do
     tests "SignLease", on: "Lease"
-    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     input  rental_unit: 1, tenant: 1, start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
     expect start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0, status: "active"
   end
 
   test "RenewLease sets new_end_date + new_monthly_rent" do
     tests "RenewLease", on: "Lease"
+    setup  "SignLease", rental_unit: 1, tenant: 1, start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
     input  lease: 1, new_end_date: "sample", new_monthly_rent: 1.0
     expect end_date: "sample", monthly_rent: 1.0
   end
 
   test "TerminateLease runs" do
     tests "TerminateLease", on: "Lease"
+    setup  "SignLease", rental_unit: 1, tenant: 1, start_date: "sample", end_date: "sample", monthly_rent: 1.0, security_deposit: 1.0
     input  lease: 1
     expect status: "terminated"
   end
@@ -74,20 +76,23 @@ Hecks.behaviors "PropertyManagement" do
 
   test "SubmitRequest sets description + category + priority" do
     tests "SubmitRequest", on: "MaintenanceRequest"
-    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     setup  "ScreenTenant", first_name: "sample", last_name: "sample", phone: "sample", email: "sample", monthly_income: 1.0
+    setup  "ListUnit", unit_number: "sample", address: "sample", unit_type: "sample", bedrooms: 1, monthly_rent: 1.0
     input  rental_unit: 1, tenant: 1, description: "sample", category: "sample", priority: "sample"
     expect description: "sample", category: "sample", priority: "sample", status: "open"
   end
 
   test "AssignTechnician sets assigned_to" do
     tests "AssignTechnician", on: "MaintenanceRequest"
+    setup  "SubmitRequest", rental_unit: 1, tenant: 1, description: "sample", category: "sample", priority: "sample"
     input  maintenance_request: 1, assigned_to: "sample"
     expect assigned_to: "sample", status: "assigned"
   end
 
   test "ResolveRequest sets resolution_notes" do
     tests "ResolveRequest", on: "MaintenanceRequest"
+    setup  "SubmitRequest", rental_unit: 1, tenant: 1, description: "sample", category: "sample", priority: "sample"
+    setup  "AssignTechnician", maintenance_request: 1, assigned_to: "sample"
     input  maintenance_request: 1, resolution_notes: "sample"
     expect resolution_notes: "sample", status: "resolved"
   end
@@ -104,6 +109,7 @@ Hecks.behaviors "PropertyManagement" do
 
   test "RecordFindings sets findings" do
     tests "RecordFindings", on: "PropertyInspection"
+    setup  "ScheduleInspection", rental_unit: 1, inspection_date: "sample", inspection_type: "sample"
     input  property_inspection: 1, findings: "sample"
     expect findings: "sample", status: "completed"
   end

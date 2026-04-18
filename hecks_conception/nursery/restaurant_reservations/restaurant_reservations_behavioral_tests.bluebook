@@ -19,6 +19,7 @@ Hecks.behaviors "RestaurantReservations" do
   test "ClearTable runs" do
     tests "ClearTable", on: "DiningTable"
     setup  "SetupTable", table_number: "sample", seat_capacity: 1, section: "sample"
+    setup  "MarkOccupied", dining_table: 1
     input  dining_table: 1
     expect status: "available"
   end
@@ -81,6 +82,7 @@ Hecks.behaviors "RestaurantReservations" do
 
   test "CloseSeating runs" do
     tests "CloseSeating", on: "Seating"
+    setup  "SeatParty", dining_table: 1, server_name: "sample", covers: 1
     input  seating: 1
     expect status: "closed"
   end

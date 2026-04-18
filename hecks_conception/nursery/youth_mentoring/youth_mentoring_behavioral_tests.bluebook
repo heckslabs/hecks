@@ -44,15 +44,15 @@ Hecks.behaviors "YouthMentoring" do
 
   test "CreateMatch sets mentor_name + mentee_name + match_date + match_rationale" do
     tests "CreateMatch", on: "MentorMatch"
-    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
     setup  "EnrollMentee", name: "sample", age: "sample", school: "sample", interests: "sample", guardian_name: "sample"
+    setup  "RegisterMentor", name: "sample", occupation: "sample", skills: "sample", availability: "sample"
     input  mentor: 1, mentee: 1, mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     expect mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample", status: "active"
   end
 
   test "CloseMatch runs" do
     tests "CloseMatch", on: "MentorMatch"
-    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
+    setup  "CreateMatch", mentor: 1, mentee: 1, mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     input  mentor_match: 1
     expect status: "closed"
   end
@@ -62,13 +62,13 @@ Hecks.behaviors "YouthMentoring" do
 
   test "ScheduleMeeting sets mentor_name + mentee_name + meeting_date + location + activity" do
     tests "ScheduleMeeting", on: "MentoringMeeting"
-    setup  "CreateMatch", mentor_name: "sample", mentee_name: "sample", match_date: "sample", match_rationale: "sample"
     input  mentor_match: 1, mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     expect mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample", status: "scheduled"
   end
 
   test "LogMeeting sets notes" do
     tests "LogMeeting", on: "MentoringMeeting"
+    setup  "ScheduleMeeting", mentor_match: 1, mentor_name: "sample", mentee_name: "sample", meeting_date: "sample", location: "sample", activity: "sample"
     input  mentoring_meeting: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end
@@ -91,6 +91,7 @@ Hecks.behaviors "YouthMentoring" do
 
   test "CompleteGoal runs" do
     tests "CompleteGoal", on: "DevelopmentGoal"
+    setup  "SetDevelopmentGoal", mentee: 1, mentee_name: "sample", goal_area: "sample", description: "sample", target_date: "sample"
     input  development_goal: 1
     expect status: "completed"
   end

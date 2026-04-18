@@ -51,6 +51,7 @@ Hecks.behaviors "CoffeeShop" do
   test "ServeDrink runs" do
     tests "ServeDrink", on: "DrinkOrder"
     setup  "PlaceOrder", order_id: "sample", customer_name: "sample"
+    setup  "PrepareDrink", drink_order: 1
     input  drink_order: 1
     expect status: "served"
   end

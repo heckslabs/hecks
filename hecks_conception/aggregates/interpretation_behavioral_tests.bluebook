@@ -56,6 +56,7 @@ Hecks.behaviors "Interpretation" do
   test "AbsorbFindings runs" do
     tests "AbsorbFindings", on: "Process"
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
+    setup  "CompleteProcess", process: 1
     input  process: 1
     expect status: "absorbed"
   end

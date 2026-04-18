@@ -19,6 +19,7 @@ Hecks.behaviors "PhysicalTherapy" do
   test "ActivatePatient runs" do
     tests "ActivatePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "AssessLimitation", patient: 1, body_region: "sample", description: "sample", severity_score: 1
     input  patient: 1
     expect status: "active"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "PhysicalTherapy" do
   test "DischargePatient runs" do
     tests "DischargePatient", on: "Patient"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", diagnosis: "sample", insurance_id: "sample"
+    setup  "AssessLimitation", patient: 1, body_region: "sample", description: "sample", severity_score: 1
+    setup  "ActivatePatient", patient: 1
     input  patient: 1
     expect status: "discharged"
   end
@@ -58,12 +61,14 @@ Hecks.behaviors "PhysicalTherapy" do
 
   test "CompleteSession sets notes" do
     tests "CompleteSession", on: "Session"
+    setup  "ScheduleSession", patient: 1, patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  session: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end
 
   test "CancelSession runs" do
     tests "CancelSession", on: "Session"
+    setup  "ScheduleSession", patient: 1, patient_name: "sample", therapist_name: "sample", scheduled_date: "sample"
     input  session: 1
     expect status: "cancelled"
   end
@@ -80,14 +85,12 @@ Hecks.behaviors "PhysicalTherapy" do
 
   test "RecordVisit runs" do
     tests "RecordVisit", on: "Prescription"
-    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     input  prescription: 1
     expect ok: "true"
   end
 
   test "ExpirePrescription runs" do
     tests "ExpirePrescription", on: "Prescription"
-    setup  "CreatePrescription", physician_name: "sample", patient_name: "sample", diagnosis: "sample", authorized_visits: 1
     input  prescription: 1
     expect status: "expired"
   end

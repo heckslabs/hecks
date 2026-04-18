@@ -18,6 +18,7 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "WrapShoot sets final_frame_count" do
     tests "WrapShoot", on: "Shoot"
+    setup  "StartShoot", shoot: 1
     input  shoot: 1, final_frame_count: 1
     expect status: "wrapped", frame_count: 1
   end
@@ -49,12 +50,15 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "RetouchSelects sets preset_name" do
     tests "RetouchSelects", on: "EditSession"
+    setup  "CullSelects", shoot: 1, selects_count: 1
     input  edit_session: 1, preset_name: "sample"
     expect status: "retouched"
   end
 
   test "DeliverFinals sets finals_count" do
     tests "DeliverFinals", on: "EditSession"
+    setup  "CullSelects", shoot: 1, selects_count: 1
+    setup  "RetouchSelects", edit_session: 1, preset_name: "sample"
     input  edit_session: 1, finals_count: 1
     expect finals_count: 1, status: "delivered"
   end
@@ -70,6 +74,7 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "ExpireGallery runs" do
     tests "ExpireGallery", on: "Gallery"
+    setup  "PublishGallery", gallery: 1, title: "sample", access_code: "sample", image_count: 1
     input  gallery: 1
     expect status: "expired"
   end
@@ -85,7 +90,6 @@ Hecks.behaviors "PhotographyStudio" do
 
   test "FulfillPrintOrder runs" do
     tests "FulfillPrintOrder", on: "PrintOrder"
-    setup  "PlacePrintOrder", paper_stock: "sample", finish: "sample", quantity: 1
     input  print_order: 1
     expect status: "fulfilled"
   end

@@ -35,6 +35,7 @@ Hecks.behaviors "PetPortraits" do
   test "SelectBestPhotos runs" do
     tests "SelectBestPhotos", on: "PhotoSession"
     setup  "BookSession", session_id: "sample", animal_id: "sample", photographer: "sample", date: "sample", backdrop: "sample"
+    setup  "CompleteSession", photo_session: 1
     input  photo_session: 1
     expect status: "selected"
   end

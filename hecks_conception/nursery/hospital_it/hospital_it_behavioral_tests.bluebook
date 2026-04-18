@@ -58,6 +58,7 @@ Hecks.behaviors "HospitalIT" do
   test "RestoreBackup runs" do
     tests "RestoreBackup", on: "Backup"
     setup  "StartBackup", backup_id: "sample", source_server: "sample", backup_type: "sample"
+    setup  "FinishBackup", backup: 1, storage_path: "sample", size_gb: 1.0
     input  backup: 1
     expect status: "restored"
   end

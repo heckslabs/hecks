@@ -44,22 +44,20 @@ Hecks.behaviors "InmateEducation" do
 
   test "RegisterEnrollment runs" do
     tests "RegisterEnrollment", on: "Enrollment"
-    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
     setup  "CreateCourse", course_name: "sample", subject: "sample"
+    setup  "EnrollInmate", inmate_id: "sample", name: "sample", facility: "sample", education_level: "sample"
     input  inmate: 1, course: 1
     expect ok: "true"
   end
 
   test "SubmitAssignment sets assignment_name + score" do
     tests "SubmitAssignment", on: "Enrollment"
-    setup  "RegisterEnrollment"
     input  enrollment: 1, assignment_name: "sample", score: 1.0
     expect assignments_size: 1
   end
 
   test "CompleteEnrollment runs" do
     tests "CompleteEnrollment", on: "Enrollment"
-    setup  "RegisterEnrollment"
     input  enrollment: 1
     expect ok: "true"
   end

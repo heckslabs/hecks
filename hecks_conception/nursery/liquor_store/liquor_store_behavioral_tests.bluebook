@@ -43,14 +43,14 @@ Hecks.behaviors "LiquorStore" do
 
   test "RegisterAttendee runs" do
     tests "RegisterAttendee", on: "Tasting"
-    setup  "RegisterAttendee"
+    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     input  tasting: 1
     expect ok: "true"
   end
 
   test "CancelTasting runs" do
     tests "CancelTasting", on: "Tasting"
-    setup  "RegisterAttendee"
+    setup  "ScheduleTasting", tasting_id: "sample", theme: "sample", date: "sample", max_attendees: 1
     input  tasting: 1
     expect status: "canceled"
   end

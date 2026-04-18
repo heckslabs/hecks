@@ -58,6 +58,7 @@ Hecks.behaviors "SchoolLunch" do
   test "ApproveMenu runs" do
     tests "ApproveMenu", on: "WeeklyMenu"
     setup  "PlanWeeklyMenu", week_of: "sample", school_name: "sample", meal_count: 1, total_budget: 1.0
+    setup  "ValidateNutrition", weekly_menu: 1, avg_calories: 1.0
     input  weekly_menu: 1
     expect status: "approved"
   end
@@ -81,6 +82,7 @@ Hecks.behaviors "SchoolLunch" do
   test "IssueCorrectiveAction runs" do
     tests "IssueCorrectiveAction", on: "ComplianceAudit"
     setup  "ConductAudit", school_name: "sample", audit_period: "sample"
+    setup  "ScoreCompliance", compliance_audit: 1, compliance_score: 1.0, findings: "sample"
     input  compliance_audit: 1
     expect status: "corrective"
   end

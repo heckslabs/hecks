@@ -35,14 +35,12 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "AddSafetyStep sets scenario + action + resources_needed + priority" do
     tests "AddSafetyStep", on: "SafetyPlan"
-    setup  "CreateSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     input  safety_plan: 1, scenario: "sample", action: "sample", resources_needed: "sample", priority: 1
     expect ok: "true"
   end
 
   test "ReviewSafetyPlan runs" do
     tests "ReviewSafetyPlan", on: "SafetyPlan"
-    setup  "CreateSafetyPlan", resident_alias: "sample", created_date: "sample", emergency_contacts: "sample", escape_route: "sample"
     input  safety_plan: 1
     expect ok: "true"
   end
@@ -98,14 +96,13 @@ Hecks.behaviors "DomesticViolenceShelter" do
 
   test "CompleteExitTask sets task_description" do
     tests "CompleteExitTask", on: "ExitPlan"
-    setup  "CreateExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  exit_plan: 1, task_description: "sample"
     expect ok: "true"
   end
 
   test "FinalizeExit runs" do
     tests "FinalizeExit", on: "ExitPlan"
-    setup  "CreateExitPlan", resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
+    setup  "CreateExitPlan", resident: 1, resident_alias: "sample", target_exit_date: "sample", housing_arrangement: "sample", employment_status: "sample"
     input  exit_plan: 1
     expect status: "finalized"
   end

@@ -11,49 +11,51 @@ Hecks.behaviors "Conception" do
 
   test "AddAggregates sets count" do
     tests "AddAggregates", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  blueprint: 1, count: 1
     expect aggregate_count: 1, completeness: "shaped"
   end
 
   test "AddCommands sets count" do
     tests "AddCommands", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
+    setup  "AddAggregates", blueprint: 1, count: 1
     input  blueprint: 1, count: 1
     expect command_count: 1, completeness: "verbal"
   end
 
   test "AddFixtures sets count" do
     tests "AddFixtures", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  blueprint: 1, count: 1
     expect completeness: "embryo", fixture_count: 1
   end
 
   test "AddAccessGates sets port_count + actor_count" do
     tests "AddAccessGates", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  blueprint: 1, port_count: 1, actor_count: 1
     expect port_count: 1, actor_count: 1, completeness: "embryo"
   end
 
   test "AddPolicies sets count" do
     tests "AddPolicies", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  blueprint: 1, count: 1
     expect completeness: "embryo", policy_count: 1
   end
 
   test "AssessCompleteness sets gaps" do
     tests "AssessCompleteness", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
     input  blueprint: 1, gaps: "sample"
     expect gaps: "sample", completeness: "assessed"
   end
 
   test "Seal runs" do
     tests "Seal", on: "Blueprint"
-    setup  "AddAggregates", count: 1
+    setup  "StartConception", domain_name: "sample", vision: "sample", category: "sample"
+    setup  "AssessCompleteness", blueprint: 1, gaps: "sample"
     input  blueprint: 1
     expect completeness: "sealed"
   end

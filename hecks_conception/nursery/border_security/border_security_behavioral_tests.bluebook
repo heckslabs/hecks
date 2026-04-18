@@ -34,14 +34,14 @@ Hecks.behaviors "BorderSecurity" do
 
   test "AddCargoItem sets description + quantity + declared_value_cents" do
     tests "AddCargoItem", on: "Shipment"
-    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     input  shipment: 1, description: "sample", quantity: 1, declared_value_cents: 1
     expect items_size: 1
   end
 
   test "ClearShipment runs" do
     tests "ClearShipment", on: "Shipment"
-    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     input  shipment: 1
     expect ok: "true"
   end
@@ -51,7 +51,7 @@ Hecks.behaviors "BorderSecurity" do
 
   test "RaiseAlert sets alert_level + reason" do
     tests "RaiseAlert", on: "RiskAlert"
-    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     input  shipment: 1, alert_level: "sample", reason: "sample"
     expect ok: "true"
   end
@@ -73,7 +73,7 @@ Hecks.behaviors "BorderSecurity" do
 
   test "ScheduleInspection sets inspector" do
     tests "ScheduleInspection", on: "Inspection"
-    setup  "AddCargoItem", description: "sample", quantity: 1, declared_value_cents: 1
+    setup  "DeclareShipment", tracking_number: "sample", origin_country: "sample", destination_country: "sample"
     input  shipment: 1, inspector: "sample"
     expect ok: "true"
   end

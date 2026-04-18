@@ -42,6 +42,7 @@ Hecks.behaviors "ThermalComfort" do
   test "ServiceEquipment runs" do
     tests "ServiceEquipment", on: "HVACEquipment"
     setup  "InstallEquipment", equipment_id: "sample", equipment_type: "sample", capacity_kw: 1.0, efficiency_rating: 1.0, serving_zone: "sample"
+    setup  "ActivateEquipment", h_v_a_c_equipment: 1
     input  h_v_a_c_equipment: 1
     expect status: "installed"
   end
@@ -65,6 +66,7 @@ Hecks.behaviors "ThermalComfort" do
   test "FlagDiscomfort runs" do
     tests "FlagDiscomfort", on: "ComfortAssessment"
     setup  "AssessComfort", zone_name: "sample", air_temp_c: 1.0, mean_radiant_temp_c: 1.0, relative_humidity_pct: 1.0, air_velocity_ms: 1.0
+    setup  "CalculatePMV", comfort_assessment: 1, pmv_index: 1.0, ppd_pct: 1.0
     input  comfort_assessment: 1
     expect status: "flagged"
   end
@@ -88,6 +90,7 @@ Hecks.behaviors "ThermalComfort" do
   test "GenerateRecommendations runs" do
     tests "GenerateRecommendations", on: "EnergyAudit"
     setup  "ConductEnergyAudit", building_name: "sample", total_consumption_kwh: 1.0, hvac_consumption_kwh: 1.0, audit_date: "sample"
+    setup  "CalculateEfficiency", energy_audit: 1, efficiency_pct: 1.0
     input  energy_audit: 1
     expect status: "reported"
   end

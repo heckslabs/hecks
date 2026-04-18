@@ -28,12 +28,14 @@ Hecks.behaviors "MusicFestival" do
 
   test "CancelBooking runs" do
     tests "CancelBooking", on: "ArtistBooking"
+    setup  "BookArtist", stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     input  artist_booking: 1
     expect status: "cancelled"
   end
 
   test "CompletePerformance runs" do
     tests "CompletePerformance", on: "ArtistBooking"
+    setup  "BookArtist", stage: 1, artist_name: "sample", genre: "sample", booking_fee: 1.0, set_duration_minutes: 1
     input  artist_booking: 1
     expect status: "performed"
   end
@@ -50,6 +52,7 @@ Hecks.behaviors "MusicFestival" do
 
   test "ReschedulePerformance sets new_start_time + new_end_time" do
     tests "ReschedulePerformance", on: "PerformanceSchedule"
+    setup  "SchedulePerformance", artist_booking: 1, stage: 1, performance_date: "sample", start_time: "sample", end_time: "sample"
     input  performance_schedule: 1, new_start_time: "sample", new_end_time: "sample"
     expect start_time: "sample", end_time: "sample"
   end

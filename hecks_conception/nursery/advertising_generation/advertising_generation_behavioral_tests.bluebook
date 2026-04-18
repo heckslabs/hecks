@@ -49,6 +49,7 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "PauseCampaign runs" do
     tests "PauseCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
+    setup  "LaunchCampaign", campaign: 1
     input  campaign: 1
     expect status: "paused"
   end
@@ -63,6 +64,7 @@ Hecks.behaviors "AdvertisingGeneration" do
   test "EndCampaign runs" do
     tests "EndCampaign", on: "Campaign"
     setup  "PlanCampaign", name: "sample", brand: "sample", channel: "sample", audience: "sample", budget: 1.0, duration: "sample"
+    setup  "LaunchCampaign", campaign: 1
     input  campaign: 1
     expect status: "completed"
   end
@@ -101,7 +103,7 @@ Hecks.behaviors "AdvertisingGeneration" do
 
   test "AddForbiddenTerm sets term" do
     tests "AddForbiddenTerm", on: "CreativeDirection"
-    setup  "AddForbiddenTerm", term: "sample"
+    setup  "SetDirection", brand: "sample", tone_of_voice: "sample", visual_style: "sample", color_emphasis: "sample", photography_style: "sample"
     input  creative_direction: 1, term: "sample"
     expect forbidden_terms_size: 1
   end

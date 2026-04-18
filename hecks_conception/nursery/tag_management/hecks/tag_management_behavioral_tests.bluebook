@@ -77,6 +77,7 @@ Hecks.behaviors "TagManagement" do
   test "ResumeTag runs" do
     tests "ResumeTag", on: "Tag"
     setup  "CreateTag", name: "sample", tag_type: "sample", container_id: "sample", template: "sample"
+    setup  "PauseTag", tag: 1
     input  tag: 1
     expect status: "draft"
   end
@@ -146,6 +147,7 @@ Hecks.behaviors "TagManagement" do
   test "ApproveVersion runs" do
     tests "ApproveVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    setup  "SubmitVersion", version: 1
     input  version: 1
     expect status: "approved"
   end
@@ -153,6 +155,8 @@ Hecks.behaviors "TagManagement" do
   test "PublishVersion runs" do
     tests "PublishVersion", on: "Version"
     setup  "CreateVersion", container_id: "sample", version_number: 1, tag_count: 1, trigger_count: 1, variable_count: 1, description: "sample", created_by: "sample"
+    setup  "SubmitVersion", version: 1
+    setup  "ApproveVersion", version: 1
     input  version: 1
     expect status: "published"
   end

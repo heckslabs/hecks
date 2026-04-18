@@ -11,65 +11,80 @@ Hecks.behaviors "AirlineOperations" do
 
   test "AssignAircraft runs" do
     tests "AssignAircraft", on: "Flight"
-    setup  "OpenBoarding"
     setup  "RegisterAircraft", tail_number: "sample", model: "sample", seat_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     input  flight: 1, aircraft: 1
     expect ok: "true"
   end
 
   test "AssignCrew runs" do
     tests "AssignCrew", on: "Flight"
-    setup  "OpenBoarding"
     setup  "AssembleCrew", captain_name: "sample", member_count: 1
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     input  flight: 1, crew: 1
     expect ok: "true"
   end
 
   test "OpenBoarding runs" do
     tests "OpenBoarding", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     input  flight: 1
     expect status: "boarding"
   end
 
   test "CloseBoarding runs" do
     tests "CloseBoarding", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding", flight: 1
     input  flight: 1
     expect status: "boarded"
   end
 
   test "ClearForDeparture runs" do
     tests "ClearForDeparture", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding", flight: 1
+    setup  "CloseBoarding", flight: 1
     input  flight: 1
     expect status: "departed"
   end
 
   test "MarkAirborne runs" do
     tests "MarkAirborne", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding", flight: 1
+    setup  "CloseBoarding", flight: 1
+    setup  "ClearForDeparture", flight: 1
     input  flight: 1
     expect status: "in_flight"
   end
 
   test "RecordLanding runs" do
     tests "RecordLanding", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding", flight: 1
+    setup  "CloseBoarding", flight: 1
+    setup  "ClearForDeparture", flight: 1
+    setup  "MarkAirborne", flight: 1
     input  flight: 1
     expect status: "landed"
   end
 
   test "ArriveAtGate runs" do
     tests "ArriveAtGate", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "OpenBoarding", flight: 1
+    setup  "CloseBoarding", flight: 1
+    setup  "ClearForDeparture", flight: 1
+    setup  "MarkAirborne", flight: 1
+    setup  "RecordLanding", flight: 1
     input  flight: 1
     expect status: "at_gate"
   end
 
   test "DelayFlight sets reason + new_departure" do
     tests "DelayFlight", on: "Flight"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
     input  flight: 1, reason: "sample", new_departure: "sample"
     expect status: "delayed"
   end
@@ -79,7 +94,8 @@ Hecks.behaviors "AirlineOperations" do
 
   test "AssignGate runs" do
     tests "AssignGate", on: "Gate"
-    setup  "OpenBoarding"
+    setup  "ScheduleFlight", flight_number: "sample", origin: "sample", destination: "sample", scheduled_departure: "sample"
+    setup  "ReleaseGate", gate: 1
     input  gate: 1, flight: 1
     expect status: "occupied"
   end

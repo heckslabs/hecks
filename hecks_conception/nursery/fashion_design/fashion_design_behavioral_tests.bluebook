@@ -19,6 +19,7 @@ Hecks.behaviors "FashionDesign" do
   test "ShowCollection runs" do
     tests "ShowCollection", on: "Collection"
     setup  "LaunchCollection", name: "sample", season: "sample", theme: "sample"
+    setup  "FinalizeCollection", collection: 1, piece_count: 1
     input  collection: 1
     expect status: "shown"
   end
@@ -41,6 +42,7 @@ Hecks.behaviors "FashionDesign" do
 
   test "ProduceGarment runs" do
     tests "ProduceGarment", on: "Garment"
+    setup  "SewMuslin", garment: 1
     input  garment: 1
     expect status: "produced"
   end

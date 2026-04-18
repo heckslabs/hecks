@@ -50,14 +50,14 @@ Hecks.behaviors "Vocabulary" do
 
   test "AddPhrase sets phrase" do
     tests "AddPhrase", on: "Acl"
-    setup  "AddPhrase", phrase: "sample"
+    setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
     input  acl: 1, phrase: "sample"
     expect natural_phrases_size: 1
   end
 
   test "BindParam sets word + maps_to + in_command" do
     tests "BindParam", on: "Acl"
-    setup  "AddPhrase", phrase: "sample"
+    setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
     input  acl: 1, word: "sample", maps_to: "sample", in_command: "sample"
     expect parameter_map_size: 1
   end

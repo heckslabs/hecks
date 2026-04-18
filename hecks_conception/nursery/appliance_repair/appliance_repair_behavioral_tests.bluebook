@@ -35,7 +35,6 @@ Hecks.behaviors "ApplianceRepair" do
 
   test "RecommendReplacement sets estimated_repair_cost + replacement_cost" do
     tests "RecommendReplacement", on: "Appliance"
-    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
     input  appliance: 1, estimated_repair_cost: 1.0, replacement_cost: 1.0
     expect ok: "true"
   end
@@ -45,7 +44,6 @@ Hecks.behaviors "ApplianceRepair" do
 
   test "RunDiagnostic sets test_performed" do
     tests "RunDiagnostic", on: "Diagnostic"
-    setup  "RegisterAppliance", brand: "sample", model: "sample", serial_number: "sample", age_years: 1, appliance_type: "sample"
     input  appliance: 1, test_performed: "sample"
     expect ok: "true"
   end

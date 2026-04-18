@@ -42,6 +42,7 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "DeclareCloudDissipated runs" do
     tests "DeclareCloudDissipated", on: "AshCloud"
     setup  "TrackAshCloud", cloud_id: "sample", volcano_source: "sample", concentration_mg_m3: 1.0, altitude_min_ft: 1.0, altitude_max_ft: 1.0, area_sq_km: 1.0
+    setup  "ForecastDispersion", ash_cloud: 1
     input  ash_cloud: 1
     expect status: "dissipated"
   end
@@ -95,6 +96,7 @@ Hecks.behaviors "VolcanicAshAviation" do
   test "ClearFlight runs" do
     tests "ClearFlight", on: "CargoFlight"
     setup  "FileCargoFlight", flight_number: "sample", origin: "sample", destination: "sample", original_route: "sample"
+    setup  "RerouteAroundAsh", cargo_flight: 1, rerouted_via: "sample", additional_fuel_kg: 1.0
     input  cargo_flight: 1
     expect status: "cleared"
   end

@@ -19,6 +19,7 @@ Hecks.behaviors "FreightLogistics" do
   test "DeliverShipment runs" do
     tests "DeliverShipment", on: "Shipment"
     setup  "BookShipment", tracking_number: "sample", origin: "sample", destination: "sample", weight_kg: 1.0, pallet_count: 1, commodity_type: "sample"
+    setup  "DispatchShipment", shipment: 1
     input  shipment: 1
     expect status: "delivered"
   end
@@ -42,6 +43,7 @@ Hecks.behaviors "FreightLogistics" do
   test "ReinstatCarrier runs" do
     tests "ReinstatCarrier", on: "Carrier"
     setup  "OnboardCarrier", company_name: "sample", mc_number: "sample", dot_number: "sample", fleet_size: 1, rate_per_mile: 1.0
+    setup  "SuspendCarrier", carrier: 1
     input  carrier: 1
     expect status: "active"
   end
@@ -74,12 +76,14 @@ Hecks.behaviors "FreightLogistics" do
 
   test "ApproveClearance sets duty_amount" do
     tests "ApproveClearance", on: "CustomsClearance"
+    setup  "FileClearance", shipment: 1, declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
     input  customs_clearance: 1, duty_amount: 1.0
     expect duty_amount: 1.0, status: "cleared"
   end
 
   test "HoldForInspection runs" do
     tests "HoldForInspection", on: "CustomsClearance"
+    setup  "FileClearance", shipment: 1, declaration_number: "sample", country_of_origin: "sample", tariff_code: "sample", declared_value: 1.0
     input  customs_clearance: 1
     expect status: "held"
   end

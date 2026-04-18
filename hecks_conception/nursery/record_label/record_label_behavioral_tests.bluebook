@@ -35,12 +35,15 @@ Hecks.behaviors "RecordLabel" do
 
   test "MasterAlbum sets mastering_engineer" do
     tests "MasterAlbum", on: "Album"
+    setup  "GreenLightAlbum", recording_artist: 1, title: "sample", producer: "sample"
     input  album: 1, mastering_engineer: "sample"
     expect status: "mastered"
   end
 
   test "ReleaseAlbum sets release_date" do
     tests "ReleaseAlbum", on: "Album"
+    setup  "GreenLightAlbum", recording_artist: 1, title: "sample", producer: "sample"
+    setup  "MasterAlbum", album: 1, mastering_engineer: "sample"
     input  album: 1, release_date: "sample"
     expect status: "released", release_date: "sample"
   end
@@ -56,6 +59,7 @@ Hecks.behaviors "RecordLabel" do
 
   test "MixTrack runs" do
     tests "MixTrack", on: "Track"
+    setup  "RecordTrack", album: 1, title: "sample", track_number: 1
     input  track: 1
     expect status: "mixed"
   end
@@ -78,6 +82,7 @@ Hecks.behaviors "RecordLabel" do
 
   test "DisbursePayment runs" do
     tests "DisbursePayment", on: "RoyaltyStatement"
+    setup  "ApproveStatement", royalty_statement: 1
     input  royalty_statement: 1
     expect status: "paid"
   end

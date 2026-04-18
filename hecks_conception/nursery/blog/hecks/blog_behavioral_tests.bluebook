@@ -26,6 +26,7 @@ Hecks.behaviors "Blog" do
   test "UnpublishPost runs" do
     tests "UnpublishPost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    setup  "PublishPost", post: 1
     input  post: 1
     expect status: "draft"
   end
@@ -33,6 +34,7 @@ Hecks.behaviors "Blog" do
   test "ArchivePost runs" do
     tests "ArchivePost", on: "Post"
     setup  "DraftPost", title: "sample", body: "sample", author_name: "sample", tags: "sample"
+    setup  "PublishPost", post: 1
     input  post: 1
     expect status: "archived"
   end
@@ -56,6 +58,7 @@ Hecks.behaviors "Blog" do
   test "RestoreComment runs" do
     tests "RestoreComment", on: "Comment"
     setup  "LeaveComment", post_slug: "sample", author_name: "sample", body: "sample"
+    setup  "HideComment", comment: 1
     input  comment: 1
     expect status: "visible"
   end

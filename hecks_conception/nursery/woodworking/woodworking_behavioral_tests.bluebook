@@ -19,6 +19,7 @@ Hecks.behaviors "Woodworking" do
   test "AssembleProject runs" do
     tests "AssembleProject", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "StartMilling", wood_project: 1
     input  wood_project: 1
     expect status: "assembled"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "Woodworking" do
   test "ApplyFinish sets finish_type" do
     tests "ApplyFinish", on: "WoodProject"
     setup  "PlanProject", name: "sample", project_type: "sample", wood_species: "sample", estimated_hours: 1.0
+    setup  "StartMilling", wood_project: 1
+    setup  "AssembleProject", wood_project: 1
     input  wood_project: 1, finish_type: "sample"
     expect status: "finished"
   end
@@ -64,6 +67,7 @@ Hecks.behaviors "Woodworking" do
 
   test "FitJoint runs" do
     tests "FitJoint", on: "Joinery"
+    setup  "CutJoint", joinery: 1
     input  joinery: 1
     expect status: "fitted"
   end
@@ -103,6 +107,7 @@ Hecks.behaviors "Woodworking" do
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "WoodCommission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    setup  "AcceptCommission", wood_commission: 1
     input  wood_commission: 1
     expect status: "delivered"
   end

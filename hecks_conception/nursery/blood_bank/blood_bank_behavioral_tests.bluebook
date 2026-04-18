@@ -19,6 +19,7 @@ Hecks.behaviors "BloodBank" do
   test "DeferDonor sets reason + deferral_until" do
     tests "DeferDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    setup  "ScreenDonor", donor: 1
     input  donor: 1, reason: "sample", deferral_until: "sample"
     expect eligibility_status: "deferred"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "BloodBank" do
   test "ReinstateDonor runs" do
     tests "ReinstateDonor", on: "Donor"
     setup  "RegisterDonor", name: "sample", blood_type: "sample", rh_factor: "sample"
+    setup  "ScreenDonor", donor: 1
+    setup  "DeferDonor", donor: 1, reason: "sample", deferral_until: "sample"
     input  donor: 1
     expect eligibility_status: "eligible"
   end
@@ -42,6 +45,7 @@ Hecks.behaviors "BloodBank" do
 
   test "ProcessDonation runs" do
     tests "ProcessDonation", on: "Donation"
+    setup  "CollectDonation", donor: 1, volume_ml: 1.0
     input  donation: 1
     expect status: "processed"
   end
@@ -57,18 +61,24 @@ Hecks.behaviors "BloodBank" do
 
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "BloodUnit"
+    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
     input  blood_unit: 1
     expect status: "available"
   end
 
   test "CrossmatchUnit sets patient_id" do
     tests "CrossmatchUnit", on: "BloodUnit"
+    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "ReleaseUnit", blood_unit: 1
     input  blood_unit: 1, patient_id: "sample"
     expect status: "crossmatched"
   end
 
   test "IssueUnit sets hospital_name" do
     tests "IssueUnit", on: "BloodUnit"
+    setup  "LabelUnit", donation: 1, blood_type: "sample", component: "sample", expiry_date: "sample"
+    setup  "ReleaseUnit", blood_unit: 1
+    setup  "CrossmatchUnit", blood_unit: 1, patient_id: "sample"
     input  blood_unit: 1, hospital_name: "sample"
     expect status: "issued"
   end
@@ -90,6 +100,7 @@ Hecks.behaviors "BloodBank" do
 
   test "RecordResult sets result" do
     tests "RecordResult", on: "TestResult"
+    setup  "PerformTest", donation: 1, test_type: "sample"
     input  test_result: 1, result: "sample"
     expect status: "completed"
   end

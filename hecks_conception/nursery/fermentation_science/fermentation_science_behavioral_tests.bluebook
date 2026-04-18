@@ -35,7 +35,6 @@ Hecks.behaviors "FermentationScience" do
 
   test "AddIngredient sets ingredient_name + quantity_kg + ingredient_type" do
     tests "AddIngredient", on: "BeerRecipe"
-    setup  "AddIngredient", ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
     input  beer_recipe: 1, ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
     expect ingredients_size: 1
   end
@@ -45,7 +44,6 @@ Hecks.behaviors "FermentationScience" do
 
   test "StartTrial sets trial_number" do
     tests "StartTrial", on: "FermentationTrial"
-    setup  "AddIngredient", ingredient_name: "sample", quantity_kg: 1.0, ingredient_type: "sample"
     setup  "CatalogStrain", strain_name: "sample", species: "sample"
     input  beer_recipe: 1, yeast_strain: 1, trial_number: "sample"
     expect ok: "true"

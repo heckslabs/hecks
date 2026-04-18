@@ -58,12 +58,14 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "SellProduct runs" do
     tests "SellProduct", on: "ProductLine"
+    setup  "LaunchProduct", brewing_cohort: 1, product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     input  product_line: 1
     expect ok: "true"
   end
 
   test "RetireProduct runs" do
     tests "RetireProduct", on: "ProductLine"
+    setup  "LaunchProduct", brewing_cohort: 1, product_id: "sample", product_name: "sample", style: "sample", batch_number: "sample"
     input  product_line: 1
     expect status: "retired"
   end
@@ -102,8 +104,8 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "AssignResident runs" do
     tests "AssignResident", on: "HousingUnit"
-    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
     setup  "EnrollApprentice", apprentice_id: "sample", name: "sample", branch_of_service: "sample", discharge_type: "sample", housing_status: "sample"
+    setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
     input  housing_unit: 1, veteran_apprentice: 1
     expect resident: :resident, status: "occupied"
   end
@@ -111,6 +113,7 @@ Hecks.behaviors "BrewingForVeterans" do
   test "ReleaseUnit runs" do
     tests "ReleaseUnit", on: "HousingUnit"
     setup  "PrepareUnit", unit_id: "sample", address: "sample", capacity: 1, funding_source: "sample"
+    setup  "AssignResident", housing_unit: 1, veteran_apprentice: 1
     input  housing_unit: 1
     expect status: "available"
   end
@@ -127,14 +130,14 @@ Hecks.behaviors "BrewingForVeterans" do
 
   test "AchieveMilestone runs" do
     tests "AchieveMilestone", on: "GraduationPath"
-    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "CreatePath", veteran_apprentice: 1, path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     input  graduation_path: 1
     expect ok: "true"
   end
 
   test "CompletePath runs" do
     tests "CompletePath", on: "GraduationPath"
-    setup  "CreatePath", path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
+    setup  "CreatePath", veteran_apprentice: 1, path_id: "sample", employment_goal: "sample", housing_transition: "sample", mentor_name: "sample"
     input  graduation_path: 1
     expect status: "completed"
   end

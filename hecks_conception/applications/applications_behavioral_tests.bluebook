@@ -26,6 +26,7 @@ Hecks.behaviors "Applications" do
   test "RetireApplication runs" do
     tests "RetireApplication", on: "Application"
     setup  "RegisterApplication", name: "sample", domain_path: "sample", app_types: "sample", version: "sample"
+    setup  "DeployApp", application: 1
     input  application: 1
     expect status: "retired"
   end
@@ -49,6 +50,7 @@ Hecks.behaviors "Applications" do
   test "TrackViability sets application_path" do
     tests "TrackViability", on: "DomainLifecycle"
     setup  "TrackGestation", domain_name: "sample", nursery_path: "sample"
+    setup  "TrackBirth", domain_lifecycle: 1, catalog_path: "sample"
     input  domain_lifecycle: 1, application_path: "sample"
     expect application_path: "sample", stage: "viable"
   end

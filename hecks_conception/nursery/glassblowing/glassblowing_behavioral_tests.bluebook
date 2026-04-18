@@ -19,6 +19,7 @@ Hecks.behaviors "Glassblowing" do
   test "TransferToAnnealer runs" do
     tests "TransferToAnnealer", on: "GlassPiece"
     setup  "GatherGlass", name: "sample", form: "sample", technique: "sample"
+    setup  "BlowPiece", glass_piece: 1
     input  glass_piece: 1
     expect status: "annealing"
   end
@@ -80,6 +81,7 @@ Hecks.behaviors "Glassblowing" do
 
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "AnnealingCycle"
+    setup  "StartCycle", annealing_cycle: 1
     input  annealing_cycle: 1
     expect status: "completed"
   end
@@ -95,14 +97,15 @@ Hecks.behaviors "Glassblowing" do
 
   test "OpenExhibition runs" do
     tests "OpenExhibition", on: "GlassExhibition"
-    setup  "OpenExhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
     input  glass_exhibition: 1
     expect status: "open"
   end
 
   test "CloseExhibition runs" do
     tests "CloseExhibition", on: "GlassExhibition"
-    setup  "OpenExhibition"
+    setup  "CurateExhibition", title: "sample", venue: "sample", opening_date: "sample", piece_count: 1
+    setup  "OpenExhibition", glass_exhibition: 1
     input  glass_exhibition: 1
     expect status: "closed"
   end

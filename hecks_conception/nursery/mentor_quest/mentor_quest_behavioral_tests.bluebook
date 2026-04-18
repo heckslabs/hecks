@@ -27,14 +27,14 @@ Hecks.behaviors "MentorQuest" do
 
   test "AddInterest sets topic + enthusiasm_level" do
     tests "AddInterest", on: "Youth"
-    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
+    setup  "EnrollYouth", name: "sample", age: 1
     input  youth: 1, topic: "sample", enthusiasm_level: 1
     expect interests_size: 1
   end
 
   test "AwardXP sets xp_points" do
     tests "AwardXP", on: "Youth"
-    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
+    setup  "EnrollYouth", name: "sample", age: 1
     input  youth: 1, xp_points: 1
     expect ok: "true"
   end
@@ -50,14 +50,14 @@ Hecks.behaviors "MentorQuest" do
 
   test "AddMission sets mission_name + description + xp_reward + difficulty" do
     tests "AddMission", on: "QuestLine"
-    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "DesignQuest", quest_name: "sample", theme: "sample"
     input  quest_line: 1, mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
     expect missions_size: 1
   end
 
   test "PublishQuest runs" do
     tests "PublishQuest", on: "QuestLine"
-    setup  "AddMission", mission_name: "sample", description: "sample", xp_reward: 1, difficulty: "sample"
+    setup  "DesignQuest", quest_name: "sample", theme: "sample"
     input  quest_line: 1
     expect ok: "true"
   end
@@ -67,8 +67,8 @@ Hecks.behaviors "MentorQuest" do
 
   test "ScheduleSession sets session_date" do
     tests "ScheduleSession", on: "MentorshipSession"
+    setup  "EnrollYouth", name: "sample", age: 1
     setup  "RegisterMentor", name: "sample", mentees_max: 1
-    setup  "AddInterest", topic: "sample", enthusiasm_level: 1
     input  mentor: 1, youth: 1, session_date: "sample"
     expect ok: "true"
   end

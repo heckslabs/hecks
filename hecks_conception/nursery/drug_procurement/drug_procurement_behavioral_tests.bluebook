@@ -27,14 +27,14 @@ Hecks.behaviors "DrugProcurement" do
 
   test "PlaceBid runs" do
     tests "PlaceBid", on: "BidRound"
-    setup  "PlaceBid"
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
     input  bid_round: 1
     expect ok: "true"
   end
 
   test "CloseBidRound runs" do
     tests "CloseBidRound", on: "BidRound"
-    setup  "PlaceBid"
+    setup  "OpenBidRound", round_id: "sample", compound_id: "sample", reserve_price: 1.0
     input  bid_round: 1
     expect status: "closed"
   end

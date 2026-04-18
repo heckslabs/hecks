@@ -28,8 +28,8 @@ Hecks.behaviors "Astronomy" do
 
   test "LogObservation sets observer_name + timestamp" do
     tests "LogObservation", on: "Observation"
-    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
     setup  "ActivateTelescope", name: "sample", aperture_mm: 1.0, focal_length_mm: 1.0
+    setup  "RegisterBody", designation: "sample", body_type: "sample", right_ascension: 1.0, declination: 1.0
     input  celestial_body: 1, telescope: 1, observer_name: "sample", timestamp: "sample"
     expect ok: "true"
   end

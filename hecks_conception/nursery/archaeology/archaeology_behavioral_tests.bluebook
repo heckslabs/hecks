@@ -56,14 +56,12 @@ Hecks.behaviors "Archaeology" do
 
   test "PhotographArtifact runs" do
     tests "PhotographArtifact", on: "Artifact"
-    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  artifact: 1
     expect ok: "true"
   end
 
   test "SendForDating runs" do
     tests "SendForDating", on: "Artifact"
-    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  artifact: 1
     expect ok: "true"
   end
@@ -73,7 +71,6 @@ Hecks.behaviors "Archaeology" do
 
   test "SubmitResult sets method + date_bp + error_margin" do
     tests "SubmitResult", on: "DatingResult"
-    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  artifact: 1, method: "sample", date_bp: 1, error_margin: 1
     expect ok: "true"
   end
@@ -89,7 +86,6 @@ Hecks.behaviors "Archaeology" do
 
   test "ConserveArtifact sets treatment_type + conservator" do
     tests "ConserveArtifact", on: "ConservationRecord"
-    setup  "RegisterFind", find_number: "sample", material: "sample", object_type: "sample"
     input  artifact: 1, treatment_type: "sample", conservator: "sample"
     expect ok: "true"
   end

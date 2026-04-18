@@ -35,6 +35,7 @@ Hecks.behaviors "PestControl" do
 
   test "FlagReinfestation runs" do
     tests "FlagReinfestation", on: "InspectionReport"
+    setup  "ConductInspection", service_account: 1, inspection_date: "sample", pest_type: "sample", severity: "sample", entry_points: "sample", recommendations: "sample"
     input  inspection_report: 1
     expect status: "reinfestation"
   end
@@ -51,12 +52,14 @@ Hecks.behaviors "PestControl" do
 
   test "RecordReentryTime sets reentry_hours" do
     tests "RecordReentryTime", on: "TreatmentApplication"
+    setup  "ApplyTreatment", service_account: 1, inspection_report: 1, treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
     input  treatment_application: 1, reentry_hours: "sample"
     expect ok: "true"
   end
 
   test "VerifyEffectiveness runs" do
     tests "VerifyEffectiveness", on: "TreatmentApplication"
+    setup  "ApplyTreatment", service_account: 1, inspection_report: 1, treatment_type: "sample", target_pest: "sample", application_method: "sample", areas_treated: "sample"
     input  treatment_application: 1
     expect status: "effective"
   end
@@ -96,6 +99,7 @@ Hecks.behaviors "PestControl" do
 
   test "CompleteFollowUp sets findings" do
     tests "CompleteFollowUp", on: "FollowUpVisit"
+    setup  "ScheduleFollowUp", service_account: 1, treatment_application: 1, visit_date: "sample", purpose: "sample"
     input  follow_up_visit: 1, findings: "sample"
     expect findings: "sample", status: "completed"
   end

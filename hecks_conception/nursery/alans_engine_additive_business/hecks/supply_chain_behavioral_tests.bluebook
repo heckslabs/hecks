@@ -26,6 +26,7 @@ Hecks.behaviors "SupplyChain" do
   test "SuspendSupplier runs" do
     tests "SuspendSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    setup  "ApproveSupplier", supplier: 1
     input  supplier: 1
     expect approved: "false", status: "suspended"
   end
@@ -33,6 +34,8 @@ Hecks.behaviors "SupplyChain" do
   test "RestoreSupplier runs" do
     tests "RestoreSupplier", on: "Supplier"
     setup  "RegisterSupplier", name: "sample", supplier_type: "sample", contact: "sample", lead_time_days: 1, payment_terms: "sample"
+    setup  "ApproveSupplier", supplier: 1
+    setup  "SuspendSupplier", supplier: 1
     input  supplier: 1
     expect approved: "true", status: "approved"
   end
@@ -56,6 +59,7 @@ Hecks.behaviors "SupplyChain" do
   test "InspectMaterial runs" do
     tests "InspectMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
     input  raw_material: 1
     expect status: "inspecting"
   end
@@ -63,6 +67,8 @@ Hecks.behaviors "SupplyChain" do
   test "AcceptMaterial sets coa_on_file" do
     tests "AcceptMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
+    setup  "InspectMaterial", raw_material: 1
     input  raw_material: 1, coa_on_file: "sample"
     expect coa_on_file: "sample", status: "accepted"
   end
@@ -70,6 +76,8 @@ Hecks.behaviors "SupplyChain" do
   test "RejectMaterial sets reason" do
     tests "RejectMaterial", on: "RawMaterial"
     setup  "SourceMaterial", chemical_name: "sample", cas_number: "sample", supplier: "sample", grade: "sample", unit_cost: 1.0, unit: "sample"
+    setup  "ReceiveMaterial", raw_material: 1, lot_number: "sample"
+    setup  "InspectMaterial", raw_material: 1
     input  raw_material: 1, reason: "sample"
     expect status: "rejected"
   end
@@ -100,6 +108,7 @@ Hecks.behaviors "SupplyChain" do
   test "InspectPackaging runs" do
     tests "InspectPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
     input  packaging_component: 1
     expect status: "inspecting"
   end
@@ -107,6 +116,8 @@ Hecks.behaviors "SupplyChain" do
   test "AcceptPackaging runs" do
     tests "AcceptPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
+    setup  "InspectPackaging", packaging_component: 1
     input  packaging_component: 1
     expect status: "accepted"
   end
@@ -114,6 +125,8 @@ Hecks.behaviors "SupplyChain" do
   test "RejectPackaging sets reason" do
     tests "RejectPackaging", on: "PackagingComponent"
     setup  "OrderPackaging", component_type: "sample", supplier: "sample", specification: "sample", unit_cost: 1.0, moq: 1
+    setup  "ReceivePackaging", packaging_component: 1, lot_number: "sample"
+    setup  "InspectPackaging", packaging_component: 1
     input  packaging_component: 1, reason: "sample"
     expect status: "rejected"
   end
@@ -174,6 +187,7 @@ Hecks.behaviors "SupplyChain" do
   test "ConfirmPurchaseOrder runs" do
     tests "ConfirmPurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder", purchase_order: 1
     input  purchase_order: 1
     expect status: "confirmed"
   end
@@ -181,6 +195,8 @@ Hecks.behaviors "SupplyChain" do
   test "ReceivePurchaseOrder runs" do
     tests "ReceivePurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder", purchase_order: 1
+    setup  "ConfirmPurchaseOrder", purchase_order: 1
     input  purchase_order: 1
     expect status: "received"
   end
@@ -188,6 +204,9 @@ Hecks.behaviors "SupplyChain" do
   test "ClosePurchaseOrder runs" do
     tests "ClosePurchaseOrder", on: "PurchaseOrder"
     setup  "CreatePurchaseOrder", po_number: "sample", supplier: "sample", delivery_date: "sample"
+    setup  "SubmitPurchaseOrder", purchase_order: 1
+    setup  "ConfirmPurchaseOrder", purchase_order: 1
+    setup  "ReceivePurchaseOrder", purchase_order: 1
     input  purchase_order: 1
     expect status: "closed"
   end

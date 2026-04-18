@@ -72,6 +72,7 @@ Hecks.behaviors "MarineNavigation" do
   test "DockVessel runs" do
     tests "DockVessel", on: "Vessel"
     setup  "RegisterVessel", name: "sample", vessel_type: "sample", length_meters: 1.0, fuel_capacity_tons: 1.0, max_speed_knots: 1.0
+    setup  "Depart", vessel: 1
     input  vessel: 1
     expect status: "docked"
   end
@@ -109,6 +110,7 @@ Hecks.behaviors "MarineNavigation" do
   test "RerouteForWeather sets reason" do
     tests "RerouteForWeather", on: "Route"
     setup  "PlanRoute", name: "sample", origin_port: "sample", destination_port: "sample", total_distance_nm: 1.0
+    setup  "ApproveRoute", route: 1
     input  route: 1, reason: "sample"
     expect status: "rerouted"
   end

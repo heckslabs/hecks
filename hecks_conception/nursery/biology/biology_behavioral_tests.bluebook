@@ -121,6 +121,7 @@ Hecks.behaviors "Biology" do
   test "Denature sets cause" do
     tests "Denature", on: "Protein"
     setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Fold", protein: 1, secondary_structure: "sample", tertiary_structure: "sample"
     input  protein: 1, cause: "sample"
     expect active: "false", folding_state: "denatured"
   end
@@ -128,6 +129,7 @@ Hecks.behaviors "Biology" do
   test "Catalyze sets substrate + product" do
     tests "Catalyze", on: "Protein"
     setup  "Synthesize", name: "sample", sequence: "sample", function: "sample"
+    setup  "Fold", protein: 1, secondary_structure: "sample", tertiary_structure: "sample"
     input  protein: 1, substrate: "sample", product: "sample"
     expect ok: "true"
   end
@@ -194,35 +196,38 @@ Hecks.behaviors "Biology" do
 
   test "AddSpecies sets species_name + initial_count + trophic_level" do
     tests "AddSpecies", on: "Ecosystem"
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  ecosystem: 1, species_name: "sample", initial_count: 1, trophic_level: "sample"
     expect status: "developing"
   end
 
   test "TrackPopulation sets species_name + new_count + growth_rate" do
     tests "TrackPopulation", on: "Ecosystem"
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  ecosystem: 1, species_name: "sample", new_count: 1, growth_rate: 1.0
     expect ok: "true"
   end
 
   test "ModelFoodWeb runs" do
     tests "ModelFoodWeb", on: "Ecosystem"
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", ecosystem: 1, species_name: "sample", initial_count: 1, trophic_level: "sample"
     input  ecosystem: 1
     expect status: "stable"
   end
 
   test "MeasureBiodiversity sets biodiversity_index" do
     tests "MeasureBiodiversity", on: "Ecosystem"
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
     input  ecosystem: 1, biodiversity_index: 1.0
     expect biodiversity_index: 1.0
   end
 
   test "RemoveSpecies sets species_name + cause" do
     tests "RemoveSpecies", on: "Ecosystem"
-    setup  "AddSpecies", species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "EstablishEcosystem", name: "sample", biome: "sample", area: 1.0, energy_input: 1.0
+    setup  "AddSpecies", ecosystem: 1, species_name: "sample", initial_count: 1, trophic_level: "sample"
+    setup  "ModelFoodWeb", ecosystem: 1
     input  ecosystem: 1, species_name: "sample", cause: "sample"
     expect status: "disturbed"
   end
@@ -334,6 +339,8 @@ Hecks.behaviors "Biology" do
   test "Depolarize sets potential_change" do
     tests "Depolarize", on: "Neuron"
     setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", neuron: 1, stimulus_strength: 1.0
+    setup  "Repolarize", neuron: 1
     input  neuron: 1, potential_change: 1.0
     expect state: "resting"
   end
@@ -341,6 +348,7 @@ Hecks.behaviors "Biology" do
   test "Repolarize runs" do
     tests "Repolarize", on: "Neuron"
     setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", neuron: 1, stimulus_strength: 1.0
     input  neuron: 1
     expect state: "refractory"
   end
@@ -348,6 +356,7 @@ Hecks.behaviors "Biology" do
   test "ReleaseSynapse sets target_neuron + amount" do
     tests "ReleaseSynapse", on: "Neuron"
     setup  "CreateNeuron", neuron_type: "sample", name: "sample", resting_potential: 1.0, threshold: 1.0, neurotransmitter: "sample"
+    setup  "FireNeuron", neuron: 1, stimulus_strength: 1.0
     input  neuron: 1, target_neuron: "sample", amount: 1.0
     expect ok: "true"
   end
@@ -399,6 +408,8 @@ Hecks.behaviors "Biology" do
   test "RememberPathogen runs" do
     tests "RememberPathogen", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", immune_response: 1, response_type: "sample"
+    setup  "ResolveInfection", immune_response: 1
     input  immune_response: 1
     expect memory_formed: "true", status: "immune"
   end
@@ -413,6 +424,7 @@ Hecks.behaviors "Biology" do
   test "ResolveInfection runs" do
     tests "ResolveInfection", on: "ImmuneResponse"
     setup  "DetectPathogen", pathogen_name: "sample", pathogen_type: "sample", severity: "sample"
+    setup  "MountResponse", immune_response: 1, response_type: "sample"
     input  immune_response: 1
     expect status: "resolved"
   end

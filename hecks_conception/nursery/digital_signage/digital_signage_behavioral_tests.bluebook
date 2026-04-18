@@ -80,14 +80,12 @@ Hecks.behaviors "DigitalSignage" do
 
   test "PauseSchedule runs" do
     tests "PauseSchedule", on: "Schedule"
-    setup  "CreateSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
     input  schedule: 1
     expect ok: "true"
   end
 
   test "DeleteSchedule runs" do
     tests "DeleteSchedule", on: "Schedule"
-    setup  "CreateSchedule", schedule_id: "sample", start_time: "sample", end_time: "sample", recurrence: "sample"
     input  schedule: 1
     expect ok: "true"
   end

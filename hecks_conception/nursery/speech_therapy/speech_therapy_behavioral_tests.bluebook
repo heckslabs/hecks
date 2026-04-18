@@ -34,6 +34,7 @@ Hecks.behaviors "SpeechTherapy" do
 
   test "AchieveGoal runs" do
     tests "AchieveGoal", on: "TherapyGoal"
+    setup  "SetGoal", client: 1, client_name: "sample", goal_area: "sample", description: "sample", target_criterion: "sample", baseline_score: 1
     input  therapy_goal: 1
     expect status: "achieved"
   end
@@ -50,6 +51,7 @@ Hecks.behaviors "SpeechTherapy" do
 
   test "CompleteSession sets notes" do
     tests "CompleteSession", on: "TherapySession"
+    setup  "ScheduleSession", client: 1, client_name: "sample", pathologist_name: "sample", session_date: "sample", session_type: "sample"
     input  therapy_session: 1, notes: "sample"
     expect notes: "sample", status: "completed"
   end

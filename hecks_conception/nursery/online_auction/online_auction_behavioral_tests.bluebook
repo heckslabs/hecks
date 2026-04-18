@@ -35,14 +35,12 @@ Hecks.behaviors "OnlineAuction" do
 
   test "RetractBid sets retraction_reason" do
     tests "RetractBid", on: "Bid"
-    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
     input  bid: 1, retraction_reason: "sample"
     expect ok: "true"
   end
 
   test "FlagSuspiciousBid runs" do
     tests "FlagSuspiciousBid", on: "Bid"
-    setup  "PlaceBid", bid_id: "sample", amount: 1.0, bidder_name: "sample", bidder_email: "sample"
     input  bid: 1
     expect ok: "true"
   end
@@ -82,14 +80,12 @@ Hecks.behaviors "OnlineAuction" do
 
   test "DisburseToSeller runs" do
     tests "DisburseToSeller", on: "AuctionSettlement"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  auction_settlement: 1
     expect ok: "true"
   end
 
   test "HoldSettlement sets hold_reason" do
     tests "HoldSettlement", on: "AuctionSettlement"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  auction_settlement: 1, hold_reason: "sample"
     expect ok: "true"
   end
@@ -99,21 +95,18 @@ Hecks.behaviors "OnlineAuction" do
 
   test "OpenDispute sets dispute_id + complainant + reason + description" do
     tests "OpenDispute", on: "Dispute"
-    setup  "CreateSettlement", settlement_id: "sample", hammer_price: 1.0, buyer_premium: 1.0, seller_commission: 1.0
     input  auction_settlement: 1, dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     expect dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
   end
 
   test "ResolveDispute sets resolution" do
     tests "ResolveDispute", on: "Dispute"
-    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     input  dispute: 1, resolution: "sample"
     expect ok: "true"
   end
 
   test "EscalateDispute runs" do
     tests "EscalateDispute", on: "Dispute"
-    setup  "OpenDispute", dispute_id: "sample", complainant: "sample", reason: "sample", description: "sample"
     input  dispute: 1
     expect ok: "true"
   end

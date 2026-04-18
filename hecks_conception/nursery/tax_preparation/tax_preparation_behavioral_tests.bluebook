@@ -35,12 +35,14 @@ Hecks.behaviors "TaxPreparation" do
 
   test "CalculateTax sets gross_income + adjusted_gross_income + taxable_income + tax_owed + refund_amount" do
     tests "CalculateTax", on: "TaxReturn"
+    setup  "StartReturn", tax_client: 1, tax_year: "sample", return_type: "sample"
     input  tax_return: 1, gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
     expect gross_income: 1.0, adjusted_gross_income: 1.0, taxable_income: 1.0, tax_owed: 1.0, refund_amount: 1.0
   end
 
   test "FinalizeReturn runs" do
     tests "FinalizeReturn", on: "TaxReturn"
+    setup  "StartReturn", tax_client: 1, tax_year: "sample", return_type: "sample"
     input  tax_return: 1
     expect status: "finalized"
   end
@@ -57,6 +59,7 @@ Hecks.behaviors "TaxPreparation" do
 
   test "VerifyDocument runs" do
     tests "VerifyDocument", on: "TaxDocument"
+    setup  "CollectDocument", tax_client: 1, document_type: "sample", issuer: "sample", tax_year: "sample"
     input  tax_document: 1
     expect status: "verified"
   end
@@ -79,6 +82,7 @@ Hecks.behaviors "TaxPreparation" do
 
   test "SubstantiateDeduction runs" do
     tests "SubstantiateDeduction", on: "Deduction"
+    setup  "ClaimDeduction", tax_return: 1, deduction_type: "sample", category: "sample", amount: 1.0
     input  deduction: 1
     expect documentation_status: "substantiated"
   end
@@ -100,12 +104,14 @@ Hecks.behaviors "TaxPreparation" do
 
   test "ReceiveAcceptance sets confirmation_number + accepted_date" do
     tests "ReceiveAcceptance", on: "ElectronicFiling"
+    setup  "FileElectronically", tax_return: 1, filed_date: "sample"
     input  electronic_filing: 1, confirmation_number: "sample", accepted_date: "sample"
     expect confirmation_number: "sample", accepted_date: "sample", status: "accepted"
   end
 
   test "HandleRejection sets rejection_reason" do
     tests "HandleRejection", on: "ElectronicFiling"
+    setup  "FileElectronically", tax_return: 1, filed_date: "sample"
     input  electronic_filing: 1, rejection_reason: "sample"
     expect status: "rejected"
   end

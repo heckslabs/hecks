@@ -74,8 +74,8 @@ Hecks.behaviors "CommunityGarden" do
 
   test "LogHarvest sets gardener_name + plot_number + crop_name + weight_pounds + harvest_date + destination" do
     tests "LogHarvest", on: "Harvest"
-    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     setup  "RegisterGardener", name: "sample", email: "sample", phone: "sample", experience_level: "sample", membership_date: "sample"
+    setup  "CreatePlot", plot_number: "sample", size: "sample", soil_type: "sample", sun_exposure: "sample"
     input  plot: 1, gardener: 1, gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
     expect gardener_name: "sample", plot_number: "sample", crop_name: "sample", weight_pounds: 1.0, harvest_date: "sample", destination: "sample"
   end

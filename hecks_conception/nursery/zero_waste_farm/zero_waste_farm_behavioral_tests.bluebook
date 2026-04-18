@@ -26,6 +26,7 @@ Hecks.behaviors "ZeroWasteFarm" do
   test "CompleteHarvest runs" do
     tests "CompleteHarvest", on: "Field"
     setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
+    setup  "DeclareHarvestReady", field: 1
     input  field: 1
     expect status: "harvested"
   end
@@ -37,17 +38,19 @@ Hecks.behaviors "ZeroWasteFarm" do
     tests "RecordHarvest", on: "Harvest"
     setup  "RegisterField", name: "sample", crop_type: "sample", acreage: 1.0, soil_type: "sample"
     input  field: 1, crop_type: "sample", weight_kg: 1.0, grade: "sample"
-    expect field: :field, crop_type: "sample", weight_kg: 1.0, grade: "sample", status: "recorded"
+    expect field: 1, crop_type: "sample", weight_kg: 1.0, grade: "sample", status: "recorded"
   end
 
   test "RouteToMarket runs" do
     tests "RouteToMarket", on: "Harvest"
+    setup  "RecordHarvest", field: 1, crop_type: "sample", weight_kg: 1.0, grade: "sample"
     input  harvest: 1
     expect destination: "market", status: "routed"
   end
 
   test "RouteToFoodBank runs" do
     tests "RouteToFoodBank", on: "Harvest"
+    setup  "RecordHarvest", field: 1, crop_type: "sample", weight_kg: 1.0, grade: "sample"
     input  harvest: 1
     expect destination: "food_bank", status: "routed"
   end
@@ -71,6 +74,7 @@ Hecks.behaviors "ZeroWasteFarm" do
   test "RecoverPrice runs" do
     tests "RecoverPrice", on: "MarketPrice"
     setup  "SetPrice", crop_type: "sample", current_price: 1.0, threshold_price: 1.0
+    setup  "DetectPriceDrop", market_price: 1
     input  market_price: 1
     expect status: "active"
   end
@@ -81,17 +85,20 @@ Hecks.behaviors "ZeroWasteFarm" do
   test "AllocateToFoodBank sets food_bank_name + region + allocated_kg" do
     tests "AllocateToFoodBank", on: "FoodBankAllocation"
     input  harvest: 1, food_bank_name: "sample", region: "sample", allocated_kg: 1.0
-    expect food_bank_name: "sample", region: "sample", harvest: :harvest, allocated_kg: 1.0, status: "allocated"
+    expect food_bank_name: "sample", region: "sample", harvest: 1, allocated_kg: 1.0, status: "allocated"
   end
 
   test "ConfirmReceipt runs" do
     tests "ConfirmReceipt", on: "FoodBankAllocation"
+    setup  "AllocateToFoodBank", harvest: 1, food_bank_name: "sample", region: "sample", allocated_kg: 1.0
     input  food_bank_allocation: 1
     expect status: "received"
   end
 
   test "DistributeToFamilies runs" do
     tests "DistributeToFamilies", on: "FoodBankAllocation"
+    setup  "AllocateToFoodBank", harvest: 1, food_bank_name: "sample", region: "sample", allocated_kg: 1.0
+    setup  "ConfirmReceipt", food_bank_allocation: 1
     input  food_bank_allocation: 1
     expect status: "distributed"
   end
@@ -102,11 +109,12 @@ Hecks.behaviors "ZeroWasteFarm" do
   test "ScheduleColdPickup sets driver_id" do
     tests "ScheduleColdPickup", on: "ColdRoute"
     input  harvest: 1, driver_id: "sample"
-    expect harvest: :harvest, driver_id: "sample", status: "scheduled"
+    expect harvest: 1, driver_id: "sample", status: "scheduled"
   end
 
   test "BeginTransport runs" do
     tests "BeginTransport", on: "ColdRoute"
+    setup  "ScheduleColdPickup", harvest: 1, driver_id: "sample"
     input  cold_route: 1
     expect status: "in_transit"
   end
@@ -119,6 +127,8 @@ Hecks.behaviors "ZeroWasteFarm" do
 
   test "CompleteDelivery runs" do
     tests "CompleteDelivery", on: "ColdRoute"
+    setup  "ScheduleColdPickup", harvest: 1, driver_id: "sample"
+    setup  "BeginTransport", cold_route: 1
     input  cold_route: 1
     expect status: "delivered"
   end

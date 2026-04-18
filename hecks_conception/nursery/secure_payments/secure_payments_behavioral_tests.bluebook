@@ -42,6 +42,7 @@ Hecks.behaviors "SecurePayments" do
   test "VerifySignature runs" do
     tests "VerifySignature", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    setup  "SignTransaction", transaction: 1, signature_hash: "sample"
     input  transaction: 1
     expect status: "verified"
   end
@@ -49,6 +50,8 @@ Hecks.behaviors "SecurePayments" do
   test "SettleTransaction runs" do
     tests "SettleTransaction", on: "Transaction"
     setup  "InitiateTransaction", transaction_id: "sample", amount: 1.0, currency: "sample", payer: "sample", payee: "sample"
+    setup  "SignTransaction", transaction: 1, signature_hash: "sample"
+    setup  "VerifySignature", transaction: 1
     input  transaction: 1
     expect status: "settled"
   end
@@ -72,6 +75,7 @@ Hecks.behaviors "SecurePayments" do
   test "ResolveAlert sets resolution" do
     tests "ResolveAlert", on: "FraudAlert"
     setup  "RaiseFraudAlert", transaction_id: "sample", risk_score: 1.0, alert_type: "sample", pattern_matched: "sample"
+    setup  "InvestigateAlert", fraud_alert: 1
     input  fraud_alert: 1, resolution: "sample"
     expect resolution: "sample", status: "resolved"
   end

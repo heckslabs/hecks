@@ -11,28 +11,28 @@ Hecks.behaviors "CustomerPersonas" do
 
   test "AddMotivation sets need + emotion + urgency" do
     tests "AddMotivation", on: "Persona"
-    setup  "AddMotivation", need: "sample", emotion: "sample", urgency: "sample"
+    setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
     input  persona: 1, need: "sample", emotion: "sample", urgency: "sample"
     expect ok: "true"
   end
 
   test "AddObjection sets concern + severity + counter_argument" do
     tests "AddObjection", on: "Persona"
-    setup  "AddMotivation", need: "sample", emotion: "sample", urgency: "sample"
+    setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
     input  persona: 1, concern: "sample", severity: "sample", counter_argument: "sample"
     expect ok: "true"
   end
 
   test "AddTrigger sets trigger" do
     tests "AddTrigger", on: "Persona"
-    setup  "AddMotivation", need: "sample", emotion: "sample", urgency: "sample"
+    setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
     input  persona: 1, trigger: "sample"
     expect ok: "true"
   end
 
   test "RefinePersona sets field + value" do
     tests "RefinePersona", on: "Persona"
-    setup  "AddMotivation", need: "sample", emotion: "sample", urgency: "sample"
+    setup  "DefinePersona", name: "sample", segment: "sample", description: "sample", age_range: "sample", income_range: "sample", vehicle_type: "sample", vehicle_age: "sample", annual_mileage: "sample", brand_affinity: "sample", price_sensitivity: "sample", trust_source: "sample"
     input  persona: 1, field: "sample", value: "sample"
     expect ok: "true"
   end
@@ -48,28 +48,28 @@ Hecks.behaviors "CustomerPersonas" do
 
   test "AddTouchpoint sets channel + action + content_type + effectiveness" do
     tests "AddTouchpoint", on: "BuyerJourney"
-    setup  "AddTouchpoint", channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
+    setup  "MapJourney", persona_name: "sample", stage: "sample"
     input  buyer_journey: 1, channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
     expect stage: "unaware"
   end
 
   test "MeasureConversion sets conversion_rate" do
     tests "MeasureConversion", on: "BuyerJourney"
-    setup  "AddTouchpoint", channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
+    setup  "MapJourney", persona_name: "sample", stage: "sample"
     input  buyer_journey: 1, conversion_rate: 1.0
     expect conversion_rate: 1.0
   end
 
   test "IdentifyDropoff runs" do
     tests "IdentifyDropoff", on: "BuyerJourney"
-    setup  "AddTouchpoint", channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
+    setup  "MapJourney", persona_name: "sample", stage: "sample"
     input  buyer_journey: 1
     expect ok: "true"
   end
 
   test "OptimizeJourney runs" do
     tests "OptimizeJourney", on: "BuyerJourney"
-    setup  "AddTouchpoint", channel: "sample", action: "sample", content_type: "sample", effectiveness: "sample"
+    setup  "MapJourney", persona_name: "sample", stage: "sample"
     input  buyer_journey: 1
     expect ok: "true"
   end

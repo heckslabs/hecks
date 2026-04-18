@@ -19,6 +19,7 @@ Hecks.behaviors "GameDevelopment" do
   test "ShipGold runs" do
     tests "ShipGold", on: "GameProject"
     setup  "KickOffProject", title: "sample", engine: "sample", genre: "sample", target_platform: "sample"
+    setup  "EnterProduction", game_project: 1
     input  game_project: 1
     expect status: "gold"
   end
@@ -41,6 +42,7 @@ Hecks.behaviors "GameDevelopment" do
 
   test "CloseSprint sets completed_points" do
     tests "CloseSprint", on: "Sprint"
+    setup  "StartSprint", sprint: 1
     input  sprint: 1, completed_points: 1
     expect status: "closed"
   end
@@ -78,6 +80,7 @@ Hecks.behaviors "GameDevelopment" do
 
   test "AnalyzeResults runs" do
     tests "AnalyzeResults", on: "Playtest"
+    setup  "ConductPlaytest", playtest: 1
     input  playtest: 1
     expect ok: "true"
   end

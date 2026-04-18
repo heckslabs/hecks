@@ -42,6 +42,7 @@ Hecks.behaviors "FoodBank" do
   test "DepletItem sets quantity" do
     tests "DepletItem", on: "Inventory"
     setup  "StockItem", item_name: "sample", category: "sample", quantity: 1, storage_location: "sample", expiration_date: "sample"
+    setup  "AllocateItem", inventory: 1, quantity: 1
     input  inventory: 1, quantity: 1
     expect status: "depleted"
   end
@@ -72,6 +73,7 @@ Hecks.behaviors "FoodBank" do
   test "ReportDistribution runs" do
     tests "ReportDistribution", on: "Distribution"
     setup  "ScheduleDistribution", event_date: "sample", location: "sample"
+    setup  "ConductDistribution", distribution: 1, households_served: 1, total_weight_distributed: 1.0
     input  distribution: 1
     expect status: "reported"
   end

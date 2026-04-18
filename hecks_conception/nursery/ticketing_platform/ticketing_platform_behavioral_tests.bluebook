@@ -12,14 +12,12 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "PublishEvent runs" do
     tests "PublishEvent", on: "Event"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  event: 1
     expect ok: "true"
   end
 
   test "CancelEvent runs" do
     tests "CancelEvent", on: "Event"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  event: 1
     expect ok: "true"
   end
@@ -52,7 +50,6 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "PurchaseTicket sets ticket_id + tier_name + holder_name + holder_email + price_paid" do
     tests "PurchaseTicket", on: "Ticket"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  event: 1, ticket_id: "sample", tier_name: "sample", holder_name: "sample", holder_email: "sample", price_paid: 1.0
     expect ok: "true"
   end
@@ -74,7 +71,6 @@ Hecks.behaviors "TicketingPlatform" do
 
   test "GenerateSalesReport sets report_id + period" do
     tests "GenerateSalesReport", on: "SalesReport"
-    setup  "CreateEvent", event_name: "sample", event_type: "sample", date: "sample", organizer: "sample", capacity: 1
     input  event: 1, report_id: "sample", period: "sample"
     expect ok: "true"
   end

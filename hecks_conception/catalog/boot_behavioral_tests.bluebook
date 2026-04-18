@@ -37,6 +37,7 @@ Hecks.behaviors "Boot" do
   test "EndSession runs" do
     tests "EndSession", on: "Session"
     setup  "BootWithClaude"
+    setup  "GoLive", session: 1, started_at: "sample"
     input  session: 1
     expect status: "ended"
   end

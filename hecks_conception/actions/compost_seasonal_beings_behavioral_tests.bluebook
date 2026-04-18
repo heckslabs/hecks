@@ -19,6 +19,7 @@ Hecks.behaviors "CompostSeasonalBeings" do
   test "Verify runs" do
     tests "Verify", on: "Action"
     setup  "Plan", action_name: "sample", rationale: "sample"
+    setup  "Execute", action: 1
     input  action: 1
     expect status: "verified"
   end
@@ -26,6 +27,7 @@ Hecks.behaviors "CompostSeasonalBeings" do
   test "Reverse runs" do
     tests "Reverse", on: "Action"
     setup  "Plan", action_name: "sample", rationale: "sample"
+    setup  "Execute", action: 1
     input  action: 1
     expect status: "reversed"
   end

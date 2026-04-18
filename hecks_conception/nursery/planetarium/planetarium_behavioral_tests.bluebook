@@ -35,6 +35,7 @@ Hecks.behaviors "Planetarium" do
   test "ActivateProjector runs" do
     tests "ActivateProjector", on: "Projector"
     setup  "InstallProjector", projector_id: "sample", projector_type: "sample", resolution_pixels: 1, dome_coverage_pct: 1.0, brightness_lumens: 1.0
+    setup  "CalibrateProjector", projector: 1
     input  projector: 1
     expect status: "active"
   end
@@ -58,6 +59,7 @@ Hecks.behaviors "Planetarium" do
   test "PublishShow runs" do
     tests "PublishShow", on: "Show"
     setup  "CreateShow", title: "sample", theme: "sample", duration_minutes: 1, target_audience: "sample", narration_type: "sample"
+    setup  "RehearsalShow", show: 1
     input  show: 1
     expect status: "published"
   end

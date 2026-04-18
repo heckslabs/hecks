@@ -19,6 +19,7 @@ Hecks.behaviors "PodcastProduction" do
   test "HiatusShow runs" do
     tests "HiatusShow", on: "Show"
     setup  "LaunchShow", title: "sample", category: "sample", format: "sample"
+    setup  "PublishShow", show: 1
     input  show: 1
     expect status: "hiatus"
   end
@@ -41,12 +42,15 @@ Hecks.behaviors "PodcastProduction" do
 
   test "MarkEdited runs" do
     tests "MarkEdited", on: "Episode"
+    setup  "RecordEpisode", episode: 1, duration_seconds: 1
     input  episode: 1
     expect status: "edited"
   end
 
   test "ReleaseEpisode runs" do
     tests "ReleaseEpisode", on: "Episode"
+    setup  "RecordEpisode", episode: 1, duration_seconds: 1
+    setup  "MarkEdited", episode: 1
     input  episode: 1
     expect status: "released"
   end

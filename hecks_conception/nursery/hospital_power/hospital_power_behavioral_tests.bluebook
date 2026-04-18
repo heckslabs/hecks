@@ -35,6 +35,7 @@ Hecks.behaviors "HospitalPower" do
   test "StopGenerator runs" do
     tests "StopGenerator", on: "BackupGenerator"
     setup  "InstallGenerator", generator_id: "sample", fuel_type: "sample", capacity_kw: 1.0
+    setup  "StartGenerator", backup_generator: 1
     input  backup_generator: 1
     expect status: "standby"
   end
@@ -58,6 +59,7 @@ Hecks.behaviors "HospitalPower" do
   test "SwitchToMain runs" do
     tests "SwitchToMain", on: "TransferSwitch"
     setup  "ConfigureSwitch", switch_id: "sample", area_id: "sample", generator_id: "sample"
+    setup  "SwitchToBackup", transfer_switch: 1
     input  transfer_switch: 1
     expect current_source: "main"
   end

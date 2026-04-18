@@ -68,12 +68,14 @@ Hecks.behaviors "DentalPractice" do
 
   test "ProcessPayment sets allowed_amount + patient_responsibility" do
     tests "ProcessPayment", on: "InsuranceClaim"
+    setup  "SubmitClaim", dental_procedure: 1, patient: 1, billed_amount: 1.0
     input  insurance_claim: 1, allowed_amount: 1.0, patient_responsibility: 1.0
     expect allowed_amount: 1.0, patient_responsibility: 1.0, status: "paid"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "InsuranceClaim"
+    setup  "SubmitClaim", dental_procedure: 1, patient: 1, billed_amount: 1.0
     input  insurance_claim: 1
     expect status: "denied"
   end
@@ -90,6 +92,7 @@ Hecks.behaviors "DentalPractice" do
 
   test "ConfirmVisit runs" do
     tests "ConfirmVisit", on: "DentalAppointment"
+    setup  "ScheduleVisit", patient: 1, appointment_date: "sample", time_slot: "sample", visit_type: "sample"
     input  dental_appointment: 1
     expect status: "confirmed"
   end

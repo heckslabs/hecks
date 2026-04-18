@@ -79,14 +79,12 @@ Hecks.behaviors "DomainRegistrar" do
 
   test "UpdateDNSRecord sets value + ttl" do
     tests "UpdateDNSRecord", on: "DNSRecord"
-    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     input  d_n_s_record: 1, value: "sample", ttl: 1
     expect ok: "true"
   end
 
   test "DeleteDNSRecord runs" do
     tests "DeleteDNSRecord", on: "DNSRecord"
-    setup  "CreateDNSRecord", record_id: "sample", record_type: "sample", hostname: "sample", value: "sample", ttl: 1
     input  d_n_s_record: 1
     expect ok: "true"
   end

@@ -19,6 +19,7 @@ Hecks.behaviors "Upholstery" do
   test "BeginWork runs" do
     tests "BeginWork", on: "UpholsteryProject"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "ApproveEstimate", upholstery_project: 1, quoted_price: 1.0
     input  upholstery_project: 1
     expect status: "in_progress"
   end
@@ -26,6 +27,8 @@ Hecks.behaviors "Upholstery" do
   test "CompleteProject runs" do
     tests "CompleteProject", on: "UpholsteryProject"
     setup  "AssessProject", piece_description: "sample", furniture_type: "sample", client_name: "sample"
+    setup  "ApproveEstimate", upholstery_project: 1, quoted_price: 1.0
+    setup  "BeginWork", upholstery_project: 1
     input  upholstery_project: 1
     expect status: "completed"
   end
@@ -48,6 +51,7 @@ Hecks.behaviors "Upholstery" do
 
   test "ReceiveFabric runs" do
     tests "ReceiveFabric", on: "FabricSelection"
+    setup  "OrderFabric", fabric_selection: 1
     input  fabric_selection: 1
     expect status: "received"
   end

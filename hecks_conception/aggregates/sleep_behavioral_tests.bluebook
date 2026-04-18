@@ -12,6 +12,7 @@ Hecks.behaviors "Sleep" do
 
   test "DissipateFatigue runs" do
     tests "DissipateFatigue", on: "Fatigue"
+    setup  "AccumulateFatigue", fatigue: 1
     expect level: 0, pulses_since_sleep: 0, state: "alert"
   end
 
@@ -31,6 +32,7 @@ Hecks.behaviors "Sleep" do
 
   test "EnterSleep runs" do
     tests "EnterSleep", on: "Consciousness"
+    setup  "EnterDaydream"
     expect sleep_stage: "light", sleep_cycle: 1, sleep_total: 8, phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: "settling into light sleep", state: "sleeping"
   end
 
@@ -46,57 +48,90 @@ Hecks.behaviors "Sleep" do
 
   test "WakeUp runs" do
     tests "WakeUp", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
     expect state: "waking"
   end
 
   test "BecomeAttentive runs" do
     tests "BecomeAttentive", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "WakeUp"
     expect state: "attentive"
   end
 
   test "ElapsePhase runs" do
     tests "ElapsePhase", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
     expect phase_ticks: 1
   end
 
   test "AdvanceLightToRem runs" do
     tests "AdvanceLightToRem", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
     expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, sleep_summary: "entering REM — dreams beginning"
   end
 
   test "AdvanceLightToLucidRem runs" do
     tests "AdvanceLightToLucidRem", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
     expect sleep_stage: "rem", phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 8, is_lucid: "yes", sleep_summary: "entering lucid REM — aware that she's dreaming"
   end
 
   test "AdvanceRemToDeep runs" do
     tests "AdvanceRemToDeep", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
     expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "sinking into deep sleep — dream complete"
   end
 
   test "AdvanceRemToDeepCap runs" do
     tests "AdvanceRemToDeepCap", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
     expect sleep_stage: "deep", phase_ticks: 0, is_lucid: "no", sleep_summary: "REM capped — dream cut short"
   end
 
   test "AdvanceDeepToLight runs" do
     tests "AdvanceDeepToLight", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
+    setup  "AdvanceRemToDeep"
     expect sleep_stage: "light", sleep_cycle: 1, phase_ticks: 0, sleep_summary: "light sleep — next cycle"
   end
 
   test "AdvanceDeepToFinalLight runs" do
     tests "AdvanceDeepToFinalLight", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
+    setup  "AdvanceRemToDeep"
     expect sleep_stage: "final_light", phase_ticks: 0, sleep_summary: "rising into final light — waking soon"
   end
 
   test "CompleteFinalLight sets now" do
     tests "CompleteFinalLight", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
+    setup  "AdvanceRemToDeep"
+    setup  "AdvanceDeepToFinalLight"
     input  now: "sample"
     expect last_wake_at: "sample", sleep_summary: "waking refreshed", state: "waking"
   end
 
   test "DreamPulse sets impression" do
     tests "DreamPulse", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "AdvanceLightToRem"
     input  impression: "sample"
     expect dream_pulses: 1, sleep_summary: "sample"
   end
@@ -129,6 +164,7 @@ Hecks.behaviors "Sleep" do
   test "CompleteCycle runs" do
     tests "CompleteCycle", on: "SleepCycle"
     setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    setup  "AdvanceStage", sleep_cycle: 1, stage: "sample", rem_intensity: 1
     input  sleep_cycle: 1
     expect stage: "light"
   end

@@ -19,6 +19,7 @@ Hecks.behaviors "VeteranRestart" do
   test "GraduateProgram runs" do
     tests "GraduateProgram", on: "Veteran"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
+    setup  "AssessNeeds", veteran: 1
     input  veteran: 1
     expect status: "graduated"
   end
@@ -30,23 +31,29 @@ Hecks.behaviors "VeteranRestart" do
     tests "MatchHousing", on: "HousingApplication"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
-    expect veteran: :veteran, housing_type: "sample", location_preference: "sample", budget: 1.0, status: "matched"
+    expect veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0, status: "matched"
   end
 
   test "SubmitApplication runs" do
     tests "SubmitApplication", on: "HousingApplication"
+    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
     input  housing_application: 1
     expect status: "submitted"
   end
 
   test "ApproveApplication runs" do
     tests "ApproveApplication", on: "HousingApplication"
+    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication", housing_application: 1
     input  housing_application: 1
     expect status: "approved"
   end
 
   test "SignLease runs" do
     tests "SignLease", on: "HousingApplication"
+    setup  "MatchHousing", veteran: 1, housing_type: "sample", location_preference: "sample", budget: 1.0
+    setup  "SubmitApplication", housing_application: 1
+    setup  "ApproveApplication", housing_application: 1
     input  housing_application: 1
     expect status: "leased"
   end
@@ -58,23 +65,27 @@ Hecks.behaviors "VeteranRestart" do
     tests "FileClaim", on: "BenefitsClaim"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  veteran: 1, benefit_type: "sample", description: "sample"
-    expect veteran: :veteran, benefit_type: "sample", description: "sample", status: "filed"
+    expect veteran: 1, benefit_type: "sample", description: "sample", status: "filed"
   end
 
   test "ApproveBenefits sets monthly_amount" do
     tests "ApproveBenefits", on: "BenefitsClaim"
+    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
     input  benefits_claim: 1, monthly_amount: 1.0
     expect monthly_amount: 1.0, status: "approved"
   end
 
   test "DenyClaim runs" do
     tests "DenyClaim", on: "BenefitsClaim"
+    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
     input  benefits_claim: 1
     expect status: "denied"
   end
 
   test "AppealClaim runs" do
     tests "AppealClaim", on: "BenefitsClaim"
+    setup  "FileClaim", veteran: 1, benefit_type: "sample", description: "sample"
+    setup  "DenyClaim", benefits_claim: 1
     input  benefits_claim: 1
     expect status: "appealed"
   end
@@ -86,7 +97,7 @@ Hecks.behaviors "VeteranRestart" do
     tests "StartFinancialPlan", on: "FinancialPlan"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  veteran: 1, monthly_income: 1.0
-    expect veteran: :veteran, monthly_income: 1.0, status: "active"
+    expect veteran: 1, monthly_income: 1.0, status: "active"
   end
 
   test "SetBudget sets monthly_expenses + savings_target" do
@@ -97,6 +108,7 @@ Hecks.behaviors "VeteranRestart" do
 
   test "ReviewProgress runs" do
     tests "ReviewProgress", on: "FinancialPlan"
+    setup  "StartFinancialPlan", veteran: 1, monthly_income: 1.0
     input  financial_plan: 1
     expect ok: "true"
   end
@@ -108,19 +120,19 @@ Hecks.behaviors "VeteranRestart" do
     tests "OpenCase", on: "LegalCase"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
-    expect case_type: "sample", description: "sample", assigned_attorney: "sample", veteran: :veteran, status: "open"
+    expect case_type: "sample", description: "sample", assigned_attorney: "sample", veteran: 1, status: "open"
   end
 
   test "ResolveCase runs" do
     tests "ResolveCase", on: "LegalCase"
-    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    setup  "OpenCase", veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
     input  legal_case: 1
     expect status: "resolved"
   end
 
   test "EscalateCase runs" do
     tests "EscalateCase", on: "LegalCase"
-    setup  "OpenCase", case_type: "sample", description: "sample", assigned_attorney: "sample"
+    setup  "OpenCase", veteran: 1, case_type: "sample", description: "sample", assigned_attorney: "sample"
     input  legal_case: 1
     expect status: "escalated"
   end
@@ -132,11 +144,12 @@ Hecks.behaviors "VeteranRestart" do
     tests "SetMilestone", on: "Milestone"
     setup  "EnrollVeteran", name: "sample", service_branch: "sample", discharge_type: "sample"
     input  veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample"
-    expect veteran: :veteran, milestone_type: "sample", description: "sample", target_date: "sample", status: "pending"
+    expect veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample", status: "pending"
   end
 
   test "AchieveMilestone runs" do
     tests "AchieveMilestone", on: "Milestone"
+    setup  "SetMilestone", veteran: 1, milestone_type: "sample", description: "sample", target_date: "sample"
     input  milestone: 1
     expect status: "achieved"
   end

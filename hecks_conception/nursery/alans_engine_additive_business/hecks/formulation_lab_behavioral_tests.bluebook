@@ -11,42 +11,45 @@ Hecks.behaviors "FormulationLab" do
 
   test "AddComponent sets chemical_name + cas_number + function + percentage + supplier + cost_per_lb" do
     tests "AddComponent", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
     input  experimental_formula: 1, chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
     expect status: "proposed"
   end
 
   test "EstimateCost sets projected_cost_per_unit" do
     tests "EstimateCost", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
     input  experimental_formula: 1, projected_cost_per_unit: 1.0
     expect projected_cost_per_unit: 1.0
   end
 
   test "SendToLabTest runs" do
     tests "SendToLabTest", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
     input  experimental_formula: 1
     expect status: "in_lab"
   end
 
   test "ReviewLabResults runs" do
     tests "ReviewLabResults", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
+    setup  "SendToLabTest", experimental_formula: 1
     input  experimental_formula: 1
     expect status: "tested"
   end
 
   test "PromoteToProduction runs" do
     tests "PromoteToProduction", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
+    setup  "SendToLabTest", experimental_formula: 1
+    setup  "ReviewLabResults", experimental_formula: 1
     input  experimental_formula: 1
     expect status: "promoted"
   end
 
   test "ShelveFormula runs" do
     tests "ShelveFormula", on: "ExperimentalFormula"
-    setup  "AddComponent", chemical_name: "sample", cas_number: "sample", function: "sample", percentage: 1.0, supplier: "sample", cost_per_lb: 1.0
+    setup  "ProposeFormula", codename: "sample", hypothesis: "sample", base_oil_type: "sample", additive_package: "sample", treat_rate_pct: 1.0, target_viscosity_grade: "sample", target_pour_point: "sample", target_flash_point: "sample"
     input  experimental_formula: 1
     expect status: "shelved"
   end
@@ -107,6 +110,7 @@ Hecks.behaviors "FormulationLab" do
   test "ScoreConfidence sets confidence_level" do
     tests "ScoreConfidence", on: "MarketThesis"
     setup  "WriteThesis", formula_codename: "sample", problem_statement: "sample", target_segment: "sample", competitive_gap: "sample", value_proposition: "sample"
+    setup  "ValidateThesis", market_thesis: 1
     input  market_thesis: 1, confidence_level: "sample"
     expect confidence_level: "sample", status: "high_confidence"
   end
@@ -165,6 +169,7 @@ Hecks.behaviors "FormulationLab" do
   test "ApproveForDevelopment runs" do
     tests "ApproveForDevelopment", on: "MarketingPreview"
     setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    setup  "PresentToStakeholder", marketing_preview: 1
     input  marketing_preview: 1
     expect status: "approved"
   end
@@ -172,6 +177,7 @@ Hecks.behaviors "FormulationLab" do
   test "RejectPreview runs" do
     tests "RejectPreview", on: "MarketingPreview"
     setup  "GeneratePreview", formula_codename: "sample", proposed_product_name: "sample", headline: "sample", key_message: "sample"
+    setup  "PresentToStakeholder", marketing_preview: 1
     input  marketing_preview: 1
     expect status: "rejected"
   end

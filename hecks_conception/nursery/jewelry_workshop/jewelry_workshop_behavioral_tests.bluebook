@@ -91,6 +91,7 @@ Hecks.behaviors "JewelryWorkshop" do
   test "DeliverCommission runs" do
     tests "DeliverCommission", on: "Commission"
     setup  "QuoteCommission", client_name: "sample", description: "sample", quoted_price: 1.0, deadline: "sample"
+    setup  "AcceptCommission", commission: 1
     input  commission: 1
     expect status: "delivered"
   end

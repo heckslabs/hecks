@@ -30,11 +30,12 @@ Hecks.behaviors "NutritionRx" do
     tests "WritePrescription", on: "Prescription"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
     input  patient: 1, medication: "sample", dosage: "sample", frequency: "sample"
-    expect patient: :patient, medication: "sample", dosage: "sample", frequency: "sample", status: "written"
+    expect patient: 1, medication: "sample", dosage: "sample", frequency: "sample", status: "written"
   end
 
   test "FillPrescription runs" do
     tests "FillPrescription", on: "Prescription"
+    setup  "WritePrescription", patient: 1, medication: "sample", dosage: "sample", frequency: "sample"
     input  prescription: 1
     expect status: "filled"
   end
@@ -52,11 +53,12 @@ Hecks.behaviors "NutritionRx" do
     tests "GenerateMealPlan", on: "MealPlan"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
     input  patient: 1, goal: "sample", daily_calories: 1
-    expect patient: :patient, goal: "sample", daily_calories: 1, status: "draft"
+    expect patient: 1, goal: "sample", daily_calories: 1, status: "draft"
   end
 
   test "ApproveMealPlan runs" do
     tests "ApproveMealPlan", on: "MealPlan"
+    setup  "GenerateMealPlan", patient: 1, goal: "sample", daily_calories: 1
     input  meal_plan: 1
     expect status: "approved"
   end
@@ -74,17 +76,19 @@ Hecks.behaviors "NutritionRx" do
     tests "GenerateGroceryList", on: "GroceryList"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
     input  patient: 1, meal_plan: 1
-    expect patient: :patient, meal_plan: :meal_plan, status: "generated"
+    expect patient: 1, meal_plan: 1, status: "generated"
   end
 
   test "UpdateGroceryList runs" do
     tests "UpdateGroceryList", on: "GroceryList"
+    setup  "GenerateGroceryList", patient: 1, meal_plan: 1
     input  grocery_list: 1
     expect status: "updated"
   end
 
   test "FulfillGroceryList runs" do
     tests "FulfillGroceryList", on: "GroceryList"
+    setup  "GenerateGroceryList", patient: 1, meal_plan: 1
     input  grocery_list: 1
     expect status: "fulfilled"
   end
@@ -96,7 +100,7 @@ Hecks.behaviors "NutritionRx" do
     tests "SetTarget", on: "NutrientTarget"
     setup  "RegisterPatient", name: "sample", date_of_birth: "sample", dietary_restriction: "sample"
     input  patient: 1, nutrient: "sample", target_amount: 1.0, unit: "sample"
-    expect patient: :patient, nutrient: "sample", target_amount: 1.0, unit: "sample", status: "tracking"
+    expect patient: 1, nutrient: "sample", target_amount: 1.0, unit: "sample", status: "tracking"
   end
 
   test "RecordIntake sets amount" do

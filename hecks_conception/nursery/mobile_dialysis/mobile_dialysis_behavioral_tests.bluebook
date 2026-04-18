@@ -35,6 +35,7 @@ Hecks.behaviors "MobileDialysis" do
   test "ReturnUnit runs" do
     tests "ReturnUnit", on: "MobileUnit"
     setup  "RegisterUnit", unit_id: "sample", license_plate: "sample", treatment_stations: 1, nurse_name: "sample"
+    setup  "DispatchUnit", mobile_unit: 1
     input  mobile_unit: 1
     expect status: "available"
   end
@@ -58,6 +59,7 @@ Hecks.behaviors "MobileDialysis" do
   test "FinishRoute runs" do
     tests "FinishRoute", on: "TreatmentRoute"
     setup  "PlanRoute", route_id: "sample", unit_id: "sample", date: "sample", total_miles: 1.0
+    setup  "StartRoute", treatment_route: 1
     input  treatment_route: 1
     expect status: "finished"
   end

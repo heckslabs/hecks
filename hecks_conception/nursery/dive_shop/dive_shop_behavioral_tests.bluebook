@@ -65,6 +65,7 @@ Hecks.behaviors "DiveShop" do
   test "CompleteTrip runs" do
     tests "CompleteTrip", on: "DiveTrip"
     setup  "OrganizeTrip", trip_id: "sample", destination: "sample", date: "sample", divemaster_name: "sample", max_divers: 1, price_per_diver: 1.0
+    setup  "LaunchTrip", dive_trip: 1
     input  dive_trip: 1
     expect status: "completed"
   end

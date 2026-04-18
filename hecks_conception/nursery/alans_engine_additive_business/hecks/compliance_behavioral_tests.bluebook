@@ -65,6 +65,7 @@ Hecks.behaviors "Compliance" do
   test "CloseAudit runs" do
     tests "CloseAudit", on: "RegulatoryAudit"
     setup  "ScheduleAudit", audit_type: "sample", auditor: "sample", scheduled_date: "sample"
+    setup  "RecordFindings", regulatory_audit: 1, findings: "sample"
     input  regulatory_audit: 1
     expect status: "closed"
   end
