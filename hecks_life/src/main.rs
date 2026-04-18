@@ -117,6 +117,11 @@ fn main() {
         return;
     }
 
+    if command == "check-io" {
+        run_check_io(&args);
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
@@ -357,6 +362,62 @@ fn run_behaviors(args: &[String]) {
     println!("\n{} passed, {} failed, {} errored",
              result.passed(), result.failed(), result.errored());
     if !result.all_passed() { std::process::exit(1); }
+}
+
+/// `hecks-life check-io <bluebook> [--strict]`
+///
+/// Asserts a bluebook is pure-memory-runnable. Two layers: static IR
+/// scan for IO-suggestive patterns (advisory by default), and a
+/// runtime smoke that boots Runtime::boot in pure-memory mode and
+/// dispatches every command. Exit 0 when runtime smoke passes
+/// (--strict promotes warnings to errors).
+fn run_check_io(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-io <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        eprintln!("{} has no aggregates — nothing to validate", path);
+        std::process::exit(1);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::io_validator::check(domain);
+
+    if !report.static_findings.is_empty() {
+        println!("\nStatic IR scan:");
+        for f in &report.static_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nStatic IR scan: clean");
+    }
+
+    if !report.runtime_findings.is_empty() {
+        println!("\nRuntime smoke (pure-memory dispatch):");
+        for f in &report.runtime_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nRuntime smoke: clean");
+    }
+
+    println!("\n{} error(s), {} warning(s)", report.errors(), report.warnings());
+    if report.passes(strict) {
+        println!("PASS — {} runs in pure memory", path);
+    } else {
+        println!("FAIL — {} {}", path,
+                 if report.errors() > 0 { "has IO-implying issues" }
+                 else { "has warnings (--strict)" });
+        std::process::exit(1);
+    }
 }
 
 /// `path/to/foo_behavioral_tests.bluebook` → `path/to/foo.bluebook`
