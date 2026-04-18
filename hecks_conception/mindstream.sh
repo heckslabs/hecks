@@ -102,34 +102,36 @@ except Exception:
   # state and call MintMusing with curated ideas.
 
   if [ "$state" != "sleeping" ]; then
-    # Surface a musing for the status bar. Prefer unconceived (newer ideas
-    # waiting to be conceived); fall back to any musing so the status bar
-    # stays alive even when the unconceived queue is empty.
+    # Surface ONE unconceived real-musing into the status bar, then mark
+    # it conceived so it won't surface again. Old musings don't repeat —
+    # the pool refreshes from Claude minting (or stays quiet until it does).
     thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
-import json, re, sys, time
+import json, re, sys
 def is_real_musing(s):
     # Skip tag-shaped entries (e.g. awareness_pulse, rust_heartbeat,
     # always_wander, independence) — those are topics/signals, not
-    # actual musings. A real musing has a real sentence shape:
-    # multiple words and either a space or punctuation.
+    # actual musings. A real musing has sentence shape.
     s = (s or '').strip()
     if len(s) < 20: return False
     if not re.search(r'[ —\-:.?!]', s): return False
-    # Bare snake_case identifier? Reject.
     if re.fullmatch(r'[a-z][a-z0-9_]*', s): return False
     return True
 try:
     d = json.load(sys.stdin)
-    all_ideas = [v.get('idea','').strip() for v in d.values() if is_real_musing(v.get('idea',''))]
     unconceived = [v.get('idea','').strip() for v in d.values()
                    if is_real_musing(v.get('idea','')) and not v.get('conceived', False)]
-    pool = unconceived or all_ideas
-    if pool:
-        print(pool[int(time.time() / 10) % len(pool)][:80])
+    if unconceived:
+        # Oldest unconceived first (FIFO) so freshly-minted ideas show
+        # in the order they were minted.
+        print(unconceived[0][:80])
 except Exception:
     pass
 " 2>/dev/null)
-    [ -n "$thought" ] && $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
+    if [ -n "$thought" ]; then
+      $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
+      # Mark this musing conceived so it doesn't surface again.
+      "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
+    fi
 
     # Mint a curated musing every 30 ticks (~5 min) — backgrounded so the
     # tick loop stays snappy. Provider is read from ClaudeAssist:
