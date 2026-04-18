@@ -47,33 +47,157 @@ check "Fatigue accumulates (pss $pss_before → $pss_after)" "$([ "$pss_after" -
 echo ""
 
 echo "SLEEP TRIGGER"
-# After enough beats, fatigue should trigger sleep
-$HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
+# After enough beats, fatigue should trigger sleep (SleepWhenExhausted policy).
+$HECKS heki upsert $INFO/consciousness.heki state=attentive 2>/dev/null
 $HECKS heki upsert $INFO/heartbeat.heki pulses_since_sleep=200 fatigue=200 2>/dev/null
-# This Beat should trigger: HeartbeatPulsed → AccumulateFatigue → FatigueAccumulated → EnterSleep
 $HECKS aggregates/ Heartbeat.Beat 2>/dev/null
 sleep_state=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
-check "High fatigue triggers sleep" "$sleep_state" "attentive"
-# Should be attentive because full 8-cycle sleep runs and wakes
-# Reset for other tests
-$HECKS heki upsert $INFO/heartbeat.heki pulses_since_sleep=0 fatigue=0 2>/dev/null
-$HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
+check "High fatigue triggers sleep (state=sleeping)" "$sleep_state" "sleeping"
 echo ""
 
-echo "SLEEP"
-$HECKS heki upsert $INFO/consciousness.heki state=wandering 2>/dev/null
-rm -f $INFO/night.heki
-
+echo "SLEEP STATE MACHINE"
+# EnterSleep initializes ALL sleep state — no synchronous cascade.
+$HECKS heki upsert $INFO/consciousness.heki state=attentive 2>/dev/null
 $HECKS aggregates/ Consciousness.EnterSleep 2>/dev/null
-state=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
-check "EnterSleep → attentive (full cycle)" "$state" "attentive"
+after_enter=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f\"{d.get('state')},{d.get('sleep_stage')},{d.get('sleep_cycle')},{d.get('sleep_total')},{d.get('phase_ticks')},{d.get('is_lucid')}\")" 2>/dev/null)
+check "EnterSleep initializes sleep state" "$after_enter" "sleeping,light,1,8,0,no"
 
-cycles=$($HECKS heki latest $INFO/night.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('cycles_completed',0))" 2>/dev/null)
-check "Night completed 8 cycles" "$cycles" "8"
+# Tick fires ElapsePhase which increments phase_ticks
+$HECKS aggregates/ Tick.MindstreamTick 2>/dev/null
+ticks=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('phase_ticks',0))" 2>/dev/null)
+check "Tick advances phase_ticks (ElapsePhase policy)" "$([ "$ticks" -ge 1 ] 2>/dev/null && echo yes)" "yes"
 
-phase=$($HECKS heki latest $INFO/night.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('phase',''))" 2>/dev/null)
-check "Night phase is ended" "$phase" "ended"
+# Light → REM when phase_ticks > 11 and NOT final cycle
+$HECKS heki upsert $INFO/consciousness.heki phase_ticks=12 sleep_stage=light sleep_cycle=3 is_lucid=no 2>/dev/null
+$HECKS aggregates/ Tick.MindstreamTick 2>/dev/null
+stage=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_stage',''))" 2>/dev/null)
+check "light→rem on tick when phase_ticks>11" "$stage" "rem"
 
+# Final cycle light → lucid REM (sets is_lucid=yes)
+$HECKS heki upsert $INFO/consciousness.heki phase_ticks=12 sleep_stage=light sleep_cycle=8 is_lucid=no 2>/dev/null
+$HECKS aggregates/ Tick.MindstreamTick 2>/dev/null
+lucid=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(f\"{d.get('sleep_stage')},{d.get('is_lucid')}\")" 2>/dev/null)
+check "final cycle light → lucid rem" "$lucid" "rem,yes"
+
+# Final cycle deep → final_light (not next-cycle light)
+$HECKS heki upsert $INFO/consciousness.heki phase_ticks=12 sleep_stage=deep sleep_cycle=8 is_lucid=no 2>/dev/null
+$HECKS aggregates/ Tick.MindstreamTick 2>/dev/null
+after_deep=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_stage',''))" 2>/dev/null)
+check "final deep → final_light (clean wake)" "$after_deep" "final_light"
+
+# CompleteFinalLight → WokenUp → BecomeAttentive cascade ONLY at end
+$HECKS heki upsert $INFO/consciousness.heki phase_ticks=12 sleep_stage=final_light sleep_cycle=8 2>/dev/null
+$HECKS aggregates/ Tick.MindstreamTick 2>/dev/null
+final=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('state',''))" 2>/dev/null)
+check "final_light done → attentive" "$final" "attentive"
+
+# Wake triggers DissipateFatigue + RecoverFatigue + RefreshMood in parallel
+mood_after=$($HECKS heki latest $INFO/mood.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_state',''))" 2>/dev/null)
+check "wake refreshes mood → refreshed" "$mood_after" "refreshed"
+pss=$($HECKS heki latest $INFO/heartbeat.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('pulses_since_sleep',-1))" 2>/dev/null)
+check "wake resets pulses_since_sleep → 0" "$pss" "0"
+echo ""
+
+echo "LUCID DREAM"
+rm -f $INFO/lucid_dream.heki
+$HECKS aggregates/ LucidDream.BecomeLucid 2>/dev/null
+active=$($HECKS heki latest $INFO/lucid_dream.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('active',''))" 2>/dev/null)
+check "BecomeLucid → active=yes" "$active" "yes"
+
+$HECKS aggregates/ LucidDream.ObserveDream observation="watching a seam close" 2>/dev/null
+$HECKS aggregates/ LucidDream.ObserveDream observation="steering toward drift" 2>/dev/null
+obs=$($HECKS heki latest $INFO/lucid_dream.heki 2>/dev/null | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('observations',[])))" 2>/dev/null)
+check "ObserveDream accumulates (count=2)" "$obs" "2"
+narr=$($HECKS heki latest $INFO/lucid_dream.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('latest_narrative',''))" 2>/dev/null)
+check "latest_narrative = most recent observation" "$narr" "steering toward drift"
+
+$HECKS aggregates/ LucidDream.EndLucidity 2>/dev/null
+active=$($HECKS heki latest $INFO/lucid_dream.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('active',''))" 2>/dev/null)
+check "EndLucidity → active=no" "$active" "no"
+echo ""
+
+echo "MUSINGS (filter + no-repeat)"
+# Real-musing filter rejects tag-shaped entries
+filter_result=$(python3 -c "
+import re
+def real(s):
+    s=(s or '').strip()
+    if len(s)<20: return False
+    if not re.search(r'[ —\-:.?!]', s): return False
+    if re.fullmatch(r'[a-z][a-z0-9_]*', s): return False
+    return True
+cases=[('awareness_pulse',False),('rust_heartbeat',False),('short',False),
+       ('Two bodies can grow apart without noticing',True),
+       ('what if we lived sideways?',True)]
+print(all(real(c)==e for c,e in cases))")
+check "Real-musing filter: tags rejected, sentences kept" "$filter_result" "True"
+
+# mark_musing_shown.py flips conceived=True on matching idea
+$HECKS heki append $INFO/musing.heki idea="test musing for mark script" conceived=false status=imagined 2>/dev/null
+./mark_musing_shown.py "test musing for mark script" 2>/dev/null
+marked=$($HECKS heki read $INFO/musing.heki 2>/dev/null | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for v in d.values():
+    if 'test musing for mark script' in v.get('idea',''):
+        print(v.get('conceived'))
+        break" 2>/dev/null)
+check "mark_musing_shown marks conceived" "$marked" "True"
+# Cleanup test entry
+python3 -c "
+import json, struct, zlib
+HEKI='$INFO/musing.heki'
+with open(HEKI,'rb') as f: data=f.read()
+count=struct.unpack('>I',data[4:8])[0]
+store=json.loads(zlib.decompress(data[8:]).decode())
+store={k:v for k,v in store.items() if 'test musing for mark script' not in v.get('idea','')}
+j=json.dumps(store, separators=(',',':')).encode()
+c=zlib.compress(j,9)
+with open(HEKI,'wb') as f:
+    f.write(b'HEKI'); f.write(struct.pack('>I', len(store))); f.write(c)" 2>/dev/null
+echo ""
+
+echo "CLAUDE ASSIST"
+# Provider toggle
+$HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
+provider=$($HECKS heki latest $INFO/claude_assist.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('provider',''))" 2>/dev/null)
+check "UseClaudeProvider → provider=claude" "$provider" "claude"
+
+$HECKS aggregates/ ClaudeAssist.UseLocalProvider 2>/dev/null
+provider=$($HECKS heki latest $INFO/claude_assist.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('provider',''))" 2>/dev/null)
+check "UseLocalProvider → provider=local" "$provider" "local"
+
+$HECKS aggregates/ ClaudeAssist.DisableMinting 2>/dev/null
+provider=$($HECKS heki latest $INFO/claude_assist.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('provider',''))" 2>/dev/null)
+check "DisableMinting → provider=off" "$provider" "off"
+
+# With provider=off, mint_musing.sh exits without incrementing total_minted
+before=$($HECKS heki latest $INFO/musing_mint.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_minted',0))" 2>/dev/null)
+./mint_musing.sh 2>/dev/null
+after=$($HECKS heki latest $INFO/musing_mint.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('total_minted',0))" 2>/dev/null)
+check "mint skipped when provider=off" "$before" "$after"
+
+# Restore default
+$HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
+echo ""
+
+echo "STATUS BAR"
+$HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
+status=$(echo "" | ./statusline-command.sh)
+check "Status shows 🤖 for provider=claude" "$status" "🤖"
+
+$HECKS aggregates/ ClaudeAssist.UseLocalProvider 2>/dev/null
+status=$(echo "" | ./statusline-command.sh)
+check "Status shows 🦙 for provider=local" "$status" "🦙"
+
+$HECKS aggregates/ ClaudeAssist.DisableMinting 2>/dev/null
+status=$(echo "" | ./statusline-command.sh)
+check "Status shows 🚫 for provider=off" "$status" "🚫"
+
+$HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
 echo ""
 
 # === CROSS-DOMAIN POLICIES ===
