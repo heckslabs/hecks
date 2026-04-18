@@ -44,7 +44,7 @@ pub fn run_conceive(args: &[String]) {
     }
 
     let best = &matches[0];
-    let text = conceiver::generator::generate_bluebook(name, vision, &best.domain);
+    let text = conceiver::generator::generate_bluebook(name, vision, &best.item);
     let snake = name.to_lowercase().replace(' ', "_");
     let dir = format!("nursery/{}", snake);
     let path = format!("{}/{}.bluebook", dir, snake);
@@ -57,8 +57,8 @@ pub fn run_conceive(args: &[String]) {
 
     println!("\nGenerated {}", path);
     println!("  Archetype: {} ({:.1}%)", best.name, best.similarity * 100.0);
-    println!("  Aggregates: {}", best.domain.aggregates.len());
-    let cmds: usize = best.domain.aggregates.iter().map(|a| a.commands.len()).sum();
+    println!("  Aggregates: {}", best.item.aggregates.len());
+    let cmds: usize = best.item.aggregates.iter().map(|a| a.commands.len()).sum();
     println!("  Commands: {}", cmds);
 }
 
@@ -114,7 +114,7 @@ fn find_corpus_match(args: &[String], feature: &str) -> crate::ir::Domain {
     let corpus = conceiver::scan_corpus(&corpus_dirs);
     let keywords: Vec<String> = feature.to_lowercase().split_whitespace().map(String::from).collect();
     let best = corpus.into_iter().find(|e| {
-        e.domain.aggregates.iter().any(|a| {
+        e.item.aggregates.iter().any(|a| {
             let haystack = format!("{} {} {}",
                 a.name.to_lowercase(),
                 a.description.as_deref().unwrap_or("").to_lowercase(),
@@ -124,7 +124,7 @@ fn find_corpus_match(args: &[String], feature: &str) -> crate::ir::Domain {
         })
     });
     match best {
-        Some(e) => e.domain,
+        Some(e) => e.item,
         None => {
             eprintln!("No corpus domain found matching feature \"{}\"", feature);
             std::process::exit(1);

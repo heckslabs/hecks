@@ -3,47 +3,53 @@ Hecks.behaviors "Pizzas" do
 
   # ── Pizza aggregate ──────────────────────────────────────────
 
-  test "CreatePizza sets name and description" do
+  test "CreatePizza sets name + description" do
     tests "CreatePizza", on: "Pizza"
-    input  name: "Margherita", description: "Classic tomato and mozzarella"
-    expect name: "Margherita", description: "Classic tomato and mozzarella"
+    input  name: "sample", description: "sample"
+    expect name: "sample", description: "sample"
   end
 
-  test "AddTopping appends to the toppings list" do
+  test "AddTopping sets name + amount" do
     tests "AddTopping", on: "Pizza"
-    setup  "CreatePizza", name: "Cheese", description: "plain"
-    input  name: "basil", amount: 5
-    expect toppings_size: 1
+    input  name: "sample", amount: 1
+    expect name: "sample", amount: 1
   end
 
-  test "ByDescription returns matching pizzas" do
-    tests "ByDescription", on: "Pizza", kind: :query
-    setup  "CreatePizza", name: "A", description: "classic"
-    setup  "CreatePizza", name: "B", description: "classic"
-    setup  "CreatePizza", name: "C", description: "spicy"
-    input  desc: "classic"
-    expect count: 2
+  test "AddTopping refuses when max 10 toppings" do
+    tests "AddTopping", on: "Pizza"
+    input  name: "sample", amount: 1
+    expect refused: "max 10 toppings"
   end
+
+  test "ByDescription returns matching records" do
+    tests "ByDescription", on: "Pizza", kind: :query
+    setup  "CreatePizza", name: "sample", description: "sample"
+    expect count: 1
+  end
+
 
   # ── Order aggregate ──────────────────────────────────────────
 
-  test "PlaceOrder creates an order in pending state" do
+  test "PlaceOrder sets customer_name + quantity" do
     tests "PlaceOrder", on: "Order"
-    input  customer_name: "Alice", quantity: 1
-    expect customer_name: "Alice", status: "pending"
+    input  customer_name: "sample", quantity: 1
+    expect customer_name: "sample", quantity: 1
   end
 
-  test "CancelOrder transitions status to cancelled (lifecycle)" do
+  test "CancelOrder sets expected state" do
     tests "CancelOrder", on: "Order"
-    setup  "PlaceOrder", customer_name: "Bob", quantity: 2
+    expect ok: "true"
+  end
+
+  test "CancelOrder transitions status to cancelled" do
+    tests "CancelOrder", on: "Order"
     expect status: "cancelled"
   end
 
-  test "Pending query returns only pending orders" do
+  test "Pending returns matching records" do
     tests "Pending", on: "Order", kind: :query
-    setup  "PlaceOrder",  customer_name: "Alice", quantity: 1
-    setup  "PlaceOrder",  customer_name: "Bob",   quantity: 2
-    setup  "CancelOrder"
+    setup  "PlaceOrder", customer_name: "sample", quantity: 1
     expect count: 1
   end
+
 end

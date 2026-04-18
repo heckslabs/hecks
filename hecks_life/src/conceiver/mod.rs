@@ -1,8 +1,13 @@
 //! Conceiver — corpus-driven domain generation and development
 //!
 //! Scans existing .bluebook files to extract structural vectors,
-//! finds nearest archetypes by cosine similarity, and generates
-//! new domains or develops existing ones.
+//! finds nearest archetypes, generates new domains.
+//!
+//! Mirrors `behaviors_conceiver/`. Both implement the `Conceiver`
+//! trait from `conceiver_common`, share corpus/nearest/similarity
+//! primitives, and have the same module layout (vector, generator,
+//! commands). Drift between them is enforced against by
+//! `tests/conceiver_parity.rs`.
 //!
 //! Usage:
 //!   hecks-life conceive "Geology" "science of earth materials"
@@ -13,117 +18,78 @@ pub mod generator;
 pub mod develop;
 pub mod commands;
 
+use crate::conceiver_common::{self, Conceiver, Entry, Match};
 use crate::ir::Domain;
 use crate::parser;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-/// A corpus entry: domain name, structural vector, source path.
-pub struct CorpusEntry {
-    pub name: String,
-    pub vector: Vec<f64>,
-    pub path: PathBuf,
-    pub domain: Domain,
+/// Marker type for the bluebook conceiver. Carries no data — it just
+/// gives the trait a `Self` to dispatch on.
+pub struct BluebookConceiver;
+
+impl Conceiver for BluebookConceiver {
+    type Item = Domain;
+    type Seed = String;
+
+    fn parse_source(source: &str) -> Option<(String, Self::Item, Vec<f64>)> {
+        // Skip behaviors files — different conceiver owns those.
+        if crate::behaviors_parser::is_behaviors_source(source) { return None; }
+        let domain = parser::parse(source);
+        if domain.aggregates.is_empty() { return None; }
+        let v = vector::extract_vector(&domain);
+        let name = domain.name.clone();
+        Some((name, domain, v))
+    }
+
+    fn seed_vector(input: &Self::Seed) -> Vec<f64> {
+        vector::seed_from_description(input)
+    }
+
+    fn generate(input: &Self::Seed, archetype: &Self::Item) -> String {
+        // input here is the vision string; the generator also needs a
+        // name, which `commands.rs` handles. This trait method exists
+        // for parity with BehaviorsConceiver — direct callers in
+        // commands.rs use generator::generate_bluebook with both name
+        // and vision explicitly.
+        generator::generate_bluebook("Generated", input, archetype)
+    }
 }
 
-/// A match result from nearest-neighbor search.
-pub struct Match {
-    pub name: String,
-    pub similarity: f64,
-    pub path: PathBuf,
-    pub domain: Domain,
-}
+// Public aliases — keeps existing call sites working through the
+// refactor. Same names, same behavior, but routed through the
+// shared `Conceiver` machinery so drift can't sneak in.
+pub type CorpusEntry = Entry<Domain>;
 
-/// Scan directories for .bluebook files, parse each, extract vectors.
+/// Scan dirs for bluebook files, parse each, extract vectors.
+/// Thin wrapper over `conceiver_common::scan_corpus` — kept so the
+/// existing `commands.rs` call sites compile unchanged.
 pub fn scan_corpus(dirs: &[PathBuf]) -> Vec<CorpusEntry> {
-    let mut entries = Vec::new();
-    for dir in dirs {
-        scan_dir(dir, &mut entries);
-    }
-    entries
+    conceiver_common::scan_corpus::<BluebookConceiver>(dirs)
 }
 
-fn scan_dir(dir: &Path, entries: &mut Vec<CorpusEntry>) {
-    let read = match std::fs::read_dir(dir) {
-        Ok(r) => r,
-        Err(_) => return,
-    };
-    for entry in read.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            scan_dir(&path, entries);
-        } else if path.extension().map(|e| e == "bluebook").unwrap_or(false) {
-            if let Ok(source) = std::fs::read_to_string(&path) {
-                let domain = parser::parse(&source);
-                if domain.aggregates.is_empty() {
-                    continue;
-                }
-                let vec = vector::extract_vector(&domain);
-                entries.push(CorpusEntry {
-                    name: domain.name.clone(),
-                    vector: vec,
-                    path: path.clone(),
-                    domain,
-                });
-            }
-        }
-    }
-}
-
-/// Find the k nearest corpus entries to a seed vector.
-/// If category is provided, only match domains with that category.
-/// Falls back to all domains if no category matches are found.
-pub fn find_nearest(seed: &[f64], corpus: Vec<CorpusEntry>, k: usize) -> Vec<Match> {
+/// Find k nearest. Behavior preserved: optional category filter
+/// partitions the corpus first, falls back to full corpus if no
+/// category matches.
+pub fn find_nearest(seed: &[f64], corpus: Vec<CorpusEntry>, k: usize) -> Vec<Match<Domain>> {
     find_nearest_with_category(seed, corpus, k, None)
 }
 
-/// Find nearest with optional category filter.
 pub fn find_nearest_with_category(
     seed: &[f64],
     corpus: Vec<CorpusEntry>,
     k: usize,
     category: Option<&str>,
-) -> Vec<Match> {
+) -> Vec<Match<Domain>> {
     let (filtered, fallback) = if let Some(cat) = category {
         let (matched, rest): (Vec<_>, Vec<_>) = corpus
             .into_iter()
-            .partition(|e| e.domain.category.as_deref() == Some(cat));
-        if matched.is_empty() {
-            (rest, true)
-        } else {
-            (matched, false)
-        }
+            .partition(|e| e.item.category.as_deref() == Some(cat));
+        if matched.is_empty() { (rest, true) } else { (matched, false) }
     } else {
         (corpus, false)
     };
-
     if fallback {
         eprintln!("No domains with category {:?}, falling back to full corpus", category.unwrap_or(""));
     }
-
-    let mut scored: Vec<(f64, CorpusEntry)> = filtered
-        .into_iter()
-        .map(|e| {
-            // Euclidean distance — prefers domains with similar absolute shape
-            let dist: f64 = seed.iter().zip(e.vector.iter())
-                .map(|(a, b)| (a - b) * (a - b))
-                .sum::<f64>()
-                .sqrt();
-            // Convert to similarity: 1.0 = identical, 0.0 = very different
-            let sim = 1.0 / (1.0 + dist);
-            (sim, e)
-        })
-        .collect();
-
-    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    scored.truncate(k);
-
-    scored
-        .into_iter()
-        .map(|(sim, e)| Match {
-            name: e.name,
-            similarity: sim,
-            path: e.path,
-            domain: e.domain,
-        })
-        .collect()
+    conceiver_common::find_nearest(seed, filtered, k)
 }

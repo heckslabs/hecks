@@ -107,6 +107,11 @@ fn main() {
         return;
     }
 
+    if command == "conceive-behaviors" {
+        hecks_life::behaviors_conceiver::commands::run_conceive_behaviors(&args);
+        return;
+    }
+
     // Batch mode: read file paths from stdin, process each
     if path == "--batch" {
         run_batch(command);
