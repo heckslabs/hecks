@@ -376,6 +376,26 @@ Eight contracts guarantee Ruby and Go generate identical behavior:
 
 No inline code generation. Every display convention is a named method on a contract.
 
+## Parity Suite
+
+Two parsers read the same `.bluebook` source: the Ruby DSL (`lib/hecks/dsl/`) and the Rust `hecks-life` runtime. A parity suite (`spec/parity/`) holds both to the same canonical IR shape.
+
+```
+ruby -Ilib spec/parity/parity_test.rb
+# 38/40 match (synthetic 10/10, real 28/30)
+# 2 known-drift (allowed)
+```
+
+The suite runs every fixture in `spec/parity/bluebooks/` and every real bluebook in `hecks_conception/aggregates/` through both parsers, converts each output to the canonical shape declared in `hecks_life/src/dump.rs` and `spec/parity/canonical_ir.rb`, and diffs. Known semantic gaps live in `spec/parity/known_drift.txt` — they don't block.
+
+After cloning, install the git hooks so drift can't land:
+
+```
+bin/install-hooks
+```
+
+The pre-commit gate runs in ~1 second and blocks only on **unexpected** drift.
+
 ## Why Not Just AI?
 
 AI is good at writing code. It's bad at maintaining constraints across a codebase over time.
