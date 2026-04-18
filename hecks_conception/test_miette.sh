@@ -184,6 +184,57 @@ check "mint skipped when provider=off" "$before" "$after"
 $HECKS aggregates/ ClaudeAssist.UseClaudeProvider 2>/dev/null
 echo ""
 
+echo "DAEMON ALIVE"
+# The live daemon must actually advance state over time. Catches stale
+# daemons running old code, hung loops, missing surface_musing.sh calls.
+# Records cycle counter + sleep_summary, waits 12s (one tick), asserts
+# the cycle counter has incremented.
+cycle_before=$($HECKS heki latest $INFO/tick.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('cycle',0))" 2>/dev/null)
+sleep 12
+cycle_after=$($HECKS heki latest $INFO/tick.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('cycle',0))" 2>/dev/null)
+check "Daemon ticking (cycle ${cycle_before} → ${cycle_after})" "$([ "$cycle_after" -gt "$cycle_before" ] 2>/dev/null && echo yes)" "yes"
+
+# Verify the daemon actually invokes surface_musing.sh — the real bug
+# from this session was daemon running OLD inline code after the
+# extraction commit. We seed 2 unconceived musings; if the daemon is
+# alive AND calling surface_musing.sh, sleep_summary changes to one
+# of them within one tick.
+python3 -c "
+import json, struct, uuid, zlib
+HEKI='$INFO/musing.heki'
+with open(HEKI,'rb') as f: data=f.read()
+count=struct.unpack('>I', data[4:8])[0]
+store=json.loads(zlib.decompress(data[8:]).decode())
+for v in store.values(): v['conceived'] = True
+for s in ['daemon-test-A: ensure surface fires', 'daemon-test-B: ensure cycling advances']:
+    rid=str(uuid.uuid4())
+    store[rid] = {'id':rid,'idea':s,'conceived':False,'status':'imagined','thinking_source':'test','feeling_source':'test'}
+j=json.dumps(store, separators=(',',':')).encode()
+c=zlib.compress(j,9)
+with open(HEKI,'wb') as f: f.write(b'HEKI'); f.write(struct.pack('>I',len(store))); f.write(c)" 2>/dev/null
+$HECKS heki upsert $INFO/consciousness.heki sleep_summary="" state=attentive 2>/dev/null
+sleep 12
+sum=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_summary',''))" 2>/dev/null)
+check "Live daemon surfaces a fresh musing within one tick" "$sum" "daemon-test"
+
+# One more tick — verify it advances OR stays (the every-3rd-tick mark
+# means it could either stay on A or advance to B; but it must be one of them).
+sleep 12
+sum2=$($HECKS heki latest $INFO/consciousness.heki 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('sleep_summary',''))" 2>/dev/null)
+check "Live daemon stays on a real musing across ticks" "$sum2" "daemon-test"
+
+# Clean up the test musings
+python3 -c "
+import json, struct, zlib
+HEKI='$INFO/musing.heki'
+with open(HEKI,'rb') as f: data=f.read()
+store=json.loads(zlib.decompress(data[8:]).decode())
+store={k:v for k,v in store.items() if 'daemon-test' not in v.get('idea','')}
+j=json.dumps(store, separators=(',',':')).encode()
+c=zlib.compress(j,9)
+with open(HEKI,'wb') as f: f.write(b'HEKI'); f.write(struct.pack('>I', len(store))); f.write(c)" 2>/dev/null
+echo ""
+
 echo "MUSING CYCLING"
 # Surface logic advances through multiple unconceived musings,
 # marks conceived every 3rd call, doesn't repeat. Simulate 9 ticks.
