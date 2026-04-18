@@ -41,12 +41,12 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
     end
   end
 
-  aggregate "MusingMint", "Minting new musings from domain collisions" do
+  aggregate "MusingMint", "Minting new musings — only really great ideas. Random domain collisions produce noise; quality requires curation. Claude (or any LLM adapter wired in via ClaudeAssist) is the quality filter." do
     attribute :last_minted, String
     attribute :total_minted, Integer
 
     command "MintMusing" do
-      description "Ask Summer for a new combinatorial idea"
+      description "Record a curated musing — the idea has been judged good enough to keep"
       attribute :idea, String
       emits "MusingMinted"
       then_set :last_minted, to: :idea
@@ -56,6 +56,40 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
     command "PruneMusings" do
       description "Remove repetitive mindstream musings"
       emits "MusingsPruned"
+    end
+  end
+
+  # ============================================================
+  # CLAUDE ASSIST — toggle for LLM-driven musing curation
+  # ============================================================
+  #
+  # When `enabled = "yes"` (and scope includes "musings"), an external
+  # Claude/LLM adapter is allowed to read recent state and call
+  # MintMusing with curated ideas. Default off — random noise minting
+  # is worse than no minting; quality requires curation.
+  #
+  # Toggle:
+  #   hecks-life aggregates ClaudeAssist.EnableClaude scope=musings
+  #   hecks-life aggregates ClaudeAssist.DisableClaude
+
+  aggregate "ClaudeAssist", "Toggle that gates LLM participation in minting (and other quality-filtered work)" do
+    attribute :enabled, String
+    attribute :scope, String
+
+    command "EnableClaude" do
+      role "Creator"
+      description "Turn Claude assistance ON for the named scope (e.g. 'musings')"
+      attribute :scope, String
+      then_set :enabled, to: "yes"
+      then_set :scope, to: :scope
+      emits "ClaudeEnabled"
+    end
+
+    command "DisableClaude" do
+      role "Creator"
+      description "Turn Claude assistance OFF — Miette runs unaided"
+      then_set :enabled, to: "no"
+      emits "ClaudeDisabled"
     end
   end
 

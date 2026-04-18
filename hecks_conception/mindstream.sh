@@ -91,5 +91,35 @@ except Exception:
     fi
   fi
 
+  # ============================================================
+  # AWAKE BEHAVIOR — surface unconceived musings into the status bar.
+  # ============================================================
+  # No automatic minting. Random combinations produce noise; only
+  # really great ideas should become musings. Claude (or whatever
+  # adapter the user wires in) is the quality filter — see the
+  # ClaudeAssist toggle in aggregates/mindstream.bluebook. When the
+  # toggle is on, an external process can read the latest unconceived
+  # state and call MintMusing with curated ideas.
+
+  if [ "$state" != "sleeping" ]; then
+    # Surface a musing for the status bar. Prefer unconceived (newer ideas
+    # waiting to be conceived); fall back to any musing so the status bar
+    # stays alive even when the unconceived queue is empty.
+    thought=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
+import json, sys, time
+try:
+    d = json.load(sys.stdin)
+    all_ideas = [v.get('idea','').strip() for v in d.values() if v.get('idea')]
+    unconceived = [v.get('idea','').strip() for v in d.values()
+                   if v.get('idea') and not v.get('conceived', False)]
+    pool = [i for i in unconceived if i] or [i for i in all_ideas if i]
+    if pool:
+        print(pool[int(time.time() / 10) % len(pool)][:80])
+except Exception:
+    pass
+" 2>/dev/null)
+    [ -n "$thought" ] && $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="$thought" 2>/dev/null
+  fi
+
   sleep 10
 done
