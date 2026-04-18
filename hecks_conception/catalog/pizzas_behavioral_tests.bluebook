@@ -1,0 +1,49 @@
+Hecks.behaviors "Pizzas" do
+  vision "Behavioral tests for the Pizzas domain — exercises every command and query in memory"
+
+  # ── Pizza aggregate ──────────────────────────────────────────
+
+  test "CreatePizza sets name and description" do
+    tests "CreatePizza", on: "Pizza"
+    input  name: "Margherita", description: "Classic tomato and mozzarella"
+    expect name: "Margherita", description: "Classic tomato and mozzarella"
+  end
+
+  test "AddTopping appends to the toppings list" do
+    tests "AddTopping", on: "Pizza"
+    setup  "CreatePizza", name: "Cheese", description: "plain"
+    input  name: "basil", amount: 5
+    expect toppings_size: 1
+  end
+
+  test "ByDescription returns matching pizzas" do
+    tests "ByDescription", on: "Pizza", kind: :query
+    setup  "CreatePizza", name: "A", description: "classic"
+    setup  "CreatePizza", name: "B", description: "classic"
+    setup  "CreatePizza", name: "C", description: "spicy"
+    input  desc: "classic"
+    expect count: 2
+  end
+
+  # ── Order aggregate ──────────────────────────────────────────
+
+  test "PlaceOrder creates an order in pending state" do
+    tests "PlaceOrder", on: "Order"
+    input  customer_name: "Alice", quantity: 1
+    expect customer_name: "Alice", status: "pending"
+  end
+
+  test "CancelOrder transitions status to cancelled (lifecycle)" do
+    tests "CancelOrder", on: "Order"
+    setup  "PlaceOrder", customer_name: "Bob", quantity: 2
+    expect status: "cancelled"
+  end
+
+  test "Pending query returns only pending orders" do
+    tests "Pending", on: "Order", kind: :query
+    setup  "PlaceOrder",  customer_name: "Alice", quantity: 1
+    setup  "PlaceOrder",  customer_name: "Bob",   quantity: 2
+    setup  "CancelOrder"
+    expect count: 1
+  end
+end

@@ -1,0 +1,29 @@
+Hecks.behaviors "Synthetic" do
+  vision "Synthetic behavior suite — locks the Hecks.behaviors DSL contract"
+
+  test "command form with input and expect" do
+    tests "DoThing", on: "Widget"
+    input  name: "Alpha", count: 3
+    expect status: "done", count: 3
+  end
+
+  test "query form with kind: :query" do
+    tests "ByName", on: "Widget", kind: :query
+    setup  "DoThing", name: "Alpha", count: 1
+    setup  "DoThing", name: "Beta",  count: 2
+    input  name: "Alpha"
+    expect count: 1
+  end
+
+  test "multi-setup with no input args" do
+    tests "Cancel", on: "Order"
+    setup  "Place", customer: "Alice", quantity: 1
+    setup  "Place", customer: "Bob",   quantity: 2
+    expect status: "cancelled"
+  end
+
+  test "empty setup, empty input, single expect" do
+    tests "Ping", on: "Health"
+    expect ok: "true"
+  end
+end

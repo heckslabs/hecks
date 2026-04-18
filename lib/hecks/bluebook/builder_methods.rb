@@ -29,6 +29,32 @@ module Hecks
       model(name, version: version, grammar: :bluebook, &block)
     end
 
+    # Define a behavioral test suite for a domain. The companion-file
+    # convention is `<source>_behavioral_tests.bluebook`. Tests are
+    # in-memory by definition: the runner instantiates the source
+    # domain's aggregates, replays setup, dispatches input, asserts
+    # against final state.
+    #
+    #   Hecks.behaviors "Pizzas" do
+    #     vision "Behavioral tests for the Pizzas domain"
+    #     test "CreatePizza sets name" do
+    #       tests "CreatePizza", on: "Pizza"
+    #       input  name: "Margherita"
+    #       expect name: "Margherita"
+    #     end
+    #   end
+    #
+    # @param name [String] the source domain name (NOT the suite name)
+    # @return [Hecks::BluebookModel::Structure::TestSuite]
+    def behaviors(name = nil, &block)
+      require "hecks/dsl/test_suite_builder"
+      builder = DSL::TestSuiteBuilder.new(name)
+      builder.instance_eval(&block) if block
+      result = builder.build
+      Hecks.last_test_suite = result
+      result
+    end
+
     # Generic entry point — delegates to whichever grammar's builder.
     #   Hecks.model "SpaceGame", grammar: :game_book do ... end
     #   Hecks.model "Pizzas" do ... end  # defaults to :bluebook

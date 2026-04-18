@@ -275,6 +275,55 @@ module Hecks
         return t.to_s if t.is_a?(Class)
         t.to_s
       end
+
+      # ── Behaviors DSL canonical dump ──────────────────────────
+      #
+      # Mirrors hecks_life/src/behaviors_dump.rs. The Ruby and Rust
+      # parsers both produce this shape from a `_behavioral_tests.bluebook`
+      # file (top-level `Hecks.behaviors`).
+      def dump_test_suite(suite)
+        {
+          "name"   => suite.name,
+          "vision" => suite.vision,
+          "tests"  => (suite.tests || []).map { |t| dump_test(t) },
+        }
+      end
+
+      def dump_test(t)
+        {
+          "description"   => t.description,
+          "tests_command" => t.tests_command,
+          "on_aggregate"  => t.on_aggregate,
+          "kind"          => t.kind.to_s,
+          "setups"        => (t.setups || []).map { |s| dump_test_setup(s) },
+          "input"         => dump_test_args(t.input),
+          "expect"        => dump_test_args(t.expect),
+        }
+      end
+
+      def dump_test_setup(s)
+        {
+          "command" => s.command,
+          "args"    => dump_test_args(s.args),
+        }
+      end
+
+      # Args render as ordered [key, value] pairs matching Rust's
+      # BTreeMap traversal — both sides emit alphabetical key order.
+      def dump_test_args(args)
+        (args || {}).sort_by { |k, _| k.to_s }.map { |k, v| [k.to_s, test_arg_value(v)] }
+      end
+
+      # Render an arg value as the source-text token Rust emits: strings
+      # come back unwrapped, numbers/symbols stay as their source bytes.
+      def test_arg_value(v)
+        case v
+        when String  then v
+        when Symbol  then ":#{v}"
+        when nil     then ""
+        else v.to_s
+        end
+      end
     end
   end
 end

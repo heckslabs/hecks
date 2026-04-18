@@ -46,10 +46,26 @@ end
 KNOWN_DRIFT = load_known_drift
 
 def ruby_dump(path)
-  Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
+  if behaviors_file?(path)
     Kernel.load(path)
+    Hecks::Parity::CanonicalIR.dump_test_suite(Hecks.last_test_suite)
+  else
+    Hecks::DSL::AggregateBuilder::VoTypeResolution.with_vo_constants do
+      Kernel.load(path)
+    end
+    Hecks::Parity::CanonicalIR.dump(Hecks.last_domain)
   end
-  Hecks::Parity::CanonicalIR.dump(Hecks.last_domain)
+end
+
+# True if the source's first non-blank, non-comment line starts with
+# `Hecks.behaviors` — same dispatch the Rust parser uses.
+def behaviors_file?(path)
+  File.foreach(path) do |line|
+    t = line.strip
+    next if t.empty? || t.start_with?("#")
+    return t.start_with?("Hecks.behaviors")
+  end
+  false
 end
 
 def rust_dump(path)

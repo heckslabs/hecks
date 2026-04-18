@@ -60,6 +60,9 @@ module Hecks
       autoload :Paragraph,         "hecks/bluebook_model/structure/paragraph"
       autoload :BluebookStructure, "hecks/bluebook_model/structure/bluebook_structure"
       autoload :Fixture,           "hecks/bluebook_model/structure/fixture"
+      autoload :TestSuite,         "hecks/bluebook_model/structure/test_suite"
+      autoload :Test,              "hecks/bluebook_model/structure/test"
+      autoload :TestSetup,         "hecks/bluebook_model/structure/test"
     end
   end
 end

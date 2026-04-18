@@ -14,3 +14,6 @@ pub mod validator;
 pub mod conceiver;
 pub mod heki;
 pub mod dump;
+pub mod behaviors_ir;
+pub mod behaviors_parser;
+pub mod behaviors_dump;

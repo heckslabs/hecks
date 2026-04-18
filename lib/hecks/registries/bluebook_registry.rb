@@ -49,6 +49,14 @@ module Hecks
       @last_world = world
     end
 
+    def last_test_suite
+      @last_test_suite
+    end
+
+    def last_test_suite=(suite)
+      @last_test_suite = suite
+    end
+
     def load_strategy
       @load_strategy ||= :memory
     end

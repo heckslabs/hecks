@@ -15,7 +15,8 @@
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
 
-use hecks_life::{parser, validator, server, conceiver, heki, dump};
+use hecks_life::{parser, validator, server, conceiver, heki, dump,
+                 behaviors_parser, behaviors_dump};
 use hecks_life::runtime::Runtime;
 
 use std::env;
@@ -172,6 +173,31 @@ fn main() {
         eprintln!("Cannot read {}: {}", path, e);
         std::process::exit(1);
     });
+
+    // Dispatch behaviors files (`Hecks.behaviors "..." do ... end`) to the
+    // separate parser/dump path. Only commands that make sense for a test
+    // suite are handled here — others fall through to the domain path
+    // (which would mis-parse the source).
+    if behaviors_parser::is_behaviors_source(&source) {
+        let suite = behaviors_parser::parse(&source);
+        match command {
+            "dump" => {
+                println!("{}", serde_json::to_string_pretty(&behaviors_dump::dump(&suite)).unwrap());
+                return;
+            }
+            "parse" | "inspect" | "tree" | "list" => {
+                println!("TestSuite \"{}\" — {} test(s)", suite.name, suite.tests.len());
+                for t in &suite.tests {
+                    println!("  • {}", t.description);
+                }
+                return;
+            }
+            _ => {
+                eprintln!("command `{}` not supported for behaviors files", command);
+                std::process::exit(1);
+            }
+        }
+    }
 
     let domain = parser::parse(&source);
 
