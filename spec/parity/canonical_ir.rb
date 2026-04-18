@@ -144,8 +144,9 @@ module Hecks
 
       def transitions_to_array(transitions)
         return [] unless transitions
-        transitions.map do |command_name, entry|
-          to_state, from_state =
+        result = []
+        transitions.each do |command_name, entry|
+          to_state, from_raw =
             if entry.respond_to?(:target)
               [entry.target, entry.respond_to?(:from) ? entry.from : nil]
             elsif entry.is_a?(Hash)
@@ -153,8 +154,19 @@ module Hecks
             else
               [entry.to_s, nil]
             end
-          { "command" => command_name.to_s, "to_state" => to_state, "from_state" => from_state }
+          # Expand from: [a, b] into multiple transitions, one per source state.
+          # Canonical shape is "one transition per (command, to, from)" — both
+          # parsers must produce the same flat list.
+          from_states = from_raw.is_a?(Array) ? from_raw : [from_raw]
+          from_states.each do |from_state|
+            result << {
+              "command" => command_name.to_s,
+              "to_state" => to_state,
+              "from_state" => from_state,
+            }
+          end
         end
+        result
       end
 
       def dump_policy(pol)
@@ -226,8 +238,10 @@ module Hecks
       end
 
       def category_for(domain)
+        # Only the explicit `category "X"` keyword sets category. The
+        # subdomain shortcuts (`core`, `supporting`, `generic`) set
+        # subdomain — different field. Don't conflate.
         return domain.category if domain.respond_to?(:category) && domain.category
-        return domain.subdomain.to_s if domain.respond_to?(:subdomain) && domain.subdomain
         nil
       end
 

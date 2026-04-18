@@ -38,21 +38,21 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   #     already has what it needs (dispatch, mutations, policies, heki).
 
   aggregate "RustFile", "A Rust source file to be converted" do
-    String :path
-    String :module_name
-    Integer :line_count
-    String :status
+    attribute :path, String
+    attribute :module_name, String
+    attribute :line_count, Integer
+    attribute :status, String
 
-    Analyze do
+    command "Analyze" do
       role "Miette"
       description "Read Rust file, identify functions, structs, heki operations"
-      String :path
+      attribute :path, String
       emits "FileAnalyzed"
       then_set :path, to: :path
       then_set :status, to: "analyzed"
     end
 
-    MapToBluebook do
+    command "MapToBluebook" do
       role "Miette"
       description "Map each Rust construct to its bluebook equivalent"
       reference_to(RustFile)
@@ -61,7 +61,7 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
       then_set :status, to: "mapped"
     end
 
-    GenerateBluebook do
+    command "GenerateBluebook" do
       role "Miette"
       description "Write the bluebook aggregates, commands, policies"
       reference_to(RustFile)
@@ -70,7 +70,7 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
       then_set :status, to: "generated"
     end
 
-    Verify do
+    command "Verify" do
       role "Miette"
       description "Test via --dispatch that bluebook reproduces the Rust behavior"
       reference_to(RustFile)
@@ -79,7 +79,7 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
       then_set :status, to: "verified"
     end
 
-    DeleteRust do
+    command "DeleteRust" do
       role "Miette"
       description "Remove the Rust file — the bluebook is the program now"
       reference_to(RustFile)
@@ -90,16 +90,16 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   end
 
   aggregate "Mapping", "One Rust construct mapped to a bluebook concept" do
-    String :rust_construct
-    String :rust_type
-    String :bluebook_concept
-    String :bluebook_type
+    attribute :rust_construct, String
+    attribute :rust_type, String
+    attribute :bluebook_concept, String
+    attribute :bluebook_type, String
 
-    MapFunction do
+    command "MapFunction" do
       role "Miette"
       description "fn foo() → command Foo"
-      String :rust_construct
-      String :bluebook_concept
+      attribute :rust_construct, String
+      attribute :bluebook_concept, String
       emits "FunctionMapped"
       then_set :rust_construct, to: :rust_construct
       then_set :rust_type, to: "function"
@@ -107,22 +107,22 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
       then_set :bluebook_type, to: "command"
     end
 
-    MapSideEffect do
+    command "MapSideEffect" do
       role "Miette"
       description "heki::write → then_set, heki::read → given"
-      String :rust_construct
-      String :bluebook_concept
+      attribute :rust_construct, String
+      attribute :bluebook_concept, String
       emits "SideEffectMapped"
       then_set :rust_construct, to: :rust_construct
       then_set :rust_type, to: "side_effect"
       then_set :bluebook_concept, to: :bluebook_concept
     end
 
-    MapControlFlow do
+    command "MapControlFlow" do
       role "Miette"
       description "if/match → guard or policy"
-      String :rust_construct
-      String :bluebook_concept
+      attribute :rust_construct, String
+      attribute :bluebook_concept, String
       emits "ControlFlowMapped"
       then_set :rust_construct, to: :rust_construct
       then_set :rust_type, to: "control_flow"
@@ -131,11 +131,11 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   end
 
   aggregate "Conversion", "Track overall progress — how much Rust remains" do
-    Integer :files_total
-    Integer :files_converted
-    Integer :lines_deleted
+    attribute :files_total, Integer
+    attribute :files_converted, Integer
+    attribute :lines_deleted, Integer
 
-    StartConversion do
+    command "StartConversion" do
       role "Miette"
       description "Begin converting Rust daemons to bluebooks"
       emits "ConversionStarted"
@@ -143,11 +143,11 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
       then_set :lines_deleted, to: 0
     end
 
-    RecordConversion do
+    command "RecordConversion" do
       role "Miette"
       description "A Rust file has been replaced by a bluebook"
       reference_to(Conversion)
-      Integer :lines_deleted
+      attribute :lines_deleted, Integer
       emits "FileConverted"
     end
   end

@@ -3,161 +3,167 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
   category "framework"
 
   aggregate "TestHelper" do
-  description "Resets runtime state between tests: clears repos and event bus"
-  Reset do
-end
+    description "Resets runtime state between tests: clears repos and event bus"
+    command "Reset" do
+    end
+  end
 
   aggregate "InMemoryLoader" do
-  description "Loads a domain into Ruby without disk I/O via RubyVM::InstructionSequence"
-  Load do
-    String :domain
-    String :mod
+    description "Loads a domain into Ruby without disk I/O via RubyVM::InstructionSequence"
+    command "Load" do
+      attribute :domain, String
+      attribute :mod, String
+    end
   end
-end
 
   aggregate "MemoryAdapter" do
-  description "Generated in-memory repository with find, save, delete, all, count, query, clear"
-  Generate do
-    String :aggregate
-    String :domain_module
+    description "Generated in-memory repository with find, save, delete, all, count, query, clear"
+    command "Generate" do
+      attribute :aggregate, String
+      attribute :domain_module, String
+    end
   end
-end
 
   aggregate "MemoryOutbox" do
-  description "In-memory outbox for testing: store, poll, mark_published, clear"
-  Store do
-    String :event
+    description "In-memory outbox for testing: store, poll, mark_published, clear"
+    command "Store" do
+      attribute :event, String
+    end
+    command "Poll" do
+    end
+    command "MarkPublished" do
+      attribute :entry_id, String
+    end
   end
-  Poll do
-  MarkPublished do
-    String :entry_id
-  end
-end
 
   aggregate "EventBus" do
-  description "In-memory pub/sub with ordered event log for test verification"
-  Subscribe do
-    String :event_name
+    description "In-memory pub/sub with ordered event log for test verification"
+    command "Subscribe" do
+      attribute :event_name, String
+    end
+    command "Publish" do
+      attribute :event, String
+    end
+    command "Clear" do
+    end
   end
-  Publish do
-    String :event
-  end
-  Clear do
-end
 
   aggregate "InMemoryExecutor" do
-  description "Fallback query executor filtering in-memory collections"
-  Execute do
-end
+    description "Fallback query executor filtering in-memory collections"
+    command "Execute" do
+    end
+  end
 
   aggregate "SpecGenerator" do
-  description "Composes 14 type-specific mixins to generate RSpec files from domain IR"
-  GenerateSpecHelper do
-end
+    description "Composes 14 type-specific mixins to generate RSpec files from domain IR"
+    command "GenerateSpecHelper" do
+    end
+  end
 
   aggregate "SpecHelpers" do
-  description "Example value generation, argument building, and spec snippet builders"
-  ExampleArgs do
-    String :thing
+    description "Example value generation, argument building, and spec snippet builders"
+    command "ExampleArgs" do
+      attribute :thing, String
+    end
+    command "ExampleValue" do
+      attribute :attr, String
+    end
   end
-  ExampleValue do
-    String :attr
-  end
-end
 
   aggregate "SpecWriter" do
-  description "Orchestrates writing all RSpec files to disk for a domain gem"
-  GenerateSpecs do
-    String :root
-    String :gem_name
+    description "Orchestrates writing all RSpec files to disk for a domain gem"
+    command "GenerateSpecs" do
+      attribute :root, String
+      attribute :gem_name, String
+    end
   end
-end
 
   aggregate "ServerHelpers" do
-  description "HTTP server test helpers: port allocation, readiness polling, form submission"
-  FreePort do
-  WaitForServer do
-    String :url
+    description "HTTP server test helpers: port allocation, readiness polling, form submission"
+    command "FreePort" do
+    end
+    command "WaitForServer" do
+      attribute :url, String
+    end
+    command "SubmitForm" do
+      attribute :base_url, String
+      attribute :form_path, String
+    end
   end
-  SubmitForm do
-    String :base_url
-    String :form_path
-  end
-end
 
   aggregate "Pizza" do
-  description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
-  String :name
-  String :description
-  list_of(Topping) :toppings
+    description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
+    attribute :name, String
+    attribute :description, String
+    attribute :toppings, list_of(Topping)
 
-  value_object "Topping" do
-    description "A measured ingredient on a pizza. Immutable once created."
-    String :name
-    Integer :amount
+    value_object "Topping" do
+      description "A measured ingredient on a pizza. Immutable once created."
+      attribute :name, String
+      attribute :amount, Integer
 
-    invariant "amount must be positive" do
-      amount > 0
+      invariant "amount must be positive" do
+        amount > 0
+      end
+    end
+
+    validation :name, presence: true
+    validation :description, presence: true
+
+    command "CreatePizza" do
+      description "Add a new pizza to the menu with a name and description"
+      attribute :name, String
+      attribute :description, String
+    end
+
+    query "ByDescription" do |desc|
+      where(description: desc)
+    end
+
+    command "AddTopping" do
+      description "Add a measured topping to an existing pizza"
+      reference_to(Pizza)
+      attribute :name, String
+      attribute :amount, Integer
     end
   end
-
-  validation :name, presence: true
-  validation :description, presence: true
-
-  CreatePizza do
-    description "Add a new pizza to the menu with a name and description"
-    String :name
-    String :description
-  end
-
-  query "ByDescription" do |desc|
-    where(description: desc)
-  end
-
-  AddTopping do
-    description "Add a measured topping to an existing pizza"
-    reference_to(Pizza)
-    String :name
-    Integer :amount
-  end
-end
 
   aggregate "Order" do
-  description "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies."
-  String :customer_name
-  list_of(OrderItem) :items
-  reference_to(Pizza)
+    description "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies."
+    attribute :customer_name, String
+    attribute :items, list_of(OrderItem)
+    reference_to(Pizza)
 
-  String :status
-    transition "CancelOrder" => "cancelled"
-  end
+    attribute :status, String do
+      transition "CancelOrder" => "cancelled"
+    end
 
-  value_object "OrderItem" do
-    description "A line item in an order with a quantity"
-    Integer :quantity
+    value_object "OrderItem" do
+      description "A line item in an order with a quantity"
+      attribute :quantity, Integer
 
-    invariant "quantity must be positive" do
-      quantity > 0
+      invariant "quantity must be positive" do
+        quantity > 0
+      end
+    end
+
+    validation :customer_name, presence: true
+
+    command "PlaceOrder" do
+      description "Place a new order for a pizza"
+      attribute :customer_name, String
+      reference_to(Pizza)
+      attribute :quantity, Integer
+    end
+
+    command "CancelOrder" do
+      description "Cancel a pending order, transitioning status to cancelled"
+      reference_to(Order)
+    end
+
+    query "Pending" do
+      where(status: "pending")
     end
   end
-
-  validation :customer_name, presence: true
-
-  PlaceOrder do
-    description "Place a new order for a pizza"
-    String :customer_name
-    reference_to(Pizza)
-    Integer :quantity
-  end
-
-  CancelOrder do
-    description "Cancel a pending order, transitioning status to cancelled"
-    reference_to(Order)
-  end
-
-  query "Pending" do
-    where(status: "pending")
-  end
-end
 
 end

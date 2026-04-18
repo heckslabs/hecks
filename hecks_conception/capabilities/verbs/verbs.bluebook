@@ -3,14 +3,14 @@ Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   category "infrastructure"
 
   aggregate "NonVerbSuffix", "A word ending that signals noun or adjective, not a verb" do
-    String :suffix
-    String :part_of_speech
+    attribute :suffix, String
+    attribute :part_of_speech, String
 
-    RegisterSuffix do
+    command "RegisterSuffix" do
       role "Linguist"
       description "Add a suffix pattern that identifies non-verbs"
-      String :suffix
-      String :part_of_speech
+      attribute :suffix, String
+      attribute :part_of_speech, String
       emits "SuffixRegistered"
       then_set :suffix, to: :suffix
       then_set :part_of_speech, to: :part_of_speech
@@ -18,26 +18,26 @@ Hecks.bluebook "Verbs", version: "2026.04.10.4" do
   end
 
   aggregate "DualWord", "A word that is both noun and verb — exempt from suffix rejection" do
-    String :word
+    attribute :word, String
 
-    RegisterDualWord do
+    command "RegisterDualWord" do
       role "Linguist"
       description "Mark a word as valid despite matching a non-verb suffix"
-      String :word
+      attribute :word, String
       emits "DualWordRegistered"
       then_set :word, to: :word
     end
   end
 
   aggregate "Prefix", "A productive prefix that derives new verbs from existing words" do
-    String :prefix
-    String :meaning
+    attribute :prefix, String
+    attribute :meaning, String
 
-    RegisterPrefix do
+    command "RegisterPrefix" do
       role "Linguist"
       description "Add a productive prefix derivation rule"
-      String :prefix
-      String :meaning
+      attribute :prefix, String
+      attribute :meaning, String
       emits "PrefixRegistered"
       then_set :prefix, to: :prefix
       then_set :meaning, to: :meaning

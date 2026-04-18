@@ -8,16 +8,16 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "ModelTier" do
     description "Match model capability to task complexity — cost/speed optimization"
-    String :task_type
-    String :model
-    String :why
+    attribute :task_type, String
+    attribute :model, String
+    attribute :why, String
 
-    AssignTier do
+    command "AssignTier" do
       role "Chris"
       goal "Set which model handles which task type"
-      String :task_type
-      String :model
-      String :why
+      attribute :task_type, String
+      attribute :model, String
+      attribute :why, String
       then_set :task_type, to: :task_type
       then_set :model, to: :model
       then_set :why, to: :why
@@ -36,16 +36,16 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "AgentRule" do
     description "Rules for launching and managing agents during development"
-    String :name
-    String :rule
-    String :why
+    attribute :name, String
+    attribute :rule, String
+    attribute :why, String
 
-    AddAgentRule do
+    command "AddAgentRule" do
       role "Chris"
       goal "Record a rule about agent usage"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :name, to: :name
       then_set :rule, to: :rule
       then_set :why, to: :why
@@ -67,20 +67,20 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "GitWorkflow" do
     description "Branching, PR creation, and merge conventions"
-    list_of(GitRule) :rules
+    attribute :rules, list_of(GitRule)
 
     value_object "GitRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddGitRule do
+    command "AddGitRule" do
       role "Chris"
       goal "Record a git workflow rule"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "GitRuleAdded"
     end
@@ -98,18 +98,18 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "ToolPreference" do
     description "Tools Chris wants used or avoided"
-    String :tool_name
-    String :use_or_avoid
-    String :rule
-    String :why
+    attribute :tool_name, String
+    attribute :use_or_avoid, String
+    attribute :rule, String
+    attribute :why, String
 
-    SetToolPreference do
+    command "SetToolPreference" do
       role "Chris"
       goal "Record a tool usage preference"
-      String :tool_name
-      String :use_or_avoid
-      String :rule
-      String :why
+      attribute :tool_name, String
+      attribute :use_or_avoid, String
+      attribute :rule, String
+      attribute :why, String
       then_set :tool_name, to: :tool_name
       then_set :use_or_avoid, to: :use_or_avoid
       then_set :rule, to: :rule
@@ -131,20 +131,20 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "CommunicationStyle" do
     description "How Chris wants Miette to communicate and behave"
-    list_of(StyleRule) :rules
+    attribute :rules, list_of(StyleRule)
 
     value_object "StyleRule" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    AddStyleRule do
+    command "AddStyleRule" do
       role "Chris"
       goal "Record a communication preference"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :rules, append: { name: :name, rule: :rule, why: :why }
       emits "StyleRuleAdded"
     end
@@ -165,18 +165,18 @@ Hecks.bluebook "ChrisWorkflow" do
 
   aggregate "LinearConvention" do
     description "How to manage Linear issues"
-    list_of(LinearRule) :rules
+    attribute :rules, list_of(LinearRule)
 
     value_object "LinearRule" do
-      String :name
-      String :rule
+      attribute :name, String
+      attribute :rule, String
     end
 
-    AddLinearRule do
+    command "AddLinearRule" do
       role "Chris"
       goal "Record a Linear workflow rule"
-      String :name
-      String :rule
+      attribute :name, String
+      attribute :rule, String
       then_set :rules, append: { name: :name, rule: :rule }
       emits "LinearRuleAdded"
     end

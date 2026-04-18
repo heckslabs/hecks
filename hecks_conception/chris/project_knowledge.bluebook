@@ -10,19 +10,19 @@ Hecks.bluebook "ChrisProjectKnowledge" do
     description "Hecks is a domain compiler. Ruby DSL is source language, domain IR is AST, validators are type checker, generators are code emitters."
 
     attribute :tagline, default: "In the world of AI, specification is king"
-    list_of(String) :modes
-    list_of(HecksModule) :modules
+    attribute :modes, list_of(String)
+    attribute :modules, list_of(HecksModule)
 
     value_object "HecksModule" do
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
     end
 
-    DocumentArchitecture do
+    command "DocumentArchitecture" do
       role "Chris"
       goal "Record architectural knowledge"
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
       then_set :modules, append: { name: :name, purpose: :purpose }
       emits "ArchitectureDocumented"
     end
@@ -51,18 +51,18 @@ Hecks.bluebook "ChrisProjectKnowledge" do
   aggregate "ContractSystem" do
     description "12 shared contracts guarantee Ruby/Go generators produce identical behavior. Central to preventing cross-target drift."
 
-    list_of(Contract) :contracts
+    attribute :contracts, list_of(Contract)
 
     value_object "Contract" do
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
     end
 
-    AddContract do
+    command "AddContract" do
       role "Chris"
       goal "Register a data contract"
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
       then_set :contracts, append: { name: :name, purpose: :purpose }
       emits "ContractAdded"
     end
@@ -89,20 +89,20 @@ Hecks.bluebook "ChrisProjectKnowledge" do
   aggregate "CapabilitySystem" do
     description "Two-file pattern: Bluebook (pure domain) + Hecksagon (infrastructure capabilities). Capabilities are IR visitors."
 
-    Integer :capability_count
-    Integer :composite_count
-    list_of(Capability) :capabilities
+    attribute :capability_count, Integer
+    attribute :composite_count, Integer
+    attribute :capabilities, list_of(Capability)
 
     value_object "Capability" do
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
     end
 
-    AddCapability do
+    command "AddCapability" do
       role "Chris"
       goal "Register a capability"
-      String :name
-      String :purpose
+      attribute :name, String
+      attribute :purpose, String
       then_set :capabilities, append: { name: :name, purpose: :purpose }
       then_set :capability_count, increment: 1
       emits "CapabilityAdded"
@@ -126,18 +126,18 @@ Hecks.bluebook "ChrisProjectKnowledge" do
 
   aggregate "DesignDecision" do
     description "Key design decisions and their rationale"
-    String :name
-    String :decision
-    String :why
-    String :date
+    attribute :name, String
+    attribute :decision, String
+    attribute :why, String
+    attribute :date, String
 
-    RecordDecision do
+    command "RecordDecision" do
       role "Chris"
       goal "Record a design decision"
-      String :name
-      String :decision
-      String :why
-      String :date
+      attribute :name, String
+      attribute :decision, String
+      attribute :why, String
+      attribute :date, String
       then_set :name, to: :name
       then_set :decision, to: :decision
       then_set :why, to: :why
@@ -161,20 +161,20 @@ Hecks.bluebook "ChrisProjectKnowledge" do
 
   aggregate "Rename" do
     description "Major naming changes in the project history"
-    String :from_name
-    String :to_name
-    String :date
-    String :scope
-    Integer :files_changed
+    attribute :from_name, String
+    attribute :to_name, String
+    attribute :date, String
+    attribute :scope, String
+    attribute :files_changed, Integer
 
-    RecordRename do
+    command "RecordRename" do
       role "Chris"
       goal "Record a major rename"
-      String :from_name
-      String :to_name
-      String :date
-      String :scope
-      Integer :files_changed
+      attribute :from_name, String
+      attribute :to_name, String
+      attribute :date, String
+      attribute :scope, String
+      attribute :files_changed, Integer
       then_set :from_name, to: :from_name
       then_set :to_name, to: :to_name
       then_set :date, to: :date
@@ -196,18 +196,18 @@ Hecks.bluebook "ChrisProjectKnowledge" do
 
   aggregate "ActiveSystem" do
     description "Systems currently built and running in Hecks"
-    String :name
-    String :description
-    String :date_built
-    String :key_insight
+    attribute :name, String
+    attribute :description, String
+    attribute :date_built, String
+    attribute :key_insight, String
 
-    RecordSystem do
+    command "RecordSystem" do
       role "Chris"
       goal "Record a system that was built"
-      String :name
-      String :description
-      String :date_built
-      String :key_insight
+      attribute :name, String
+      attribute :description, String
+      attribute :date_built, String
+      attribute :key_insight, String
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :date_built, to: :date_built
@@ -261,16 +261,16 @@ Hecks.bluebook "ChrisProjectKnowledge" do
 
   aggregate "FutureWork" do
     description "Things Chris wants to build next"
-    String :name
-    String :description
-    String :priority
+    attribute :name, String
+    attribute :description, String
+    attribute :priority, String
 
-    AddFutureWork do
+    command "AddFutureWork" do
       role "Chris"
       goal "Record something to build in the future"
-      String :name
-      String :description
-      String :priority
+      attribute :name, String
+      attribute :description, String
+      attribute :priority, String
       then_set :name, to: :name
       then_set :description, to: :description
       then_set :priority, to: :priority

@@ -24,20 +24,20 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
   # looks patentable, it becomes an invention with more detail.
 
   aggregate "Invention", "A patentable idea — more structured than a musing" do
-    String :title
-    String :description
-    String :novelty
-    String :prior_art
-    String :source_musing_id
-    String :status
-    String :filed_date
+    attribute :title, String
+    attribute :description, String
+    attribute :novelty, String
+    attribute :prior_art, String
+    attribute :source_musing_id, String
+    attribute :status, String
+    attribute :filed_date, String
 
-    Propose do
+    command "Propose" do
       role "Creator"
       description "Propose a new invention — describe what it does and why it's novel"
-      String :title
-      String :description
-      String :novelty
+      attribute :title, String
+      attribute :description, String
+      attribute :novelty, String
       emits "InventionProposed"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -45,13 +45,13 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
       then_set :status, to: "proposed"
     end
 
-    PromoteFromMusing do
+    command "PromoteFromMusing" do
       role "Creator"
       description "Promote a musing to an invention — it's worth patenting"
-      String :title
-      String :description
-      String :novelty
-      String :source_musing_id
+      attribute :title, String
+      attribute :description, String
+      attribute :novelty, String
+      attribute :source_musing_id, String
       emits "MusingPromoted"
       then_set :title, to: :title
       then_set :description, to: :description
@@ -60,27 +60,27 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
       then_set :status, to: "proposed"
     end
 
-    Develop do
+    command "Develop" do
       role "Creator"
       description "Add detail — prior art, implementation notes, claims"
       reference_to(Invention)
-      String :prior_art
+      attribute :prior_art, String
       emits "InventionDeveloped"
       then_set :prior_art, to: :prior_art
       then_set :status, to: "developed"
     end
 
-    File do
+    command "File" do
       role "Creator"
       description "Mark as filed — patent application submitted"
       reference_to(Invention)
-      String :filed_date
+      attribute :filed_date, String
       emits "InventionFiled"
       then_set :filed_date, to: :filed_date
       then_set :status, to: "filed"
     end
 
-    Dismiss do
+    command "Dismiss" do
       role "Creator"
       description "Not worth patenting — archive it"
       reference_to(Invention)
@@ -98,10 +98,10 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
   end
 
   aggregate "Grooming", "Groom inventions in batches — same pattern as musings" do
-    Integer :batch_size
-    String :status
+    attribute :batch_size, Integer
+    attribute :status, String
 
-    StartGrooming do
+    command "StartGrooming" do
       role "Creator"
       description "Begin grooming inventions — show batches of 5 with descriptions"
       emits "GroomingStarted"
@@ -109,7 +109,7 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
       then_set :status, to: "active"
     end
 
-    FinishGrooming do
+    command "FinishGrooming" do
       role "Creator"
       description "Done grooming — report what survived"
       reference_to(Grooming)

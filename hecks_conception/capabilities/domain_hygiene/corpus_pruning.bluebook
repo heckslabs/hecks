@@ -3,52 +3,52 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   category "capability"
 
   aggregate "MonsterSplit", "A domain too large for uniform training — split into focused sub-domains" do
-    String :source_domain
-    Integer :original_size
-    Integer :chunk_count
-    list_of(Chunk) :chunks
+    attribute :source_domain, String
+    attribute :original_size, Integer
+    attribute :chunk_count, Integer
+    attribute :chunks, list_of(Chunk)
 
     value_object "Chunk" do
-      String :sub_domain_name
-      Integer :aggregate_count
-      Integer :command_count
-      String :focus_description
+      attribute :sub_domain_name, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :focus_description, String
     end
 
-    SplitMonster do
+    command "SplitMonster" do
       description "Break a domain with 10+ aggregates into 3-4 aggregate chunks"
-      String :source_domain
-      Integer :max_aggregates_per_chunk
+      attribute :source_domain, String
+      attribute :max_aggregates_per_chunk, Integer
       given "domain must have more than 8 aggregates"
       emits "MonsterSplit"
     end
   end
 
   aggregate "FeatureEnrichment", "Add missing structural features to domains that lack them" do
-    String :domain_name
-    String :feature_type
-    Integer :additions_made
-    Boolean :still_valid
+    attribute :domain_name, String
+    attribute :feature_type, String
+    attribute :additions_made, Integer
+    attribute :still_valid, TrueClass
 
-    AddReferences do
+    command "AddReferences" do
       description "Add reference_to to action commands that operate on existing aggregates"
-      String :domain_name
+      attribute :domain_name, String
       emits "ReferencesAdded"
     end
 
-    AddCollections do
+    command "AddCollections" do
       description "Add list_of value objects where an aggregate logically owns many children"
-      String :domain_name
+      attribute :domain_name, String
       emits "CollectionsAdded"
     end
 
-    AddGivens do
+    command "AddGivens" do
       description "Add preconditions to commands where domain logic requires them"
-      String :domain_name
+      attribute :domain_name, String
       emits "GivensAdded"
     end
 
-    Revalidate do
+    command "Revalidate" do
       description "Confirm the domain still boots after enrichment"
       reference_to(FeatureEnrichment)
       emits "EnrichmentValidated"
@@ -56,25 +56,25 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   end
 
   aggregate "Deduplicator", "Find and merge duplicate domains in the training corpus" do
-    Integer :total_pairs
-    Integer :duplicates_found
-    list_of(DuplicatePair) :matches
+    attribute :total_pairs, Integer
+    attribute :duplicates_found, Integer
+    attribute :matches, list_of(DuplicatePair)
 
     value_object "DuplicatePair" do
-      String :domain_a
-      String :domain_b
-      Float :similarity
+      attribute :domain_a, String
+      attribute :domain_b, String
+      attribute :similarity, Float
     end
 
-    FindDuplicates do
+    command "FindDuplicates" do
       description "Compare all domain pairs by structural vector similarity — flag near-clones"
-      String :jsonl_path
-      Float :similarity_threshold
+      attribute :jsonl_path, String
+      attribute :similarity_threshold, Float
       given "threshold must be between 0.8 and 1.0"
       emits "DuplicatesFound"
     end
 
-    MergeDuplicates do
+    command "MergeDuplicates" do
       description "Keep the richer domain from each duplicate pair, discard the thinner one"
       reference_to(Deduplicator)
       emits "DuplicatesMerged"
@@ -82,28 +82,28 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   end
 
   aggregate "CategoryBalancer", "Ensure no single category dominates the training set" do
-    list_of(CategoryWeight) :weights
-    Integer :target_per_category
-    Integer :rebalanced_count
+    attribute :weights, list_of(CategoryWeight)
+    attribute :target_per_category, Integer
+    attribute :rebalanced_count, Integer
 
     value_object "CategoryWeight" do
-      String :category
-      Integer :count
-      Float :percentage
-      Integer :target
+      attribute :category, String
+      attribute :count, Integer
+      attribute :percentage, Float
+      attribute :target, Integer
     end
 
-    AssessBalance do
+    command "AssessBalance" do
       description "Count domains per category, flag over and under-represented groups"
-      String :jsonl_path
+      attribute :jsonl_path, String
       emits "BalanceAssessed"
     end
 
-    CapCategory do
+    command "CapCategory" do
       description "Randomly sample down an over-represented category to the target count"
       reference_to(CategoryBalancer)
-      String :category
-      Integer :max_count
+      attribute :category, String
+      attribute :max_count, Integer
       emits "CategoryCapped"
     end
   end

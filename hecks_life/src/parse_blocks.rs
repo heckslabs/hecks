@@ -69,8 +69,19 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     cmd.references.push(Reference { name: snake, target, domain: None });
                 }
             } else if line.starts_with("given") {
-                let msg = extract_string(line);
-                let expr = extract_block(line).unwrap_or_default();
+                // Two forms:
+                //   given "msg"         → expression = "msg", message = "msg"
+                //   given { expr }      → expression = "expr", message = None
+                //   given "msg" { expr }→ expression = "expr", message = "msg"
+                // Strip the block first so quoted strings INSIDE the block
+                // don't get picked up as the message argument.
+                let block = extract_block(line);
+                let line_no_block = match line.find('{') {
+                    Some(open) => &line[..open],
+                    None => line,
+                };
+                let msg = extract_string(line_no_block);
+                let expr = block.unwrap_or_else(|| msg.clone().unwrap_or_default());
                 cmd.givens.push(Given { expression: expr, message: msg });
             } else if line.starts_with("then_set") {
                 if let Some(m) = parse_mutation(line) { cmd.mutations.push(m); }
@@ -178,11 +189,38 @@ pub fn parse_lifecycle(lines: &[&str]) -> (Lifecycle, usize) {
         if line.starts_with("transition") {
             if let Some(cmd) = extract_string(line) {
                 let to_state = line.find("=>").and_then(|arrow| extract_string(&line[arrow + 2..]));
-                let from_state = if line.contains("from:") {
-                    extract_after(line, "from:").and_then(|a| extract_string(&a))
-                } else { None };
+                // Collect ALL from states. `from: "a"` → [Some("a")];
+                // `from: ["a", "b"]` → [Some("a"), Some("b")]; absent → [None].
+                let from_states: Vec<Option<String>> = if line.contains("from:") {
+                    let after = extract_after(line, "from:").unwrap_or_default();
+                    if after.trim_start().starts_with('[') {
+                        // Array form — extract every quoted string within the brackets.
+                        let close = after.find(']').unwrap_or(after.len());
+                        let mut found: Vec<Option<String>> = Vec::new();
+                        let bytes = after[..close].as_bytes();
+                        let mut i = 0;
+                        while i < bytes.len() {
+                            if bytes[i] == b'"' {
+                                let start = i + 1;
+                                let mut j = start;
+                                while j < bytes.len() && bytes[j] != b'"' { j += 1; }
+                                if j > start {
+                                    found.push(Some(String::from_utf8_lossy(&bytes[start..j]).to_string()));
+                                }
+                                i = j + 1;
+                            } else { i += 1; }
+                        }
+                        if found.is_empty() { vec![None] } else { found }
+                    } else {
+                        vec![extract_string(&after)]
+                    }
+                } else { vec![None] };
                 if let Some(to) = to_state {
-                    transitions.push(Transition { command: cmd, to_state: to, from_state });
+                    for from_state in from_states {
+                        transitions.push(Transition {
+                            command: cmd.clone(), to_state: to.clone(), from_state
+                        });
+                    }
                 }
             }
         }
@@ -201,9 +239,11 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     //   - `default: ...`   (or any kwarg) → no positional type, default to "String"
     //   - bare token       → use it as the type (String, Integer, MyValueObject, …)
     let raw = parts.get(1).map(|s| s.trim()).unwrap_or("");
-    // `list_of(` not just `list_of` — otherwise an attribute named
-    // `:list_ofs` would falsely register as a list type.
-    let list = line.contains("list_of(");
+    // `list_of(X)` is the explicit collection form. `Array` and `Hash`
+    // as bare types are also collection-shaped (Ruby DSL treats them
+    // as list:true). `:list_ofs` (substring of "list_of") must NOT
+    // register — only `list_of(` with the paren counts.
+    let list = line.contains("list_of(") || raw == "Array" || raw == "Hash";
     let attr_type = if raw.starts_with("list_of(") {
         let open = raw.find('(')? + 1;
         let close = raw.find(')')?;

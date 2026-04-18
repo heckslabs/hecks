@@ -10,7 +10,28 @@
 # remove it from this list.
 #
 # Format: <relative-path>  # reason
-#
-# ============================================================
-# Active known-drift entries — currently NONE. 40/40 parity.
-# ============================================================
+
+# `attribute :foo, reference_to(X)` form: Ruby's reference_to has side
+# effects (adds a Reference) AND returns something that the attribute call
+# tries to use as a type. Both parsers handle this awkwardly — Ruby
+# stringifies the Reference object into the type field; Rust strips to the
+# `reference_to(X)` literal. Real DSL pattern needed.
+hecks_conception/chris/anti_patterns.bluebook       # attribute :foo, reference_to(X) form misparsed by both sides
+hecks_conception/family/anti_patterns.bluebook      # same — duplicate of chris/anti_patterns.bluebook content
+
+# `attribute :status, default: "X" do ... transition ... end` — Ruby
+# treats the inline do/end block on attribute as lifecycle declaration;
+# Rust does not. Canonical alternative is the explicit `lifecycle :status`
+# form. Two files use the inline form and need rewriting OR Rust learning
+# the inline form.
+hecks_conception/catalog/appeal.bluebook            # inline lifecycle on attribute
+hecks_conception/catalog/spec.bluebook              # inline lifecycle on attribute
+hecks_conception/catalog/pizzas.bluebook            # inline lifecycle on attribute
+
+# Multi-line continuation in commands (then_set hash spans lines)
+hecks_conception/capabilities/cloudflare_deploy/miette_phone.bluebook  # multi-line then_set hash continuation
+hecks_conception/capabilities/glassbox_training/glassbox_training.bluebook  # value_object record-count drift
+
+# Ruby DSL's strict-string-rejection: `attribute :name, "RVDC"` rejected.
+# Need to either rewrite the bluebook or relax the validator.
+hecks_conception/applications/rvdc/rvdc.bluebook    # attribute :name, "<String>" rejected by Ruby DSL

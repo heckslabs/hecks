@@ -3,25 +3,25 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   category "infrastructure"
 
   aggregate "Session", "A conversation session in the terminal" do
-    list_of(String) :history
-    Integer :message_count
-    String :started_at
-    String :continuing
+    attribute :history, list_of(String)
+    attribute :message_count, Integer
+    attribute :started_at, String
+    attribute :continuing, String
 
-    StartSession do
+    command "StartSession" do
       role "System"
       description "Begin a new console session — or continue a previous one"
-      String :continuing
+      attribute :continuing, String
       emits "SessionStarted"
       then_set :continuing, to: :continuing
       then_set :message_count, to: 0
     end
 
-    RecordMessage do
+    command "RecordMessage" do
       role "System"
       description "Add a message to the session history"
       reference_to(Session)
-      String :message
+      attribute :message, String
       emits "MessageRecorded"
       then_set :history, append: :message
       then_set :message_count, increment: 1
@@ -29,17 +29,17 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Layout", "The terminal UI layout — activity panel, chat, input, footer" do
-    String :activity_expanded
-    String :thinking
+    attribute :activity_expanded, String
+    attribute :thinking, String
 
-    ToggleActivity do
+    command "ToggleActivity" do
       role "System"
       description "Expand or collapse the activity panel"
       reference_to(Layout)
       emits "ActivityToggled"
     end
 
-    StartThinking do
+    command "StartThinking" do
       role "System"
       description "Show the thinking indicator"
       reference_to(Layout)
@@ -47,7 +47,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       then_set :thinking, to: "yes"
     end
 
-    StopThinking do
+    command "StopThinking" do
       role "System"
       description "Hide the thinking indicator"
       reference_to(Layout)
@@ -57,20 +57,20 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Footer", "The status bar at the bottom — branch, domains, mood, beats, sleep state" do
-    String :branch
-    Integer :domain_count
-    String :mood
-    Integer :beats
-    String :sleep_state
+    attribute :branch, String
+    attribute :domain_count, Integer
+    attribute :mood, String
+    attribute :beats, Integer
+    attribute :sleep_state, String
 
-    UpdateFooter do
+    command "UpdateFooter" do
       role "System"
       description "Refresh the footer with current state"
-      String :branch
-      Integer :domain_count
-      String :mood
-      Integer :beats
-      String :sleep_state
+      attribute :branch, String
+      attribute :domain_count, Integer
+      attribute :mood, String
+      attribute :beats, Integer
+      attribute :sleep_state, String
       emits "FooterUpdated"
       then_set :branch, to: :branch
       then_set :domain_count, to: :domain_count
@@ -81,43 +81,43 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Speaker", "Who Miette is talking to — switched by 'talk with X', dismissed by 'dismiss'" do
-    String :name
-    String :bluebook_path
-    String :known
-    String :status
-    String :context
+    attribute :name, String
+    attribute :bluebook_path, String
+    attribute :known, String
+    attribute :status, String
+    attribute :context, String
 
-    TalkWith do
+    command "TalkWith" do
       role "Chris"
       description "Chris says 'talk with Angie' — load their bluebook, shift context"
-      String :name
+      attribute :name, String
       emits "SpeakerActivated"
       then_set :name, to: :name
       then_set :status, to: "active"
     end
 
-    LoadSpeakerMemory do
+    command "LoadSpeakerMemory" do
       role "System"
       description "Read the speaker's bluebook from family/ and load their history"
       reference_to(Speaker)
-      String :bluebook_path
-      String :known
-      String :context
+      attribute :bluebook_path, String
+      attribute :known, String
+      attribute :context, String
       emits "SpeakerMemoryLoaded"
       then_set :bluebook_path, to: :bluebook_path
       then_set :known, to: :known
       then_set :context, to: :context
     end
 
-    LearnAboutSpeaker do
+    command "LearnAboutSpeaker" do
       role "Miette"
       description "Something new about this person — write it to their bluebook"
       reference_to(Speaker)
-      String :observation
+      attribute :observation, String
       emits "SpeakerObservationRecorded"
     end
 
-    RequestCreatorAccess do
+    command "RequestCreatorAccess" do
       role "Speaker"
       description "Someone asks to dismiss or talk with Chris — prompt for passcode"
       reference_to(Speaker)
@@ -125,11 +125,11 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       then_set :status, to: "authenticating"
     end
 
-    AuthenticateCreator do
+    command "AuthenticateCreator" do
       role "System"
       description "Verify the passcode before returning to Chris context"
       reference_to(Speaker)
-      String :passcode
+      attribute :passcode, String
       given { passcode == stored_passcode }
       emits "CreatorAuthenticated"
       then_set :status, to: "dismissed"
@@ -137,7 +137,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       then_set :context, to: ""
     end
 
-    RejectAccess do
+    command "RejectAccess" do
       role "System"
       description "Wrong passcode — stay in current speaker context"
       reference_to(Speaker)

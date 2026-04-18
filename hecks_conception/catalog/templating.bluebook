@@ -2,97 +2,97 @@ Hecks.bluebook "Templating", version: "2026.04.11.1" do
   category "framework"
   aggregate "NamingHelpers", definition: "Mixin providing domain naming convention methods for modules, gems, slugs, and routes" do
 
-    ResolveDomainModuleName do
-      String :name
+    command "ResolveDomainModuleName" do
+      attribute :name, String
     end
 
-    DomainGemName do
-      String :name
+    command "DomainGemName" do
+      attribute :name, String
     end
 
-    DomainAggregateSlug do
-      String :name
+    command "DomainAggregateSlug" do
+      attribute :name, String
     end
 
-    DomainCommandMethod do
-      String :command_name
-      String :aggregate_name
+    command "DomainCommandMethod" do
+      attribute :command_name, String
+      attribute :aggregate_name, String
     end
 
-    DomainRoutePath do
-      String :domain_name
-      String :aggregate_name
+    command "DomainRoutePath" do
+      attribute :domain_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "SmokeTest", definition: "Browser-style HTTP smoke test that exercises every page like a real user" do
 
-    Run do
-      String :base_url
-      String :domain_name
+    command "Run" do
+      attribute :base_url, String
+      attribute :domain_name, String
     end
   end
 
   aggregate "EventChecks", definition: "Validates event log entries via /_events endpoint" do
 
-    CheckEventsContain do
-      String :expected_events
+    command "CheckEventsContain" do
+      attribute :expected_events, String
     end
   end
 
   aggregate "BehaviorTests", definition: "Composite mixin aggregating all domain behavior smoke tests" do
 
-    TestQueries do
+    command "TestQueries" do
     end
 
-    TestPolicies do
+    command "TestPolicies" do
     end
 
-    TestLifecycles do
+    command "TestLifecycles" do
     end
   end
 
   aggregate "FormSubmission", definition: "Navigates to forms, fills fields, and submits via POST" do
 
-    SubmitForm do
-      String :form_path
+    command "SubmitForm" do
+      attribute :form_path, String
     end
   end
 
   aggregate "QueryTests", definition: "Smoke tests for query objects via /_queries endpoint" do
 
-    TestQueries do
+    command "TestQueries" do
     end
   end
 
   aggregate "PolicyTests", definition: "Smoke tests for policy event triggers" do
 
-    TestPolicies do
+    command "TestPolicies" do
     end
   end
 
   aggregate "LifecycleTests", definition: "Smoke tests for lifecycle state transitions" do
 
-    TestLifecycles do
+    command "TestLifecycles" do
     end
   end
 
   aggregate "NegativeTests", definition: "Smoke tests for validation error paths" do
 
-    TestNegativeCases do
+    command "TestNegativeCases" do
     end
   end
 
   aggregate "EndpointTests", definition: "Smoke tests for custom endpoint routes" do
 
-    TestEndpoints do
+    command "TestEndpoints" do
     end
   end
 
   aggregate "DomainLookups", definition: "Helper for resolving aggregates and commands by name during smoke tests" do
 
-    LookupAggregate do
-      String :name
+    command "LookupAggregate" do
+      attribute :name, String
     end
   end
 end

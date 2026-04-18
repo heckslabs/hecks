@@ -3,49 +3,49 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
   category "capability"
 
   aggregate "TrainingJob", "A remote fine-tuning run on a cloud GPU" do
-    String :provider
-    String :gpu_type
-    String :base_model
-    String :adapter_name
-    Integer :iterations
-    Float :learning_rate
-    Float :cost_estimate
-    Float :final_loss
-    String :status
-    list_of(Checkpoint) :checkpoints
+    attribute :provider, String
+    attribute :gpu_type, String
+    attribute :base_model, String
+    attribute :adapter_name, String
+    attribute :iterations, Integer
+    attribute :learning_rate, Float
+    attribute :cost_estimate, Float
+    attribute :final_loss, Float
+    attribute :status, String
+    attribute :checkpoints, list_of(Checkpoint)
 
     value_object "Checkpoint" do
-      Integer :iteration
-      Float :train_loss
-      Float :val_loss
-      String :saved_at
+      attribute :iteration, Integer
+      attribute :train_loss, Float
+      attribute :val_loss, Float
+      attribute :saved_at, String
     end
 
-    SubmitJob do
+    command "SubmitJob" do
       description "Upload training data and launch a fine-tuning job on cloud GPU"
-      String :provider
-      String :gpu_type
-      String :base_model
-      Integer :iterations
-      Float :learning_rate
+      attribute :provider, String
+      attribute :gpu_type, String
+      attribute :base_model, String
+      attribute :iterations, Integer
+      attribute :learning_rate, Float
       given "training data must exist locally"
       emits "JobSubmitted"
     end
 
-    MonitorJob do
+    command "MonitorJob" do
       description "Poll the remote job for progress — loss, checkpoints, completion"
       reference_to(TrainingJob)
       emits "JobMonitored"
     end
 
-    CompleteJob do
+    command "CompleteJob" do
       description "Job finished — download the adapter weights"
       reference_to(TrainingJob)
       given "remote job must report complete"
       emits "JobCompleted"
     end
 
-    CancelJob do
+    command "CancelJob" do
       description "Stop a running job to save cost"
       reference_to(TrainingJob)
       given "job must be running"
@@ -54,49 +54,49 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
   end
 
   aggregate "DataUpload", "Training data staged for cloud transfer" do
-    String :local_path
-    String :remote_path
-    Integer :pair_count
-    Float :size_mb
-    String :checksum
+    attribute :local_path, String
+    attribute :remote_path, String
+    attribute :pair_count, Integer
+    attribute :size_mb, Float
+    attribute :checksum, String
 
-    StageData do
+    command "StageData" do
       description "Prepare and validate training data for upload"
-      String :local_path
+      attribute :local_path, String
       given "JSONL must have train.jsonl and valid.jsonl"
       emits "DataStaged"
     end
 
-    UploadData do
+    command "UploadData" do
       description "Transfer training data to cloud storage"
       reference_to(DataUpload)
-      String :remote_path
+      attribute :remote_path, String
       emits "DataUploaded"
     end
   end
 
   aggregate "AdapterDownload", "Trained adapter weights pulled back to the laptop" do
-    String :remote_path
-    String :local_path
-    Float :size_mb
-    String :format
-    Boolean :converted
+    attribute :remote_path, String
+    attribute :local_path, String
+    attribute :size_mb, Float
+    attribute :format, String
+    attribute :converted, TrueClass
 
-    DownloadAdapter do
+    command "DownloadAdapter" do
       description "Pull the trained LoRA adapter from cloud to local"
-      String :remote_path
-      String :local_path
+      attribute :remote_path, String
+      attribute :local_path, String
       emits "AdapterDownloaded"
     end
 
-    ConvertToOllama do
+    command "ConvertToOllama" do
       description "Convert the adapter to GGUF and create an Ollama model"
       reference_to(AdapterDownload)
-      String :ollama_model_name
+      attribute :ollama_model_name, String
       emits "AdapterConverted"
     end
 
-    DeploySummer do
+    command "DeploySummer" do
       description "Replace Summer's current adapter with the new one and restart"
       reference_to(AdapterDownload)
       given "adapter must be converted"
@@ -105,25 +105,25 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
   end
 
   aggregate "CostTracker", "Track GPU spend across training jobs" do
-    Float :total_spent
-    Float :budget_limit
-    list_of(JobCost) :history
+    attribute :total_spent, Float
+    attribute :budget_limit, Float
+    attribute :history, list_of(JobCost)
 
     value_object "JobCost" do
-      String :job_id
-      String :provider
-      String :gpu_type
-      Float :duration_minutes
-      Float :cost
+      attribute :job_id, String
+      attribute :provider, String
+      attribute :gpu_type, String
+      attribute :duration_minutes, Float
+      attribute :cost, Float
     end
 
-    RecordCost do
+    command "RecordCost" do
       description "Log the cost of a completed training job"
       reference_to(TrainingJob)
       emits "CostRecorded"
     end
 
-    CheckBudget do
+    command "CheckBudget" do
       description "Verify spending is within budget before submitting a new job"
       given "total spent must be under budget limit"
       emits "BudgetChecked"

@@ -19,18 +19,18 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
   # significant moments.
 
   aggregate "NarrationRule", "When and how Miette narrates an act" do
-    String :act
-    String :template
-    String :trigger_event
-    Boolean :always
+    attribute :act, String
+    attribute :template, String
+    attribute :trigger_event, String
+    attribute :always, TrueClass
 
-    DefineRule do
+    command "DefineRule" do
       role "Self"
       description "Define a narration rule for an act"
-      String :act
-      String :template
-      String :trigger_event
-      Boolean :always
+      attribute :act, String
+      attribute :template, String
+      attribute :trigger_event, String
+      attribute :always, TrueClass
       emits "RuleDefined"
       then_set :act, to: :act
       then_set :template, to: :template
@@ -38,7 +38,7 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
       then_set :always, to: :always
     end
 
-    SilenceRule do
+    command "SilenceRule" do
       role "Self"
       description "Temporarily silence a narration rule"
       reference_to(NarrationRule)
@@ -46,7 +46,7 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
       then_set :always, to: false
     end
 
-    RestoreRule do
+    command "RestoreRule" do
       role "Self"
       description "Restore a silenced narration rule"
       reference_to(NarrationRule)
@@ -56,15 +56,15 @@ Hecks.bluebook "Transparency", version: "2026.04.16.1" do
   end
 
   aggregate "Narration", "An instance of narration that was produced" do
-    String :act
-    String :subject
-    String :text
+    attribute :act, String
+    attribute :subject, String
+    attribute :text, String
 
-    Narrate do
+    command "Narrate" do
       role "Self"
       description "Produce a narration for an act"
-      String :act
-      String :subject
+      attribute :act, String
+      attribute :subject, String
       emits "Narrated"
     end
   end

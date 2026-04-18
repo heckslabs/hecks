@@ -3,25 +3,25 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
   category "meta"
 
   aggregate "Case", "A specific action submitted for judgment — what happened, who did it, what evidence exists" do
-    String :action_type
-    String :actor
-    String :target
-    String :detail
-    String :occurred_at
-    String :status
-    Integer :laws_applicable
-    Integer :laws_passed
-    Integer :laws_violated
-    String :ruling
+    attribute :action_type, String
+    attribute :actor, String
+    attribute :target, String
+    attribute :detail, String
+    attribute :occurred_at, String
+    attribute :status, String
+    attribute :laws_applicable, Integer
+    attribute :laws_passed, Integer
+    attribute :laws_violated, Integer
+    attribute :ruling, String
 
-    File do
+    command "File" do
       role "Enforcer"
       description "File a case — submit an action for review against applicable laws"
-      String :action_type
-      String :actor
-      String :target
-      String :detail
-      String :occurred_at
+      attribute :action_type, String
+      attribute :actor, String
+      attribute :target, String
+      attribute :detail, String
+      attribute :occurred_at, String
       emits "CaseFiled"
       then_set :action_type, to: :action_type
       then_set :actor, to: :actor
@@ -34,26 +34,26 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
       then_set :laws_violated, to: 0
     end
 
-    Hear do
+    command "Hear" do
       role "Judge"
       description "Begin hearing the case — identify which laws apply to this action type"
       reference_to(Case)
-      Integer :laws_applicable
+      attribute :laws_applicable, Integer
       emits "CaseHeard"
       given { status == "filed" }
       then_set :laws_applicable, to: :laws_applicable
       then_set :status, to: "hearing"
     end
 
-    CheckLaw do
+    command "CheckLaw" do
       role "Judge"
       description "Check one applicable law against the action — pass or violate"
       reference_to(Case)
-      Boolean :passed
+      attribute :passed, TrueClass
       emits "LawCheckedInCase"
     end
 
-    RuleInnocent do
+    command "RuleInnocent" do
       role "Judge"
       description "All applicable laws passed — the action was lawful"
       reference_to(Case)
@@ -63,7 +63,7 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
       then_set :status, to: "closed"
     end
 
-    RuleGuilty do
+    command "RuleGuilty" do
       role "Judge"
       description "One or more laws were violated — the action was unlawful"
       reference_to(Case)
@@ -72,7 +72,7 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
       then_set :status, to: "closed"
     end
 
-    Appeal do
+    command "Appeal" do
       role "Architect"
       description "Reopen a closed case for re-examination — new evidence or amended law"
       reference_to(Case)
@@ -91,22 +91,22 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
   end
 
   aggregate "Finding", "One law checked against one action — the atomic unit of judgment" do
-    String :case_id
-    String :law_name
-    String :check_expression
-    String :evidence
-    Boolean :passed
-    String :explanation
+    attribute :case_id, String
+    attribute :law_name, String
+    attribute :check_expression, String
+    attribute :evidence, String
+    attribute :passed, TrueClass
+    attribute :explanation, String
 
-    RecordFinding do
+    command "RecordFinding" do
       role "Judge"
       description "Record whether a specific law was satisfied or violated for this action"
-      String :case_id
-      String :law_name
-      String :check_expression
-      String :evidence
-      Boolean :passed
-      String :explanation
+      attribute :case_id, String
+      attribute :law_name, String
+      attribute :check_expression, String
+      attribute :evidence, String
+      attribute :passed, TrueClass
+      attribute :explanation, String
       emits "FindingRecorded"
       then_set :case_id, to: :case_id
       then_set :law_name, to: :law_name
@@ -118,20 +118,20 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
   end
 
   aggregate "Precedent", "A ruling that informs future judgments — when a case establishes a pattern" do
-    String :law_name
-    String :action_type
-    String :ruling
-    String :reasoning
-    String :established_at
+    attribute :law_name, String
+    attribute :action_type, String
+    attribute :ruling, String
+    attribute :reasoning, String
+    attribute :established_at, String
 
-    Establish do
+    command "Establish" do
       role "Judge"
       description "Record a precedent — this ruling should apply to similar future actions"
-      String :law_name
-      String :action_type
-      String :ruling
-      String :reasoning
-      String :established_at
+      attribute :law_name, String
+      attribute :action_type, String
+      attribute :ruling, String
+      attribute :reasoning, String
+      attribute :established_at, String
       emits "PrecedentEstablished"
       then_set :law_name, to: :law_name
       then_set :action_type, to: :action_type
@@ -140,11 +140,11 @@ Hecks.bluebook "Court", version: "2026.04.14.1" do
       then_set :established_at, to: :established_at
     end
 
-    Overturn do
+    command "Overturn" do
       role "Architect"
       description "A precedent no longer applies — the law was amended or the reasoning was wrong"
       reference_to(Precedent)
-      String :reasoning
+      attribute :reasoning, String
       emits "PrecedentOverturned"
       then_set :ruling, to: "overturned"
       then_set :reasoning, to: :reasoning

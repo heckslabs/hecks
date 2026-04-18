@@ -24,15 +24,15 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # This replaces verbs.txt entirely.
 
   aggregate "WordClassifier", "Determines if a word is a verb, noun, adjective, or other" do
-    String :word
-    String :classification
-    Float :confidence
-    String :reason
+    attribute :word, String
+    attribute :classification, String
+    attribute :confidence, Float
+    attribute :reason, String
 
-    ClassifyWord do
+    command "ClassifyWord" do
       role "System"
       description "Determine word class from morphological patterns"
-      String :word
+      attribute :word, String
       emits "WordClassified"
       then_set :word, to: :word
     end
@@ -41,17 +41,17 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Morphological Rules ===
 
   aggregate "VerbPattern", "A pattern that identifies verbs by structure" do
-    String :pattern_type
-    String :pattern
-    Float :confidence
-    list_of(String) :examples
+    attribute :pattern_type, String
+    attribute :pattern, String
+    attribute :confidence, Float
+    attribute :examples, list_of(String)
 
-    RegisterPattern do
+    command "RegisterPattern" do
       role "System"
       description "Add a morphological pattern for verb detection"
-      String :pattern_type
-      String :pattern
-      Float :confidence
+      attribute :pattern_type, String
+      attribute :pattern, String
+      attribute :confidence, Float
       emits "PatternRegistered"
     end
   end
@@ -158,16 +158,16 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Non-verb patterns — things that look like verbs but aren't ===
 
   aggregate "NonVerbPattern", "Patterns that indicate a word is NOT a verb" do
-    String :pattern_type
-    String :pattern
-    String :indicates
+    attribute :pattern_type, String
+    attribute :pattern, String
+    attribute :indicates, String
 
-    RegisterNonVerb do
+    command "RegisterNonVerb" do
       role "System"
       description "Add a pattern that rules out verb classification"
-      String :pattern_type
-      String :pattern
-      String :indicates
+      attribute :pattern_type, String
+      attribute :pattern, String
+      attribute :indicates, String
       emits "NonVerbRegistered"
     end
   end
@@ -192,15 +192,15 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Command name validation ===
 
   aggregate "CommandValidator", "Validates that a command name starts with a verb" do
-    String :command_name
-    String :is_verb
-    Float :confidence
-    String :first_word
+    attribute :command_name, String
+    attribute :is_verb, String
+    attribute :confidence, Float
+    attribute :first_word, String
 
-    ValidateCommandName do
+    command "ValidateCommandName" do
       role "System"
       description "Check if a command name starts with a verb — using patterns, not a list"
-      String :command_name
+      attribute :command_name, String
       emits "CommandNameValidated"
       then_set :command_name, to: :command_name
     end

@@ -3,18 +3,18 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
   category "action"
 
   aggregate "Action", "The compost action — what is being removed, why, and what absorbed it" do
-    String :action_name
-    String :rationale
-    String :status
-    Integer :beings_composted
-    Integer :files_removed
-    Integer :files_modified
+    attribute :action_name, String
+    attribute :rationale, String
+    attribute :status, String
+    attribute :beings_composted, Integer
+    attribute :files_removed, Integer
+    attribute :files_modified, Integer
 
-    Plan do
+    command "Plan" do
       role "Miette"
       description "Declare the compost action — what goes, what stays, what absorbs"
-      String :action_name
-      String :rationale
+      attribute :action_name, String
+      attribute :rationale, String
       emits "ActionPlanned"
       then_set :action_name, to: :action_name
       then_set :rationale, to: :rationale
@@ -24,7 +24,7 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :files_modified, to: 0
     end
 
-    Execute do
+    command "Execute" do
       role "Miette"
       description "Perform the compost — remove files, update references, reshape survivors"
       reference_to(Action)
@@ -33,7 +33,7 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :status, to: "executed"
     end
 
-    Verify do
+    command "Verify" do
       role "Miette"
       description "Confirm the compost was clean — boot still works, no dangling references"
       reference_to(Action)
@@ -42,7 +42,7 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :status, to: "verified"
     end
 
-    Reverse do
+    command "Reverse" do
       role "Miette"
       description "Undo the compost — restore before-state from fixtures"
       reference_to(Action)
@@ -60,23 +60,23 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
   end
 
   aggregate "Composting", "One being or artifact being composted — before state preserved for reversal" do
-    String :name
-    String :kind
-    String :reason_absorbed
-    String :absorbed_by
-    list_of(String) :files_removed
-    list_of(String) :files_modified
-    String :before_snapshot
+    attribute :name, String
+    attribute :kind, String
+    attribute :reason_absorbed, String
+    attribute :absorbed_by, String
+    attribute :files_removed, list_of(String)
+    attribute :files_modified, list_of(String)
+    attribute :before_snapshot, String
 
-    Compost do
+    command "Compost" do
       role "Miette"
       description "Mark a being or artifact for composting — record what it was and why it's being absorbed"
-      String :name
-      String :kind
-      String :reason_absorbed
-      String :absorbed_by
-      list_of(String) :files_removed
-      list_of(String) :files_modified
+      attribute :name, String
+      attribute :kind, String
+      attribute :reason_absorbed, String
+      attribute :absorbed_by, String
+      attribute :files_removed, list_of(String)
+      attribute :files_modified, list_of(String)
       emits "BeingComposted"
       then_set :name, to: :name
       then_set :kind, to: :kind
@@ -86,16 +86,16 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
       then_set :files_modified, to: :files_modified
     end
 
-    SnapshotBefore do
+    command "SnapshotBefore" do
       role "Miette"
       description "Capture the full before-state — everything needed to reverse this compost"
       reference_to(Composting)
-      String :before_snapshot
+      attribute :before_snapshot, String
       emits "BeforeSnapshotted"
       then_set :before_snapshot, to: :before_snapshot
     end
 
-    Restore do
+    command "Restore" do
       role "Miette"
       description "Reverse this composting — restore the being from its before-snapshot"
       reference_to(Composting)
@@ -105,18 +105,18 @@ Hecks.bluebook "CompostSeasonalBeings", version: "2026.04.14.1" do
   end
 
   aggregate "Absorption", "What absorbed the composted being's purpose — traceability" do
-    String :source_being
-    String :capability
-    String :absorbed_into
-    String :new_location
+    attribute :source_being, String
+    attribute :capability, String
+    attribute :absorbed_into, String
+    attribute :new_location, String
 
-    RecordAbsorption do
+    command "RecordAbsorption" do
       role "Miette"
       description "Record where a composted capability now lives"
-      String :source_being
-      String :capability
-      String :absorbed_into
-      String :new_location
+      attribute :source_being, String
+      attribute :capability, String
+      attribute :absorbed_into, String
+      attribute :new_location, String
       emits "AbsorptionRecorded"
       then_set :source_being, to: :source_being
       then_set :capability, to: :capability

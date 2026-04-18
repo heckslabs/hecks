@@ -3,16 +3,16 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   category "infrastructure"
 
   aggregate "Target", "A runtime that domains project into — Ruby, Rust, shell, status bar" do
-    String :name
-    String :language
-    String :output_path
+    attribute :name, String
+    attribute :language, String
+    attribute :output_path, String
 
-    RegisterTarget do
+    command "RegisterTarget" do
       role "System"
       description "Declare a projection target — a runtime that reads domains"
-      String :name
-      String :language
-      String :output_path
+      attribute :name, String
+      attribute :language, String
+      attribute :output_path, String
       emits "TargetRegistered"
       then_set :name, to: :name
       then_set :language, to: :language
@@ -21,20 +21,20 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   end
 
   aggregate "ProjectedScript", "A script that exists because a domain declares it" do
-    String :domain_name
-    String :aggregate_name
-    String :target
-    String :script_path
-    String :projects_from
-    String :stale
+    attribute :domain_name, String
+    attribute :aggregate_name, String
+    attribute :target, String
+    attribute :script_path, String
+    attribute :projects_from, String
+    attribute :stale, String
 
-    RegisterProjection do
+    command "RegisterProjection" do
       role "System"
       description "Declare that a script is a projection of a domain aggregate"
-      String :domain_name
-      String :aggregate_name
-      String :target
-      String :script_path
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :target, String
+      attribute :script_path, String
       emits "ProjectionRegistered"
       then_set :domain_name, to: :domain_name
       then_set :aggregate_name, to: :aggregate_name
@@ -44,7 +44,7 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
       then_set :stale, to: "no"
     end
 
-    MarkStale do
+    command "MarkStale" do
       role "System"
       description "The domain changed — this projection needs regenerating"
       reference_to(ProjectedScript)
@@ -52,7 +52,7 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
       then_set :stale, to: "yes"
     end
 
-    MarkFresh do
+    command "MarkFresh" do
       role "System"
       description "The projection was regenerated from the domain"
       reference_to(ProjectedScript)
@@ -62,16 +62,16 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   end
 
   aggregate "Parity", "The contract between a domain and all its projections" do
-    String :domain_name
-    Integer :targets_checked
-    String :all_match
+    attribute :domain_name, String
+    attribute :targets_checked, Integer
+    attribute :all_match, String
 
-    CheckParity do
+    command "CheckParity" do
       role "System"
       description "Verify all projections of a domain produce the same IR"
-      String :domain_name
-      Integer :targets_checked
-      String :all_match
+      attribute :domain_name, String
+      attribute :targets_checked, Integer
+      attribute :all_match, String
       emits "ParityChecked"
       then_set :domain_name, to: :domain_name
       then_set :targets_checked, to: :targets_checked

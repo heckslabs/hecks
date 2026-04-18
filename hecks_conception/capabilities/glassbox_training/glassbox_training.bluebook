@@ -3,32 +3,32 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "TrainingCorpus", "All bluebooks formatted as training examples" do
-    Array :examples
-    Integer :total_tokens
-    String :exported_at
+    attribute :examples, Array
+    attribute :total_tokens, Integer
+    attribute :exported_at, String
 
-    ExportCorpus do
+    command "ExportCorpus" do
       role "System"
       description "Export the full corpus of bluebooks as training-ready examples"
       emits "CorpusExported"
     end
 
-    FormatAsTrainingPair do
+    command "FormatAsTrainingPair" do
       role "System"
       description "Format a single bluebook as an input/output training pair — input is the description, output is the bluebook"
-      String :input
-      String :output
+      attribute :input, String
+      attribute :output, String
       emits "TrainingPairFormatted"
     end
 
-    FilterByCategory do
+    command "FilterByCategory" do
       role "System"
       description "Filter the corpus to only include examples from a given category"
-      String :category
+      attribute :category, String
       emits "CorpusFiltered"
     end
 
-    CalculateTokenCount do
+    command "CalculateTokenCount" do
       role "System"
       description "Calculate total token count across all training examples"
       emits "TokenCountCalculated"
@@ -37,62 +37,62 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
   end
 
   aggregate "TrainingExample", "A single input/output pair for model training" do
-    String :input
-    String :output
-    String :category
-    Float :quality_score
+    attribute :input, String
+    attribute :output, String
+    attribute :category, String
+    attribute :quality_score, Float
 
-    CreateExample do
+    command "CreateExample" do
       role "System"
       description "Create a new training example from a bluebook"
-      String :input
-      String :output
-      String :category
+      attribute :input, String
+      attribute :output, String
+      attribute :category, String
       emits "ExampleCreated"
       then_set :input, to: :input
       then_set :output, to: :output
       then_set :category, to: :category
     end
 
-    ValidateExample do
+    command "ValidateExample" do
       role "System"
       description "Validate that a training example has correct bluebook syntax in the output"
       reference_to(TrainingExample)
       emits "ExampleValidated"
     end
 
-    ScoreQuality do
+    command "ScoreQuality" do
       role "System"
       description "Score the quality of a training example — completeness, correctness, variety"
       reference_to(TrainingExample)
-      Float :quality_score
+      attribute :quality_score, Float
       emits "QualityScored"
       then_set :quality_score, to: :quality_score
     end
   end
 
   aggregate "ModelSpec", "What the GlassBox model needs — architecture and hyperparameters" do
-    Integer :context_window
-    Integer :vocab_size
-    String :architecture
-    Hash :hyperparameters
+    attribute :context_window, Integer
+    attribute :vocab_size, Integer
+    attribute :architecture, String
+    attribute :hyperparameters, Hash
 
-    DefineSpec do
+    command "DefineSpec" do
       role "System"
       description "Define the model specification — context window, vocabulary size, architecture"
-      Integer :context_window
-      Integer :vocab_size
-      String :architecture
+      attribute :context_window, Integer
+      attribute :vocab_size, Integer
+      attribute :architecture, String
       emits "SpecDefined"
       then_set :context_window, to: :context_window
       then_set :vocab_size, to: :vocab_size
       then_set :architecture, to: :architecture
     end
 
-    SetHyperparameters do
+    command "SetHyperparameters" do
       role "System"
       description "Set training hyperparameters — learning rate, batch size, epochs, etc."
-      Hash :hyperparameters
+      attribute :hyperparameters, Hash
       emits "HyperparametersSet"
       then_set :hyperparameters, to: :hyperparameters
     end

@@ -1,418 +1,418 @@
 Hecks.bluebook "Targets", version: "2026.04.11.1" do
   category "framework"
   aggregate "Target", definition: "Language backend registration and build dispatch" do
-    String :name
-    String :language
+    attribute :name, String
+    attribute :language, String
 
-    RegisterTarget do
-      String :name
-      String :language
+    command "RegisterTarget" do
+      attribute :name, String
+      attribute :language, String
     end
 
-    Build do
-      String :target_id
-      String :domain_id
+    command "Build" do
+      attribute :target_id, String
+      attribute :domain_id, String
     end
   end
 
   aggregate "NodeUtils", definition: "Naming and type mapping: Ruby types to TypeScript types" do
 
-    TsType do
-      String :attribute_name
+    command "TsType" do
+      attribute :attribute_name, String
     end
 
-    CamelCase do
-      String :input
+    command "CamelCase" do
+      attribute :input, String
     end
   end
 
   aggregate "NodeAggregateGenerator", definition: "Generates TypeScript interface for an aggregate root" do
 
-    Generate do
-      String :aggregate_name
+    command "Generate" do
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "NodeCommandGenerator", definition: "Generates TypeScript command functions returning typed events" do
 
-    Generate do
-      String :command_name
-      String :aggregate_name
+    command "Generate" do
+      attribute :command_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "NodeRepositoryGenerator", definition: "Generates TypeScript in-memory repository using Map" do
 
-    Generate do
-      String :aggregate_name
+    command "Generate" do
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "NodeServerGenerator", definition: "Generates Express REST server with JSON routes per aggregate" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "NodeProjectGenerator", definition: "Generates complete Node/TypeScript project with package.json" do
 
-    Generate do
-      String :domain_name
-      String :output_dir
+    command "Generate" do
+      attribute :domain_name, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "NodeGenerator", definition: "Top-level coordinator delegating to all Node sub-generators" do
 
-    Generate do
-      String :domain_name
-      String :output_dir
+    command "Generate" do
+      attribute :domain_name, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "GoCodeBuilder", definition: "Fluent builder for Go source files: packages, imports, structs, methods" do
 
-    Struct do
-      String :name
+    command "Struct" do
+      attribute :name, String
     end
 
-    Receiver do
-      String :type_name
-      String :method_name
+    command "Receiver" do
+      attribute :type_name, String
+      attribute :method_name, String
     end
 
-    Func do
-      String :name
-      String :params
+    command "Func" do
+      attribute :name, String
+      attribute :params, String
     end
 
-    Render do
-      String :package
+    command "Render" do
+      attribute :package, String
     end
   end
 
   aggregate "GoUtils", definition: "Naming and type mapping: Ruby types to Go types, case conversion" do
 
-    GoType do
-      String :attribute_name
+    command "GoType" do
+      attribute :attribute_name, String
     end
 
-    PascalCase do
-      String :input
+    command "PascalCase" do
+      attribute :input, String
     end
   end
 
   aggregate "GoAggregateGenerator", definition: "Generates Go struct for aggregate root with validations" do
 
-    Generate do
-      String :aggregate_name
-      String :package
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoCommandGenerator", definition: "Generates Go command struct with Execute method" do
 
-    Generate do
-      String :command_name
-      String :aggregate_name
+    command "Generate" do
+      attribute :command_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "GoEventGenerator", definition: "Generates immutable Go event struct with OccurredAt" do
 
-    Generate do
-      String :event_name
-      String :aggregate_name
+    command "Generate" do
+      attribute :event_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "GoLifecycleGenerator", definition: "Generates Go lifecycle: status type, state constants, transitions" do
 
-    Generate do
-      String :aggregate_name
-      String :package
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoPolicyGenerator", definition: "Generates Go reactive policy structs wired to event bus" do
 
-    Generate do
-      String :policy_name
-      String :package
+    command "Generate" do
+      attribute :policy_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoQueryGenerator", definition: "Generates Go query functions with field-matching filter" do
 
-    Generate do
-      String :query_name
-      String :aggregate_name
+    command "Generate" do
+      attribute :query_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "GoSpecificationGenerator", definition: "Generates Go specification structs with SatisfiedBy predicate" do
 
-    Generate do
-      String :spec_name
-      String :aggregate_name
+    command "Generate" do
+      attribute :spec_name, String
+      attribute :aggregate_name, String
     end
   end
 
   aggregate "GoValueObjectGenerator", definition: "Generates Go struct for value objects with constructor validation" do
 
-    Generate do
-      String :value_object_name
-      String :package
+    command "Generate" do
+      attribute :value_object_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoPortGenerator", definition: "Generates Go interface for repository ports" do
 
-    Generate do
-      String :aggregate_name
-      String :package
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoMemoryAdapterGenerator", definition: "Generates Go in-memory repository using sync.RWMutex" do
 
-    Generate do
-      String :aggregate_name
-      String :package
+    command "Generate" do
+      attribute :aggregate_name, String
+      attribute :package, String
     end
   end
 
   aggregate "GoErrorsGenerator", definition: "Generates Go error types matching the hecks error hierarchy" do
 
-    Generate do
-      String :package
+    command "Generate" do
+      attribute :package, String
     end
   end
 
   aggregate "GoApplicationGenerator", definition: "Generates Go runtime entry point with command dispatch" do
 
-    Generate do
-      String :module_path
+    command "Generate" do
+      attribute :module_path, String
     end
   end
 
   aggregate "GoRuntimeGenerator", definition: "Generates Go runtime: event bus, command bus, domain event interface" do
 
-    GenerateEventBus do
+    command "GenerateEventBus" do
     end
 
-    GenerateCommandBus do
+    command "GenerateCommandBus" do
     end
   end
 
   aggregate "GoRegistryGenerator", definition: "Generates thread-safe module registry for Go runtime discovery" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "GoRegisterGenerator", definition: "Generates init() that self-registers domain with registry" do
 
-    Generate do
-      String :domain_name
-      String :module_path
+    command "Generate" do
+      attribute :domain_name, String
+      attribute :module_path, String
     end
   end
 
   aggregate "GoServerGenerator", definition: "Generates Go HTTP server with JSON API, HTML UI, and behavior routes" do
 
-    Generate do
-      String :domain_name
-      String :module_path
+    command "Generate" do
+      attribute :domain_name, String
+      attribute :module_path, String
     end
   end
 
   aggregate "DataRoutes", definition: "Mixin generating Go JSON API CRUD routes for each aggregate" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "HtmlRoutes", definition: "Mixin generating Go HTML index/show routes for each aggregate" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "UIRoutes", definition: "Mixin generating Go form submission and new-entity routes" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "DomainBehaviorRoutes", definition: "Mixin generating Go event, query, scope, and specification routes" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "GoRendererGenerator", definition: "Generates Go template renderer with layout wrapping" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "GoViewGenerator", definition: "Converts ERB templates to Go html/template syntax" do
 
-    Convert do
-      String :template_name
+    command "Convert" do
+      attribute :template_name, String
     end
   end
 
   aggregate "GoFormTemplate", definition: "Generates Go html/template for form pages with field types" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "GoIndexTemplate", definition: "Generates Go html/template for index pages with action buttons" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "GoShowTemplate", definition: "Generates Go html/template for show pages with lifecycle fields" do
 
-    Generate do
+    command "Generate" do
     end
   end
 
   aggregate "GoProjectGenerator", definition: "Generates complete Go project: structs, commands, server, go.mod" do
 
-    Generate do
-      String :domain_name
-      String :output_dir
+    command "Generate" do
+      attribute :domain_name, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "GoMultiProjectGenerator", definition: "Generates multi-domain Go project with shared runtime" do
 
-    Generate do
-      String :output_dir
+    command "Generate" do
+      attribute :output_dir, String
     end
   end
 
   aggregate "GoMultiServerGenerator", definition: "Generates combined Go HTTP server routing across bounded contexts" do
 
-    Generate do
-      String :module_path
+    command "Generate" do
+      attribute :module_path, String
     end
   end
 
   aggregate "BinaryBuilder", definition: "Compiles domain into native binary via Go target" do
 
-    Build do
-      String :domain_id
-      String :output_dir
+    command "Build" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "EntryPointGenerator", definition: "Generates lib/<gem>.rb autoloads and boot.rb wiring" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "RuntimeWriter", definition: "Copies runtime templates into generated gem, replacing module placeholder" do
 
-    Generate do
-      String :domain_module
+    command "Generate" do
+      attribute :domain_module, String
     end
   end
 
   aggregate "RubyServerGenerator", definition: "Generates domain-specific HTTP server with aggregate routes" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "DomainRoutes", definition: "Mixin generating query, scope, specification, and event log routes" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "RubyUIGenerator", definition: "Generates route handlers that prepare data and render ERB templates" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "FormRoutes", definition: "Mixin generating new/create form routes for each aggregate command" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "ConfigRoutes", definition: "Mixin generating config and reboot UI routes" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "ShowRoute", definition: "Mixin generating show page route for individual aggregates" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "DomainWriter", definition: "Mixin generating domain aggregate and command files for static gem" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "BootWiring", definition: "Mixin generating boot method and command/query/policy wiring" do
 
-    Generate do
-      String :domain_name
+    command "Generate" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "TypescriptGenerator", definition: "Generates TypeScript type definitions from domain IR" do
 
-    GenerateTypescript do
-      String :domain_id
-      String :output_dir
+    command "GenerateTypescript" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "JsonSchemaGenerator", definition: "Generates JSON Schema from domain aggregate structure" do
 
-    GenerateJsonSchema do
-      String :aggregate_id
+    command "GenerateJsonSchema" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "OpenapiGenerator", definition: "Generates OpenAPI 3.0 specification from domain IR" do
 
-    GenerateOpenapi do
-      String :domain_id
+    command "GenerateOpenapi" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "RpcDiscovery", definition: "Generates RPC service discovery manifest from domain commands" do
 
-    GenerateRpcDiscovery do
-      String :domain_id
+    command "GenerateRpcDiscovery" do
+      attribute :domain_id, String
     end
   end
 end

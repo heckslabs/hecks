@@ -12,13 +12,13 @@ Hecks.bluebook "Chris" do
     attribute :role, default: "Framework Architect"
     attribute :company, default: "Embryonaut"
     attribute :tagline, default: "In the world of AI, specification is king"
-    list_of(String) :expertise
+    attribute :expertise, list_of(String)
 
-    UpdateRole do
+    command "UpdateRole" do
       role "Chris"
       goal "Update Chris's current role or focus"
       reference_to(Identity)
-      String :role
+      attribute :role, String
       then_set :role, to: :role
       emits "RoleUpdated"
     end
@@ -31,20 +31,20 @@ Hecks.bluebook "Chris" do
   aggregate "Workflow" do
     description "How Chris develops — model tiers, agents, branching, PRs"
 
-    list_of(Preference) :preferences
+    attribute :preferences, list_of(Preference)
 
     value_object "Preference" do
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
     end
 
-    SetPreference do
+    command "SetPreference" do
       role "Chris"
       goal "Record a workflow preference"
-      String :name
-      String :rule
-      String :why
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
       then_set :preferences, append: { name: :name, rule: :rule, why: :why }
       emits "PreferenceSet"
     end
@@ -57,18 +57,18 @@ Hecks.bluebook "Chris" do
   aggregate "Convention" do
     description "Rules for writing code in the Hecks framework"
 
-    String :name
-    String :rule
-    String :why
-    String :applies_to
+    attribute :name, String
+    attribute :rule, String
+    attribute :why, String
+    attribute :applies_to, String
 
-    AddConvention do
+    command "AddConvention" do
       role "Chris"
       goal "Add a code convention"
-      String :name
-      String :rule
-      String :why
-      String :applies_to
+      attribute :name, String
+      attribute :rule, String
+      attribute :why, String
+      attribute :applies_to, String
       then_set :name, to: :name
       then_set :rule, to: :rule
       then_set :why, to: :why
@@ -84,18 +84,18 @@ Hecks.bluebook "Chris" do
   aggregate "AntiPattern" do
     description "Mistakes that happened — never repeat these"
 
-    String :name
-    String :what_happened
-    String :why_it_was_wrong
-    String :correct_approach
+    attribute :name, String
+    attribute :what_happened, String
+    attribute :why_it_was_wrong, String
+    attribute :correct_approach, String
 
-    RecordAntiPattern do
+    command "RecordAntiPattern" do
       role "Chris"
       goal "Record something that went wrong so it never happens again"
-      String :name
-      String :what_happened
-      String :why_it_was_wrong
-      String :correct_approach
+      attribute :name, String
+      attribute :what_happened, String
+      attribute :why_it_was_wrong, String
+      attribute :correct_approach, String
       then_set :name, to: :name
       then_set :what_happened, to: :what_happened
       then_set :why_it_was_wrong, to: :why_it_was_wrong
@@ -111,28 +111,28 @@ Hecks.bluebook "Chris" do
   aggregate "Person" do
     description "Someone Chris knows or works with"
 
-    String :name
-    String :relationship
-    String :context
-    list_of(String) :notes
+    attribute :name, String
+    attribute :relationship, String
+    attribute :context, String
+    attribute :notes, list_of(String)
 
-    AddPerson do
+    command "AddPerson" do
       role "Chris"
       goal "Remember someone Chris mentioned"
-      String :name
-      String :relationship
-      String :context
+      attribute :name, String
+      attribute :relationship, String
+      attribute :context, String
       then_set :name, to: :name
       then_set :relationship, to: :relationship
       then_set :context, to: :context
       emits "PersonAdded"
     end
 
-    AddNote do
+    command "AddNote" do
       role "Chris"
       goal "Add context about a person"
       reference_to(Person)
-      String :note
+      attribute :note, String
       then_set :notes, append: :note
       emits "NoteAdded"
     end
@@ -149,21 +149,21 @@ Hecks.bluebook "Chris" do
     attribute :product_vision, default: "Hecks Studio — web dashboard where SMEs model domains visually"
     attribute :seed_target, default: "500K-1M"
     attribute :cofounder_profile, default: "capital + GTM + dev tools or enterprise SaaS"
-    list_of(Milestone) :milestones
+    attribute :milestones, list_of(Milestone)
 
     value_object "Milestone" do
-      String :name
-      String :date
-      String :status
+      attribute :name, String
+      attribute :date, String
+      attribute :status, String
     end
 
-    RecordMilestone do
+    command "RecordMilestone" do
       role "Chris"
       goal "Track progress toward launching Embryonaut"
       reference_to(Embryonaut)
-      String :name
-      String :date
-      String :status
+      attribute :name, String
+      attribute :date, String
+      attribute :status, String
       then_set :milestones, append: { name: :name, date: :date, status: :status }
       emits "MilestoneRecorded"
     end

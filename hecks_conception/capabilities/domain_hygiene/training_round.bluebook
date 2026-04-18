@@ -3,35 +3,35 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
   category "capability"
 
   aggregate "Round", "One full cycle of corpus improvement — tracks what happened and what to do next" do
-    Integer :round_number
-    Integer :starting_pairs
-    Integer :ending_pairs
-    Integer :strong_pairs
-    Float :reference_coverage
-    Float :policy_coverage
-    String :status
-    list_of(Phase) :phases
+    attribute :round_number, Integer
+    attribute :starting_pairs, Integer
+    attribute :ending_pairs, Integer
+    attribute :strong_pairs, Integer
+    attribute :reference_coverage, Float
+    attribute :policy_coverage, Float
+    attribute :status, String
+    attribute :phases, list_of(Phase)
 
     value_object "Phase" do
-      String :name
-      Integer :input_count
-      Integer :output_count
-      Integer :fixed
-      Integer :rejected
-      String :duration
+      attribute :name, String
+      attribute :input_count, Integer
+      attribute :output_count, Integer
+      attribute :fixed, Integer
+      attribute :rejected, Integer
+      attribute :duration, String
     end
 
-    StartRound do
+    command "StartRound" do
       description "Begin a training round — assess current corpus, set targets"
-      Integer :round_number
-      Integer :growth_target
-      Float :min_reference_pct
-      Float :min_policy_pct
+      attribute :round_number, Integer
+      attribute :growth_target, Integer
+      attribute :min_reference_pct, Float
+      attribute :min_policy_pct, Float
       given "previous round must be complete or this is round 1"
       emits "RoundStarted"
     end
 
-    CompleteRound do
+    command "CompleteRound" do
       description "Finalize a round — record metrics and decide if another is needed"
       reference_to(Round)
       emits "RoundCompleted"
@@ -39,70 +39,70 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
   end
 
   aggregate "GrowthPhase", "Conceive new domains to expand the corpus" do
-    Integer :target_count
-    Integer :conceived
-    Integer :validated
-    list_of(String) :topics
+    attribute :target_count, Integer
+    attribute :conceived, Integer
+    attribute :validated, Integer
+    attribute :topics, list_of(String)
 
-    RunGrowth do
+    command "RunGrowth" do
       description "Conceive domains across diverse topics, validate each one"
-      Integer :target_count
-      list_of(String) :topics
+      attribute :target_count, Integer
+      attribute :topics, list_of(String)
       emits "GrowthComplete"
     end
   end
 
   aggregate "EnrichmentPhase", "Add missing features to shallow domains" do
-    Integer :domains_scanned
-    Integer :references_added
-    Integer :collections_added
-    Integer :givens_added
-    Integer :revalidated
+    attribute :domains_scanned, Integer
+    attribute :references_added, Integer
+    attribute :collections_added, Integer
+    attribute :givens_added, Integer
+    attribute :revalidated, Integer
 
-    RunEnrichment do
+    command "RunEnrichment" do
       description "Scan all domains, add references, collections, and givens where missing"
       emits "EnrichmentComplete"
     end
   end
 
   aggregate "PruningPhase", "Shape the corpus for training — split, dedup, balance" do
-    Integer :monsters_split
-    Integer :duplicates_merged
-    Integer :categories_capped
-    Integer :final_pair_count
+    attribute :monsters_split, Integer
+    attribute :duplicates_merged, Integer
+    attribute :categories_capped, Integer
+    attribute :final_pair_count, Integer
 
-    RunPruning do
+    command "RunPruning" do
       description "Split monsters, merge duplicates, balance categories"
-      Integer :max_completion_size
-      Float :similarity_threshold
+      attribute :max_completion_size, Integer
+      attribute :similarity_threshold, Float
       emits "PruningComplete"
     end
   end
 
   aggregate "ExtractionPhase", "Harvest training pairs and assess quality" do
-    String :output_path
-    Integer :total_pairs
-    Integer :strong_pairs
-    Float :reference_pct
-    Float :policy_pct
-    list_of(String) :gaps
+    attribute :output_path, String
+    attribute :total_pairs, Integer
+    attribute :strong_pairs, Integer
+    attribute :reference_pct, Float
+    attribute :policy_pct, Float
+    attribute :gaps, list_of(String)
 
-    RunExtraction do
+    command "RunExtraction" do
       description "Extract JSONL training pairs from all valid domains and assess quality"
-      String :output_path
+      attribute :output_path, String
       emits "ExtractionComplete"
     end
   end
 
   aggregate "Decision", "Should we run another round or is the corpus good enough?" do
-    Integer :round_number
-    Boolean :targets_met
-    Float :reference_gap
-    Float :policy_gap
-    Integer :pair_deficit
-    String :recommendation
+    attribute :round_number, Integer
+    attribute :targets_met, TrueClass
+    attribute :reference_gap, Float
+    attribute :policy_gap, Float
+    attribute :pair_deficit, Integer
+    attribute :recommendation, String
 
-    Evaluate do
+    command "Evaluate" do
       description "Compare current metrics against targets — recommend continue or ship"
       reference_to(Round)
       emits "DecisionMade"

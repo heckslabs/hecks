@@ -19,20 +19,20 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Authentication — pin gate ===
 
   aggregate "Gate", "Simple password gate — type the pin, get a session" do
-    String :pin_hash
-    String :session_token
-    String :expires_at
-    Boolean :locked
+    attribute :pin_hash, String
+    attribute :session_token, String
+    attribute :expires_at, String
+    attribute :locked, TrueClass
 
-    Authenticate do
+    command "Authenticate" do
       description "Check the pin, issue a session token stored in KV"
-      String :pin
+      attribute :pin, String
       given "pin must match stored hash"
       emits "SessionGranted"
       then_set :locked, to: false
     end
 
-    RevokeSession do
+    command "RevokeSession" do
       description "Kill an active session — logout from the phone"
       reference_to(Gate)
       emits "SessionRevoked"
@@ -48,36 +48,36 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Conversation — chat history ===
 
   aggregate "Conversation", "A chat thread between the user and Miette" do
-    list_of(Turn) :turns
-    String :started_at
-    String :last_active
-    Integer :turn_count
+    attribute :turns, list_of(Turn)
+    attribute :started_at, String
+    attribute :last_active, String
+    attribute :turn_count, Integer
 
     value_object "Turn" do
-      String :role
-      String :content
-      String :timestamp
+      attribute :role, String
+      attribute :content, String
+      attribute :timestamp, String
     end
 
-    StartConversation do
+    command "StartConversation" do
       description "Begin a new chat thread"
       given "session must be active"
       emits "ConversationStarted"
     end
 
-    SendMessage do
+    command "SendMessage" do
       description "User sends a message — routed to Summer for inference"
       reference_to(Conversation)
-      String :content
+      attribute :content, String
       given "session must be active"
       emits "MessageSent"
     end
 
-    ReceiveReply do
+    command "ReceiveReply" do
       description "Summer's response arrives — appended to the thread"
       reference_to(Conversation)
-      String :content
-      Integer :latency_ms
+      attribute :content, String
+      attribute :latency_ms, Integer
       emits "ReplyReceived"
     end
   end
@@ -85,27 +85,27 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Inference Proxy — bridges the edge to Summer ===
 
   aggregate "InferenceProxy", "Worker-side proxy that calls Summer's serve.py" do
-    String :summer_origin
-    String :status
-    Integer :timeout_ms
+    attribute :summer_origin, String
+    attribute :status, String
+    attribute :timeout_ms, Integer
 
-    ConfigureProxy do
+    command "ConfigureProxy" do
       description "Set the Summer endpoint — local tunnel or cloud URL"
-      String :summer_origin
-      Integer :timeout_ms
+      attribute :summer_origin, String
+      attribute :timeout_ms, Integer
       emits "ProxyConfigured"
       then_set :summer_origin, to: :summer_origin
       then_set :timeout_ms, to: :timeout_ms
     end
 
-    RelayMessage do
+    command "RelayMessage" do
       description "Forward user message to Summer /conceive, stream response back"
       reference_to(Conversation)
-      String :content
+      attribute :content, String
       emits "MessageRelayed"
     end
 
-    CheckHealth do
+    command "CheckHealth" do
       description "Ping Summer /health — verify the model is up"
       emits "HealthChecked"
     end
@@ -114,23 +114,23 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Phone UI — the chat screen ===
 
   aggregate "ChatScreen", "Responsive mobile-first chat interface on Pages" do
-    String :theme
-    Boolean :dark_mode
-    Boolean :streaming
+    attribute :theme, String
+    attribute :dark_mode, TrueClass
+    attribute :streaming, TrueClass
 
-    RenderChat do
+    command "RenderChat" do
       description "Build the chat HTML — message bubbles, input bar, send button"
       reference_to(Conversation)
       emits "ChatRendered"
     end
 
-    StreamResponse do
+    command "StreamResponse" do
       description "Show tokens as they arrive via SSE — feels alive"
       reference_to(Conversation)
       emits "StreamStarted"
     end
 
-    ToggleTheme do
+    command "ToggleTheme" do
       description "Switch between light and dark mode"
       emits "ThemeToggled"
     end

@@ -1,1840 +1,1840 @@
 Hecks.bluebook "Bluebook", version: "2026.04.11.1" do
   category "framework"
   aggregate "Domain", definition: "Root of the domain model IR, holds aggregates and policies" do
-    String :name
-    String :version
+    attribute :name, String
+    attribute :version, String
 
-    DefineDomain do
-      String :name
-      String :version
+    command "DefineDomain" do
+      attribute :name, String
+      attribute :version, String
     end
 
-    ValidateDomain do
-      String :domain_id
+    command "ValidateDomain" do
+      attribute :domain_id, String
     end
 
-    GenerateCode do
-      String :domain_id
-      String :target
+    command "GenerateCode" do
+      attribute :domain_id, String
+      attribute :target, String
     end
   end
 
   aggregate "Aggregate", definition: "DDD aggregate root with commands, events, and lifecycle" do
-    String :name
-    String :domain_name
+    attribute :name, String
+    attribute :domain_name, String
 
-    AddAggregate do
-      String :name
-      String :domain_name
+    command "AddAggregate" do
+      attribute :name, String
+      attribute :domain_name, String
     end
 
-    AddAttribute do
-      String :aggregate_id
-      String :name
-      String :type
+    command "AddAttribute" do
+      attribute :aggregate_id, String
+      attribute :name, String
+      attribute :type, String
     end
 
-    AddCommand do
-      String :aggregate_id
-      String :name
+    command "AddCommand" do
+      attribute :aggregate_id, String
+      attribute :name, String
     end
 
-    AddPolicy do
-      String :aggregate_id
-      String :name
-      String :event_name
-      String :trigger_command
+    command "AddPolicy" do
+      attribute :aggregate_id, String
+      attribute :name, String
+      attribute :event_name, String
+      attribute :trigger_command, String
     end
   end
 
   aggregate "Grammar", definition: "DSL grammar definition for parsing domain definitions" do
-    String :name
+    attribute :name, String
 
-    RegisterGrammar do
-      String :name
+    command "RegisterGrammar" do
+      attribute :name, String
     end
 
-    ParseInput do
-      String :grammar_id
-      String :input
+    command "ParseInput" do
+      attribute :grammar_id, String
+      attribute :input, String
     end
   end
 
   aggregate "Compiler", definition: "Builds domain gems from IR and loads domains" do
-    String :domain_id
+    attribute :domain_id, String
 
-    BuildDomain do
-      String :domain_id
-      String :output_dir
+    command "BuildDomain" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "Validator", definition: "Runs validation rules against domain IR" do
-    String :domain_id
+    attribute :domain_id, String
 
-    RunValidation do
-      String :domain_id
+    command "RunValidation" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Visualizer", definition: "Generates Mermaid diagrams from domain IR" do
-    String :domain_id
+    attribute :domain_id, String
 
-    GenerateDiagram do
-      String :domain_id
+    command "GenerateDiagram" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Glossary", definition: "Generates Ubiquitous Language glossary from domain IR" do
-    String :domain_id
+    attribute :domain_id, String
 
-    GenerateGlossary do
-      String :domain_id
+    command "GenerateGlossary" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "DslSerializer", definition: "Serializes domain IR back to DSL source" do
-    String :domain_id
+    attribute :domain_id, String
 
-    SerializeDomain do
-      String :domain_id
+    command "SerializeDomain" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "AstExtractor", definition: "Extracts domain definitions from Ruby AST" do
-    String :source
+    attribute :source, String
 
-    ExtractDomain do
-      String :source
+    command "ExtractDomain" do
+      attribute :source, String
     end
   end
 
   aggregate "FlowGenerator", definition: "Traces reactive event flows across policies" do
-    String :domain_id
+    attribute :domain_id, String
 
-    TraceFlows do
-      String :domain_id
+    command "TraceFlows" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "LlmsGenerator", definition: "Generates llms.txt from domain IR" do
-    String :domain_id
+    attribute :domain_id, String
 
-    GenerateLlmsTxt do
-      String :domain_id
+    command "GenerateLlmsTxt" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ReadmeGenerator", definition: "Generates README from domain IR" do
-    String :root
+    attribute :root, String
 
-    GenerateReadme do
-      String :root
+    command "GenerateReadme" do
+      attribute :root, String
     end
   end
 
   aggregate "EventStorm", definition: "Imports event storming sessions into domain IR" do
-    String :source
+    attribute :source, String
 
-    ParseEventStorm do
-      String :source
+    command "ParseEventStorm" do
+      attribute :source, String
     end
 
-    ImportEventStorm do
-      String :source
-      String :name
+    command "ImportEventStorm" do
+      attribute :source, String
+      attribute :name, String
     end
   end
 
   aggregate "Migration", definition: "Diffs domain versions and generates migrations" do
-    String :domain_id
+    attribute :domain_id, String
 
-    DiffDomains do
-      String :domain_id
+    command "DiffDomains" do
+      attribute :domain_id, String
     end
 
-    RunMigration do
-      String :domain_id
+    command "RunMigration" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ContextMap", definition: "Generates context map across multiple domains" do
-    String :domains
+    attribute :domains, String
 
-    GenerateContextMap do
-      String :domains
+    command "GenerateContextMap" do
+      attribute :domains, String
     end
   end
 
   aggregate "ValidationRule", definition: "Single validation rule within the validator" do
-    String :name
-    String :category
+    attribute :name, String
+    attribute :category, String
 
-    CheckRule do
-      String :domain_id
-      String :rule_name
+    command "CheckRule" do
+      attribute :domain_id, String
+      attribute :rule_name, String
     end
   end
 
   aggregate "Versioner", definition: "Computes CalVer version from git history" do
-    String :path
+    attribute :path, String
 
-    ComputeVersion do
-      String :path
+    command "ComputeVersion" do
+      attribute :path, String
     end
   end
 
   aggregate "NodeReaders", definition: "Shared AST node reading helpers for visitor classes" do
 
-    ReadNode do
-      String :node_type
+    command "ReadNode" do
+      attribute :node_type, String
     end
   end
 
   aggregate "AggregateVisitor", definition: "Prism AST visitor that extracts aggregate definitions from Ruby source" do
 
-    VisitAggregate do
-      String :source
+    command "VisitAggregate" do
+      attribute :source, String
     end
   end
 
   aggregate "DomainVisitor", definition: "Prism AST visitor that extracts domain-level definitions from Ruby source" do
 
-    VisitDomain do
-      String :source
+    command "VisitDomain" do
+      attribute :source, String
     end
   end
 
   aggregate "EventStormImporter", definition: "Imports YAML event storming sessions into domain IR" do
 
-    ImportEventStorm do
-      String :source
-      String :name
+    command "ImportEventStorm" do
+      attribute :source, String
+      attribute :name, String
     end
   end
 
   aggregate "DslGenerator", definition: "Generates Bluebook DSL from event storm parse results" do
 
-    GenerateDsl do
-      String :result_id
+    command "GenerateDsl" do
+      attribute :result_id, String
     end
   end
 
   aggregate "YamlParser", definition: "Parses YAML event storm files into structured data" do
 
-    ParseYaml do
-      String :source
+    command "ParseYaml" do
+      attribute :source, String
     end
   end
 
   aggregate "Result", definition: "Container for event storm parse results" do
 
-    CreateResult do
-      String :source
+    command "CreateResult" do
+      attribute :source, String
     end
   end
 
   aggregate "PatternMatching", definition: "Pattern matching for event storm element classification" do
 
-    MatchPattern do
-      String :text
+    command "MatchPattern" do
+      attribute :text, String
     end
   end
 
   aggregate "ContextGrouping", definition: "Groups event storm items by bounded context" do
 
-    GroupByContext do
-      String :items
+    command "GroupByContext" do
+      attribute :items, String
     end
   end
 
   aggregate "EventNameValidation", definition: "Warns when event storm names don't match command inference convention" do
 
-    ValidateEventNames do
-      String :source
+    command "ValidateEventNames" do
+      attribute :source, String
     end
   end
 
   aggregate "Command", definition: "Intent to change aggregate state, carries attributes" do
 
-    DefineCommand do
-      String :name
-      String :aggregate_id
+    command "DefineCommand" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "BluebookEvent", definition: "Fact that something happened, emitted after command execution" do
 
-    DefineEvent do
-      String :name
-      String :aggregate_id
+    command "DefineEvent" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "Query", definition: "Read-side request returning data without side effects" do
 
-    DefineQuery do
-      String :name
-      String :return_type
+    command "DefineQuery" do
+      attribute :name, String
+      attribute :return_type, String
     end
   end
 
   aggregate "Policy", definition: "Reactive rule triggered by an event, dispatches a command" do
 
-    DefinePolicy do
-      String :name
-      String :event_name
-      String :trigger_command
+    command "DefinePolicy" do
+      attribute :name, String
+      attribute :event_name, String
+      attribute :trigger_command, String
     end
   end
 
   aggregate "Service", definition: "Stateless domain operation spanning multiple aggregates" do
 
-    DefineService do
-      String :name
-      String :operation
+    command "DefineService" do
+      attribute :name, String
+      attribute :operation, String
     end
   end
 
   aggregate "Condition", definition: "Predicate guard on a command or workflow step" do
 
-    DefineCondition do
-      String :name
-      String :expression
+    command "DefineCondition" do
+      attribute :name, String
+      attribute :expression, String
     end
   end
 
   aggregate "EventSubscriber", definition: "Handler that reacts to domain events" do
 
-    DefineSubscriber do
-      String :name
-      String :event_name
+    command "DefineSubscriber" do
+      attribute :name, String
+      attribute :event_name, String
     end
   end
 
   aggregate "Specification", definition: "Composable boolean predicate for domain rules" do
 
-    DefineSpecification do
-      String :name
-      String :predicate
+    command "DefineSpecification" do
+      attribute :name, String
+      attribute :predicate, String
     end
   end
 
   aggregate "Saga", definition: "Multi-step distributed process with compensation" do
 
-    DefineSaga do
-      String :name
-      String :aggregate_id
+    command "DefineSaga" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "SagaStep", definition: "Single step within a saga, with action and compensate" do
 
-    DefineSagaStep do
-      String :saga_id
-      String :action
-      String :compensate
+    command "DefineSagaStep" do
+      attribute :saga_id, String
+      attribute :action, String
+      attribute :compensate, String
     end
   end
 
   aggregate "Workflow", definition: "Multi-step process with branching and conditions" do
 
-    DefineWorkflow do
-      String :name
-      String :aggregate_id
+    command "DefineWorkflow" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "WorkflowStep", definition: "Single step within a workflow, with optional condition" do
 
-    DefineWorkflowStep do
-      String :workflow_id
-      String :command_name
+    command "DefineWorkflowStep" do
+      attribute :workflow_id, String
+      attribute :command_name, String
     end
   end
 
   aggregate "Behavior", definition: "Namespace module for behavior IR nodes: commands, events, policies" do
 
-    Define do
-      String :name
+    command "Define" do
+      attribute :name, String
     end
   end
 
   aggregate "BidirectionalReferences", definition: "Detects and rejects domains where two aggregates reference each other" do
 
-    DetectBidirectional do
-      String :domain_id
+    command "DetectBidirectional" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BaseName", definition: "Root name object with inflection and formatting methods" do
 
-    CreateName do
-      String :raw
+    command "CreateName" do
+      attribute :raw, String
     end
   end
 
   aggregate "AggregateName", definition: "Name specialization for aggregates (singular, plural, module)" do
 
-    CreateAggregateName do
-      String :raw
+    command "CreateAggregateName" do
+      attribute :raw, String
     end
   end
 
   aggregate "CommandName", definition: "Name specialization for commands (past tense, event form)" do
 
-    CreateCommandName do
-      String :raw
+    command "CreateCommandName" do
+      attribute :raw, String
     end
   end
 
   aggregate "EventName", definition: "Name specialization for domain events (past participle)" do
 
-    CreateEventName do
-      String :raw
+    command "CreateEventName" do
+      attribute :raw, String
     end
   end
 
   aggregate "StateName", definition: "Name specialization for lifecycle states (snake, label)" do
 
-    CreateStateName do
-      String :raw
+    command "CreateStateName" do
+      attribute :raw, String
     end
   end
 
   aggregate "AggregateSerializer", definition: "Serializes aggregate IR back to Bluebook DSL source" do
 
-    SerializeAggregate do
-      String :aggregate_id
+    command "SerializeAggregate" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "BehaviorSerializer", definition: "Serializes commands, events, and policies to DSL source" do
 
-    SerializeBehavior do
-      String :aggregate_id
+    command "SerializeBehavior" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "RuleSerializer", definition: "Serializes validation rules to DSL source" do
 
-    SerializeRules do
-      String :aggregate_id
+    command "SerializeRules" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "TypeHelpers", definition: "Type name formatting utilities for serializer output" do
 
-    FormatType do
-      String :type_name
+    command "FormatType" do
+      attribute :type_name, String
     end
   end
 
   aggregate "AggregateSpec", definition: "Generates RSpec file for aggregate root classes" do
 
-    GenerateAggregateSpec do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateAggregateSpec" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "CommandSpec", definition: "Generates RSpec file for command classes" do
 
-    GenerateCommandSpec do
-      String :command_id
-      String :output_dir
+    command "GenerateCommandSpec" do
+      attribute :command_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "EntitySpec", definition: "Generates RSpec file for entity classes" do
 
-    GenerateEntitySpec do
-      String :entity_id
-      String :output_dir
+    command "GenerateEntitySpec" do
+      attribute :entity_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "EventSpec", definition: "Generates RSpec file for domain event classes" do
 
-    GenerateEventSpec do
-      String :event_id
-      String :output_dir
+    command "GenerateEventSpec" do
+      attribute :event_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "LifecycleSpec", definition: "Generates RSpec file for lifecycle state machines" do
 
-    GenerateLifecycleSpec do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateLifecycleSpec" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "PolicySpec", definition: "Generates RSpec file for reactive policy classes" do
 
-    GeneratePolicySpec do
-      String :policy_id
-      String :output_dir
+    command "GeneratePolicySpec" do
+      attribute :policy_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "PortSpec", definition: "Generates RSpec file for port interface classes" do
 
-    GeneratePortSpec do
-      String :aggregate_id
-      String :output_dir
+    command "GeneratePortSpec" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "QuerySpec", definition: "Generates RSpec file for query scope methods" do
 
-    GenerateQuerySpec do
-      String :query_id
-      String :output_dir
+    command "GenerateQuerySpec" do
+      attribute :query_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ScopeSpec", definition: "Generates RSpec file for named scope classes" do
 
-    GenerateScopeSpec do
-      String :scope_id
-      String :output_dir
+    command "GenerateScopeSpec" do
+      attribute :scope_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ServiceSpec", definition: "Generates RSpec file for domain service classes" do
 
-    GenerateServiceSpec do
-      String :service_id
-      String :output_dir
+    command "GenerateServiceSpec" do
+      attribute :service_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SpecificationSpec", definition: "Generates RSpec file for specification predicate classes" do
 
-    GenerateSpecificationSpec do
-      String :spec_id
-      String :output_dir
+    command "GenerateSpecificationSpec" do
+      attribute :spec_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ValueObjectSpec", definition: "Generates RSpec file for value object classes" do
 
-    GenerateValueObjectSpec do
-      String :vo_id
-      String :output_dir
+    command "GenerateValueObjectSpec" do
+      attribute :vo_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ViewSpec", definition: "Generates RSpec file for read model view classes" do
 
-    GenerateViewSpec do
-      String :view_id
-      String :output_dir
+    command "GenerateViewSpec" do
+      attribute :view_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "WorkflowSpec", definition: "Generates RSpec file for workflow classes" do
 
-    GenerateWorkflowSpec do
-      String :workflow_id
-      String :output_dir
+    command "GenerateWorkflowSpec" do
+      attribute :workflow_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "BluebookBuilder", definition: "Top-level DSL builder that collects aggregates, policies, and services into a Domain IR" do
 
-    BuildDomain do
-      String :name
-      String :version
+    command "BuildDomain" do
+      attribute :name, String
+      attribute :version, String
     end
   end
 
   aggregate "AggregateBuilder", definition: "DSL builder for aggregate roots with commands, events, and lifecycle" do
 
-    BuildAggregate do
-      String :name
+    command "BuildAggregate" do
+      attribute :name, String
     end
   end
 
   aggregate "CommandBuilder", definition: "DSL builder for command definitions with typed attributes" do
 
-    BuildCommand do
-      String :name
-      String :aggregate_id
+    command "BuildCommand" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "EntityBuilder", definition: "DSL builder for identity-bearing entities within an aggregate" do
 
-    BuildEntity do
-      String :name
-      String :aggregate_id
+    command "BuildEntity" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "EventBuilder", definition: "DSL builder for domain event definitions" do
 
-    BuildEvent do
-      String :name
+    command "BuildEvent" do
+      attribute :name, String
     end
   end
 
   aggregate "ValueObjectBuilder", definition: "DSL builder for immutable value objects with attributes and invariants" do
 
-    BuildValueObject do
-      String :name
+    command "BuildValueObject" do
+      attribute :name, String
     end
   end
 
   aggregate "PolicyBuilder", definition: "DSL builder for reactive policies triggered by events" do
 
-    BuildPolicy do
-      String :name
-      String :event_name
+    command "BuildPolicy" do
+      attribute :name, String
+      attribute :event_name, String
     end
   end
 
   aggregate "ServiceBuilder", definition: "DSL builder for stateless domain services spanning aggregates" do
 
-    BuildService do
-      String :name
+    command "BuildService" do
+      attribute :name, String
     end
   end
 
   aggregate "WorkflowBuilder", definition: "DSL builder for multi-step workflows with branching" do
 
-    BuildWorkflow do
-      String :name
+    command "BuildWorkflow" do
+      attribute :name, String
     end
   end
 
   aggregate "LifecycleBuilder", definition: "DSL builder for state machine lifecycle definitions" do
 
-    BuildLifecycle do
-      String :aggregate_id
-      String :initial_state
+    command "BuildLifecycle" do
+      attribute :aggregate_id, String
+      attribute :initial_state, String
     end
   end
 
   aggregate "ReadModelBuilder", definition: "DSL builder for denormalized read model projections" do
 
-    BuildReadModel do
-      String :name
+    command "BuildReadModel" do
+      attribute :name, String
     end
   end
 
   aggregate "SagaBuilder", definition: "DSL builder for long-running sagas with compensation" do
 
-    BuildSaga do
-      String :name
+    command "BuildSaga" do
+      attribute :name, String
     end
   end
 
   aggregate "SagaStepBuilder", definition: "DSL builder for individual saga steps with action and compensate" do
 
-    BuildSagaStep do
-      String :saga_id
-      String :action
+    command "BuildSagaStep" do
+      attribute :saga_id, String
+      attribute :action, String
     end
   end
 
   aggregate "GlossaryBuilder", definition: "DSL builder for ubiquitous language glossary rules" do
 
-    BuildGlossary do
-      String :domain_id
+    command "BuildGlossary" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ModuleBuilder", definition: "DSL builder for logical sub-groupings within a domain" do
 
-    BuildModule do
-      String :name
+    command "BuildModule" do
+      attribute :name, String
     end
   end
 
   aggregate "AclBuilder", definition: "DSL builder for anti-corruption layer definitions" do
 
-    BuildAcl do
-      String :name
-      String :external_system
+    command "BuildAcl" do
+      attribute :name, String
+      attribute :external_system, String
     end
   end
 
   aggregate "BranchBuilder", definition: "DSL builder for conditional branches within workflows" do
 
-    BuildBranch do
-      String :condition
+    command "BuildBranch" do
+      attribute :condition, String
     end
   end
 
   aggregate "ScheduledStepBuilder", definition: "DSL builder for time-triggered workflow steps" do
 
-    BuildScheduledStep do
-      String :interval
+    command "BuildScheduledStep" do
+      attribute :interval, String
     end
   end
 
   aggregate "BluebookStructure", definition: "Root container for composed system of chapters" do
 
-    BuildStructure do
-      String :domain_id
+    command "BuildStructure" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Actor", definition: "External person or system that initiates commands" do
 
-    DefineActor do
-      String :name
-      String :role
+    command "DefineActor" do
+      attribute :name, String
+      attribute :role, String
     end
   end
 
   aggregate "Attribute", definition: "Typed field on an aggregate, entity, or value object" do
 
-    DefineAttribute do
-      String :name
-      String :type
+    command "DefineAttribute" do
+      attribute :name, String
+      attribute :type, String
     end
   end
 
   aggregate "ComputedAttribute", definition: "Derived field calculated from other attributes" do
 
-    DefineComputedAttribute do
-      String :name
-      String :expression
+    command "DefineComputedAttribute" do
+      attribute :name, String
+      attribute :expression, String
     end
   end
 
   aggregate "Entity", definition: "Identity-bearing object within an aggregate boundary" do
 
-    DefineEntity do
-      String :name
-      String :aggregate_id
+    command "DefineEntity" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "ExternalSystem", definition: "Third-party system integrated via anti-corruption layer" do
 
-    DefineExternalSystem do
-      String :name
-      String :adapter
+    command "DefineExternalSystem" do
+      attribute :name, String
+      attribute :adapter, String
     end
   end
 
   aggregate "Invariant", definition: "Business rule that must hold true for aggregate consistency" do
 
-    DefineInvariant do
-      String :name
-      String :expression
+    command "DefineInvariant" do
+      attribute :name, String
+      attribute :expression, String
     end
   end
 
   aggregate "Lifecycle", definition: "State machine defining aggregate lifecycle transitions" do
 
-    DefineLifecycle do
-      String :aggregate_id
-      String :initial_state
+    command "DefineLifecycle" do
+      attribute :aggregate_id, String
+      attribute :initial_state, String
     end
   end
 
   aggregate "ReadModel", definition: "Denormalized projection optimized for queries" do
 
-    DefineReadModel do
-      String :name
-      String :source_aggregate
+    command "DefineReadModel" do
+      attribute :name, String
+      attribute :source_aggregate, String
     end
   end
 
   aggregate "Reference", definition: "Association between aggregates (composition or aggregation)" do
 
-    DefineReference do
-      String :from
-      String :to
-      String :kind
+    command "DefineReference" do
+      attribute :from, String
+      attribute :to, String
+      attribute :kind, String
     end
   end
 
   aggregate "Scope", definition: "Named query scope on an aggregate or read model" do
 
-    DefineScope do
-      String :name
-      String :filter
+    command "DefineScope" do
+      attribute :name, String
+      attribute :filter, String
     end
   end
 
   aggregate "StateTransition", definition: "Named edge in a lifecycle state machine" do
 
-    DefineStateTransition do
-      String :from_state
-      String :to_state
-      String :event
+    command "DefineStateTransition" do
+      attribute :from_state, String
+      attribute :to_state, String
+      attribute :event, String
     end
   end
 
   aggregate "ValidationNode", definition: "Declarative validation rule on an attribute or aggregate" do
 
-    DefineValidation do
-      String :name
-      String :rule
+    command "DefineValidation" do
+      attribute :name, String
+      attribute :rule, String
     end
   end
 
   aggregate "ValueObject", definition: "Immutable, identity-less domain concept defined by its attributes" do
 
-    DefineValueObject do
-      String :name
-      String :aggregate_id
+    command "DefineValueObject" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "Paragraph", definition: "Named group of aggregates within a chapter" do
 
-    DefineParagraph do
-      String :name
+    command "DefineParagraph" do
+      attribute :name, String
     end
   end
 
   aggregate "Validation", definition: "Validation rule IR node for aggregate attribute constraints" do
 
-    DefineValidationRule do
-      String :attribute_name
-      String :rule
+    command "DefineValidationRule" do
+      attribute :attribute_name, String
+      attribute :rule, String
     end
   end
 
   aggregate "CommandStep", definition: "Workflow step that dispatches a named command" do
 
-    DefineCommandStep do
-      String :command
-      String :mapping
+    command "DefineCommandStep" do
+      attribute :command, String
+      attribute :mapping, String
     end
   end
 
   aggregate "BranchStep", definition: "Workflow step that conditionally routes based on a spec" do
 
-    DefineBranchStep do
-      String :spec
+    command "DefineBranchStep" do
+      attribute :spec, String
     end
   end
 
   aggregate "ScheduledStep", definition: "Workflow step that finds aggregates and triggers a command" do
 
-    DefineScheduledStep do
-      String :name
-      String :trigger
+    command "DefineScheduledStep" do
+      attribute :name, String
+      attribute :trigger, String
     end
   end
 
   aggregate "JsonAttribute", definition: "JSON type accepted as attribute type, round-trips through SQL generation" do
 
-    DefineJsonAttribute do
-      String :name
-      String :aggregate_id
+    command "DefineJsonAttribute" do
+      attribute :name, String
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "DateTypes", definition: "Date and DateTime types stored correctly in attribute IR" do
 
-    DefineDateType do
-      String :name
-      String :type
+    command "DefineDateType" do
+      attribute :name, String
+      attribute :type, String
     end
   end
 
   aggregate "AggregateRebuilder", definition: "Rebuilds aggregate IR from modified DSL definitions" do
 
-    RebuildAggregate do
-      String :aggregate_id
+    command "RebuildAggregate" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "AttributeCollector", definition: "Collects typed attributes during DSL block evaluation" do
 
-    CollectAttribute do
-      String :name
-      String :type
+    command "CollectAttribute" do
+      attribute :name, String
+      attribute :type, String
     end
   end
 
   aggregate "BehaviorMethods", definition: "DSL mixin providing command, event, and policy definition methods" do
 
-    DefineBehaviorMethod do
-      String :name
-      String :kind
+    command "DefineBehaviorMethod" do
+      attribute :name, String
+      attribute :kind, String
     end
   end
 
   aggregate "ConstraintMethods", definition: "DSL mixin providing validation and invariant definition methods" do
 
-    DefineConstraintMethod do
-      String :name
-      String :rule
+    command "DefineConstraintMethod" do
+      attribute :name, String
+      attribute :rule, String
     end
   end
 
   aggregate "ImplicitSyntax", definition: "Convention-based implicit DSL shortcuts for common patterns" do
 
-    ApplyImplicitSyntax do
-      String :aggregate_id
+    command "ApplyImplicitSyntax" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "QueryMethods", definition: "DSL mixin providing query, scope, and specification methods" do
 
-    DefineQueryMethod do
-      String :name
-      String :return_type
+    command "DefineQueryMethod" do
+      attribute :name, String
+      attribute :return_type, String
     end
   end
 
   aggregate "StepCollector", definition: "Collects workflow and saga steps during DSL evaluation" do
 
-    CollectStep do
-      String :name
-      String :action
+    command "CollectStep" do
+      attribute :name, String
+      attribute :action, String
     end
   end
 
   aggregate "Describable", definition: "Shared mixin adding description support to DSL objects" do
 
-    SetDescription do
-      String :text
+    command "SetDescription" do
+      attribute :text, String
     end
   end
 
   aggregate "BluebookBuilderMethods", definition: "Top-level Hecks.bluebook method for defining domains" do
 
-    DefineDomainEntry do
-      String :name
+    command "DefineDomainEntry" do
+      attribute :name, String
     end
   end
 
   aggregate "LeakySliceDetection", definition: "Detects cross-slice dependencies that violate bounded context boundaries" do
 
-    DetectLeaks do
-      String :domain_id
+    command "DetectLeaks" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ConnectionConfig", definition: "Configures connections between domain contexts" do
 
-    ConfigureConnection do
-      String :from_domain
-      String :to_domain
+    command "ConfigureConnection" do
+      attribute :from_domain, String
+      attribute :to_domain, String
     end
   end
 
   aggregate "SliceStep", definition: "Single step in a vertical slice through a reactive chain" do
 
-    DefineStep do
-      String :command_name
-      String :event_name
+    command "DefineStep" do
+      attribute :command_name, String
+      attribute :event_name, String
     end
   end
 
   aggregate "DomainMixin", definition: "Mixin adding vertical slice extraction to Domain IR" do
 
-    ExtractSlices do
-      String :domain_id
+    command "ExtractSlices" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "VerticalSlice", definition: "Cross-cutting slice through a command/event reactive chain" do
 
-    Trace do
-      String :entry_command
+    command "Trace" do
+      attribute :entry_command, String
     end
   end
 
   aggregate "SliceExtractor", definition: "Extracts vertical slices from domain command flows" do
 
-    Extract do
-      String :domain_id
+    command "Extract" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "SliceDiagram", definition: "Generates Mermaid diagrams from vertical slices" do
 
-    Generate do
-      String :domain_id
+    command "Generate" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BluebookCompiler", definition: "Generates domain gems and loads domains into memory" do
 
-    Compile do
-      String :domain_id
-      String :output_dir
+    command "Compile" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
 
-    LoadDomain do
-      String :domain_id
+    command "LoadDomain" do
+      attribute :domain_id, String
     end
 
-    BuildStatic do
-      String :domain_id
-      String :output_dir
+    command "BuildStatic" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
 
-    BuildGo do
-      String :domain_id
-      String :output_dir
+    command "BuildGo" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
 
-    BuildNode do
-      String :domain_id
-      String :output_dir
+    command "BuildNode" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
 
-    BuildRails do
-      String :domain_id
-      String :output_dir
+    command "BuildRails" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
 
-    BuildBinary do
-      String :domain_id
-      String :output_dir
+    command "BuildBinary" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "InMemoryLoader", definition: "Fast domain loading without disk I/O via in-memory eval" do
 
-    LoadInMemory do
-      String :domain_id
+    command "LoadInMemory" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "DomainInspector", definition: "Top-level introspection across all loaded domains" do
 
-    InspectDomain do
-      String :domain_id
+    command "InspectDomain" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "DomainIntrospector", definition: "Analyzes domain structure programmatically" do
 
-    Introspect do
-      String :domain_name
+    command "Introspect" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "GemBuilder", definition: "Packages a domain as a distributable Ruby gem" do
 
-    BuildGem do
-      String :domain_name
+    command "BuildGem" do
+      attribute :domain_name, String
     end
   end
 
   aggregate "StatementBuilders", definition: "Builds plain-English statements from domain IR objects" do
 
-    BuildStatement do
-      String :ir_object
+    command "BuildStatement" do
+      attribute :ir_object, String
     end
   end
 
   aggregate "TextHelpers", definition: "English text utilities for glossary generation" do
 
-    Humanize do
-      String :text
+    command "Humanize" do
+      attribute :text, String
     end
   end
 
   aggregate "BluebookConnections", definition: "Declares what crosses the domain boundary via extend verb" do
 
-    Apply do
-      String :extension_name
+    command "Apply" do
+      attribute :extension_name, String
     end
   end
 
   aggregate "Tokenizer", definition: "Splits command argument strings into typed tokens" do
 
-    Tokenize do
-      String :input
+    command "Tokenize" do
+      attribute :input, String
     end
   end
 
   aggregate "ExtensionDocs", definition: "Metadata registry describing all Hecks extensions" do
 
-    ListExtensions do
-      String :category
+    command "ListExtensions" do
+      attribute :category, String
     end
   end
 
   aggregate "ReadmeWriter", definition: "Generates per-extension Markdown README files from metadata" do
 
-    GenerateReadmes do
-      String :root
+    command "GenerateReadmes" do
+      attribute :root, String
     end
   end
 
   aggregate "SourceCollector", definition: "Collects framework source files in load order for binary compilation" do
 
-    Collect do
-      String :lib_root
+    command "Collect" do
+      attribute :lib_root, String
     end
   end
 
   aggregate "ForwardDeclarations", definition: "Generates module forward declarations for the bundled binary" do
 
-    Write do
-      String :io
+    command "Write" do
+      attribute :io, String
     end
   end
 
   aggregate "BundleWriter", definition: "Concatenates source files into a single self-contained script" do
 
-    Write do
-      String :files
-      String :output
+    command "Write" do
+      attribute :files, String
+      attribute :output, String
     end
   end
 
   aggregate "BinaryCompiler", definition: "Orchestrates compilation into a self-contained Ruby script" do
 
-    Compile do
-      String :output
+    command "Compile" do
+      attribute :output, String
     end
   end
 
   aggregate "SourceAnalyzer", definition: "Prism AST analysis of source files for dependency resolution" do
 
-    Analyze do
-      String :lib_root
+    command "Analyze" do
+      attribute :lib_root, String
     end
   end
 
   aggregate "ConstantResolver", definition: "Resolves constant references to defining files" do
 
-    Resolve do
-      String :ref
+    command "Resolve" do
+      attribute :ref, String
     end
   end
 
   aggregate "DependencyGraph", definition: "Builds file-level dependency graph and topological sort" do
 
-    Sort do
-      String :lib_root
+    command "Sort" do
+      attribute :lib_root, String
     end
   end
 
   aggregate "CycleSorter", definition: "Greedy topological sort within dependency cycles" do
 
-    SortCycle do
-      String :files
+    command "SortCycle" do
+      attribute :files, String
     end
   end
 
   aggregate "SourceTransformer", definition: "Strips requires and expands compact class syntax" do
 
-    Transform do
-      String :source
+    command "Transform" do
+      attribute :source, String
     end
   end
 
   aggregate "ReferenceExtractor", definition: "Extracts constant references from Prism AST" do
 
-    Extract do
-      String :source
+    command "Extract" do
+      attribute :source, String
     end
   end
 
   aggregate "DefinitionExtractor", definition: "Extracts constant definitions from Prism AST" do
 
-    Extract do
-      String :source
+    command "Extract" do
+      attribute :source, String
     end
   end
 
   aggregate "RuntimeGenerator", definition: "Generates runtime wiring modules from domain IR" do
 
-    Generate do
-      String :domain_module
+    command "Generate" do
+      attribute :domain_module, String
     end
   end
 
   aggregate "Generator", definition: "Base generator class with shared IR walking and file emission" do
 
-    Generate do
-      String :construct_id
-      String :output_dir
+    command "Generate" do
+      attribute :construct_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "FileWriter", definition: "Writes generated source files to disk with diff support" do
 
-    WriteFile do
-      String :path
-      String :content
+    command "WriteFile" do
+      attribute :path, String
+      attribute :content, String
     end
   end
 
   aggregate "SpecWriter", definition: "Writes generated RSpec files for domain constructs" do
 
-    WriteSpec do
-      String :construct_id
-      String :output_dir
+    command "WriteSpec" do
+      attribute :construct_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "LlmsTxtWriter", definition: "Generates llms.txt documentation files from domain IR" do
 
-    WriteLlmsTxt do
-      String :domain_id
-      String :output_dir
+    command "WriteLlmsTxt" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SpecHelpers", definition: "Shared helpers for spec file generation across construct types" do
 
-    GenerateHelper do
-      String :construct_type
+    command "GenerateHelper" do
+      attribute :construct_type, String
     end
   end
 
   aggregate "InjectionHelpers", definition: "Dependency injection helpers for command generator wiring" do
 
-    InjectDependency do
-      String :command_id
-      String :dependency
+    command "InjectDependency" do
+      attribute :command_id, String
+      attribute :dependency, String
     end
   end
 
   aggregate "FileLocator", definition: "Locates actual source files on disk by aggregate name" do
 
-    LocateFile do
-      String :aggregate_name
-      String :root
+    command "LocateFile" do
+      attribute :aggregate_name, String
+      attribute :root, String
     end
   end
 
   aggregate "SkeletonGenerator", definition: "Generates skeleton file structures from domain IR" do
 
-    GenerateSkeleton do
-      String :domain_id
-      String :output_dir
+    command "GenerateSkeleton" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SelfHostDiff", definition: "Compares generated files against actual source for self-hosting" do
 
-    DiffSelfHost do
-      String :domain_id
+    command "DiffSelfHost" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "FrameworkGemGenerator", definition: "Generates framework gem skeletons with gemspec and structure" do
 
-    GenerateFrameworkGem do
-      String :name
-      String :output_dir
+    command "GenerateFrameworkGem" do
+      attribute :name, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "Registry", definition: "Generator registry for pluggable code generation" do
 
-    RegisterGenerator do
-      String :name
+    command "RegisterGenerator" do
+      attribute :name, String
     end
   end
 
   aggregate "Infrastructure", definition: "Parent module for infrastructure generators" do
 
-    Generate do
-      String :domain_id
+    command "Generate" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BuiltIn", definition: "Registers all built-in generators with the registry" do
 
-    RegisterAll do
-      String :domain_id
+    command "RegisterAll" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BaseRule", definition: "Abstract base class for all domain validation rules" do
 
-    RunRule do
-      String :domain_id
+    command "RunRule" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ValidationMessage", definition: "Structured validation result with severity and context" do
 
-    CreateMessage do
-      String :message
-      String :severity
+    command "CreateMessage" do
+      attribute :message, String
+      attribute :severity, String
     end
   end
 
   aggregate "CommandNaming", definition: "Validates command names follow verb-noun convention" do
 
-    CheckCommandNaming do
-      String :domain_id
+    command "CheckCommandNaming" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "UniqueAggregateNames", definition: "Validates no duplicate aggregate names in domain" do
 
-    CheckUniqueNames do
-      String :domain_id
+    command "CheckUniqueNames" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "SafeIdentifierNames", definition: "Validates names are safe Ruby/Go identifiers" do
 
-    CheckIdentifiers do
-      String :domain_id
+    command "CheckIdentifiers" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ReservedNames", definition: "Validates names do not clash with language reserved words" do
 
-    CheckReservedNames do
-      String :domain_id
+    command "CheckReservedNames" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "NameCollisions", definition: "Detects naming collisions between aggregates and value objects" do
 
-    CheckNameCollisions do
-      String :domain_id
+    command "CheckNameCollisions" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ComputedNameCollisions", definition: "Detects collisions between computed and declared attributes" do
 
-    CheckComputedCollisions do
-      String :domain_id
+    command "CheckComputedCollisions" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "GlossaryTermViolations", definition: "Enforces ubiquitous language glossary term usage" do
 
-    CheckGlossaryTerms do
-      String :domain_id
+    command "CheckGlossaryTerms" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "AggregatesHaveCommands", definition: "Validates every aggregate has at least one command" do
 
-    CheckAggregateCommands do
-      String :domain_id
+    command "CheckAggregateCommands" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "CommandsHaveAttributes", definition: "Validates commands declare at least one attribute" do
 
-    CheckCommandAttributes do
-      String :domain_id
+    command "CheckCommandAttributes" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "SingleAttributeAggregate", definition: "Warns when aggregate has only one attribute" do
 
-    CheckSingleAttribute do
-      String :domain_id
+    command "CheckSingleAttribute" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "TooManyCommands", definition: "Warns when aggregate has excessive commands" do
 
-    CheckCommandCount do
-      String :domain_id
+    command "CheckCommandCount" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ValidPolicyEvents", definition: "Validates policy event references exist in domain" do
 
-    CheckPolicyEvents do
-      String :domain_id
+    command "CheckPolicyEvents" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ValidPolicyTriggers", definition: "Validates policy trigger commands exist in domain" do
 
-    CheckPolicyTriggers do
-      String :domain_id
+    command "CheckPolicyTriggers" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "NoPiiInIdentity", definition: "Warns against PII fields used as identity attributes" do
 
-    CheckPiiIdentity do
-      String :domain_id
+    command "CheckPiiIdentity" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "ValidReferences", definition: "Validates reference targets exist in domain" do
 
-    CheckReferences do
-      String :domain_id
+    command "CheckReferences" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "NoSelfReferences", definition: "Detects invalid self-referencing aggregate associations" do
 
-    CheckSelfReferences do
-      String :domain_id
+    command "CheckSelfReferences" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "NoBidirectionalReferences", definition: "Detects bidirectional reference cycles between aggregates" do
 
-    CheckBidirectional do
-      String :domain_id
+    command "CheckBidirectional" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "NoForeignKeyAttributes", definition: "Detects attributes that should be references instead" do
 
-    CheckForeignKeys do
-      String :domain_id
+    command "CheckForeignKeys" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Transparency", definition: "Validates domain design supports transparency concern" do
 
-    CheckTransparency do
-      String :domain_id
+    command "CheckTransparency" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Consent", definition: "Validates domain design supports user consent concern" do
 
-    CheckConsent do
-      String :domain_id
+    command "CheckConsent" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Privacy", definition: "Validates domain design supports privacy concern" do
 
-    CheckPrivacy do
-      String :domain_id
+    command "CheckPrivacy" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "Security", definition: "Validates domain design supports security concern" do
 
-    CheckSecurity do
-      String :domain_id
+    command "CheckSecurity" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BoundaryAdvisor", definition: "Warns when aggregates are suspiciously thin (single attribute, no VOs)" do
 
-    Advise do
-      String :domain_id
+    command "Advise" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "WorldConcerns", definition: "Validates that aggregate world concerns are permitted by domain policy" do
 
-    CheckConcerns do
-      String :domain_id
+    command "CheckConcerns" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "AggregateGenerator", definition: "Generates aggregate root Ruby class from IR" do
 
-    GenerateAggregate do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateAggregate" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "CommandGenerator", definition: "Generates command class with typed attributes and validations" do
 
-    GenerateCommand do
-      String :command_id
-      String :output_dir
+    command "GenerateCommand" do
+      attribute :command_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "EntityGenerator", definition: "Generates entity class within an aggregate boundary" do
 
-    GenerateEntity do
-      String :entity_id
-      String :output_dir
+    command "GenerateEntity" do
+      attribute :entity_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "EventGenerator", definition: "Generates domain event class from command inference" do
 
-    GenerateEvent do
-      String :event_id
-      String :output_dir
+    command "GenerateEvent" do
+      attribute :event_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ValueObjectGenerator", definition: "Generates immutable value object class" do
 
-    GenerateValueObject do
-      String :value_object_id
-      String :output_dir
+    command "GenerateValueObject" do
+      attribute :value_object_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "PolicyGenerator", definition: "Generates reactive policy wiring event to command" do
 
-    GeneratePolicy do
-      String :policy_id
-      String :output_dir
+    command "GeneratePolicy" do
+      attribute :policy_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ServiceGenerator", definition: "Generates domain service class spanning aggregates" do
 
-    GenerateService do
-      String :service_id
-      String :output_dir
+    command "GenerateService" do
+      attribute :service_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "QueryGenerator", definition: "Generates query scope method on aggregate" do
 
-    GenerateQuery do
-      String :query_id
-      String :output_dir
+    command "GenerateQuery" do
+      attribute :query_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "QueryObjectGenerator", definition: "Generates standalone query object class" do
 
-    GenerateQueryObject do
-      String :query_id
-      String :output_dir
+    command "GenerateQueryObject" do
+      attribute :query_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "WorkflowGenerator", definition: "Generates multi-step workflow orchestration class" do
 
-    GenerateWorkflow do
-      String :workflow_id
-      String :output_dir
+    command "GenerateWorkflow" do
+      attribute :workflow_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "LifecycleGenerator", definition: "Generates state machine lifecycle module" do
 
-    GenerateLifecycle do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateLifecycle" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SubscriberGenerator", definition: "Generates event subscriber handler class" do
 
-    GenerateSubscriber do
-      String :subscriber_id
-      String :output_dir
+    command "GenerateSubscriber" do
+      attribute :subscriber_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SpecificationGenerator", definition: "Generates composable specification predicate class" do
 
-    GenerateSpecification do
-      String :spec_id
-      String :output_dir
+    command "GenerateSpecification" do
+      attribute :spec_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ViewGenerator", definition: "Generates read model view projection class" do
 
-    GenerateView do
-      String :view_id
-      String :output_dir
+    command "GenerateView" do
+      attribute :view_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "DomainGemGenerator", definition: "Generates complete domain gem with gemspec and structure" do
 
-    GenerateDomainGem do
-      String :domain_id
-      String :output_dir
+    command "GenerateDomainGem" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SpecGenerator", definition: "Generates RSpec test files for domain constructs" do
 
-    GenerateSpec do
-      String :construct_id
-      String :output_dir
+    command "GenerateSpec" do
+      attribute :construct_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "PortGenerator", definition: "Generates port interface for aggregate persistence" do
 
-    GeneratePort do
-      String :aggregate_id
-      String :output_dir
+    command "GeneratePort" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "MemoryAdapterGenerator", definition: "Generates in-memory adapter for fast testing" do
 
-    GenerateMemoryAdapter do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateMemoryAdapter" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "AutoloadGenerator", definition: "Generates autoload manifest for domain gem modules" do
 
-    GenerateAutoload do
-      String :domain_id
-      String :output_dir
+    command "GenerateAutoload" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SinatraGenerator", definition: "Generates Sinatra server wrapper for domain" do
 
-    GenerateSinatra do
-      String :domain_id
-      String :output_dir
+    command "GenerateSinatra" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ConfigGenerator", definition: "Generates configuration initializer for domain" do
 
-    GenerateConfig do
-      String :domain_id
-      String :output_dir
+    command "GenerateConfig" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "LlmAggregateDescriber", definition: "Renders aggregate sections as plain text for llms.txt" do
 
-    Describe do
-      String :aggregate_id
+    command "Describe" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "LlmPolicyDescriber", definition: "Renders policies and reactive flows as plain text for llms.txt" do
 
-    Describe do
-      String :domain_id
+    command "Describe" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "LlmValidationDescriber", definition: "Renders validation rules and invariants as plain text for llms.txt" do
 
-    Describe do
-      String :aggregate_id
+    command "Describe" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "ConstructorGeneration", definition: "Generates initialize method with keyword args for aggregates" do
 
-    GenerateConstructor do
-      String :aggregate_id
+    command "GenerateConstructor" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "InvariantGeneration", definition: "Generates check_invariants! method for aggregate classes" do
 
-    GenerateInvariants do
-      String :aggregate_id
+    command "GenerateInvariants" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "ValidationGeneration", definition: "Generates validate! method for aggregate classes" do
 
-    GenerateValidations do
-      String :aggregate_id
+    command "GenerateValidations" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "OpenApiPathBuilder", definition: "Builds OpenAPI path entries from domain aggregates" do
 
-    BuildPaths do
-      String :aggregate_id
+    command "BuildPaths" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "OpenApiResponseHelpers", definition: "Shared OpenAPI response and parameter helpers" do
 
-    BuildResponse do
-      String :response_type
+    command "BuildResponse" do
+      attribute :response_type, String
     end
   end
 
   aggregate "OpenApiSchemaBuilder", definition: "Builds OpenAPI component schemas from domain aggregates" do
 
-    BuildSchema do
-      String :aggregate_id
+    command "BuildSchema" do
+      attribute :aggregate_id, String
     end
   end
 
   aggregate "SqlAdapterGenerator", definition: "Generates Sequel-based persistence adapter class" do
 
-    GenerateSqlAdapter do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateSqlAdapter" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "SqlMigrationGenerator", definition: "Generates SQL CREATE/ALTER TABLE migration files from domain diffs" do
 
-    GenerateSqlMigration do
-      String :domain_id
-      String :output_dir
+    command "GenerateSqlMigration" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "RailsGenerator", definition: "Generates a complete Rails app wired to the domain gem" do
 
-    GenerateRailsApp do
-      String :domain_id
-      String :output_dir
+    command "GenerateRailsApp" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "JsonSchemaGenerator", definition: "Generates JSON Schema for aggregate commands and value objects" do
 
-    GenerateJsonSchema do
-      String :aggregate_id
-      String :output_dir
+    command "GenerateJsonSchema" do
+      attribute :aggregate_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "OpenApiGenerator", definition: "Generates OpenAPI 3.0 spec with paths, request bodies, and schemas" do
 
-    GenerateOpenApi do
-      String :domain_id
-      String :output_dir
+    command "GenerateOpenApi" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "TypescriptGenerator", definition: "Generates TypeScript interfaces for aggregates, commands, and value objects" do
 
-    GenerateTypeScript do
-      String :domain_id
-      String :output_dir
+    command "GenerateTypeScript" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "RouteBuilder", definition: "Generates HTTP route definitions from domain commands and queries" do
 
-    BuildRoutes do
-      String :domain_id
+    command "BuildRoutes" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "RpcDiscovery", definition: "Generates machine-readable RPC manifest of commands and queries" do
 
-    GenerateRpcManifest do
-      String :domain_id
+    command "GenerateRpcManifest" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "CallPreservation", definition: "Preserves hand-written call method bodies during code regeneration" do
 
-    PreserveCalls do
-      String :source
-      String :generated
+    command "PreserveCalls" do
+      attribute :source, String
+      attribute :generated, String
     end
   end
 
   aggregate "PathTraversal", definition: "Validates output paths to prevent directory traversal attacks" do
 
-    ValidatePath do
-      String :path
+    command "ValidatePath" do
+      attribute :path, String
     end
   end
 
   aggregate "ExampleAppWriter", definition: "Writes example application demonstrating domain usage" do
 
-    WriteApp do
-      String :domain_id
-      String :output_dir
+    command "WriteApp" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "ExampleBluebookWriter", definition: "Writes example Bluebook DSL file for a domain" do
 
-    WriteBluebook do
-      String :domain_id
-      String :output_dir
+    command "WriteBluebook" do
+      attribute :domain_id, String
+      attribute :output_dir, String
     end
   end
 
   aggregate "DomainVisualizer", definition: "Orchestrates Mermaid diagram generation for a domain" do
 
-    VisualizeDomain do
-      String :domain_id
+    command "VisualizeDomain" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "DomainVisualizerMethods", definition: "Mixin extending Hecks with the visualize method" do
 
-    RegisterVisualizer do
-      String :domain_id
+    command "RegisterVisualizer" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "BehaviorDiagram", definition: "Generates Mermaid diagrams for command and event flows" do
 
-    GenerateBehaviorDiagram do
-      String :domain_id
+    command "GenerateBehaviorDiagram" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "PortDiagram", definition: "Generates Mermaid diagrams for ports and adapters" do
 
-    GeneratePortDiagram do
-      String :domain_id
+    command "GeneratePortDiagram" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "StructureDiagram", definition: "Generates Mermaid diagrams for aggregate structure" do
 
-    GenerateStructureDiagram do
-      String :domain_id
+    command "GenerateStructureDiagram" do
+      attribute :domain_id, String
     end
   end
 
   aggregate "DomainDiff", definition: "Diffs two domain IRs to produce a list of structural changes" do
 
-    DiffDomains do
-      String :old_domain_id
-      String :new_domain_id
+    command "DiffDomains" do
+      attribute :old_domain_id, String
+      attribute :new_domain_id, String
     end
   end
 
   aggregate "BehaviorDiff", definition: "Diffs behavior-level changes between domain versions" do
 
-    DiffBehaviors do
-      String :old_domain_id
-      String :new_domain_id
+    command "DiffBehaviors" do
+      attribute :old_domain_id, String
+      attribute :new_domain_id, String
     end
   end
 
   aggregate "DomainSnapshot", definition: "Saves and loads domain IR snapshots for migration diffing" do
 
-    SaveSnapshot do
-      String :domain_id
-      String :path
+    command "SaveSnapshot" do
+      attribute :domain_id, String
+      attribute :path, String
     end
 
-    LoadSnapshot do
-      String :path
+    command "LoadSnapshot" do
+      attribute :path, String
     end
   end
 
   aggregate "MigrationRunner", definition: "Applies migration files to update domain persistence" do
 
-    RunMigrations do
-      String :domain_id
-      String :path
+    command "RunMigrations" do
+      attribute :domain_id, String
+      attribute :path, String
     end
   end
 
   aggregate "MigrationStrategy", definition: "Base class for migration strategies (SQL, NoSQL, etc.)" do
 
-    ApplyStrategy do
-      String :migration_id
-      String :target
+    command "ApplyStrategy" do
+      attribute :migration_id, String
+      attribute :target, String
     end
   end
 

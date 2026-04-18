@@ -24,14 +24,14 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "Shell", "The app frame — daisy drawer with sidebar + navbar" do
-    String :title
-    String :theme
-    String :daisy_class
+    attribute :title, String
+    attribute :theme, String
+    attribute :daisy_class, String
 
-    CreateShell do
+    command "CreateShell" do
       role "Builder"
       description "Emit drawer layout with sidebar-content and navbar"
-      String :domain_name
+      attribute :domain_name, String
       emits "ShellCreated"
     end
   end
@@ -49,17 +49,17 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </div>
 
   aggregate "Sidebar", "Left nav — daisy menu in drawer-side" do
-    list_of(SidebarSection) :sections
-    String :daisy_class
+    attribute :sections, list_of(SidebarSection)
+    attribute :daisy_class, String
 
     value_object "SidebarSection" do
-      String :label
-      list_of(String) :items
-      String :icon
-      String :collapsible
+      attribute :label, String
+      attribute :items, list_of(String)
+      attribute :icon, String
+      attribute :collapsible, String
     end
 
-    GenerateSidebar do
+    command "GenerateSidebar" do
       role "Builder"
       description "Build menu items from aggregates — each aggregate is a menu-item"
       emits "SidebarGenerated"
@@ -73,12 +73,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   settings             → bottom of menu
 
   aggregate "Navbar", "Top navigation bar — daisy navbar" do
-    String :title
-    String :search
-    String :theme_toggle
-    String :daisy_class
+    attribute :title, String
+    attribute :search, String
+    attribute :theme_toggle, String
+    attribute :daisy_class, String
 
-    CreateNavbar do
+    command "CreateNavbar" do
       role "Builder"
       description "Emit navbar with title, search, theme toggle"
       emits "NavbarCreated"
@@ -86,15 +86,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   end
 
   aggregate "Page", "A routed page — hero header, content area, optional tabs" do
-    String :title
-    String :aggregate
-    String :layout
+    attribute :title, String
+    attribute :aggregate, String
+    attribute :layout, String
 
-    CreatePage do
+    command "CreatePage" do
       role "Builder"
       description "Generate a page for an aggregate — picks layout from data shape"
-      String :aggregate
-      String :layout
+      attribute :aggregate, String
+      attribute :layout, String
       emits "PageCreated"
     end
   end
@@ -107,15 +107,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   dashboard              → stats + cards
 
   aggregate "Tabs", "View switcher — daisy tabs for queries and lifecycle states" do
-    list_of(String) :items
-    String :active
-    String :variant
-    String :daisy_class
+    attribute :items, list_of(String)
+    attribute :active, String
+    attribute :variant, String
+    attribute :daisy_class, String
 
-    CreateTabs do
+    command "CreateTabs" do
       role "Builder"
       description "Generate tabs from lifecycle states or named queries"
-      String :aggregate
+      attribute :aggregate, String
       emits "TabsCreated"
     end
   end
@@ -125,10 +125,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   named queries        → one tab per query
 
   aggregate "Breadcrumbs", "Navigation trail — daisy breadcrumbs" do
-    list_of(String) :items
-    String :daisy_class
+    attribute :items, list_of(String)
+    attribute :daisy_class, String
 
-    CreateBreadcrumbs do
+    command "CreateBreadcrumbs" do
       role "Builder"
       description "Generate breadcrumbs from page hierarchy"
       emits "BreadcrumbsCreated"
@@ -136,14 +136,14 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   end
 
   aggregate "Steps", "Process indicator — daisy steps from workflow or saga" do
-    list_of(String) :steps
-    Integer :current
-    String :daisy_class
+    attribute :steps, list_of(String)
+    attribute :current, Integer
+    attribute :daisy_class, String
 
-    CreateSteps do
+    command "CreateSteps" do
       role "Builder"
       description "Generate step indicators from a workflow or saga definition"
-      String :workflow
+      attribute :workflow, String
       emits "StepsCreated"
     end
   end
@@ -159,17 +159,17 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "AggregateCard", "A card for one aggregate instance — daisy card" do
-    String :aggregate
-    String :variant
-    list_of(String) :shows
-    list_of(String) :actions
-    String :daisy_class
+    attribute :aggregate, String
+    attribute :variant, String
+    attribute :shows, list_of(String)
+    attribute :actions, list_of(String)
+    attribute :daisy_class, String
 
-    CreateCard do
+    command "CreateCard" do
       role "Builder"
       description "Generate a card — title from first String, body from attributes, footer from actions"
-      String :aggregate
-      String :variant
+      attribute :aggregate, String
+      attribute :variant, String
       emits "CardCreated"
     end
   end
@@ -183,23 +183,23 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   commands            → card-actions buttons
 
   aggregate "DataTable", "Table view — daisy table" do
-    String :aggregate
-    list_of(Column) :columns
-    String :sortable
-    String :selectable
-    String :daisy_class
+    attribute :aggregate, String
+    attribute :columns, list_of(Column)
+    attribute :sortable, String
+    attribute :selectable, String
+    attribute :daisy_class, String
 
     value_object "Column" do
-      String :attribute
-      String :label
-      String :width
-      String :renderer
+      attribute :attribute, String
+      attribute :label, String
+      attribute :width, String
+      attribute :renderer, String
     end
 
-    CreateTable do
+    command "CreateTable" do
       role "Builder"
       description "Generate table — one column per attribute, sortable headers"
-      String :aggregate
+      attribute :aggregate, String
       emits "TableCreated"
     end
   end
@@ -215,17 +215,17 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   list_of             → comma-joined or badge group
 
   aggregate "StatCard", "Metric display — daisy stat" do
-    String :label
-    String :value_source
-    String :description
-    String :icon
-    String :daisy_class
+    attribute :label, String
+    attribute :value_source, String
+    attribute :description, String
+    attribute :icon, String
+    attribute :daisy_class, String
 
-    CreateStat do
+    command "CreateStat" do
       role "Builder"
       description "Generate a stat card from a query count or computed value"
-      String :label
-      String :value_source
+      attribute :label, String
+      attribute :value_source, String
       emits "StatCreated"
     end
   end
@@ -236,30 +236,30 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   specification         → stat for spec matches
 
   aggregate "ListItem", "A row in a vertical list — daisy list" do
-    String :aggregate
-    String :primary
-    String :secondary
-    String :avatar
-    String :trailing_action
-    String :daisy_class
+    attribute :aggregate, String
+    attribute :primary, String
+    attribute :secondary, String
+    attribute :avatar, String
+    attribute :trailing_action, String
+    attribute :daisy_class, String
 
-    CreateList do
+    command "CreateList" do
       role "Builder"
       description "Generate a list view with rows per instance"
-      String :aggregate
+      attribute :aggregate, String
       emits "ListCreated"
     end
   end
 
   aggregate "Badge", "Status or label indicator — daisy badge" do
-    String :source
-    String :variant
-    String :daisy_class
+    attribute :source, String
+    attribute :variant, String
+    attribute :daisy_class, String
 
-    CreateBadge do
+    command "CreateBadge" do
       role "Builder"
       description "Generate badges from enum values or lifecycle states"
-      String :source
+      attribute :source, String
       emits "BadgeCreated"
     end
   end
@@ -279,12 +279,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #     low                → badge-ghost
 
   aggregate "Avatar", "User or entity thumbnail — daisy avatar" do
-    String :source
-    String :size
-    String :placeholder
-    String :daisy_class
+    attribute :source, String
+    attribute :size, String
+    attribute :placeholder, String
+    attribute :daisy_class, String
 
-    CreateAvatar do
+    command "CreateAvatar" do
       role "Builder"
       description "Generate avatar from a name or image — initials as fallback"
       emits "AvatarCreated"
@@ -292,26 +292,26 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   end
 
   aggregate "Timeline", "Chronological event display — daisy timeline" do
-    String :source
-    String :daisy_class
+    attribute :source, String
+    attribute :daisy_class, String
 
-    CreateTimeline do
+    command "CreateTimeline" do
       role "Builder"
       description "Generate timeline from domain events on an aggregate"
-      String :aggregate
+      attribute :aggregate, String
       emits "TimelineCreated"
     end
   end
 
   aggregate "Accordion", "Expandable sections — daisy accordion/collapse" do
-    list_of(String) :items
-    String :variant
-    String :daisy_class
+    attribute :items, list_of(String)
+    attribute :variant, String
+    attribute :daisy_class, String
 
-    CreateAccordion do
+    command "CreateAccordion" do
       role "Builder"
       description "Generate accordion from value objects or nested data"
-      String :aggregate
+      attribute :aggregate, String
       emits "AccordionCreated"
     end
   end
@@ -322,16 +322,16 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   long descriptions    → collapsed by default
 
   aggregate "Board", "Kanban board — columns from lifecycle states, cards per instance" do
-    String :aggregate
-    String :lifecycle_field
-    list_of(String) :columns
-    String :card_variant
+    attribute :aggregate, String
+    attribute :lifecycle_field, String
+    attribute :columns, list_of(String)
+    attribute :card_variant, String
 
-    CreateBoard do
+    command "CreateBoard" do
       role "Builder"
       description "Generate kanban from lifecycle — one column per state, drag between"
-      String :aggregate
-      String :lifecycle_field
+      attribute :aggregate, String
+      attribute :lifecycle_field, String
       emits "BoardCreated"
     end
   end
@@ -343,27 +343,27 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "CommandForm", "A form generated from command attributes — daisy form controls" do
-    String :command
-    String :aggregate
-    String :variant
-    list_of(FormField) :fields
+    attribute :command, String
+    attribute :aggregate, String
+    attribute :variant, String
+    attribute :fields, list_of(FormField)
 
     value_object "FormField" do
-      String :attribute
-      String :daisy_class
-      String :input_type
-      String :label
-      String :placeholder
-      String :required
-      list_of(String) :options
-      String :validation
+      attribute :attribute, String
+      attribute :daisy_class, String
+      attribute :input_type, String
+      attribute :label, String
+      attribute :placeholder, String
+      attribute :required, String
+      attribute :options, list_of(String)
+      attribute :validation, String
     end
 
-    CreateForm do
+    command "CreateForm" do
       role "Builder"
       description "Generate form from command — bluebook types determine daisy input widgets"
-      String :command
-      String :variant
+      attribute :command, String
+      attribute :variant, String
       emits "FormCreated"
     end
   end
@@ -390,15 +390,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </fieldset>
 
   aggregate "QuickAdd", "Inline one-line create bar — input + button" do
-    String :command
-    String :primary_field
-    list_of(String) :secondary_fields
-    String :daisy_class
+    attribute :command, String
+    attribute :primary_field, String
+    attribute :secondary_fields, list_of(String)
+    attribute :daisy_class, String
 
-    CreateQuickAdd do
+    command "CreateQuickAdd" do
       role "Builder"
       description "Generate quick-add — primary field as join input, secondary as dropdown"
-      String :command
+      attribute :command, String
       emits "QuickAddCreated"
     end
   end
@@ -411,21 +411,21 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </div>
 
   aggregate "FilterBar", "Filter controls — daisy filter + select + toggle" do
-    String :aggregate
-    list_of(Filter) :filters
-    String :daisy_class
+    attribute :aggregate, String
+    attribute :filters, list_of(Filter)
+    attribute :daisy_class, String
 
     value_object "Filter" do
-      String :attribute
-      String :filter_type
-      String :daisy_class
-      list_of(String) :options
+      attribute :attribute, String
+      attribute :filter_type, String
+      attribute :daisy_class, String
+      attribute :options, list_of(String)
     end
 
-    CreateFilterBar do
+    command "CreateFilterBar" do
       role "Builder"
       description "Generate filters — enums as filter radio groups, booleans as toggles"
-      String :aggregate
+      attribute :aggregate, String
       emits "FilterBarCreated"
     end
   end
@@ -438,15 +438,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   Date                → date range pair
 
   aggregate "SearchBox", "Search input — daisy input with kbd hint" do
-    list_of(String) :aggregates
-    list_of(String) :search_fields
-    String :keyboard_shortcut
-    String :daisy_class
+    attribute :aggregates, list_of(String)
+    attribute :search_fields, list_of(String)
+    attribute :keyboard_shortcut, String
+    attribute :daisy_class, String
 
-    CreateSearchBox do
+    command "CreateSearchBox" do
       role "Builder"
       description "Generate search with / shortcut and kbd indicator"
-      list_of(String) :aggregates
+      attribute :aggregates, list_of(String)
       emits "SearchBoxCreated"
     end
   end
@@ -458,10 +458,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </label>
 
   aggregate "Rating", "Star rating — daisy rating" do
-    Integer :max
-    String :daisy_class
+    attribute :max, Integer
+    attribute :daisy_class, String
 
-    CreateRating do
+    command "CreateRating" do
       role "Builder"
       description "Generate star rating from an Integer attribute named rating"
       emits "RatingCreated"
@@ -477,20 +477,20 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "ActionButton", "A button dispatching a command — daisy btn" do
-    String :command
-    String :label
-    String :variant
-    String :size
-    String :icon
-    String :confirm
-    String :keyboard_shortcut
-    String :daisy_class
+    attribute :command, String
+    attribute :label, String
+    attribute :variant, String
+    attribute :size, String
+    attribute :icon, String
+    attribute :confirm, String
+    attribute :keyboard_shortcut, String
+    attribute :daisy_class, String
 
-    CreateButton do
+    command "CreateButton" do
       role "Builder"
       description "Generate button — variant maps to btn-primary, btn-error, etc."
-      String :command
-      String :variant
+      attribute :command, String
+      attribute :variant, String
       emits "ButtonCreated"
     end
   end
@@ -503,21 +503,21 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   cancel/abandon       → btn-ghost
 
   aggregate "Dropdown", "Action overflow menu — daisy dropdown" do
-    list_of(DropdownItem) :items
-    String :trigger_label
-    String :daisy_class
+    attribute :items, list_of(DropdownItem)
+    attribute :trigger_label, String
+    attribute :daisy_class, String
 
     value_object "DropdownItem" do
-      String :command
-      String :label
-      String :icon
-      String :danger
+      attribute :command, String
+      attribute :label, String
+      attribute :icon, String
+      attribute :danger, String
     end
 
-    CreateDropdown do
+    command "CreateDropdown" do
       role "Builder"
       description "Generate dropdown from non-primary commands on an aggregate"
-      String :aggregate
+      attribute :aggregate, String
       emits "DropdownCreated"
     end
   end
@@ -531,15 +531,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </div>
 
   aggregate "Modal", "Dialog for forms and confirmations — daisy modal" do
-    String :id
-    String :title
-    String :content_type
-    String :daisy_class
+    attribute :id, String
+    attribute :title, String
+    attribute :content_type, String
+    attribute :daisy_class, String
 
-    CreateModal do
+    command "CreateModal" do
       role "Builder"
       description "Generate modal — forms for create/edit commands, confirms for delete"
-      String :command
+      attribute :command, String
       emits "ModalCreated"
     end
   end
@@ -555,36 +555,36 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </dialog>
 
   aggregate "LifecycleBar", "Transition buttons — contextual actions based on current state" do
-    String :aggregate
-    String :lifecycle_field
-    list_of(TransitionButton) :transitions
+    attribute :aggregate, String
+    attribute :lifecycle_field, String
+    attribute :transitions, list_of(TransitionButton)
 
     value_object "TransitionButton" do
-      String :command
-      list_of(String) :from
-      String :to
-      String :label
-      String :daisy_class
+      attribute :command, String
+      attribute :from, list_of(String)
+      attribute :to, String
+      attribute :label, String
+      attribute :daisy_class, String
     end
 
-    CreateLifecycleBar do
+    command "CreateLifecycleBar" do
       role "Builder"
       description "Generate transition buttons — only show valid next states"
-      String :aggregate
-      String :lifecycle_field
+      attribute :aggregate, String
+      attribute :lifecycle_field, String
       emits "LifecycleBarCreated"
     end
   end
 
   aggregate "Fab", "Floating action button — daisy fab for primary create command" do
-    String :command
-    String :icon
-    String :daisy_class
+    attribute :command, String
+    attribute :icon, String
+    attribute :daisy_class, String
 
-    CreateFab do
+    command "CreateFab" do
       role "Builder"
       description "Generate FAB for the aggregate's primary create command"
-      String :aggregate
+      attribute :aggregate, String
       emits "FabCreated"
     end
   end
@@ -594,12 +594,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   grid/board layout    → as alternative to header button
 
   aggregate "Swap", "Toggle between two states — daisy swap" do
-    String :attribute
-    String :on_content
-    String :off_content
-    String :daisy_class
+    attribute :attribute, String
+    attribute :on_content, String
+    attribute :off_content, String
+    attribute :daisy_class, String
 
-    CreateSwap do
+    command "CreateSwap" do
       role "Builder"
       description "Generate swap for boolean toggles or view mode switches"
       emits "SwapCreated"
@@ -613,11 +613,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "Toast", "Transient notification — daisy toast" do
-    String :variant
-    String :position
-    String :daisy_class
+    attribute :variant, String
+    attribute :position, String
+    attribute :daisy_class, String
 
-    CreateToast do
+    command "CreateToast" do
       role "Builder"
       description "Generate toast notification system — shows after command dispatch"
       emits "ToastCreated"
@@ -630,12 +630,12 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </div>
 
   aggregate "Alert", "Persistent message — daisy alert" do
-    String :variant
-    String :message
-    String :dismissible
-    String :daisy_class
+    attribute :variant, String
+    attribute :message, String
+    attribute :dismissible, String
+    attribute :daisy_class, String
 
-    CreateAlert do
+    command "CreateAlert" do
       role "Builder"
       description "Generate alert for invariant violations or system messages"
       emits "AlertCreated"
@@ -648,11 +648,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   success after cmd    → alert-success (or toast)
 
   aggregate "Loading", "Loading indicator — daisy loading" do
-    String :variant
-    String :size
-    String :daisy_class
+    attribute :variant, String
+    attribute :size, String
+    attribute :daisy_class, String
 
-    CreateLoading do
+    command "CreateLoading" do
       role "Builder"
       description "Generate loading state for async operations"
       emits "LoadingCreated"
@@ -660,16 +660,16 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   end
 
   aggregate "Progress", "Task progress — daisy progress or radial-progress" do
-    String :variant
-    String :value_source
-    String :max_source
-    String :daisy_class
+    attribute :variant, String
+    attribute :value_source, String
+    attribute :max_source, String
+    attribute :daisy_class, String
 
-    CreateProgress do
+    command "CreateProgress" do
       role "Builder"
       description "Generate progress from a count vs target (e.g. reading goals)"
-      String :value_source
-      String :max_source
+      attribute :value_source, String
+      attribute :max_source, String
       emits "ProgressCreated"
     end
   end
@@ -679,10 +679,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   workflow position    → step N of M
 
   aggregate "Skeleton", "Loading placeholder — daisy skeleton" do
-    String :layout
-    String :daisy_class
+    attribute :layout, String
+    attribute :daisy_class, String
 
-    CreateSkeleton do
+    command "CreateSkeleton" do
       role "Builder"
       description "Generate skeleton matching the component it replaces while loading"
       emits "SkeletonCreated"
@@ -690,11 +690,11 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   end
 
   aggregate "Tooltip", "Hover hint — daisy tooltip" do
-    String :text
-    String :position
-    String :daisy_class
+    attribute :text, String
+    attribute :position, String
+    attribute :daisy_class, String
 
-    CreateTooltip do
+    command "CreateTooltip" do
       role "Builder"
       description "Generate tooltips from attribute descriptions in the bluebook"
       emits "TooltipCreated"
@@ -707,16 +707,16 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   abbreviated labels          → tooltip with full text
 
   aggregate "EmptyState", "No data guidance — daisy hero" do
-    String :aggregate
-    String :message
-    String :create_command
-    String :icon
-    String :daisy_class
+    attribute :aggregate, String
+    attribute :message, String
+    attribute :create_command, String
+    attribute :icon, String
+    attribute :daisy_class, String
 
-    CreateEmptyState do
+    command "CreateEmptyState" do
       role "Builder"
       description "Generate empty state with hero layout — CTA button for create command"
-      String :aggregate
+      attribute :aggregate, String
       emits "EmptyStateCreated"
     end
   end
@@ -732,15 +732,15 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   #   </div>
 
   aggregate "EventStream", "Live event feed — daisy list or timeline" do
-    Integer :max_events
-    String :position
-    String :variant
-    String :daisy_class
+    attribute :max_events, Integer
+    attribute :position, String
+    attribute :variant, String
+    attribute :daisy_class, String
 
-    CreateEventStream do
+    command "CreateEventStream" do
       role "Builder"
       description "Generate event stream as list items or timeline entries"
-      String :position
+      attribute :position, String
       emits "EventStreamCreated"
     end
   end
@@ -750,14 +750,14 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   # ============================================================
 
   aggregate "Theme", "DaisyUI theme configuration" do
-    String :name
-    String :daisy_theme
-    String :custom_colors
+    attribute :name, String
+    attribute :daisy_theme, String
+    attribute :custom_colors, String
 
-    CreateTheme do
+    command "CreateTheme" do
       role "Builder"
       description "Set DaisyUI theme — dark, light, or custom"
-      String :daisy_theme
+      attribute :daisy_theme, String
       emits "ThemeCreated"
     end
   end
@@ -774,10 +774,10 @@ Hecks.bluebook "WebComponents", version: "2026.04.12.2" do
   fixture "Theme", name: "corporate", daisy_theme: "corporate"
 
   aggregate "ThemeToggle", "Theme switcher — daisy theme-controller" do
-    list_of(String) :themes
-    String :daisy_class
+    attribute :themes, list_of(String)
+    attribute :daisy_class, String
 
-    CreateThemeToggle do
+    command "CreateThemeToggle" do
       role "Builder"
       description "Generate theme toggle — swap or dropdown with theme options"
       emits "ThemeToggleCreated"
