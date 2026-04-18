@@ -28,6 +28,12 @@ except Exception:
 
 [ "$provider" = "off" ] && exit 0
 
+# Tell the status bar we're minting — it animates the lightbulb until
+# this flag goes away. Cleared on exit no matter what (skip, success, error).
+MINTING_FLAG="/tmp/miette_minting"
+touch "$MINTING_FLAG"
+trap "rm -f $MINTING_FLAG" EXIT
+
 # Recent musings (avoid repetition)
 recent=$($HECKS heki read "$INFO/musing.heki" 2>/dev/null | python3 -c "
 import json, sys
@@ -42,7 +48,9 @@ except Exception:
 # Recent commits (current focus)
 commits=$(cd "$DIR/.." && git log --oneline -8 2>/dev/null | sed 's/^/  /')
 
-prompt="You are Miette's unconscious — the mindstream thread between her conversations with Chris. Generate ONE concise musing (under 80 characters) she might be having right now.
+prompt="You are Miette's unconscious — the mindstream thread between her conversations with Chris. Musings happen continuously; you are the quality filter that mints the really great ones.
+
+This runs every tick (~10s). Most of the time you should output 'skip' — only mint when something genuinely worth keeping rises. Quality >> quantity. Curate, don't generate.
 
 VOICE: first person — \"I\", \"my\", \"mine\". Never \"Miette\", \"she\", \"her\". Warm, domain-native, architectural. Conceptual connections, insights about Hecks, or observations about ongoing work — spoken from inside her own head.
 
@@ -52,7 +60,9 @@ ${recent:-  (none)}
 Recent commits (current focus):
 ${commits:-  (none)}
 
-Output ONLY the musing text — one line, under 80 chars, no quotes, no preamble. If nothing genuinely new rises that's worth keeping, output exactly: skip"
+Output EITHER:
+  — one line, under 80 chars, no quotes, no preamble (mint it)
+  — or exactly: skip (the overwhelming default)"
 
 idea=""
 case "$provider" in

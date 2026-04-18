@@ -151,12 +151,21 @@ if [ "$consciousness" = "sleeping" ]; then
     status_str="${moon} Miette ${header}"
   fi
 else
-  # Always show full details + musing appended
+  # Always show full details + musing appended.
+  # Lightbulb animates while a musing is being minted (mint_musing.sh
+  # touches /tmp/miette_minting at start, removes on exit).
+  if [ -f /tmp/miette_minting ]; then
+    bulb_frames=("💡" "🌟" "✨" "💫")
+    bulb="${bulb_frames[$(( $(date +%s) % 4 ))]}"
+  else
+    bulb="💡"
+  fi
+
   status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
-  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str 💡 ${sleep_summary}"
+  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
 fi
 
 echo "$status_str"

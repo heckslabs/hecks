@@ -133,14 +133,17 @@ except Exception:
       "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
     fi
 
-    # Mint a curated musing every 30 ticks (~5 min) — backgrounded so the
-    # tick loop stays snappy. Provider is read from ClaudeAssist:
+    # Musings happen continuously — the mint process runs every tick,
+    # backgrounded so the loop stays snappy. Claude sees current state
+    # + recent musings + recent commits, and EITHER mints one good new
+    # musing OR returns "skip". Most ticks return skip; that's the point.
+    # The stream runs always; only the great ones land.
+    #
+    # Provider selected by ClaudeAssist:
     #   "claude" (default) — Anthropic API if ANTHROPIC_API_KEY set, else `claude -p` CLI
     #   "local"            — ollama (model + url from world.hec)
-    #   "off"              — skip
-    if [ "$((RANDOM % 30))" = "0" ]; then
-      "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
-    fi
+    #   "off"              — no minting
+    "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
   fi
 
   sleep 10
